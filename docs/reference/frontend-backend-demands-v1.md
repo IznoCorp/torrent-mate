@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 103 |
-| operations v1 serves | 12 |
-| required and not served | 91 |
+| operations v1 serves | 13 |
+| required and not served | 90 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -43,7 +43,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `DELETE /api/v1/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
 | `DELETE /api/v1/acquisition/followed/{followedId}` | `deleteFollow` | Stop following |
 | `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete media from the library, by provider identity |
-| `DELETE /api/v1/roles/{roleId}` | `deleteRole` | Delete a role nobody holds |
 | `DELETE /api/v1/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/v1/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
 | `DELETE /api/v1/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |

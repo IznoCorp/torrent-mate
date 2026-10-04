@@ -130,7 +130,7 @@ _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 
 
 @pytest.fixture(autouse=True)
-def _tmp_dirs_count_as_mounted(request: pytest.FixtureRequest) -> Iterator[None]:
+def _tmp_dirs_count_as_mounted(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Let a ``tmp_path`` folder stand for a mounted disk, unless the test says otherwise.
 
     The disk-presence predicate refuses a folder whose volume is the root filesystem,
@@ -141,15 +141,15 @@ def _tmp_dirs_count_as_mounted(request: pytest.FixtureRequest) -> Iterator[None]
 
     Args:
         request: The pytest request, read for the ``real_mount_check`` marker.
-
-    Yields:
-        None, with the seam patched for the duration of the test.
+        monkeypatch: The test's own monkeypatch. The seam is set through it, not through a
+            ``patch`` context of this fixture: a test that patches the same seam with
+            ``monkeypatch`` is undone by the same stack, in reverse order. With a separate
+            ``patch`` context the fixture exits first and the test's undo then puts the
+            fixture's « yes » back, which leaks to the next test on the worker.
     """
     if request.node.get_closest_marker("real_mount_check"):
-        yield
         return
-    with patch("personalscraper.core.sqlite._fs_probe._is_mount_root", return_value=True):
-        yield
+    monkeypatch.setattr("personalscraper.core.sqlite._fs_probe._is_mount_root", lambda path: True)
 
 
 @pytest.fixture(autouse=True)

@@ -275,7 +275,7 @@ class TestSignIn:
         assert body["signInKind"] == "local"
         cookie = _cookie(response.headers["set-cookie"])[SESSION_COOKIE]
         assert cookie["httponly"] is True
-        assert cookie["samesite"] == "strict"
+        assert cookie["samesite"] == "lax"
         assert cookie["path"] == "/"
         assert bool(cookie["secure"]) is client.app.state.config.web.cookie_secure  # type: ignore[attr-defined]
         assert cookie.value not in response.text
@@ -461,7 +461,7 @@ def _with_password(client: TestClient) -> str:
 class TestChangeOwnPassword:
     """``PUT /auth/password`` — ``changeOwnPassword``, a local account's own password."""
 
-    _NEW = "a brand new passphrase"
+    _NEW = "A brand-new passphrase 7"
 
     def test_changes_it_and_ends_the_other_sessions(self, v1_client: Callable[..., TestClient]) -> None:
         """200 ``{"ok": true}``; the new password signs in, the old does not; the caller's session stays, others end."""
@@ -534,6 +534,17 @@ class TestChangeOwnPassword:
         assert response.json()["code"] == "password.too_short"
         assert response.json()["params"] == {"minimum": PASSWORD_MINIMUM}
 
+    def test_a_weak_new_password_is_too_weak(self, v1_client: Callable[..., TestClient]) -> None:
+        """400 ``password.too_weak`` with ``params.minimum``; the weak password not echoed."""
+        client = v1_client(role="local-guest")
+        _with_password(client)
+        weak = "a brand-new passphrase"
+        response = client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": weak})
+        assert response.status_code == 400
+        assert response.json()["code"] == "password.too_weak"
+        assert response.json()["params"] == {"minimum": PASSWORD_MINIMUM}
+        assert weak not in response.text
+
     def test_the_sixth_wrong_current_password_is_rate_limited(self, v1_client: Callable[..., TestClient]) -> None:
         """Five wrong current passwords: the sixth attempt is 429 ``auth.rate_limited``, the right one included."""
         client = v1_client(role="local-guest")
@@ -598,7 +609,7 @@ class TestCookie:
 
     @pytest.mark.parametrize("secure", [True, False])
     def test_set_carries_the_attributes(self, secure: bool) -> None:
-        """``HttpOnly``, ``SameSite=Strict``, ``Path=/``, ``Max-Age`` = the TTL, ``Secure`` per ``cookie_secure``."""
+        """``HttpOnly``, ``SameSite=Lax``, ``Path=/``, ``Max-Age`` = the TTL, ``Secure`` per ``cookie_secure``."""
         web = WebConfig(cookie_secure=secure, session_ttl_hours=3)
         response = Response()
         set_session_cookie(response, "value", web)
@@ -606,7 +617,7 @@ class TestCookie:
         cookie = _cookie(header)[SESSION_COOKIE]
         assert cookie.value == "value"
         assert cookie["httponly"] is True
-        assert cookie["samesite"] == "strict"
+        assert cookie["samesite"] == "lax"
         assert cookie["path"] == "/"
         assert cookie["max-age"] == str(3 * 3600)
         assert bool(cookie["secure"]) is secure
@@ -653,9 +664,25 @@ class TestCookie:
         assert cookie.value == ""
         assert cookie["max-age"] == "0"
         assert cookie["httponly"] is True
-        assert cookie["samesite"] == "strict"
+        assert cookie["samesite"] == "lax"
         assert cookie["path"] == "/"
         assert bool(cookie["secure"]) is secure
+
+    @pytest.mark.parametrize("origin", ["https://evil.example", "null"], ids=["other-site", "opaque"])
+    def test_lax_keeps_the_origin_check_as_the_csrf_guard(
+        self, v1_client: Callable[..., TestClient], origin: str
+    ) -> None:
+        """Under ``SameSite=Lax`` a write carrying the session from another origin is still 403, nothing written."""
+        client = v1_client(role="admin")
+        roles_before = client.get("/accounts").json()["roles"]
+
+        created = client.post("/roles", json={"name": "Forged", "rights": []}, headers={"Origin": origin})
+        deleted = client.delete("/roles/requester", headers={"Origin": origin})
+
+        for response in (created, deleted):
+            assert response.status_code == 403
+            assert response.json()["code"] == "request.cross_origin"
+        assert client.get("/accounts").json()["roles"] == roles_before
 
     def test_the_name_is_v1s_own(self) -> None:
         """Never v0's ``tm_session``."""

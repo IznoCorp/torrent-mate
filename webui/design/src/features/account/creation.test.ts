@@ -47,8 +47,12 @@ describe("deletable", () => {
   });
 
   it("never on a role a newcomer starts on, even held by nobody (ruling A)", () => {
-    const nobodyOnLocal = roster(undefined, [[ACCOUNT.id, "admin"]]);
-    expect(deletable(role("local-guest"), nobodyOnLocal, ADMIN)).toBe(false);
+    const nobodyOnPlexGuest = roster(undefined, [[ACCOUNT.id, "admin"]]);
+    expect(deletable(role("plex-guest"), nobodyOnPlexGuest, ADMIN)).toBe(false);
+  });
+
+  it("offers Delete on « local-guest » held by nobody: no newcomer starts on it any more", () => {
+    expect(deletable(role("local-guest"), roster(undefined, [[ACCOUNT.id, "admin"]]), ADMIN)).toBe(true);
   });
 
   it("never on the Admin role", () => {

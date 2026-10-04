@@ -9,10 +9,13 @@
 // ITS OWN FORM, with its outcome said inside the panel rather than in a toast
 // that leaves: the Admin must read that the password is set before telling it
 // to the account's holder. Sent now or not at all (`send-now.ts`), and the
-// refusal said from `fr.json` by its code (gap G-1).
+// refusal said from `fr.json` by its code (gap G-1). THE PASSWORD POLICY (the
+// operator, 2026-10-04) is said under the field, and a password breaking it is
+// said before anything is asked.
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { PASSWORD_MINIMUM, passwordShortfall } from "../../lib/password-policy";
 import { refusalWords } from "../../lib/refusal";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { actionButton, guidance, surfaceError } from "../../ui/variants";
@@ -42,6 +45,9 @@ function AccountPasswordBlock({ block }: { block: { type: "accountPassword" } & 
     event.preventDefault();
     const form = event.currentTarget;
     const password = String(new FormData(form).get("provisionalPassword") ?? "");
+    const shortfall = password ? passwordShortfall(password) : undefined;
+    if (shortfall !== undefined)
+      return setOutcome({ kind: "refused", words: t(`refusals.${shortfall}`, { minimum: PASSWORD_MINIMUM }) });
     setOutcome({ kind: "sending" });
     const problem = await sendNow("POST", `/api/v1/accounts/${encodeURIComponent(block.account)}/password`, { password });
     if (problem === null) {
@@ -63,6 +69,7 @@ function AccountPasswordBlock({ block }: { block: { type: "accountPassword" } & 
         {t("screens.accounts.reset.field")}
         <input className={accountField()} name="provisionalPassword" type="password" autoComplete="new-password" required />
       </label>
+      <p className={guidance()} data-part="accounts/password-rule">{t("common.passwordRule", { minimum: PASSWORD_MINIMUM })}</p>
       <p className={guidance()}>{t("screens.accounts.reset.hint")}</p>
       {outcome.kind === "refused" ? (
         <p className={surfaceError({ tone: "danger" })} role="status" data-part="accounts/password-reset-refusal">{outcome.words}</p>

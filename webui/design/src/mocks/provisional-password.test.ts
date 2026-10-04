@@ -29,29 +29,29 @@ function post(path: string, body: Record<string, unknown>): Answer {
   return found.route.handle({ path, parameters: found.parameters, query: new URLSearchParams(), body }) as Answer;
 }
 
-const LONG = "a provisional one";
+const LONG = "A provisional one 1!";
 
 describe("a local account's provisional password", () => {
   beforeEach(() => resetMockState());
 
   it("is required when a local account is created", () => {
-    const answer = post("/accounts", { name: "Nina", email: "nina@example.invalid" });
+    const answer = post("/accounts", { name: "Nina", email: "nina@example.invalid", role: "local-guest" });
     expect([answer.status, answer.coded?.code]).toEqual([400, "password.required"]);
   });
 
   it("is refused shorter than the minimum, which the refusal names", () => {
-    const answer = post("/accounts", { name: "Nina", email: "nina@example.invalid", password: "court" }); // french-ok: a typed password
+    const answer = post("/accounts", { name: "Nina", email: "nina@example.invalid", role: "local-guest", password: "court" }); // french-ok: a typed password
     expect([answer.status, answer.coded?.code]).toEqual([400, "password.too_short"]);
     expect(answer.coded?.params).toEqual({ minimum: ACCOUNTS.passwordMinimum });
   });
 
   it("creates a local account when given", () => {
-    const answer = post("/accounts", { name: "Nina", email: "nina@example.invalid", password: LONG });
+    const answer = post("/accounts", { name: "Nina", email: "nina@example.invalid", role: "local-guest", password: LONG });
     expect(answer.signInKind).toBe("local");
   });
 
   it("is not asked of an e-mail the server links to Plex", () => {
-    const answer = post("/accounts", { name: "Maya", email: ACCOUNTS.plexUsers[0] });
+    const answer = post("/accounts", { name: "Maya", email: ACCOUNTS.plexUsers[0], role: "local-guest" });
     expect(answer.signInKind).toBe("plex");
   });
 });
@@ -76,6 +76,11 @@ describe("a provisional password reset", () => {
   });
 
   it("never touches the owner's fallback password, nor a Plex-linked account", () => {
+    // ASKED BY A SECOND ADMIN: the owner naming its own account is refused
+    // earlier, `password.reset_own` — the owner's leg in `accounts-rules.test.ts`
+    // (« an Admin's own password »).
+    identityDials.setAccountRole("local-account", "admin");
+    identityDials.setIdentity("local-account");
     const owner = post("/accounts/izno/password", { password: LONG });
     expect([owner.status, owner.coded?.code]).toEqual([403, "password.held_by_cli"]);
     const linked = post("/accounts/household-member/password", { password: LONG });

@@ -124,7 +124,7 @@
       },
       "CreateAccountBody": {
         "additionalProperties": false,
-        "description": "``createAccount``'s body.\n\nAttributes:\n    name: The display name.\n    email: The e-mail, every account's login.\n    role: The role it starts on; absent for the role local accounts start on.\n    password: The provisional password; only its hash is kept.",
+        "description": "``createAccount``'s body.\n\nAttributes:\n    name: The display name.\n    email: The e-mail, every account's login.\n    role: The role it starts on \u2014 required: nothing is chosen for the manager.\n    password: The provisional password; only its hash is kept.",
         "properties": {
           "email": {
             "title": "Email",
@@ -146,20 +146,14 @@
             "title": "Password"
           },
           "role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Role"
+            "title": "Role",
+            "type": "string"
           }
         },
         "required": [
           "name",
-          "email"
+          "email",
+          "role"
         ],
         "title": "CreateAccountBody",
         "type": "object"
@@ -265,16 +259,24 @@
           "account.access_admin_only",
           "account.owner_access",
           "account.own_access",
+          "account.admin_owner_only",
+          "account.owner_admin",
           "role.unknown",
           "role.system_immutable",
           "role.own_role",
           "role.escalation",
+          "role.name_required",
+          "role.name_taken",
+          "role.in_use",
+          "role.default",
           "right.unknown",
           "password.required",
           "password.too_short",
+          "password.too_weak",
           "password.current_wrong",
           "password.held_by_cli",
           "password.reset_admin_only",
+          "password.reset_own",
           "media.not_found",
           "provider.unavailable"
         ],
@@ -323,6 +325,21 @@
         "title": "Right",
         "type": "string"
       },
+      "RoleDeleted": {
+        "additionalProperties": false,
+        "description": "``deleteRole``'s acknowledgement.\n\nAttributes:\n    ok: Always true: the role is gone.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "RoleDeleted",
+        "type": "object"
+      },
       "RoleKind": {
         "description": "The contract's role kinds: the one Admin role and every other one.",
         "enum": [
@@ -342,8 +359,7 @@
                 "items": {
                   "enum": [
                     "plexHome",
-                    "plexGuest",
-                    "local"
+                    "plexGuest"
                   ],
                   "type": "string"
                 },
@@ -1489,6 +1505,106 @@
       }
     },
     "/roles/{roleId}": {
+      "delete": {
+        "description": "Delete a role nothing depends on: no account holds it and no newcomer starts on it.\n\nArgs:\n    role_id: The role.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    ``{\"ok\": true}``.",
+        "operationId": "deleteRole",
+        "parameters": [
+          {
+            "description": "the role",
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "description": "the role",
+              "title": "Roleid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDeleted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Delete Role"
+      },
       "patch": {
         "description": "Rename a role or set its rights.\n\nArgs:\n    role_id: The role.\n    body: Its new name and/or rights.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The role.",
         "operationId": "updateRole",

@@ -28,7 +28,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite import open_db
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE
 
-_PASSWORD = "a provisional one"
+_PASSWORD = "A provisional one 1!"
 
 
 @pytest.fixture(autouse=True)
@@ -95,7 +95,7 @@ class TestReadAccounts:
             "id": "account-guest",
             "name": "account-guest",
             "email": "account-guest@example.org",
-            "role": {"id": "local-guest", "kind": "ordinary", "rights": ["library.read"], "defaultFor": ["local"]},
+            "role": {"id": "local-guest", "kind": "ordinary", "rights": ["library.read"]},
             "signInKind": "local",
             "signInAllowed": True,
         }
@@ -152,10 +152,10 @@ class TestReadAccounts:
 class TestCreateAccount:
     """``POST /accounts`` — ``createAccount``."""
 
-    def test_creates_a_local_account_on_the_local_start_role(self, v1_client: Callable[..., TestClient]) -> None:
-        """201 ``AccountSummary``; no role asked: ``local-guest``."""
+    def test_creates_a_local_account_on_the_role_given(self, v1_client: Callable[..., TestClient]) -> None:
+        """201 ``AccountSummary`` on the role given."""
         response = v1_client(role="admin").post(
-            "/accounts", json={"name": "New", "email": "new@example.org", "password": _PASSWORD}
+            "/accounts", json={"name": "New", "email": "new@example.org", "role": "local-guest", "password": _PASSWORD}
         )
 
         assert response.status_code == 201
@@ -184,7 +184,7 @@ class TestCreateAccount:
     def test_a_short_password_names_the_minimum(self, v1_client: Callable[..., TestClient]) -> None:
         """400 ``password.too_short`` with ``params.minimum``."""
         response = v1_client(role="admin").post(
-            "/accounts", json={"name": "New", "email": "new@example.org", "password": "short"}
+            "/accounts", json={"name": "New", "role": "local-guest", "email": "new@example.org", "password": "short"}
         )
         assert response.status_code == 400
         assert response.json()["code"] == "password.too_short"
@@ -192,14 +192,48 @@ class TestCreateAccount:
 
     def test_a_missing_password_is_required(self, v1_client: Callable[..., TestClient]) -> None:
         """400 ``password.required``."""
-        response = v1_client(role="admin").post("/accounts", json={"name": "New", "email": "new@example.org"})
+        response = v1_client(role="admin").post(
+            "/accounts", json={"name": "New", "role": "local-guest", "email": "new@example.org"}
+        )
         assert response.status_code == 400
         assert response.json()["code"] == "password.required"
+
+    def test_a_missing_role_is_request_invalid(self, v1_client: Callable[..., TestClient]) -> None:
+        """The role is required (the operator, 2026-10-04): 400 ``request.invalid``, nothing created."""
+        client = v1_client(role="admin")
+        response = client.post("/accounts", json={"name": "New", "email": "new@example.org", "password": _PASSWORD})
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+        assert _services(client).app_store.accounts.account_by_email("new@example.org") is None
+
+    def test_a_weak_password_is_too_weak(self, v1_client: Callable[..., TestClient]) -> None:
+        """400 ``password.too_weak`` with ``params.minimum``: no uppercase, digit or special character."""
+        response = v1_client(role="admin").post(
+            "/accounts",
+            json={"name": "New", "role": "local-guest", "email": "new@example.org", "password": "x" * PASSWORD_MINIMUM},
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "password.too_weak"
+        assert response.json()["params"] == {"minimum": PASSWORD_MINIMUM}
+
+    @pytest.mark.parametrize("server_access", [None, "shared"], ids=["local", "plex-shared"])
+    def test_an_admin_who_is_not_the_owner_giving_admin_is_403(
+        self, v1_client: Callable[..., TestClient], server_access: str | None
+    ) -> None:
+        """403 ``account.admin_owner_only`` to a local or a Plex-shared Admin; the owner gives it (201)."""
+        body = {"name": "New", "email": "new@example.org", "role": "admin", "password": _PASSWORD}
+        refused = v1_client(role="admin", server_access=server_access).post("/accounts", json=body)
+        assert refused.status_code == 403
+        assert refused.json()["code"] == "account.admin_owner_only"
+        created = v1_client(role="admin", server_access="owner").post("/accounts", json=body)
+        assert created.status_code == 201
+        assert created.json()["role"]["kind"] == "admin"
 
     def test_a_taken_email_is_409(self, v1_client: Callable[..., TestClient]) -> None:
         """409 ``account.email_taken``."""
         response = v1_client(role="admin").post(
-            "/accounts", json={"name": "New", "email": "ACCOUNT-1@example.org", "password": _PASSWORD}
+            "/accounts",
+            json={"name": "New", "role": "local-guest", "email": "ACCOUNT-1@example.org", "password": _PASSWORD},
         )
         assert response.status_code == 409
         assert response.json()["code"] == "account.email_taken"
@@ -215,7 +249,14 @@ class TestCreateAccount:
     def test_an_unknown_field_is_request_invalid(self, v1_client: Callable[..., TestClient]) -> None:
         """400 ``request.invalid``, the offending value never echoed."""
         response = v1_client(role="admin").post(
-            "/accounts", json={"name": "New", "email": "new@example.org", "password": _PASSWORD, "admin": "yes-please"}
+            "/accounts",
+            json={
+                "name": "New",
+                "role": "local-guest",
+                "email": "new@example.org",
+                "password": _PASSWORD,
+                "admin": "yes-please",
+            },
         )
         assert response.status_code == 400
         assert response.json()["code"] == "request.invalid"
@@ -250,6 +291,40 @@ class TestUpdateAccount:
         assert response.status_code == 409
         assert response.json()["code"] == "account.last_admin"
 
+    @pytest.mark.parametrize("server_access", [None, "shared"], ids=["local", "plex-shared"])
+    def test_an_admin_who_is_not_the_owner_promoting_to_admin_is_403(
+        self, v1_client: Callable[..., TestClient], server_access: str | None
+    ) -> None:
+        """403 ``account.admin_owner_only`` to a local or a Plex-shared Admin; the owner promotes (200)."""
+        client = v1_client(role="admin", server_access=server_access)
+        _add_account(client, "account-guest", "local-guest")
+        refused = client.patch("/accounts/account-guest", json={"role": "admin"})
+        assert refused.status_code == 403
+        assert refused.json()["code"] == "account.admin_owner_only"
+        _link(client, "account-1", "owner")
+        promoted = client.patch("/accounts/account-guest", json={"role": "admin"})
+        assert promoted.status_code == 200
+        assert promoted.json()["role"]["kind"] == "admin"
+
+    @pytest.mark.parametrize("caller", ["the-owner", "another-admin"])
+    def test_moving_the_owner_off_admin_is_403(self, v1_client: Callable[..., TestClient], caller: str) -> None:
+        """403 ``account.owner_admin``, whoever asks: the owner's account stays on Admin.
+
+        A second Admin stands, so the last-Admin guard would let the demotion through.
+        """
+        if caller == "the-owner":
+            client = v1_client(role="admin", server_access="owner")
+            _add_account(client, "account-admin-2", "admin")
+            owner_id = "account-1"
+        else:
+            client = v1_client(role="admin")
+            _add_account(client, "account-owner", "admin")
+            _link(client, "account-owner", "owner")
+            owner_id = "account-owner"
+        response = client.patch(f"/accounts/{owner_id}", json={"role": "local-guest"})
+        assert response.status_code == 403
+        assert response.json()["code"] == "account.owner_admin"
+
     def test_a_manager_touching_its_own_role_is_403(self, v1_client: Callable[..., TestClient]) -> None:
         """403 ``role.own_role``."""
         client = v1_client(rights=frozenset({Right.ACCOUNTS_MANAGE, Right.LIBRARY_READ}))
@@ -281,6 +356,21 @@ class TestCreateRole:
         assert response.status_code == 400
         assert response.json()["code"] == "request.invalid"
 
+    @pytest.mark.parametrize("name", ["", "   "], ids=["empty", "blank"])
+    def test_a_blank_name_is_400(self, v1_client: Callable[..., TestClient], name: str) -> None:
+        """400 ``role.name_required``."""
+        response = v1_client(role="admin").post("/roles", json={"name": name, "rights": []})
+        assert response.status_code == 400
+        assert response.json()["code"] == "role.name_required"
+
+    def test_a_taken_name_is_409(self, v1_client: Callable[..., TestClient]) -> None:
+        """409 ``role.name_taken``, compared trimmed and regardless of case."""
+        client = v1_client(role="admin")
+        assert client.post("/roles", json={"name": "Friends", "rights": []}).status_code == 201
+        response = client.post("/roles", json={"name": " FRIENDS ", "rights": []})
+        assert response.status_code == 409
+        assert response.json()["code"] == "role.name_taken"
+
     def test_a_manager_widening_beyond_its_own_is_403(self, v1_client: Callable[..., TestClient]) -> None:
         """403 ``role.escalation``."""
         response = v1_client(rights=frozenset({Right.ACCOUNTS_MANAGE})).post(
@@ -304,7 +394,6 @@ class TestUpdateRole:
             "name": "Visitors",
             "kind": "ordinary",
             "rights": ["library.read", "trackers.view"],
-            "defaultFor": ["local"],
         }
 
     def test_the_admin_role_is_409(self, v1_client: Callable[..., TestClient]) -> None:
@@ -318,6 +407,68 @@ class TestUpdateRole:
         response = v1_client(role="admin").patch("/roles/nope", json={"name": "X"})
         assert response.status_code == 404
         assert response.json()["code"] == "role.unknown"
+
+    def test_a_rename_onto_a_taken_name_is_409(self, v1_client: Callable[..., TestClient]) -> None:
+        """409 ``role.name_taken``."""
+        client = v1_client(role="admin")
+        assert client.post("/roles", json={"name": "Friends", "rights": []}).status_code == 201
+        response = client.patch("/roles/requester", json={"name": "friends"})
+        assert response.status_code == 409
+        assert response.json()["code"] == "role.name_taken"
+
+
+class TestDeleteRole:
+    """``DELETE /roles/{roleId}`` — ``deleteRole``: only a role nothing depends on goes."""
+
+    def test_an_unused_role_is_deleted(self, v1_client: Callable[..., TestClient]) -> None:
+        """200 ``{"ok": true}``; the roster no longer lists it."""
+        client = v1_client(role="admin")
+        created = client.post("/roles", json={"name": "Friends", "rights": ["library.read"]}).json()
+
+        response = client.delete(f"/roles/{created['id']}")
+
+        assert response.status_code == 200
+        assert response.json() == {"ok": True}
+        assert created["id"] not in [role["id"] for role in client.get("/accounts").json()["roles"]]
+
+    def test_the_seeded_local_guest_role_held_by_nobody_is_deleted(self, v1_client: Callable[..., TestClient]) -> None:
+        """No newcomer starts on « local-guest » any more: an ordinary role, deleted when nobody holds it."""
+        response = v1_client(role="admin").delete("/roles/local-guest")
+        assert response.status_code == 200
+
+    @pytest.mark.parametrize(
+        ("role_id", "status", "code"),
+        [
+            ("nope", 404, "role.unknown"),
+            ("admin", 409, "role.system_immutable"),
+            ("plex-guest", 409, "role.default"),
+            ("household", 409, "role.default"),
+            ("requester", 409, "role.in_use"),
+        ],
+        ids=["unknown", "admin", "default-unheld", "default-held", "held"],
+    )
+    def test_a_role_something_depends_on_is_refused(
+        self, v1_client: Callable[..., TestClient], role_id: str, status: int, code: str
+    ) -> None:
+        """The contract's refusals, in its order."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-requester", "requester")
+        _add_account(client, "account-household", "household")
+        response = client.delete(f"/roles/{role_id}")
+        assert response.status_code == status
+        assert response.json()["code"] == code
+
+    def test_a_manager_deleting_beyond_its_own_is_403(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``role.escalation``: ``requester`` holds rights the manager's role lacks."""
+        response = v1_client(rights=frozenset({Right.ACCOUNTS_MANAGE})).delete("/roles/requester")
+        assert response.status_code == 403
+        assert response.json()["code"] == "role.escalation"
+
+    def test_without_accounts_manage_is_right_missing(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``right.missing``."""
+        response = v1_client(role="household").delete("/roles/requester")
+        assert response.status_code == 403
+        assert response.json()["code"] == "right.missing"
 
 
 def _link(client: TestClient, account_id: str, server_access: str) -> None:
@@ -377,6 +528,20 @@ class TestResetAccountPassword:
         assert response.status_code == 403
         assert response.json()["code"] == "right.missing"
 
+    def test_an_admin_resetting_its_own_password_is_403(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``password.reset_own``: an Admin changes its own in Profil, its current password required."""
+        response = v1_client(role="admin").post("/accounts/account-1/password", json={"password": _PASSWORD})
+        assert response.status_code == 403
+        assert response.json()["code"] == "password.reset_own"
+
+    def test_the_owner_resetting_its_own_password_is_reset_own(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``password.reset_own``, not ``password.held_by_cli``: the caller's own account is checked first."""
+        response = v1_client(role="admin", server_access="owner").post(
+            "/accounts/account-1/password", json={"password": _PASSWORD}
+        )
+        assert response.status_code == 403
+        assert response.json()["code"] == "password.reset_own"
+
     def test_an_unknown_account_is_404(self, v1_client: Callable[..., TestClient]) -> None:
         """For an Admin: 404 ``account.unknown``."""
         response = v1_client(role="admin").post("/accounts/nope/password", json={"password": _PASSWORD})
@@ -404,8 +569,9 @@ class TestResetAccountPassword:
         [
             ("", "password.required", {}),
             ("x" * (PASSWORD_MINIMUM - 1), "password.too_short", {"minimum": PASSWORD_MINIMUM}),
+            ("x" * PASSWORD_MINIMUM, "password.too_weak", {"minimum": PASSWORD_MINIMUM}),
         ],
-        ids=["empty", "one-short"],
+        ids=["empty", "one-short", "too-weak"],
     )
     def test_a_refused_password_is_400(
         self, v1_client: Callable[..., TestClient], password: str, code: str, params: dict[str, int]
@@ -527,10 +693,15 @@ class TestSetAccountAccess:
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("POST", "/accounts", {"name": "New", "email": "new@example.org", "password": _PASSWORD}),
+        (
+            "POST",
+            "/accounts",
+            {"name": "New", "email": "new@example.org", "role": "local-guest", "password": _PASSWORD},
+        ),
         ("PATCH", "/accounts/account-1", {"role": "local-guest"}),
         ("POST", "/roles", {"name": "X", "rights": ["library.read"]}),
         ("PATCH", "/roles/local-guest", {"name": "X"}),
+        ("DELETE", "/roles/requester", None),
         ("POST", "/accounts/account-1/password", {"password": _PASSWORD}),
         ("PUT", "/accounts/account-1/access", {"signInAllowed": False}),
     ],
@@ -540,7 +711,7 @@ def test_every_write_on_the_read_only_clone_is_forbidden(
     monkeypatch: pytest.MonkeyPatch,
     method: str,
     path: str,
-    body: dict[str, object],
+    body: dict[str, object] | None,
 ) -> None:
     """``PERSONALSCRAPER_WEB_ROLE=staging``: 403 ``instance.forbidden_write``, the Admin included.
 
@@ -549,7 +720,7 @@ def test_every_write_on_the_read_only_clone_is_forbidden(
         monkeypatch: Pytest's monkeypatch fixture.
         method: The write's method.
         path: Its path.
-        body: Its body.
+        body: Its body; ``None`` for a write that sends none.
     """
     monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
     response = v1_client(role="admin").request(method, path, json=body)

@@ -5,6 +5,7 @@
 // Plex-linked account by Plex only; a local account by its password only.
 import ACCOUNTS from "../seeds/accounts.json";
 import { GET, POST, PUT, field, route, text } from "./shared";
+import { policyRefusal } from "./accounts";
 import { answeredWith, refused, type MockRoute } from "../router";
 import {
   heldAccounts,
@@ -119,15 +120,7 @@ export function authenticationRoutes(): MockRoute[] {
           "the current password does not match",
           "password.current_wrong",
         );
-      const minimum = ACCOUNTS.passwordMinimum;
-      if (text(request.body, "newPassword").length < minimum)
-        return refused(
-          INVALID,
-          "the new password is too short",
-          "password.too_short",
-          { minimum },
-        );
-      return { ok: true };
+      return policyRefusal(text(request.body, "newPassword")) ?? { ok: true };
     }),
   ];
 }

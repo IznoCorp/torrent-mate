@@ -19,6 +19,7 @@ from personalscraper.http_v1.models.accounts import (
     CreateAccountBody,
     CreateRoleBody,
     ResetAccountPasswordBody,
+    RoleDeleted,
     RosterModel,
     SetAccountAccessBody,
     UpdateAccountBody,
@@ -230,3 +231,29 @@ def update_role(
     return RoleModel.from_view(
         app_services.accounts.update_role(signed_in, role_id, name=body.name, rights=body.rights)
     )
+
+
+@router.delete(
+    "/roles/{roleId}",
+    operation_id="deleteRole",
+    response_model=RoleDeleted,
+    status_code=200,
+    responses=_NAMED_RESPONSES,
+)
+def delete_role(
+    role_id: Annotated[str, Path(alias="roleId", description="the role")],
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+) -> RoleDeleted:
+    """Delete a role nothing depends on: no account holds it and no newcomer starts on it.
+
+    Args:
+        role_id: The role.
+        signed_in: The signed-in actor.
+        app_services: The application services.
+
+    Returns:
+        ``{"ok": true}``.
+    """
+    app_services.accounts.delete_role(signed_in, role_id)
+    return RoleDeleted(ok=True)

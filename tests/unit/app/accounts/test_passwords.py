@@ -6,7 +6,10 @@ See docs/features/tm-shell/plan/phase-02-auth.md §2.4.
 
 from __future__ import annotations
 
-from personalscraper.app.accounts.passwords import hash_password, verify_password
+import pytest
+
+from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password, policy_refusal, verify_password
+from personalscraper.app.errors import RefusalCode
 
 
 class TestHashPassword:
@@ -73,3 +76,62 @@ class TestVerifyPassword:
         h = hash_password("correct")
         # Same-length wrong password — verifies no early-exit based on length.
         assert verify_password("wrong__", h) is False
+
+
+class TestPolicyRefusal:
+    """Tests for :func:`policy_refusal` — the one password policy every local door applies."""
+
+    def test_a_password_meeting_every_criterion_passes(self) -> None:
+        """Twelve characters, an uppercase letter, a digit and a special character: no refusal."""
+        assert policy_refusal("Correct-horse-9") is None
+
+    @pytest.mark.parametrize("password", ["", "Ab1!", "Abcdefgh1!x"], ids=["empty", "four", "eleven"])
+    def test_a_short_password_is_too_short_with_its_minimum(self, password: str) -> None:
+        """Under the minimum, whatever else it holds: ``password.too_short`` naming the minimum."""
+        refusal = policy_refusal(password)
+
+        assert refusal is not None
+        assert (refusal.status, refusal.code) == (400, RefusalCode.PASSWORD_TOO_SHORT)
+        assert refusal.params == {"minimum": PASSWORD_MINIMUM}
+
+    @pytest.mark.parametrize(
+        "password",
+        ["correct-horse-9", "Correct-horse-x", "Correcthorse99"],
+        ids=["no-uppercase", "no-digit", "no-special"],
+    )
+    def test_a_long_password_missing_a_class_is_too_weak(self, password: str) -> None:
+        """Long enough but missing an uppercase letter, a digit or a special character: ``password.too_weak``."""
+        refusal = policy_refusal(password)
+
+        assert refusal is not None
+        assert (refusal.status, refusal.code) == (400, RefusalCode.PASSWORD_TOO_WEAK)
+        assert refusal.params == {"minimum": PASSWORD_MINIMUM}
+
+    def test_the_classes_are_unicode_categories(self) -> None:
+        """A Greek capital counts as uppercase, and a dash — punctuation — as special."""
+        assert policy_refusal("Ωmega heights-9") is None
+
+    @pytest.mark.parametrize(
+        ("password", "code"),
+        [
+            ("Abcdefghijk1 ", RefusalCode.PASSWORD_TOO_WEAK),
+            ("Abcdefghijk1\x00", RefusalCode.PASSWORD_TOO_WEAK),
+            ("Abcdefghijk1\u0301", RefusalCode.PASSWORD_TOO_WEAK),
+            ("Abcdefghijk1!", None),
+            ("Abcdefghijk1€", None),
+        ],
+        ids=["space", "control", "combining-mark", "punctuation", "symbol"],
+    )
+    def test_special_is_a_punctuation_or_a_symbol(self, password: str, code: RefusalCode | None) -> None:
+        """A special character is Unicode category P* or S*: a space, a control or a combining mark is not one."""
+        refusal = policy_refusal(password)
+
+        assert (refusal.code if refusal is not None else None) is code
+
+    def test_the_refusal_never_carries_the_password(self) -> None:
+        """Neither the detail nor the params name the password typed."""
+        refusal = policy_refusal("correct-horse-9")
+
+        assert refusal is not None
+        assert "correct-horse-9" not in refusal.detail
+        assert "correct-horse-9" not in repr(refusal.params)

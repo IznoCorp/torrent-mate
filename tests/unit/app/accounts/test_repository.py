@@ -175,7 +175,7 @@ class TestRoles:
                 name=None,
                 kind=RoleKind.ORDINARY,
                 rights=frozenset({Right.LIBRARY_READ}),
-                default_for=frozenset({"local"}),
+                default_for=frozenset(),
             ),
         ]
 
@@ -199,7 +199,7 @@ class TestRoles:
     def test_insert_role_with_a_held_start_is_refused_whole(self, repo: AccountRepository) -> None:
         """A start kind already held: IntegrityError, and no half-written role."""
         role = RoleRow(
-            id="role-1", name="X", kind=RoleKind.ORDINARY, rights=frozenset(), default_for=frozenset({"local"})
+            id="role-1", name="X", kind=RoleKind.ORDINARY, rights=frozenset(), default_for=frozenset({"plexGuest"})
         )
         with pytest.raises(sqlite3.IntegrityError):
             repo.insert_role(role, now=5.0)
@@ -231,11 +231,11 @@ class TestRoles:
 
     def test_set_role_start_moves_the_start(self, repo: AccountRepository) -> None:
         """The start kind now names the other role; the old one loses it."""
-        repo.set_role_start("local", "requester")
-        role = repo.role_for_start("local")
+        repo.set_role_start("plexGuest", "requester")
+        role = repo.role_for_start("plexGuest")
         assert role is not None and role.id == "requester"
         starts = {r.id: r.default_for for r in repo.roles()}
-        assert (starts["requester"], starts["local-guest"]) == (frozenset({"local"}), frozenset())
+        assert (starts["requester"], starts["plex-guest"]) == (frozenset({"plexGuest"}), frozenset())
 
 
 class TestAccounts:

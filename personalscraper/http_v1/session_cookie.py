@@ -34,7 +34,11 @@ def set_session_cookie(response: Response, token: str, web: WebConfig) -> None:
         path="/",
         secure=web.cookie_secure,
         httponly=True,
-        samesite="strict",
+        # Lax, not Strict: a link from another site (a notification, a bookmark's
+        # redirect) opens the interface signed in. A cross-site write still never
+        # passes: the perimeter refuses every unsafe method from another origin
+        # (``request.cross_origin``), which stays the CSRF guard.
+        samesite="lax",
     )
 
 
@@ -45,7 +49,7 @@ def clear_session_cookie(response: Response, web: WebConfig) -> None:
         response: The answer to clear the cookie on.
         web: The web configuration (``cookie_secure``).
     """
-    response.delete_cookie(SESSION_COOKIE, path="/", secure=web.cookie_secure, httponly=True, samesite="strict")
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=web.cookie_secure, httponly=True, samesite="lax")
 
 
 def session_token(request: Request) -> str | None:

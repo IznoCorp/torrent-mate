@@ -65,7 +65,8 @@
       "detached": "detached HEAD — no branch",
       "unavailable": "identity unavailable",
       "unavailableReason": "this copy is not served by the design host"
-    }
+    },
+    "passwordRule": "At least {{minimum}} characters, with an uppercase letter, a digit and a special character."
   },
   "settings": {
     "labels": {
@@ -1402,8 +1403,7 @@
       "demotedShort": "starting role since its Plex link",
       "defaultFor": {
         "plexHome": "Starting role of the Plex Home users of the Plex server, at their first sign-in or when they are linked.",
-        "plexGuest": "Starting role of the other users of the Plex server, at their first sign-in or when they are linked.",
-        "local": "Starting role of a local account created with no role chosen."
+        "plexGuest": "Starting role of the other users of the Plex server, at their first sign-in or when they are linked."
       },
       "provisionalPassword": "Temporary password (local account)",
       "reset": {
@@ -1413,7 +1413,8 @@
         "sending": "Sending…",
         "done": "Temporary password saved: pass it on to {{name}}, who will change it in their Profile.",
         "refused": "The reset was refused.",
-        "adminOnly": "Only an Admin resets a password. Everyone changes their own in their Profile."
+        "adminOnly": "Only an Admin resets a password. Everyone changes their own in their Profile.",
+        "own": "Your own password is changed in your Profile, with the current one."
       },
       "access": {
         "switch": "Sign-in allowed for {{name}}",
@@ -1449,7 +1450,11 @@
         "cancel": "Cancel",
         "done": "Role deleted.",
         "refused": "The role’s deletion was refused."
-      }
+      },
+      "adminOwnerOnly": "Only the Plex server's owner promotes an account to Admin.",
+      "ownerOnly": "owner only",
+      "ownerStaysAdmin": "The Plex server owner's account stays Admin: otherwise nobody could give the Admin role back.",
+      "ownerStays": "the owner stays Admin"
     },
     "crossSeed": {
       "states": {
@@ -2311,7 +2316,9 @@
       "last_admin": "Refused: the server would be left without an Admin.",
       "access_admin_only": "Only an Admin cuts or restores an account's access.",
       "owner_access": "The Plex server owner's access is never cut.",
-      "own_access": "Your own access is not cut from here."
+      "own_access": "Your own access is not cut from here.",
+      "admin_owner_only": "Only the Plex server's owner gives the Admin role.",
+      "owner_admin": "The Plex server owner's account never leaves the Admin role."
     },
     "role": {
       "unknown": "This role no longer exists.",
@@ -2333,9 +2340,11 @@
     "password": {
       "current_wrong": "The current password is incorrect: nothing was changed.",
       "required": "A local account gets a temporary password: it is required.",
-      "too_short": "The new password must be at least {{minimum}} characters long.",
+      "too_short": "The password needs at least {{minimum}} characters, with an uppercase letter, a digit and a special character.",
+      "too_weak": "The password must be at least {{minimum}} characters long, with an uppercase letter, a digit and a special character: one of them is missing.",
       "held_by_cli": "This fallback password can only be changed by a command on the server, never here.",
-      "reset_admin_only": "Only an Admin resets a password: yours is changed in your Profile."
+      "reset_admin_only": "Only an Admin resets a password: yours is changed in your Profile.",
+      "reset_own": "Your own password is changed in your Profile, with the current one."
     },
     "media": {
       "not_found": "This title is unknown: the library no longer holds it, or its provider does not know it.",

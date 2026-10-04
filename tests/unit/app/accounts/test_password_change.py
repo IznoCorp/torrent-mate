@@ -38,7 +38,7 @@ from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import Event, EventBus
 
 _PASSWORD = "correct horse battery staple"
-_NEW = "a brand new passphrase"
+_NEW = "A brand-new passphrase 7"
 _WRONG = "not the password at all"
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 
@@ -318,6 +318,24 @@ class TestChangeOwnPassword:
         assert _stored_hash(store, "local") == before
         assert sessions.resolve(elsewhere) is not None
 
+    @pytest.mark.parametrize(
+        "new",
+        ["a brand-new passphrase 7", "A brand-new passphrase", "Abrandnewpassphrase7"],
+        ids=["no-uppercase", "no-digit", "no-special"],
+    )
+    def test_a_weak_new_password_is_refused_by_the_policy(
+        self, accounts: AccountService, sessions: SessionService, store: AppStore, new: str
+    ) -> None:
+        """400 ``password.too_weak`` with ``minimum``; the stored password and the sessions untouched."""
+        before = _stored_hash(store, "local")
+        _, elsewhere = _signed_in(sessions, "local")
+        with pytest.raises(AppBadRequest) as caught:
+            _change(accounts, sessions, "local", _PASSWORD, new)
+        assert caught.value.code == RefusalCode.PASSWORD_TOO_WEAK
+        assert caught.value.params == {"minimum": PASSWORD_MINIMUM}
+        assert _stored_hash(store, "local") == before
+        assert sessions.resolve(elsewhere) is not None
+
     def test_a_deleted_account_is_auth_required(
         self, accounts: AccountService, sessions: SessionService, store: AppStore
     ) -> None:
@@ -454,6 +472,26 @@ class TestResetAccountPassword:
         assert caught.value.code == RefusalCode.PASSWORD_RESET_ADMIN_ONLY
         assert store.accounts.account(account_id) == before
 
+    def test_an_admin_never_resets_its_own_password(
+        self, accounts: AccountService, sessions: SessionService, store: AppStore
+    ) -> None:
+        """403 ``password.reset_own``: an Admin changes its own password in Profil, the current one required."""
+        admin, _ = _signed_in(sessions, "admin")
+        before = _stored_hash(store, "admin")
+        with pytest.raises(AppForbidden) as caught:
+            accounts.reset_account_password(admin, "admin", password=_NEW)
+        assert caught.value.code == RefusalCode.PASSWORD_RESET_OWN
+        assert _stored_hash(store, "admin") == before
+
+    def test_the_admin_check_comes_before_the_own_account_check(
+        self, accounts: AccountService, sessions: SessionService
+    ) -> None:
+        """A manager who is not Admin resetting its own password still reads ``password.reset_admin_only``."""
+        manager, _ = _signed_in(sessions, "manager")
+        with pytest.raises(AppForbidden) as caught:
+            accounts.reset_account_password(manager, "manager", password=_NEW)
+        assert caught.value.code == RefusalCode.PASSWORD_RESET_ADMIN_ONLY
+
     def test_an_unknown_account_is_404(self, accounts: AccountService, sessions: SessionService) -> None:
         """For an Admin: 404 ``account.unknown``."""
         admin, _ = _signed_in(sessions, "admin")
@@ -482,8 +520,9 @@ class TestResetAccountPassword:
         [
             ("", RefusalCode.PASSWORD_REQUIRED, {}),
             ("x" * (PASSWORD_MINIMUM - 1), RefusalCode.PASSWORD_TOO_SHORT, {"minimum": PASSWORD_MINIMUM}),
+            ("x" * PASSWORD_MINIMUM, RefusalCode.PASSWORD_TOO_WEAK, {"minimum": PASSWORD_MINIMUM}),
         ],
-        ids=["empty", "one-short"],
+        ids=["empty", "one-short", "too-weak"],
     )
     def test_a_refused_password(
         self,
@@ -494,7 +533,7 @@ class TestResetAccountPassword:
         code: RefusalCode,
         params: dict[str, int],
     ) -> None:
-        """400 ``password.required`` / ``password.too_short`` (``minimum``); nothing changed."""
+        """400 ``password.required`` / ``password.too_short`` / ``password.too_weak`` (``minimum``); nothing changed."""
         admin, _ = _signed_in(sessions, "admin")
         before = _stored_hash(store, "local")
         with pytest.raises(AppBadRequest) as caught:

@@ -99,10 +99,16 @@ describe("deleteRole", () => {
   });
 
   it("refuses a role a newcomer starts on, even when no account holds it (ruling A)", () => {
-    identityDials.setAccountRole("local-guest", "requester");
-    const answer = ask("DELETE", "/roles/local-guest");
+    identityDials.setAccountRole("plex-without-rights", "requester");
+    const answer = ask("DELETE", "/roles/plex-guest");
     expect([answer.status, answer.coded?.code]).toEqual([409, "role.default"]);
-    expect(roleIds()).toContain("local-guest");
+    expect(roleIds()).toContain("plex-guest");
+  });
+
+  it("deletes « local-guest » once nobody holds it: no newcomer starts on it any more", () => {
+    identityDials.setAccountRole("local-guest", "requester");
+    expect(ask("DELETE", "/roles/local-guest").ok).toBe(true);
+    expect(roleIds()).not.toContain("local-guest");
   });
 
   it("never deletes the Admin role", () => {

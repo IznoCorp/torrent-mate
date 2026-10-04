@@ -11,10 +11,13 @@ import binascii
 import hashlib
 import hmac
 import secrets
+import unicodedata
 from typing import Final
 
-#: The shortest password an Admin may give a local account, in characters (the
-#: maquette's ``passwordMinimum``); answered as ``password.too_short``'s ``minimum``.
+from personalscraper.app.errors import AppBadRequest, RefusalCode
+
+#: The shortest password a local door accepts, in characters (the maquette's
+#: ``passwordMinimum``); answered as ``password.too_short``'s and ``password.too_weak``'s ``minimum``.
 PASSWORD_MINIMUM: Final[int] = 12
 
 # scrypt parameters — DESIGN §4.4 / §4.8 (stdlib only, no extra dep).
@@ -97,3 +100,39 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
     return hmac.compare_digest(key, expected_hash)
+
+
+def policy_refusal(password: str) -> AppBadRequest | None:
+    """Why a password breaks the policy every local door applies, if it does.
+
+    The policy (the operator, 2026-10-04): at least :data:`PASSWORD_MINIMUM` characters,
+    one uppercase letter, one digit and one special character. The classes are Unicode
+    categories — uppercase ``Lu``, digit ``Nd``, special a punctuation (``P*``) or a
+    symbol (``S*``); a space, a control character or a combining mark is none — so the
+    maquette's check (``lib/password-policy.ts``) answers
+    exactly the same. The doors are the CLI's ``create-owner`` and ``set-password``,
+    ``changeOwnPassword``, ``resetAccountPassword`` and ``createAccount``. Neither the
+    refusal's text nor its params carry the password.
+
+    Args:
+        password: The password typed.
+
+    Returns:
+        ``password.too_short`` under the minimum; ``password.too_weak`` when a class is
+        missing — both name the ``minimum``, so the words can say the whole rule; ``None``
+        when the password meets the policy.
+    """
+    params = {"minimum": PASSWORD_MINIMUM}
+    if len(password) < PASSWORD_MINIMUM:
+        return AppBadRequest("The password is too short.", code=RefusalCode.PASSWORD_TOO_SHORT, params=params)
+    categories = {unicodedata.category(char) for char in password}
+    has_upper = "Lu" in categories
+    has_digit = "Nd" in categories
+    has_special = any(category[0] in "PS" for category in categories)
+    if not (has_upper and has_digit and has_special):
+        return AppBadRequest(
+            "The password lacks an uppercase letter, a digit or a special character.",
+            code=RefusalCode.PASSWORD_TOO_WEAK,
+            params=params,
+        )
+    return None

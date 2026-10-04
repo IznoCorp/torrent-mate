@@ -19,7 +19,9 @@ the viewer cannot perform, the API refusal is for direct calls.
 4. « NOUVEAU COMPTE » OPENS A PAGE LIKEWISE: `/accounts/new`, nothing created, every field empty, Create
    closed; an invalid e-mail is said at its field; the roster page carries no creation form.
 5. A VALID ACCOUNT IS CREATED AND THE PAGE RETURNS; a refusal lands at its field — a local account
-   without its provisional password is told so under the password field, and nothing is created.
+   without its provisional password is told so under the password field, and nothing is created. The
+   password policy (the operator, 2026-10-04) is said under the field before anything is typed, and a
+   password breaking it is said there at once, Create closed, nothing asked.
 6. DELETE IS OFFERED ONLY WHERE IT CAN BE DONE: absent on a role an account holds and on a role a
    newcomer starts on (ruling A), present on an unused one; forcing either refused answers 409
    `role.in_use` / `role.default`.
@@ -27,9 +29,14 @@ the viewer cannot perform, the API refusal is for direct calls.
    `deleteRole` and the roster no longer draws the role.
 """
 import asyncio
+import json
+import pathlib
 
 from common import SETTLED, PANEL_IN, ACTED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
+
+SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
+SEEDS = json.loads((SOURCE / "mocks/seeds/accounts.json").read_text(encoding="utf-8"))
 
 ROLE_SCREEN = '[data-part="screen"][data-open][data-key="role-create"]'
 ACCOUNT_SCREEN = '[data-part="screen"][data-open][data-key="account-create"]'
@@ -181,8 +188,21 @@ async def main():
                       str(refused))
         journal.check("5: and nothing is created", await page.evaluate(CALLS, "createAccount") == [400],
                       str(await page.evaluate(CALLS, "createAccount")))
+        rule = await words("common.passwordRule", minimum=SEEDS["passwordMinimum"])
+        hint = await page.evaluate(
+            "(s)=>document.querySelector(s + ' [data-field=\"password\"]')?.textContent || ''", ACCOUNT_SCREEN)
+        journal.check("5: the password policy is said under the field before anything is typed", rule in hint, hint)
         if refused is not None:
-            await page.fill(f'{ACCOUNT_SCREEN} [name="password"]', "correct horse battery")
+            await page.fill(f'{ACCOUNT_SCREEN} [name="password"]', "correcthorsebattery")
+            await page.wait_for_timeout(SETTLED)
+        weak = await form(ACCOUNT_SCREEN, ACCOUNT_FIELDS)
+        journal.check("5: a password breaking the policy is said at its field, Create closed, nothing asked",
+                      weak is not None
+                      and weak["errors"]["password"] == await words("refusals.password.too_weak",
+                                                                    minimum=SEEDS["passwordMinimum"])
+                      and weak["submit"] is True and await page.evaluate(CALLS, "createAccount") == [400], str(weak))
+        if refused is not None:
+            await page.fill(f'{ACCOUNT_SCREEN} [name="password"]', "Correct-horse battery 9")
             await page.wait_for_timeout(SETTLED)
             await page.click(f'{ACCOUNT_SCREEN} [data-part="creation/submit"]')
             await page.wait_for_timeout(ACTED + SETTLED)
@@ -201,7 +221,7 @@ async def main():
         journal.check("6: a role a newcomer starts on, held by nobody, offers no Delete (ruling A)",
                       not await offered("accounts-role-default-unheld"))
         held = await page.evaluate(CALL, ["DELETE", "/api/v1/roles/requester", None])
-        default = await page.evaluate(CALL, ["DELETE", "/api/v1/roles/local-guest", None])
+        default = await page.evaluate(CALL, ["DELETE", "/api/v1/roles/plex-guest", None])
         journal.check("6: forced, they answer 409 role.in_use and 409 role.default",
                       (held, default) == ({"status": 409, "code": "role.in_use"}, {"status": 409, "code": "role.default"}),
                       str((held, default)))
