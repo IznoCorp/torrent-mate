@@ -1421,7 +1421,9 @@
         "refused": "The role’s deletion was refused."
       },
       "adminOwnerOnly": "Only the Plex server's owner promotes an account to Admin.",
-      "ownerOnly": "owner only"
+      "ownerOnly": "owner only",
+      "ownerStaysAdmin": "The Plex server owner's account stays Admin: otherwise nobody could give the Admin role back.",
+      "ownerStays": "the owner stays Admin"
     },
     "crossSeed": {
       "states": {
@@ -2284,7 +2286,8 @@
       "access_admin_only": "Only an Admin cuts or restores an account's access.",
       "owner_access": "The Plex server owner's access is never cut.",
       "own_access": "Your own access is not cut from here.",
-      "admin_owner_only": "Only the Plex server's owner gives the Admin role."
+      "admin_owner_only": "Only the Plex server's owner gives the Admin role.",
+      "owner_admin": "The Plex server owner's account never leaves the Admin role."
     },
     "role": {
       "unknown": "This role no longer exists.",

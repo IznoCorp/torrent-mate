@@ -11,7 +11,8 @@
 //     only rights its own role holds, never its own role, never an account on
 //     the Admin role; and ONLY THE SERVER'S OWNER GIVES THE ADMIN ROLE (the
 //     operator, 2026-10-04: « seul le compte propriétaire peut promouvoir
-//     Admin ; un autre Admin ne le peut pas »);
+//     Admin ; un autre Admin ne le peut pas »), and THE OWNER'S ACCOUNT NEVER
+//     LEAVES IT, whoever asks;
 //   · 400 — a new account without an e-mail or without its role — none is
 //     chosen for the manager (the operator, 2026-10-04); a local account
 //     without its provisional password, or with one breaking the password
@@ -214,6 +215,10 @@ export function accountRoutes(): MockRoute[] {
       // ONLY THE OWNER PUTS AN ACCOUNT ON ADMIN; one already there, kept there, is given nothing.
       if (target.kind === ADMIN && roleFor(account.role).kind !== ADMIN && !callerIsOwner())
         return refused(FORBIDDEN, "only the server's owner gives the Admin role", "account.admin_owner_only");
+      // THE OWNER'S ACCOUNT NEVER LEAVES ADMIN, whoever asks — the owner too:
+      // demoted, nobody would be left to give Admin back. Before the last Admin.
+      if (target.kind !== ADMIN && account.signInKind === "owner")
+        return refused(FORBIDDEN, "the server owner's account never leaves the Admin role", "account.owner_admin");
       const after = heldAccounts().map((one) => (one.id === account.id ? { ...one, role: target.id } : one));
       if (!keepsAnAdmin(after))
         return refused(CONFLICT, "no account would be left on the Admin role", "account.last_admin");

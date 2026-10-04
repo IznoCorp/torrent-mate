@@ -45,6 +45,7 @@ class RefusalCode(StrEnum):
     ACCOUNT_OWNER_ACCESS = "account.owner_access"
     ACCOUNT_OWN_ACCESS = "account.own_access"
     ACCOUNT_ADMIN_OWNER_ONLY = "account.admin_owner_only"
+    ACCOUNT_OWNER_ADMIN = "account.owner_admin"
     ROLE_UNKNOWN = "role.unknown"
     ROLE_SYSTEM_IMMUTABLE = "role.system_immutable"
     ROLE_OWN_ROLE = "role.own_role"

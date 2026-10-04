@@ -651,8 +651,10 @@ class AccountService:
 
         A caller who is not Admin never touches its own account, an account on the Admin
         role or the Admin role, nor gives rights its own role does not hold. Only the
-        server's owner puts an account on the Admin role (the operator, 2026-10-04). Whoever
-        the caller, one account stays on the Admin role. The checks and the write are one
+        server's owner puts an account on the Admin role (the operator, 2026-10-04), and the
+        owner's own account never leaves it, whoever the caller — the owner included — so the
+        one who gives Admin back is never demoted. Whoever the caller, one account stays on
+        the Admin role. The checks and the write are one
         ``BEGIN IMMEDIATE`` transaction, so two managers cannot each demote "the other"
         last Admin.
 
@@ -667,7 +669,8 @@ class AccountService:
         Raises:
             AppNotFound: ``account.unknown``, ``role.unknown``.
             AppForbidden: ``role.own_role``, ``account.admin_untouchable``, ``role.escalation``,
-                ``account.admin_owner_only``.
+                ``account.admin_owner_only``; ``account.owner_admin`` — the server owner's
+                account put on another role, checked before the last-Admin guard.
             AppConflict: ``account.last_admin``.
         """
         repo = self._repo_factory()
@@ -691,6 +694,10 @@ class AccountService:
                 _refuse_escalation(actor, target)
             if target.kind is RoleKind.ADMIN and current.kind is not RoleKind.ADMIN:
                 _refuse_admin_given_by_another(repo, actor)
+            if target.kind is not RoleKind.ADMIN and sign_in_kind(repo.plex_link(account.id)) is SignInKind.OWNER:
+                raise AppForbidden(
+                    "The server owner's account never leaves the Admin role.", code=RefusalCode.ACCOUNT_OWNER_ADMIN
+                )
             leaves_admin = current.kind is RoleKind.ADMIN and target.kind is not RoleKind.ADMIN
             if leaves_admin and repo.count_on_role_kind(RoleKind.ADMIN) <= 1:
                 raise AppConflict("No account would be left on the Admin role.", code=RefusalCode.ACCOUNT_LAST_ADMIN)

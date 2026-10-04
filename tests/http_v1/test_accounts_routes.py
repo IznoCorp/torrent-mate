@@ -302,6 +302,25 @@ class TestUpdateAccount:
         assert promoted.status_code == 200
         assert promoted.json()["role"]["kind"] == "admin"
 
+    @pytest.mark.parametrize("caller", ["the-owner", "another-admin"])
+    def test_moving_the_owner_off_admin_is_403(self, v1_client: Callable[..., TestClient], caller: str) -> None:
+        """403 ``account.owner_admin``, whoever asks: the owner's account stays on Admin.
+
+        A second Admin stands, so the last-Admin guard would let the demotion through.
+        """
+        if caller == "the-owner":
+            client = v1_client(role="admin", server_access="owner")
+            _add_account(client, "account-admin-2", "admin")
+            owner_id = "account-1"
+        else:
+            client = v1_client(role="admin")
+            _add_account(client, "account-owner", "admin")
+            _link(client, "account-owner", "owner")
+            owner_id = "account-owner"
+        response = client.patch(f"/accounts/{owner_id}", json={"role": "local-guest"})
+        assert response.status_code == 403
+        assert response.json()["code"] == "account.owner_admin"
+
     def test_a_manager_touching_its_own_role_is_403(self, v1_client: Callable[..., TestClient]) -> None:
         """403 ``role.own_role``."""
         client = v1_client(rights=frozenset({Right.ACCOUNTS_MANAGE, Right.LIBRARY_READ}))

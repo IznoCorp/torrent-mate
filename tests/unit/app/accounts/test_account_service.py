@@ -552,6 +552,36 @@ class TestUpdateAccount:
         """Putting an Admin account on the role it holds gives nothing: allowed, nothing moves."""
         assert accounts.update_account(admin, "account-admin", role_id="admin").role.kind is RoleKind.ADMIN
 
+    @pytest.mark.parametrize("caller", ["the-owner", "another-admin"])
+    def test_the_owners_account_never_leaves_admin(
+        self, store: AppStore, accounts: AccountService, published: list[AccountRightsChanged], caller: str
+    ) -> None:
+        """403 ``account.owner_admin``, whoever asks, the owner included; nothing moves, nothing is published.
+
+        Two Admins stand, so the last-Admin guard would let the demotion through: only the
+        owner's guard refuses it.
+        """
+        _make_owner(store, "account-admin")
+        store.accounts.insert_account(_account("account-admin-2", "admin", 5.0))
+        actor = _actor_of(store.accounts, "account-admin" if caller == "the-owner" else "account-admin-2")
+
+        refusal = _refusal(lambda: accounts.update_account(actor, "account-admin", role_id="local-guest"))
+
+        assert isinstance(refusal, AppForbidden)
+        assert refusal.code is RefusalCode.ACCOUNT_OWNER_ADMIN
+        row = store.accounts.account("account-admin")
+        assert row is not None and row.role_id == "admin"
+        assert published == []
+
+    def test_the_owners_guard_comes_before_the_last_admin_one(self, accounts: AccountService, owner: Actor) -> None:
+        """The owner alone on Admin, demoting itself: ``account.owner_admin``, not ``account.last_admin``."""
+        refusal = _refusal(lambda: accounts.update_account(owner, "account-admin", role_id="local-guest"))
+        assert refusal.code is RefusalCode.ACCOUNT_OWNER_ADMIN
+
+    def test_the_owner_kept_on_admin_is_not_refused(self, accounts: AccountService, owner: Actor) -> None:
+        """Putting the owner on the Admin role it holds moves nothing and is allowed."""
+        assert accounts.update_account(owner, "account-admin", role_id="admin").role.kind is RoleKind.ADMIN
+
     def test_a_manager_assigns_a_role_within_its_rights(self, accounts: AccountService, manager: Actor) -> None:
         """``plex-guest`` carries ``library.read`` alone: allowed."""
         assert accounts.update_account(manager, "account-household", role_id="plex-guest").role.id == "plex-guest"

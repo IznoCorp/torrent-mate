@@ -31,7 +31,8 @@
     "access_admin_only": "Seul un Admin coupe ou rétablit l'accès d'un compte.",
     "owner_access": "L'accès du propriétaire du serveur ne se coupe jamais.",
     "own_access": "Un Admin ne peut pas couper son propre accès.",
-    "admin_owner_only": "Seul le propriétaire du serveur donne le rôle Admin."
+    "admin_owner_only": "Seul le propriétaire du serveur donne le rôle Admin.",
+    "owner_admin": "Le compte du propriétaire du serveur ne quitte jamais le rôle Admin."
   },
   "media": {
     "not_found": "Aucun média ne répond à cet identifiant de fournisseur."

@@ -6047,7 +6047,7 @@
                 "properties": {
                   "role": {
                     "type": "string",
-                    "description": "the role the account is put on. THE ADMIN ROLE IS GIVEN BY THE SERVER'S OWNER ONLY (the operator, 2026-10-04: « seul le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »): an account put on it by any other Admin is refused 403 `account.admin_owner_only` (a manager who is not Admin is refused `account.admin_untouchable`); an account already on it, kept there, gives nothing and is not refused"
+                    "description": "the role the account is put on. THE ADMIN ROLE IS GIVEN BY THE SERVER'S OWNER ONLY (the operator, 2026-10-04: « seul le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »): an account put on it by any other Admin is refused 403 `account.admin_owner_only` (a manager who is not Admin is refused `account.admin_untouchable`); an account already on it, kept there, gives nothing and is not refused. THE OWNER'S ACCOUNT NEVER LEAVES THE ADMIN ROLE (§ 17: only the owner gives Admin, so the owner demoted would leave nobody to give it back): putting the server owner's account on any other role is refused 403 `account.owner_admin` whoever the caller, the owner included, checked before the last-Admin guard"
                   }
                 },
                 "required": [
@@ -6057,7 +6057,7 @@
             }
           }
         },
-        "x-unseeded": "invented (demand H). The affected account re-reads `readAccount` on this answer — no poll (demand M). refused 409 when it would leave no account on the Admin role; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)",
+        "x-unseeded": "invented (demand H). The affected account re-reads `readAccount` on this answer — no poll (demand M). refused 409 when it would leave no account on the Admin role; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7); refused 403 `account.owner_admin` when it would move the server owner's account off the Admin role",
         "parameters": [
           {
             "name": "accountId",
@@ -11035,6 +11035,7 @@
           "account.owner_access",
           "account.own_access",
           "account.admin_owner_only",
+          "account.owner_admin",
           "role.unknown",
           "role.system_immutable",
           "role.own_role",

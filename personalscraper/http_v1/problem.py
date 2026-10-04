@@ -48,6 +48,7 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.ACCOUNT_OWNER_ACCESS: "The server owner's access is never cut.",
     RefusalCode.ACCOUNT_OWN_ACCESS: "An Admin never cuts its own access.",
     RefusalCode.ACCOUNT_ADMIN_OWNER_ONLY: "Only the server's owner gives the Admin role.",
+    RefusalCode.ACCOUNT_OWNER_ADMIN: "The server owner's account never leaves the Admin role.",
     RefusalCode.ROLE_UNKNOWN: "No role answers this identity.",
     RefusalCode.ROLE_SYSTEM_IMMUTABLE: "The Admin role is not modified.",
     RefusalCode.ROLE_OWN_ROLE: "A manager who is not Admin never touches its own role.",

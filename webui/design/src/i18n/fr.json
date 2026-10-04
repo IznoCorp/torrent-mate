@@ -1421,7 +1421,9 @@
         "refused": "La suppression du rôle a été refusée."
       },
       "adminOwnerOnly": "Seul le propriétaire du serveur Plex promeut un compte Admin.",
-      "ownerOnly": "réservé au propriétaire"
+      "ownerOnly": "réservé au propriétaire",
+      "ownerStaysAdmin": "Le compte du propriétaire du serveur Plex reste Admin : sinon, plus personne ne pourrait redonner le rôle Admin.",
+      "ownerStays": "le propriétaire reste Admin"
     },
     "crossSeed": {
       "states": {
@@ -2284,7 +2286,8 @@
       "access_admin_only": "Seul un Admin coupe ou rétablit l'accès d'un compte.",
       "owner_access": "L'accès du propriétaire du serveur Plex ne se coupe jamais.",
       "own_access": "Votre propre accès ne se coupe pas d'ici.",
-      "admin_owner_only": "Seul le propriétaire du serveur Plex donne le rôle Admin."
+      "admin_owner_only": "Seul le propriétaire du serveur Plex donne le rôle Admin.",
+      "owner_admin": "Le compte du propriétaire du serveur Plex ne quitte jamais le rôle Admin."
     },
     "role": {
       "unknown": "Ce rôle n'existe plus.",

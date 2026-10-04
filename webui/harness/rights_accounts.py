@@ -10,7 +10,7 @@ ruling 22, round 9 Q14 = A, M7, F2.
    offers nothing.
 3. R-L18-u — A CHANGE MOVES, AND REACHES THE ACCOUNT: giving `trackers.view` to the household
    role through its panel calls updateRole, and a household member signed in afterwards has
-   Trackers in its bar. Demoting the last Admin answers 409.
+   Trackers in its bar.
 4. R-L18-u (M7) — NO ESCALATION: a manager who is not Admin sees no Admin account, sees the roles
    beyond its own greyed, and forcing one, or touching its own role, answers 403.
 5. R-L18-v — A NEW ACCOUNT, on its own page (R525): without an e-mail it is said at the field and
@@ -19,6 +19,9 @@ ruling 22, round 9 Q14 = A, M7, F2.
 6. ONLY THE OWNER GIVES ADMIN (the operator, 2026-10-04: « seul le compte propriétaire peut
    promouvoir Admin ; un autre Admin ne le peut pas »): to a second Admin the Admin choice is
    greyed with its reason, and forcing it answers 403 `account.admin_owner_only`.
+7. THE OWNER STAYS ADMIN (§ 17: demoted, nobody could give Admin back): on the owner's own panel
+   every other role is greyed with its reason, and forcing one answers 403 `account.owner_admin` —
+   checked before the last-Admin guard, which the owner's account therefore never reaches.
 """
 import asyncio
 import json
@@ -97,8 +100,23 @@ async def main():
         journal.check("R-L18-u: a household member, read again, now has Trackers in its bar", "trackers" in bar, str(bar))
 
         await go("accounts-roster")
-        last = await page.evaluate(CALL, [None, "PATCH", f"/api/v1/accounts/{OWNER['id']}", {"role": "household"}])
-        journal.check("R-L18-u (F2): demoting the last Admin answers 409", last == 409, str(last))
+        await page.evaluate("(id)=>window.__panel.produce('roster', id)", OWNER["id"])
+        await page.wait_for_timeout(PANEL_IN)
+        acts = await page.evaluate(ACTS, "data-account-role")
+        offered = {one["value"].split("|")[1] for one in acts if not one["off"]}
+        text = await page.evaluate("()=>document.querySelector('#sheet')?.textContent || ''")
+        said = await page.evaluate("(k)=>window.__i18n.t(k)", "screens.accounts.ownerStaysAdmin")
+        reason = await page.evaluate("(k)=>window.__i18n.t(k)", "screens.accounts.ownerStays")
+        journal.check("owner stays Admin: on the owner's panel, to the owner itself, no other role is offered",
+                      len(acts) == len(SEEDS["roles"]) and not offered, str(acts))
+        journal.check("owner stays Admin: and the panel says why, each choice its reason",
+                      said in text and reason in text, text[:200])
+        forced = await page.evaluate(
+            """async (id) => { const answer = await fetch('/api/v1/accounts/' + id,
+              { method: 'PATCH', body: JSON.stringify({ role: 'household' }) });
+              return [answer.status, (await answer.json()).code]; }""", OWNER["id"])
+        journal.check("owner stays Admin: forcing it answers 403 account.owner_admin, before the last-Admin guard",
+                      forced == [403, "account.owner_admin"], str(forced))
 
         await go("accounts-escalation-greyed", PANEL_IN + SETTLED)
         rows = await page.evaluate(ROWS)

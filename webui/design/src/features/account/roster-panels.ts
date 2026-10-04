@@ -14,7 +14,9 @@
 // ONLY THE SERVER'S OWNER GIVES THE ADMIN ROLE (the operator, 2026-10-04: « seul
 // le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »):
 // to another Admin the Admin choice is GREYED WITH ITS REASON, as an escalation is
-// — never an act the server would refuse. AN ADMIN NEVER RESETS ITS OWN PASSWORD
+// — never an act the server would refuse; and THE OWNER'S ACCOUNT NEVER LEAVES
+// ADMIN, so on its panel every other role is greyed with that reason, to the
+// owner itself too. AN ADMIN NEVER RESETS ITS OWN PASSWORD
 // here (the operator, 2026-10-04): its panel says it changes in Profil.
 //
 // A ROLE IS DELETED ONLY WHEN NOTHING DEPENDS ON IT (the operator, 2026-10-04:
@@ -82,6 +84,8 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
   const self = manager !== undefined && manager.id === account.id;
   // AN ADMIN WHO IS NOT THE OWNER may keep an Admin on Admin, never put one there.
   const ownerOnly = admin && manager.signInKind !== "owner" && !bypassesRights(account.role);
+  // THE OWNER'S ACCOUNT NEVER LEAVES ADMIN, whoever looks at it — the owner too.
+  const ownerStays = account.signInKind === "owner";
   return {
     address: "roster:" + id,
     title: account.name,
@@ -102,17 +106,20 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
       { type: "note", text: translate("screens.accounts.oneRole") },
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,
       ownerOnly ? { type: "note", text: translate("screens.accounts.adminOwnerOnly") } : null,
+      ownerStays ? { type: "note", text: translate("screens.accounts.ownerStaysAdmin") } : null,
       {
         type: "actions",
         actions: roster.roles.map((role) => ({
           text: roleLabel(role),
           mention: sameRole(role, account.role) ? translate("screens.accounts.current")
-            : ownerOnly && bypassesRights(role) ? translate("screens.accounts.ownerOnly") : said(role),
+            : ownerOnly && bypassesRights(role) ? translate("screens.accounts.ownerOnly")
+            : ownerStays && !bypassesRights(role) ? translate("screens.accounts.ownerStays") : said(role),
           // GREYED, NEVER HIDDEN, where the manager may not give it: the
           // escalation is drawn so it is not a surprise (round 9 Q14 = A).
           desactive: own || sameRole(role, account.role)
             || (bypassesRights(role) && !(manager !== undefined && bypassesRights(manager.role)))
             || (bypassesRights(role) && ownerOnly)
+            || (ownerStays && !bypassesRights(role))
             || !withinReach(role.rights, manager),
           target: { "account-role": [account.id, role.id].join(PART) },
         })),

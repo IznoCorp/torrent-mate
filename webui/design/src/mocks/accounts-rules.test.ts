@@ -101,6 +101,15 @@ describe("the Admin role", () => {
     expect([created.status, created.coded?.code]).toEqual([403, "account.admin_owner_only"]);
   });
 
+  it("never leaves the owner's account, whoever asks — the owner itself, checked before the last Admin", () => {
+    const own = ask("PATCH", "/accounts/izno", { role: "household" });
+    expect([own.status, own.coded?.code]).toEqual([403, "account.owner_admin"]);
+    asSecondAdmin();
+    const other = ask("PATCH", "/accounts/izno", { role: "household" });
+    expect([other.status, other.coded?.code]).toEqual([403, "account.owner_admin"]);
+    expect(ask("PATCH", "/accounts/izno", { role: "admin" }).role?.kind).toBe("admin");
+  });
+
   it("keeps an Admin on Admin for an Admin who is not the owner: nothing is given", () => {
     asSecondAdmin();
     expect(ask("PATCH", "/accounts/local-account", { role: "admin" }).role?.kind).toBe("admin");
