@@ -35,6 +35,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 
 from common import Journal, browser_channel, chrome_launch_args
 from server import fake_v1
@@ -229,7 +230,21 @@ async def main():
                 check("the gate carries the screen's style", ".splashbar {" in gate)
 
                 page3 = await ctx.new_page()
+                # The cookie is `SameSite=Lax`: a session held reaches the door with
+                # the request itself, so the gate asks the server nothing about the
+                # session (any `/api/` request, whatever the version) and the main
+                # frame never navigates again after the load.
+                asked_api = []
+                reloads = []
+                page3.on("request", lambda request: asked_api.append(request.url)
+                         if urlparse(request.url).path.startswith("/api/") else None)
+                page3.on("framenavigated", lambda frame: reloads.append(frame.url)
+                         if frame == page3.main_frame else None)
                 await page3.goto(f"http://127.0.0.1:{PORT}/", wait_until="load")
+                reloads.clear()  # the load itself is not a reload
+                await page3.wait_for_timeout(500)
+                check("the gate asks the server nothing about the session on load", not asked_api, str(asked_api))
+                check("the gate does not reload on load", not reloads, str(reloads))
                 # Without the screen there is nothing to measure, and measuring
                 # anyway raises instead of naming the defect. A crash is a failure
                 # nobody can read.

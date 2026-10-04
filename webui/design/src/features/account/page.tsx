@@ -108,7 +108,7 @@ export function AccountPage(): ReactElement | null {
         {
           label: t("screens.accountPage.duration"),
           value: t("screens.accountPage.durationValue"),
-          k: "web.session_ttl_hours",
+          k: "web.session_idle_days",
           secondaryLine: t("screens.accountPage.durationSub"),
         },
         {

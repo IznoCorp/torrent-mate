@@ -1539,6 +1539,14 @@
       },
       {
         "file": "web",
+        "key": "web.session_idle_days",
+        "type": "number",
+        "raw": 30,
+        "name": "session_idle_days",
+        "displayedValue": "30"
+      },
+      {
+        "file": "web",
         "key": "web.cookie_secure",
         "type": "boolean",
         "raw": true,
