@@ -1,12 +1,11 @@
-"""The design host's two switches: its door, and its own rebuild.
+"""The design host's door (v1's session) and its one switch, its own rebuild.
 
-WHAT IT PAYS FOR. Once the v1 sign-in is tm-design's door, the host must ask v1
-who is signed in instead of checking its shared password (`TM_DESIGN_GATE=v1`),
-and the application's code must never reach a visitor v1 has not signed in. And
-a host that serves a tree another process builds must never rebuild it itself
-(`TM_DESIGN_REBUILD=off`) — its own `npm run build` has no `--mode design-host`,
-and would silently serve a full-mock build. The defaults (`shared`, `on`) are
-what every harness rule reads.
+WHAT IT PAYS FOR. The v1 sign-in is tm-design's only door: the host asks v1
+who is signed in, and the application's code must never reach a visitor v1 has
+not signed in. And a host that serves a tree another process builds must never
+rebuild it itself (`TM_DESIGN_REBUILD=off`) — its own `npm run build` has no
+`--mode design-host`, and would silently serve a full-mock build. The default
+is `on`.
 
 WHAT MAKES IT NON-VACUOUS. `serve.py` runs as the process it is, on an
 ephemeral port, over a scratch design root, and v1 is a stub on another port
@@ -24,6 +23,7 @@ import http.client
 import http.server
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -164,6 +164,9 @@ def ask(
 
 # The one session value the stub v1 accepts.
 ACCEPTED = "accepted-session"
+# A session v1 knows ended (401 `auth.required`), and one of an account an Admin cut (403 `auth.access_disabled`).
+ENDED = "ended-session"
+CUT = "cut-session"
 
 
 @contextmanager
@@ -183,10 +186,15 @@ def stub_v1() -> Iterator[tuple[str, list[str]]]:
             cookie = self.headers.get("Cookie") or ""
             asked.append(cookie)
             status = 200 if self.path == "/api/v1/auth/me" and cookie == f"tm_v1_session={ACCEPTED}" else 401
+            body = b"{}"
+            if status == 401 and cookie == f"tm_v1_session={ENDED}":
+                body = json.dumps({"code": "auth.required"}).encode()
+            if cookie == f"tm_v1_session={CUT}":
+                status, body = 403, json.dumps({"code": "auth.access_disabled"}).encode()
             self.send_response(status)
-            self.send_header("Content-Length", "2")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(b"{}")
+            self.wfile.write(body)
 
         def log_message(self, fmt: str, *args: object) -> None:
             """Stay quiet."""
@@ -201,22 +209,26 @@ def stub_v1() -> Iterator[tuple[str, list[str]]]:
         server.server_close()
 
 
-def test_the_shared_door_by_default_shows_its_own_sign_in_page(tmp_path: Path) -> None:
-    """With no switch set, the document is behind the host's own password form."""
-    with serving(scratch_root(tmp_path, stale=False)) as port:
-        status, _, body = ask(port, "/")
+def test_the_host_has_no_door_of_its_own_and_ignores_the_old_switch(tmp_path: Path) -> None:
+    """The shared password is gone: `TM_DESIGN_GATE` is read by nothing, and a host cookie admits nobody."""
+    with (
+        stub_v1() as (v1, asked),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_GATE="shared", TM_DESIGN_V1_URL=v1) as port,
+    ):
+        status, _, body = ask(port, "/", cookie="tm_design=any-value-at-all")
         assert status == 401
-        assert b'action="/login"' in body
-        assert b"/api/v1/auth/login" not in body
+        assert b"/api/v1/auth/login" in body and b'action="/login"' not in body
         assert b"the built document" not in body
-        assert ask(port, "/vite/entry.js")[0] == 401
+        assert ask(port, "/vite/entry.js", cookie="tm_design=any-value-at-all")[0] == 401
+        assert ask(port, "/logout")[0] == 401  # no such route any more: the sign-in page answers
+        assert asked == []
 
 
 def test_the_v1_door_shows_its_sign_in_page_to_no_session(tmp_path: Path) -> None:
     """With no session, the v1 door answers 401 with a page that posts to v1, and asks v1 nothing."""
     with (
         stub_v1() as (v1, asked),
-        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_GATE="v1", TM_DESIGN_V1_URL=v1) as port,
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
     ):
         status, headers, body = ask(port, "/")
         assert status == 401
@@ -233,7 +245,7 @@ def test_the_v1_door_serves_the_document_to_a_session_v1_accepts(tmp_path: Path)
     """An accepted session gets the document and its bundle, v1 asked once for both."""
     with (
         stub_v1() as (v1, asked),
-        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_GATE="v1", TM_DESIGN_V1_URL=v1) as port,
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
     ):
         cookie = f"tm_design=other; tm_v1_session={ACCEPTED}"
         status, _, body = ask(port, "/", cookie=cookie)
@@ -247,7 +259,7 @@ def test_the_v1_door_refuses_a_session_v1_refuses(tmp_path: Path) -> None:
     """A session v1 refuses gets the sign-in page, and the refusal is asked again, never kept."""
     with (
         stub_v1() as (v1, asked),
-        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_GATE="v1", TM_DESIGN_V1_URL=v1) as port,
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
     ):
         for _ in range(2):
             status, _, body = ask(port, "/", cookie="tm_v1_session=ended")
@@ -258,7 +270,7 @@ def test_the_v1_door_refuses_a_session_v1_refuses(tmp_path: Path) -> None:
 def test_the_v1_door_names_v1_when_it_does_not_answer(tmp_path: Path) -> None:
     """v1 down is a 503 naming it, never the sign-in page."""
     silent = f"http://127.0.0.1:{free_port()}"
-    with serving(scratch_root(tmp_path, stale=False), TM_DESIGN_GATE="v1", TM_DESIGN_V1_URL=silent) as port:
+    with serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=silent) as port:
         status, _, body = ask(port, "/", cookie=f"tm_v1_session={ACCEPTED}")
     assert status == 503
     assert silent.encode() in body
@@ -269,7 +281,7 @@ def test_the_v1_door_answers_no_form_post_and_issues_no_cookie(tmp_path: Path) -
     """Under the v1 door, the host's own form post is no door: 303 home, no cookie."""
     with (
         stub_v1() as (v1, _),
-        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_GATE="v1", TM_DESIGN_V1_URL=v1) as port,
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
     ):
         status, headers, _ = ask(port, "/login", "POST", "username=izno&password=wrong")
     assert (status, headers.get("location")) == (303, "/")
@@ -278,15 +290,15 @@ def test_the_v1_door_answers_no_form_post_and_issues_no_cookie(tmp_path: Path) -
 
 def test_a_setting_takes_its_values_and_nothing_else(tmp_path: Path) -> None:
     """A switch set to a value it does not take stops the host at boot, naming it."""
-    with pytest.raises(AssertionError, match="TM_DESIGN_GATE"):
-        with serving(scratch_root(tmp_path, stale=False), TM_DESIGN_GATE="off"):
+    with pytest.raises(AssertionError, match="TM_DESIGN_REBUILD"):
+        with serving(scratch_root(tmp_path, stale=False), TM_DESIGN_REBUILD="maybe"):
             pass
 
 
 def test_the_rebuild_off_never_spawns_npm(tmp_path: Path) -> None:
     """With the rebuild off, a stale build is a named 503 and npm is never run."""
     root = scratch_root(tmp_path, stale=True)
-    with stub_v1() as (v1, _), serving(root, TM_DESIGN_GATE="v1", TM_DESIGN_V1_URL=v1, TM_DESIGN_REBUILD="off") as port:
+    with stub_v1() as (v1, _), serving(root, TM_DESIGN_V1_URL=v1, TM_DESIGN_REBUILD="off") as port:
         status, _, body = ask(port, "/", cookie=f"tm_v1_session={ACCEPTED}")
     assert status == 503
     assert b"TM_DESIGN_REBUILD" in body
@@ -298,7 +310,7 @@ def test_the_rebuild_on_spawns_npm_over_a_stale_build(tmp_path: Path) -> None:
     if not (os.path.exists(OPERATOR_NPM) or shutil.which("npm")):
         pytest.skip("no npm on this machine — the rebuild cannot be driven here")
     root = scratch_root(tmp_path, stale=True)
-    with stub_v1() as (v1, _), serving(root, TM_DESIGN_GATE="v1", TM_DESIGN_V1_URL=v1) as port:
+    with stub_v1() as (v1, _), serving(root, TM_DESIGN_V1_URL=v1) as port:
         ask(port, "/", cookie=f"tm_v1_session={ACCEPTED}")
     assert (root / MARK).exists()
 
@@ -350,7 +362,7 @@ def probe(status: int, loads: int) -> dict[str, int]:
         import v1_door
     finally:
         sys.path.remove(str(MAQUETTE))
-    script = v1_door.V1_SIGN_IN.strip().removeprefix("<script>").removesuffix("</script>")
+    script = v1_door.sign_in_script("/").strip().removeprefix("<script>").removesuffix("</script>")
     run = subprocess.run(
         [node, "-e", PROBE_DRIVER, script, str(status), str(loads)],
         capture_output=True,
@@ -369,3 +381,209 @@ def test_the_sign_in_page_reloads_once_for_a_session_v1_holds() -> None:
 def test_the_sign_in_page_never_reloads_when_v1_refuses() -> None:
     """With no session v1 holds, the page asks once and stays: no reload, no loop."""
     assert probe(401, loads=3) == {"asked": 1, "replaced": 0}
+
+
+def reason_of(body: bytes) -> str | None:
+    """The sentence the sign-in page gives for why the session ended, if it gives one.
+
+    Args:
+        body: The sign-in page.
+
+    Returns:
+        The text of its `login/reason` line, or None when the page has none.
+    """
+    found = re.search(rb'<p[^>]*data-part="login/reason"[^>]*>([^<]*)</p>', body)
+    return found.group(1).decode() if found else None
+
+
+def words(key: str) -> str:
+    """One of the host's French sentences, read from the interface's resource.
+
+    Args:
+        key: The key under `server.login`.
+
+    Returns:
+        The sentence.
+    """
+    return str(json.loads((DESIGN / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))["server"]["login"][key])
+
+
+def test_a_stale_post_to_login_is_answered_cleanly_and_never_echoed(tmp_path: Path) -> None:
+    """The form body is read and discarded, so it is neither the next request line nor in any answer."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=60)
+        body = "username=izno&password=hunter2-correct-horse"
+        connection.request("POST", "/login", body=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
+        first = connection.getresponse()
+        first_body = first.read()
+        # The same connection carries the next request: an unread body would be parsed as its line.
+        connection.request("GET", "/")
+        second = connection.getresponse()
+        second_body = second.read()
+        connection.close()
+    assert (first.status, first.getheader("Location")) == (303, "/")
+    assert second.status == 401 and b"loginform" in second_body
+    assert b"hunter2" not in first_body + second_body
+    assert b"hunter2" not in repr(first.getheaders()).encode()
+
+
+def test_the_sign_in_page_says_the_session_ended_when_v1_says_so(tmp_path: Path) -> None:
+    """A session v1 answers 401 `auth.required` is « expired » — in the interface's words."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        _, _, body = ask(port, "/", cookie=f"tm_v1_session={ENDED}")
+    assert reason_of(body) == words("reasonExpired")
+
+
+def test_the_sign_in_page_says_the_access_was_cut_when_v1_says_so(tmp_path: Path) -> None:
+    """A session v1 answers 403 `auth.access_disabled` is « disabled by an administrator »."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        _, _, body = ask(port, "/", cookie=f"tm_v1_session={CUT}")
+        _, _, after_sign_in = ask(port, "/?refus=1&why=auth.access_disabled")
+    assert reason_of(body) == words("reasonDisabled")
+    assert reason_of(after_sign_in) == words("reasonDisabled")
+
+
+def test_a_plain_first_visit_shows_no_reason_and_a_forged_one_is_never_echoed(tmp_path: Path) -> None:
+    """No cookie, an unknown code or markup in `why`: no reason line, and nothing echoed."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        bodies = [
+            ask(port, "/")[2],
+            ask(port, "/?refus=1&why=auth.refused")[2],
+            ask(port, "/?refus=1&why=%3Cscript%3Ealert(1)%3C/script%3E")[2],
+        ]
+    assert [reason_of(body) for body in bodies] == [None, None, None]
+    assert b"alert(1)" not in bodies[2]
+    assert [b"login/reason" in body for body in bodies] == [False, False, False]
+
+
+@pytest.mark.parametrize(
+    ("asked", "kept"),
+    [
+        ("/", "/"),
+        ("/mediasheet/12?tab=files", "/mediasheet/12?tab=files"),
+        ("/profile/refus%C3%A9", "/profile/refus%C3%A9"),
+        ("", "/"),
+        ("//evil.example/x", "/"),
+        ("///evil.example", "/"),
+        ("/\\evil.example", "/"),
+        ("\\\\evil.example", "/"),
+        ("https://evil.example/", "/"),
+        ("http:evil.example", "/"),
+        ("javascript:alert(1)", "/"),
+        ("evil.example/x", "/"),
+        ("/ok\nSet-Cookie: a=b", "/"),
+        ("/ok\t/..//evil.example", "/"),
+    ],
+)
+def test_only_a_same_origin_path_is_a_place_to_return_to(asked: str, kept: str) -> None:
+    """An absolute URL, `//host`, a scheme, a backslash or a control character is replaced by `/`."""
+    sys.path.insert(0, str(MAQUETTE))
+    try:
+        import v1_door
+    finally:
+        sys.path.remove(str(MAQUETTE))
+    assert v1_door.safe_return_path(asked) == kept
+
+
+def test_the_sign_in_page_carries_the_address_that_was_asked_and_never_a_foreign_one(tmp_path: Path) -> None:
+    """The page names the deep link as its return place; `next` is honoured only when it is a path."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        deep = ask(port, "/mediasheet/12?tab=files")[2]
+        after_refusal = ask(port, "/?refus=1&next=%2Fmediasheet%2F12")[2]
+        foreign = ask(port, "/?refus=1&next=https%3A%2F%2Fevil.example%2F")[2]
+        slashes = ask(port, "//evil.example/x")[2]
+    assert b'"/mediasheet/12?tab=files"' in deep
+    assert b'"/mediasheet/12"' in after_refusal
+    assert b"evil.example" not in foreign
+    # Python's own server already folds a leading `//` of the request line into one `/`: whatever
+    # reaches the page is a path, and never a scheme-relative address.
+    assert b'"//' not in slashes
+
+
+# Drives the page's submit under node: `status` and `code` are what v1's login answers.
+SUBMIT_DRIVER = """
+const script = process.argv[1];
+const answered = { status: Number(process.argv[2]), code: process.argv[3] };
+const seen = { replaced: [] };
+let submit = null;
+globalThis.sessionStorage = { getItem: () => String(Date.now()), setItem: () => {} };
+globalThis.location = { pathname: '/', search: '', replace: (to) => { seen.replaced.push(to); } };
+const form = {
+  username: { value: ' a@b.c ' }, password: { value: 'pw' },
+  addEventListener: (name, handler) => { if (name === 'submit') submit = handler; },
+  checkValidity: () => true,
+};
+globalThis.document = { querySelector: () => form };
+globalThis.fetch = (path) => {
+  if (path === '/api/v1/auth/login') {
+    return Promise.resolve({
+      ok: answered.status === 200, status: answered.status,
+      json: () => Promise.resolve(answered.code ? { code: answered.code } : {}),
+    });
+  }
+  return Promise.resolve({ ok: false, status: 401 });
+};
+(async () => {
+  new Function(script)();
+  submit({ preventDefault: () => {} });
+  await new Promise((settle) => setTimeout(settle, 20));
+  console.log(JSON.stringify(seen));
+})();
+"""
+
+
+def submit(return_to: str, status: int, code: str = "") -> list[str]:
+    """Submit the sign-in page's form under node.
+
+    Args:
+        return_to: The place the page was built to return to.
+        status: What v1's login answers.
+        code: The refusal code in its body, if any.
+
+    Returns:
+        The addresses the page navigated to, in order.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("no node on this machine — the sign-in page's script cannot be driven here")
+    sys.path.insert(0, str(MAQUETTE))
+    try:
+        import v1_door
+    finally:
+        sys.path.remove(str(MAQUETTE))
+    script = v1_door.sign_in_script(return_to).strip().removeprefix("<script>").removesuffix("</script>")
+    run = subprocess.run(
+        [node, "-e", SUBMIT_DRIVER, script, str(status), code],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    return list(json.loads(run.stdout)["replaced"])
+
+
+def test_a_signed_in_page_returns_to_the_address_that_was_asked() -> None:
+    """After v1 opens the session, the page goes to its return place, not `/`."""
+    assert submit("/mediasheet/12?tab=files", 200) == ["/mediasheet/12?tab=files"]
+
+
+def test_a_refused_page_keeps_the_address_and_says_why_when_it_is_known() -> None:
+    """A refusal comes back to the sign-in page with the place kept, and the code only when it is a reason."""
+    kept = "next=%2Fmediasheet%2F12"
+    assert submit("/mediasheet/12", 401, "auth.refused") == [f"/?refus=1&{kept}"]
+    assert submit("/mediasheet/12", 403, "auth.access_disabled") == [f"/?refus=1&why=auth.access_disabled&{kept}"]

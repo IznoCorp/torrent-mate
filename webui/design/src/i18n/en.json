@@ -16,7 +16,9 @@
   },
   "server": {
     "login": {
-      "title": "TorrentMate Design — sign in"
+      "title": "TorrentMate Design — sign in",
+      "reasonExpired": "Session expired: sign in again.",
+      "reasonDisabled": "Access disabled by an administrator."
     },
     "offline": {
       "title": "TorrentMate Design — offline",

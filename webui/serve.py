@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Serve the design prototype over HTTP, behind its own login screen.
+"""Serve the design prototype over HTTP, behind its own login screen.
 
 This server serves the Vite build (`dist/index.html`), rebuilt when its
 inputs are newer. The harness measures the source through its own copy of the
@@ -19,32 +19,19 @@ from the prototype — markup, styles and typeface, between explicit markers —
 so the screen a visitor meets is the screen the design defines, never a copy of
 it that drifts.
 
-Two switches. `TM_DESIGN_GATE` names the door: `shared` (the default) is this
-host's own password; `v1` is the real v1 session — the sign-in page stays public
-and posts to v1, and the document is served only to a request whose v1 session
-v1 itself accepts. `TM_DESIGN_REBUILD=off` (`on` by default) stops the host
-rebuilding a tree another process builds.
-
-Only a scrypt hash of the password is stored. Set `TM_DESIGN_PASSWORD_HASH` to
-rotate it without touching this file:
-
-    python3 -c "import hashlib,os,base64; s=os.urandom(16); \\
-        print(base64.b64encode(s).decode()+':'+base64.b64encode( \\
-        hashlib.scrypt(b'<password>', salt=s, n=16384, r=8, p=1, dklen=32)).decode())"
+One switch. `TM_DESIGN_REBUILD=off` (`on` by default) stops the host rebuilding a
+tree another process builds. The door is the real v1 session and nothing else: the
+sign-in page is public and posts to v1, and the document is served only to a
+request whose v1 session v1 itself accepts.
 """
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
 import html
-import http.cookies
 import http.server
 import json
 import os
 import re
-import secrets
 import shutil
 import socketserver
 import subprocess
@@ -229,32 +216,16 @@ def setting(name: str, choices: tuple[str, ...]) -> str:
     return value
 
 
-# WHICH DOOR (the operator, 2026-10-04; Q4 = B, amended round 2 Q1 = A). The
-# application's code never reaches a visitor nobody signed in. `shared` is this
-# host's own password, as it has always been — and what every harness rule
-# reads. `v1` makes the real v1 session the door: the sign-in page is public and
-# posts to v1, and the document and its bundle answer only a request carrying a
-# session v1 accepts.
-GATE = setting("TM_DESIGN_GATE", ("shared", "v1"))
+# THE DOOR IS v1's (the operator, 2026-10-04; round 2 Q1 = A, then Q4 = B once the
+# owner was verified): the application's code never reaches a visitor v1 has not
+# signed in. The sign-in page is public and posts to v1, and the document and its
+# bundle answer only a request carrying a session v1 accepts. The host's own
+# shared password and its user are gone.
 # THE HOST'S OWN REBUILD, switchable off: a host serving a tree another process
 # builds with `--mode design-host` must never rebuild it with plain
 # `npm run build`, which would serve a full-mock, frozen-clock build saying
 # nothing. Off, a missing or stale build is the named 503.
 REBUILD = setting("TM_DESIGN_REBUILD", ("on", "off")) == "on"
-
-USERNAME = os.environ.get("TM_DESIGN_USER", "izno")
-
-# scrypt, salt included, both base64. The password itself is nowhere here, and
-# nowhere in the repository.
-PASSWORD_HASH = os.environ.get(
-    "TM_DESIGN_PASSWORD_HASH",
-    "6AyZBOfVp7Qj5pwFOepikA==:7sVyqbzeLHD4/FA8pUfqPb7RPSe+wmesEZi7fhXm9hw=",
-)
-
-# Regenerated at every boot: a restart ends every session, which is the right
-# trade for a design host and removes any need to persist secrets.
-SESSION_SECRET = secrets.token_bytes(32)
-COOKIE_NAME = "tm_design"
 
 ASSETS_DIR = DESIGN_ROOT / "assets"
 
@@ -396,11 +367,15 @@ document.querySelector('#loginform').addEventListener('submit', function (e) {
 """
 
 
-def login_page(refused: bool) -> bytes:
+def login_page(refused: bool, reason: str | None = None, return_to: str = "/") -> bytes:
     """Builds the login page out of the prototype's own login screen.
 
     Args:
         refused: True to show the rejection state.
+        reason: The key under `server.login` of the words that say why the
+            session ended, or None for a plain visit.
+        return_to: The same-origin path the page returns to once v1 opens the
+            session.
 
     Returns:
         A complete HTML document.
@@ -435,15 +410,10 @@ def login_page(refused: bool) -> bytes:
     # attributes it needs, in whatever order.
     markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup,
                     count=1)
-    # BY PATTERN ON THE ID, for the reason just above: the form's classes are
-    # styling and may change; `id="loginform"` is the anchor its script reads.
-    # The v1 door posts by script (`v1_door.V1_SIGN_IN`), to v1 itself; the
-    # shared door posts the form here.
-    if GATE == "v1":
-        markup = v1_door.as_v1_form(markup, v1_door.email_label(TEXTS.read_text(encoding="utf-8")))
-    else:
-        markup = re.sub(r'(<form\b[^>]*?\bid="loginform")', r'\1 method="post" action="/login"',
-                        markup, count=1)
+    # The form posts by script (`v1_door.sign_in_script`), to v1 itself.
+    markup = v1_door.as_v1_form(markup, v1_door.email_label(TEXTS.read_text(encoding="utf-8")))
+    if reason is not None:
+        markup = v1_door.with_reason(markup, served_texts()["login"][reason])
     if refused:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
@@ -494,32 +464,13 @@ def login_page(refused: bool) -> bytes:
         f"{pwa_head(DESIGN_ROOT)}"
         "<style>"
         f"{styles}{adjustments}</style></head><body>{markup}"
-        f"{STARTUP_SWITCH}{v1_door.V1_SIGN_IN if GATE == 'v1' else ''}</body></html>"
+        f"{STARTUP_SWITCH}{v1_door.sign_in_script(return_to)}</body></html>"
     ).encode()
 
 
-def session_token() -> str:
-    """Returns the session value a cookie must carry to be accepted."""
-    return hmac.new(SESSION_SECRET, b"session", hashlib.sha256).hexdigest()
-
-
-def password_matches(submitted: str) -> bool:
-    """Checks a password against the stored scrypt hash.
-
-    Args:
-        submitted: The submitted password.
-
-    Returns:
-        True when it matches.
-    """
-    try:
-        salt_b64, expected_b64 = PASSWORD_HASH.split(":", 1)
-        salt = base64.b64decode(salt_b64)
-        expected = base64.b64decode(expected_b64)
-    except (ValueError, TypeError):
-        return False
-    computed = hashlib.scrypt(submitted.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
-    return hmac.compare_digest(computed, expected)
+# The largest form body a stale post may carry and still be read off the
+# connection and discarded: a login form is a few hundred bytes.
+MAX_DRAINED = 65536
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -585,23 +536,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return Handler._cache[1]  # type: ignore[index]
 
     def _authenticated(self) -> bool:
-        """Returns True when the request carries a session the door accepts.
+        """Returns True when v1 accepts the session the request carries.
 
         Raises:
-            v1_door.V1Unreachable: Under the v1 door, when v1 does not say.
+            v1_door.V1Unreachable: When v1 does not say.
         """
-        if GATE == "v1":
-            return v1_door.admitted(self.headers.get("Cookie"))
-        raw = self.headers.get("Cookie")
-        if not raw:
-            return False
-        cookies = http.cookies.SimpleCookie()
-        try:
-            cookies.load(raw)
-        except http.cookies.CookieError:
-            return False
-        value = cookies.get(COOKIE_NAME)
-        return value is not None and hmac.compare_digest(value.value, session_token())
+        return v1_door.admitted(self.headers.get("Cookie"))
 
     def _send(
         self,
@@ -748,15 +688,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                        [("Cache-Control", "private, max-age=31536000, immutable")],
                        content_type=content_type)
             return
-        if path_ == "/logout":
-            self._send(303, b"", [("Location", "/"),
-                                  ("Set-Cookie", f"{COOKIE_NAME}=; Path=/; Max-Age=0")])
-            return
         if path_ == "/login":
-            # `/login` accepts only POST (do_POST below): a reload or a
-            # back-navigation after signing in must not re-render a form that
-            # can only submit once. Matched BEFORE the fallback, so it keeps
-            # this exact special case rather than falling into it.
+            # The form posts to v1, never here (do_POST below answers a stale
+            # post): a reload or a back-navigation after signing in must not
+            # re-render a form on an address that is no page. Matched BEFORE the
+            # fallback, so it keeps this exact special case rather than falling
+            # into it.
             self._send(303, b"", [("Location", "/")])
             return
         # Every other path — "/", "/index.html", and any address the
@@ -769,16 +706,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # PWA, whose whole scope is `/`, has no address bar to escape either
         # one with. The scope must therefore be a place one cannot leave by
         # accident, at any depth the router grows into.
-        if not self._authenticated():
+        admitted, code = v1_door.check_session(self.headers.get("Cookie"))
+        if not admitted:
             # The rejection state is signalled by the `refus` QUERY PARAMETER
-            # `do_POST` redirects to (`/?refus=1`), not by the substring
+            # the sign-in page redirects to (`/?refus=1`), not by the substring
             # "refus" anywhere in the path — a raw substring match also fired
             # on any unrelated address merely containing it (e.g.
             # `/profile/refusé`), showing the rejection banner to someone who
             # never submitted anything.
             params = urllib.parse.parse_qs(
                 urllib.parse.urlsplit(self.path).query)
-            self._send_page(401, lambda: login_page("refus" in params))
+            reason = v1_door.refusal_reason(code, (params.get("why") or [None])[0])
+            self._send_page(401, lambda: login_page(
+                "refus" in params, reason, v1_door.return_target(self.path)))
             return
         try:
             body = self._document()
@@ -794,30 +734,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
     do_HEAD = do_GET
 
     def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
-        """Answers the login form: a session cookie, or the rejection state."""
-        # Under the v1 door the form posts to v1: there is nothing to answer
-        # here, and no cookie of this host's to issue.
-        if self.path.split("?", 1)[0] != "/login" or GATE == "v1":
-            self._send(303, b"", [("Location", "/")])
+        """Answers a stale form post: its body discarded, then a redirect to the sign-in page.
+
+        The form posts to v1 by script, so a post that reaches this host is a
+        stale page's, and its body is a password. It is READ AND DISCARDED:
+        left unread on a kept-alive connection it is parsed as the next
+        request's line, and the error page then echoes it. It is never parsed,
+        never logged, never in an answer.
+        """
+        try:
+            size = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            size = -1
+        # A body this host will not drain, or one it cannot measure (chunked), ends
+        # the connection instead: nothing is left on it to be read as a request.
+        if size < 0 or size > MAX_DRAINED or self.headers.get("Transfer-Encoding"):
+            self.close_connection = True
+            self._send(303, b"", [("Location", "/"), ("Connection", "close")])
             return
-        size = min(int(self.headers.get("Content-Length") or 0), 4096)
-        # The field NAMES are the login form's own, extracted from the
-        # prototype: they are markup this host reads, not names it chooses.
-        fields = urllib.parse.parse_qs(self.rfile.read(size).decode("utf-8", "replace"))
-        username = (fields.get("username") or [""])[0].strip()
-        password = (fields.get("password") or [""])[0]
-        # Both sides compared in constant time, and the username checked even
-        # when it is wrong, so a wrong name and a wrong password cost the same.
-        name_ok = hmac.compare_digest(username, USERNAME)
-        password_ok = password_matches(password)
-        if not (name_ok and password_ok):
-            self._send(303, b"", [("Location", "/?refus=1")])
-            return
-        self._send(303, b"", [
-            ("Location", "/"),
-            ("Set-Cookie",
-             f"{COOKIE_NAME}={session_token()}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=2592000"),
-        ])
+        self.rfile.read(size)
+        self._send(303, b"", [("Location", "/")])
 
     def log_message(self, fmt: str, *args: object) -> None:
         """Silences per-request logging.
