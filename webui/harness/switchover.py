@@ -165,6 +165,14 @@ def main():
         # of a deep address carries that address, so a visitor lands where they
         # were going once v1 opens the session. Everything else is the same page.
         def without_return(page: bytes) -> bytes:
+            """Blanks the sign-in page's return address, the one part that names the address asked.
+
+            Args:
+                page: A sign-in page.
+
+            Returns:
+                The page with its `RETURN_TO` value removed.
+            """
             return re.sub(rb"var RETURN_TO = [^;]*;", b"var RETURN_TO;", page)
         journal.check(
             "an unknown address with no session answers the sign-in screen, like «/»",

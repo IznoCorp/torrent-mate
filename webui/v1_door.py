@@ -117,7 +117,14 @@ def ask_v1(token: str) -> tuple[int, str | None]:
 
 
 def _code_of(refusal: urllib.error.HTTPError) -> str | None:
-    """The `code` of a refusal's problem body, or None when it carries none."""
+    """Reads the `code` of a refusal's problem body.
+
+    Args:
+        refusal: v1's refusal, its body not read yet.
+
+    Returns:
+        The code, or None when the body carries none or cannot be read.
+    """
     try:
         body = json.loads(refusal.read(4096))
     except (OSError, ValueError):
@@ -293,7 +300,15 @@ V1_SIGN_IN = """
 
 
 def _as_js(value: object) -> str:
-    """A JSON value safe inside an inline script: no `</script>`, no line terminators."""
+    """Writes a value as JSON safe inside an inline script.
+
+    Args:
+        value: Any JSON-serialisable value.
+
+    Returns:
+        Its JSON, with no `</script>`, no `&` and no line terminator a script
+        would read as the end of a line.
+    """
     return (
         json.dumps(value)
         .replace("<", "\\u003c")

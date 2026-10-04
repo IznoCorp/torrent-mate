@@ -224,6 +224,11 @@ class _FakeV1:
     """The sessions a stand-in v1 holds, and what it was asked."""
 
     def __init__(self, sessions: set[str]) -> None:
+        """Holds the sessions v1 accepts, to begin with.
+
+        Args:
+            sessions: The session values v1 accepts.
+        """
         self.sessions = set(sessions)
         self.asked: list[str] = []
         self.url = ""
@@ -238,7 +243,7 @@ def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
     needed to sign a rule in. A rule points the host at it with
     `TM_DESIGN_V1_URL` and signs in by sending `tm_v1_session=<a session>`.
     `POST /api/v1/auth/logout` ends the session its cookie carries, as v1's
-    does, and `sessions.discard` ends one from the rule.
+    does.
 
     Args:
         *sessions: The session values v1 accepts, to begin with.
@@ -253,11 +258,21 @@ def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
         """Answers v1's two session routes from the stand-in's sessions."""
 
         def _session(self) -> str:
+            """Reads the session the request's cookie carries.
+
+            Returns:
+                The `tm_v1_session` value, or an empty string when there is none.
+            """
             cookie = self.headers.get("Cookie") or ""
             match = re.search(r"tm_v1_session=([^;]*)", cookie)
             return match.group(1) if match else ""
 
         def _answer(self, status: int) -> None:
+            """Answers an empty JSON object with a status.
+
+            Args:
+                status: The HTTP status.
+            """
             self.send_response(status)
             self.send_header("Content-Length", "2")
             self.end_headers()
@@ -279,7 +294,12 @@ def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
             self._answer(404)
 
         def log_message(self, fmt: str, *args: object) -> None:
-            """Stays quiet."""
+            """Stays quiet: a rule's output is its verdicts, not the stand-in's requests.
+
+            Args:
+                fmt: The log line's format, ignored.
+                *args: Its values, ignored.
+            """
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     stand_in.url = f"http://127.0.0.1:{server.server_address[1]}"
