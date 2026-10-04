@@ -55,7 +55,6 @@ from personalscraper.app.library.facts import (
 from personalscraper.app.library.identity import Provider, ref_key
 from personalscraper.app.library.listing import (
     LIBRARY_PAGE_SIZE,
-    MEDIA_FOLDER_DEPTH,
     IndexRow,
     LibrarySort,
     live_episode_pairs,
@@ -66,6 +65,7 @@ from personalscraper.app.library.listing import (
     page_of,
     read_holders,
     read_live_rows,
+    resolve_media_folder,
 )
 from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
 from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
@@ -265,10 +265,9 @@ class LocalPoster:
 def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
     """Read the item-level poster of one media folder, never anything outside it.
 
-    The folder must resolve inside its disk's mount point, exactly ``MEDIA_FOLDER_DEPTH``
-    segments below it (a media folder, never a category nor the disk itself), and the
-    poster file (the name the artwork inventory recognises) must resolve directly inside
-    the folder: a symlink or a ``..`` leading elsewhere is refused, whatever it reaches.
+    The folder is resolved inside its disk (:func:`resolve_media_folder`), and the poster
+    file (the name the artwork inventory recognises) must resolve directly inside the
+    folder: a symlink or a ``..`` leading elsewhere is refused, whatever it reaches.
 
     Args:
         mount_path: The disk's mount point, as the index names it.
@@ -279,13 +278,11 @@ def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
         a path escapes, when a symlink loops, or when the poster exceeds
         ``POSTER_MAX_BYTES``.
     """
+    resolved = resolve_media_folder(mount_path, folder)
+    if resolved is None:
+        return None
+    _, directory = resolved
     try:
-        root = Path(mount_path).resolve(strict=True)
-        directory = (root / folder).resolve(strict=True)
-        if not directory.is_relative_to(root) or not directory.is_dir():
-            return None
-        if len(directory.relative_to(root).parts) != MEDIA_FOLDER_DEPTH:
-            return None
         name = artwork_inventory(directory)["poster"]
         if name is None:
             return None

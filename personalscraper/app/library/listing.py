@@ -17,6 +17,7 @@ import unicodedata
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Final, Literal
 
 from personalscraper.core.identity import MediaRef
@@ -313,6 +314,34 @@ def mounted_media_folders(conn: sqlite3.Connection, item_id: int) -> list[tuple[
         if len(segments) == MEDIA_FOLDER_DEPTH and not any(part in _NOT_A_NAME for part in segments):
             folders.add((mount_path, "/".join(segments)))
     return sorted(folders)
+
+
+def resolve_media_folder(mount_path: str, folder: str) -> tuple[Path, Path] | None:
+    """Resolve one media folder inside its disk, never anything outside it.
+
+    The folder must resolve inside its disk's mount point, exactly ``MEDIA_FOLDER_DEPTH``
+    segments below it (a media folder, never a category nor the disk itself), and be a
+    directory: a symlink or a ``..`` leading elsewhere is refused, whatever it reaches.
+
+    Args:
+        mount_path: The disk's mount point, as the index names it.
+        folder: The media folder below it, as the index names it.
+
+    Returns:
+        ``(the mount point, the folder)``, both resolved; ``None`` when the disk or the
+        folder is not there, is not a directory, escapes, or when a symlink loops.
+    """
+    try:
+        root = Path(mount_path).resolve(strict=True)
+        directory = (root / folder).resolve(strict=True)
+        if not directory.is_relative_to(root) or not directory.is_dir():
+            return None
+    except (OSError, RuntimeError):
+        # Python 3.12's strict resolve raises RuntimeError, not OSError, on a symlink loop.
+        return None
+    if len(directory.relative_to(root).parts) != MEDIA_FOLDER_DEPTH:
+        return None
+    return root, directory
 
 
 def live_episode_pairs(conn: sqlite3.Connection) -> dict[int, set[tuple[int, int]]]:
