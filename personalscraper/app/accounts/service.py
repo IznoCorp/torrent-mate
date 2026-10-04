@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, replace
 from typing import Final, get_args
 
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
+from personalscraper.app.accounts.avatar import resolve_avatar
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal, verify_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
@@ -162,13 +163,14 @@ class AccountService:
         role = repo.role(actor.role_id)
         if role is None:
             raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
+        link = repo.plex_link(account.id)
         return AccountView(
             id=account.id,
             name=account.name,
             email=account.email,
-            avatar=account.avatar or None,
+            avatar=resolve_avatar(link, account.email),
             role=role_view(role),
-            sign_in_kind=sign_in_kind(repo.plex_link(account.id)),
+            sign_in_kind=sign_in_kind(link),
             forbidden_writes=tuple(sorted(actor.ceiling.forbidden)),
         )
 
