@@ -6,6 +6,8 @@
 // codes — the two checks are the same Unicode categories, so they never part.
 import { describe, expect, it } from "vitest";
 import ACCOUNTS from "../mocks/seeds/accounts.json";
+import FR from "../i18n/fr.json";
+import EN from "../i18n/en.json";
 import { PASSWORD_MINIMUM, passwordShortfall } from "./password-policy";
 
 describe("the password policy", () => {
@@ -32,5 +34,17 @@ describe("the password policy", () => {
 
   it("names the minimum the layer's seeds name", () => {
     expect(PASSWORD_MINIMUM).toBe(ACCOUNTS.passwordMinimum);
+  });
+});
+
+describe("the words of a password under the minimum", () => {
+  // SHOWN AT EVERY DOOR, the provisional password at a creation included: they
+  // say the whole rule, as the field's helper does, never « the new password ».
+  it.each([["fr", FR], ["en", EN]] as const)("say the whole rule, and no « new » (%s)", (_language, catalogue) => {
+    const rule = catalogue.common.passwordRule;
+    const whole = rule.slice(rule.indexOf("{{minimum}}"), -1).toLowerCase();
+    const said = catalogue.refusals.password.too_short.toLowerCase();
+    expect(said).toContain(whole);
+    expect(said).not.toMatch(/\bnouveau\b|\bnew\b/);
   });
 });

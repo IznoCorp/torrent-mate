@@ -2309,7 +2309,7 @@
     "password": {
       "current_wrong": "Le mot de passe actuel est incorrect : rien n'a été changé.",
       "required": "Un compte local reçoit un mot de passe provisoire : il est obligatoire.",
-      "too_short": "Le nouveau mot de passe doit compter au moins {{minimum}} caractères.",
+      "too_short": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial.",
       "too_weak": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial : l'un d'eux manque.",
       "held_by_cli": "Ce mot de passe de secours ne se change que par une commande sur le serveur, jamais ici.",
       "reset_admin_only": "Seul un Admin réinitialise un mot de passe : le vôtre se change dans votre Profil.",

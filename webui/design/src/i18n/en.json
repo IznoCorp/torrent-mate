@@ -2309,7 +2309,7 @@
     "password": {
       "current_wrong": "The current password is incorrect: nothing was changed.",
       "required": "A local account gets a temporary password: it is required.",
-      "too_short": "The new password must be at least {{minimum}} characters long.",
+      "too_short": "The password needs at least {{minimum}} characters, with an uppercase letter, a digit and a special character.",
       "too_weak": "The password must be at least {{minimum}} characters long, with an uppercase letter, a digit and a special character: one of them is missing.",
       "held_by_cli": "This fallback password can only be changed by a command on the server, never here.",
       "reset_admin_only": "Only an Admin resets a password: yours is changed in your Profile.",
