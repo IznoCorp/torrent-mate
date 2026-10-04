@@ -18,10 +18,17 @@ type Registration = {
 let reload: ReturnType<typeof vi.fn>;
 let waiting: { postMessage: ReturnType<typeof vi.fn> };
 let registration: Registration;
+let containerListeners: Record<string, () => void>;
 
-/** Stands up one browser, one worker container and one host answering `served` as its build. */
-function world(options: { standalone: boolean; served: string; hasWaiting: boolean }): void {
+/**
+ * Stands up one browser, one worker container and one host answering `served` as its build.
+ *
+ * @param options The display mode, the served build, whether a worker waits, and the build this session
+ *     already reloaded for (`remembered`), if any.
+ */
+function world(options: { standalone: boolean; served: string; hasWaiting: boolean; remembered?: string }): void {
   reload = vi.fn();
+  containerListeners = {};
   waiting = { postMessage: vi.fn() };
   registration = {
     waiting: options.hasWaiting ? waiting : null,
@@ -31,13 +38,15 @@ function world(options: { standalone: boolean; served: string; hasWaiting: boole
   const container = {
     controller: { postMessage: vi.fn() },
     getRegistration: async () => registration,
-    addEventListener: () => {},
+    addEventListener: (type: string, listener: () => void) => {
+      containerListeners[type] = listener;
+    },
   };
   vi.stubGlobal("navigator", { serviceWorker: container, userAgent: "x", platform: "x", maxTouchPoints: 0 });
   vi.stubGlobal("window", { matchMedia: () => ({ matches: options.standalone }), name: "" });
   vi.stubGlobal("document", { addEventListener: () => {}, visibilityState: "visible" });
   vi.stubGlobal("location", { reload });
-  vi.stubGlobal("sessionStorage", { getItem: () => null, setItem: () => {} });
+  vi.stubGlobal("sessionStorage", { getItem: () => options.remembered ?? null, setItem: () => {} });
   vi.stubGlobal("setInterval", () => 0);
   vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ build: options.served }), { status: 200 }));
 }
@@ -60,6 +69,13 @@ describe("a tab", () => {
     const install = await boot();
     expect(waiting.postMessage).toHaveBeenCalledWith("skip-waiting");
     expect(install.installFace()).not.toBe("update");
+  });
+
+  it("reloads by itself on a swap — the control", async () => {
+    world({ standalone: false, served: __BUILD_ID__, hasWaiting: true });
+    await boot();
+    containerListeners.controllerchange();
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it("reloads by itself into a newer build when no worker waits", async () => {
@@ -91,6 +107,29 @@ describe("an installed application", () => {
     expect(reload).not.toHaveBeenCalled();
     expect(install.installFace()).toBe("update");
     install.applyUpdate();
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("reloads on the person's word even when this session already reloaded for that build", async () => {
+    world({ standalone: true, served: "a-newer-build", hasWaiting: false, remembered: "a-newer-build" });
+    const install = await boot();
+    expect(install.installFace()).toBe("update");
+    install.applyUpdate();
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reload under the person's hands when a worker swaps without being asked", async () => {
+    world({ standalone: true, served: __BUILD_ID__, hasWaiting: true });
+    await boot();
+    containerListeners.controllerchange();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("reloads on the swap the person asked for", async () => {
+    world({ standalone: true, served: __BUILD_ID__, hasWaiting: true });
+    const install = await boot();
+    install.applyUpdate();
+    containerListeners.controllerchange();
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
