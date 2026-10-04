@@ -474,7 +474,22 @@ def test_a_plex_tv_failure_is_a_probe_error_without_a_secret(tmp_path: Path) -> 
     """The client's error becomes the probe's, its text free of any planted value."""
 
     class _DownAfterIdentity(_FakePlex):
+        """plex.tv down once the server has answered its identity: every plex.tv call fails, its text leaky."""
+
         def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            """Fail every plex.tv call with a transport error carrying the token and the code.
+
+            Args:
+                method: HTTP method.
+                url: Absolute URL.
+                **kwargs: The request's options, ``headers`` among them.
+
+            Returns:
+                The base fake's answer, for the server's own calls.
+
+            Raises:
+                requests.ConnectionError: For every plex.tv call.
+            """
             if url.startswith("https://plex.tv/"):
                 raise requests.ConnectionError(f"boom {kwargs['headers'].get('X-Plex-Token')} {CODE}")
             return super().request(method, url, **kwargs)
@@ -489,7 +504,22 @@ def test_an_unreachable_check_while_waiting_a_pin_out_is_not_recorded_as_expired
     """A transport failure or a 5xx during ``--record-expired`` stops the probe: no false ``pin-expired``."""
 
     class _FlakyExpiry(_FakePlex):
+        """The connection drops on the check of the PIN ``--record-expired`` waits out."""
+
         def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            """Fail the second PIN's check with a transport error; answer the rest as the base fake.
+
+            Args:
+                method: HTTP method.
+                url: Absolute URL.
+                **kwargs: The request's options.
+
+            Returns:
+                The base fake's answer, for every other call.
+
+            Raises:
+                requests.ConnectionError: For the second PIN's check.
+            """
             if url.endswith(f"/api/v2/pins/{PIN_ID + 1}"):
                 raise requests.ConnectionError("reset")
             return super().request(method, url, **kwargs)
@@ -499,7 +529,19 @@ def test_an_unreachable_check_while_waiting_a_pin_out_is_not_recorded_as_expired
     assert not (tmp_path / "plex-account").exists()
 
     class _ServerErrorExpiry(_FakePlex):
+        """plex.tv answers a 503 to the check of the PIN ``--record-expired`` waits out."""
+
         def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            """Answer the second PIN's check with a 503; answer the rest as the base fake.
+
+            Args:
+                method: HTTP method.
+                url: Absolute URL.
+                **kwargs: The request's options.
+
+            Returns:
+                A 503 for the second PIN's check, else the base fake's answer.
+            """
             if url.endswith(f"/api/v2/pins/{PIN_ID + 1}"):
                 return _Response(503, {"errors": []})
             return super().request(method, url, **kwargs)

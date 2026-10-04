@@ -53,6 +53,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
 import requests
 
 from personalscraper.api.plex_account import (
