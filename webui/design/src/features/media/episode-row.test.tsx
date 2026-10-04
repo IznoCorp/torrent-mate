@@ -11,11 +11,18 @@ import "../../i18n";
 import "../../lib/unit-words";
 import MEDIA_SHEETS from "../../mocks/seeds/media-sheets.json";
 import { dateLabel } from "./format";
-import { episodeTitle } from "./variants";
+import { episodeDate, episodeTitle } from "./variants";
 import { EpisodeRow } from "./episode-row";
 
-/** The row's markup, and its text as one reads it. */
-function draw(episode: { number: number; title: string | null; airDate?: string | null }) {
+/**
+ * Draws one episode's row, in the library state.
+ *
+ * @param episode The episode, as the sheet lists it; its title may be null.
+ * @returns The row's markup, and its text as one reads it.
+ */
+function draw(
+  episode: { number: number; title: string | null; airDate?: string | null },
+): { html: string; text: string } {
   const html = renderToStaticMarkup(createElement(EpisodeRow, { episode, state: "in_library" }));
   // No DOM in this environment: the text is the markup without its tags.
   const text = html.replace(/<[^>]*>/g, "").trim();
@@ -39,6 +46,12 @@ describe("EpisodeRow", () => {
     expect(text).toBe(`E03 ${dateLabel("2026-01-05")}`);
     expect(html).not.toContain(episodeTitle());
     expect(html).not.toContain("null");
+  });
+
+  it("keeps the date at the row's right edge when the episode has no title", () => {
+    const untitled = draw({ number: 3, title: null, airDate: "2026-01-05" }).html;
+    expect(untitled).toContain(episodeDate({ untitled: true }));
+    expect(untitled).toContain("ml-auto");
   });
 
   it("still draws a title when the catalogue gives one", () => {
