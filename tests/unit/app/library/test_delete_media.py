@@ -53,6 +53,7 @@ class Shelf:
     root: Path
     data_dir: Path
     actor: Actor
+    mounts: set[Path]
 
     def movie(self, title: str, tmdb: str, *, folder: str | None = None, disk: int = 1) -> tuple[int, Path]:
         """A movie row with one file, its folder on disk holding the film and its artwork.
@@ -85,17 +86,23 @@ class Shelf:
 
 
 @pytest.fixture
-def shelf(tmp_path: Path) -> Iterator[Shelf]:
+def shelf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Shelf]:
     """A service over a temporary index whose disk 1 is a temporary folder, with a fake Plex.
+
+    The disk's temporary folder stands in for a mount point: ``os.path.ismount`` answers
+    true for the folders of ``Shelf.mounts`` alone.
 
     Args:
         tmp_path: Pytest's temporary directory.
+        monkeypatch: Pytest's patcher, faking the mount points.
 
     Yields:
         The shelf; its stores are closed after the test.
     """
     root = tmp_path / "disk1"
     root.mkdir()
+    mounts = {root.resolve()}
+    monkeypatch.setattr(os.path, "ismount", lambda path: Path(path) in mounts)
     index = FixtureIndex(tmp_path / "library.db")
     index.conn.execute("UPDATE disk SET mount_path = ? WHERE id = 1", (str(root),))
     index.conn.execute("UPDATE disk SET mount_path = NULL, is_mounted = 0 WHERE id = 2")
@@ -116,7 +123,7 @@ def shelf(tmp_path: Path) -> Iterator[Shelf]:
         monotonic=clock.clock,
     )
     actor = Actor.system(InstanceCeiling(forbidden=frozenset(), read_only=False), account_id="owner", name="Owner")
-    yield Shelf(index, service, plex, clock, permit, root, tmp_path, actor)
+    yield Shelf(index, service, plex, clock, permit, root, tmp_path, actor, mounts)
     service.close()
     ownership.close()
     store.close()
@@ -433,3 +440,22 @@ def test_two_unicode_spellings_of_one_folder_delete_it_once(shelf: Shelf) -> Non
     assert report.deleted == 1
     [one] = report.media
     assert (one.folders_deleted, one.folders_failed, one.rows_removed) == (1, 0, 1)
+
+
+def test_a_disk_root_that_is_no_mount_point_is_never_deleted_from(shelf: Shelf, tmp_path: Path) -> None:
+    """The index says disk 2 is mounted, its root is a plain folder: the folder kept and failed, the rows kept."""
+    plain = tmp_path / "disk2"
+    folder = plain / "films" / "Away"
+    folder.mkdir(parents=True)
+    (folder / "movie.mkv").write_bytes(b"x")
+    shelf.index.mount(2, plain)
+    item = shelf.index.item("Away", tmdb="21")
+    shelf.index.movie_file(item, "films/Away", disk=2)
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=21)])
+
+    assert (folder / "movie.mkv").is_file()
+    assert shelf.rows() == [item]
+    assert shelf.journal() == []
+    assert shelf.plex.calls == []
+    assert (report.deleted, report.media[0].folders_failed) == (0, 1)

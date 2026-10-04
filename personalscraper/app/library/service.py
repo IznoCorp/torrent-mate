@@ -16,6 +16,7 @@ the reads never merge one, they count it, and the deletion refuses it (O-5 B).
 from __future__ import annotations
 
 import mimetypes
+import os
 import sqlite3
 import threading
 import time
@@ -326,8 +327,9 @@ class _DeletionPlan:
         ref: The medium, as the request named it.
         item_id: The one index row holding it.
         targets: Its media folders, resolved inside their disks: ``(mount point, folder)``.
-        unresolved: Its mounted media folders that do not resolve inside their disk (or
-            through a symlink): never deleted, counted failed.
+        unresolved: Its mounted media folders that do not resolve inside their disk, resolve
+            through a symlink, or sit on a disk root that is no mount point: never deleted,
+            counted failed.
         unreachable: Its media folders on a disk the index says is not mounted.
     """
 
@@ -352,21 +354,26 @@ class _Deleted:
 
 
 def _deletable_folder(mounted: tuple[str, str]) -> tuple[Path, Path] | None:
-    """Resolve a media folder for deletion: inside its disk, and reached through no symlink.
+    """Resolve a media folder for deletion: inside a mounted disk, and reached through no symlink.
 
     Args:
         mounted: ``(mount path, "<category>/<media folder>")`` as the index names it.
 
     Returns:
         ``(mount point, folder)`` resolved, or ``None`` when the folder does not resolve
-        inside its disk, or its own path or its category's is a symlink (deleting through
-        a link would reach whatever it points to).
+        inside its disk, when its own path or its category's is a symlink (deleting through
+        a link would reach whatever it points to), or when the disk's root is no mount
+        point (the index's ``is_mounted`` flag can lag: an unmounted disk leaves a plain
+        folder behind, never the disk itself).
     """
     mount_path, folder = mounted
     literal = Path(mount_path) / folder
     if literal.is_symlink() or literal.parent.is_symlink():
         return None
-    return resolve_media_folder(mount_path, folder)
+    resolved = resolve_media_folder(mount_path, folder)
+    if resolved is None or not os.path.ismount(resolved[0]):
+        return None
+    return resolved
 
 
 def _folder_identity(folder: Path) -> tuple[int, int] | None:
