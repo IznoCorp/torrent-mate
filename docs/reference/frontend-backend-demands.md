@@ -24,9 +24,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 103 |
+| operations the interface requires | 104 |
 | operations the backend has | 65 |
-| required and missing | 50 |
+| required and missing | 51 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -56,6 +56,7 @@ than a blank page.
 | `GET /api/v1/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its provider identity |
 | `GET /api/v1/library/recent` | `readLibraryRecent` | The most recently added titles |
 | `GET /api/v1/media/{provider}/{providerId}/cross-seed` | `readMediaCrossSeed` | The medium's cross-seed, tracker by tracker |
+| `GET /api/v1/media/{provider}/{providerId}/poster` | `readMediaPoster` | The poster file a medium's library folder holds |
 | `GET /api/v1/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
 | `GET /api/v1/notifications/preferences` | `readNotificationPreferences` | The signed-in account's notification switches, one per type it may receive |
 | `GET /api/v1/staging/destinations` | `readStagingDestinations` | Where the sort files what is not a medium |
