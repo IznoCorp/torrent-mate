@@ -1,12 +1,14 @@
-// « Comptes »' own drawing: the creation form and its fields, and an account's row
-// once an Admin cut its access.
+// « Comptes »' own drawing: the small forms its panels and Profil carry (a role's
+// name, a provisional password, one's own password) and their fields, and an
+// account's row once an Admin cut its access. A CREATION is not one of them: it
+// opens its own page, drawn by `ui/creation-form.tsx`.
 //
 // The fields take the settings editor's shape — a bordered box at the type
 // scale's 16px, so a focused field never zooms iOS — without importing that
 // feature (invariant 7).
 import { cva } from "../../ui/cva";
 
-/** The creation form: its labels stacked, one field under each. */
+/** A small form: its labels stacked, one field under each. */
 export const accountForm = cva("flex flex-col gap-5 mt-6 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-3 [&_label]:text-muted-foreground");
 
 /** One field of the form. */

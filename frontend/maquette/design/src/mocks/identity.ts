@@ -41,6 +41,8 @@ type Dialled = {
   roleNames: Record<string, string>;
   /** Roles « Comptes » created. */
   createdRoles: Role[];
+  /** Roles « Comptes » deleted, by id — seeded or created. */
+  deletedRoles: string[];
   /** Accounts « Comptes » created. */
   createdAccounts: HeldAccount[];
   /** Accounts assigned another role since the seed, by account id. */
@@ -81,6 +83,7 @@ function dials(): Dialled {
       roleRights: {},
       roleNames: {},
       createdRoles: [],
+      deletedRoles: [],
       createdAccounts: [],
       assigned: {},
       accessCut: [],
@@ -93,10 +96,10 @@ function dials(): Dialled {
 
 /** Every role the layer holds. */
 export function roles(): Role[] {
-  const { roleRights, roleNames, createdRoles, testRoster } = dials();
+  const { roleRights, roleNames, createdRoles, deletedRoles, testRoster } = dials();
   const seeded = ACCOUNTS.roles as Role[];
   const tested = testRoster ? (ACCOUNTS.testRoles as Role[]) : [];
-  return [...seeded, ...tested, ...createdRoles].map((role) => {
+  return [...seeded, ...tested, ...createdRoles].filter((role) => !deletedRoles.includes(role.id)).map((role) => {
     const name = roleNames[role.id] ?? role.name;
     // A role never renamed keeps no name at all: the key stays absent.
     return { ...role, ...(name === undefined ? {} : { name }), rights: [...(roleRights[role.id] ?? role.rights)] };
@@ -141,6 +144,7 @@ export function heldAccounts(): HeldAccount[] {
 /** What « Comptes » writes, over the layer's own state (demands G, H). */
 export const roster = {
   addRole: (role: Role) => { dials().createdRoles.push(role); },
+  removeRole: (id: string) => { dials().deletedRoles.push(id); },
   renameRole: (id: string, name: string) => { dials().roleNames[id] = name; },
   setRoleRights: (id: string, rights: Right[]) => { dials().roleRights[id] = [...rights]; },
   addAccount: (account: HeldAccount) => { dials().createdAccounts.push(account); },
@@ -366,6 +370,8 @@ export type IdentityDials = {
   setAccountRole: (id: string, roleId: string) => void;
   /** Cuts one account's access or gives it back, as « Comptes »' switch would. */
   setAccountAccess: (id: string, allowed: boolean) => void;
+  /** Adds one ordinary role, as « Comptes »' creation page would — a role no account holds yet. */
+  addRole: (role: Role) => void;
 };
 
 /** Those dials, over the layer's own state. */
@@ -397,4 +403,5 @@ export const identityDials: IdentityDials = {
     roster.assign(id, roleId);
   },
   setAccountAccess: (id, allowed) => roster.setAccess(id, allowed),
+  addRole: (role) => roster.addRole(role),
 };

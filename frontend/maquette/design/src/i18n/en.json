@@ -1350,10 +1350,8 @@
       "saved": "Saved.",
       "refused": "Refused: this change goes beyond your rights, or would leave the server without an Admin.",
       "newRole": "New role",
-      "newRoleName": "Role {{count}}",
       "newAccount": "New account",
       "name": "Name",
-      "email": "E-mail address (required)",
       "initialRole": "Starting role",
       "plexHint": "An address that is a user of the Plex server is linked: the account comes in through Plex only, with no password. Any other address makes a local account, which comes in with the temporary password given here and then changes it in its Profile.",
       "create": "Create the account",
@@ -1393,6 +1391,32 @@
         "cutDone": "{{name}}'s access cut: their sessions are closed.",
         "restored": "{{name}}'s access restored: they can sign in again.",
         "refused": "The access change was refused."
+      },
+      "back": "Accounts",
+      "required": "required",
+      "creating": "Creating…",
+      "roleCreate": {
+        "title": "New role",
+        "lead": "A role carries a name and the rights it gives every account that holds it. Nothing is created before « Create the role ».",
+        "rights": "Its rights",
+        "act": "Create the role",
+        "refused": "The role’s creation was refused."
+      },
+      "accountCreate": {
+        "title": "New account",
+        "email": "E-mail address",
+        "nameRequired": "An account carries a name: it is required.",
+        "roleRequired": "Choose the account’s starting role.",
+        "chooseRole": "Choose a role…"
+      },
+      "roleDelete": {
+        "act": "Delete the role",
+        "heading": "Delete the role « {{name}} »?",
+        "body": "No account holds it and no new account starts on it. The deletion is final.",
+        "confirm": "Delete",
+        "cancel": "Cancel",
+        "done": "Role deleted.",
+        "refused": "The role’s deletion was refused."
       }
     },
     "crossSeed": {
@@ -2261,7 +2285,11 @@
       "unknown": "This role no longer exists.",
       "system_immutable": "A system role cannot be renamed, and the Admin role cannot be modified.",
       "own_role": "Your own role cannot be changed from here: another manager does it.",
-      "escalation": "Refused: this change goes beyond your rights."
+      "escalation": "Refused: this change goes beyond your rights.",
+      "name_required": "A role carries a name: it is required.",
+      "name_taken": "Another role already carries this name.",
+      "in_use": "An account holds this role: it cannot be deleted.",
+      "default": "New accounts start on this role: it cannot be deleted."
     },
     "plex": {
       "unreachable": "Plex is not answering: sign in with a password.",

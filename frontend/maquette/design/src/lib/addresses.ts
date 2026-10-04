@@ -94,6 +94,8 @@ export const SCREEN_PARENTS: Readonly<Record<string, string>> = {
   "/resolution/$folder": "acq",
   "/run/$runUid": "sys",
   "/settings/ranking": "cfg",
+  "/accounts/roles/new": "accounts",
+  "/accounts/new": "accounts",
 };
 
 /** The screen paths alone, for the readers that need the list rather than the

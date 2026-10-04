@@ -13,8 +13,9 @@ ruling 22, round 9 Q14 = A, M7, F2.
    Trackers in its bar. Demoting the last Admin answers 409.
 4. R-L18-u (M7) — NO ESCALATION: a manager who is not Admin sees no Admin account, sees the roles
    beyond its own greyed, and forcing one, or touching its own role, answers 403.
-5. R-L18-v — A NEW ACCOUNT: refused without an e-mail; created with one that is a user of the
-   managed server, linked to Plex on the role its kind starts on (O-K1-4).
+5. R-L18-v — A NEW ACCOUNT, on its own page (R525): without an e-mail it is said at the field and
+   nothing is asked; created with one that is a user of the managed server, linked to Plex on the
+   role its kind starts on (O-K1-4).
 """
 import asyncio
 import json
@@ -111,15 +112,26 @@ async def main():
                       (up, own, admin) == (403, 403, 403), str((up, own, admin)))
 
         await go("accounts-create-refused", SETTLED + 600)
-        refusal = await page.evaluate("()=>document.querySelector('[data-part=\"accounts/refusal\"]')?.textContent")
+        refusal = await page.evaluate("()=>document.querySelector('[data-field-error=\"email\"]')?.textContent")
+        closed = await page.evaluate("()=>document.querySelector('[data-part=\"creation/submit\"]')?.disabled")
         created = await page.evaluate("()=>window.__mocks.answered().filter((one)=>one.operationId==='createAccount').length")
-        journal.check("R-L18-v: a new account without an e-mail is refused, and nothing is asked",
-                      refusal and created == 0, f"{refusal} / {created} calls")
+        journal.check("R-L18-v: a new account without an e-mail is said at its field, Create closed, and nothing is asked",
+                      refusal and closed is True and created == 0, f"{refusal} / {closed} / {created} calls")
         forced = await page.evaluate(CALL, [None, "POST", "/api/v1/accounts", {"name": "Maya", "email": "", "role": "local-guest"}])
         journal.check("R-L18-v: forced without an e-mail, the creation answers 400", forced == 400, str(forced))
-        await page.fill('[data-part="accounts/create"] input[name="name"]', "Maya")
-        await page.fill('[data-part="accounts/create"] input[name="email"]', SEEDS["plexUsers"][0])
-        await page.click('[data-part="accounts/create-submit"]')
+        # A REAL ARRIVAL ON « COMPTES », by the menu: the page the creation returns to is
+        # under it in history — a named state writes none.
+        await go("lib-grid")
+        await page.click("[data-drawer]")
+        await page.wait_for_timeout(PANEL_IN)
+        await page.click('#drawer [data-navgo="accounts"]')
+        await page.wait_for_timeout(ACTED + SETTLED)
+        await page.click('#view [data-part="accounts/account-create"]')
+        await page.wait_for_timeout(ACTED + SETTLED)
+        await page.fill('[data-part="creation/form"] [name="name"]', "Maya")
+        await page.fill('[data-part="creation/form"] [name="email"]', SEEDS["plexUsers"][0])
+        await page.select_option('[data-part="creation/form"] [name="role"]', "local-guest")
+        await page.click('[data-part="creation/submit"]')
         await page.wait_for_timeout(ACTED + SETTLED)
         roster = await page.evaluate("async()=>(await (await fetch('/api/v1/accounts')).json()).accounts")
         newcomer = next((one for one in roster if one["name"] == "Maya"), None)

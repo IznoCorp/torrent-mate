@@ -24,6 +24,8 @@ import { mediaRoute } from "../routes/media-sheet";
 import { runRoute } from "../routes/run";
 import { qualityRoute } from "../routes/quality";
 import { rankingRoute } from "../routes/ranking";
+import { roleCreateRoute } from "../routes/role-create";
+import { accountCreateRoute } from "../routes/account-create";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
 
@@ -81,6 +83,8 @@ export const router = createRouter({
     // The screens, which do render.
     qualityRoute,
     rankingRoute,
+    roleCreateRoute,
+    accountCreateRoute,
     runRoute,
     addRoute,
     mediaRoute,

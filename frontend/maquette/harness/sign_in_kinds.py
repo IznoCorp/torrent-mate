@@ -56,7 +56,7 @@ ROSTER = """() => ({
     value: row.querySelector('[data-part="flux/value"]')?.textContent || '',
     detail: row.querySelector('[data-part="flux/detail"]')?.textContent || '' })),
   roles: [...document.querySelectorAll('[data-part="accounts/role"] [data-part="flux/name"]')].map((one) => one.textContent),
-  refusal: document.querySelector('[data-part="accounts/refusal"]')?.textContent || null })"""
+  refusal: document.querySelector('[data-field-error]')?.textContent || null })"""
 
 FORCE = """async ([account]) => {
   const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'correct horse battery' }) });
@@ -147,11 +147,14 @@ async def main():
                       f"{rows[demoted['name']]['detail']!r} / {panel['text'][:120]!r}")
 
         # 5. The provisional password.
-        created = await at("accounts-create-provisional", ROSTER, ACTED + SETTLED)
-        nina = next((one for one in created["accounts"] if one["name"] == "Nina"), None)
+        # READ ON THE ROSTER SERVED: a named state writes no history, so the page its
+        # creation page returns to is not « Comptes » (R525 walks that return).
+        await at("accounts-create-provisional", "() => null", ACTED + SETTLED)
+        served = await page.evaluate("async()=>(await (await fetch('/api/v1/accounts')).json()).accounts")
+        nina = next((one for one in served if one["name"] == "Nina"), None)
         journal.check("a local account is created with its provisional password",
                       await answered("createAccount") == [201] and nina is not None
-                      and await say("screens.accounts.signInKind.local") in nina["detail"], str(nina))
+                      and nina["signInKind"] == "local", str(nina))
         missing = await at("accounts-create-password-missing", ROSTER, ACTED + SETTLED)
         journal.check("a local account without a provisional password is refused, by its code",
                       missing["refusal"] == await say("refusals.password.required"), str(missing["refusal"]))

@@ -1350,10 +1350,8 @@
       "saved": "Enregistré.",
       "refused": "Refusé : ce changement dépasse vos droits, ou laisserait le serveur sans Admin.",
       "newRole": "Nouveau rôle",
-      "newRoleName": "Rôle {{count}}",
       "newAccount": "Nouveau compte",
       "name": "Nom",
-      "email": "Adresse e-mail (obligatoire)",
       "initialRole": "Rôle de départ",
       "plexHint": "Une adresse qui est un utilisateur du serveur Plex est liée : le compte entre par Plex uniquement, sans mot de passe. Toute autre adresse fait un compte local, qui entre avec le mot de passe provisoire donné ici et le change ensuite dans son Profil.",
       "create": "Créer le compte",
@@ -1393,6 +1391,32 @@
         "cutDone": "Accès de {{name}} coupé : ses sessions sont fermées.",
         "restored": "Accès de {{name}} rétabli : il peut se connecter de nouveau.",
         "refused": "Le changement d'accès a été refusé."
+      },
+      "back": "Comptes",
+      "required": "obligatoire",
+      "creating": "Création…",
+      "roleCreate": {
+        "title": "Nouveau rôle",
+        "lead": "Un rôle porte un nom et les droits qu'il donne à chaque compte qui le tient. Rien n'est créé avant « Créer le rôle ».",
+        "rights": "Ses droits",
+        "act": "Créer le rôle",
+        "refused": "La création du rôle a été refusée."
+      },
+      "accountCreate": {
+        "title": "Nouveau compte",
+        "email": "Adresse e-mail",
+        "nameRequired": "Un compte porte un nom : il est obligatoire.",
+        "roleRequired": "Choisissez le rôle de départ du compte.",
+        "chooseRole": "Choisir un rôle…"
+      },
+      "roleDelete": {
+        "act": "Supprimer le rôle",
+        "heading": "Supprimer le rôle « {{name}} » ?",
+        "body": "Aucun compte ne le tient et aucun nouveau compte n'y démarre. La suppression est définitive.",
+        "confirm": "Supprimer",
+        "cancel": "Annuler",
+        "done": "Rôle supprimé.",
+        "refused": "La suppression du rôle a été refusée."
       }
     },
     "crossSeed": {
@@ -2261,7 +2285,11 @@
       "unknown": "Ce rôle n'existe plus.",
       "system_immutable": "Un rôle système ne se renomme pas, et le rôle Admin ne se modifie pas.",
       "own_role": "Votre propre rôle ne se change pas d'ici : un autre gestionnaire le fait.",
-      "escalation": "Refusé : ce changement dépasse vos droits."
+      "escalation": "Refusé : ce changement dépasse vos droits.",
+      "name_required": "Un rôle porte un nom : il est obligatoire.",
+      "name_taken": "Un autre rôle porte déjà ce nom.",
+      "in_use": "Un compte tient ce rôle : il ne se supprime pas.",
+      "default": "Un nouveau compte démarre sur ce rôle : il ne se supprime pas."
     },
     "plex": {
       "unreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",

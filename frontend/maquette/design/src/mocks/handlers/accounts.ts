@@ -11,7 +11,10 @@
 //     only rights its own role holds, never its own role, never an account on
 //     the Admin role;
 //   · 400 — a new account without an e-mail; a local account without its
-//     provisional password, or with one shorter than the minimum.
+//     provisional password, or with one shorter than the minimum; a new role
+//     without a name — none is ever made up for it (the operator, 2026-10-04);
+//   · 409 — a new role under a name another role carries; deleting a role an
+//     account holds, a role a newcomer starts on (ruling A) or the Admin role.
 // AN ACCOUNT'S ACCESS IS AN ADMIN'S TO CUT (the operator, 2026-10-04; Q4 = A,
 // Q5 = A): any account but the owner and the Admin's own, every session of it
 // ended at once (`../identity`), its sign-ins refused until it is given back.
@@ -20,7 +23,7 @@
 // password is replaced on the server only, and a Plex-linked account holds none.
 // The layer judges the kind and the length, and stores no password.
 import ACCOUNTS from "../seeds/accounts.json";
-import { GET, PATCH, POST, PUT, field, route, text } from "./shared";
+import { DELETE, GET, PATCH, POST, PUT, field, route, text } from "./shared";
 import { refused, type MockRoute, type Refusal } from "../router";
 import { heldAccounts, roleFor, roles, roster, signInAllowed, signedInId, type HeldAccount } from "../identity";
 import type { components } from "../../contract/types";
@@ -105,6 +108,19 @@ function provisionalRefusal(password: string): Refusal | undefined {
   if (password.length < minimum)
     return refused(INVALID, "the provisional password is too short", "password.too_short", { minimum });
   return undefined;
+}
+
+/**
+ * An id no role carries, deleted ones included — a count alone would hand a
+ * deleted role's id to the next one created.
+ *
+ * @returns The id.
+ */
+function nextRoleId(): string {
+  const taken = new Set(roles().map((one) => one.id));
+  let index = roles().length + 1;
+  while (taken.has(`role-${index}`)) index += 1;
+  return `role-${index}`;
 }
 
 /** Every route this subject answers. */
@@ -194,16 +210,32 @@ export function accountRoutes(): MockRoute[] {
     }),
     route("createRole", POST, "/roles", (request) => {
       const rights = (field(request.body, "rights") as Right[] | undefined) ?? [];
+      // THE NAME IS TYPED, NEVER MADE UP (the operator, 2026-10-04), and no two
+      // roles carry the same one.
+      const name = text(request.body, "name").trim();
+      if (!name) return refused(INVALID, "a role carries the name the manager typed", "role.name_required");
+      if (roles().some((one) => one.name?.trim().toLowerCase() === name.toLowerCase()))
+        return refused(CONFLICT, "another role already carries that name", "role.name_taken");
       if (!within(rights))
         return refused(FORBIDDEN, "the role would hold rights the caller's does not", "role.escalation");
-      const created: Role = {
-        id: `role-${roles().length + 1}`,
-        name: text(request.body, "name") || `role-${roles().length + 1}`,
-        kind: "ordinary",
-        rights: [...rights],
-      };
+      const created: Role = { id: nextRoleId(), name, kind: "ordinary", rights: [...rights] };
       roster.addRole(created);
       return created;
+    }),
+    route("deleteRole", DELETE, "/roles/{roleId}", (request) => {
+      // ONLY A ROLE NOTHING DEPENDS ON GOES (the operator, 2026-10-04): no
+      // account holds it, and no newcomer starts on it — even held by nobody
+      // (ruling A).
+      const role = roles().find((one) => one.id === request.parameters.roleId);
+      if (role === undefined) return refused(MISSING, "no role carries that id", "role.unknown");
+      if (role.kind === ADMIN) return refused(CONFLICT, "the Admin role is never deleted", "role.system_immutable");
+      if (role.defaultFor?.length) return refused(CONFLICT, "a newcomer starts on this role", "role.default");
+      if (heldAccounts().some((one) => one.role === role.id))
+        return refused(CONFLICT, "an account holds this role", "role.in_use");
+      if (!within(role.rights))
+        return refused(FORBIDDEN, "the role holds rights the caller's does not", "role.escalation");
+      roster.removeRole(role.id);
+      return { ok: true };
     }),
     route("updateRole", PATCH, "/roles/{roleId}", (request) => {
       const role = roles().find((one) => one.id === request.parameters.roleId);

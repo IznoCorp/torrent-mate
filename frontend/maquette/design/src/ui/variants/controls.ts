@@ -431,3 +431,36 @@ export const countLineAction = cva(
   "ml-auto [border:0] bg-transparent text-primary-text text-2 font-semibold " +
     "flex items-center gap-2 p-0",
 );
+
+// A CREATION'S OWN PAGE AND ITS VALIDATED FORM (the operator, 2026-10-04: « dès
+// qu'on a des créations dans ce genre il faut préférer une page et un formulaire
+// avec validation plutôt que tout mettre en vrac sur une page »). The README's
+// « A creation opens its own page » says the rule; `ui/creation-form.tsx` draws it.
+
+/** A creation form: its fields stacked, its act last. */
+export const creationForm = cva("creation-form flex flex-col gap-6");
+
+/** One field: its label over its control, what is wrong said under it. */
+export const formField = cva("form-field flex flex-col gap-2 text-3 text-muted-foreground");
+
+/**
+ * A field's control — a bordered box at the type scale's 16px, so a focused
+ * field never zooms iOS; its border says when what it holds is refused.
+ */
+export const formControl = cva(
+  "form-control w-full min-w-0 rounded-3 border bg-background text-foreground text-6 py-4 px-5 "
+    + "[font-family:inherit] outline-none focus-visible:outline-2 focus-visible:outline-primary",
+  {
+    variants: { invalid: { true: "border-danger", false: "border-border" } },
+    defaultVariants: { invalid: false },
+  },
+);
+
+/** The mark a REQUIRED field's label carries, beside its words. */
+export const requiredMark = cva("required-mark text-danger-text font-semibold");
+
+/** What is wrong with one field, said under it. */
+export const fieldError = cva("field-error text-3 text-danger-text");
+
+/** A field's guidance, under it, when it has some. */
+export const fieldHint = cva("field-hint text-2 text-muted-foreground leading-[1.45]");

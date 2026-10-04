@@ -68,7 +68,8 @@ FIELDS = (
     ("acq-follows-list", "#follq", "« Filtrer par nom »", None),
     ("lib-grid", "#libq", "the Médiathèque's search", None),
     ("settings", "#qsettings", "the settings' search", None),
-    ("accounts-roster", '[data-part="accounts/create"] input[name="name"]', "a new account's name", None),
+    ("accounts-account-create", '[data-part="account-create/name"]', "a new account's name", None),
+    ("accounts-role-create", '[data-part="role-create/name"]', "a new role's name", None),
 )
 
 # Below half a pixel a difference is rounding, not a move.

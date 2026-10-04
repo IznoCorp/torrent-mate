@@ -6114,7 +6114,8 @@
                 "type": "object",
                 "properties": {
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "MANDATORY and typed: refused `role.name_required` when blank, `role.name_taken` when another role carries it"
                   },
                   "rights": {
                     "type": "array",
@@ -6131,7 +6132,8 @@
             }
           }
         },
-        "x-unseeded": "invented (demand H): an ordinary role, never a system one. refused 409 when it would leave no account on the Admin role; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)"
+        "x-unseeded": "invented (demand H): an ordinary role, never a system one. refused 409 when it would leave no account on the Admin role; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)",
+        "description": "A ROLE IS CREATED FROM ITS OWN PAGE, under the name the manager TYPED — never a name made up for it (the operator, 2026-10-04: « Pas de nom par défaut, saisie avec champs obligatoires »): a blank name is refused 400 `role.name_required`, and a name another role already carries — compared trimmed and regardless of case — 409 `role.name_taken`."
       }
     },
     "/roles/{roleId}": {
@@ -6211,6 +6213,68 @@
             "description": "the role"
           }
         ]
+      },
+      "delete": {
+        "operationId": "deleteRole",
+        "x-rights": "accounts.manage",
+        "summary": "Delete a role nobody holds",
+        "description": "A ROLE IS DELETED ONLY WHEN NOTHING DEPENDS ON IT (the operator, 2026-10-04: « possibilité de supprimer un rôle mais seulement s'il est attribué à aucun compte »). Refused, in this order: an unknown role 404 `role.unknown`; the Admin role 409 `role.system_immutable`; a role a newcomer starts on (`Role.defaultFor`) 409 `role.default`, EVEN WHEN NO ACCOUNT HOLDS IT (his ruling A); a role an account holds 409 `role.in_use`; and, to a manager who is not Admin, a role whose rights are not included in its own role's 403 `role.escalation` (round 9 Q14 = A). « Comptes » offers the act only on a role none of these refuses.",
+        "tags": [
+          "authentication"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the role"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "it is gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement (demand H): the layer removes a role it holds, and the roster read after it no longer carries it"
       }
     },
     "/torrents/{infoHash}/cross-seed/{tracker}/cut": {
@@ -10971,6 +11035,10 @@
           "role.system_immutable",
           "role.own_role",
           "role.escalation",
+          "role.name_required",
+          "role.name_taken",
+          "role.in_use",
+          "role.default",
           "right.unknown",
           "plex.unreachable",
           "plex.server_unreachable",

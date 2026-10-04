@@ -38,6 +38,9 @@ export function Switch({ checked, label, onClick, disabled, ...attributes }: {
 } & { [attribute: `data-${string}`]: string | undefined }): ReactElement {
   return (
     <button
+      // A BUTTON, NEVER A SUBMIT: a switch inside a form turns one thing, and
+      // the browser's default type would send the whole form with it.
+      type="button"
       className={toggleSwitch()}
       role="switch"
       aria-checked={checked}

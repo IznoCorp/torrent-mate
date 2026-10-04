@@ -24,9 +24,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 102 |
+| operations the interface requires | 103 |
 | operations the backend has | 65 |
-| required and missing | 49 |
+| required and missing | 50 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -41,6 +41,7 @@ than a blank page.
 | --- | --- | --- |
 | `DELETE /api/v1/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
 | `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete media from the library, by provider identity |
+| `DELETE /api/v1/roles/{roleId}` | `deleteRole` | Delete a role nobody holds |
 | `DELETE /api/v1/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/v1/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
 | `DELETE /api/v1/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |

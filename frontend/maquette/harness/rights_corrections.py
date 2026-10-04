@@ -13,7 +13,7 @@ DESIGN maquette-l18 § 3.0, § 3.4, § 3.5, § 3.9; round 8 Q11, round 9 Q13, ro
 5. « RÉAFFECTER… » MOVES THE VISIBLE LINE: the card and its panel name the new requester.
 6. « À TRAITER » FOLLOWS ITS RIGHT (round 9 Q13): without `acquisition.todo.view`, no tab and no
    count on the Acquisition badge.
-7–12. The minors: the creation form greys what escalates; Admin reads « contourne tous les
+7–12. The minors: the account creation page greys what escalates; Admin reads « contourne tous les
    droits »; the header's avatar is the connected account's; Profil says no owner's line for another
    account and « aucun » for an empty role; Découvrir stays in the menu, marked; a guest's follow
    panel says no pause of its own.
@@ -73,19 +73,18 @@ async def main():
             await page.wait_for_timeout(ACTED + SETTLED)
         names = await page.evaluate("()=>[...document.querySelectorAll('[data-part=\"accounts/role\"] [data-part=\"flux/name\"]')].map((one)=>one.textContent)")
         journal.check("1: the renamed role reads its new name in the roster", "Foyer" in names, str(names))
-        await page.evaluate("()=>window.__panel.close()")
-        await page.wait_for_timeout(SETTLED)
-        await page.click('[data-part="accounts/role-create"]')
-        await page.wait_for_timeout(ACTED + SETTLED)
+        # A CREATED ROLE: one « Comptes »' creation page made (R525), nobody holding it.
+        await go("accounts-role-unused", PANEL_IN + SETTLED)
         created = await page.evaluate("async()=>(await (await fetch('/api/v1/accounts')).json()).roles.at(-1)")
         await panel("role", created["id"])
         field = await page.query_selector('#sheet [data-part="accounts/role-name"]')
         if field is not None:
-            await field.fill("Amis")
+            await field.fill("Crew")
             await page.click(f'#sheet [data-role-rename="{created["id"]}"]')
             await page.wait_for_timeout(ACTED + SETTLED)
         names = await page.evaluate("()=>[...document.querySelectorAll('[data-part=\"accounts/role\"] [data-part=\"flux/name\"]')].map((one)=>one.textContent)")
-        journal.check(f"1: a created role (« {created['name']} ») is renamed too", "Amis" in names, str(names))
+        journal.check(f"1: a created role (« {created['name']} ») is renamed too",
+                      "Crew" in names and created["name"] not in names, str(names))
         await panel("role", "admin")
         admin_field = await page.query_selector('#sheet [data-part="accounts/role-name"]')
         journal.check("1: Admin does not offer its name", admin_field is None)
@@ -191,10 +190,10 @@ async def main():
         holder = await page.evaluate("()=>!!document.querySelector('[data-acqtab=\"todo\"]')")
         journal.check("6: a household member holds it", holder)
 
-        # 7 — THE CREATION FORM GREYS WHAT ESCALATES.
-        await go("accounts-escalation-greyed", PANEL_IN + SETTLED)
-        options = await page.evaluate("""() => [...document.querySelectorAll('[data-part="accounts/create"] select[name="role"] option')]
-          .map((one) => [one.value, one.disabled])""")
+        # 7 — THE CREATION PAGE GREYS WHAT ESCALATES.
+        await go("accounts-account-create-manager", SETTLED + 600)
+        options = await page.evaluate("""() => [...document.querySelectorAll('[data-part="creation/form"] select[name="role"] option')]
+          .filter((one) => one.value).map((one) => [one.value, one.disabled])""")
         greyed = {value for value, off in options if off}
         journal.check("7: « Rôle de départ » greys the roles beyond the manager's rights",
                       "household" in greyed and "local-guest" not in greyed, str(options))
