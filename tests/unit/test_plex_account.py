@@ -431,6 +431,23 @@ def _derived_home_resources() -> Any:
     return sample["body"]
 
 
+def _resources_with(match: Any, **flags: Any) -> Any:
+    """The owner's recorded resources with the matching ones' flags set — a DERIVED variant.
+
+    Args:
+        match: A predicate on one resource.
+        **flags: The keys to set on every matching resource (``owned``, ``home``).
+
+    Returns:
+        A deep copy of ``resources-owner.json``'s body, edited.
+    """
+    body = copy.deepcopy(_sample("resources-owner")["body"])
+    for resource in body:
+        if match(resource):
+            resource.update(flags)
+    return body
+
+
 class TestServerAccess:
     """``server_access`` — OWNER / HOME / SHARED / NONE."""
 
@@ -465,6 +482,43 @@ class TestServerAccess:
     def test_an_empty_list_is_none(self) -> None:
         """An empty list is none."""
         client, _ = _client(_Response(200, []))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.NONE
+
+    def test_owned_wins_over_home(self) -> None:
+        """A resource both owned and flagged home is OWNER (DERIVED from the owner's capture)."""
+        body = _resources_with(lambda r: r["clientIdentifier"] == MACHINE, owned=True, home=True)
+        client, _ = _client(_Response(200, body))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.OWNER
+
+    def test_a_not_owned_duplicate_listed_first_does_not_demote_the_owner(self) -> None:
+        """A not-owned duplicate before the owned resource is still OWNER (DERIVED from the owner's capture)."""
+        body = copy.deepcopy(_sample("resources-owner")["body"])
+        owned = next(r for r in body if r["clientIdentifier"] == MACHINE)
+        duplicate = {**copy.deepcopy(owned), "owned": False, "home": False}
+        body.insert(0, duplicate)
+        client, _ = _client(_Response(200, body))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.OWNER
+
+    def test_a_not_owned_resource_without_a_home_key_is_shared(self) -> None:
+        """A not-owned matching resource whose ``home`` key is absent is SHARED (DERIVED from the owner's capture)."""
+        body = _resources_with(lambda r: r["clientIdentifier"] == MACHINE, owned=False)
+        for resource in body:
+            if resource["clientIdentifier"] == MACHINE:
+                del resource["home"]
+        client, _ = _client(_Response(200, body))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.SHARED
+
+    def test_an_empty_machine_identifier_is_refused_before_any_request(self) -> None:
+        """An empty identifier matches nothing: a resource listed without one would otherwise answer."""
+        body = [{"clientIdentifier": "", "owned": True}, {"owned": True}]
+        client, session = _client(_Response(200, body))
+        with pytest.raises(ValueError):
+            client.server_access(TOKEN, "")
+        assert session.calls == []
+
+    def test_a_resource_without_a_client_identifier_matches_nothing(self) -> None:
+        """A resource lacking ``clientIdentifier`` is never this server."""
+        client, _ = _client(_Response(200, [{"owned": True, "home": False}]))
         assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.NONE
 
     def test_a_401_is_a_refusal(self) -> None:
