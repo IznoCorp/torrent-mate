@@ -532,8 +532,9 @@ class PlexSignInService:
         """Link a local account whose e-mail is the identity's: its role and password as the rulings say.
 
         The owner is put on, or kept on, Admin and keeps his password (the fallback when Plex is
-        down). Anyone else drops its password — it signs in by Plex only — and drops to its
-        Plex kind's role, the role it held recorded as ``demoted_from`` when it moves.
+        down). Anyone else drops its password — it signs in by Plex only, and every session the
+        password opened is revoked — and drops to its Plex kind's role, the role it held
+        recorded as ``demoted_from`` when it moves.
 
         Args:
             repo: The account repository, inside the transaction.
@@ -550,6 +551,10 @@ class PlexSignInService:
             repo.set_role(account.id, role.id, now=now, demoted_from=None if owner else account.role_id)
         if not owner and account.password_hash is not None:
             repo.set_password_hash(account.id, None, now=now)
+            # The password is gone: no session it opened outlives it (as a password change ends
+            # the others). The Plex session is opened after this transaction, so none is spared.
+            revoked = repo.revoke_sessions_of(account.id, except_id=None, now=now)
+            log.info("plex_link_password_dropped", account_id=account.id, sessions_revoked=revoked)
         return moved
 
 

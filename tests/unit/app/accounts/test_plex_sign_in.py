@@ -42,7 +42,7 @@ from personalscraper.app.accounts.plex_sign_in import (
     PlexPinStarted,
     PlexSignInService,
 )
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, PlexPinRow
+from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, PlexPinRow, SessionRow
 from personalscraper.app.accounts.service import AccountService, SignInResult
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.token_vault import TokenVault
@@ -782,6 +782,49 @@ class TestOwnerCrossCheck:
         assert [call for call in plextv.calls if call == ("GET", "/api/v2/user")] == [("GET", "/api/v2/user")]
 
 
+def _open_sessions(store: AppStore, account_id: str, count: int = 2) -> list[int]:
+    """Open password-style sessions on an account, as its sign-in with the password did.
+
+    Args:
+        store: The store.
+        account_id: The account.
+        count: How many sessions.
+
+    Returns:
+        The sessions' keys.
+    """
+    return [
+        store.accounts.insert_session(
+            SessionRow(
+                id=0,
+                account_id=account_id,
+                token_hash=f"hash-{account_id}-{n}",
+                created_at=1.0,
+                expires_at=1e12,
+                last_seen_at=1.0,
+                revoked_at=None,
+                user_agent="old browser",
+            )
+        )
+        for n in range(count)
+    ]
+
+
+def _revoked(store: AppStore, session_ids: list[int]) -> list[bool]:
+    """Whether each session is revoked.
+
+    Args:
+        store: The store.
+        session_ids: The sessions.
+
+    Returns:
+        One flag per session.
+    """
+    rows = [store.accounts.session(session_id) for session_id in session_ids]
+    assert all(row is not None for row in rows)
+    return [row.revoked_at is not None for row in rows if row is not None]
+
+
 class TestLinkByEmail:
     """A local account whose e-mail is the Plex identity's: linked on its first Plex sign-in."""
 
@@ -922,6 +965,53 @@ class TestLinkByEmail:
         )
 
         assert isinstance(refusal, AppUnauthenticated) and refusal.code is RefusalCode.AUTH_REFUSED
+
+    def test_a_non_owner_link_ends_every_session_its_password_opened(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
+    ) -> None:
+        """Q-b: the dropped password's sessions are all revoked; the Plex session this sign-in opens is live."""
+        store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+        old = _open_sessions(store, "account-local")
+        door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
+
+        result = _sign_in(door, clock)
+
+        assert _revoked(store, old) == [True, True]
+        fresh = store.accounts._conn.execute(
+            "SELECT id, revoked_at FROM session WHERE account_id = ? AND id NOT IN (?, ?)",
+            ("account-local", *old),
+        ).fetchall()
+        assert len(fresh) == 1 and fresh[0][1] is None
+        assert result.account.id == "account-local"
+
+    def test_the_owner_linked_by_email_keeps_his_sessions(self, door: PlexSignInService, store: AppStore) -> None:
+        """The owner keeps his password (ruling (e)): his existing sessions are left as they are."""
+        store.accounts.insert_account(_local("account-owner", EMAIL, "requester"))
+        old = _open_sessions(store, "account-owner")
+
+        _sign_in(door, _clock_of(door))
+
+        assert _revoked(store, old) == [False, False]
+
+    @pytest.mark.parametrize("setup", ["unconfirmed", "cut"])
+    def test_a_refused_link_leaves_the_sessions_untouched(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, setup: str
+    ) -> None:
+        """An unconfirmed e-mail, or an Admin's cut: refused, the transaction rolled back, no session revoked."""
+        store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+        old = _open_sessions(store, "account-local")
+        if setup == "unconfirmed":
+            plextv.users[USER_TOKEN] = _user(confirmed=False)
+        else:
+            store.accounts.set_sign_in_allowed("account-local", allowed=False, now=2.0)
+        door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
+        started = door.start()
+        clock.now += 2.0
+
+        refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
+
+        assert isinstance(refusal, (AppUnauthenticated, AppForbidden))
+        assert _revoked(store, old) == [False, False]
 
 
 class TestRefusals:
