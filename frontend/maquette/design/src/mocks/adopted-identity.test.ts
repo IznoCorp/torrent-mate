@@ -14,14 +14,25 @@ type Account = components["schemas"]["Account"];
 
 /** The real owner, as v1 answers him: an Admin the seed does not know. */
 const OWNER: Account = {
-  id: "real-owner", name: "owner", email: "owner@example.invalid",
-  role: { id: "admin", name: "Admin", kind: "admin", rights: [] }, signInKind: "owner", forbiddenWrites: [],
+  id: "real-owner",
+  name: "owner",
+  email: "owner@example.invalid",
+  role: { id: "admin", name: "Admin", kind: "admin", rights: [] },
+  signInKind: "owner",
+  forbiddenWrites: [],
 };
 
 /** An account the real server knows that holds no configuration right. */
 const GUEST: Account = {
-  ...OWNER, id: "real-guest", signInKind: "plex",
-  role: { id: "plex-guest", name: "Guest", kind: "ordinary", rights: ["library.read"] },
+  ...OWNER,
+  id: "real-guest",
+  signInKind: "plex",
+  role: {
+    id: "plex-guest",
+    name: "Guest",
+    kind: "ordinary",
+    rights: ["library.read"],
+  },
 };
 
 // An operation v1 does not serve and only an Admin may ask (`configuration.view`).
@@ -89,12 +100,37 @@ describe("an adopted account", () => {
     expect(await status(ADMIN_ONLY)).toBe(200);
   });
 
+  it("is the requester it claims and releases, not the seed's id", async () => {
+    const identity = await layer();
+    identity.adoptAccount(OWNER);
+    identity.claimRequest("Some Title", false);
+    expect(identity.requestersOf("Some Title").map((one) => one.id)).toContain(
+      "real-owner",
+    );
+    expect(
+      identity.requestersOf("Some Title").map((one) => one.id),
+    ).not.toContain("izno");
+    identity.claimRequest("Other Title", false);
+    identity.releaseRequest("Other Title");
+    expect(
+      identity.requestersOf("Other Title").map((one) => one.id),
+    ).not.toContain("real-owner");
+  });
+
+  it("holds a session the seed's cut does not end", async () => {
+    const identity = await layer();
+    identity.roster.setAccess("izno", false);
+    expect(identity.sessionEnded()).toBe(true);
+    identity.adoptAccount(OWNER);
+    expect(identity.sessionEnded()).toBe(false);
+  });
+
   it("refuses the identity dial while it holds", async () => {
     const identity = await layer();
     identity.adoptAccount(OWNER);
-    expect(() => identity.identityDials.setIdentity("household-member")).toThrow(
-      "identity follows the signed-in account",
-    );
+    expect(() =>
+      identity.identityDials.setIdentity("household-member"),
+    ).toThrow("identity follows the signed-in account");
   });
 });
 
@@ -126,7 +162,10 @@ describe("on the design host, the real server's answers", () => {
   });
 
   it("release it on any 401", async () => {
-    answers["/api/v1/accounts"] = { status: 401, body: { code: "auth.required" } };
+    answers["/api/v1/accounts"] = {
+      status: 401,
+      body: { code: "auth.required" },
+    };
     const identity = await layer();
     identity.adoptAccount(GUEST);
     await status("/api/v1/accounts");

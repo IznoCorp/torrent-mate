@@ -177,7 +177,7 @@ export function signInAllowed(id: string): boolean {
  */
 export function sessionEnded(): boolean {
   const state = dials();
-  return state.sessionsEnded.includes(state.identity);
+  return state.sessionsEnded.includes(signedInId());
 }
 
 /**
@@ -265,11 +265,13 @@ export function signedInId(): string {
 export function requestersOf(title: string): Schemas["AccountRef"][] {
   const state = dials();
   const named = (ids: string[]) => ids
-    .map((id) => heldAccounts().find((one) => one.id === id))
-    .filter((one): one is HeldAccount => one !== undefined)
-    .map((one) => ({ id: one.id, name: one.name }));
+    .map((id): Schemas["AccountRef"] | undefined => {
+      const one = heldAccounts().find((held) => held.id === id) ?? (adopted?.id === id ? adopted : undefined);
+      return one === undefined ? undefined : { id: one.id, name: one.name };
+    })
+    .filter((one): one is Schemas["AccountRef"] => one !== undefined);
   if (state.moved[title]) return named(state.moved[title]);
-  if (!state.inventedRequests && state.identity === ACCOUNT.id) return named([ACCOUNT.id]);
+  if (!state.inventedRequests && signedInId() === ACCOUNT.id) return named([ACCOUNT.id]);
   const requests = ACCOUNTS.requests as Record<string, string[]>;
   return named([ACCOUNT.id, ...heldAccounts().filter((one) => requests[one.id]?.includes(title)).map((one) => one.id)]);
 }
@@ -301,7 +303,7 @@ export function moveRequester(title: string, from: string, to: string): Schemas[
  */
 export function claimRequest(title: string, existing: boolean): void {
   const ids = existing ? requestersOf(title).map((one) => one.id) : [];
-  if (!ids.includes(dials().identity)) ids.push(dials().identity);
+  if (!ids.includes(signedInId())) ids.push(signedInId());
   dials().moved[title] = ids;
 }
 
@@ -314,7 +316,7 @@ export function claimRequest(title: string, existing: boolean): void {
  * @returns The requesters left.
  */
 export function releaseRequest(title: string): Schemas["AccountRef"][] {
-  dials().moved[title] = requestersOf(title).map((one) => one.id).filter((id) => id !== dials().identity);
+  dials().moved[title] = requestersOf(title).map((one) => one.id).filter((id) => id !== signedInId());
   return requestersOf(title);
 }
 

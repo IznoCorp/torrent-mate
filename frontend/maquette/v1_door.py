@@ -200,7 +200,7 @@ def unreachable_page(error: str) -> bytes:
     """
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         "<title>Design host: v1 unreachable</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
         "<h1>The design host cannot ask v1 who is signed in</h1><p>Its door is the "
