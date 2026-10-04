@@ -483,3 +483,27 @@ def test_a_plex_tv_failure_is_a_probe_error_without_a_secret(tmp_path: Path) -> 
         _run(tmp_path, _DownAfterIdentity())
     assert "ConnectionError" in str(caught.value)
     assert all(secret not in str(caught.value) for secret in PLANTED_STRINGS)
+
+
+def test_an_unreachable_check_while_waiting_a_pin_out_is_not_recorded_as_expired(tmp_path: Path) -> None:
+    """A transport failure or a 5xx during ``--record-expired`` stops the probe: no false ``pin-expired``."""
+
+    class _FlakyExpiry(_FakePlex):
+        def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            if url.endswith(f"/api/v2/pins/{PIN_ID + 1}"):
+                raise requests.ConnectionError("reset")
+            return super().request(method, url, **kwargs)
+
+    with pytest.raises(probe.ProbeError):
+        _run(tmp_path, _FlakyExpiry())
+    assert not (tmp_path / "plex-account").exists()
+
+    class _ServerErrorExpiry(_FakePlex):
+        def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            if url.endswith(f"/api/v2/pins/{PIN_ID + 1}"):
+                return _Response(503, {"errors": []})
+            return super().request(method, url, **kwargs)
+
+    with pytest.raises(probe.ProbeError):
+        _run(tmp_path, _ServerErrorExpiry())
+    assert not (tmp_path / "plex-account").exists()

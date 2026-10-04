@@ -23,8 +23,9 @@ rules (``api/plex.py``), applied to a token that is not ours:
 1. failures log ``error=type(exc).__name__``, never the exception, never ``exc_info`` — the
    console renderer expands a traceback with frame locals, and the frames of ``requests`` hold
    the header dict;
-2. every call catches ``Exception`` and re-raises a :class:`PlexAccountError` WITHOUT its
-   cause (``from None``), whose text names the path and the exception type only;
+2. every call catches ``Exception`` and raises a :class:`PlexAccountError` outside the
+   ``except`` block — neither its cause nor its context — whose text names the path and the
+   exception type only;
 3. redirects are not followed — ``requests`` strips only ``Authorization`` on a cross-host
    redirect, so a 302 would hand ``X-Plex-Token`` to another origin.
 """
@@ -167,8 +168,8 @@ class PlexAccountClient:
             The status and the parsed JSON body, or ``None`` for a body that is not JSON.
 
         Raises:
-            PlexAccountUnreachable: No answer; the transport's exception is NOT chained, its
-                text and its frames hold the headers.
+            PlexAccountUnreachable: No answer; the transport's exception is neither its cause
+                nor its context — its text and its frames hold the headers.
         """
         headers = {
             "Accept": "application/json",
@@ -177,6 +178,7 @@ class PlexAccountClient:
         }
         if token is not None:
             headers["X-Plex-Token"] = token
+        failure: str | None = None
         try:
             response = self._session.request(
                 method,
@@ -187,8 +189,12 @@ class PlexAccountClient:
                 allow_redirects=False,
             )
         except Exception as exc:  # noqa: BLE001 — a token-bearing frame must not escape
-            log.warning("plex_account.unreachable", path=label, error=type(exc).__name__)
-            raise PlexAccountUnreachable(f"{method} {label} failed: {type(exc).__name__}") from None
+            failure = type(exc).__name__
+        if failure is not None:
+            # Raised OUTSIDE the ``except`` block: the transport's exception is then neither the
+            # cause nor the context of this one, so no handler can reach its text or its frames.
+            log.warning("plex_account.unreachable", path=label, error=failure)
+            raise PlexAccountUnreachable(f"{method} {label} failed: {failure}")
         try:
             body: Any = response.json()
         except Exception:  # noqa: BLE001 — an HTML page or a truncated body is « no answer »

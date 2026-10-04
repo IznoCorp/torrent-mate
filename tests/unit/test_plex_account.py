@@ -597,7 +597,7 @@ class TestNoLeak:
         if raised is not None:
             texts += [str(raised), repr(raised)]
             assert raised.__cause__ is None, "a token-bearing cause escaped"
-            assert raised.__context__ is None or raised.__suppress_context__, "a token-bearing context escaped"
+            assert raised.__context__ is None, "a token-bearing context escaped"
         for record in caplog.records:
             texts += [record.getMessage(), str(record.args), str(record.msg)]
             assert record.exc_info is None, "a traceback renders frame locals, the headers among them"

@@ -15,7 +15,7 @@ client's fail-soft ``machine_identifier`` would hide why it failed):
 2. checks the PIN once per second until it is claimed or expired;
 3. reads the identity behind the token and prints ``plex_id`` and ``title`` only;
 4. reads the account's resources and prints its access to THIS server
-   (``owner`` / ``shared`` / ``none``), the server named by ``GET <PLEX_URL>/identity``
+   (``owner`` / ``home`` / ``shared`` / ``none``), the server named by ``GET <PLEX_URL>/identity``
    with the existing ``PLEX_TOKEN``.
 
 With ``--record`` it also writes every answer — the RAW answers, kept by a recording session the
@@ -58,7 +58,6 @@ import requests
 from personalscraper.api.plex_account import (
     PlexAccountClient,
     PlexAccountError,
-    PlexAccountUnreachable,
     PlexPinExpired,
     PlexTokenRefused,
 )
@@ -494,11 +493,7 @@ def run(
         pending_recorded = False
         deadline = clock() + _CLAIM_WAIT_SECONDS
         while clock() < deadline:
-            try:
-                token = client.check_pin(pin.id, pin.code)
-            except PlexAccountError:
-                answers.append(recorder.last("pin-refused", "/api/v2/pins/{id}"))
-                raise
+            token = client.check_pin(pin.id, pin.code)
             if token is not None:
                 redactor.remember(token)
                 answers.append(recorder.last("pin-claimed", "/api/v2/pins/{id}"))
@@ -568,10 +563,12 @@ def _wait_out_a_pin(
     say("Waiting a fresh PIN out (do NOT open it)…")
     deadline = clock() + _EXPIRE_WAIT_SECONDS
     while clock() < deadline:
+        # Only plex.tv's own « gone » answer is the expiry: a timeout or a 5xx during the wait
+        # propagates (``PlexAccountUnreachable``), it is never written as ``pin-expired``.
         try:
             if client.check_pin(pin.id, pin.code) is not None:
-                return recorder.last("pin-expired", "/api/v2/pins/{id}")
-        except (PlexPinExpired, PlexAccountUnreachable):
+                raise ProbeError("the PIN meant to expire was claimed; nothing recorded for it")
+        except PlexPinExpired:
             return recorder.last("pin-expired", "/api/v2/pins/{id}")
         sleep(_EXPIRE_POLL_SECONDS)
     raise ProbeError("the unclaimed PIN was still pending when the wait ended")

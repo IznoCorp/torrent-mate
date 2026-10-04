@@ -125,8 +125,9 @@ out of the output ») hold here too:
 
 1. failures log `error=type(exc).__name__` and a path TEMPLATE (`/api/v2/pins/{id}`), never the
    exception and never `exc_info`;
-2. every call catches `Exception` and raises a `PlexAccountError` **without its cause**
-   (`from None`) whose text names the path and the status or exception type only;
+2. every call catches `Exception` and raises a `PlexAccountError` outside the `except` block —
+   **neither its cause nor its context** — whose text names the path and the status or exception
+   type only;
 3. no redirect is followed.
 
 `PlexPin.code` and `PlexAccount.email` are kept out of their `repr`; `repr(PlexAccountClient)`
