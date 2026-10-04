@@ -477,6 +477,19 @@ class AccountRepository:
         )
 
     @serialised
+    def set_sign_in_allowed(self, account_id: str, *, allowed: bool, now: float) -> None:
+        """Allow or cut an account's sign-in.
+
+        Args:
+            account_id: The account.
+            allowed: True to allow it, False to cut it.
+            now: The change time (epoch seconds).
+        """
+        self._conn.execute(
+            "UPDATE account SET sign_in_allowed = ?, updated_at = ? WHERE id = ?", (int(allowed), now, account_id)
+        )
+
+    @serialised
     def count_on_role_kind(self, kind: RoleKind) -> int:
         """How many accounts hold a role of one kind.
 
