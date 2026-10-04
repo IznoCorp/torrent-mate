@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -273,6 +274,16 @@ class TestAccounts:
         account = repo.account("account-alice")
         assert account is not None and account.password_hash is None
 
+    def test_set_sign_in_allowed_cuts_and_gives_back(self, repo: AccountRepository) -> None:
+        """The access is stored as set, ``updated_at`` with it."""
+        repo.insert_account(_account())
+        repo.set_sign_in_allowed("account-alice", allowed=False, now=14.0)
+        account = repo.account("account-alice")
+        assert account is not None and (account.sign_in_allowed, account.updated_at) == (False, 14.0)
+        repo.set_sign_in_allowed("account-alice", allowed=True, now=15.0)
+        account = repo.account("account-alice")
+        assert account is not None and (account.sign_in_allowed, account.updated_at) == (True, 15.0)
+
     def test_count_on_role_kind_and_accounts_on_role(self, repo: AccountRepository) -> None:
         """Counted by the role's kind; listed by the role."""
         repo.insert_account(_account(role_id="admin"))
@@ -339,6 +350,24 @@ class TestSessions:
         repo.revoke_session(session_id, now=50.0)
         row = repo.session_by_hash("hash-1")
         assert row is not None and (row.last_seen_at, row.revoked_at) == (40.0, 50.0)
+
+    def test_revoke_sessions_of_with_no_exception_revokes_every_live_one(self, repo: AccountRepository) -> None:
+        """``except_id=None`` revokes every live session of the account and no other account's."""
+        repo.insert_account(_account())
+        repo.insert_account(_account("account-bob", "bob@example.org"))
+        for token_hash in ("hash-1", "hash-2", "hash-3"):
+            repo.insert_session(_session(token_hash))
+        already = repo.insert_session(_session("hash-old"))
+        repo.revoke_session(already, now=35.0)
+        repo.insert_session(replace(_session("hash-bob"), account_id="account-bob"))
+        assert repo.revoke_sessions_of("account-alice", except_id=None, now=50.0) == 3
+        for token_hash in ("hash-1", "hash-2", "hash-3"):
+            row = repo.session_by_hash(token_hash)
+            assert row is not None and row.revoked_at == 50.0
+        old = repo.session_by_hash("hash-old")
+        assert old is not None and old.revoked_at == 35.0
+        bob = repo.session_by_hash("hash-bob")
+        assert bob is not None and bob.revoked_at is None
 
 
 class TestPinsAndSettings:

@@ -7,7 +7,7 @@ A property the contract marks ABSENT when empty (``AccountSummary.demotedFrom``)
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, StrictBool
 
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.views import AccountSummaryView, RosterView, SignInKind
@@ -142,3 +142,14 @@ class ResetAccountPasswordBody(ContractModel):
     """
 
     password: str = Field(repr=False)
+
+
+class SetAccountAccessBody(ContractModel):
+    """``setAccountAccess``'s body.
+
+    Attributes:
+        sign_in_allowed: True to allow the account's sign-in, False to cut it. Strict: a
+            string or a number is refused ``request.invalid``, never read as a boolean.
+    """
+
+    sign_in_allowed: StrictBool

@@ -11,7 +11,8 @@
     "required": "This needs a signed-in session.",
     "refused": "The sign-in was refused.",
     "plex_only": "This account signs in with Plex: it has no password here.",
-    "rate_limited": "Too many failed sign-ins; try again in a minute."
+    "rate_limited": "Too many failed attempts; try again later.",
+    "access_disabled": "This account's access is cut: an Admin gives it back in Accounts."
   },
   "right": {
     "missing": "The account's role lacks the right this needs.",
@@ -26,7 +27,10 @@
     "email_invalid": "An account needs a name and a valid e-mail.",
     "email_taken": "An account already has this e-mail.",
     "admin_untouchable": "Only an Admin changes an Admin account or gives the Admin role.",
-    "last_admin": "No account would be left on the Admin role: nothing was changed."
+    "last_admin": "No account would be left on the Admin role: nothing was changed.",
+    "access_admin_only": "Only an Admin cuts or gives back an account's access.",
+    "owner_access": "The server owner's access is never cut.",
+    "own_access": "An Admin cannot cut their own access."
   },
   "media": {
     "not_found": "No media answers this provider id."

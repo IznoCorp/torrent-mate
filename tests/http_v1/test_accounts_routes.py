@@ -2,7 +2,8 @@
 
 Each route calls the account service; these tests hold the wire: the statuses and the
 ``Problem`` codes the contract declares, the rights each operation asks (``readAccounts``
-opens to ``acquisition.reassign`` too; ``resetAccountPassword`` is an Admin's only), and the
+opens to ``acquisition.reassign`` too; ``resetAccountPassword`` and ``setAccountAccess`` are an
+Admin's only), and the
 read-only clone refusing every write.
 The guards themselves are proved in ``tests/unit/app/accounts/test_account_service.py`` and
 ``test_password_change.py``.
@@ -25,6 +26,7 @@ from personalscraper.app.store.store import _MIGRATIONS_DIR
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite import open_db
+from personalscraper.http_v1.session_cookie import SESSION_COOKIE
 
 _PASSWORD = "a provisional one"
 
@@ -430,6 +432,98 @@ class TestResetAccountPassword:
             assert secret not in str(logs)
 
 
+class TestSetAccountAccess:
+    """``PUT /accounts/{accountId}/access`` — ``setAccountAccess``, an Admin's act."""
+
+    def test_cutting_ends_the_accounts_sessions_and_its_next_request_is_auth_required(
+        self, v1_client: Callable[..., TestClient]
+    ) -> None:
+        """200, ``signInAllowed`` false; the cut account's next request is 401 ``auth.required``."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-guest", "local-guest")
+        running = _services(client).sessions.open("account-guest", user_agent="pytest")
+        guest = TestClient(client.app, raise_server_exceptions=False)
+        guest.cookies.set(SESSION_COOKIE, running)
+        assert guest.get("/auth/me").status_code == 200
+
+        response = client.put("/accounts/account-guest/access", json={"signInAllowed": False})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert (body["id"], body["signInAllowed"], body["signInKind"]) == ("account-guest", False, "local")
+        after = guest.get("/auth/me")
+        assert after.status_code == 401
+        assert after.json()["code"] == "auth.required"
+        assert client.get("/auth/me").status_code == 200
+
+    def test_giving_back_answers_the_account_allowed(self, v1_client: Callable[..., TestClient]) -> None:
+        """200, ``signInAllowed`` true, and the roster reads it."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-guest", "local-guest")
+        client.put("/accounts/account-guest/access", json={"signInAllowed": False})
+
+        response = client.put("/accounts/account-guest/access", json={"signInAllowed": True})
+
+        assert response.status_code == 200
+        assert response.json()["signInAllowed"] is True
+        roster = {account["id"]: account for account in client.get("/accounts").json()["accounts"]}
+        assert roster["account-guest"]["signInAllowed"] is True
+
+    @pytest.mark.parametrize("account_id", ["account-guest", "account-1", "nope"], ids=["other", "own", "unknown"])
+    def test_a_manager_who_is_not_admin_is_403_before_anything(
+        self, v1_client: Callable[..., TestClient], account_id: str
+    ) -> None:
+        """403 ``account.access_admin_only`` — its own account, and an id that names nobody (never 404)."""
+        client = v1_client(rights=frozenset({Right.ACCOUNTS_MANAGE}))
+        _add_account(client, "account-guest", "local-guest")
+        response = client.put(f"/accounts/{account_id}/access", json={"signInAllowed": False})
+        assert response.status_code == 403
+        assert response.json()["code"] == "account.access_admin_only"
+
+    def test_without_accounts_manage_is_right_missing(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``right.missing``."""
+        response = v1_client(role="household").put("/accounts/account-1/access", json={"signInAllowed": False})
+        assert response.status_code == 403
+        assert response.json()["code"] == "right.missing"
+
+    def test_an_unknown_account_is_404(self, v1_client: Callable[..., TestClient]) -> None:
+        """For an Admin: 404 ``account.unknown``."""
+        response = v1_client(role="admin").put("/accounts/nope/access", json={"signInAllowed": False})
+        assert response.status_code == 404
+        assert response.json()["code"] == "account.unknown"
+
+    @pytest.mark.parametrize(
+        "body", [{}, {"signInAllowed": "no"}, {"signInAllowed": None}], ids=["absent", "a-string", "null"]
+    )
+    def test_a_body_without_a_boolean_is_request_invalid(
+        self, v1_client: Callable[..., TestClient], body: dict[str, object]
+    ) -> None:
+        """400 ``request.invalid`` naming ``body.signInAllowed``; nothing changed."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-guest", "local-guest")
+        response = client.put("/accounts/account-guest/access", json=body)
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+        assert response.json()["params"]["fields"] == ["body.signInAllowed"]
+        account = _services(client).app_store.accounts.account("account-guest")
+        assert account is not None and account.sign_in_allowed is True
+
+    def test_the_owner_is_owner_access(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``account.owner_access``: the fallback door is never cut."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-owner", "admin")
+        _link(client, "account-owner", "owner")
+        response = client.put("/accounts/account-owner/access", json={"signInAllowed": False})
+        assert response.status_code == 403
+        assert response.json()["code"] == "account.owner_access"
+
+    def test_its_own_account_is_own_access(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``account.own_access``: an Admin never locks itself out."""
+        response = v1_client(role="admin").put("/accounts/account-1/access", json={"signInAllowed": False})
+        assert response.status_code == 403
+        assert response.json()["code"] == "account.own_access"
+
+
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
@@ -438,6 +532,7 @@ class TestResetAccountPassword:
         ("POST", "/roles", {"name": "X", "rights": ["library.read"]}),
         ("PATCH", "/roles/local-guest", {"name": "X"}),
         ("POST", "/accounts/account-1/password", {"password": _PASSWORD}),
+        ("PUT", "/accounts/account-1/access", {"signInAllowed": False}),
     ],
 )
 def test_every_write_on_the_read_only_clone_is_forbidden(

@@ -6,7 +6,7 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Final, get_args
 
 from personalscraper.app.accounts.actor import Actor, RoleKind
@@ -194,6 +194,8 @@ class AccountService:
                 the window; checked first, so the right password is refused too.
             AppUnauthenticated: ``auth.refused`` — an unknown e-mail, no password, a wrong
                 one, or a Plex-linked account that is not the server's owner.
+            AppForbidden: ``auth.access_disabled`` — an Admin cut the account; answered
+                only once the password is proven, and not counted as a failure.
         """
         if not self._limiter.allow(client_key):
             log.warning("v1_sign_in_rate_limited", client_key=client_key)
@@ -207,12 +209,42 @@ class AccountService:
             self._limiter.record_failure(client_key)
             log.info("v1_sign_in_refused", client_key=client_key)
             raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
-        token = self._sessions.open(account.id, user_agent=user_agent)
+        token = self._open_session_if_allowed(repo, account.id, user_agent=user_agent)
         actor = self._sessions.resolve(token)
         if actor is None:
             raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
         log.info("v1_signed_in", account_id=account.id)
         return SignInResult(account=self._account_view(repo, account, actor), session_token=token)
+
+    def _open_session_if_allowed(self, repo: AccountRepository, account_id: str, *, user_agent: str | None) -> str:
+        """Open a session for an account whose identity is proven, unless an Admin cut its access.
+
+        Every sign-in door ends here once the credentials are proven, so the cut account's
+        refusal never tells anything to someone who does not hold them; the Plex door
+        calls it once the PIN is claimed and the identity proven to hold the account. The
+        access is read and the session opened in one ``BEGIN IMMEDIATE`` transaction: a cut
+        that commits while scrypt runs is seen here, and can never leave a session live.
+
+        Args:
+            repo: The account repository.
+            account_id: The account signed in.
+            user_agent: The browser's user agent, kept on the session.
+
+        Returns:
+            The new session's value.
+
+        Raises:
+            AppUnauthenticated: ``auth.refused`` — the account was deleted since it was read.
+            AppForbidden: ``auth.access_disabled`` — the account's access is cut.
+        """
+        with repo.immediate():
+            account = repo.account(account_id)
+            if account is None:
+                raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
+            if not account.sign_in_allowed:
+                log.info("v1_sign_in_access_disabled", account_id=account_id)
+                raise AppForbidden("This account's access is cut.", code=RefusalCode.AUTH_ACCESS_DISABLED)
+            return self._sessions.open(account_id, user_agent=user_agent)
 
     def set_password(self, email: str, password: str) -> None:
         """Give an account a password — the server's door of last resort (the CLI's only).
@@ -333,6 +365,58 @@ class AccountService:
                 raise password_refusal
             repo.set_password_hash(account.id, password_hash, now=self._clock())
         log.info("account_password_reset", account_id=account.id, by=actor.account_id)
+
+    def set_account_access(self, actor: Actor, account_id: str, *, allowed: bool) -> AccountSummaryView:
+        """Allow or cut an account's sign-in — an Admin's act.
+
+        The Admin check comes first: a caller who is not Admin never learns whether an
+        account exists. Then the account; the Plex server's owner, the fallback door, is
+        never cut; nor is the caller's own account. The value the account already holds
+        writes nothing. Cutting sets the access and revokes every session of the account in
+        one ``BEGIN IMMEDIATE`` transaction, so its next request is refused; giving it back
+        opens no session. Nothing is published: no right moves.
+
+        Args:
+            actor: The signed-in actor (``accounts.manage``).
+            account_id: The account.
+            allowed: True to allow its sign-in, False to cut it.
+
+        Returns:
+            The account, with its access as set.
+
+        Raises:
+            AppForbidden: ``account.access_admin_only`` — the caller's role is not Admin,
+                whatever the account; ``account.owner_access``; ``account.own_access``.
+            AppNotFound: ``account.unknown``.
+        """
+        if actor.role_kind is not RoleKind.ADMIN:
+            raise AppForbidden(
+                "Only an Admin cuts or gives back an account's access.", code=RefusalCode.ACCOUNT_ACCESS_ADMIN_ONLY
+            )
+        repo = self._repo_factory()
+        revoked = 0
+        with repo.immediate():
+            account = repo.account(account_id)
+            if account is None:
+                raise AppNotFound("No account answers this identity.", code=RefusalCode.ACCOUNT_UNKNOWN)
+            if sign_in_kind(repo.plex_link(account.id)) is SignInKind.OWNER:
+                raise AppForbidden("The server owner's access is never cut.", code=RefusalCode.ACCOUNT_OWNER_ACCESS)
+            if account.id == actor.account_id:
+                raise AppForbidden("An Admin never cuts its own access.", code=RefusalCode.ACCOUNT_OWN_ACCESS)
+            role = repo.role(account.role_id)
+            assert role is not None  # an account's role is a foreign key: it always exists
+            moved = account.sign_in_allowed is not allowed
+            if moved:
+                now = self._clock()
+                repo.set_sign_in_allowed(account.id, allowed=allowed, now=now)
+                if not allowed:
+                    revoked = repo.revoke_sessions_of(account.id, except_id=None, now=now)
+            summary = self._summary(repo, replace(account, sign_in_allowed=allowed), role)
+        if moved and allowed:
+            log.info("account_access_given_back", account_id=account.id, by=actor.account_id)
+        elif moved:
+            log.info("account_access_cut", account_id=account.id, sessions_revoked=revoked, by=actor.account_id)
+        return summary
 
     def _summary(self, repo: AccountRepository, account: AccountRow, role: RoleRow) -> AccountSummaryView:
         """Map an account and its role to the roster's view.

@@ -11,7 +11,8 @@
     "required": "Il faut une session connectée.",
     "refused": "La connexion a été refusée.",
     "plex_only": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici.",
-    "rate_limited": "Trop de connexions échouées ; réessayez dans une minute."
+    "rate_limited": "Trop de tentatives échouées ; réessayez plus tard.",
+    "access_disabled": "L'accès de ce compte est coupé : un Admin le rétablit dans Comptes."
   },
   "right": {
     "missing": "Le rôle du compte n'a pas le droit nécessaire.",
@@ -26,7 +27,10 @@
     "email_invalid": "Un compte demande un nom et une adresse valide.",
     "email_taken": "Un compte a déjà cette adresse.",
     "admin_untouchable": "Seul un Admin modifie un compte Admin ou donne le rôle Admin.",
-    "last_admin": "Plus aucun compte ne serait sur le rôle Admin : rien n'a été modifié."
+    "last_admin": "Plus aucun compte ne serait sur le rôle Admin : rien n'a été modifié.",
+    "access_admin_only": "Seul un Admin coupe ou rétablit l'accès d'un compte.",
+    "owner_access": "L'accès du propriétaire du serveur ne se coupe jamais.",
+    "own_access": "Un Admin ne peut pas couper son propre accès."
   },
   "media": {
     "not_found": "Aucun média ne répond à cet identifiant de fournisseur."

@@ -253,6 +253,7 @@
           "auth.refused",
           "auth.plex_only",
           "auth.rate_limited",
+          "auth.access_disabled",
           "right.missing",
           "instance.read_only",
           "instance.forbidden_write",
@@ -261,6 +262,9 @@
           "account.email_taken",
           "account.admin_untouchable",
           "account.last_admin",
+          "account.access_admin_only",
+          "account.owner_access",
+          "account.own_access",
           "role.unknown",
           "role.system_immutable",
           "role.own_role",
@@ -409,6 +413,21 @@
           "roles"
         ],
         "title": "RosterModel",
+        "type": "object"
+      },
+      "SetAccountAccessBody": {
+        "additionalProperties": false,
+        "description": "``setAccountAccess``'s body.\n\nAttributes:\n    sign_in_allowed: True to allow the account's sign-in, False to cut it. Strict: a\n        string or a number is refused ``request.invalid``, never read as a boolean.",
+        "properties": {
+          "signInAllowed": {
+            "title": "Signinallowed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "signInAllowed"
+        ],
+        "title": "SetAccountAccessBody",
         "type": "object"
       },
       "SignInBody": {
@@ -818,6 +837,108 @@
           }
         },
         "summary": "Update Account"
+      }
+    },
+    "/accounts/{accountId}/access": {
+      "put": {
+        "description": "Allow or cut an account's sign-in; cutting ends every session of the account.\n\nArgs:\n    account_id: The account.\n    body: Whether it may sign in.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The account, with its access as set.",
+        "operationId": "setAccountAccess",
+        "parameters": [
+          {
+            "description": "the account",
+            "in": "path",
+            "name": "accountId",
+            "required": true,
+            "schema": {
+              "description": "the account",
+              "title": "Accountid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAccountAccessBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummaryModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Set Account Access"
       }
     },
     "/accounts/{accountId}/password": {
