@@ -16,7 +16,7 @@ import pytest
 from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.errors import AppConflict, AppNotFound, RefusalCode
+from personalscraper.app.errors import AppConflict, AppInternalError, AppNotFound, RefusalCode
 from personalscraper.app.library.deletion import PlexOutcome
 from personalscraper.app.library.service import LibraryService
 from personalscraper.core.delete_permit import ALLOW, PermitDecision, veto
@@ -358,3 +358,26 @@ def test_under_staging_the_preprod_guard_refuses_a_folder_outside_its_roots(
     assert shelf.rows() == [item]
     assert shelf.journal() == []
     assert (report.deleted, report.media[0].folders_failed) == (0, 1)
+
+
+def test_no_deletion_authority_refuses_and_touches_nothing(shelf: Shelf) -> None:
+    """No permit wired: the request is refused before the lock is taken; folder, rows and Plex untouched."""
+    item, folder = shelf.movie("Movie (2020)", "11")
+    service = LibraryService(
+        index_db=shelf.index.path,
+        data_dir=shelf.data_dir,
+        catalogue=shelf.service._catalogue,
+        ownership=shelf.service._ownership,
+        providers=ProviderClients(tvdb=None, tmdb=None),
+        plex=shelf.plex,  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(AppInternalError) as refused:
+        service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert refused.value.code is RefusalCode.INTERNAL
+    assert (folder / "movie.mkv").is_file()
+    assert shelf.rows() == [item]
+    assert shelf.journal() == []
+    assert shelf.plex.calls == []
+    assert not (shelf.data_dir / "pipeline.lock").exists()

@@ -81,7 +81,7 @@ from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
 from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
 from personalscraper.conf.preprod_guard import PreprodGuardError
 from personalscraper.core.artwork_naming import artwork_inventory
-from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit
+from personalscraper.core.delete_permit import DeletePermit
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.deletion import DeleteOutcome, delete_media_folder
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
@@ -467,8 +467,9 @@ class LibraryService:
             providers: The metadata provider clients; ``None`` for an unconfigured one.
             clock: Epoch seconds; « today » for the aired counts and the provider cache's clock.
             plex: The Plex server a deletion tells; ``None`` when none is configured.
-            delete_permit: The deletion authority a deletion consults (fail-open); allow-all
-                when ``None``.
+            delete_permit: The deletion authority a deletion consults (fail-open); ``None``
+                when none is wired, and then every deletion is refused (no permit, no
+                deletion: a folder that still owes seeding is never deleted unasked).
             config: The loaded configuration, naming preprod's roots: required under
                 ``staging``, where a deletion without it deletes nothing.
             sleep: Pauses a deletion's wait for a Plex scan.
@@ -483,7 +484,7 @@ class LibraryService:
         self._lock = threading.Lock()
         self._sheets = ProviderSheetCache(clock)
         self._plex = plex
-        self._delete_permit: DeletePermit = delete_permit if delete_permit is not None else AllowAllPermit()
+        self._delete_permit = delete_permit
         self._config = config
         self._sleep = sleep
         self._monotonic = monotonic
@@ -1014,6 +1015,8 @@ class LibraryService:
             The report: how many media went entirely, and what each deletion did.
 
         Raises:
+            AppInternalError: ``internal`` when no deletion authority is wired: nothing is
+                deleted, the lock is not taken.
             AppConflict: ``library.locked`` while a run holds ``pipeline.lock``;
                 ``media.ambiguous`` (``params.provider`` / ``params.providerId``) when two
                 or more rows, or one row's live files in two or more media folders, hold an
@@ -1021,12 +1024,16 @@ class LibraryService:
             AppNotFound: ``media.not_found`` (``params.provider`` / ``params.providerId``)
                 when no index row holds an id. Nothing is deleted.
         """
+        permit = self._delete_permit
+        if permit is None:
+            log.error("app.library.delete_without_permit")
+            raise AppInternalError("No deletion authority is wired.", code=RefusalCode.INTERNAL)
         lock_file = self._data_dir / "pipeline.lock"
         if not acquire_pipeline_lock(lock_file, scrape_locks_dir_for(self._data_dir)):
             raise AppConflict("The pipeline holds the library.", code=RefusalCode.LIBRARY_LOCKED)
         try:
             plans = self._deletion_plans(refs)
-            done = [self._delete_one(actor, plan) for plan in plans]
+            done = [self._delete_one(actor, plan, permit) for plan in plans]
             return self._told_plex(done)
         finally:
             release_lock(lock_file)
@@ -1079,12 +1086,13 @@ class LibraryService:
                 )
         return plans
 
-    def _delete_one(self, actor: Actor, plan: _DeletionPlan) -> _Deleted:
+    def _delete_one(self, actor: Actor, plan: _DeletionPlan, permit: DeletePermit) -> _Deleted:
         """Delete one validated medium's folder, its emptied parents and, when nothing was kept, its rows.
 
         Args:
             actor: Who deletes.
             plan: What the medium's deletion touches.
+            permit: The deletion authority each folder's deletion consults.
 
         Returns:
             What was done, and the surviving parent of each deleted folder (for Plex).
@@ -1103,7 +1111,7 @@ class LibraryService:
                     db_path=self._index_db,
                     actor=who,
                     label=f"media {provider.value}/{provider_id}",
-                    permit=self._delete_permit,
+                    permit=permit,
                     config=self._config,
                 )
             except PreprodGuardError as exc:
