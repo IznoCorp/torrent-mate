@@ -28,7 +28,10 @@ from personalscraper.app.composition import build_app_context
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.conf.envfile import write_env_keys
+from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.config import get_settings
+from personalscraper.http_v1.standalone import build_standalone_v1_app
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.web.app import create_app
 
@@ -151,6 +154,50 @@ def web(
         if acquire is not None:
             acquire.close()
         log.info("web_shutdown_complete")
+
+
+@web_app.command("serve-v1", help=t("cli_web.serve_v1.help"))
+@handle_cli_errors
+def serve_v1(
+    ctx: typer.Context,
+    host: str = typer.Option("127.0.0.1", "--host", help=t("cli_web.serve_v1.host_help")),
+    port: int = typer.Option(8713, "--port", help=t("cli_web.serve_v1.port_help")),
+) -> None:
+    """Serve the v1 application alone, at ``/api/v1``, for a reverse proxy on this machine.
+
+    Refused under production: a development server never opens production stores, so the
+    process must run under a named environment (``PERSONALSCRAPER_ENV``) whose marked
+    ``data_dir`` holds its own ``app`` store.
+
+    Args:
+        ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
+        host: The bind address; loopback by default, the reverse proxy being local.
+        port: The bind port.
+
+    Raises:
+        typer.Exit: Code 1 under production.
+    """
+    config: Config = ctx.obj.config
+    assert config is not None
+
+    environment = current_environment()
+    if environment is Environment.PROD:
+        typer.echo(t("cli_web.serve_v1.refused_prod"), err=True)
+        log.error("web_serve_v1_refused", reason="prod_environment")
+        raise typer.Exit(code=1)
+
+    log.info("web_serve_v1_starting", host=host, port=port, environment=environment.value)
+    uvicorn.run(
+        build_standalone_v1_app(config, get_settings()),
+        host=host,
+        port=port,
+        # Same reason as the daemon's: uvicorn's own logging config would route its
+        # records around our handlers, and therefore around the secret redaction.
+        log_config=None,
+        # The app trusts its proxy's headers itself (``build_standalone_v1_app``); uvicorn's
+        # own middleware, widened by ``FORWARDED_ALLOW_IPS``, must not be a second decision.
+        proxy_headers=False,
+    )
 
 
 @web_app.command("set-password")

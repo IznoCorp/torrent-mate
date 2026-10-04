@@ -1,0 +1,8 @@
+{
+  "serve_v1": {
+    "help": "Sert l'application v1 seule sous /api/v1, pour un reverse proxy sur cette machine. Refusé en production.",
+    "host_help": "L'adresse d'écoute (boucle locale par défaut).",
+    "port_help": "Le port d'écoute.",
+    "refused_prod": "Le serveur v1 autonome ne tourne jamais sur les bases de production : définissez PERSONALSCRAPER_ENV à dev ou staging, avec un répertoire de données marqué pour lui. Rien n'a été démarré."
+  }
+}
