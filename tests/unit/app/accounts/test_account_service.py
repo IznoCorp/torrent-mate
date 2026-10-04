@@ -93,7 +93,7 @@ def _service(store: AppStore, bus: EventBus) -> AccountService:
     Returns:
         The service.
     """
-    sessions = SessionService(lambda: store.accounts, ttl_hours=2, ceiling=lambda: _NO_CEILING)
+    sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
     return AccountService(lambda: store.accounts, sessions, bus)
 
 

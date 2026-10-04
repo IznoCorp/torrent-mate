@@ -9,7 +9,8 @@
     redis_url: "redis://127.0.0.1:6379/0",
     stream_key: "personalscraper:events",
     stream_maxlen: 10000,
-    session_ttl_hours: 720, // 30 days
+    session_ttl_hours: 720, // 30 days — v0's session cookie
+    session_idle_days: 30, // v1: a session ends after 30 days unused; each use renews it
     cookie_secure: true,
     dev_mode: false, // true = allow boot without a built SPA (Vite dev proxy)
     v1_enabled: false, // true only on the preprod overlay until K9 (O-K1-1)

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+
+from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.library.service import LibraryService
 from personalscraper.app.services import AppServices
@@ -36,3 +39,29 @@ def test_the_library_service_is_built_inert(test_config: Config) -> None:
     assert test_config.acquire.db_path is not None
     assert not test_config.acquire.db_path.exists()
     services.close()
+
+
+def test_the_configured_idle_lifetime_reaches_the_sessions(test_config: Config) -> None:
+    """``web.session_idle_days`` = 5: a session the built service opens expires five days after it opens."""
+    config = test_config.model_copy(update={"web": test_config.web.model_copy(update={"session_idle_days": 5})})
+    services = build_app_services(config, Settings(_env_file=None))  # type: ignore[call-arg]
+    try:
+        repo = services.app_store.accounts
+        repo.insert_account(
+            AccountRow(
+                id="account-alice",
+                name="Alice",
+                email="alice@example.org",
+                avatar="",
+                role_id="household",
+                password_hash=None,
+                created_at=1.0,
+                updated_at=1.0,
+            )
+        )
+        token = services.sessions.open("account-alice", user_agent=None)
+        row = repo.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
+        assert row is not None
+        assert row.expires_at - row.created_at == 5 * 86_400
+    finally:
+        services.close()
