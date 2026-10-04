@@ -52,6 +52,11 @@ describe("a new account's role", () => {
     expect([answer.status, answer.coded?.code]).toEqual([400, "request.invalid"]);
   });
 
+  it("is checked before the e-mail: a body with neither answers request.invalid, as the server does", () => {
+    const answer = ask("POST", "/accounts", { name: "Nina", password: STRONG });
+    expect([answer.status, answer.coded?.code]).toEqual([400, "request.invalid"]);
+  });
+
   it("is refused when it names no role", () => {
     const answer = ask("POST", "/accounts", { name: "Nina", email: "nina@example.invalid", role: "", password: STRONG });
     expect([answer.status, answer.coded?.code]).toEqual([404, "role.unknown"]);

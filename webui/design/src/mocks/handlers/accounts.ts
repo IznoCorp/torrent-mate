@@ -166,17 +166,17 @@ export function accountRoutes(): MockRoute[] {
   return [
     route("readAccounts", GET, "/accounts", answered),
     route("createAccount", POST, "/accounts", (request) => {
+      // THE ROLE IS REQUIRED (the operator, 2026-10-04): nothing is chosen for
+      // the manager — absent, the body is not the contract's, which the server
+      // answers before reading anything in it, the e-mail included.
+      const asked = field(request.body, "role");
+      if (typeof asked !== "string") return refused(INVALID, "a new account names its role", "request.invalid");
       const name = text(request.body, "name").trim();
       const email = text(request.body, "email").trim();
       if (!email.includes("@") || !name) return refused(INVALID, "a local account carries a name and an e-mail", "account.email_invalid");
       // AN E-MAIL THAT IS A USER OF THE MANAGED SERVER IS LINKED from the start,
       // signs in by Plex only, and starts on its Plex kind's role; any other is a
-      // local account, on the role asked, else the one local accounts start on
-      // (O-K1-4).
-      // THE ROLE IS REQUIRED (the operator, 2026-10-04): nothing is chosen for
-      // the manager — absent, the body is not the contract's.
-      const asked = field(request.body, "role");
-      if (typeof asked !== "string") return refused(INVALID, "a new account names its role", "request.invalid");
+      // local account, on the role asked (O-K1-4).
       const linked = ACCOUNTS.plexUsers.includes(email.toLowerCase());
       const target = linked ? startingRole("plexGuest") : roles().find((one) => one.id === asked);
       if (target === undefined) return refused(MISSING, "no role carries that id", "role.unknown");
