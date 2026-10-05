@@ -20,5 +20,9 @@
       "field_title": "titre",
       "resolved_suffix": " → « {{title}} »"
     }
+  },
+  "confidence": {
+    "none_of_these": "  [0] Aucun de ces résultats",
+    "choice_prompt": "Choix : "
   }
 }

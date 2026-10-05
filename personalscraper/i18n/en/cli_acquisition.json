@@ -225,5 +225,10 @@
       "gained": "yes",
       "done": "Backfilled {{updated}}, skipped {{skipped}}."
     }
+  },
+  "confidence": {
+    "heading": "Matching: {{title}}",
+    "year_suffix": " ({{year}})",
+    "result_line": "  [{{index}}] {{title}}{{year}} — {{confidence}} [{{source}}]"
   }
 }

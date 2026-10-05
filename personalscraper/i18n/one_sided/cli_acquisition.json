@@ -197,5 +197,10 @@
   "follow.backfill.gained",
   "follow.backfill.field_title",
   "follow.backfill.resolved_suffix",
-  "follow.backfill.done"
+  "follow.backfill.done",
+  "confidence.heading",
+  "confidence.year_suffix",
+  "confidence.result_line",
+  "confidence.none_of_these",
+  "confidence.choice_prompt"
 ]
