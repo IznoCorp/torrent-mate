@@ -64,20 +64,24 @@
     "idle": "idle",
     "row": "  {{state}} {{progress}}%  {{size}} GB  {{seeding}}  {{name}}",
     "total_label": "Total:",
-    "total": "{{completed}} completed (of {{tracked}} tracked torrents)"
+    "total": "{{completed}} completed (of {{tracked}} tracked torrents)",
+    "list_help": "List completed torrents from the active qBittorrent client.\n\nPrints one line per completed torrent (state / progress / size /\nseeding / name) and a summary count. Exits 2 with a friendly\nmessage when the torrent client is unreachable (auth lockout, IP\nban, daemon down) so monitoring tools can branch on the exit\ncode. Used by the ``pipeline-monitor`` skill's GATE 0 inventory.\n\nOutput format respects the global ``--format`` flag."
   },
   "watch": {
     "disabled": "Watch daemon is disabled (config.watch.enabled=false).",
     "no_client": "No active torrent client configured (config.torrent.active is empty).",
     "sentinel_written": "Sentinel written: {{path}}",
-    "sentinel_consumed": "Consumed by the watch daemon next cycle -> pipeline run with reason=manual; if the daemon is down the sentinel persists until next boot."
+    "sentinel_consumed": "Consumed by the watch daemon next cycle -> pipeline run with reason=manual; if the daemon is down the sentinel persists until next boot.",
+    "help": "Start the watcher daemon (single-process scheduler).\n\nPolls the configured torrent client each cycle, consults the\n:class:`~personalscraper.acquire.watcher.WatcherService` decision engine,\nand spawns ``personalscraper run --no-console`` (async, tracked) or\n``personalscraper cross-seed --hash {{hash}}`` (sync, sequential) as\nsubprocesses.  The daemon itself does NOT acquire ``pipeline.lock``\n(W6) — only its spawned children do.\n\nRuns until SIGTERM, SIGINT, or a fatal error.",
+    "now_help": "Write the sentinel file that the watcher daemon consumes next cycle.\n\nNo IPC, no daemon dependency — if the daemon is down, the sentinel is\nconsumed at next boot.  Same channel as the future Web UI (W4).\n\nThe running ``personalscraper watch`` daemon detects this file at the\nnext poll cycle and fires a pipeline run with ``reason=manual``."
   },
   "health_check": {
     "lookback_help": "Recent-error window.",
     "max_run_help": "Held-lock age considered stuck.",
     "no_alert_help": "Do not send the Telegram alert (check only).",
     "ok": "health-check: OK",
-    "anomalies": "health-check: ANOMALIES\n{{anomalies}}"
+    "anomalies": "health-check: ANOMALIES\n{{anomalies}}",
+    "help": "Check daemon liveness + recent log errors + stuck lock; alert on anomalies.\n\nExits 0 when healthy, 1 when any anomaly is found (Telegram alert sent unless\n``--no-alert``). Intended to run under PM2 on an hourly cron.\n\nArgs:\n    ctx: Typer context carrying the loaded config on ``ctx.obj``.\n    lookback_minutes: Recent-error scan window.\n    max_run_minutes: Held-lock age beyond which the pipeline is stuck.\n    no_alert: Suppress the Telegram alert (still logs + exits non-zero)."
   },
   "init_config": {
     "example_missing": "Example directory not found: {{example}}",
@@ -140,15 +144,9 @@
     "check_fixable": "fixable",
     "check_indexable": "indexable",
     "check_row": "  {{name}} [{{group}}] {{severity}} {{fixable}} {{indexable}} {{description}}",
+    "step_label": "{{step}}:",
     "unknown_dispatch_check": "Unknown check(s): {{unknown}}. Available dispatch checks: {{available}}",
     "unknown_staging_check": "Unknown check(s): {{unknown}}. Available staging checks: {{available}}",
-    "label_ingest": "Ingest:",
-    "label_sort": "Sort:",
-    "label_scrape": "Scrape:",
-    "label_verify": "Verify:",
-    "label_dispatch": "Dispatch:",
-    "label_clean": "Clean:",
-    "label_cleanup": "Cleanup:",
     "verify_counts": "{{ok}} OK, {{blocked}} blocked",
     "verify_ready": "  {{ready}} ready for dispatch",
     "enforce_counts": "Enforce: {{fixed}} fixed, {{ok}} OK, {{errors}} errors",

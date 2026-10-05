@@ -1,1 +1,62 @@
-{}
+{
+  "app_help": "Commandes d'acquisition et de gestion des bandes-annonces.",
+  "since_invalid": "Erreur : --since {{since}} doit être au format AAAA-MM-JJ.",
+  "level_invalid": "Erreur : --level {{level}} n'est pas valide. Choisissez parmi : {{choices}}.",
+  "dry_run_label": "DRY-RUN :",
+  "scan": {
+    "help": "Essai à blanc : liste les médias sans bande-annonce.\n\nArguments :\n    ctx : contexte Typer portant AppCtx (configuration disponible via ctx.obj.config).\n    disk : filtre facultatif sur l'identifiant de disque.\n    category : filtre facultatif sur l'identifiant de catégorie.\n    since : borne basse facultative (date ISO) sur l'âge de l'élément.\n    limit : nombre maximal facultatif d'éléments.\n    no_refresh : saute le rafraîchissement du cache de la bibliothèque si True.\n    level : filtre du niveau de bande-annonce (show / season / both).\n    season : numéro de saison précis ; implique --level=season.",
+    "none": "Aucun média sans bande-annonce trouvé.",
+    "table_title": "Médias sans bande-annonce ({{items}} éléments)"
+  },
+  "download": {
+    "help": "Découvre et télécharge les bandes-annonces manquantes.\n\nArguments :\n    ctx : contexte Typer portant AppCtx (configuration disponible via ctx.obj.config).\n    disk : filtre facultatif sur l'identifiant de disque.\n    category : filtre facultatif sur l'identifiant de catégorie.\n    since : borne basse facultative (date ISO) sur l'âge de l'élément.\n    limit : nombre maximal facultatif d'éléments.\n    dry_run : si True, montre les candidats sans télécharger.\n    no_refresh : saute le rafraîchissement du cache de la bibliothèque si True.\n    level : filtre du niveau de bande-annonce (show / season / both).\n    season : numéro de saison précis ; implique --level=season.",
+    "would_attempt": "Tenterait de télécharger les bandes-annonces de {{items}} éléments.",
+    "season_suffix": " (saison {{season}})",
+    "summary_title": "Résumé du téléchargement des bandes-annonces"
+  },
+  "audit": {
+    "help": "Audite les bandes-annonces existantes (commande canonique).\n\nEffectue quatre contrôles par bande-annonce :\n1. Existence - fichier présent au chemin de placement attendu.\n2. Taille - taille du fichier >= config.trailers.filters.min_file_size_bytes.\n3. Extension - suffixe du fichier dans config.trailers.filters.allowed_extensions.\n4. Lisibilité (facultatif, --deep) - ffprobe renvoie une durée non nulle.\n\nLes échecs signalent une catégorie : missing, undersized, wrong_extension, unplayable.\nCodes de sortie : 0 si tout passe, 2 si un contrôle fonctionnel échoue,\n4 si un appel ffprobe --deep échoue (la sonde elle-même est cassée).\n\nArguments :\n    ctx : contexte Typer portant AppCtx (configuration disponible via ctx.obj.config).\n    disk : filtre facultatif sur l'identifiant de disque.\n    category : filtre facultatif sur l'identifiant de catégorie.\n    since : borne basse facultative (date ISO) sur l'âge de l'élément.\n    deep : si True, lance le contrôle de lisibilité ffprobe (coûteux).\n    level : filtre du niveau de bande-annonce (show / season / both).\n    season : numéro de saison précis ; implique --level=season.",
+    "ffprobe_error": "Erreur ffprobe : une ou plusieurs sondes ont échoué (code de sortie 4).",
+    "existing_title": "Bandes-annonces existantes ({{existing}})",
+    "no_existing": "Aucune bande-annonce existante trouvée.",
+    "issues_title": "Problèmes de bandes-annonces ({{found}} trouvés)",
+    "all_ok": "Les {{existing}} bandes-annonces sont toutes conformes."
+  },
+  "purge": {
+    "help": "Supprime les bandes-annonces orphelines dont la vidéo du média a disparu ; répare les trous de l'index.\n\nUne bande-annonce n'est orpheline que lorsque le répertoire de son média ne contient aucune\nvraie vidéo (vérité du système de fichiers) — un média présent, même absent de l'index, n'est jamais touché.\nUn répertoire de média présent mais non indexé est à la place réindexé (via l'étape\nmono-répertoire du scanner), si bien que ``purge`` écrit dans ``library.db`` lors d'une vraie exécution.\n\nQuand --include-state est donné, une fois la purge du système de fichiers terminée, appelle\nstate_store.purge_orphans() et journalise le nombre dans la sortie CLI.\n\nArguments :\n    ctx : contexte Typer portant AppCtx (configuration disponible via ctx.obj.config).\n    disk : filtre facultatif sur l'identifiant de disque.\n    since : borne basse facultative (date ISO) sur l'âge de l'élément.\n    dry_run : si True, montre les orphelines sans supprimer.\n    include_state : si True, appelle aussi state_store.purge_orphans().\n    level : filtre du niveau de bande-annonce (show / season / both).\n    season : numéro de saison précis ; implique --level=season.",
+    "would_purge": "Purgerait {{orphans}} bande(s)-annonce(s) orpheline(s).",
+    "would_reindex": "Réindexerait {{gaps}} répertoire(s) de média présent(s) absent(s) de l'index.",
+    "would_wipe_state": "Effacerait aussi les entrées d'état orphelines (--include-state).",
+    "purged": "{{deleted}} bande(s)-annonce(s) orpheline(s) purgée(s).",
+    "reindexed": "{{healed}} répertoire(s) de média présent(s) réindexé(s) alors qu'ils manquaient à l'index.",
+    "locked": "Un autre traitement de bandes-annonces est en cours ; réessayez plus tard.",
+    "purged_state": "{{purged}} entrée(s) d'état orpheline(s) purgée(s)."
+  },
+  "opt": {
+    "disk": "Limite à un disque par identifiant (par ex. Disk1).",
+    "category": "Limite à un identifiant de catégorie.",
+    "since": "Seulement les éléments ajoutés/modifiés après AAAA-MM-JJ.",
+    "limit_scan": "Nombre maximal d'éléments à scanner.",
+    "limit_process": "Nombre maximal d'éléments à traiter.",
+    "no_refresh_scan": "Utilise le scan de bibliothèque en cache même périmé.",
+    "no_refresh_download": "Ignore le rafraîchissement du cache de la bibliothèque.",
+    "level_list": "Quels niveaux de bande-annonce lister : show | season | both. Le niveau saison est ignoré en silence quand seasons.enabled vaut False.",
+    "level_process": "Quels niveaux de bande-annonce traiter : show | season | both. Le niveau saison est ignoré en silence quand seasons.enabled vaut False.",
+    "level_audit": "Quels niveaux de bande-annonce auditer : show | season | both. Le niveau saison est ignoré en silence quand seasons.enabled vaut False.",
+    "level_purge": "Quels niveaux de bande-annonce purger : show | season | both. Le niveau saison est ignoré en silence quand seasons.enabled vaut False.",
+    "season": "Vise un numéro de saison précis (à partir de 1). Implique --level=season.",
+    "dry_run_download": "Montre ce qui serait téléchargé sans le faire.",
+    "dry_run_purge": "Montre ce qui serait purgé sans le faire.",
+    "deep": "Lance la sonde de lisibilité ffprobe (coûteux).",
+    "include_state": "Efface aussi les entrées d'état orphelines via state_store.purge_orphans()."
+  },
+  "column": {
+    "title": "Titre",
+    "type": "Type",
+    "season": "Saison",
+    "path": "Chemin",
+    "status": "Statut",
+    "count": "Nombre",
+    "issue": "Problème"
+  }
+}
