@@ -282,58 +282,72 @@ def test_the_orphan_check_flags_a_key_nothing_references() -> None:
     sources = ['t("cli_core.main.invalid_format", value="x")']
     orphans = _orphan_keys("cli_core", sources, set())
     assert "cli_core.main.invalid_format" not in orphans
-    assert "cli_core.pipeline.label_ingest" in orphans
+    assert "cli_core.pipeline.step_label" in orphans
     assert "cli_core.step.ingest" not in _orphan_keys("cli_core", sources, _coded_keys())
 
 
-# Keys of ``cli_library`` whose French text is legitimately the English one: a bare code, a mode label kept
-# verbatim (``DRY-RUN``, ``LIVE``, ``APPLY``) or a line made of placeholders and identifiers only.
-_CLI_LIBRARY_IDENTICAL = frozenset(
-    {
-        "analyze.mode_dry_run",
-        "analyze.mode_live",
-        "analyze.rescrape_summary",
-        "audit.relink_applied",
-        "maintenance.mode_apply",
-        "maintenance.mode_dry_run",
-        "maintenance.validation_summary",
-        "query.attributes_heading",
-        "query.deleted_line",
-        "query.files_heading",
-        "query.item_heading",
-        "reporter.disk_line",
-        "reporter.overview",
-    }
-)
+# The values that read the same in both languages on purpose: an acronym or status word the two
+# languages share, a name of a step, or a pure format line made of placeholders. Every other
+# ``cli_core`` / ``cli_library`` / ``cli_trailers`` / ``cli_web`` French value must differ from its English one.
+_IDENTICAL_IN_BOTH_LANGUAGES: dict[str, frozenset[str]] = {
+    "cli_core": frozenset(
+        {
+            "info.providers.line",
+            "pipeline_run.mode_dry_run",
+            "pipeline_run.column_ok",
+            "pipeline_run.column_err",
+            "pipeline_run.status_ok",
+            "pipeline_run.panel_title",
+            "pipeline_run.summary_ok",
+            "pipeline_run.summary_err",
+            "pipeline_run.step_summary",
+            "step.dispatch",
+            "pipeline.check_indexable",
+            "pipeline.check_row",
+        }
+    ),
+    # Mode labels kept verbatim (``DRY-RUN``, ``LIVE``, ``APPLY``) and lines made of placeholders and identifiers only.
+    "cli_library": frozenset(
+        {
+            "analyze.mode_dry_run",
+            "analyze.mode_live",
+            "analyze.rescrape_summary",
+            "audit.relink_applied",
+            "maintenance.mode_apply",
+            "maintenance.mode_dry_run",
+            "maintenance.validation_summary",
+            "query.attributes_heading",
+            "query.deleted_line",
+            "query.files_heading",
+            "query.item_heading",
+            "reporter.disk_line",
+            "reporter.overview",
+        }
+    ),
+    "cli_trailers": frozenset({"column.type"}),
+    "cli_web": frozenset(),
+}
 
 
-def _untranslated(fr: dict[str, str], en: dict[str, str], identical: frozenset[str]) -> list[str]:
-    """Keys whose French text is empty or equal to the English one, save the ``identical`` exceptions."""
-    problems = [f"{key}: empty French text" for key in sorted(fr) if not fr[key].strip()]
-    problems += [
-        f"{key}: French text equals the English one"
-        for key in sorted(fr)
-        if key in en and fr[key] == en[key] and key not in identical
-    ]
-    problems += [
-        f"{key}: listed as identical but differs"
-        for key in sorted(identical)
-        if key in fr and key in en and fr[key] != en[key]
-    ]
-    return problems
+def test_cli_catalogues_are_translated_not_copied() -> None:
+    """The ``cli_*`` namespaces: every French value is non-empty and differs from its English one.
 
-
-def test_cli_library_is_translated_in_both_languages() -> None:
-    """Every French ``cli_library`` text is non-empty and differs from its English one, save the named exceptions."""
-    fr = _catalogue.flatten(_read("fr", "cli_library"))
-    en = _catalogue.flatten(_read("en", "cli_library"))
-    assert _one_sided("cli_library") == set(), "a key is still translated in one language only"
-    assert not _untranslated(fr, en, _CLI_LIBRARY_IDENTICAL)
-
-
-def test_the_translated_check_flags_an_identical_and_an_empty_text() -> None:
-    """Control: an English copy, an empty text and a stale exception are each reported; a named exception passes."""
-    assert _untranslated({"a": "Hello"}, {"a": "Hello"}, frozenset()) == ["a: French text equals the English one"]
-    assert _untranslated({"a": " "}, {"a": "Hello"}, frozenset()) == ["a: empty French text"]
-    assert _untranslated({"a": "Hello"}, {"a": "Hello"}, frozenset({"a"})) == []
-    assert _untranslated({"a": "Salut"}, {"a": "Hello"}, frozenset({"a"})) == ["a: listed as identical but differs"]
+    A French value left equal to its English source is an untranslated key; only the named
+    exceptions above may read the same in both languages, and each of them must still be identical
+    (an exception that has since been translated must leave the list).
+    """
+    problems: list[str] = []
+    for namespace, exceptions in _IDENTICAL_IN_BOTH_LANGUAGES.items():
+        fr = _catalogue.flatten(_read("fr", namespace))
+        en = _catalogue.flatten(_read("en", namespace))
+        for key, french in fr.items():
+            if not french.strip():
+                problems.append(f"{namespace}.{key}: empty French value")
+            elif key in en and french == en[key] and key not in exceptions:
+                problems.append(f"{namespace}.{key}: French value equals the English one")
+        problems += [
+            f"{namespace}.{key}: listed as identical but differs"
+            for key in sorted(exceptions)
+            if fr.get(key) != en.get(key) or key not in fr
+        ]
+    assert not problems, "\n".join(problems)

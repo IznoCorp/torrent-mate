@@ -176,7 +176,7 @@ def _send_alert(config_obj: object, anomalies: list[str]) -> None:
         log.warning("health_check_alert_failed", error=str(exc), exc_info=True)
 
 
-@command_with_telemetry("health-check")
+@command_with_telemetry("health-check", help=t("cli_core.health_check.help"))
 def health_check(
     ctx: typer.Context,
     lookback_minutes: int = typer.Option(90, "--lookback-minutes", help=t("cli_core.health_check.lookback_help")),

@@ -4,5 +4,22 @@
     "host_help": "L'adresse d'écoute (boucle locale par défaut).",
     "port_help": "Le port d'écoute.",
     "refused_prod": "Le serveur v1 autonome ne tourne jamais sur les bases de production : définissez PERSONALSCRAPER_ENV à dev ou staging, avec un répertoire de données marqué pour lui. Rien n'a été démarré."
+  },
+  "app_help": "Démon de l'interface web de TorrentMate et commandes d'administration.",
+  "host_help": "Remplace config.web.host (adresse d'écoute). Vaut config.web.host par défaut.",
+  "port_help": "Remplace config.web.port (par ex. 8711 pour le clone de préproduction). Vaut config.web.port par défaut.",
+  "disabled": "Le démon web est désactivé (config.web.enabled=false).",
+  "spa_missing": "SPA non construite — static/index.html est absent. Lancez le script de déploiement ou définissez web.dev_mode=true dans config/web.json5.",
+  "set_password": {
+    "help": "Génère le hachage du mot de passe de l'interface web (et un secret JWT) pour ``.env``.\n\nDemande un nom d'utilisateur (par défaut : ``config.web.username``) et un mot de passe\n(saisi deux fois, masqué), puis produit la ligne ``WEB_PASSWORD_HASH`` attendue par la\nroute de connexion.  Quand ``WEB_JWT_SECRET`` est absent ou vide dans l'environnement\ncourant, une nouvelle valeur ``secrets.token_urlsafe(32)`` est générée et incluse.\n\nPar défaut, les lignes ``.env`` sont affichées pour que l'opérateur les colle ; le\nfichier n'est jamais touché.  Avec ``--write``, les clés sont insérées ou remplacées dans le\n``.env`` à la racine du dépôt (lignes existantes remplacées, tout le reste\nconservé) après une confirmation interactive.  Les valeurs secrètes ne sont jamais\njournalisées.\n\nArguments :\n    ctx : contexte Typer portant le ``Config`` chargé dans ``ctx.obj``.\n    write : si True, met à jour atomiquement le ``.env`` à la racine du dépôt après\n        confirmation au lieu d'afficher les lignes.",
+    "write_help": "Écrit atomiquement les clés générées dans le .env à la racine du dépôt (après confirmation).",
+    "username_prompt": "Nom d'utilisateur de l'interface web",
+    "password_prompt": "Mot de passe",
+    "confirm_write": "Écrire ces clés dans {{path}} ?",
+    "aborted": "Abandon ; .env laissé inchangé.",
+    "updated": "{{path}} mis à jour (redémarrez le démon web pour appliquer).",
+    "reminder": "Rappel : le nom d'utilisateur « {{username}} » diffère de config.web.username (« {{configured}} ») — mettez à jour config/web.json5 en conséquence.",
+    "add_lines": "# Ajoutez ces lignes à votre fichier .env :",
+    "note": "# Remarque : le nom d'utilisateur « {{username}} » diffère de config.web.username (« {{configured}} ») — mettez à jour config/web.json5 en conséquence."
   }
 }
