@@ -527,7 +527,7 @@ class TestRescrapeMedia:
 class TestLibraryUnavailable:
     """Every media operation over a ``library.db`` that cannot be opened: 503 ``library.unavailable``.
 
-    Operator bugs B-696, B-697, B-698 (the Kyma and Silo sheets): the dev server's index was absent and each
+    Operator bugs B-697, B-698, B-699 (the Kyma and Silo sheets): the dev server's index was absent and each
     read crashed into a 500 the sheet printed in English. The composed service reads the
     configured index; absent or corrupt, each operation answers the typed refusal the
     interface words.

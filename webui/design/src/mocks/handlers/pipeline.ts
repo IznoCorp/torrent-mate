@@ -48,7 +48,7 @@ const EVERY_KIND = "all";
 const OLDEST_FIRST = "started_at";
 const DEFAULT_PAGE_SIZE = 50;
 
-// THE RUN « Lancer la veille maintenant » LAUNCHES, as the backend records it:
+// THE RUN « Vérifier maintenant » LAUNCHES, as the backend records it:
 // a maintenance run of the detection command, triggered from the interface.
 const DETECTION_TRIGGER = "web";
 const DETECTION_KIND = "maintenance";

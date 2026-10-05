@@ -800,14 +800,14 @@
       "turnTriggerOff": "Désactiver le traitement automatique",
       "automaticTriggerDown": "Arrêté par une panne technique : il ne répond pas.",
       "automaticTriggerOff": "Les téléchargements terminés n'ouvrent plus de passage tout seuls.",
-      "watchIdle": "Veille : jamais lancée.",
-      "watchLast": "Dernière veille : {{when}} —",
+      "watchIdle": "Détection des nouveautés : jamais lancée.",
+      "watchLast": "Dernière vérification : {{when}} —",
       "detectedCount_one": "{{count}} détecté",
       "detectedCount_other": "{{count}} détectés",
       "watchRunning": "En cours…",
       "watchFigures": "{{detected}} nouveaux épisodes détectés, {{available}} disponibles, {{grabbed}} récupérés.",
       "watchNothing": "Rien de nouveau.",
-      "watchFailed": "La veille n'a pas pu s'exécuter.",
+      "watchFailed": "La détection des nouveautés n'a pas pu s'exécuter.",
       "boundOwed": "pas encore réglable ici",
       "noRuns": "Aucun passage enregistré.",
       "runsDegraded": "Cette liste peut être incomplète — la base des passages n'a pas répondu.",
@@ -829,7 +829,7 @@
       "trigger": {
         "completion": "un téléchargement terminé",
         "safety_net": "le filet de sécurité",
-        "watcher": "la veille",
+        "watcher": "la veille des téléchargements",
         "web": "depuis l'interface",
         "cli": "en ligne de commande",
         "cron": "le planificateur",
@@ -1008,7 +1008,7 @@
       "tabNow": "En cours",
       "tabFollows": "Suivis",
       "tabTodo": "À traiter",
-      "moreLabel": "Plus — veille",
+      "moreLabel": "Plus — détection des nouveautés",
       "errorNow": "ce qui vous attend",
       "errorTodo": "ce qui attend votre main",
       "errorFollows": "vos suivis",
@@ -1077,7 +1077,7 @@
       "searchesOne": "{{count}} recherche",
       "searchesMany": "{{count}} recherches",
       "emptyFilter": "Aucun suivi ne contient « {{term}} ».",
-      "callsNoteBefore": " Une passe de fond — comme la veille — pagine TMDB à un rythme civil, filtre contre votre médiathèque, vos notes, vos suivis et vos écartés, puis range les survivants dans une réserve locale. Mesuré sur vos vraies données : ",
+      "callsNoteBefore": " Une passe de fond — comme la détection des nouveautés — pagine TMDB à un rythme civil, filtre contre votre médiathèque, vos notes, vos suivis et vos écartés, puis range les survivants dans une réserve locale. Mesuré sur vos vraies données : ",
       "callsNoteInner": "32 appels → 503 suggestions",
       "callsNoteAfter": ". L'écran lit la réserve, donc défiler ne coûte plus rien — c'est ce qui rend les lots de 30 possibles sans jamais faire de rafale (NE-DOIT-PAS-8).",
       "status": {
@@ -1872,11 +1872,11 @@
       "meta": "Où ranger « {{folder}} » ? Il quitte les acquisitions."
     },
     "standby": {
-      "title": "Veille",
-      "meta": "Second rang — consulté, pas surveillé.",
-      "lastPass": "Dernier passage",
-      "nextPass": "Prochain passage",
-      "runNow": "Lancer la veille maintenant"
+      "title": "Détection des nouveautés",
+      "meta": "Vérifie si vos suivis ont du nouveau — un épisode diffusé, un film sorti — pour qu'il soit cherché. Se fait automatiquement à intervalles réguliers.",
+      "lastPass": "Dernière vérification",
+      "nextPass": "Prochaine vérification",
+      "runNow": "Vérifier maintenant"
     },
     "suggestion": {
       "metaRating": "{{year}} · {{kind}} · note TMDB {{rating}}",
@@ -2096,7 +2096,7 @@
       "removeRefused": "La clé n'a pas pu être retirée."
     },
     "system": {
-      "watchLaunched": "Veille lancée — elle est en cours, son résultat s'affichera dans Système."
+      "watchLaunched": "Vérification lancée — elle est en cours, son résultat s'affichera dans Système."
     },
     "maintenance": {
       "started": "Commande lancée — suivez-la dans « Système ».",

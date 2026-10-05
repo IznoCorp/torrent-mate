@@ -1,4 +1,4 @@
-// What the error surface says over a read the server refused (B-696, B-697, B-698).
+// What the error surface says over a read the server refused (B-697, B-698, B-699).
 //
 // THE WIRE CARRIES A CODE AND THE INTERFACE CARRIES THE WORDS (i18n OPEN-1 B):
 // the sheet's banner printed the v1 500's English developer line, « An

@@ -1,8 +1,8 @@
-// « Veille » — the « ⋮ » sheet of the Acquisition page.
+// « Détection des nouveautés » — the « ⋮ » sheet of the Acquisition page.
 //
-// Second rank, and it says so: what is consulted rather than watched. It lives
-// with Acquisitions because that is what makes it change — when the watch last
-// ran, and when it runs next.
+// It says what it does: it checks whether the follows have something new, so that
+// it gets searched for. It lives with Acquisitions because that is what makes it
+// change — when the check last ran, and when it runs next.
 //
 // THE RATIO AND THE OBLIGATIONS ARE NOT HERE: they have their own page, the
 // « Trackers » one, per tracker and per torrent, with its badge on the bar
@@ -13,7 +13,7 @@
 // the values stay declared, in one place, with the operation that will replace
 // them named beside each.
 //
-// « Lancer la veille maintenant » is the trigger DOIT-6 names, and it is
+// « Vérifier maintenant » is the trigger DOIT-6 names, and it is
 // unchanged: a producer here offers exactly what it offered.
 import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";

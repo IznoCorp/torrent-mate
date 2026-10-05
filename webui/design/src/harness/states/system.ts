@@ -191,7 +191,7 @@ export function systemStates(): NamedState[] {
     ],
     [
       "watch-idle",
-      "Veille — au repos",
+      "Détection des nouveautés — au repos",
       () => {
         window.__mocks?.reset();
         applyState({ page: "sys", phase: "ready", fault: false });
@@ -199,7 +199,7 @@ export function systemStates(): NamedState[] {
     ],
     [
       "watch-running",
-      "Veille — en cours",
+      "Détection des nouveautés — en cours",
       () => {
         // ASKED, AND STILL GOING. The run is appended `running` and the first
         // read of it finds it so — a run that ended before anyone could read it
@@ -211,7 +211,7 @@ export function systemStates(): NamedState[] {
     ],
     [
       "watch-figures",
-      "Veille — le résultat chiffré",
+      "Détection des nouveautés — le résultat chiffré",
       () => {
         // AND THE NUMBERS ARRIVE BY THE STREAM, never by a clock of the
         // interface's own: the run ends, the event says so, and the read the
@@ -224,7 +224,7 @@ export function systemStates(): NamedState[] {
     ],
     [
       "watch-nothing",
-      "Veille — rien de nouveau",
+      "Détection des nouveautés — rien de nouveau",
       () => {
         window.__mocks?.reset();
         window.__mocks?.setAcquisitionQueueEmpty(true);
@@ -235,7 +235,7 @@ export function systemStates(): NamedState[] {
     ],
     [
       "watch-error",
-      "Veille — le run a échoué",
+      "Détection des nouveautés — le run a échoué",
       () => {
         window.__mocks?.reset();
         window.__mocks?.setOperationOutcome("runDetection", { status: 500 });

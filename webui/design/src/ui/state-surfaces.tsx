@@ -122,7 +122,7 @@ type Notice = {
  * the first thing §13 forbids. The wire's `detail` is never drawn — it is an
  * English line for logs, and the sheet printed « An unexpected error occurred. »
  * under a French lead until the surface took the failure instead of its text
- * (B-696, B-698; i18n OPEN-1 B).
+ * (B-697, B-699; i18n OPEN-1 B).
  *
  * AN `onRetry` PROP WAS WRITTEN AND TAKEN BACK ONCE BEFORE. It made the
  * library's surface write `phase` — a SERVER-STATE key — from a component, and

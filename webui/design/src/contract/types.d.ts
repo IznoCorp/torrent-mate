@@ -138,14 +138,14 @@ export interface paths {
         };
         /**
          * The library listing, one page of it
-         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readLibraryItems"];
         put?: never;
         post?: never;
         /**
          * Delete media from the library, by provider identity
-         * @description Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2). 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2). 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         delete: operations["deleteLibraryItems"];
         options?: never;
@@ -162,7 +162,7 @@ export interface paths {
         };
         /**
          * The engine's leaf categories and their counts
-         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readLibraryCategories"];
         put?: never;
@@ -182,7 +182,7 @@ export interface paths {
         };
         /**
          * The most recently added titles
-         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readLibraryRecent"];
         put?: never;
@@ -202,7 +202,7 @@ export interface paths {
         };
         /**
          * The series with holes, and how big each hole is
-         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readLibraryIncomplete"];
         put?: never;
@@ -222,7 +222,7 @@ export interface paths {
         };
         /**
          * Whether the library holds one medium, asked by its provider identity
-         * @description An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readLibraryMembership"];
         put?: never;
@@ -242,7 +242,7 @@ export interface paths {
         };
         /**
          * One media sheet, by its provider identity
-         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readMediaSheet"];
         put?: never;
@@ -262,7 +262,7 @@ export interface paths {
         };
         /**
          * The seasons of a show, and what the library holds of each
-         * @description Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readMediaSeasons"];
         put?: never;
@@ -282,7 +282,7 @@ export interface paths {
         };
         /**
          * The poster file a medium's library folder holds
-         * @description The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readMediaPoster"];
         put?: never;
@@ -324,7 +324,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the providers for one medium's metadata again
-         * @description Refused 404 `media.not_found` when no library row holds the id. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).
+         * @description Refused 404 `media.not_found` when no library row holds the id. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         post: operations["rescrapeMedia"];
         delete?: never;
