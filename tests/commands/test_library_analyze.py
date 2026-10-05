@@ -536,6 +536,15 @@ class TestLibraryReport:
         assert result.exit_code == 1
         assert "No library data" in result.output
 
+    def test_no_data_json_payload_is_not_translated(self) -> None:
+        """Under French, ``--format json`` still carries the English machine text."""
+        from personalscraper.i18n import Language, use_language
+
+        with use_language(Language.FR), patch("pathlib.Path.exists", return_value=False):
+            result = runner.invoke(app, ["--format", "json", "library-report"])
+        assert result.exit_code == 1
+        assert "No library data" in result.stdout
+
     def test_text_format(self, tmp_path) -> None:
         """Text format prints a formatted report."""
         from personalscraper.insights.models import AnalysisResult

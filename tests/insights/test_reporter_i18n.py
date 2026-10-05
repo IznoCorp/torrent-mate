@@ -1,4 +1,4 @@
-"""The library report words its lines through the translation layer, unchanged."""
+"""The library report words its lines through the translation layer, in French and in English."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def _full_report() -> LibraryReport:
     ],
 )
 def test_section_headers_come_from_the_catalogue(key, params, language) -> None:
-    """Each section header of the report is the catalogue's text, in either language (equal until translated).
+    """Each section header of the report is the catalogue's text, in either language.
 
     Args:
         key: The header's catalogue key.
@@ -90,3 +90,16 @@ def test_an_unknown_code_renders_unchanged() -> None:
     text = format_report_text(_full_report())
     assert "      → unknown_issue_code" in text
     assert "        → zzz_unknown" in text
+
+
+def test_the_report_differs_between_the_languages() -> None:
+    """The same report is written in French under FR and in English under EN, headers and explanations alike."""
+    with use_language(Language.FR):
+        fr_text = format_report_text(_full_report())
+    with use_language(Language.EN):
+        en_text = format_report_text(_full_report())
+    assert fr_text != en_text
+    assert t("cli_library.reporter.title", language=Language.FR) in fr_text
+    assert t("cli_library.reporter.title", language=Language.EN) in en_text
+    assert t_code("cli_library.issue", ScanIssue.ACTORS_DIR_PRESENT, language=Language.FR) in fr_text
+    assert t_code("cli_library.issue", ScanIssue.ACTORS_DIR_PRESENT, language=Language.EN) in en_text

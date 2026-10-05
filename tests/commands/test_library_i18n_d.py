@@ -23,7 +23,7 @@ _COMMANDS = [
 @pytest.mark.parametrize("language", [Language.FR, Language.EN])
 @pytest.mark.parametrize(("module", "command"), _COMMANDS)
 def test_unconfigured_db_path_message_comes_from_the_catalogue(test_config, module, command, language) -> None:
-    """The « db_path is not configured » line is the catalogue's, in either language (equal until translated).
+    """The « db_path is not configured » line is the catalogue's, in either language.
 
     Args:
         test_config: The shared test configuration.
@@ -37,3 +37,23 @@ def test_unconfigured_db_path_message_comes_from_the_catalogue(test_config, modu
         expected = t(f"cli_library.{module}.db_path_not_configured")
     assert result.exit_code == 1
     assert expected in result.output
+
+
+@pytest.mark.parametrize(("module", "command"), _COMMANDS)
+def test_unconfigured_db_path_message_differs_between_the_languages(test_config, module, command) -> None:
+    """The refusal is French under FR and English under EN, each the catalogue's own text.
+
+    Args:
+        test_config: The shared test configuration.
+        module: The command module's file stem, the key's second segment.
+        command: The Typer command name.
+    """
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    printed = {}
+    for language in (Language.FR, Language.EN):
+        with use_language(language), patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+            printed[language] = run_cli([command]).output
+    key = f"cli_library.{module}.db_path_not_configured"
+    assert t(key, language=Language.FR) in printed[Language.FR]
+    assert t(key, language=Language.EN) in printed[Language.EN]
+    assert printed[Language.FR] != printed[Language.EN]

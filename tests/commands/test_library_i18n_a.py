@@ -1,7 +1,7 @@
 """The library audit, doctor and de-duplication commands speak through the translation layer.
 
-Nothing is translated yet, so a representative line is the same text in both languages; the point is
-that it is read from the ``cli_library`` catalogue (a missing key raises under the strict test mode).
+A representative line is read from the ``cli_library`` catalogue (a missing key raises under the strict test
+mode) and reads differently under French and under English.
 """
 
 from __future__ import annotations
@@ -69,3 +69,16 @@ def test_audit_ghost_audit_reports_clean_disks(language: Language) -> None:
         expected = t("cli_library.audit.ghost_all_clean")
     assert result.exit_code == 0
     assert expected in result.output
+
+
+def test_audit_reconcile_refusal_differs_between_the_languages() -> None:
+    """The same refusal prints French text under FR and English text under EN."""
+    printed = {}
+    for language in (Language.FR, Language.EN):
+        with use_language(language):
+            printed[language] = runner.invoke(app, ["library-reconcile", "--enqueue-repairs", "--read-only"]).output
+    fr = t("cli_library.audit.reconcile_modes_exclusive", language=Language.FR)
+    en = t("cli_library.audit.reconcile_modes_exclusive", language=Language.EN)
+    assert fr in printed[Language.FR] and en in printed[Language.EN]
+    assert fr != en
+    assert printed[Language.FR] != printed[Language.EN]

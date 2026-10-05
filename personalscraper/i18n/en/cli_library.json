@@ -210,6 +210,14 @@
     "config_error": "Config error: {{error}}",
     "invalid_mode": "Invalid mode '{{mode}}'. Valid: {{valid_modes}}"
   },
+  "issue": {
+    "actors_dir_present": "`.actors/` folders (actor images created by MediaElch, unused by Plex)",
+    "bad_dir_naming": "Folder name without (Year) — expected format: Title (2024)",
+    "empty_subdir": "Empty subfolders (deleted or incomplete seasons)",
+    "junk_files": "Junk files (.DS_Store, Thumbs.db, ._* macOS resource forks)",
+    "ntfs_unsafe_name": "Names containing characters forbidden on NTFS ({{characters}})",
+    "release_group_artifact": "Empty folders left behind by torrent releases"
+  },
   "maintenance": {
     "and_more": "… and {{items}} more",
     "api_issues": "{{items}} items have API-dependent issues.",
@@ -294,6 +302,64 @@
     "library_remove_phantom_rows_db_help": "Path to library.db (overrides config).",
     "library_remove_phantom_rows_help": "Remove the index rows holding no file beside a row of the same provider id that holds some.\n\nDry run unless ``--apply``. The journal rows carry the maintenance runner's\n``PERSONALSCRAPER_RUN_UID`` when it launched the command, a fresh uid otherwise."
   },
+  "reporter": {
+    "action_actors": "Delete {{total}} useless .actors/ folders (~5 GB)",
+    "action_analysis": "Complete the ffprobe analysis ({{remaining}} items remaining)",
+    "action_artwork": "Fetch the missing artwork for {{total}} items (poster absent)",
+    "action_junk": "Delete {{total}} junk files (.DS_Store, ._*, Thumbs.db)",
+    "action_recommendations": "Review {{total}} re-download recommendations",
+    "action_rescrape": "Re-scrape {{total}} items (NFO missing or XML invalid)",
+    "actions_heading": "SUGGESTED ACTIONS",
+    "analysed": "Analysed: {{items}} items, {{files}} files ({{coverage}}% of the library)",
+    "analysis_heading": "3. ANALYSIS — Video encoding (ffprobe)",
+    "artwork_downloaded": "Artwork downloaded: {{total}}",
+    "audio": {
+      "multi": "MULTI (multi-language)",
+      "vf": "VF (French)",
+      "vo": "VO (original version)",
+      "vostfr": "VOSTFR (original audio + French subtitles)"
+    },
+    "audio_heading": "Audio profiles:",
+    "audio_line": "{{label}}: {{files}} files",
+    "categories_heading": "CATEGORIES",
+    "clean_all": "Clean everything: {{command}}",
+    "cleanable_summary": "Automatically cleanable: {{total}} issues",
+    "codec_line": "{{codec}}: {{files}} files ({{pct}}%)",
+    "codecs_heading": "Video codecs:",
+    "compliant": "Compliant: {{valid}} ({{pct}}%)",
+    "detail_heading": "Detail:",
+    "disk_line": "{{disk}}: {{items}} items ({{size}} GB{{free}}) [{{pct}}%]",
+    "disks_heading": "DISKS",
+    "episodes_renamed": "Episodes renamed: {{total}}",
+    "errors_heading": "Errors (non-compliances)",
+    "export_hint": "Export: {{command}}",
+    "fix_hint": "Fix: {{command}}",
+    "free_suffix": ", {{free}} GB free",
+    "generated": "Generated on {{date}}",
+    "nfo_regenerated": "NFOs regenerated: {{total}}",
+    "no_action": "No action needed. The library is in good shape.",
+    "non_compliant": "Non-compliant: {{issues}} ({{pct}}%)",
+    "overview": "Total: {{items}} items, {{size}} GB",
+    "partial_analysis": "Partial analysis. Complete it: {{command}}",
+    "priority": {
+      "high": "High",
+      "low": "Low",
+      "medium": "Medium"
+    },
+    "recommendations_heading": "4. RECOMMENDATIONS — Suggested re-downloads",
+    "recommendations_savings": "Potential savings: ~{{savings}} GB",
+    "recommendations_total": "Total: {{total}} items to improve",
+    "rescrape_heading": "6. RESCRAPE — API repairs (TMDB/TVDB)",
+    "rescrape_needed": "{{total}} items would need a re-scrape (NFO missing or broken)",
+    "rescrape_summary": "Repaired: {{fixed}}  Skipped: {{skipped}}  Errors: {{errors}}  (total: {{total}})",
+    "retry_hint": "Retry: {{command}}",
+    "scan_heading": "1. SCAN — Issues detected in the library",
+    "skipped_warning": "{{total}} items skipped (confidence too low or not found)",
+    "title": "MEDIA LIBRARY HEALTH REPORT",
+    "top_heading": "5. TOP 20 — Largest items",
+    "validation_heading": "2. VALIDATION — Metadata conformity",
+    "warnings_heading": "Warnings (quality could be improved)"
+  },
   "scan": {
     "config_help": "Path to config.json5 or config dir",
     "db_path_not_configured": "indexer.db_path is not configured",
@@ -315,5 +381,22 @@
     "library_init_canonical_command_help": "Bootstrap ``canonical_provider`` and seed ``external_ids_json`` from NFO files.\n\nWalks ``media_item`` rows in two cohorts:\n\n* {{bold}}canonical cohort{{bold}}: ``canonical_provider IS NULL`` — sets both\n  canonical AND external_ids_json from NFO ``{{uniqueid}}`` elements.\n* {{bold}}chicken-and-egg cohort{{bold}}: ``canonical_provider`` is already set but\n  ``external_ids_json IS NULL`` or ``='{}'`` — only seeds external IDs\n  without touching the existing canonical provider.\n\nWhen the default declares an unsupported type (e.g. ``imdb``), falls\nback to the first supported sibling uniqueid (``tvdb`` or ``tmdb``).\nUses merge-additive semantics: existing families are never overwritten.\n\nThis resolves the chicken-and-egg blocker (DEV #27 / #54): backfill-ids\nrequires ``external_ids_json[canonical].series_id`` as its anchor, but\nneither value is set on databases that pre-date the provider-ids feature.\n\n.. note::\n   This command never CHANGES an existing ``canonical_provider`` value.\n   To migrate between canonical providers (e.g. ``tmdb`` → ``tvdb`` for\n   shows to leverage TVDB-primary scrape discipline), use the Plan A\n   workflow (``library-rescrape``) which resets + re-scrapes explicitly.\n   See ``docs/archive/features/provider-ids/DESIGN.md`` §3 for the\n   TVDB-primary-for-shows / TMDB-primary-for-movies design rationale.\n\nItems without a ``dispatch_path`` or without a readable/valid NFO are\ncounted in the breakdown (no_dispatch_path, nfo_missing, nfo_parse_error,\nunsupported_no_fallback) so the operator can see WHY\n``populated {{less_than}} total_visited``.\n\nExamples:\n    personalscraper library-init-canonical\n    personalscraper library-init-canonical --dry-run",
     "library_init_canonical_dry_run_help": "Report counts without writing to DB",
     "library_scan_help": "Index the media library — visible alias of ``library-index --mode full``.\n\nWalks all configured storage disks (or a single disk with ``--disk``),\nreads NFO files, and writes the rich ``media_item`` / ``season`` /\n``episode`` rows together with the file-level ``media_file`` / ``path``\nrows into the indexer database.  This command is a thin, re-pointed\nalias: it delegates to the very same\n:func:`~personalscraper.indexer.commands.scan.library_index_command`\nthat backs ``library-index``, fixing ``mode=\"full\"``.\n\nBecause the delegation target is shared, this alias preserves the\nindexer's behaviour exactly: ``--disk`` validation (an unknown label\nexits non-zero), idempotent re-scans, a rolled-back savepoint for\n``--dry-run`` (no rows persisted), and a single\n:class:`~personalscraper.indexer.events.LibraryScanCompleted` emitted\nper scan.  The printed JSON summary is the indexer's summary, not the\nlegacy bespoke shape.\n\nThe command is kept for backwards compatibility and remains visible in\n``--help``.  Unlike the legacy command, it no longer exposes ``--mode``:\nthe alias is always equivalent to ``--mode full``.\n\nUse ``--dry-run`` to simulate without committing any DB rows.  Use\n``--disk`` to restrict the file-level walk to a single disk label (as\nconfigured in ``config/paths.json5``).\n\nExamples:\n    personalscraper library-scan\n    personalscraper library-scan --disk disk_1\n    personalscraper library-scan --dry-run\n    personalscraper library-scan --disk disk_1 --dry-run"
+  },
+  "validation": {
+    "artwork_landscape": "Landscape/thumb image missing",
+    "category": "NFO without a genre → cannot verify the right category",
+    "dir_naming": "Folder name without (Year)",
+    "episode_nfo": "Episode NFO missing",
+    "episode_renamed": "Episodes not in the S01E01 - Title.mkv format (original torrent names)",
+    "nfo_ids": "NFO without a TMDB or IMDB id",
+    "nfo_present": "No .nfo file at all",
+    "nfo_valid": "NFO present but XML broken (often an unescaped & from MediaElch)",
+    "no_empty_dirs": "Empty subfolders inside",
+    "not_sample": "Very small video file (possible sample)",
+    "ntfs_safe_names": "File names not NTFS-compatible",
+    "poster_present": "No poster image",
+    "season_posters": "Season poster missing",
+    "season_structure": "No Season XX/ folder in a TV show",
+    "video_present": "No video file (audiobooks or empty folders)"
   }
 }
