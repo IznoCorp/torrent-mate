@@ -24,10 +24,11 @@
     "done": "Propriétaire {{email}} créé : Admin, connexion par mot de passe tant que la connexion Plex n'est pas servie."
   },
   "open_session": {
-    "help": "Ouvre une session pour le propriétaire du serveur Plex sans mot de passe et n'écrit que son jeton sur la sortie standard, pour le contrôle de fumée de l'hôte de design. Refusé en production ; le jeton n'est jamais journalisé.",
+    "help": "Ouvre une session pour le propriétaire du serveur Plex sans mot de passe et n'écrit que son jeton sur la sortie standard, pour le contrôle de fumée de l'hôte de design. Réservé à dev ; le jeton n'est jamais journalisé.",
     "owner_help": "Ouvre la session du propriétaire du serveur Plex.",
     "owner_required": "Indiquez la session à ouvrir : --owner est la seule possible. Rien n'a été ouvert.",
-    "refused_prod": "Aucune session ne s'ouvre en ligne de commande en production : réglez PERSONALSCRAPER_ENV sur dev ou staging, avec un répertoire de données marqué pour lui. Rien n'a été ouvert.",
+    "refused_prod": "Aucune session ne s'ouvre en ligne de commande en production : réglez PERSONALSCRAPER_ENV sur dev, avec un répertoire de données marqué pour lui. Rien n'a été ouvert.",
+    "refused_not_dev": "Cette commande est réservée à dev : réglez PERSONALSCRAPER_ENV sur dev, avec un répertoire de données marqué pour lui. Rien n'a été ouvert.",
     "no_owner": "Aucun compte n'est lié comme propriétaire du serveur Plex : créez-le avec accounts create-owner. Rien n'a été ouvert."
   },
   "token_key": {

@@ -152,7 +152,8 @@ def open_session(
 ) -> None:
     """Open a session for the Plex server's owner, with no password, and print its token alone on stdout.
 
-    Refused under production. The session is opened through the same proven-session step
+    Dev only: every other environment is refused, preprod included, where it would be a full
+    owner session. The session is opened through the same proven-session step
     every sign-in door ends in, so a cut owner is refused like anywhere else. The token is
     printed once and never logged: the journal names the account only. Whoever runs this can
     already read the environment's ``app.db``, so it opens nothing they could not reach.
@@ -162,7 +163,7 @@ def open_session(
         owner: Open the owner's session, the only one this command opens.
 
     Raises:
-        typer.Exit: Code 2 without ``--owner``; code 1 under production, when no account
+        typer.Exit: Code 2 without ``--owner``; code 1 outside ``dev``, when no account
             is linked as the owner, or when the account service refuses (a cut owner).
     """
     config: Config = ctx.obj.config
@@ -172,8 +173,11 @@ def open_session(
     if not owner:
         typer.echo(t("cli_accounts.open_session.owner_required"), err=True)
         raise typer.Exit(code=2)
-    if current_environment() is Environment.PROD:
-        typer.echo(t("cli_accounts.open_session.refused_prod"), err=True)
+    environment = current_environment()
+    # Fail closed: only an explicit ``dev`` opens a session; preprod holds a full owner session, so it is refused too.
+    if environment is not Environment.DEV:
+        line = "refused_prod" if environment is Environment.PROD else "refused_not_dev"
+        typer.echo(t(f"cli_accounts.open_session.{line}"), err=True)
         raise typer.Exit(code=1)
 
     services = build_app_services(config, get_settings())

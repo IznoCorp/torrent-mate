@@ -507,6 +507,42 @@ class TestOpenSession:
         assert result.stdout == ""
         assert not (test_config.paths.data_dir / "app.db").exists()
 
+    def test_staging_is_refused(
+        self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Dev only: preprod holds a full owner session, so ``staging`` is refused with its own line, no store created.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            monkeypatch: Pytest monkeypatch fixture.
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 1
+        assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "refused_not_dev") in result.stderr
+        assert result.stdout == ""
+        assert not (test_config.paths.data_dir / "app-staging.db").exists()
+
+    def test_an_unknown_environment_is_refused(
+        self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Fail closed: a value that is no environment opens nothing, whatever refuses it.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            monkeypatch: Pytest monkeypatch fixture.
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "bogus")
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code != 0
+        assert result.stdout == ""
+
     @pytest.mark.usefixtures("kept_log_capture")
     def test_dev_prints_a_token_the_session_service_accepts(
         self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path, logged_events: LoggedEvents
