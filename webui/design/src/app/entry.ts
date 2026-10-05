@@ -33,6 +33,7 @@ import { bridge, panel, toast } from "../lib/shell-doors";
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
 import { onSessionLost, onSessionLostBecause } from "../lib/query-client";
+import { browserLanguage, speak } from "../i18n";
 import {
   alreadyInstalled,
   captureInstallEvent,
@@ -234,6 +235,11 @@ export async function signOut(): Promise<void> {
   // cache that does, one artefact along: queued offline by one operator, it
   // would otherwise depart under the next one's session.
   await forgetOutbox();
+  // AND THE ACCOUNT'S LANGUAGE. Nobody is signed in any more, so the sign-in
+  // page speaks the browser's (before sign-in, the browser's). The account's
+  // entry is left as it is: emptied, the frame behind the gate would read it
+  // again, and the server's 401 would put « session expired » on a sign-out.
+  speak(browserLanguage());
   showSignIn(false);
   // A SIGN-OUT IS A LEAVE, not a lost session: whoever signs in next starts at
   // their own entry page, not at the place the previous person left.

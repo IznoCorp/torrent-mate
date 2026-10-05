@@ -41,6 +41,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 I18N = HERE.parent / "design/src/i18n"
 WORDS = {language: json.loads((I18N / f"{language}.json").read_text(encoding="utf-8")) for language in ("fr", "en")}
 ABSENT = "<no words>"
+# Profil's address under the prototype's root (`design/src/lib/addresses.ts`, `profile`).
+PROFILE = "account"
 
 
 def words(language, path):
@@ -177,8 +179,9 @@ async def main():
                 f"lang {seen['lang']} · page {seen['page']!r} · headings {seen['you'][:3]}",
             )
 
-        address = await page.evaluate("()=>location.pathname.slice(1) + location.search")
-        await reopen(page, address)
+        # PROFIL'S OWN ADDRESS, not the page's: a named state draws Profil without moving the
+        # address, so reloading what the bar says would reopen the entry page.
+        await reopen(page, PROFILE)
         seen = await page.evaluate(READ)
         journal.check(
             "reloaded, Profil is still English: the choice is held, not the page's",
@@ -194,7 +197,7 @@ async def main():
             f"lang {library['lang']} · page {library['page']!r}",
         )
 
-        await reopen(page, address)
+        await reopen(page, PROFILE)
         await page.evaluate(SIGN_IN_AS, "household-member")
         await page.wait_for_timeout(SETTLED)
         other = await page.evaluate(READ)
@@ -248,7 +251,11 @@ async def main():
         for locale, language in (("fr-FR", "fr"), ("en-US", "en"), ("de-DE", "en")):
             context, page = await open_page(browser, locale=locale)
             page.on("pageerror", lambda error: errors.append(str(error)))
-            await page.evaluate("()=>window.__entry.signOut()")
+            # THE SIGN-OUT IS STARTED, NOT AWAITED THROUGH THE BRIDGE: Playwright fails a pending
+            # promise the page lets go of (« Resulting promise was garbage collected »), which says
+            # nothing about the gate. What is read is the gate once it is up.
+            await page.evaluate("()=>{ void window.__entry.signOut(); }")
+            await page.wait_for_function("()=>document.querySelector('#login')?.hidden === false")
             await page.wait_for_timeout(SETTLED)
             gate = await page.evaluate(GATE)
             title = words(language, "screens.gate.title")

@@ -5,7 +5,9 @@
 // would answer on screen and leave the real session open — the next reload would
 // walk straight back in. The act is driven as a person drives it, over a
 // recording `fetch`, and reads what left: v1's `POST /api/v1/auth/logout`, and
-// nothing at `/logout`.
+// nothing at `/logout`. And the sign-in page it lands on speaks the browser's
+// language, not the last account's (before sign-in, the browser's), and keeps it
+// while the frame behind the gate goes on reading the same account.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // THE OUTBOX'S STORAGE IS NOT WHAT IS READ HERE: forgetting it needs a database
@@ -45,6 +47,25 @@ describe("signOut", () => {
     const { signOut } = await import("./entry");
     await signOut();
     expect(sent).toEqual([{ path: "/api/v1/auth/logout", method: "POST" }]);
+  });
+
+  it("gives the sign-in page the browser's language, and a surface reading the account again does not take it back", async () => {
+    vi.stubGlobal("navigator", { languages: ["en-US"] });
+    const { QueryClient, QueryObserver } = await import("@tanstack/react-query");
+    const { accountQuery, followAccountLanguage } = await import("../lib/account");
+    const { default: i18next } = await import("../i18n");
+    const client = new QueryClient();
+    followAccountLanguage(client);
+    client.setQueryData(accountQuery.queryKey, { language: "fr" });
+    expect(i18next.language).toBe("fr");
+
+    const { signOut } = await import("./entry");
+    await signOut();
+    expect(i18next.language).toBe("en");
+
+    // A SURFACE MOUNTING behind the gate over the same, unchanged answer.
+    new QueryObserver(client, { queryKey: accountQuery.queryKey, enabled: false }).subscribe(() => {});
+    expect(i18next.language).toBe("en");
   });
 
   it("goes on to the sign-in screen when v1 does not answer", async () => {
