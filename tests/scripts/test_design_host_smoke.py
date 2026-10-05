@@ -77,19 +77,20 @@ def _contract(tmp_path: Path, extra_gets: dict[str, dict[str, Any]] | None = Non
     return target
 
 
-def _cli(tmp_path: Path, token: str = TOKEN, exit_code: int = 0) -> list[str]:
+def _cli(tmp_path: Path, token: str = TOKEN, exit_code: int = 0, stderr: str = "") -> list[str]:
     """Build the fake CLI: a child process that prints a token alone.
 
     Args:
         tmp_path: Where the script goes.
         token: What it prints.
         exit_code: Its exit code.
+        stderr: What it writes on its standard error.
 
     Returns:
         The argv the smoke runs.
     """
     script = tmp_path / "fake_cli.py"
-    script.write_text(f"import sys\nprint({token!r})\nsys.exit({exit_code})\n")
+    script.write_text(f"import sys\nsys.stderr.write({stderr!r})\nprint({token!r})\nsys.exit({exit_code})\n")
     return [sys.executable, str(script)]
 
 
@@ -120,7 +121,10 @@ def _host(answers: dict[str, tuple[int, Any]] | None = None) -> Iterator[tuple[F
     items = {"items": [{"ids": {"tmdb": 603}}], "total": 1, "matching": 1, "loaded": 1}
 
     class Handler(http.server.BaseHTTPRequestHandler):
+        """Answer from the host's table and record the request."""
+
         def _answer(self) -> None:
+            """Record the request, then answer its ``METHOD path`` from the table."""
             path = self.path.split("?")[0]
             cookies = self.headers.get("Cookie") or ""
             sent = cookies.split(f"{COOKIE}=")[1] if f"{COOKIE}=" in cookies else None
@@ -138,6 +142,7 @@ def _host(answers: dict[str, tuple[int, Any]] | None = None) -> Iterator[tuple[F
         do_GET = do_POST = _answer
 
         def log_message(self, *args: object) -> None:
+            """Keep the test output quiet."""
             return
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -165,6 +170,16 @@ def run(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Callable[..., tup
     module = _load()
 
     def _run(base: str, contract: Path, cli: list[str] | None = None) -> tuple[int, str]:
+        """Run ``main`` and gather what it printed.
+
+        Args:
+            base: The host's base URL.
+            contract: The OpenAPI document.
+            cli: The fake CLI; the default one prints the token.
+
+        Returns:
+            The exit code and stdout plus stderr.
+        """
         code = module.main(["--base", base, "--contract", str(contract)], cli=cli or _cli(tmp_path))
         captured = capsys.readouterr()
         return code, captured.out + captured.err
@@ -243,3 +258,117 @@ def test_a_cli_that_fails_is_red_and_calls_nothing(tmp_path: Path, run: Callable
     assert code == 1
     assert host.requests == []
     assert out.strip().startswith("SMOKE RED openSession 1 ")
+
+
+POSTER = {
+    "operationId": "readMediaPoster",
+    "parameters": [
+        {"name": "provider", "in": "path", "required": True},
+        {"name": "providerId", "in": "path", "required": True},
+    ],
+}
+
+
+@contextmanager
+def _raw_host(reply: bytes) -> Iterator[str]:
+    """Serve a host that answers every connection with raw bytes (a broken protocol).
+
+    Args:
+        reply: What is written to each connection before it is closed.
+
+    Yields:
+        The base URL.
+    """
+    import socketserver
+
+    class Raw(socketserver.BaseRequestHandler):
+        """Write the canned bytes and hang up."""
+
+        def handle(self) -> None:
+            """Read the request, then answer with the canned bytes."""
+            self.request.recv(65536)
+            self.request.sendall(reply)
+
+    server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Raw)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def test_a_403_on_a_get_is_red(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """Any status of 400 or more is red, a 403 included."""
+    with _host({"GET /version": (403, {"code": "right.missing"})}) as (_, base):
+        code, out = run(base, _contract(tmp_path))
+    assert code == 1
+    assert out.strip().splitlines() == ["SMOKE RED readVersion 403 right.missing"]
+
+
+def test_a_404_on_a_poster_stays_green(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """A title with no poster answers 404: the one allowlisted pair."""
+    contract = _contract(tmp_path, {"/media/{provider}/{providerId}/poster": POSTER})
+    with _host({"GET /media/tmdb/603/poster": (404, {"code": "poster.missing"})}) as (_, base):
+        code, out = run(base, contract)
+    assert (code, out.strip()) == (0, "SMOKE OK 4 GETs")
+
+
+def test_a_403_on_a_poster_is_red(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """The allowlist is the pair (operation, 404), not the operation."""
+    contract = _contract(tmp_path, {"/media/{provider}/{providerId}/poster": POSTER})
+    with _host({"GET /media/tmdb/603/poster": (403, {})}) as (_, base):
+        code, out = run(base, contract)
+    assert code == 1
+    assert out.strip().splitlines() == ["SMOKE RED readMediaPoster 403 -"]
+
+
+def test_a_library_that_is_not_200_is_red_with_its_own_id(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """A library 404 is red itself, ahead of the reds that follow for want of a sample."""
+    with _host({"GET /library/items": (404, {"code": "route.missing"})}) as (_, base):
+        code, out = run(base, _contract(tmp_path))
+    assert code == 1
+    assert out.strip().splitlines()[0] == "SMOKE RED readLibraryItems 404 route.missing"
+
+
+def test_a_broken_protocol_answer_is_red_not_a_traceback(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """A reply that is not HTTP gives ``SMOKE RED`` lines and exit 1, and no traceback."""
+    with _raw_host(b"not http at all\r\n\r\n") as base:
+        code, out = run(base, _contract(tmp_path))
+    assert code == 1
+    assert "Traceback" not in out
+    assert all(line.startswith("SMOKE RED ") for line in out.strip().splitlines())
+    assert "SMOKE RED readLibraryItems 0 internal." in out
+
+
+def test_ids_that_are_not_an_object_are_red(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """A library item whose ``ids`` is a string is a red line, not a traceback."""
+    body = {"items": [{"ids": "x"}], "total": 1, "matching": 1, "loaded": 1}
+    with _host({"GET /library/items": (200, body)}) as (_, base):
+        code, out = run(base, _contract(tmp_path))
+    assert code == 1
+    assert "Traceback" not in out
+    assert out.strip().splitlines()[0].startswith("SMOKE RED ")
+    assert " 0 internal." in out
+
+
+def test_a_dead_host_gives_one_red_line(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """The first unreachable answer stops the round: one line, not one per GET."""
+    code, out = run("http://127.0.0.1:1", _contract(tmp_path))
+    assert code == 1
+    assert out.strip().splitlines() == ["SMOKE RED readLibraryItems 0 host.unreachable"]
+
+
+def test_a_cli_without_token_carries_its_exit_code_and_stderr_goes_to_stderr(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The red line names the CLI's exit code; its last stderr line goes to stderr, never stdout."""
+    cli = _cli(tmp_path, token="", exit_code=2, stderr="first reason\nnot a dev checkout\n")
+    code = _load().main(["--base", "http://127.0.0.1:1", "--contract", str(_contract(tmp_path))], cli=cli)
+    captured = capsys.readouterr()
+    assert code == 1
+    assert captured.out.strip().splitlines() == ["SMOKE RED openSession 2 cli.no_token.2"]
+    assert "not a dev checkout" in captured.err
+    assert "not a dev checkout" not in captured.out

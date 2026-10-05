@@ -10,11 +10,14 @@ Required parameters are filled by NAME from ``PARAM_SOURCES``, drawn from the fi
 ``readLibraryItems`` item. A required parameter with no source is red
 (``unresolvable parameter <name>``), so a new parameter forces its source to be written.
 
-Red is: a status of 500 or more, a 401 anywhere, an empty library, a host that does not
-answer, or a CLI that gives no token. Any other 4xx is not red (a poster may be a 404).
+Red is: any status of 400 or more, bar the pairs in ``ALLOWED_STATUSES`` (a title with no
+poster is a 404), an empty library, a host that does not answer (the round stops at the first
+such GET), an unexpected failure (``internal.<ExceptionName>``), or a CLI that gives no token
+(``cli.no_token.<exit code>``, its last stderr line going to stderr).
 
 Output is ``SMOKE OK <n> GETs`` or one ``SMOKE RED <operationId> <status> <code>`` line per
-failure, exit 1 on red. The token is never printed, whatever happens.
+failure, exit 1 on red, a failure of the smoke itself included. The token is never printed,
+whatever happens.
 
 Usage:
     python scripts/design-host-smoke.py --base http://127.0.0.1:8713 [--contract contract/openapi.generated.json]
@@ -34,11 +37,14 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from _repo_paths import SERVED_CONTRACT
+
 API_PREFIX: Final = "/api/v1"
 SESSION_COOKIE: Final = "tm_v1_session"
 LIBRARY_OPERATION: Final = "readLibraryItems"
 SIGN_OUT_PATH: Final = "/auth/logout"
-DEFAULT_CONTRACT: Final = Path(__file__).resolve().parents[1] / "contract" / "openapi.generated.json"
+# The only ``(operationId, status)`` pairs at 400 or more that are not red.
+ALLOWED_STATUSES: Final = frozenset({("readMediaPoster", 404)})
 CLI_COMMAND: Final = (sys.executable, "-m", "personalscraper", "accounts", "open-session", "--owner")
 TIMEOUT_SECONDS: Final = 30
 
@@ -85,7 +91,8 @@ def open_token(cli: Sequence[str]) -> str:
         The token.
 
     Raises:
-        Red: The CLI failed to start, exited non-zero, or printed nothing.
+        Red: The CLI failed to start, exited non-zero, or printed nothing. In the last two cases
+            its last stderr line has been written to stderr.
     """
     try:
         done = subprocess.run(list(cli), capture_output=True, text=True, timeout=TIMEOUT_SECONDS, check=False)
@@ -93,7 +100,10 @@ def open_token(cli: Sequence[str]) -> str:
         raise Red("openSession", 0, "cli.unavailable") from None
     token = done.stdout.strip()
     if done.returncode != 0 or not token:
-        raise Red("openSession", done.returncode, "cli.no_token")
+        reason = done.stderr.strip().splitlines()[-1:]
+        if reason:
+            print(reason[0], file=sys.stderr)
+        raise Red("openSession", done.returncode, f"cli.no_token.{done.returncode}")
     return token
 
 
@@ -200,28 +210,30 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
         try:
             path = fill(template, names, ids, operation)
             status, body = call(base, "GET", path, token)
+            called += 1
+            problem = body.get("code") if isinstance(body, dict) else None
+            code = str(problem) if problem else "-"
+            if operation == LIBRARY_OPERATION:
+                if status != 200:
+                    raise Red(operation, status, code)
+                items = body.get("items") if isinstance(body, dict) else None
+                if not items:
+                    raise Red(operation, status, "library.empty")
+                ids = items[0].get("ids")
+            elif status >= 400 and (operation, status) not in ALLOWED_STATUSES:
+                raise Red(operation, status, code)
         except Red as red:
             reds.append(red)
-            continue
         except OSError:
             reds.append(Red(operation, 0, "host.unreachable"))
-            continue
-        called += 1
-        problem = body.get("code") if isinstance(body, dict) else None
-        code = str(problem) if problem else "-"
-        if status >= 500 or status == 401:
-            reds.append(Red(operation, status, code))
-        elif operation == LIBRARY_OPERATION and status == 200:
-            items = body.get("items") if isinstance(body, dict) else None
-            if items:
-                ids = items[0].get("ids")
-            else:
-                reds.append(Red(operation, status, "library.empty"))
+            break
+        except Exception as exc:  # noqa: BLE001 - any failure must be named, or the watcher stays mute
+            reds.append(Red(operation, 0, f"internal.{type(exc).__name__}"))
     return called, reds
 
 
 def sign_out(base: str, token: str) -> None:
-    """Close the session; a failure is left silent, the session expires on its own.
+    """Close the session; any failure is left silent, the session expires on its own.
 
     Args:
         base: The host's base URL.
@@ -229,8 +241,36 @@ def sign_out(base: str, token: str) -> None:
     """
     try:
         call(base, "POST", SIGN_OUT_PATH, token)
-    except OSError:
+    except Exception:  # noqa: BLE001, S110 - the verdict stands, whatever the sign-out does
         pass
+
+
+def _verdict(base: str, contract: Path, cli: Sequence[str]) -> int:
+    """Open the session, check, sign out and print the verdict.
+
+    Args:
+        base: The host's base URL.
+        contract: The OpenAPI document.
+        cli: The command that opens the owner's session.
+
+    Returns:
+        0 when green, 1 on any red.
+    """
+    try:
+        token = open_token(cli)
+    except Red as red:
+        print(red.line())
+        return 1
+    try:
+        called, reds = check(base, contract, token)
+    finally:
+        sign_out(base, token)
+    if reds:
+        for red in reds:
+            print(re.sub(r"\s+", " ", red.line()).replace(token, "***"))
+        return 1
+    print(f"SMOKE OK {called} GETs")
+    return 0
 
 
 def main(argv: Sequence[str] | None = None, cli: Sequence[str] = CLI_COMMAND) -> int:
@@ -245,24 +285,14 @@ def main(argv: Sequence[str] | None = None, cli: Sequence[str] = CLI_COMMAND) ->
     """
     parser = argparse.ArgumentParser(description="Call every v1 GET of the design host as the owner.")
     parser.add_argument("--base", required=True, help="the host's base URL, e.g. http://127.0.0.1:8713")
-    parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT, help="the OpenAPI document")
+    parser.add_argument("--contract", type=Path, default=SERVED_CONTRACT, help="the OpenAPI document")
     args = parser.parse_args(argv)
 
     try:
-        token = open_token(cli)
-    except Red as red:
-        print(red.line())
+        return _verdict(args.base, args.contract, cli)
+    except Exception as exc:  # noqa: BLE001 - last resort: the watcher greps for ``SMOKE RED``
+        print(f"SMOKE RED - 0 internal.{type(exc).__name__}")
         return 1
-    try:
-        called, reds = check(args.base, args.contract, token)
-    finally:
-        sign_out(args.base, token)
-    if reds:
-        for red in reds:
-            print(re.sub(r"\s+", " ", red.line()).replace(token, "***"))
-        return 1
-    print(f"SMOKE OK {called} GETs")
-    return 0
 
 
 if __name__ == "__main__":
