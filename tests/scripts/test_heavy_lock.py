@@ -570,7 +570,8 @@ def escaped_sleep(pid_file: Path) -> str:
     Returns:
         The shell command.
     """
-    return f"(perl -MPOSIX -e 'POSIX::setsid(); print \"$$\\n\"; exec q(sleep), 300' > {pid_file} 2>/dev/null </dev/null &)"
+    escape = "perl -MPOSIX -e 'POSIX::setsid(); print \"$$\\n\"; exec q(sleep), 300'"
+    return f"({escape} > {pid_file} 2>/dev/null </dev/null &)"
 
 
 def test_a_descendant_that_left_the_group_dies_with_the_run(tmp_path: Path) -> None:
