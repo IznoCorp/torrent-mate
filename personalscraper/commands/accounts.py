@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 import typer
 
-from personalscraper.app.accounts.service import AmbiguousOwner, OwnerAlreadySeeded, OwnerPlexIdentity
+from personalscraper.app.accounts.credentials import AmbiguousOwner, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.token_vault import (
     MalformedTokenKey,
     NoKeptTokenOpens,
@@ -78,7 +78,7 @@ def set_password(
 
     services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        services.accounts.set_password(email, password)
+        services.credentials.set_password(email, password)
     except AppRefusal as exc:
         _refuse(exc)
     finally:
@@ -134,7 +134,7 @@ def create_owner(
     plex = OwnerPlexIdentity(plex_id=plex_id, plex_uuid=plex_uuid, plex_username=plex_username)
     services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        services.accounts.create_owner(email=email, name=name, password=password, plex=plex)
+        services.credentials.create_owner(email=email, name=name, password=password, plex=plex)
     except OwnerAlreadySeeded:
         typer.echo(t("cli_accounts.create_owner.owner_exists"), err=True)
         raise typer.Exit(code=1) from None
@@ -183,11 +183,11 @@ def open_session(
 
     services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        owner_id = services.accounts.owner_account_id()
+        owner_id = services.credentials.owner_account_id()
         if owner_id is None:
             typer.echo(t("cli_accounts.open_session.no_owner"), err=True)
             raise typer.Exit(code=1)
-        result = services.accounts.open_proven_session(owner_id, user_agent=_SMOKE_USER_AGENT)
+        result = services.credentials.open_proven_session(owner_id, user_agent=_SMOKE_USER_AGENT)
     except AmbiguousOwner:
         typer.echo(t("cli_accounts.open_session.ambiguous_owner"), err=True)
         raise typer.Exit(code=1) from None

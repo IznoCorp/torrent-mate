@@ -10,8 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
-from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.roles import RoleService
+from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BuildInfo
 from personalscraper.app.store.store import AppStore
@@ -33,7 +35,9 @@ class AppServices:
         library: The library's reads over the index, the aired catalogue and the providers.
         app_store: The environment's ``app.db``, opened on first use.
         sessions: v1's sessions.
-        accounts: The account operations.
+        accounts: The own account and the roster of accounts.
+        roles: The roles of the accounts screen.
+        credentials: The sign-in doors' shared end, the passwords and the owner's machine acts.
         plex_sign_in: The Plex door.
         owned_providers: The provider registry these services built for themselves, closed
             with them; ``None`` when the process handed its own over, which its owner closes.
@@ -44,7 +48,9 @@ class AppServices:
     library: LibraryService
     app_store: AppStore
     sessions: SessionService
-    accounts: AccountService
+    accounts: RosterService
+    roles: RoleService
+    credentials: CredentialService
     plex_sign_in: PlexSignInService
     owned_providers: LazyProviders | None = None
 

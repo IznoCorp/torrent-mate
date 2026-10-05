@@ -90,7 +90,7 @@ def _door(
     plextv, clock = _PlexTv(), _Clock()
     door = PlexSignInService(
         lambda: services.app_store.accounts,
-        services.accounts,
+        services.credentials,
         vault=None,
         client_factory=lambda product, client_id: PlexAccountClient(
             product=product,

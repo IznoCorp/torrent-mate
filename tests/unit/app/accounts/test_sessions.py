@@ -23,7 +23,7 @@ from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import (
     SESSION_RENEWAL_INTERVAL_S,
     SESSION_ROTATION_GRACE_S,
@@ -241,7 +241,7 @@ class TestResolve:
 
     def test_read_account_refuses_once_the_role_is_gone(self, sessions: SessionService, store: AppStore) -> None:
         """An actor resolved before its role vanished is refused ``auth.required``."""
-        accounts = AccountService(lambda: store.accounts, sessions, EventBus())
+        accounts = RosterService(lambda: store.accounts, EventBus())
         actor = sessions.resolve(sessions.open(_ACCOUNT_ID, user_agent=None))
         assert actor is not None
         _delete_the_role(store, "household")

@@ -12,9 +12,9 @@ from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
@@ -94,12 +94,12 @@ def _with_ceiling(services: AppServices, ceiling: InstanceCeiling, idle_days: in
         idle_days: The sessions' idle lifetime.
 
     Returns:
-        The same services, but for ``sessions`` and ``accounts``.
+        The same services, but for ``sessions`` and ``credentials``.
     """
     store = services.app_store
     sessions = SessionService(lambda: store.accounts, idle_days=idle_days, ceiling=lambda: ceiling)
-    accounts = AccountService(lambda: store.accounts, sessions, services.event_bus)
-    return dataclasses.replace(services, sessions=sessions, accounts=accounts)
+    credentials = CredentialService(lambda: store.accounts, sessions)
+    return dataclasses.replace(services, sessions=sessions, credentials=credentials)
 
 
 @pytest.fixture

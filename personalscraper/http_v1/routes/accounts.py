@@ -1,7 +1,7 @@
 """The accounts screen's routes: the roster, an account's creation, role, password and access, and the roles.
 
 The contract files them under its ``authentication`` tag; they live apart from the
-session routes because they are another screen's, and every one calls ``AccountService``.
+session routes because they are another screen's, and every one calls the roster or the role service.
 """
 
 from __future__ import annotations
@@ -200,7 +200,7 @@ def create_role(
     Returns:
         The role.
     """
-    return RoleModel.from_view(app_services.accounts.create_role(signed_in, name=body.name, rights=body.rights))
+    return RoleModel.from_view(app_services.roles.create_role(signed_in, name=body.name, rights=body.rights))
 
 
 @router.patch(
@@ -228,9 +228,7 @@ def update_role(
     Returns:
         The role.
     """
-    return RoleModel.from_view(
-        app_services.accounts.update_role(signed_in, role_id, name=body.name, rights=body.rights)
-    )
+    return RoleModel.from_view(app_services.roles.update_role(signed_in, role_id, name=body.name, rights=body.rights))
 
 
 @router.delete(
@@ -255,5 +253,5 @@ def delete_role(
     Returns:
         ``{"ok": true}``.
     """
-    app_services.accounts.delete_role(signed_in, role_id)
+    app_services.roles.delete_role(signed_in, role_id)
     return RoleDeleted(ok=True)

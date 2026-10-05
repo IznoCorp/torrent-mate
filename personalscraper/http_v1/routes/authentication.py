@@ -104,7 +104,7 @@ def sign_in(
         The signed-in account.
     """
     client_key = rate_limit_key(request.client.host if request.client else None, request.headers.get("x-forwarded-for"))
-    result = app_services.accounts.sign_in_with_password(
+    result = app_services.credentials.sign_in_with_password(
         body.email, body.password, client_key=client_key, user_agent=request.headers.get("user-agent")
     )
     set_session_cookie(response, result.session_token, request.app.state.config.web)
@@ -224,7 +224,7 @@ def sign_out(
     Returns:
         ``{"ok": true}``.
     """
-    app_services.accounts.sign_out(signed_in, token)
+    app_services.credentials.sign_out(signed_in, token)
     clear_session_cookie(response, request.app.state.config.web)
     return SignedOut(ok=True)
 
@@ -253,7 +253,7 @@ def change_own_password(
     Returns:
         ``{"ok": true}``.
     """
-    app_services.accounts.change_own_password(
+    app_services.credentials.change_own_password(
         signed_in, token, current_password=body.current_password, new_password=body.new_password
     )
     return PasswordSet(ok=True)
