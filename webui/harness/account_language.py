@@ -28,6 +28,7 @@ R526-c — the sign-in page follows the browser (OPEN-2 B):
 Red on `origin/develop`: Profil has no « Langue », no named state exists, the interface never
 leaves French, and the sign-in page is French in every browser.
 """
+
 import asyncio
 import json
 import pathlib
@@ -106,9 +107,11 @@ def speaks(seen, language):
         True when the document's `lang`, Profil's « Vous » heading and the page's heading are
         that language's words.
     """
-    return (seen["lang"] == language
-            and words(language, "screens.accountPage.you") in seen["you"]
-            and seen["page"] == words(language, "navigation.pages.profile"))
+    return (
+        seen["lang"] == language
+        and words(language, "screens.accountPage.you") in seen["you"]
+        and seen["page"] == words(language, "navigation.pages.profile")
+    )
 
 
 async def exists(page, state):
@@ -139,7 +142,9 @@ async def reopen(page, address):
 
 
 async def main():
-    journal = Journal("R526 — the interface speaks the account's language, chosen in Profil; before sign-in, the browser's")
+    journal = Journal(
+        "R526 — the interface speaks the account's language, chosen in Profil; before sign-in, the browser's"
+    )
     errors = []
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
@@ -148,64 +153,95 @@ async def main():
 
         # ── R526-a: Profil says the account's language and changes it ──────
         seen = await read_at(page, "profile", READ)
-        journal.check("Profil draws « Langue »", seen["section"] and seen["heading"] == words("fr", "screens.accountPage.language.heading"),
-                      f"section {seen['section']} · heading {seen['heading']!r}")
-        journal.check("« Langue » is pressed on the account's language, French, and the document says it",
-                      seen["language"] == "fr" and seen["pressed"] == "fr" and speaks(seen, "fr"),
-                      f"{seen['language']} · pressed {seen['pressed']} · lang {seen['lang']} · page {seen['page']!r}")
+        journal.check(
+            "Profil draws « Langue »",
+            seen["section"] and seen["heading"] == words("fr", "screens.accountPage.language.heading"),
+            f"section {seen['section']} · heading {seen['heading']!r}",
+        )
+        journal.check(
+            "« Langue » is pressed on the account's language, French, and the document says it",
+            seen["language"] == "fr" and seen["pressed"] == "fr" and speaks(seen, "fr"),
+            f"{seen['language']} · pressed {seen['pressed']} · lang {seen['lang']} · page {seen['page']!r}",
+        )
 
         if seen["section"]:
             await page.click('[data-part="profile/language"] [data-language-choice="en"]')
             await page.wait_for_timeout(SETTLED)
             await settle(page)
             seen = await page.evaluate(READ)
-            journal.check("a tap on « English » switches the whole interface at once: Profil, the page, the document",
-                          speaks(seen, "en") and seen["pressed"] == "en"
-                          and seen["heading"] == words("en", "screens.accountPage.language.heading"),
-                          f"lang {seen['lang']} · page {seen['page']!r} · headings {seen['you'][:3]}")
+            journal.check(
+                "a tap on « English » switches the whole interface at once: Profil, the page, the document",
+                speaks(seen, "en")
+                and seen["pressed"] == "en"
+                and seen["heading"] == words("en", "screens.accountPage.language.heading"),
+                f"lang {seen['lang']} · page {seen['page']!r} · headings {seen['you'][:3]}",
+            )
 
         address = await page.evaluate("()=>location.pathname.slice(1) + location.search")
         await reopen(page, address)
         seen = await page.evaluate(READ)
-        journal.check("reloaded, Profil is still English: the choice is held, not the page's",
-                      speaks(seen, "en") and seen["language"] == "en", f"lang {seen['lang']} · page {seen['page']!r}")
+        journal.check(
+            "reloaded, Profil is still English: the choice is held, not the page's",
+            speaks(seen, "en") and seen["language"] == "en",
+            f"lang {seen['lang']} · page {seen['page']!r}",
+        )
 
         await reopen(page, "media")
         library = await page.evaluate(READ)
-        journal.check("another surface opened cold speaks English too — the Médiathèque says « Library »",
-                      library["lang"] == "en" and library["page"] == words("en", "navigation.pages.lib"),
-                      f"lang {library['lang']} · page {library['page']!r}")
+        journal.check(
+            "another surface opened cold speaks English too — the Médiathèque says « Library »",
+            library["lang"] == "en" and library["page"] == words("en", "navigation.pages.lib"),
+            f"lang {library['lang']} · page {library['page']!r}",
+        )
 
         await reopen(page, address)
         await page.evaluate(SIGN_IN_AS, "household-member")
         await page.wait_for_timeout(SETTLED)
         other = await page.evaluate(READ)
-        journal.check("another account signed in keeps its own language, French",
-                      speaks(other, "fr") and other["language"] == "fr", f"lang {other['lang']} · page {other['page']!r}")
+        journal.check(
+            "another account signed in keeps its own language, French",
+            speaks(other, "fr") and other["language"] == "fr",
+            f"lang {other['lang']} · page {other['page']!r}",
+        )
         await page.evaluate(SIGN_IN_AS, "izno")
         await page.wait_for_timeout(SETTLED)
         back = await page.evaluate(READ)
-        journal.check("the first account signed in again reads English again — its own",
-                      speaks(back, "en"), f"lang {back['lang']} · page {back['page']!r}")
+        journal.check(
+            "the first account signed in again reads English again — its own",
+            speaks(back, "en"),
+            f"lang {back['lang']} · page {back['page']!r}",
+        )
 
         # ── R526-b: the choice's own states ────────────────────────────────
         for state in ("profile-language-saving", "profile-language-refused"):
             journal.check(f"the named state {state} exists", await exists(page, state), state)
         if await exists(page, "profile-language-saving"):
             seen = await read_at(page, "profile-language-saving", READ)
-            journal.check("saving: the control says so, takes no other tap, English pressed as asked",
-                          seen["saving"] and seen["disabled"] and seen["pressed"] == "en"
-                          and seen["line"] == words("fr", "screens.accountPage.language.saving"),
-                          f"saving {seen['saving']} · disabled {seen['disabled']} · {seen['line']!r}")
-            journal.check("saving: the interface has not switched before the server holds the choice",
-                          speaks(seen, "fr"), f"lang {seen['lang']}")
+            journal.check(
+                "saving: the control says so, takes no other tap, English pressed as asked",
+                seen["saving"]
+                and seen["disabled"]
+                and seen["pressed"] == "en"
+                and seen["line"] == words("fr", "screens.accountPage.language.saving"),
+                f"saving {seen['saving']} · disabled {seen['disabled']} · {seen['line']!r}",
+            )
+            journal.check(
+                "saving: the interface has not switched before the server holds the choice",
+                speaks(seen, "fr"),
+                f"lang {seen['lang']}",
+            )
         if await exists(page, "profile-language-refused"):
             seen = await read_at(page, "profile-language-refused", READ)
-            journal.check("refused: said under the control, in the interface's words",
-                          seen["refusal"] == words("fr", "screens.accountPage.language.refused"), f"{seen['refusal']!r}")
-            journal.check("refused: the control stays on French, and so does the interface",
-                          seen["pressed"] == "fr" and seen["language"] == "fr" and speaks(seen, "fr"),
-                          f"pressed {seen['pressed']} · lang {seen['lang']}")
+            journal.check(
+                "refused: said under the control, in the interface's words",
+                seen["refusal"] == words("fr", "screens.accountPage.language.refused"),
+                f"{seen['refusal']!r}",
+            )
+            journal.check(
+                "refused: the control stays on French, and so does the interface",
+                seen["pressed"] == "fr" and seen["language"] == "fr" and speaks(seen, "fr"),
+                f"pressed {seen['pressed']} · lang {seen['lang']}",
+            )
         await context.close()
 
         # ── R526-c: the sign-in page follows the browser ───────────────────
@@ -216,11 +252,16 @@ async def main():
             await page.wait_for_timeout(SETTLED)
             gate = await page.evaluate(GATE)
             title = words(language, "screens.gate.title")
-            journal.check(f"a {locale} browser meets the sign-in page in {language}",
-                          gate["shown"] and gate["lang"] == language and gate["title"] == title and gate["label"] == title
-                          and gate["submit"] == words(language, "screens.gate.submit")
-                          and gate["plex"] == words(language, "screens.gate.plex"),
-                          f"lang {gate['lang']} · {gate['title']!r} · {gate['submit']!r} · {gate['plex']!r}")
+            journal.check(
+                f"a {locale} browser meets the sign-in page in {language}",
+                gate["shown"]
+                and gate["lang"] == language
+                and gate["title"] == title
+                and gate["label"] == title
+                and gate["submit"] == words(language, "screens.gate.submit")
+                and gate["plex"] == words(language, "screens.gate.plex"),
+                f"lang {gate['lang']} · {gate['title']!r} · {gate['submit']!r} · {gate['plex']!r}",
+            )
             await context.close()
         await browser.close()
 

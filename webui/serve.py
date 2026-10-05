@@ -88,8 +88,7 @@ def renamed_env(current: str, former: str) -> str | None:
         return value
     value = os.environ.get(former)
     if value:
-        print(f"{former} is the old name of {current}; still honoured, "
-              "rename it", file=sys.stderr, flush=True)
+        print(f"{former} is the old name of {current}; still honoured, rename it", file=sys.stderr, flush=True)
     return value
 
 
@@ -97,8 +96,7 @@ def renamed_env(current: str, former: str) -> str | None:
 # SCRATCH copy and mutate it freely: no measurement may ever write into the
 # operator's real source.
 DESIGN_ROOT = Path(
-    renamed_env("TM_DESIGN_ROOT", "TM_DESIGN_RACINE")
-    or Path(__file__).resolve().parent / "design"
+    renamed_env("TM_DESIGN_ROOT", "TM_DESIGN_RACINE") or Path(__file__).resolve().parent / "design"
 ).resolve()
 # The base layer (D3). It carries the `login:font` and `login:socle` regions
 # the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07,
@@ -208,9 +206,8 @@ def served_texts(language: str = "fr") -> dict[str, dict[str, str]]:
     # dead host.
     texts = document.get("server") if isinstance(document, dict) else None
     if not isinstance(texts, dict) or not all(
-            isinstance(page, dict) and all(isinstance(word, str)
-                                           for word in page.values())
-            for page in texts.values()):
+        isinstance(page, dict) and all(isinstance(word, str) for word in page.values()) for page in texts.values()
+    ):
         raise ValueError(f'no usable "server" namespace in {TEXTS.name}')
     return texts
 
@@ -232,8 +229,7 @@ def mtime_sources() -> int:
     stamps = [source.stat().st_mtime_ns for source in BUILD_INPUTS]
     shell = DESIGN_ROOT / "src"
     if shell.is_dir():
-        stamps.extend(file_.stat().st_mtime_ns
-                      for file_ in shell.rglob("*") if file_.is_file())
+        stamps.extend(file_.stat().st_mtime_ns for file_ in shell.rglob("*") if file_.is_file())
     return max(stamps)
 
 
@@ -243,9 +239,7 @@ _OPERATOR_NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
 NPM = _OPERATOR_NPM if os.path.exists(_OPERATOR_NPM) else (shutil.which("npm") or "npm")
 # Overridable so the timeout path itself can be proven live, the same way
 # TM_DESIGN_ROOT lets a rule serve a scratch root.
-BUILD_TIMEOUT = float(
-    renamed_env("TM_DESIGN_BUILD_TIMEOUT", "TM_DESIGN_DELAI_BUILD") or 120)
-
+BUILD_TIMEOUT = float(renamed_env("TM_DESIGN_BUILD_TIMEOUT", "TM_DESIGN_DELAI_BUILD") or 120)
 
 
 def setting(name: str, choices: tuple[str, ...]) -> str:
@@ -345,7 +339,7 @@ def build_failure(error: str) -> bytes:
         f"<title>{texts['title']}</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
         f"<h1>{texts['heading']}</h1><p>{texts['body']}"
-        "</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
+        '</p><pre style="white-space:pre-wrap;background:#f6f6f6;'
         'padding:12px;border-radius:8px">'
         f"{html.escape(error)}"
         "</pre></body></html>"
@@ -372,7 +366,7 @@ def diagnostic_page(error: str) -> bytes:
         "host serves read their words from <code>design/src/i18n/fr.json</code>"
         ", and that read failed. Below is what was being reported when it "
         "did, followed by the read error itself.</p>"
-        "<pre style=\"white-space:pre-wrap;background:#f6f6f6;"
+        '<pre style="white-space:pre-wrap;background:#f6f6f6;'
         'padding:12px;border-radius:8px">'
         f"{html.escape(error)}"
         "</pre></body></html>"
@@ -465,8 +459,7 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/", l
     # 0x0, six holds in `entry.py` fell at once and `startup.py` timed out
     # filling a form that was not there. The markup may now carry whatever
     # attributes it needs, in whatever order.
-    markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup,
-                    count=1)
+    markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup, count=1)
     # The form posts by script (`v1_door.sign_in_script`), to v1 itself.
     # WORDED IN THE VISITOR'S LANGUAGE, from the keys the markup carries — the
     # same the prototype's boot reads; the markup's French is only the fallback.
@@ -480,9 +473,7 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/", l
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
     # here it waits for the submit that makes it true.
-    markup += extract(markup_source, "splash").replace(
-        ' id="splash"', ' id="splash" hidden', 1
-    )
+    markup += extract(markup_source, "splash").replace(' id="splash"', ' id="splash" hidden', 1)
     # Everything the screen INHERITS inside the prototype — the palette, the box
     # model, the typography — is taken from it rather than restated. Both were
     # retyped here once, and both times the copy rendered correctly while the
@@ -506,11 +497,10 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/", l
     # and is emitted as it stands — it must come after the dark one, exactly as
     # it does in the stylesheet, or the override would lose to what it overrides.
     scale = ":root {\n" + extract(theme_source, "scale") + "}\n"
-    palette = (":root {\n" + extract(theme_source, "palette") + "}\n"
-               + extract(theme_source, "palette-light"))
-    styles = (scale + extract(base_source, "font")
-              + palette + extract(base_source, "socle")
-              + extract(base_source, "entry"))
+    palette = ":root {\n" + extract(theme_source, "palette") + "}\n" + extract(theme_source, "palette-light")
+    styles = (
+        scale + extract(base_source, "font") + palette + extract(base_source, "socle") + extract(base_source, "entry")
+    )
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
     adjustments = """
@@ -575,16 +565,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if built < sources and not REBUILD:
                 raise RuntimeError(
                     "the build is missing or older than its sources, and this host "
-                    "does not rebuild (TM_DESIGN_REBUILD=off)")
+                    "does not rebuild (TM_DESIGN_REBUILD=off)"
+                )
             if built < sources:
                 try:
                     run = subprocess.run(
-                        [NPM, "run", "build"], cwd=DESIGN_ROOT,
-                        capture_output=True, text=True, timeout=BUILD_TIMEOUT)
+                        [NPM, "run", "build"], cwd=DESIGN_ROOT, capture_output=True, text=True, timeout=BUILD_TIMEOUT
+                    )
                 except subprocess.TimeoutExpired:
                     raise RuntimeError(
-                        f"build aborted after {BUILD_TIMEOUT:g} s — "
-                        "the npm process had stopped answering")
+                        f"build aborted after {BUILD_TIMEOUT:g} s — the npm process had stopped answering"
+                    )
                 if run.returncode != 0:
                     tail = (run.stderr or run.stdout).strip().splitlines()[-12:]
                     raise RuntimeError("\n".join(tail))
@@ -635,8 +626,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
-    def _send_page(self, status: int, build: Callable[[], bytes],
-                   content_type: str = "text/html; charset=utf-8") -> None:
+    def _send_page(
+        self, status: int, build: Callable[[], bytes], content_type: str = "text/html; charset=utf-8"
+    ) -> None:
         """Sends a page built from the served copy, or the 503 that names the break.
 
         The pages this host builds itself read both their markup (from the
@@ -655,8 +647,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # An entry that is absent is the COPY being incomplete, not a build
             # that failed: answering « Build en échec » would name the wrong
             # culprit, and the reader would go looking at the build.
-            self._send(503, diagnostic_page(
-                f"missing entry in the served copy: {incomplete}"))
+            self._send(503, diagnostic_page(f"missing entry in the served copy: {incomplete}"))
             return
         except (OSError, ValueError) as broken:
             self._send(503, build_failure(str(broken)))
@@ -682,16 +673,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """Answers a GET: the prototype to a session, the login screen otherwise."""
         path_ = self.path.split("?", 1)[0]
         if path_ == "/manifest.webmanifest":
-            self._send_page(200, lambda: manifest(served_texts),
-                            "application/manifest+json")
+            self._send_page(200, lambda: manifest(served_texts), "application/manifest+json")
             return
         if path_ == "/sw.js":
             # Through `_send_page`, like the manifest and the offline notice:
             # the build can be absent or broken, and a host that answered an
             # empty worker there would install a worker that caches nothing and
             # say nothing about it. The named build error is the honest answer.
-            self._send_page(200, lambda: worker(DESIGN_ROOT),
-                            "text/javascript")
+            self._send_page(200, lambda: worker(DESIGN_ROOT), "text/javascript")
             return
         # WHAT BUILD IS BEING SERVED — the update discipline's one question. It
         # sits outside `/api/` deliberately: the mock layer replaces the page's
@@ -699,8 +688,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # could never fail. Outside the session like the manifest, because the
         # worker asks for it before anyone has signed in.
         if path_ == "/build.json":
-            self._send_page(200, lambda: build_identity(DESIGN_ROOT),
-                            "application/json")
+            self._send_page(200, lambda: build_identity(DESIGN_ROOT), "application/json")
             return
         # Outside the session, like the manifest: the worker caches this page at
         # install time, and that install happens before anyone has signed in.
@@ -723,17 +711,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # it, so an encoded traversal (%2e%2e%2f) reaches the filesystem as a
             # literal file name that does not exist. The resolve() + containment
             # check below is the backstop that must hold if that ever changes.
-            file_ = (ASSETS_DIR / path_[len("/assets/"):]).resolve()
-            types = {".webp": "image/webp", ".png": "image/png",
-                     ".svg": "image/svg+xml"}
+            file_ = (ASSETS_DIR / path_[len("/assets/") :]).resolve()
+            types = {".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml"}
             content_type = types.get(file_.suffix)
-            if (content_type is None or not file_.is_file()
-                    or not file_.is_relative_to(ASSETS_DIR.resolve())):
+            if content_type is None or not file_.is_file() or not file_.is_relative_to(ASSETS_DIR.resolve()):
                 self._send(404, b"")
                 return
-            self._send(200, file_.read_bytes(),
-                       [("Cache-Control", "private, max-age=31536000, immutable")],
-                       content_type=content_type)
+            self._send(
+                200,
+                file_.read_bytes(),
+                [("Cache-Control", "private, max-age=31536000, immutable")],
+                content_type=content_type,
+            )
             return
         if path_.startswith("/vite/"):
             # The shell's bundle: the module entry the emitted document names,
@@ -744,17 +733,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return
             # Same backstop as /assets/ above: resolve() then containment, so a
             # traversal cannot reach outside the build's own output directory.
-            file_ = (VITE_DIR / path_[len("/vite/"):]).resolve()
-            types = {".js": "text/javascript", ".css": "text/css",
-                     ".map": "application/json"}
+            file_ = (VITE_DIR / path_[len("/vite/") :]).resolve()
+            types = {".js": "text/javascript", ".css": "text/css", ".map": "application/json"}
             content_type = types.get(file_.suffix)
-            if (content_type is None or not file_.is_file()
-                    or not file_.is_relative_to(VITE_DIR.resolve())):
+            if content_type is None or not file_.is_file() or not file_.is_relative_to(VITE_DIR.resolve()):
                 self._send(404, b"")
                 return
-            self._send(200, file_.read_bytes(),
-                       [("Cache-Control", "private, max-age=31536000, immutable")],
-                       content_type=content_type)
+            self._send(
+                200,
+                file_.read_bytes(),
+                [("Cache-Control", "private, max-age=31536000, immutable")],
+                content_type=content_type,
+            )
             return
         if path_ == "/login":
             # The form posts to v1, never here (do_POST below answers a stale
@@ -782,12 +772,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # on any unrelated address merely containing it (e.g.
             # `/profile/refusé`), showing the rejection banner to someone who
             # never submitted anything.
-            params = urllib.parse.parse_qs(
-                urllib.parse.urlsplit(self.path).query)
+            params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             reason = v1_door.refusal_reason(code, (params.get("why") or [None])[0])
             language = request_language(self.headers.get("Accept-Language"))
-            self._send_page(401, lambda: login_page(
-                "refus" in params, reason, v1_door.return_target(self.path), language))
+            self._send_page(
+                401, lambda: login_page("refus" in params, reason, v1_door.return_target(self.path), language)
+            )
             return
         try:
             body = self._document()

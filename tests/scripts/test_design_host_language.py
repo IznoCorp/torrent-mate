@@ -25,8 +25,10 @@ import pytest
 from _repo_paths import MAQUETTE
 
 DESIGN = MAQUETTE / "design"
-CATALOGUES = {language: json.loads((DESIGN / "src" / "i18n" / f"{language}.json").read_text(encoding="utf-8"))
-              for language in ("fr", "en")}
+CATALOGUES = {
+    language: json.loads((DESIGN / "src" / "i18n" / f"{language}.json").read_text(encoding="utf-8"))
+    for language in ("fr", "en")
+}
 
 
 def _serve() -> ModuleType:

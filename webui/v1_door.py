@@ -106,7 +106,8 @@ def ask_v1(token: str) -> tuple[int, str | None]:
     """
     # Only v1's own cookie is forwarded: the host's other cookies are not v1's.
     request = urllib.request.Request(
-        f"{V1_URL}/api/v1/auth/me", headers={"Cookie": f"{V1_COOKIE}={token}", "Accept": "application/json"})
+        f"{V1_URL}/api/v1/auth/me", headers={"Cookie": f"{V1_COOKIE}={token}", "Accept": "application/json"}
+    )
     try:
         with urllib.request.urlopen(request, timeout=V1_TIMEOUT) as answer:  # noqa: S310 — a configured loopback URL
             return answer.status, None
@@ -451,7 +452,7 @@ def unreachable_page(error: str, texts: dict[str, str]) -> bytes:
         f"<title>{html.escape(texts['title'], quote=False)}</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
         f"<h1>{html.escape(texts['heading'], quote=False)}</h1><p>{html.escape(texts['body'], quote=False)}"
-        "</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
+        '</p><pre style="white-space:pre-wrap;background:#f6f6f6;'
         'padding:12px;border-radius:8px">'
         f"{html.escape(error)}"
         "</pre></body></html>"
