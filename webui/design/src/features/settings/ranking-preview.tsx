@@ -53,7 +53,7 @@ function rankingOf(block: RankingFileBlock): Schemas["RankingConfig"] {
 export function RankingPreview({ block }: { block: RankingFileBlock }): ReactElement {
   const { t } = useTranslation();
   const ranking = rankingOf(block);
-  const { data, isError } = useQuery({
+  const { data, isError, error } = useQuery({
     queryKey: [PREVIEW_PATH, ranking],
     queryFn: async () => readByPost<Schemas["RankingPreview"]>(PREVIEW_PATH, ranking),
     // THE LAST ANSWER STAYS while the next is asked, so a typed digit re-orders
@@ -64,7 +64,7 @@ export function RankingPreview({ block }: { block: RankingFileBlock }): ReactEle
     <section className={section()} data-part="ranking/preview">
       <h2 className={sectionTitle()}>{t("screens.ranking.previewTitle")}</h2>
       <p className={ruleNote()}>{t("screens.ranking.previewLead")}</p>
-      {isError ? <SurfaceError subject={t("screens.ranking.previewErrorSubject")} /> : null}
+      {isError ? <SurfaceError subject={t("screens.ranking.previewErrorSubject")} failure={error ?? undefined} /> : null}
       <ol className={factList()}>
         {(data?.ranked ?? []).map((release) => (
           <li key={release.title} className={factRow()} data-part="ranking/preview-row" data-title={release.title}

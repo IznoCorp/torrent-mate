@@ -40,7 +40,11 @@ export function TorrentsTab(): ReactElement {
       void downloadsRead.refetch();
       void obligationsRead.refetch();
     };
-    return <SurfaceError subject={t("screens.torrents.errorSubject")} onRetry={retry} />;
+    return <SurfaceError
+        subject={t("screens.torrents.errorSubject")}
+        failure={downloadsRead.error ?? obligationsRead.error ?? undefined}
+        onRetry={retry}
+      />;
   }
   if (!downloads || !obligations) return <Skeletons count={3} shape="card" />;
   const alert = alertOf(trackers ?? [], downloads.downloads, obligations.items);

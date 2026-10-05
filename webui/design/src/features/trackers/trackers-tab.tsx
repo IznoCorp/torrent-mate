@@ -212,7 +212,11 @@ export function TrackersTab(): ReactElement {
   useSettingsCatalogue();
   // THE READ IN FLIGHT, OR FAILED, IS SAID — never an empty tab standing for either.
   if (read.isError) {
-    return <SurfaceError subject={t("screens.trackers.errorSubject")} onRetry={() => void read.refetch()} />;
+    return <SurfaceError
+        subject={t("screens.trackers.errorSubject")}
+        failure={read.error ?? undefined}
+        onRetry={() => void read.refetch()}
+      />;
   }
   if (!trackers) return <Skeletons count={3} shape="card" />;
   const alert = alertOf(trackers, downloads?.downloads ?? [], obligations?.items ?? []);

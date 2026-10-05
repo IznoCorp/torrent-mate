@@ -91,7 +91,7 @@ function withTyped(values: Record<string, unknown>, typed: TypedByCriterion): Re
 export function RankingScreen(): ReactElement {
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
-  const { data: file, isPending, isError } = useRankingFile();
+  const { data: file, isPending, isError, error } = useRankingFile();
   const client = useQueryClient();
   const [typed, setTyped] = useState<TypedByCriterion>({});
   const [saving, setSaving] = useState(false);
@@ -152,7 +152,7 @@ export function RankingScreen(): ReactElement {
           <h1 className={factName()}>{t("screens.ranking.title")}</h1>
           {/* THE READ IN FLIGHT, OR FAILED, IS SAID — never an empty list standing for either. */}
           {isPending ? <Skeletons count={4} shape="card" /> : null}
-          {isError ? <SurfaceError subject={t("screens.ranking.errorSubject")} /> : null}
+          {isError ? <SurfaceError subject={t("screens.ranking.errorSubject")} failure={error ?? undefined} /> : null}
           {conflict ? (
             <div className={loadError()} data-part="load-error">
               <b>{t("screens.settings.conflictLead")}</b>

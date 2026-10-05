@@ -45,12 +45,12 @@ export function MaintenancePage(): ReactElement | null {
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
   // FROM THE CACHE (invariant 4).
-  const { data: MAINT_ACTIONS = [] } = useMaintenanceActions();
-  const { data: JOURNAL = { total: 0, rows: [] } } = useDeletionJournal();
+  const { data: MAINT_ACTIONS = [], error: actionsError } = useMaintenanceActions();
+  const { data: JOURNAL = { total: 0, rows: [] }, error: journalError } = useDeletionJournal();
 
   if (state.phase !== "ready") {
     return state.phase === "error" ? (
-      <SurfaceError subject={t("screens.maintenance.errorSubject")} />
+      <SurfaceError subject={t("screens.maintenance.errorSubject")} failure={actionsError ?? journalError ?? undefined} />
     ) : (
       <div className={section()} data-part="section"><Skeletons count={3} shape="card" /></div>
     );
