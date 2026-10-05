@@ -2128,7 +2128,7 @@ export interface components {
             id: string;
             role: components["schemas"]["Role"];
             signInKind: components["schemas"]["SignInKind"];
-            /** @description the account's language: the interface switches to it once the account is read, and its pushes are worded in it; `en` for an account that never chose (OPEN-2 B) */
+            /** @description the account's language: the interface switches to it once the account is read, and its pushes are worded in it; the project's configured language for an account that never chose (the operator, 2026-10-05) */
             language: components["schemas"]["Language"];
             /** @description THE INSTANCE'S forbidden writes (ruling 23): every write right on today's read-only instance, `library.delete` alone on the future preprod, empty on production. Read from the server, never guessed from an address. */
             forbiddenWrites: components["schemas"]["Right"][];
@@ -3056,7 +3056,7 @@ export interface components {
          */
         SignInKind: "owner" | "plex" | "local";
         /**
-         * @description THE LANGUAGE AN ACCOUNT IS SPOKEN TO IN — the interface's, on every device it signs in from, and its pushes' (the operator, 2026-10-03: FG-1 B, FG-2 A). An account's own setting, never a device's. When nothing names one, it is English (OPEN-2 B): a new account — created in « Comptes » or on its first Plex sign-in — starts at `en` until it chooses in Profil.
+         * @description THE LANGUAGE AN ACCOUNT IS SPOKEN TO IN — the interface's, on every device it signs in from, and its pushes' (the operator, 2026-10-03: FG-1 B, FG-2 A). An account's own setting, never a device's. A new account — created in « Comptes » or on its first Plex sign-in — starts in the project's configured language until it chooses in Profil, and an account that existed before the field speaks `fr` (the operator, 2026-10-05); English only when the project configures none (OPEN-2 B).
          * @enum {string}
          */
         Language: "fr" | "en";

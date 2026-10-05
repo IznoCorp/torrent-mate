@@ -197,8 +197,9 @@ export function accountRoutes(): MockRoute[] {
         email,
         role: target.id,
         signInKind: linked ? "plex" : "local",
-        // NOTHING NAMES ITS LANGUAGE YET: English, until it chooses in Profil (OPEN-2 B).
-        language: "en",
+        // IT STARTS IN THE PROJECT'S CONFIGURED LANGUAGE until it chooses in Profil
+        // (the operator, 2026-10-05): the seeded setting, never a hard-coded one.
+        language: ACCOUNTS.configuredLanguage as HeldAccount["language"],
       };
       roster.addAccount(created);
       return summary(created);

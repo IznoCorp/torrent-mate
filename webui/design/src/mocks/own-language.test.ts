@@ -4,12 +4,14 @@
 // WHAT MAKES THIS NON-VACUOUS. Each leg asks the route the interface asks and reads the account
 // the layer answers next: the choice is the signed-in account's and no other's, it survives what a
 // reload does to the layer (a fresh state over the same tab), a reset forgets it, a value outside
-// the contract's `Language` is refused, and an account created in « Comptes » starts in English.
+// the contract's `Language` is refused, and an account created in « Comptes » starts in the project's
+// configured language (the operator, 2026-10-05).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { routes } from "./handlers";
 import { resolve } from "./router";
 import { resetMockState } from "./state";
 import { forgetChosenLanguages, identityDials, signedIn } from "./identity";
+import ACCOUNTS from "./seeds/accounts.json";
 
 type Answer = { status?: number; coded?: { code: string }; language?: string; id?: string };
 
@@ -83,10 +85,10 @@ describe("an account's own language", () => {
     expect(signedIn().language).toBe("fr");
   });
 
-  it("starts an account created in « Comptes » in English (OPEN-2 B)", () => {
+  it("starts an account created in « Comptes » in the project's configured language, French here", () => {
     const created = ask("POST", "/accounts", { name: "Nina", email: "nina@example.invalid", role: "local-guest",
       password: "A provisional one 1!" });
     identityDials.setIdentity(created.id!);
-    expect(signedIn().language).toBe("en");
+    expect([ACCOUNTS.configuredLanguage, signedIn().language]).toEqual(["fr", "fr"]);
   });
 });
