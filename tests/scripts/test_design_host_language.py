@@ -372,3 +372,24 @@ def test_the_manifest_follows_the_browser(language: str) -> None:
     document = json.loads(answer.body)
     assert document["lang"] == language
     assert document["description"] == CATALOGUES[language]["server"]["manifest"]["description"]
+
+
+@pytest.mark.parametrize(
+    ("header", "language"),
+    [("en-US,en;q=0.9", "en"), ("fr-FR,fr;q=0.9,en;q=0.8", "fr"), (None, "en")],
+)
+def test_the_v1_unreachable_page_follows_the_browser(
+    header: str | None, language: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The 503 a visitor meets when v1 is down is worded, and its ``lang`` set, in the visitor's language."""
+
+    def down(_: str | None) -> tuple[bool, str]:
+        raise SERVE.v1_door.V1Unreachable("v1 did not answer")
+
+    monkeypatch.setattr(SERVE.v1_door, "check_session", down)
+    answer = _answer("/", header)
+    page, words = answer.body.decode(), CATALOGUES[language]["server"]["v1Unreachable"]
+    assert answer.status == 503
+    assert f'<html lang="{language}">' in page
+    for key in ("title", "heading", "body"):
+        assert words[key] in page

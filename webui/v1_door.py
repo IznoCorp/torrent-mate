@@ -434,7 +434,7 @@ def email_label(resource: str) -> str:
     return str(json.loads(resource)["screens"]["gate"]["email"])
 
 
-def unreachable_page(error: str, texts: dict[str, str]) -> bytes:
+def unreachable_page(error: str, texts: dict[str, str], language: str = "fr") -> bytes:
     """Returns the 503 served when the v1 door cannot ask v1.
 
     A visitor signing in meets it, so its words are the interface's
@@ -444,13 +444,14 @@ def unreachable_page(error: str, texts: dict[str, str]) -> bytes:
     Args:
         error: What v1 did, or did not, answer.
         texts: The `server.v1Unreachable` words: `title`, `heading`, `body`.
+        language: The language `texts` speaks, declared as the page's `lang`.
 
     Returns:
         A complete HTML document that names the server that did not answer,
         never the sign-in.
     """
     return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{html.escape(texts['title'], quote=False)}</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'

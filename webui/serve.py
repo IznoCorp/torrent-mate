@@ -671,13 +671,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except v1_door.V1Unreachable as down:
             # Never the sign-in page: it would send a signed-in person to a
             # door that cannot open, saying nothing about why.
+            language = request_language(self.headers.get("Accept-Language"))
             try:
-                texts = served_texts()["v1Unreachable"]
+                texts = served_texts(language)["v1Unreachable"]
             except (OSError, ValueError, KeyError) as unreadable:
                 # As `build_failure`: the last resort names the copy as what broke.
                 self._send(503, diagnostic_page(f"{down}\n\n{unreadable}"))
                 return
-            self._send(503, v1_door.unreachable_page(str(down), texts))
+            self._send(503, v1_door.unreachable_page(str(down), texts, language))
 
     def _get(self) -> None:
         """Answers a GET: the prototype to a session, the login screen otherwise."""
