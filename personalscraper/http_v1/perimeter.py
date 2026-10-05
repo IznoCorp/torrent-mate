@@ -15,9 +15,9 @@ from fastapi import Request
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.authorise import authorise
+from personalscraper.app.accounts.requirements import OPERATION_RIGHTS
 from personalscraper.app.accounts.rights import Public
 from personalscraper.app.errors import AppForbidden, AppInternalError, RefusalCode
-from personalscraper.http_v1.rights import OPERATION_RIGHTS
 from personalscraper.logger import get_logger
 
 log = get_logger("http_v1.perimeter")

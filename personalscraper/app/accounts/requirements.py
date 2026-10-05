@@ -1,5 +1,9 @@
 """The right every v1 operation asks for: one table, every contract operation, served or not.
 
+The table lives in the application layer, so the HTTP perimeter and the services read
+one source. Its keys are the contract's ``operationId`` names: plain strings, which
+give ``app/`` no dependency on HTTP.
+
 A lot never decides a right: it copies it from here. The source is the ``x-rights``
 the contract ``contract/openapi.json`` stamps on each operation;
 ``tests/http_v1/test_rights_table.py`` compares the two. Two ruled corrections to the

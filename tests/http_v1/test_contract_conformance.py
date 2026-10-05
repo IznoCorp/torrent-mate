@@ -46,11 +46,11 @@ from _repo_paths import CONTRACT, SERVED_CONTRACT
 from fastapi import APIRouter, FastAPI
 from pydantic import Field
 
+from personalscraper.app.accounts.requirements import OPERATION_RIGHTS
 from personalscraper.app.accounts.rights import Requirement, Right, SignedIn, holds
 from personalscraper.app.errors import RefusalCode
 from personalscraper.http_v1.app import _without_validation_answers, include_v1_router
 from personalscraper.http_v1.contract import PROBLEM_RESPONSES, ContractModel
-from personalscraper.http_v1.rights import OPERATION_RIGHTS
 from tests.http_v1.test_rights_table import _OVERRIDES, _requirement
 
 _CONTRACT: Final = CONTRACT
