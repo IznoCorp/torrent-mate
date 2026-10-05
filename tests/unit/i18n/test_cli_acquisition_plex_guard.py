@@ -16,7 +16,7 @@ from personalscraper.i18n import Language, t, use_language
 
 @pytest.mark.parametrize("language", [Language.FR, Language.EN])
 def test_no_token_line_comes_from_the_catalogue(monkeypatch: pytest.MonkeyPatch, language: Language) -> None:
-    """The « no Plex token » refusal is the catalogue's text, the same in both languages until translated."""
+    """The « no Plex token » refusal is the catalogue's text, each language shows its own text."""
     buffer = io.StringIO()
     monkeypatch.setitem(state, "console", Console(file=buffer, width=200, color_system=None))
     bundle = SimpleNamespace(indexer_conn=object(), settings=SimpleNamespace(plex_token=""))
@@ -28,4 +28,7 @@ def test_no_token_line_comes_from_the_catalogue(monkeypatch: pytest.MonkeyPatch,
     assert getattr(stopped.value, "exit_code", None) == 1
     expected = t("cli_acquisition.plex_guard.no_token", language=language)
     assert expected in buffer.getvalue()
-    assert "No Plex token configured" in expected
+    if language is Language.EN:
+        assert "No Plex token configured" in expected
+    else:
+        assert "Plex token" not in expected

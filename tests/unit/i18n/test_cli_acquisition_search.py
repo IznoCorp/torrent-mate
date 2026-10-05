@@ -25,7 +25,7 @@ runner = make_cli_runner()
 def test_dry_run_empty_queue_line_comes_from_the_catalogue(
     test_config: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, language: Language
 ) -> None:
-    """The « no pending wanted items » line is the catalogue's text, the same in both languages until translated."""
+    """The « no pending wanted items » line is the catalogue's text, each language shows its own text."""
     store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
     app_context = AppContext(
         config=MagicMock(),
@@ -53,4 +53,9 @@ def test_dry_run_empty_queue_line_comes_from_the_catalogue(
     assert result.exit_code == 0, result.output
     expected = t("cli_acquisition.search.dry_run_empty", language=language)
     assert expected in result.output
-    assert expected == "No pending wanted items."
+    if language is Language.EN:
+        assert expected == "No pending wanted items."
+    else:
+        # The French side is its own text (not the English one) and keeps the values the command passes.
+        assert expected != "No pending wanted items."
+        assert "wanted" in expected
