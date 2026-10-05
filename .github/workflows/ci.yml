@@ -518,7 +518,7 @@ jobs:
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           name: coverage
