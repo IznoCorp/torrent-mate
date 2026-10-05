@@ -20,14 +20,15 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.i18n import t
 
 
-@app.command("library-duplicates-by-id")
+@app.command("library-duplicates-by-id", help=t("cli_library.duplicates_by_id.command_help"))
 @handle_cli_errors
 def library_duplicates_by_id(
     ctx: typer.Context,
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.duplicates_by_id.config_help")),
+    db: Path | None = typer.Option(None, "--db", help=t("cli_library.duplicates_by_id.db_help")),
 ) -> None:
     """Report the provider ids held by two or more rows, or by one row over two media folders.
 
@@ -44,12 +45,12 @@ def library_duplicates_by_id(
     else:
         cfg = ctx.obj.config if ctx.obj is not None else load_config(config)
         if cfg.indexer.db_path is None:
-            typer.echo("indexer.db_path is not configured", err=True)
+            typer.echo(t("cli_library.duplicates_by_id.db_path_not_configured"), err=True)
             raise typer.Exit(code=1)
         db_path = Path(cfg.indexer.db_path)
 
     if not db_path.exists():
-        typer.echo(f"Database not found: {db_path}", err=True)
+        typer.echo(t("cli_library.duplicates_by_id.db_not_found", path=str(db_path)), err=True)
         raise typer.Exit(code=1)
 
     conn = _sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)

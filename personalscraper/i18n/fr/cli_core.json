@@ -1,1 +1,207 @@
-{}
+{
+  "app": {
+    "help": "PersonalScraper — Automatisation du pipeline média.",
+    "config_help": "Commandes de gestion de la configuration."
+  },
+  "helpers": {
+    "config_error_label": "Erreur de configuration :",
+    "unknown_category": "Catégorie inconnue « {{category}} ». Identifiants valides : {{valid_ids}}.",
+    "unknown_category_with_aliases": "Catégorie inconnue « {{category}} ». Identifiants valides : {{valid_ids}}. Alias : {{aliases}}.",
+    "error_line": "Erreur : {{message}}"
+  },
+  "main": {
+    "verbose_help": "Active les journaux DEBUG",
+    "quiet_help": "Supprime la sortie console",
+    "version_help": "Affiche la version et quitte",
+    "format_help": "Format de sortie : rich (par défaut), plain ou json.",
+    "config_help": "Chemin d'un répertoire de configuration découpée (contenant config.json5 et ses surcouches). Prime sur ./config/ et $PERSONALSCRAPER_CONFIG. À placer AVANT la sous-commande.",
+    "help": "PersonalScraper — Automatisation du pipeline média.",
+    "invalid_format": "--format « {{value}} » invalide. Choisissez rich, plain ou json.",
+    "config_error": "Erreur de configuration : {{error}}"
+  },
+  "config": {
+    "migrate_category": {
+      "help": "Réécrit media_item.category_id pour les catégories renommées.\n\nRéécrit chaque ligne ``media_item`` dont ``category_id`` vaut ``--from``\nen ``--to``.  À lancer après le renommage d'une catégorie dans ``categories.json5``\npour nettoyer les lignes orphelines signalées par ``library status``.\n\nLa cible ``--to`` doit déjà être un identifiant de catégorie déclaré dans la\nconfiguration courante (le renommage doit être appliqué d'abord).  L'opération est idempotente.\n\nExemples :\n    personalscraper config migrate-category --from old_cat --to new_cat",
+      "from_help": "Ancien category_id à remplacer",
+      "to_help": "Nouveau category_id à écrire (doit être déclaré dans la configuration)",
+      "config_help": "Chemin de config.json5 ou du répertoire de configuration"
+    },
+    "init_config": {
+      "help": "Crée ./config/ à partir du répertoire modèle config.example/.\n\nSans argument, le mode est interactif (demande les valeurs clés).\nAvec --yes, toutes les questions sont ignorées et les défauts acceptés.\nAvec --dry-run, affiche ce qui serait créé sans rien écrire.\n\nExemples :\n    personalscraper init-config\n    personalscraper init-config --yes\n    personalscraper init-config --output /custom/path/config --force\n    personalscraper init-config --dry-run",
+      "example_help": "Chemin du répertoire modèle à copier.",
+      "output_help": "Chemin de destination du nouveau répertoire de configuration.",
+      "yes_help": "Ignore les questions interactives et accepte tous les défauts.",
+      "force_help": "Écrase le répertoire de sortie s'il existe déjà.",
+      "dry_run_help": "Mode aperçu : montre ce qui serait créé sans écrire aucun fichier. Vérifie que config.example/ existe et indique le chemin cible.",
+      "sync_help": "Synchronisation additive de config.example vers la configuration canonique (non destructive).",
+      "sync_force_exclusive": "Erreur : --sync et --force sont mutuellement exclusifs.",
+      "canonical_not_found": "Erreur : répertoire de configuration canonique introuvable : {{output}}\nFaites pointer ${{env_var}} vers votre répertoire de configuration, ou passez --output pour viser un autre emplacement.",
+      "target": "Configuration cible : {{output}}",
+      "dry_run_copy": "[DRY-RUN] Copierait {{example}} → {{output}}",
+      "dry_run_example_missing": "[DRY-RUN] ATTENTION : répertoire modèle introuvable : {{example}}",
+      "dry_run_exists": "[DRY-RUN] ATTENTION : {{output}} existe déjà ; utilisez --force pour l'écraser.",
+      "dry_run_none": "[DRY-RUN] Aucun fichier écrit."
+    }
+  },
+  "info": {
+    "help": "Affiche la version, les chemins de configuration et l'état des disques.\n\nLe format de sortie respecte l'option globale ``--format``\n(par ex. ``personalscraper --format json info``).\n\nExemples :\n    personalscraper info\n    personalscraper --format json info",
+    "providers": {
+      "help": "Affiche l'instantané de l'état du disjoncteur de chaque fournisseur du ProviderRegistry.\n\nSortie : une ligne par fournisseur configuré, au format :\n    {{name}}  circuit={{state}}  failures={{failures}}\n\nSort avec un code non nul si RegistryConfigError est levée pendant la validation\nau démarrage (identifiants manquants ou configuration cassée).",
+      "config_help": "Remplace config/providers.json5 par défaut pour la validation au démarrage.",
+      "line": "{{name}} circuit={{state}}  failures={{failures}}"
+    }
+  },
+  "schedule": {
+    "help": "Lance une commande personalscraper à chaque échéance d'une expression cron, indéfiniment.\n\nLa tâche est tout ce qui suit ``--`` : ``personalscraper schedule --cron '15 * * * *' -- health-check``.\nUne exécution à la fois, jamais lancée en avance, jamais coupée par un second déclenchement ; s'arrête sur SIGINT/SIGTERM.\n\nArguments :\n    ctx : contexte Typer ; ses arguments supplémentaires sont ceux de la tâche.\n    cron : l'expression cron à 5 champs.\n\nLève :\n    typer.Exit : code 2 quand l'expression est malformée ou qu'aucune tâche ne suit ``--``.",
+    "cron_help": "Expression cron à 5 champs, heure locale (par ex. '15 * * * *').",
+    "no_job": "schedule : aucune tâche donnée après '--'",
+    "error": "schedule : {{error}}"
+  },
+  "torrents": {
+    "no_client": "Aucun client torrent configuré (définissez torrent.active dans torrent.json5).",
+    "listing_failed_label": "Impossible de lister les torrents :",
+    "seeding": "en partage",
+    "idle": "inactif",
+    "row": "  {{state}} {{progress}}%  {{size}} Go  {{seeding}}  {{name}}",
+    "total_label": "Total :",
+    "total": "{{completed}} terminés (sur {{tracked}} torrents suivis)",
+    "list_help": "Liste les torrents terminés du client qBittorrent actif.\n\nAffiche une ligne par torrent terminé (état / progression / taille / partage / nom) et un total.\nSort avec le code 2 et un message clair quand le client torrent est injoignable (verrouillage\nd'authentification, IP bannie, démon arrêté), pour que les outils de supervision puissent brancher\nsur le code de sortie. Utilisé par l'inventaire GATE 0 du skill ``pipeline-monitor``.\n\nLe format de sortie respecte l'option globale ``--format``."
+  },
+  "watch": {
+    "disabled": "Le démon de surveillance est désactivé (config.watch.enabled=false).",
+    "no_client": "Aucun client torrent actif configuré (config.torrent.active est vide).",
+    "sentinel_written": "Sentinelle écrite : {{path}}",
+    "sentinel_consumed": "Consommée par le démon de surveillance au prochain cycle -> exécution du pipeline avec reason=manual ; si le démon est arrêté, la sentinelle reste jusqu'au prochain démarrage.",
+    "help": "Démarre le démon de surveillance (ordonnanceur à processus unique).\n\nInterroge le client torrent configuré à chaque cycle, consulte le moteur de décision\n:class:`~personalscraper.acquire.watcher.WatcherService`, et lance\n``personalscraper run --no-console`` (asynchrone, suivi) ou\n``personalscraper cross-seed --hash {{hash}}`` (synchrone, séquentiel) comme sous-processus.\nLe démon lui-même n'acquiert PAS ``pipeline.lock`` (W6) : seuls ses enfants le font.\n\nTourne jusqu'à SIGTERM, SIGINT ou une erreur fatale.",
+    "now_help": "Écrit le fichier sentinelle que le démon de surveillance consomme au prochain cycle.\n\nPas d'IPC, aucune dépendance au démon : s'il est arrêté, la sentinelle est consommée au prochain\ndémarrage. Même canal que la future interface web (W4).\n\nLe démon ``personalscraper watch`` en cours d'exécution détecte ce fichier au prochain cycle\nd'interrogation et déclenche une exécution du pipeline avec ``reason=manual``."
+  },
+  "health_check": {
+    "lookback_help": "Fenêtre des erreurs récentes.",
+    "max_run_help": "Âge d'un verrou tenu au-delà duquel il est jugé bloqué.",
+    "no_alert_help": "N'envoie pas l'alerte Telegram (vérification seule).",
+    "ok": "health-check : OK",
+    "anomalies": "health-check : ANOMALIES\n{{anomalies}}",
+    "help": "Vérifie la vivacité des démons, les erreurs récentes des journaux et un verrou bloqué ; alerte en cas d'anomalie.\n\nSort avec le code 0 quand tout va bien, 1 dès qu'une anomalie est trouvée (alerte Telegram envoyée sauf avec\n``--no-alert``). Prévu pour tourner sous PM2 avec une tâche cron horaire.\n\nArgs:\n    ctx: Contexte Typer portant la configuration chargée dans ``ctx.obj``.\n    lookback_minutes: Fenêtre d'analyse des erreurs récentes.\n    max_run_minutes: Âge du verrou au-delà duquel le pipeline est considéré bloqué.\n    no_alert: Supprime l'alerte Telegram (journalise et sort toujours avec un code non nul)."
+  },
+  "init_config": {
+    "example_missing": "Répertoire modèle introuvable : {{example}}",
+    "exists": "Le répertoire de configuration existe déjà dans {{output}}. Utilisez --force pour l'écraser.",
+    "created": "Répertoire de configuration créé dans {{output}}",
+    "next_steps": "Étapes suivantes :\n  1. Modifiez {{output}}/paths.json5 pour définir vos chemins\n  2. Modifiez {{output}}/disks.json5 pour configurer vos disques de stockage\n  3. Relisez {{output}}/metadata.json5 et {{output}}/torrent.json5 pour la configuration des API\n  4. Modifiez .env pour définir vos clés d'API (voir .env.example)\n  5. Lancez `personalscraper run` pour démarrer le pipeline",
+    "torrent_dir_prompt": "Répertoire des torrents terminés de qBittorrent",
+    "staging_dir_prompt": "Répertoire de transit",
+    "data_dir_prompt": "Répertoire de données (état du pipeline, base, verrous)",
+    "paths_written": "Chemins écrits dans {{path}}",
+    "disks_found": "{{disks}} disque(s) trouvé(s) dans le modèle. Questions sur les disques ignorées.",
+    "disks_edit": "Modifiez {{path}} directement pour configurer les disques de stockage.",
+    "no_disks": "Aucun disque configuré. Ajoutez-les dans disks.json5 avant de lancer le pipeline.",
+    "sync_dry_run": "[DRY-RUN] Synchroniserait {{example}} → {{target}}",
+    "syncing": "Synchronisation de {{example}} → {{target}}",
+    "error": "Erreur : {{error}}",
+    "up_to_date": "Aucune nouvelle clé ni aucun nouveau fichier à ajouter — la configuration est à jour.",
+    "conflicts": "\nConflits (vos valeurs sont conservées) :",
+    "would_add": "\nAjouterait {{items}} élément(s).",
+    "added": "\n{{items}} élément(s) ajouté(s).",
+    "git_commit_failed": "Attention : le commit git a échoué — la synchronisation a été appliquée mais n'est pas versionnée.",
+    "git_init_failed": "Attention : impossible d'initialiser le dépôt git pour le commit de synchronisation de la configuration.",
+    "git_tip": "Astuce : la configuration canonique est un dépôt git local. Relisez les changements avec :\n  git -C {{target}} diff"
+  },
+  "pipeline_run": {
+    "mode_dry_run": "DRY-RUN",
+    "mode_live": "RÉEL",
+    "banner": "Pipeline PersonalScraper",
+    "duration_minutes": "{{minutes}} min {{seconds}} s",
+    "duration_seconds": "{{seconds}} s",
+    "column_step": "Étape",
+    "column_ok": "OK",
+    "column_skip": "Ignorés",
+    "column_err": "Err",
+    "status_ok": "OK",
+    "status_errors": "ERREURS",
+    "panel_title": "Pipeline {{status}} — {{duration}}",
+    "summary_ok": "{{number}} OK",
+    "summary_skip": "{{number}} ignoré(s)",
+    "summary_err": "{{number}} err",
+    "nothing_to_do": "rien à faire",
+    "step_summary": "   {{summary}} ({{elapsed}})",
+    "fatal": "FATAL : {{error_class}} : {{error_message}}",
+    "item_progress": "{{step}} : {{item}} — {{status}}"
+  },
+  "step": {
+    "ingest": "ingestion",
+    "sort": "tri",
+    "clean": "nettoyage",
+    "scrape": "scraping",
+    "cleanup": "élagage",
+    "enforce": "conformité",
+    "verify": "vérification",
+    "trailers": "bandes-annonces",
+    "dispatch": "dispatch"
+  },
+  "pipeline": {
+    "run_help": "Lance le pipeline complet ({{steps}}).",
+    "counts": "{{ok}} OK, {{skipped}} ignoré(s), {{errors}} erreur(s)",
+    "check_fixable": "corrigeable",
+    "check_indexable": "indexable",
+    "check_row": "  {{name}} [{{group}}] {{severity}} {{fixable}} {{indexable}} {{description}}",
+    "step_label": "{{step}} :",
+    "unknown_dispatch_check": "Contrôle(s) inconnu(s) : {{unknown}}. Contrôles de dispatch disponibles : {{available}}",
+    "unknown_staging_check": "Contrôle(s) inconnu(s) : {{unknown}}. Contrôles de transit disponibles : {{available}}",
+    "verify_counts": "{{ok}} OK, {{blocked}} bloqué(s)",
+    "verify_ready": "  {{ready}} prêt(s) pour le dispatch",
+    "enforce_counts": "Conformité : {{fixed}} corrigé(s), {{ok}} OK, {{errors}} erreur(s)",
+    "cleanup_counts": "{{removed}} supprimé(s)",
+    "clean_failed": "Échec du nettoyage : {{error_class}} : {{error}}",
+    "cleanup_failed": "Échec de l'élagage : {{error_class}} : {{error}}",
+    "process_failed": "Échec du traitement : {{error_class}} : {{error}}",
+    "trigger_reason_invalid": "Doit valoir l'un de : {{allowed}} (reçu « {{value}} »)",
+    "another_instance": "Une autre instance est en cours. Sortie.",
+    "aborted": "ABANDON : {{reason}}",
+    "opt": {
+      "dry_run_moving": "Aperçu sans déplacer",
+      "dry_run_writing": "Aperçu sans écrire",
+      "dry_run_modifying_files": "Aperçu sans modifier les fichiers",
+      "dry_run_modifying": "Aperçu sans modifier",
+      "dry_run_deleting": "Aperçu sans supprimer",
+      "dry_run_full": "Aperçu du pipeline complet",
+      "interactive": "Demande confirmation pour les correspondances ambiguës",
+      "movies_only": "Ne traite que les films",
+      "tvshows_only": "Ne traite que les séries",
+      "check": "N'exécute que le ou les contrôles nommés ; répétable",
+      "list_checks": "Liste les contrôles disponibles et quitte",
+      "no_post_maintenance": "Ignore la maintenance automatique de l'index après le dispatch (scan/relink/fix).",
+      "skip_trailers": "Ignore l'étape des bandes-annonces pour cette invocation.",
+      "continue_on_trailer_error": "N'interrompt pas le dispatch quand l'étape des bandes-annonces échoue.",
+      "headless": "S'exécute sans abonné (mode silencieux pour cron / CI). Désactive la sortie console Rich et les notifications Telegram.",
+      "no_console": "Désactive la sortie console Rich (barres de progression, tableaux dynamiques). Les notifications Telegram restent actives. Utilisé par le démon de surveillance (``personalscraper watch``) quand il lance des exécutions du pipeline ; à opposer à ``--headless`` qui désactive Rich et Telegram. Si les deux sont passés, ``--headless`` l'emporte.",
+      "trigger_reason": "Défini par le démon de surveillance pour attribuer cette exécution."
+    },
+    "ingest": {
+      "help": "Ingère les torrents terminés de qBittorrent."
+    },
+    "sort": {
+      "help": "Trie et nettoie les fichiers média."
+    },
+    "scrape": {
+      "help": "Récupère les métadonnées et les visuels depuis TMDB/TVDB."
+    },
+    "verify": {
+      "help": "Vérifie et qualifie les médias récupérés avant le dispatch.\n\nLe listing ``--list-checks`` et la validation d'un ``--check`` inconnu s'exécutent\n{{marker}}avant{{marker}} tout échafaudage de verrou/journal — un simple listing ou une erreur d'argument\nne doit ni prendre ``pipeline.lock`` ni écrire une ligne ``pipeline_run``. Une fois\nles arguments acceptés, le vrai travail s'exécute dans l'échafaudage partagé\n:func:`~personalscraper.cli_helpers.boundary` via\n:func:`_verify_run`."
+    },
+    "enforce": {
+      "help": "Applique les conventions du transit : assainit les noms de fichiers, valide la structure, vérifie la cohérence.\n\n``--list-checks`` et la validation d'un ``--check`` inconnu s'exécutent {{marker}}avant{{marker}} l'échafaudage\nde verrou/journal (ils ne doivent ni prendre ``pipeline.lock`` ni journaliser une\nexécution) ; le chemin à arguments acceptés exécute le vrai travail dans l'échafaudage\npartagé :func:`~personalscraper.cli_helpers.boundary` via :func:`_enforce_run`."
+    },
+    "dispatch": {
+      "help": "Déplace les médias vers les disques de stockage."
+    },
+    "clean": {
+      "help": "Exécute seulement reclean + dedup (sous-étape du traitement, SH-21 / AR-C).\n\nSurface CLI autonome autour de :func:`personalscraper.process.run.run_clean`.\nUtile pour déboguer la sous-étape de nettoyage isolément et pour composer avec\nd'autres gestes de l'opérateur (par ex. un passage de nettoyage à blanc avant de lancer\nl'étape de traitement complète). Le pipeline complet appelle toujours ``run_clean``\nen interne via ``run_process`` — cette commande ne change pas ce flux."
+    },
+    "cleanup": {
+      "help": "Exécute seulement l'élagage des répertoires vides (sous-étape du traitement, SH-21 / AR-C).\n\nSurface CLI autonome autour de :func:`personalscraper.process.run.run_cleanup`.\nSupprime les répertoires vides laissés par les étapes précédentes. Distinct de\n``clean`` (qui nettoie et dédoublonne les noms de dossiers pollués) ; cette\ncommande ne touche que les répertoires vides. Utile pour ranger le transit\nentre deux interventions manuelles de l'opérateur. Le pipeline complet appelle toujours\n``run_cleanup`` en interne via ``run_process`` — cette commande ne change pas ce flux."
+    },
+    "process": {
+      "help": "Exécute seulement la phase de traitement (reclean + dedup + scrape + cleanup)."
+    }
+  }
+}

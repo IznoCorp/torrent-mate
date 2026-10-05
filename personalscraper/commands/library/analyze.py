@@ -11,26 +11,24 @@ from personalscraper import cli_helpers
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
 
 
-@app.command()
+@app.command(help=t("cli_library.analyze.analyze_help", disk_id="<disk_id>", bold="**"))
 @handle_cli_errors
 @boundary(needs="config", staging=False)
 def library_analyze(
     ctx: typer.Context,
-    disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
-    category: str = typer.Option(None, "--category", help="Analyze only this category"),
-    max_items: int = typer.Option(None, "--max-items", help="Limit number of items to analyze"),
+    disk: str = typer.Option(None, "--disk", help=t("cli_library.analyze.disk_help")),
+    category: str = typer.Option(None, "--category", help=t("cli_library.analyze.category_help")),
+    max_items: int = typer.Option(None, "--max-items", help=t("cli_library.analyze.max_items_help")),
     from_index: bool = typer.Option(
         True,
         "--from-index/--no-from-index",
-        help=(
-            "Deprecated no-op: analysis always reads enrich-populated streams from "
-            "the indexer DB. Kept for back-compat; the flag has no effect."
-        ),
+        help=t("cli_library.analyze.from_index_help"),
     ),
     *,
     bundle: CommandContext,
@@ -69,7 +67,7 @@ def library_analyze(
     console = state["console"]
     config = ctx.obj.config
 
-    console.print("[bold]Analyzing library (from index)...[/bold]")
+    console.print("[bold]" + t("cli_library.analyze.analyzing") + "[/bold]")
     db_path = config.indexer.db_path
     migrations_dir = Path(_migrations_pkg.__file__).parent
     conn: sqlite3.Connection = open_db(db_path, event_bus=bundle.event_bus)
@@ -94,38 +92,40 @@ def library_analyze(
             profile = media_file.audio_profile or "unknown"
             audio_counts[profile] = audio_counts.get(profile, 0) + 1
 
-    console.print(f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files")
+    console.print(
+        "[green]"
+        + t("cli_library.analyze.analysis_complete_label")
+        + "[/green] "
+        + t("cli_library.analyze.analysis_counts", items=result.item_count, files=result.file_count)
+    )
     if result.item_count == 0:
         # No enriched media streams in the DB. The most common cause is that
         # ``library-index --mode enrich`` was never run (Stage A only), so the
         # ``media_stream`` rows the analysis reads do not exist yet. Surface an
         # explicit hint (mirrors the ``library_report`` no-data guidance)
         # instead of leaving the operator with a silent "0 items, 0 files".
-        console.print("[yellow]No enriched media streams found — run 'library-index --mode enrich' first.[/yellow]")
+        console.print("[yellow]" + t("cli_library.analyze.no_enriched_streams") + "[/yellow]")
     if codec_counts:
         codecs = ", ".join(f"{c}={n}" for c, n in sorted(codec_counts.items(), key=lambda kv: -kv[1]))
-        console.print(f"  Codecs: {codecs}")
+        console.print(t("cli_library.analyze.codecs_line", codecs=codecs))
     if audio_counts:
         audio = ", ".join(f"{p}={n}" for p, n in sorted(audio_counts.items(), key=lambda kv: -kv[1]))
-        console.print(f"  Audio profiles: {audio}")
+        console.print(t("cli_library.analyze.audio_profiles_line", profiles=audio))
 
 
-@app.command()
+@app.command(help=t("cli_library.analyze.recommend_help"))
 @handle_cli_errors
 @boundary(needs="config", staging=False)
 def library_recommend(
     ctx: typer.Context,
-    sort: str = typer.Option("priority", "--sort", help="Sort by: priority, size, codec"),
-    export: str = typer.Option(None, "--export", help="Export format: csv"),
-    disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
-    category: str = typer.Option(None, "--category", help="Filter to this category"),
+    sort: str = typer.Option("priority", "--sort", help=t("cli_library.analyze.sort_help")),
+    export: str = typer.Option(None, "--export", help=t("cli_library.analyze.export_help")),
+    disk: str = typer.Option(None, "--disk", help=t("cli_library.analyze.filter_disk_help")),
+    category: str = typer.Option(None, "--category", help=t("cli_library.analyze.filter_category_help")),
     from_index: bool = typer.Option(
         True,
         "--from-index/--no-from-index",
-        help=(
-            "Deprecated no-op: recommendations always read enrich-populated streams "
-            "from the indexer DB. Kept for back-compat; the flag has no effect."
-        ),
+        help=t("cli_library.analyze.recommend_from_index_help"),
     ),
     *,
     bundle: CommandContext,
@@ -167,10 +167,12 @@ def library_recommend(
     # Validate --sort parameter
     valid_sorts = {"priority", "size", "codec"}
     if sort not in valid_sorts:
-        console.print(f"[red]Invalid --sort value '{sort}'. Valid: {', '.join(sorted(valid_sorts))}[/red]")
+        console.print(
+            "[red]" + t("cli_library.analyze.invalid_sort", value=sort, valid=", ".join(sorted(valid_sorts))) + "[/red]"
+        )
         raise typer.Exit(1)
 
-    console.print("[bold]Analyzing library (from index)...[/bold]")
+    console.print("[bold]" + t("cli_library.analyze.analyzing") + "[/bold]")
     db_path = config.indexer.db_path
     migrations_dir = Path(_migrations_pkg.__file__).parent
     conn: sqlite3.Connection = open_db(db_path, event_bus=bundle.event_bus)
@@ -188,7 +190,7 @@ def library_recommend(
         # Same no-enrich guidance as ``library-analyze``: recommendations are
         # derived from enriched media streams, so an empty analysis means
         # ``library-index --mode enrich`` has not populated ``media_stream``.
-        console.print("[yellow]No enriched media streams found — run 'library-index --mode enrich' first.[/yellow]")
+        console.print("[yellow]" + t("cli_library.analyze.no_enriched_streams") + "[/yellow]")
 
     # Use preferences from config.library (no separate file).
     prefs = config.library
@@ -242,27 +244,32 @@ def library_recommend(
                         "; ".join(r.reasons),
                     ]
                 )
-        console.print(f"[green]CSV exported:[/green] {csv_path}")
+        console.print("[green]" + t("cli_library.analyze.csv_exported_label") + "[/green] " + str(csv_path))
 
     console.print(
-        f"[green]Recommendations:[/green] {result.total_recommendations} items, "
-        f"~{result.estimated_total_savings_gb:.1f} GB potential savings → {output_path}"
+        "[green]"
+        + t("cli_library.analyze.recommendations_label")
+        + "[/green] "
+        + t(
+            "cli_library.analyze.recommendations_summary",
+            items=result.total_recommendations,
+            savings=f"{result.estimated_total_savings_gb:.1f}",
+            path=output_path,
+        )
     )
 
 
-@app.command()
+@app.command(help=t("cli_library.analyze.rescrape_help", disk_id="<disk_id>"))
 @handle_cli_errors
 def library_rescrape(
     ctx: typer.Context,
-    only: str = typer.Option(None, "--only", help="Only fix: nfo, artwork, episodes"),
-    disk: str = typer.Option(None, "--disk", help="Rescrape only this disk"),
-    category: str = typer.Option(None, "--category", help="Rescrape only this category"),
-    interactive: bool = typer.Option(False, "--interactive", help="Confirm low-confidence matches"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
-    max_items: int = typer.Option(None, "--max-items", help="Limit number of items to process"),
-    item_id: int = typer.Option(
-        None, "--item-id", help="Re-scrape exactly this item by DB id, bypassing the needs-rescrape predicate."
-    ),  # noqa: E501
+    only: str = typer.Option(None, "--only", help=t("cli_library.analyze.only_help")),
+    disk: str = typer.Option(None, "--disk", help=t("cli_library.analyze.rescrape_disk_help")),
+    category: str = typer.Option(None, "--category", help=t("cli_library.analyze.rescrape_category_help")),
+    interactive: bool = typer.Option(False, "--interactive", help=t("cli_library.analyze.interactive_help")),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_library.analyze.dry_run_help")),
+    max_items: int = typer.Option(None, "--max-items", help=t("cli_library.analyze.max_items_rescrape_help")),
+    item_id: int = typer.Option(None, "--item-id", help=t("cli_library.analyze.item_id_help")),
 ) -> None:
     """Targeted re-scrape of library items via TMDB/TVDB.
 
@@ -295,11 +302,11 @@ def library_rescrape(
     )
 
 
-@app.command()
+@app.command(help=t("cli_library.analyze.rescrape_item_help"))
 @handle_cli_errors
 def library_rescrape_item(
     ctx: typer.Context,
-    item_id: int = typer.Argument(..., help="The indexer DB id of the item to re-scrape."),
+    item_id: int = typer.Argument(..., help=t("cli_library.analyze.rescrape_item_id_help")),
 ) -> None:
     """Re-scrape exactly one library item via TMDB/TVDB, live.
 
@@ -367,14 +374,16 @@ def _rescrape(
 
     valid_only = {"nfo", "artwork", "episodes"}
     if only and only not in valid_only:
-        console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
+        console.print(
+            "[red]" + t("cli_library.analyze.invalid_only", value=only, valid=", ".join(sorted(valid_only))) + "[/red]"
+        )
         raise typer.Exit(1)
 
     # Guard: --item-id requires a configured and reachable indexer DB.
     if item_id is not None:
         db_path = config.indexer.db_path
         if not db_path.exists():
-            console.print(f"[red]Indexer DB not found at {db_path}; run `library-index` first.[/red]")
+            console.print("[red]" + t("cli_library.analyze.indexer_db_missing", path=db_path) + "[/red]")
             raise typer.Exit(1)
 
     if not dry_run:
@@ -383,12 +392,16 @@ def _rescrape(
             cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
             # Exit 3 = lock busy (the maintenance runner re-queues on this code).
-            console.print("[red]Another instance is running. Exiting.[/red]")
+            console.print("[red]" + t("cli_library.analyze.lock_busy") + "[/red]")
             raise typer.Exit(3)
 
     try:
-        mode = "[bold yellow]DRY-RUN[/bold yellow]" if dry_run else "[bold green]LIVE[/bold green]"
-        console.print(f"[bold]Rescraping library ({mode})...[/bold]")
+        mode = (
+            "[bold yellow]" + t("cli_library.analyze.mode_dry_run") + "[/bold yellow]"
+            if dry_run
+            else "[bold green]" + t("cli_library.analyze.mode_live") + "[/bold green]"
+        )
+        console.print("[bold]" + t("cli_library.analyze.rescraping", mode=mode) + "[/bold]")
 
         from contextlib import nullcontext  # noqa: PLC0415
 
@@ -424,7 +437,7 @@ def _rescrape(
                     IndexerDiskFullError,
                     IndexerMigrationError,
                 ) as exc:
-                    console.print(f"[red]Failed to open indexer DB:[/red] {exc}")
+                    console.print("[red]" + t("cli_library.analyze.open_failed_label") + "[/red] " + str(exc))
                     if conn is not None:
                         conn.close()
                     raise typer.Exit(1) from exc
@@ -446,7 +459,7 @@ def _rescrape(
             except ValueError as exc:
                 # Mutual-exclusion error from _collect_rescrape_candidates
                 # (item_id combined with disk/category filter).
-                console.print(f"[red]Invalid combination of options:[/red] {exc}")
+                console.print("[red]" + t("cli_library.analyze.invalid_combination_label") + "[/red] " + str(exc))
                 raise typer.Exit(1) from exc
             finally:
                 if conn is not None:
@@ -459,7 +472,13 @@ def _rescrape(
             # present) legitimately produces 0 work and must NOT be reported as
             # not-found. Soft-skips in the bulk path are intentional.
             if item_id is not None and result.candidate_count == 0:
-                console.print(f"[yellow]Warning:[/yellow] item {item_id} not found / not on disk — nothing re-scraped.")
+                console.print(
+                    t(
+                        "cli_library.analyze.item_not_found",
+                        label="[yellow]" + t("cli_library.analyze.warning_label") + "[/yellow]",
+                        item_id=item_id,
+                    )
+                )
                 raise typer.Exit(1)
 
             if run_rec is not None:
@@ -474,11 +493,15 @@ def _rescrape(
                 )
 
         total = result.fixed_count + result.skipped_count + result.error_count
-        summary = (
-            f"[green]Fixed:[/green] {result.fixed_count}  "
-            f"[yellow]Skipped:[/yellow] {result.skipped_count}  "
-            f"[red]Errors:[/red] {result.error_count}  "
-            f"(total: {total})"
+        summary = t(
+            "cli_library.analyze.rescrape_summary",
+            fixed_label="[green]" + t("cli_library.analyze.fixed_label") + "[/green]",
+            fixed=result.fixed_count,
+            skipped_label="[yellow]" + t("cli_library.analyze.skipped_label") + "[/yellow]",
+            skipped=result.skipped_count,
+            errors_label="[red]" + t("cli_library.analyze.errors_label") + "[/red]",
+            errors=result.error_count,
+            total=t("cli_library.analyze.total", total=total),
         )
         if write_report:
             output_path = config.paths.data_dir / "library_rescrape.json"
@@ -490,7 +513,7 @@ def _rescrape(
             cli_helpers.release_lock()
 
 
-@app.command()
+@app.command(help=t("cli_library.analyze.report_help"))
 @handle_cli_errors
 @boundary(needs="config", staging=False)
 def library_report(
@@ -529,7 +552,9 @@ def library_report(
                 return read_json(path)
             except (OSError, ValueError) as exc:
                 log.warning("report_data_load_failed", file=name, error=str(exc))
-                console.print(f"[yellow]Warning: {name} corrupted ({exc}), skipping.[/yellow]")
+                console.print(
+                    "[yellow]" + t("cli_library.analyze.report_data_corrupted", name=name, error=str(exc)) + "[/yellow]"
+                )
                 return None
         return None
 
@@ -547,10 +572,10 @@ def library_report(
             conn.close()
         except Exception as exc:
             log.warning("report_indexer_query_failed", error=str(exc))
-            console.print(f"[yellow]Warning: indexer DB query failed ({exc}), skipping analysis.[/yellow]")
+            console.print("[yellow]" + t("cli_library.analyze.report_query_failed", error=str(exc)) + "[/yellow]")
 
     if not any([analysis_result, validation_data, recommendation_data, rescrape_data]):
-        emit("No library data found. Run library-index first.")
+        emit(t("cli_library.analyze.no_library_data"))
         raise typer.Exit(1)
 
     # Get live disk free space

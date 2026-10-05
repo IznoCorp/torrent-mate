@@ -12,6 +12,7 @@ from _repo_paths import DESIGN_SRC
 
 from personalscraper.app.errors import RefusalCode
 from personalscraper.i18n import Language, _catalogue
+from personalscraper.insights.reporter import AudioProfile, RecommendationPriority, ScanIssue, ValidationFinding
 from personalscraper.pipeline_step_codes import StepCode
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -20,7 +21,14 @@ _FRONTEND_FR = DESIGN_SRC / "i18n" / "fr.json"
 
 # Namespace -> the closed StrEnum whose members are looked up with ``t_code``. A phase that adds
 # a coded namespace declares the pair here and ships a key per member.
-CODE_SETS: dict[str, type[StrEnum]] = {"cli_refusals": RefusalCode, "cli_core.step": StepCode}
+CODE_SETS: dict[str, type[StrEnum]] = {
+    "cli_refusals": RefusalCode,
+    "cli_core.step": StepCode,
+    "cli_library.issue": ScanIssue,
+    "cli_library.validation": ValidationFinding,
+    "cli_library.reporter.audio": AudioProfile,
+    "cli_library.reporter.priority": RecommendationPriority,
+}
 
 _MARKUP = ("**", "<", "[/", "[bold", "[cyan", "[red", "[green", "[yellow", "[dim")
 
@@ -274,5 +282,54 @@ def test_the_orphan_check_flags_a_key_nothing_references() -> None:
     sources = ['t("cli_core.main.invalid_format", value="x")']
     orphans = _orphan_keys("cli_core", sources, set())
     assert "cli_core.main.invalid_format" not in orphans
-    assert "cli_core.pipeline.label_ingest" in orphans
+    assert "cli_core.pipeline.step_label" in orphans
     assert "cli_core.step.ingest" not in _orphan_keys("cli_core", sources, _coded_keys())
+
+
+# The values that read the same in both languages on purpose: an acronym or status word the two
+# languages share, a name of a step, or a pure format line made of placeholders. Every other
+# ``cli_core`` / ``cli_trailers`` / ``cli_web`` French value must differ from its English one.
+_IDENTICAL_IN_BOTH_LANGUAGES: dict[str, frozenset[str]] = {
+    "cli_core": frozenset(
+        {
+            "info.providers.line",
+            "pipeline_run.mode_dry_run",
+            "pipeline_run.column_ok",
+            "pipeline_run.column_err",
+            "pipeline_run.status_ok",
+            "pipeline_run.panel_title",
+            "pipeline_run.summary_ok",
+            "pipeline_run.summary_err",
+            "pipeline_run.step_summary",
+            "step.dispatch",
+            "pipeline.check_indexable",
+            "pipeline.check_row",
+        }
+    ),
+    "cli_trailers": frozenset({"column.type"}),
+    "cli_web": frozenset(),
+}
+
+
+def test_cli_catalogues_are_translated_not_copied() -> None:
+    """``cli_core``, ``cli_trailers``, ``cli_web``: every French value is non-empty and differs from its English one.
+
+    A French value left equal to its English source is an untranslated key; only the named
+    exceptions above may read the same in both languages, and each of them must still be identical
+    (an exception that has since been translated must leave the list).
+    """
+    problems: list[str] = []
+    for namespace, exceptions in _IDENTICAL_IN_BOTH_LANGUAGES.items():
+        fr = _catalogue.flatten(_read("fr", namespace))
+        en = _catalogue.flatten(_read("en", namespace))
+        for key, french in fr.items():
+            if not french.strip():
+                problems.append(f"{namespace}.{key}: empty French value")
+            elif key in en and french == en[key] and key not in exceptions:
+                problems.append(f"{namespace}.{key}: French value equals the English one")
+        problems += [
+            f"{namespace}.{key}: listed as identical but differs"
+            for key in sorted(exceptions)
+            if fr.get(key) != en.get(key) or key not in fr
+        ]
+    assert not problems, "\n".join(problems)

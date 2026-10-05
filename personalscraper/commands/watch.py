@@ -642,7 +642,7 @@ def _reap_tracked_run(
     return state, None
 
 
-@command_with_telemetry("watch")
+@command_with_telemetry("watch", help=t("cli_core.watch.help", hash="<H>"))
 @handle_cli_errors
 def watch(ctx: typer.Context) -> None:
     """Start the watcher daemon (single-process scheduler).
@@ -770,7 +770,7 @@ def watch(ctx: typer.Context) -> None:
         log.info("watcher_shutdown_complete")
 
 
-@command_with_telemetry("watch-now")
+@command_with_telemetry("watch-now", help=t("cli_core.watch.now_help"))
 @handle_cli_errors
 def watch_now(ctx: typer.Context) -> None:
     """Write the sentinel file that the watcher daemon consumes next cycle.
