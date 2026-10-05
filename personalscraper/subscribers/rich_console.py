@@ -7,7 +7,6 @@ snapshot ``tests/snapshots/rich_console_canonical.txt``.
 
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -24,23 +23,10 @@ from personalscraper.pipeline_events import (
     StepErrored,
     StepStarted,
 )
+from personalscraper.pipeline_step_codes import StepCode
 
 if TYPE_CHECKING:
     from personalscraper.models import PipelineReport, StepReport
-
-
-class PipelineStep(StrEnum):
-    """The nine pipeline steps, the closed code set behind ``cli_core.step`` (their words in the catalogue)."""
-
-    INGEST = "ingest"
-    SORT = "sort"
-    CLEAN = "clean"
-    SCRAPE = "scrape"
-    CLEANUP = "cleanup"
-    ENFORCE = "enforce"
-    VERIFY = "verify"
-    TRAILERS = "trailers"
-    DISPATCH = "dispatch"
 
 
 def _step_word(step: str) -> str:
@@ -50,10 +36,10 @@ def _step_word(step: str) -> str:
         step: The step identifier carried by the pipeline events.
 
     Returns:
-        The catalogue word for a :class:`PipelineStep`, else the identifier unchanged.
+        The catalogue word for a :class:`StepCode`, else the identifier unchanged.
     """
     try:
-        return t_code("cli_core.step", PipelineStep(step))
+        return t_code("cli_core.step", StepCode(step))
     except ValueError:
         return step
 

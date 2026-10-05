@@ -9,6 +9,7 @@ English. A module that still prints a literal prints the same bytes in both lang
 
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 from collections.abc import Callable, Iterator
@@ -27,6 +28,8 @@ from personalscraper import i18n
 from personalscraper.cli import app
 from personalscraper.cli_state import state
 from personalscraper.i18n import Language, t, use_language
+from personalscraper.pipeline_step_codes import StepCode
+from personalscraper.pipeline_steps import DEFAULT_STEPS
 
 _PREFIX = "FR|"
 _PREFIXED_NAMESPACES = ("cli_core", "cli_trailers")
@@ -95,15 +98,22 @@ def test_main_callback_refuses_an_unknown_format_in_the_current_language(marked_
     _says(produce, "Invalid --format 'xml'. Choose rich, plain, or json.")
 
 
-def test_app_help_is_a_catalogue_text() -> None:
-    """``cli_app.py``: both Typer groups take their help from the catalogue (read at import)."""
-    from personalscraper.cli_app import app as shared_app
-    from personalscraper.cli_app import config_app
+def _help_values(relative: str) -> list[ast.expr]:
+    """The value of every ``help=`` keyword in a package module, read from its source."""
+    tree = ast.parse((Path(i18n.__file__).parents[1] / relative).read_text(encoding="utf-8"))
+    return [kw.value for node in ast.walk(tree) if isinstance(node, ast.Call) for kw in node.keywords if kw.arg == "help"]
 
-    assert shared_app.info.help == t("cli_core.app.help", language=Language.EN)
-    assert config_app.info.help == t("cli_core.app.config_help", language=Language.EN)
-    for key in ("cli_core.app.help", "cli_core.app.config_help"):
-        assert t(key, language=Language.FR) == t(key, language=Language.EN)
+
+def _is_t_call(node: ast.expr) -> bool:
+    """Whether ``node`` is a ``t(...)`` call."""
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "t"
+
+
+def test_app_help_is_a_catalogue_text() -> None:
+    """``cli_app.py``: both Typer groups take their help from a ``t(...)`` call (read at import)."""
+    helps = _help_values("cli_app.py")
+    assert len(helps) == 2
+    assert all(_is_t_call(value) for value in helps)
 
 
 def test_configuration_error_label_is_translated(marked_french: None, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -203,13 +213,12 @@ def test_init_config_missing_example_is_translated(
     _says(produce, "Example directory not found:")
 
 
-def test_info_providers_help_is_a_catalogue_text() -> None:
-    """``commands/info.py``: the ``providers`` help and its line come from ``cli_core.info`` (read at import)."""
-    help_text = CliRunner().invoke(app, ["info", "providers", "--help"]).output
-    assert "circuit=<state>" in help_text
-    line = t("cli_core.info.providers.line", name="x", state="closed", failures=0, language=Language.EN)
-    assert line == t("cli_core.info.providers.line", name="x", state="closed", failures=0, language=Language.FR)
-    assert line == "x circuit=closed  failures=0"
+def test_info_helps_are_catalogue_texts() -> None:
+    """``commands/info.py``: every ``help=`` is a ``t(...)`` call, and the providers line comes from ``cli_core.info``."""
+    helps = _help_values("commands/info.py")
+    assert len(helps) == 3
+    assert all(_is_t_call(value) for value in helps)
+    assert "circuit=<state>" in CliRunner().invoke(app, ["info", "providers", "--help"]).output
 
 
 def test_health_check_ok_line_is_translated(
@@ -294,16 +303,6 @@ def test_trailers_bad_date_is_refused_in_the_current_language(
     _says(produce, "Error: --since 'yesterday' must be YYYY-MM-DD.")
 
 
-def test_the_real_catalogue_says_the_same_in_both_languages() -> None:
-    """Nothing is translated yet: a sample of keys from each module reads alike in French and English."""
-    keys = {
-        "cli_core.main.invalid_format": {"value": "x"},
-        "cli_core.helpers.config_error_label": {},
-        "cli_core.pipeline.counts": {"ok": 1, "skipped": 2, "errors": 3},
-        "cli_core.pipeline_run.banner": {},
-        "cli_core.step.ingest": {},
-        "cli_core.web.disabled": {},
-        "cli_trailers.purge.locked": {},
-    }
-    for key, params in keys.items():
-        assert t(key, language=Language.FR, **params) == t(key, language=Language.EN, **params), key
+def test_step_codes_are_the_pipeline_steps() -> None:
+    """``StepCode`` (the ``cli_core.step`` code set) names exactly the steps ``DEFAULT_STEPS`` registers."""
+    assert {code.value for code in StepCode} == set(DEFAULT_STEPS)

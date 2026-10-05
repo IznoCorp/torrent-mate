@@ -12,7 +12,7 @@ from _repo_paths import DESIGN_SRC
 
 from personalscraper.app.errors import RefusalCode
 from personalscraper.i18n import Language, _catalogue
-from personalscraper.subscribers.rich_console import PipelineStep
+from personalscraper.pipeline_step_codes import StepCode
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PACKAGE_ROOT = _REPO_ROOT / "personalscraper"
@@ -20,7 +20,7 @@ _FRONTEND_FR = DESIGN_SRC / "i18n" / "fr.json"
 
 # Namespace -> the closed StrEnum whose members are looked up with ``t_code``. A phase that adds
 # a coded namespace declares the pair here and ships a key per member.
-CODE_SETS: dict[str, type[StrEnum]] = {"cli_refusals": RefusalCode, "cli_core.step": PipelineStep}
+CODE_SETS: dict[str, type[StrEnum]] = {"cli_refusals": RefusalCode, "cli_core.step": StepCode}
 
 _MARKUP = ("**", "<", "[/", "[bold", "[cyan", "[red", "[green", "[yellow", "[dim")
 
