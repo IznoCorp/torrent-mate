@@ -2,23 +2,29 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import typer
 
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
 from personalscraper.cli_state import state
+from personalscraper.i18n import t
+
+if TYPE_CHECKING:
+    from personalscraper.maintenance.plex_guard import PlexGuardFinding
 
 
-@app.command()
+@app.command(help=t("cli_acquisition.plex_guard.help"))
 @handle_cli_errors
 @boundary(needs="db-read", staging=False)
 def plex_guard(
     context: typer.Context,
-    repair: bool = typer.Option(False, "--repair", help="Apply the match over the Plex API (default: dry-run)"),
+    repair: bool = typer.Option(False, "--repair", help=t("cli_acquisition.plex_guard.repair_help")),
     item_id: list[int] | None = typer.Option(
         None,
         "--item-id",
-        help="Check only this item by DB id (repeatable), bypassing the sweep.",
+        help=t("cli_acquisition.plex_guard.item_id_help"),
     ),
     *,
     bundle: CommandContext,
@@ -53,17 +59,21 @@ def plex_guard(
     console = state["console"]
 
     if bundle.indexer_conn is None:
-        console.print("[red]Indexer DB not found; run `library-index` first.[/red]")
+        console.print("[red]" + t("cli_acquisition.plex_guard.no_indexer_db") + "[/red]")
         raise typer.Exit(1)
 
     settings = bundle.settings
     if not settings.plex_token:
-        console.print("[yellow]No Plex token configured — nothing to compare against.[/yellow]")
+        console.print("[yellow]" + t("cli_acquisition.plex_guard.no_token") + "[/yellow]")
         raise typer.Exit(1)
 
     client = PlexClient(settings.plex_url, settings.plex_token)
-    mode = "[bold yellow]DRY-RUN[/bold yellow]" if not repair else "[bold green]REPAIR[/bold green]"
-    console.print(f"[bold]Plex match coherence ({mode})...[/bold]")
+    mode = (
+        f"[bold yellow]{t('cli_acquisition.plex_guard.mode_dry_run')}[/bold yellow]"
+        if not repair
+        else f"[bold green]{t('cli_acquisition.plex_guard.mode_repair')}[/bold green]"
+    )
+    console.print("[bold]" + t("cli_acquisition.plex_guard.heading", mode=mode) + "[/bold]")
 
     result = run_plex_guard(
         client=client,
@@ -74,27 +84,29 @@ def plex_guard(
     )
 
     for finding in result.findings:
-        console.print(
-            f"  [{_STATE_COLORS.get(finding.state, 'white')}]{finding.state}[/] "
-            f"item {finding.item_id} « {finding.title} »"
-            f"{f' ({finding.canonical_provider}-{finding.canonical_id})' if finding.canonical_id else ''}"
-            f"{f' → {finding.rating_key}' if finding.rating_key else ''}"
-            f"{f' [Plex: « {finding.plex_title} »]' if finding.plex_title else ''}"
-            f"{' [title suspect]' if finding.title_suspect else ''}"
-            f"{f' [path: {finding.dispatch_path}]' if finding.dispatch_path and finding.state == 'not_found' else ''}"
-        )
+        console.print(_finding_line(finding))
 
     if repair:
         action_count = result.repaired_count
-        action_label = "[yellow]Repaired:[/yellow]"
+        action_label = f"[yellow]{t('cli_acquisition.plex_guard.repaired_label')}[/yellow]"
     else:
         action_count = sum(1 for f in result.findings if f.state == STATE_MISALIGNED)
-        action_label = "[yellow]Misaligned (would repair):[/yellow]"
+        action_label = f"[yellow]{t('cli_acquisition.plex_guard.misaligned_label')}[/yellow]"
 
+    errors_skipped = result.skipped_count - (0 if repair else action_count)
     console.print(
-        f"[green]Aligned:[/green] {result.aligned_count}  "
-        f"{action_label} {action_count}  "
-        f"[red]Errors/skipped:[/red] {result.skipped_count - (0 if repair else action_count)}"
+        "[green]"
+        + t("cli_acquisition.plex_guard.aligned_label")
+        + "[/green] "
+        + str(result.aligned_count)
+        + "  "
+        + str(action_label)
+        + " "
+        + str(action_count)
+        + "  [red]"
+        + t("cli_acquisition.plex_guard.errors_label")
+        + "[/red] "
+        + str(errors_skipped)
     )
 
     # A repair run persists the result (dry-run writes nothing, report
@@ -117,3 +129,31 @@ _STATE_COLORS = {
     "not_found": "yellow",
     "plex_error": "red",
 }
+
+
+def _finding_line(finding: PlexGuardFinding) -> str:
+    """Render one finding as its console line (Rich markup stays here, the words come from the catalogue).
+
+    Args:
+        finding: A ``PlexGuardFinding`` of the run's result.
+
+    Returns:
+        The line, state colour included, ready for ``console.print``.
+    """
+    colour = _STATE_COLORS.get(finding.state, "white")
+    parts = [
+        f"  [{colour}]{finding.state}[/] ",
+        t("cli_acquisition.plex_guard.finding_item", item_id=finding.item_id, title=finding.title),
+    ]
+    if finding.canonical_id:
+        # Layout only (no words): never translated.
+        parts.append(f" ({finding.canonical_provider}-{finding.canonical_id})")
+    if finding.rating_key:
+        parts.append(f" → {finding.rating_key}")
+    if finding.plex_title:
+        parts.append(t("cli_acquisition.plex_guard.finding_plex_title", plex_title=finding.plex_title))
+    if finding.title_suspect:
+        parts.append(t("cli_acquisition.plex_guard.finding_title_suspect"))
+    if finding.dispatch_path and finding.state == "not_found":
+        parts.append(t("cli_acquisition.plex_guard.finding_path", path=finding.dispatch_path))
+    return "".join(parts)

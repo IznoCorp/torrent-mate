@@ -1,0 +1,30 @@
+{
+  "search": {
+    "reconcile_label": "Réconciliation:",
+    "reconcile_closed": "{{closed}} clos (déjà en médiathèque).",
+    "reconcile_fell_back": "{{seasons}} saison(s) repassée(s) en épisodes (pack incomplet)."
+  },
+  "grab": {
+    "reconcile_label": "Réconciliation:",
+    "reconcile_summary": "{{closed}} clos (en médiathèque), {{requeued}} remis en file (torrent disparu), {{confirmed}} confirmés (récupérés après interruption).",
+    "reconcile_fell_back": "{{seasons}} saison(s) repassée(s) en épisodes (pack incomplet).",
+    "reswitch_label": "Bascule:",
+    "reswitch_summary": "{{reswitched}} release(s) bloquée(s) remplacée(s) (sur {{checked}} en cours)."
+  },
+  "follow": {
+    "detect": {
+      "cell_film_acquired": "acquis — retiré des suivis"
+    },
+    "backfill": {
+      "nameless": "#{{id}} (sans nom)",
+      "field_title": "titre",
+      "field_poster": "poster",
+      "field_overview": "overview",
+      "field_year": "year"
+    }
+  },
+  "confidence": {
+    "none_of_these": "  [0] Aucun de ces résultats",
+    "choice_prompt": "Choix : "
+  }
+}

@@ -33,21 +33,22 @@ from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.commands._cli_run_row import cli_run_row
 from personalscraper.core.tags import SEED_PURE
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli.seed")
 
 # Typer sub-group for the ``seed`` command.
-seed_app = typer.Typer(help="Tag torrents as seed-only (seed-pure) or inspect the list.")
+seed_app = typer.Typer(help=t("cli_acquisition.seed.group_help"))
 
 console = Console()
 
 
-@seed_app.command("mark")
+@seed_app.command("mark", help=t("cli_acquisition.seed.mark.help"))
 @handle_cli_errors
 def seed_mark(
     ctx: typer.Context,
-    info_hash: str = typer.Argument(..., help="Lowercase-hex info hash of the torrent to tag."),
+    info_hash: str = typer.Argument(..., help=t("cli_acquisition.seed.mark.hash_help")),
 ) -> None:
     """Apply the ``seed-pure`` tag to a torrent already in the client.
 
@@ -66,18 +67,22 @@ def seed_mark(
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_mark_no_client", info_hash=info_hash)
-            console.print("[red]Error:[/red] No torrent client configured. Check config/torrent.json5.")
+            console.print(
+                "[red]" + t("cli_acquisition.seed.error_label") + "[/red] " + t("cli_acquisition.seed.no_client")
+            )
             raise typer.Exit(code=1)
         app_context.torrent_client.add_tags(info_hash, [SEED_PURE])
         log.info("seed_marked", info_hash=info_hash, tag=SEED_PURE)
-        console.print(f"[green]Marked[/green] {info_hash} as [bold]{SEED_PURE}[/bold].")
+        tag = "[bold]" + SEED_PURE + "[/bold]"
+        done = t("cli_acquisition.seed.mark.done", info_hash=info_hash, tag=tag)
+        console.print("[green]" + t("cli_acquisition.seed.mark.done_label") + "[/green] " + str(done))
 
 
-@seed_app.command("unmark")
+@seed_app.command("unmark", help=t("cli_acquisition.seed.unmark.help"))
 @handle_cli_errors
 def seed_unmark(
     ctx: typer.Context,
-    info_hash: str = typer.Argument(..., help="Lowercase-hex info hash of the torrent to untag."),
+    info_hash: str = typer.Argument(..., help=t("cli_acquisition.seed.unmark.hash_help")),
 ) -> None:
     """Remove the ``seed-pure`` tag from a torrent in the client.
 
@@ -96,14 +101,18 @@ def seed_unmark(
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_unmark_no_client", info_hash=info_hash)
-            console.print("[red]Error:[/red] No torrent client configured. Check config/torrent.json5.")
+            console.print(
+                "[red]" + t("cli_acquisition.seed.error_label") + "[/red] " + t("cli_acquisition.seed.no_client")
+            )
             raise typer.Exit(code=1)
         app_context.torrent_client.remove_tags(info_hash, [SEED_PURE])
         log.info("seed_unmarked", info_hash=info_hash, tag=SEED_PURE)
-        console.print(f"[green]Unmarked[/green] {info_hash} — [bold]{SEED_PURE}[/bold] tag removed.")
+        tag = "[bold]" + SEED_PURE + "[/bold]"
+        done = t("cli_acquisition.seed.unmark.done", info_hash=info_hash, tag=tag)
+        console.print("[green]" + t("cli_acquisition.seed.unmark.done_label") + "[/green] " + str(done))
 
 
-@seed_app.command("list")
+@seed_app.command("list", help=t("cli_acquisition.seed.list.help"))
 @handle_cli_errors
 def seed_list(ctx: typer.Context) -> None:
     """List all completed torrents currently tagged ``seed-pure``.
@@ -123,30 +132,32 @@ def seed_list(ctx: typer.Context) -> None:
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_list_no_client")
-            console.print("[red]Error:[/red] No torrent client configured. Check config/torrent.json5.")
+            console.print(
+                "[red]" + t("cli_acquisition.seed.error_label") + "[/red] " + t("cli_acquisition.seed.no_client")
+            )
             raise typer.Exit(code=1)
         torrents = app_context.torrent_client.get_completed()
-        seed_pure_torrents = [t for t in torrents if SEED_PURE in (getattr(t, "tags", None) or [])]
+        seed_pure_torrents = [x for x in torrents if SEED_PURE in (getattr(x, "tags", None) or [])]
         log.info("seed_list", total=len(torrents), seed_pure=len(seed_pure_torrents))
         if not seed_pure_torrents:
-            console.print(f"No completed torrents tagged [bold]{SEED_PURE}[/bold].")
+            console.print(t("cli_acquisition.seed.list.none", tag="[bold]" + SEED_PURE + "[/bold]"))
             return
-        table = Table(title=f"Torrents tagged '{SEED_PURE}'", show_lines=True)
-        table.add_column("Hash", style="dim", no_wrap=True)
-        table.add_column("Name")
-        table.add_column("Tags")
-        table.add_column("State")
-        for t in seed_pure_torrents:
+        table = Table(title=t("cli_acquisition.seed.list.title", tag=SEED_PURE), show_lines=True)
+        table.add_column(t("cli_acquisition.seed.list.col_hash"), style="dim", no_wrap=True)
+        table.add_column(t("cli_acquisition.seed.list.col_name"))
+        table.add_column(t("cli_acquisition.seed.list.col_tags"))
+        table.add_column(t("cli_acquisition.seed.list.col_state"))
+        for torrent in seed_pure_torrents:
             table.add_row(
-                t.hash,
-                t.name,
-                ", ".join(t.tags),
-                t.state,
+                torrent.hash,
+                torrent.name,
+                ", ".join(torrent.tags),
+                torrent.state,
             )
         console.print(table)
 
 
-@seed_app.command("sweep")
+@seed_app.command("sweep", help=t("cli_acquisition.seed.sweep.help"))
 @handle_cli_errors
 def seed_sweep(ctx: typer.Context) -> None:
     """Run one seed-obligation sweep and print its report as one JSON line.
@@ -176,7 +187,12 @@ def seed_sweep(ctx: typer.Context) -> None:
                 has_client=app_context.torrent_client is not None,
                 has_store=store is not None,
             )
-            console.print("[red]Error:[/red] No torrent client or acquire store configured.")
+            console.print(
+                "[red]"
+                + t("cli_acquisition.seed.error_label")
+                + "[/red] "
+                + t("cli_acquisition.seed.sweep.not_configured")
+            )
             raise typer.Exit(code=1)
         report = sweep_obligations(
             store,

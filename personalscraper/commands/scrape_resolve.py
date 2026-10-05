@@ -25,6 +25,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.i18n import t
 from personalscraper.lock import (
     acquire_scrape_resolve_lock,
     release_scrape_resolve_lock,
@@ -84,7 +85,7 @@ def _lookup_decision(db_path: Path, staging_path: Path) -> tuple[int, str, str] 
 # ---------------------------------------------------------------------------
 
 
-@app.command()
+@app.command(help=t("cli_acquisition.scrape_resolve.help"))
 @handle_cli_errors
 def scrape_resolve(
     ctx: typer.Context,
@@ -94,22 +95,22 @@ def scrape_resolve(
         file_okay=False,
         dir_okay=True,
         readable=True,
-        help="Path to the staging directory for the media item.",
+        help=t("cli_acquisition.scrape_resolve.staging_help"),
     ),
     provider: str = typer.Option(
         ...,
         "--provider",
-        help="Metadata provider: 'tmdb' or 'tvdb'.",
+        help=t("cli_acquisition.scrape_resolve.provider_help"),
     ),
     provider_id: int = typer.Option(
         ...,
         "--id",
-        help="Numeric identifier assigned by the provider.",
+        help=t("cli_acquisition.scrape_resolve.id_help"),
     ),
     via: str = typer.Option(
         "pick",
         "--via",
-        help="Resolution provenance: 'pick' (candidate from the queue) or 'search_override'.",
+        help=t("cli_acquisition.scrape_resolve.via_help"),
     ),
 ) -> None:
     """Resolve a pending scrape decision by fetching metadata by provider ID.
@@ -152,18 +153,23 @@ def scrape_resolve(
 
     # ── 1. Validate provider + via ───────────────────────────────────────
     if provider not in _VALID_PROVIDERS:
-        console.print(
-            f"[red]Invalid provider '{provider}'. Must be one of: {', '.join(sorted(_VALID_PROVIDERS))}.[/red]"
+        msg = t(
+            "cli_acquisition.scrape_resolve.invalid_provider",
+            provider=provider,
+            valid=", ".join(sorted(_VALID_PROVIDERS)),
         )
+        console.print("[red]" + msg + "[/red]")
         raise typer.Exit(2)
     if via not in _VALID_VIA:
-        console.print(f"[red]Invalid --via '{via}'. Must be one of: {', '.join(sorted(_VALID_VIA))}.[/red]")
+        msg = t("cli_acquisition.scrape_resolve.invalid_via", via=via, valid=", ".join(sorted(_VALID_VIA)))
+        console.print("[red]" + msg + "[/red]")
         raise typer.Exit(2)
 
     # ── 2. Validate DB path ──────────────────────────────────────────────
     db_path = config.indexer.db_path
     if not db_path.exists():
-        console.print(f"[red]Indexer DB not found at {db_path}; run `library-index` first.[/red]")
+        msg = t("cli_acquisition.scrape_resolve.no_db", db_path=db_path)
+        console.print("[red]" + msg + "[/red]")
         raise typer.Exit(2)
 
     # ── 3. Look up decision row by NFC-normalized staging path ───────────
@@ -173,7 +179,8 @@ def scrape_resolve(
     # two canonicalizations must not diverge silently (F35).
     row = _lookup_decision(db_path, staging_path)
     if row is None:
-        console.print(f"[red]No decision row found for staging path: {staging_path}[/red]")
+        msg = t("cli_acquisition.scrape_resolve.no_decision", staging_path=str(staging_path))
+        console.print("[red]" + msg + "[/red]")
         raise typer.Exit(2)
 
     decision_id: int = row[0]
@@ -181,12 +188,14 @@ def scrape_resolve(
     status: str = row[2]
 
     if status != "pending":
-        console.print(f"[red]Decision {decision_id} is already '{status}', not 'pending'.[/red]")
+        msg = t("cli_acquisition.scrape_resolve.not_pending", decision_id=decision_id, status=status)
+        console.print("[red]" + msg + "[/red]")
         raise typer.Exit(2)
 
     # ── 4. Validate provider ↔ media_kind ────────────────────────────────
     if media_kind == "movie" and provider != "tmdb":
-        console.print(f"[red]Movies require provider 'tmdb', got '{provider}'.[/red]")
+        msg = t("cli_acquisition.scrape_resolve.movie_provider", provider=provider)
+        console.print("[red]" + msg + "[/red]")
         raise typer.Exit(2)
 
     # ── 5. Acquire the per-staging-item scrape lock (exit 1 if held) ──────
@@ -201,7 +210,8 @@ def scrape_resolve(
     scrape_locks_dir = scrape_locks_dir_for(config.paths.data_dir)
     item_lock = acquire_scrape_resolve_lock(staging_path, pipeline_lock, scrape_locks_dir)
     if item_lock is None:
-        console.print("[yellow]Lock busy (pipeline run or same-item resolve active). Exiting.[/yellow]")
+        msg = t("cli_acquisition.scrape_resolve.lock_busy")
+        console.print("[yellow]" + msg + "[/yellow]")
         raise typer.Exit(3)
 
     try:
@@ -211,10 +221,17 @@ def scrape_resolve(
         recheck = _lookup_decision(db_path, staging_path)
         if recheck is None or recheck[2] != "pending":
             now_status = recheck[2] if recheck else "gone"
-            console.print(f"[red]Decision {decision_id} is no longer 'pending' (now '{now_status}'). Aborting.[/red]")
+            msg = t("cli_acquisition.scrape_resolve.no_longer_pending", decision_id=decision_id, now_status=now_status)
+            console.print("[red]" + msg + "[/red]")
             raise typer.Exit(2)
 
-        console.print(f"[bold]Scrape-resolving '{staging_path.name}' via {provider}:{provider_id}...[/bold]")
+        msg = t(
+            "cli_acquisition.scrape_resolve.resolving",
+            name=staging_path.name,
+            provider=provider,
+            provider_id=provider_id,
+        )
+        console.print("[bold]" + msg + "[/bold]")
 
         patterns = NamingPatterns()
 
@@ -253,7 +270,8 @@ def scrape_resolve(
 
                 if scrape_result.error or scrape_result.action == "error":
                     detail = scrape_result.error or scrape_result.action
-                    console.print(f"[red]Scrape failed for '{staging_path.name}': {detail}[/red]")
+                    msg = t("cli_acquisition.scrape_resolve.scrape_failed", name=staging_path.name, detail=detail)
+                    console.print("[red]" + msg + "[/red]")
                     raise typer.Exit(1)
 
                 # ── 5b. Verify an NFO actually landed before marking resolved ──
@@ -269,10 +287,8 @@ def scrape_resolve(
 
                 final_path = scrape_result.media_path
                 if not glob_nfo_candidates(final_path):
-                    console.print(
-                        f"[red]No NFO on disk after scraping '{final_path.name}' — "
-                        f"not marking decision {decision_id} resolved (it stays pending).[/red]"
-                    )
+                    msg = t("cli_acquisition.scrape_resolve.no_nfo", name=final_path.name, decision_id=decision_id)
+                    console.print("[red]" + msg + "[/red]")
                     raise typer.Exit(1)
 
                 # ── 6. Mark decision resolved ─────────────────────────────────
@@ -290,13 +306,12 @@ def scrape_resolve(
                 try:
                     marked = writer.resolve(decision_id, provider, provider_id, via=via)
                 except DecisionWriteError as exc:
-                    console.print(f"[red]NFO written but resolve-mark failed for decision {decision_id}: {exc}[/red]")
+                    msg = t("cli_acquisition.scrape_resolve.mark_failed", decision_id=decision_id, error=str(exc))
+                    console.print("[red]" + msg + "[/red]")
                     raise typer.Exit(1) from exc
                 if not marked:
-                    console.print(
-                        f"[red]NFO written but decision {decision_id} was no longer pending — "
-                        f"not marked resolved.[/red]"
-                    )
+                    msg = t("cli_acquisition.scrape_resolve.mark_lost", decision_id=decision_id)
+                    console.print("[red]" + msg + "[/red]")
                     raise typer.Exit(1)
 
                 # F2: keep the spine live across the forced rename, then mirror 'resolved'.
@@ -321,7 +336,13 @@ def scrape_resolve(
                 if prov_resolve is not None:
                     prov_resolve.close()
 
-        console.print(f"[green]Successfully resolved decision {decision_id} via {provider}:{provider_id}.[/green]")
+        msg = t(
+            "cli_acquisition.scrape_resolve.resolved",
+            decision_id=decision_id,
+            provider=provider,
+            provider_id=provider_id,
+        )
+        console.print("[green]" + msg + "[/green]")
 
     finally:
         release_scrape_resolve_lock(item_lock)

@@ -1,0 +1,229 @@
+{
+  "plex_guard": {
+    "help": "Check that Plex matched every dispatched item to the pipeline's ids.\n\nThe default run is READ-ONLY: it compares, for each dispatched movie/show,\nthe provider guids Plex resolved against the canonical ids in the indexer\n(tmdb for movies, tvdb for shows) and reports every misalignment — dry-run\nwrites nothing, not even to the local data dir. With ``--repair``, a\nmisaligned item is re-matched over the Plex API (``matches`` → ``match``);\nthe local filesystem and the indexer DB are never written.\n\nFail-soft: Plex down, wrong token, or a folder Plex has not scanned yet\ndegrades to a per-item report line. The guard never fails the run. A\ndry-run writes NOTHING (report included — the repair mode is what\npersists ``library_plex_guard.json``); it does issue read-only requests,\nincluding one match-resolution probe per misaligned item, so the report\ncan tell « the id resolves to nothing » apart from « Plex was down ».\n\nExamples:\n    personalscraper plex-guard\n    personalscraper plex-guard --item-id 1600\n    personalscraper plex-guard --repair --item-id 1600",
+    "repair_help": "Apply the match over the Plex API (default: dry-run)",
+    "item_id_help": "Check only this item by DB id (repeatable), bypassing the sweep.",
+    "no_indexer_db": "Indexer DB not found; run `library-index` first.",
+    "no_token": "No Plex token configured — nothing to compare against.",
+    "mode_dry_run": "DRY-RUN",
+    "mode_repair": "REPAIR",
+    "heading": "Plex match coherence ({{mode}})...",
+    "finding_item": "item {{item_id}} « {{title}} »",
+    "finding_plex_title": " [Plex: « {{plex_title}} »]",
+    "finding_title_suspect": " [title suspect]",
+    "finding_path": " [path: {{path}}]",
+    "repaired_label": "Repaired:",
+    "misaligned_label": "Misaligned (would repair):",
+    "aligned_label": "Aligned:",
+    "errors_label": "Errors/skipped:"
+  },
+  "cross_seed": {
+    "help": "Native cross-seeding engine — find matching torrents on other trackers and inject them.\n\nThe ``--sweep`` flag iterates all completed torrents in the client and\ncross-seeds each eligible one (exclude ``SEED_PURE``-tagged, exclude\nrecently-searched, honour daily quota + inter-search delay).\n\nThe ``--hash`` flag cross-seeds a single torrent identified by its V1\ninfo-hash.  Idempotent — re-running the same hash is a no-op (recently-searched\nguard).  This is the form the Watcher daemon spawns per completion (W5).\n\n``--sweep`` and ``--hash`` are mutually exclusive.\n\nWhen ``cross_seed.enabled`` is ``False`` in config the service returns\nimmediately — the command still exits 0 but echoes the disabled state.\n\nExit codes (``--sweep``): 0 on success or partial success (some items\nerrored but others succeeded); 1 when ``lister_failed`` is True (torrent\nclient unreachable) or when ALL attempted items errored (``item_errors > 0``\nand ``checked == 0`` — total failure); 2 on invalid argument combination.\n\nArgs:\n    ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.\n    sweep: When ``True``, run the full back-catalog sweep.\n    info_hash: V1 info-hash of a single torrent to cross-seed.\n\nRaises:\n    typer.Exit: Exit code 1 when no compatible torrent client is\n        configured (e.g. Transmission which lacks ``TorrentInjector``).\n    typer.Exit: Exit code 2 when invoked with both ``--sweep`` and\n        ``--hash``, or with neither.",
+    "sweep_help": "Run throttled back-catalog cross-seed sweep (X2).",
+    "hash_help": "Cross-seed a single torrent by info-hash (X1 per-completion path).",
+    "exclusive": "--sweep and --hash are mutually exclusive",
+    "need_flag": "Use --sweep or --hash",
+    "not_available": "Cross-seed not available: no compatible torrent client configured.",
+    "not_available_detail": "The active torrent client must support TorrentInjector (qBittorrent; Transmission lacks this capability).",
+    "disabled": "Cross-seed is disabled in config (cross_seed.enabled=false).",
+    "sweep_failed_label": "Sweep failed:",
+    "lister_failed": "could not enumerate completed torrents (torrent client unreachable or error).",
+    "item_errors": "Sweep: {{errors}} item error(s) (see log for details).",
+    "all_items_failed": "all items raised errors (see log for per-item details).",
+    "sweep_complete_label": "Sweep complete:",
+    "sweep_summary": "{{checked}} checked, {{injected}} injected",
+    "quota_exhausted": "(quota exhausted)",
+    "skipped": "Skipped: {{reason}}",
+    "injected": "Injected: {{info_hash}}",
+    "rejected": "Rejected: {{info_hash}} @ {{tracker}} — {{reason}}"
+  },
+  "seed": {
+    "group_help": "Tag torrents as seed-only (seed-pure) or inspect the list.",
+    "mark": {
+      "help": "Apply the ``seed-pure`` tag to a torrent already in the client.\n\nIdempotent: tagging a torrent that already carries ``seed-pure`` is a\nno-op at the client level.\n\nArgs:\n    ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.\n    info_hash: Lowercase-hex info hash of the torrent to tag.\n\nRaises:\n    typer.Exit: Exit code 1 when no torrent client is configured.",
+      "hash_help": "Lowercase-hex info hash of the torrent to tag.",
+      "done_label": "Marked",
+      "done": "{{info_hash}} as {{tag}}."
+    },
+    "unmark": {
+      "help": "Remove the ``seed-pure`` tag from a torrent in the client.\n\nIdempotent: removing the tag from a torrent that does not carry it is a\nno-op at the client level.\n\nArgs:\n    ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.\n    info_hash: Lowercase-hex info hash of the torrent to untag.\n\nRaises:\n    typer.Exit: Exit code 1 when no torrent client is configured.",
+      "hash_help": "Lowercase-hex info hash of the torrent to untag.",
+      "done_label": "Unmarked",
+      "done": "{{info_hash}} — {{tag}} tag removed."
+    },
+    "list": {
+      "help": "List all completed torrents currently tagged ``seed-pure``.\n\nQueries the torrent client for completed torrents and filters those\nwhose ``tags`` list contains ``SEED_PURE``. Output is a Rich table\nwith columns: Hash, Name, Tags, State.\n\nArgs:\n    ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.\n\nRaises:\n    typer.Exit: Exit code 1 when no torrent client is configured.",
+      "none": "No completed torrents tagged {{tag}}.",
+      "title": "Torrents tagged '{{tag}}'",
+      "col_hash": "Hash",
+      "col_name": "Name",
+      "col_tags": "Tags",
+      "col_state": "State"
+    },
+    "sweep": {
+      "help": "Run one seed-obligation sweep and print its report as one JSON line.\n\nAsks the torrent client once about every open obligation, stamps\n``satisfied_at`` on those whose floor is reached and ``released_at`` on those\nwhose torrent stayed gone for the confirmation delay, and emits the matching\nevents. Meant to run under ``personalscraper schedule`` (hourly).\n\nArgs:\n    ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.\n\nRaises:\n    typer.Exit: Exit code 1 when no torrent client or no acquire store is\n        configured, or when the client failed (nothing was written).",
+      "not_configured": "No torrent client or acquire store configured."
+    },
+    "error_label": "Error:",
+    "no_client": "No torrent client configured. Check config/torrent.json5."
+  },
+  "spine": {
+    "rescrape": {
+      "help": "Re-scrape a precise grab / resume stuck items, seeded from the provenance registry.",
+      "hash_help": "Re-scrape the item with this grab info-hash.",
+      "path_help": "Re-scrape the item at this staging folder.",
+      "stuck_help": "Re-scrape ALL stuck in-flight items.",
+      "older_than_help": "Stuck horizon in seconds (with --stuck).",
+      "dry_run_help": "Preview the targets without scraping.",
+      "no_target": "No matching tracked staging item to re-scrape.",
+      "dry_run_would": "would re-scrape {{items}} item(s):",
+      "done_label": "Re-scrape done:"
+    },
+    "requeue": {
+      "help": "Requeue by journey state: send the item's ``wanted`` row back to ``pending``.",
+      "hash_help": "Requeue the wanted row behind this grab info-hash.",
+      "dry_run_help": "Preview without requeuing.",
+      "no_wanted": "No open grabbed wanted row for {{info_hash}} (nothing to requeue).",
+      "dry_run_would": "would requeue {{rows}} wanted row(s).",
+      "done": "Requeued {{rows}} wanted row(s)."
+    },
+    "dry_run_tag": "dry-run",
+    "requeue_no_provenance": "No provenance row for grab {{info_hash}}."
+  },
+  "scrape_resolve": {
+    "help": "Resolve a pending scrape decision by fetching metadata by provider ID.\n\nFetches movie or TV-show metadata directly from TMDB (movies) or\nTMDB/TVDB (TV shows) by a known provider ID, writes NFO + artwork into\nthe staging folder, and marks the matching ``scrape_decision`` row as\n``resolved``.\n\nAcquires the SCOPED per-staging-item scrape lock\n(:func:`~personalscraper.lock.acquire_scrape_resolve_lock`) for its lifetime —\nit does NOT self-acquire the global ``pipeline.lock`` (two-tier scoped locking,\nwebui-ux phase 4).  Distinct staging items resolve in PARALLEL (distinct\nper-item locks), the SAME item blocks (idempotent guard), and any global\n``pipeline.lock`` holder (full run / maintenance) makes the resolve back off —\nthe item lock is fail-closed against the global lock.  Safe as both a direct\nhuman invocation and a web-runner subprocess.\n\nNote: the ``\"scrape-resolve\"`` entry in\n``personalscraper.app.maintenance.runner._CLI_SELF_LOCKING`` is VESTIGIAL for\nthis command — the decisions runner\n(:mod:`personalscraper.app.decisions.runner`) that spawns this CLI consults no\nsuch set and never acquires the global lock on its behalf; the entry only\nmatters to the maintenance runner, which does not spawn scrape-resolve.\n\nExit codes:\n    0 — success (NFO written, artwork downloaded, decision resolved).\n    1 — scrape error (API failure, NFO write failure).\n    2 — misconfiguration (missing DB, unknown provider, no matching\n        pending decision row, invalid provider for media kind).\n    3 — lock busy (same item already resolving, or a global pipeline\n        holder is active). Distinct from 1 so the web decisions runner\n        can QUEUE (retry the spawn) on lock races without ever retrying\n        a real scrape failure (operator directive 2026-07-15: a resolve\n        must never surface a 409 while a pipeline run holds the lock).",
+    "staging_help": "Path to the staging directory for the media item.",
+    "provider_help": "Metadata provider: 'tmdb' or 'tvdb'.",
+    "id_help": "Numeric identifier assigned by the provider.",
+    "via_help": "Resolution provenance: 'pick' (candidate from the queue) or 'search_override'.",
+    "invalid_provider": "Invalid provider '{{provider}}'. Must be one of: {{valid}}.",
+    "invalid_via": "Invalid --via '{{via}}'. Must be one of: {{valid}}.",
+    "no_db": "Indexer DB not found at {{db_path}}; run `library-index` first.",
+    "no_decision": "No decision row found for staging path: {{staging_path}}",
+    "not_pending": "Decision {{decision_id}} is already '{{status}}', not 'pending'.",
+    "movie_provider": "Movies require provider 'tmdb', got '{{provider}}'.",
+    "lock_busy": "Lock busy (pipeline run or same-item resolve active). Exiting.",
+    "no_longer_pending": "Decision {{decision_id}} is no longer 'pending' (now '{{now_status}}'). Aborting.",
+    "resolving": "Scrape-resolving '{{name}}' via {{provider}}:{{provider_id}}...",
+    "scrape_failed": "Scrape failed for '{{name}}': {{detail}}",
+    "no_nfo": "No NFO on disk after scraping '{{name}}' — not marking decision {{decision_id}} resolved (it stays pending).",
+    "mark_failed": "NFO written but resolve-mark failed for decision {{decision_id}}: {{error}}",
+    "mark_lost": "NFO written but decision {{decision_id}} was no longer pending — not marked resolved.",
+    "resolved": "Successfully resolved decision {{decision_id}} via {{provider}}:{{provider_id}}."
+  },
+  "search": {
+    "help": "Run the search pass — state availability for pending wanted items.",
+    "dry_run_help": "Show what WOULD be searched after cadence gating. No tracker calls, no writes.",
+    "limit_help": "Maximum number of wanted items to search. Default: all pending.",
+    "followed_id_help": "Restrict the run to one followed series' pending items.",
+    "no_context": "AcquireContext not available.",
+    "no_store": "No acquire store — cannot run search.",
+    "complete_label": "Search complete:",
+    "complete_counts": "{{available}} available, {{waiting}} waiting, {{unverified}} unverified, {{abandoned}} abandoned, {{skipped}} skipped.",
+    "dry_run_no_store": "No acquire store — nothing to dry-run.",
+    "dry_run_empty": "No pending wanted items.",
+    "dry_run_title": "Search dry-run:",
+    "dry_run_queue": "{{items}} items in queue",
+    "dry_run_would_search": "Would search:",
+    "dry_run_skipped": "Skipped by cadence:",
+    "dry_run_would_abandon": "Would abandon (cutoff):",
+    "dry_run_complete": "Dry-run complete — no trackers contacted, no writes performed."
+  },
+  "grab": {
+    "help": "Run the grab loop — search trackers and add top-ranked torrents.",
+    "dry_run_help": "Search, filter, rank — print top candidate. No fetch or add.",
+    "limit_help": "Maximum number of wanted items to process. Default: all pending.",
+    "followed_id_help": "Restrict the run to one followed series' pending items (OBJ3 manual trigger).",
+    "no_context": "AcquireContext not available.",
+    "no_client": "No torrent client configured — cannot run grab. Check config or use --dry-run.",
+    "complete_label": "Grab complete:",
+    "complete_counts": "{{grabbed}} grabbed, {{retried}} retried, {{abandoned}} abandoned, {{skipped}} skipped.",
+    "dry_run_no_store": "No acquire store — nothing to dry-run.",
+    "dry_run_empty": "No pending wanted items.",
+    "item_label": "Item:",
+    "circuit_open": "Tracker circuit open — skipped this item.",
+    "attempt_search": "Search",
+    "attempt_retry": "Retry (original title)",
+    "attempt_line": "{{label}}: {{results}} results ({{queried}} queried, {{errored}} errored)",
+    "no_match": "No result matches the wanted item (title/episode/year).",
+    "after_filter": "After filter+dedup: {{candidates}} candidates",
+    "all_filtered": "All filtered.",
+    "no_seeders": "No candidate meets the minimum seeders threshold.",
+    "top_label": "Top:",
+    "top_line": "[{{provider}}] {{title}} ({{seeders}} seeders, {{resolution}})"
+  },
+  "follow": {
+    "group_help": "Manage the followed-series list.",
+    "add": {
+      "help": "Follow a TV series by provider ID (idempotent).\n\nAt least one of --tvdb, --tmdb, or --imdb is required. --tvdb is preferred\n(primary identifier). The canonical title is resolved via the metadata\nprovider registry; --title is used as a fallback when resolution fails.",
+      "tvdb_help": "TVDB series ID (primary).",
+      "tmdb_help": "TMDB series ID.",
+      "imdb_help": "IMDB series ID (e.g. tt0903747).",
+      "title_help": "Human-readable title (fallback when metadata unavailable).",
+      "need_id": "Error: at least one of --tvdb, --tmdb, or --imdb is required.",
+      "already_following": "Already following:",
+      "refollowing": "Refollowing:",
+      "now_following": "Now following:"
+    },
+    "list": {
+      "help": "List followed series.\n\nBy default shows only active series. Use --all to include unfollowed ones.",
+      "all_help": "Include inactive (unfollowed) series.",
+      "empty": "No followed series.",
+      "title": "Followed Series",
+      "col_id": "ID",
+      "col_title": "Title",
+      "col_tvdb": "TVDB",
+      "col_tmdb": "TMDB",
+      "col_imdb": "IMDB",
+      "col_active": "Active",
+      "active_yes": "yes",
+      "active_no": "no"
+    },
+    "remove": {
+      "help": "Soft-unfollow a series (sets active=False, preserves history).\n\nProvide --tvdb {{tvdb}} or --id {{followed}}.",
+      "tvdb_help": "TVDB series ID.",
+      "id_help": "followed_series row ID.",
+      "need_id": "Error: provide --tvdb or --id.",
+      "not_found": "Series not found — nothing to remove.",
+      "already_inactive": "Already inactive:",
+      "unfollowed": "Unfollowed:"
+    },
+    "detect": {
+      "help": "Detect aired episodes for followed series and enqueue them as wanted items.\n\nStage A of the DETECT flow: polls the active followed set for every episode\nwith a known air date (one ``poll_known`` call per series — futures included,\ncached but never enqueued), maps each back to its followed series via\n``media_ref``, keeps only the aired ones (``{{aired}}``), skips owned\nepisodes (RP6) and rows already present in the wanted queue, then enqueues the\nremainder as ``WantedItem(kind='episode', status='pending')`` and emits\n``WantedEnqueued`` per enqueue.\n\nBoth ``poll_known`` and ``ownership.owns`` are fail-soft: a failure is logged\nand treated as \"no episodes\" / \"not owned\" so one bad series or a missing\nlibrary never aborts the run.\n\nUse ``--dry-run`` to preview without any writes or events.\nUse ``--series`` to restrict detection to a single series (integer\n``followed_id`` or a case-insensitive title substring).",
+      "dry_run_help": "Preview detected episodes without writing or emitting.",
+      "series_help": "Filter active set by integer followed_id or title substring.",
+      "no_active": "No active followed series.",
+      "no_match": "No matching series.",
+      "title": "Follow Detect",
+      "col_series": "Series",
+      "col_season": "Season",
+      "col_episode": "Episode",
+      "col_air_date": "AirDate",
+      "col_episode_title": "Title",
+      "col_action": "Action",
+      "summary": "{{enqueued}} enqueued, {{skipped_owned}} skipped-owned, {{skipped_dup}} skipped-dup, {{resurrected}} resurrected, {{closed_owned}} closed-owned",
+      "cell_skipped_owned": "skipped-owned",
+      "cell_skipped_dup": "skipped-dup",
+      "cell_resurrect_dry": "resurrect (dry-run)",
+      "cell_resurrected": "resurrected",
+      "cell_dry_run": "dry-run",
+      "cell_enqueued": "enqueued"
+    },
+    "backfill_metadata": {
+      "help": "Backfill ``poster_url`` + ``overview`` + ``year`` for follows added before this fix.\n\nRepairs the rows the server could not enrich at creation time (acq-states\n§7.3). Shares the SINGLE enrichment authority with the create-follow route\n(``acquire.metadata_enrich``): each missing field is fetched from the\nprovider BY ID — never by a title search — so a wrong poster is impossible\nby construction, and the strict TVDB/TMDB separation is honoured for free.\nIdempotent (a complete row is untouched) and additive (``COALESCE`` never\noverwrites an existing value). Read-only under ``--dry-run``.\n\nTransaction shape (PR #320 review, m10): the scan connection is READ-ONLY\nand every write goes through ``store.follow.merge_metadata`` — one short\n``BEGIN IMMEDIATE`` per row, taken AFTER that row's provider calls have\nreturned. The previous form issued raw ``UPDATE``s on the scan connection\nand committed once at the end, so Python's implicit transaction opened on\nthe first update and held the single-writer lock across every remaining\nHTTP round-trip: on a large library that blocked the watcher, the web app\nand the crons for minutes, and one slow provider could stall them all. It\nalso bypassed the store seam that owns acquire-DB writes (ACQUIRE-09).",
+      "dry_run_help": "Preview without writing."
+    },
+    "no_store": "AcquireContext/store not available.",
+    "series_line": "{{title}} (id={{id}})",
+    "dry_run_tag": "(dry-run)",
+    "backfill": {
+      "no_db": "No acquire DB configured.",
+      "no_columns": "followed_series has no poster_url/overview/year columns yet (acquire migration 005 not applied) — nothing to backfill.",
+      "gained": "yes",
+      "done": "Backfilled {{updated}}, skipped {{skipped}}."
+    }
+  },
+  "confidence": {
+    "heading": "Matching: {{title}}"
+  }
+}
