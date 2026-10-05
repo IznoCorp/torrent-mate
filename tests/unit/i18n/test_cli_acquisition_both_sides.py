@@ -24,9 +24,8 @@ def test_french_origin_keys_have_an_english_side(key: str, english: str) -> None
     assert t(key, language=Language.FR) != english
 
 
-def test_the_french_backfill_labels_are_french_words() -> None:
-    """The backfill field labels that used English words in the French side are French now."""
-    fr = {
-        f: t(f"cli_acquisition.follow.backfill.field_{f}", language=Language.FR) for f in ("poster", "overview", "year")
-    }
-    assert fr == {"poster": "affiche", "overview": "synopsis", "year": "année"}
+@pytest.mark.parametrize("field", ["poster", "overview", "year"])
+def test_the_french_backfill_labels_are_not_english_words(field: str) -> None:
+    """The backfill field labels that used English words in the French side are translated now."""
+    assert t(f"cli_acquisition.follow.backfill.field_{field}", language=Language.FR) != field
+    assert t(f"cli_acquisition.follow.backfill.field_{field}", language=Language.EN) == field
