@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18next from "../../lib/unit-words";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
 import type { MediaRef } from "../../lib/membership";
+import { timeOfDay } from "../../lib/clock";
 
 const opened: DialogDescriptor[] = [];
 const said: string[] = [];
@@ -18,8 +19,14 @@ const removedRefs: string[][] = [];
 const ROWS: Record<string, number> = { "tvdb:78804": 2, "tvdb:gone": 0 };
 const stopped: string[] = [];
 let followed: string[] = [];
+// WHAT THE LAYER KEEPS, by `provider:providerId`, and why — every other medium goes.
+let kept: Record<string, { reason: string; owedUntil: number | null }> = {};
+// Whether the network holds the request back rather than sending it.
+let held = false;
+const HELD = Symbol("held");
 
 vi.mock("../../lib/query-client", () => ({
+  HELD,
   quietWhenCancelled: () => undefined,
   sharedQueryClient: {
     ensureQueryData: async () => undefined,
@@ -34,9 +41,17 @@ vi.mock("../../lib/store-access", () => ({ store: { write: () => undefined } }))
 vi.mock("./queries", () => ({
   libraryIncompleteQuery: { queryKey: ["incomplete"] },
   // The media the layer was asked to delete, each by the identity its row carried.
-  deleteLibraryItems: (doomed: { title: string; ref: MediaRef }[]) => {
+  // Each answered as the layer would: deleted, or kept with its reason.
+  deleteLibraryItems: async (doomed: { title: string; ref: MediaRef }[]) => {
     removed.push(doomed.map((one) => one.title));
     removedRefs.push(doomed.map((one) => `${one.ref.provider}:${one.ref.providerId}`));
+    if (held) return HELD;
+    return doomed.map((one) => {
+      const why = kept[`${one.ref.provider}:${one.ref.providerId}`];
+      return why
+        ? { ref: one.ref, outcome: "kept", reason: why.reason, owedUntil: why.owedUntil }
+        : { ref: one.ref, outcome: "deleted", reason: null, owedUntil: null };
+    });
   },
 }));
 vi.mock("../../lib/shell-doors", () => ({
@@ -86,6 +101,8 @@ describe("the library's delete flow", () => {
     removedRefs.length = 0;
     stopped.length = 0;
     followed = [];
+    kept = {};
+    held = false;
   });
 
   for (const [label, title, many, followedNow] of [
@@ -101,7 +118,7 @@ describe("the library's delete flow", () => {
       for (const action of descriptor.actions.filter((a) => a.run)) {
         said.length = 0;
         removed.length = 0;
-        action.run?.();
+        await action.run?.();
         expect(removed).toEqual([many ? [...many] : [title]]);
         expect(said.length).toBeGreaterThan(0);
         for (const message of said) expect(message).not.toMatch(FORBIDDEN_WORDS);
@@ -118,25 +135,25 @@ describe("the library's delete flow", () => {
     await openDeleteDialog(rows("Silo (2023)"));
     const [stop, keep] = opened[0].actions.filter((action) => action.run);
     expect(stop.text).toBe(i18next.t("verbs.library.delete.deleteAndStop"));
-    stop.run?.();
+    await stop.run?.();
     expect(stopped).toEqual(["Silo"]);
     expect(removed).toEqual([["Silo (2023)"]]);
 
     stopped.length = 0;
-    keep.run?.();
+    await keep.run?.();
     expect(stopped).toEqual([]);
   });
 
   it("stops every follow of a selection, and nothing that is not followed", async () => {
     followed = ["Silo", "Furious"];
     await openDeleteDialog(rows("Silo (2023)", "Les Animaniacs", "Furious (2026)"));
-    opened[0].actions.find((action) => action.run)?.run?.();
+    await opened[0].actions.find((action) => action.run)?.run?.();
     expect(stopped).toEqual(["Silo", "Furious"]);
   });
 
   it("names the title it removed", async () => {
     await openDeleteDialog(rows("Les Animaniacs"));
-    opened[0].actions.find((a) => a.run)?.run?.();
+    await opened[0].actions.find((a) => a.run)?.run?.();
     expect(said.at(-1)).toBe(i18next.t("verbs.library.delete.done", { title: "Les Animaniacs" }));
     expect(said.at(-1)).toContain("Les Animaniacs");
   });
@@ -174,14 +191,80 @@ describe("the library's delete flow", () => {
   it("deletes the one of two media sharing a title that its row names", async () => {
     await openDeleteDialog([row("RoboCop", "97020", "tmdb")]);
     expect(opened[0].actions.filter((action) => action.run)).toHaveLength(1);
-    opened[0].actions.find((action) => action.run)?.run?.();
+    await opened[0].actions.find((action) => action.run)?.run?.();
     expect(removedRefs).toEqual([["tmdb:97020"]]);
   });
 
   it("deletes both of two media sharing a title when both rows are ticked, each by its own id", async () => {
     await openDeleteDialog([row("RoboCop", "5548", "tmdb"), row("RoboCop", "97020", "tmdb")]);
     expect(opened[0].heading).toBe(i18next.t("verbs.library.delete.headingMany", { media: 2 }));
-    opened[0].actions.find((action) => action.run)?.run?.();
+    await opened[0].actions.find((action) => action.run)?.run?.();
     expect(removedRefs).toEqual([["tmdb:5548", "tmdb:97020"]]);
+  });
+
+  // R2 (« Raison par médias », 2026-10-05): the layer answers each medium, and
+  // a kept one is named with its reason — never said deleted.
+  describe("a medium the layer keeps", () => {
+    /** Confirms the dialog the doomed media open; answers the dialog drawn after it. */
+    async function confirm(doomed: ReturnType<typeof row>[]): Promise<DialogDescriptor | undefined> {
+      await openDeleteDialog(doomed);
+      await opened[0].actions.find((action) => action.run)?.run?.();
+      return opened[1];
+    }
+
+    /** What the kept dialog says each medium did, title by title. */
+    function reasons(descriptor: DialogDescriptor | undefined): Record<string, string> {
+      const manifest = descriptor?.body.find((block) => block.type === "manifest");
+      return Object.fromEntries(manifest?.type === "manifest" ? manifest.entries.map((e) => [e.text, e.value]) : []);
+    }
+
+    it("is named with the date its seeding is owed until, and is never said deleted", async () => {
+      const owedUntil = Date.UTC(2026, 9, 12, 12, 0) / 1000;
+      kept = { "tvdb:id-Silo": { reason: "seed_owed", owedUntil } };
+      const after = await confirm(rows("Silo"));
+      expect(after?.heading).toBe(i18next.t("verbs.library.delete.keptHeadingOne", { title: "Silo" }));
+      expect(reasons(after).Silo).toBe(
+        i18next.t("verbs.library.delete.keptSeedOwed", { day: "12 octobre", time: timeOfDay(owedUntil) }),
+      );
+      expect(said.filter((message) => message.includes(i18next.t("verbs.library.delete.done", { title: "Silo" })))).toEqual([]);
+    });
+
+    it("says the seeding is owed without a date when the store does not know it", async () => {
+      kept = { "tvdb:id-Silo": { reason: "seed_owed", owedUntil: null } };
+      expect(reasons(await confirm(rows("Silo"))).Silo).toBe(i18next.t("verbs.library.delete.keptSeedOwedUndated"));
+    });
+
+    it("says its disk is unplugged", async () => {
+      kept = { "tvdb:id-Silo": { reason: "disk_unreachable", owedUntil: null } };
+      expect(reasons(await confirm(rows("Silo"))).Silo).toBe(i18next.t("verbs.library.delete.keptDiskUnreachable"));
+    });
+
+    it("says a folder would not go", async () => {
+      kept = { "tvdb:id-Silo": { reason: "failed", owedUntil: null } };
+      expect(reasons(await confirm(rows("Silo"))).Silo).toBe(i18next.t("verbs.library.delete.keptFailed"));
+    });
+
+    it("counts what went against what was asked, and names only what stayed", async () => {
+      kept = { "tvdb:id-Earl": { reason: "disk_unreachable", owedUntil: null } };
+      const after = await confirm(rows("Les Animaniacs", "Earl", "Silo"));
+      expect(after?.heading).toBe(i18next.t("verbs.library.delete.partlyHeading", { deleted: 2, asked: 3 }));
+      expect(Object.keys(reasons(after))).toEqual(["Earl"]);
+      expect(after?.actions.filter((action) => action.run)).toEqual([]);
+    });
+
+    it("keeps the follow of a medium that stayed, and stops the one of a medium that went", async () => {
+      followed = ["Silo", "Furious"];
+      kept = { "tvdb:id-Furious (2026)": { reason: "seed_owed", owedUntil: null } };
+      await openDeleteDialog(rows("Silo (2023)", "Furious (2026)"));
+      await opened[0].actions.find((action) => action.run)?.run?.();
+      expect(stopped).toEqual(["Silo"]);
+    });
+
+    it("says a request the network held has not gone yet", async () => {
+      held = true;
+      await confirm(rows("Silo"));
+      expect(said).toEqual([i18next.t("verbs.library.deleteHeld")]);
+      expect(opened).toHaveLength(1);
+    });
   });
 });

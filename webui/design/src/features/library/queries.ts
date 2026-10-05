@@ -17,6 +17,7 @@ import { refusalWords } from "../../lib/refusal";
 import { toast } from "../../lib/shell-doors";
 import type { MediaRef } from "../../lib/membership";
 import type { IncompleteShow, LibraryCategory, LibraryRow } from "./types";
+import type { Schemas } from "../../lib/contract-schemas";
 import { SORT_KEYS } from "./sorting";
 import { leavesOf, lensesOf, type LeafCategory } from "./lenses";
 
@@ -178,6 +179,16 @@ declare global {
 /** Asks the listing for one more page — filled at install. */
 export let libraryNextPage: Window["__libraryNextPage"];
 
+/** What the deletion did to one medium: it went, or it was kept and why (operator ruling R2). */
+export type LibraryDeletion = Schemas["LibraryDeletion"];
+
+/**
+ * What the delete answers: each medium's outcome, `HELD` when the network would
+ * not take the request (it leaves when it answers), or `null` when the layer
+ * refused it — the refusal already said.
+ */
+export type DeleteAnswer = LibraryDeletion[] | typeof HELD | null;
+
 /**
  * Installs the library's delete, for the dying engine's delegation to call.
  *
@@ -186,9 +197,12 @@ export let libraryNextPage: Window["__libraryNextPage"];
  * nothing at all, silently, on a surface whose whole subject is what is there.
  * No named state deletes, so the oracle could not see it.
  *
- * THE OPTIMISTIC PATH IS THE LISTING'S OWN PAGES. The rows leave the screen in
- * the same task as the tap; the layer is asked afterwards; a refusal puts back
- * exactly what was there.
+ * NO ROW LEAVES BEFORE THE LAYER SAYS IT WENT (operator ruling R2, 2026-10-05).
+ * The deletion answers medium by medium, and a medium it KEPT — a tracker still
+ * owed its seeding, its disk unplugged, a folder that would not go — is still
+ * in the library: removing its row on the tap and putting it back on the answer
+ * would say « gone » about what stayed, which § 8 forbids. So the rows that go
+ * are the ones the answer names `deleted`, and only once it is in.
  *
  * NE-DOIT-PAS-6 IS THE ENGINE'S STILL: the confirmation happens before this is
  * called, and it stays where it is drawn.
@@ -196,69 +210,64 @@ export let libraryNextPage: Window["__libraryNextPage"];
  * @param queryClient The cache the surfaces read.
  */
 export function installLibraryDelete(queryClient: QueryClient): void {
-  deleteLibraryItems = (doomed) => {
-    const listings = queryClient
-      .getQueryCache()
-      .getAll()
-      .filter((query) => query.queryKey[0] === "/api/v1/library/items");
-    const before = listings.map((listing) => [listing.queryKey, listing.state.data] as const);
-    // THE ROWS THAT GO ARE THE ONES CARRYING A DOOMED IDENTITY — every row of
-    // it, which is one row: a duplicate never reaches here (O-5 B).
+  deleteLibraryItems = async (doomed) => {
+    let answer: { media: LibraryDeletion[] } | undefined | typeof HELD;
+    try {
+      answer = await send<{ media: LibraryDeletion[] }>("DELETE", "/api/v1/library/items", {
+        media: doomed.map((one) => one.ref),
+      });
+    } catch (refusal) {
+      // THE REFUSAL IS SAID, in the interface's words for its code: nothing
+      // went, and nothing left the screen.
+      toast?.show({
+        message: refusalWords(isRequestFailure(refusal) ? refusal : null, "verbs.library.deleteRefused"),
+      });
+      void queryClient.invalidateQueries({ queryKey: ["/api/v1/library/items"] });
+      return null;
+    }
+    // HELD: the request has not left. Nothing is known to have gone, so nothing
+    // leaves the screen, and refreshing would only redraw the same rows.
+    if (answer === HELD) return HELD;
+    const media = answer?.media ?? [];
+    const gone = media.filter((one) => one.outcome === "deleted").map((one) => one.ref);
+    // THE ROWS THAT GO ARE THE ONES CARRYING AN IDENTITY THE ANSWER SAYS WENT —
+    // every row of it, which is one row: a duplicate never reaches here (O-5 B).
     const carries = (row: LibraryRow, ref: MediaRef) =>
       String((row.ids as Record<string, string | number> | null)?.[ref.provider] ?? "") === ref.providerId;
-    for (const [key, data] of before) {
-      const held = data as { pages: LibraryPage[] } | undefined;
+    for (const listing of queryClient.getQueryCache().findAll({ queryKey: ["/api/v1/library/items"] })) {
+      const held = listing.state.data as { pages: LibraryPage[] } | undefined;
       if (held === undefined) continue;
-      queryClient.setQueryData(key, {
+      queryClient.setQueryData(listing.queryKey, {
         ...held,
         pages: held.pages.map((page) => ({
           ...page,
-          items: page.items.filter((row) => !doomed.some((one) => carries(row, one.ref))),
+          items: page.items.filter((row) => !gone.some((ref) => carries(row, ref))),
         })),
       });
     }
-    void send("DELETE", "/api/v1/library/items", { media: doomed.map((one) => one.ref) })
-      .catch((refusal) => {
-        for (const [key, data] of before) queryClient.setQueryData(key, data);
-        // THE REFUSAL IS SAID, in the interface's words for its code — the rows
-        // came back, and the toast that said they went is replaced.
-        toast?.show({
-          message: refusalWords(isRequestFailure(refusal) ? refusal : null, "verbs.library.deleteRefused"),
-        });
-        throw refusal;
-      })
-      .then((outcome) => {
-        // NOT ON THE HELD PATH. `send` answers `HELD` when the network would not
-        // take the mutation: the optimistic write is the truth the operator is
-        // looking at, and refreshing over it replaces it with server state that
-        // does not contain the mutation — the action snapping back with no
-        // explanation, minutes before it actually applies.
-        if (outcome === HELD) return;
-        void queryClient.invalidateQueries({ queryKey: ["/api/v1/library/items"] });
-        // AND THE SHEETS OF WHAT LEFT. The list is honest in the same task and
-        // the SHEET was not: reopened after a confirmed delete it still read
-        // « Possédés 24 » from its own cached answer and offered « Supprimer »
-        // again, which is the surface the reader is looking at when the toast
-        // says it is done. Every media read is invalidated rather than the
-        // deleted ones alone — the sheet's key is the provider's identifier,
-        // and nothing here maps a title to it.
-        void queryClient.invalidateQueries({ queryKey: ["/api/v1/media"] });
-        // AND WHAT THE LIBRARY SAYS IT HOLDS is REMOVED, not merely marked
-        // stale: a producer reads the cache synchronously and would still see
-        // the answer from before, so every panel opened about a removed title
-        // afterwards has to ask again.
-        queryClient.removeQueries({ queryKey: ["/api/v1/library/membership"] });
-      }, () => {
-        // AND ON A REFUSAL, which the `.finally` this replaced also covered.
-        void queryClient.invalidateQueries({ queryKey: ["/api/v1/library/items"] });
-      });
+    void queryClient.invalidateQueries({ queryKey: ["/api/v1/library/items"] });
+    // AND THE SHEETS OF WHAT LEFT. The list is honest in the same task and
+    // the SHEET was not: reopened after a confirmed delete it still read
+    // « Possédés 24 » from its own cached answer and offered « Supprimer »
+    // again, which is the surface the reader is looking at when the toast
+    // says it is done. Every media read is invalidated rather than the
+    // deleted ones alone — the sheet's key is the provider's identifier,
+    // and nothing here maps a title to it.
+    void queryClient.invalidateQueries({ queryKey: ["/api/v1/media"] });
+    // AND WHAT THE LIBRARY SAYS IT HOLDS is REMOVED, not merely marked
+    // stale: a producer reads the cache synchronously and would still see
+    // the answer from before, so every panel opened about a removed title
+    // afterwards has to ask again.
+    queryClient.removeQueries({ queryKey: ["/api/v1/library/membership"] });
+    void queryClient.invalidateQueries({ queryKey: libraryIncompleteQuery.queryKey });
+    return media;
   };
 }
 
 declare global {
   interface Window {
-    /** Removes media from the library, each by the identity its title was drawn with. */
-    __deleteLibraryItems?: (doomed: { title: string; ref: MediaRef }[]) => void;
+    /** Removes media from the library, each by the identity its title was drawn with; answers what each did. */
+    __deleteLibraryItems?: (doomed: { title: string; ref: MediaRef }[]) => Promise<DeleteAnswer>;
   }
 }
 

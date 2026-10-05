@@ -101,6 +101,17 @@ export type MockState = {
    */
   deletedTitles: string[];
   /**
+   * THE MEDIA A DELETION KEEPS, by `provider:providerId`, and why (operator
+   * ruling R2, 2026-10-05). A kept medium is not a refusal: the request goes
+   * on, the others go, and this one answers `kept` with its reason. Nothing
+   * the layer does keeps a medium on its own — a tracker owed, a disk
+   * unplugged, a folder that would not go are what the machine IS — so a named
+   * state turns this dial.
+   */
+  deletionKept: Record<string, { reason: Schemas["LibraryDeletion"]["reason"]; owedUntil: number | null }>;
+  /** The incomplete shows whose year nothing states, by title: the year-less case is a dial, the seed states every year. */
+  yearlessIncomplete: string[];
+  /**
    * THE NOTIFICATION TYPES EACH ACCOUNT TURNED OFF, by account id — the
    * account's own choice, on all its devices (ruling Q1 A, 2026-10-03). A type
    * absent here is on: the seeded layer has every type on.
@@ -292,6 +303,8 @@ const seeded = (): MockState => ({
   pipeline: copyOf<Schemas["Pipeline"]>(PIPELINE),
   library: copyOf<Schemas["LibraryItem"][]>(LIBRARY_ITEMS),
   deletedTitles: [],
+  deletionKept: {},
+  yearlessIncomplete: [],
   notificationsOff: {},
   pushDevices: [],
   libraryDatabaseAvailable: true,
@@ -376,6 +389,12 @@ export type MockDials = {
   setTmpOrphans: (present: boolean) => void;
   setMachineHealthy: (healthy: boolean) => void;
   setRunInProgress: (going: boolean) => void;
+  setDeletionKept: (
+    ref: { provider: string; providerId: string },
+    reason: NonNullable<Schemas["LibraryDeletion"]["reason"]>,
+    owedUntil?: number | null,
+  ) => void;
+  setIncompleteYearless: (title: string) => void;
 };
 
 /** Those dials, over the layer's own state. */
@@ -421,6 +440,12 @@ export const mockDials: MockDials = {
   },
   setMachineHealthy: (healthy: boolean) => {
     mockState().machineHealthy = healthy;
+  },
+  setDeletionKept: (ref, reason, owedUntil = null) => {
+    mockState().deletionKept[`${ref.provider}:${ref.providerId}`] = { reason, owedUntil };
+  },
+  setIncompleteYearless: (title: string) => {
+    mockState().yearlessIncomplete.push(title);
   },
   setRunInProgress: (going: boolean) => {
     // THE SNAPSHOT HOLDS NO RUN STILL GOING: this is its first real pipeline
