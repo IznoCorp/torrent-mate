@@ -210,6 +210,8 @@ def logged_events(caplog: pytest.LogCaptureFixture) -> LoggedEvents:
         events: list[dict[str, Any]] = []
         try:
             yield events
+            # A CLI run whose logging setup swapped caplog's handler out leaves this capture empty.
+            assert caplog.handler in logging.getLogger().handlers, "caplog left the root logger: kept_log_capture"
         finally:
             for record in caplog.records[start:]:
                 if isinstance(record.msg, dict):
@@ -217,6 +219,23 @@ def logged_events(caplog: pytest.LogCaptureFixture) -> LoggedEvents:
                     events.append({**event, "log_level": record.levelname.lower()})
 
     return capture
+
+
+@pytest.fixture
+def kept_log_capture() -> Iterator[None]:
+    """Keep pytest's log capture attached through a CLI run.
+
+    The CLI's callback runs ``configure_logging``, whose ``dictConfig`` replaces the root
+    logger's handlers, ``caplog``'s among them: every record after it would go unseen, a
+    « never logged » assertion would pass on nothing and a « logged » one would fail for the wrong
+    reason. A test that runs a CLI command and then reads ``caplog`` or :func:`logged_events` uses
+    this fixture. The session's structlog chain, set up above, stays the one in force.
+
+    Yields:
+        Nothing; the patch holds while the test runs.
+    """
+    with patch("personalscraper.cli.configure_logging"):
+        yield
 
 
 #: Sets the project's configured language for one test (``PERSONALSCRAPER_LANG``).

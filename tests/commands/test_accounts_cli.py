@@ -484,22 +484,6 @@ def _session_user_agents(db: Path) -> list[str]:
 _OPEN_SESSION_ARGS = ["accounts", "open-session", "--owner"]
 
 
-@pytest.fixture
-def kept_log_capture() -> Iterator[None]:
-    """Keep pytest's log capture attached through a CLI run.
-
-    The CLI's callback runs ``configure_logging``, whose ``dictConfig`` replaces the root
-    logger's handlers, ``caplog``'s among them: every record after it would go unseen and a
-    « never logged » assertion would pass on nothing. The session's structlog chain, set up by
-    ``tests/conftest.py``, stays the one in force.
-
-    Yields:
-        Nothing; the patch holds while the test runs.
-    """
-    with patch("personalscraper.cli.configure_logging"):
-        yield
-
-
 class TestOpenSession:
     """``accounts open-session --owner`` — the design host's smoke check signs in with no stored secret."""
 
