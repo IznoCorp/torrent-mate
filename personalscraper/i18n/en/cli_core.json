@@ -72,7 +72,7 @@
     "no_client": "No active torrent client configured (config.torrent.active is empty).",
     "sentinel_written": "Sentinel written: {{path}}",
     "sentinel_consumed": "Consumed by the watch daemon next cycle -> pipeline run with reason=manual; if the daemon is down the sentinel persists until next boot.",
-    "help": "Start the watcher daemon (single-process scheduler).\n\nPolls the configured torrent client each cycle, consults the\n:class:`~personalscraper.acquire.watcher.WatcherService` decision engine,\nand spawns ``personalscraper run --no-console`` (async, tracked) or\n``personalscraper cross-seed --hash <H>`` (sync, sequential) as\nsubprocesses.  The daemon itself does NOT acquire ``pipeline.lock``\n(W6) — only its spawned children do.\n\nRuns until SIGTERM, SIGINT, or a fatal error.",
+    "help": "Start the watcher daemon (single-process scheduler).\n\nPolls the configured torrent client each cycle, consults the\n:class:`~personalscraper.acquire.watcher.WatcherService` decision engine,\nand spawns ``personalscraper run --no-console`` (async, tracked) or\n``personalscraper cross-seed --hash {{hash}}`` (sync, sequential) as\nsubprocesses.  The daemon itself does NOT acquire ``pipeline.lock``\n(W6) — only its spawned children do.\n\nRuns until SIGTERM, SIGINT, or a fatal error.",
     "now_help": "Write the sentinel file that the watcher daemon consumes next cycle.\n\nNo IPC, no daemon dependency — if the daemon is down, the sentinel is\nconsumed at next boot.  Same channel as the future Web UI (W4).\n\nThe running ``personalscraper watch`` daemon detects this file at the\nnext poll cycle and fires a pipeline run with ``reason=manual``."
   },
   "health_check": {

@@ -642,7 +642,7 @@ def _reap_tracked_run(
     return state, None
 
 
-@command_with_telemetry("watch", help=t("cli_core.watch.help"))
+@command_with_telemetry("watch", help=t("cli_core.watch.help", hash="<H>"))
 @handle_cli_errors
 def watch(ctx: typer.Context) -> None:
     """Start the watcher daemon (single-process scheduler).
