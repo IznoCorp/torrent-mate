@@ -675,7 +675,9 @@ class LibraryService:
             # connection (scripts/check-pragma-discipline.py allow-lists this reader).
             conn.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
             conn.execute("PRAGMA query_only=ON")
-            conn.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone()
+            # The core table, not ``sqlite_master``: a 0-byte or schema-less file opens and passes
+            # that, and the first real query then dies on « no such table ».
+            conn.execute("SELECT 1 FROM media_item LIMIT 1").fetchone()
         except sqlite3.Error as exc:
             conn.close()
             raise _library_unavailable(exc) from exc

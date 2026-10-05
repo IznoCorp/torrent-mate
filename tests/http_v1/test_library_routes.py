@@ -840,9 +840,9 @@ class TestLibraryUnavailable:
     answers the typed refusal the interface words, never an unhandled 500 ``internal``.
     """
 
-    @pytest.fixture(params=["absent", "corrupt"])
+    @pytest.fixture(params=["absent", "corrupt", "empty"])
     def unreadable_index(self, request: pytest.FixtureRequest, test_config: Config) -> Path:
-        """The configured ``library.db``: absent, or a file of corrupt bytes.
+        """The configured ``library.db``: absent, a file of corrupt bytes, or a 0-byte file.
 
         Args:
             request: Pytest's request, naming the case.
@@ -855,6 +855,9 @@ class TestLibraryUnavailable:
         if request.param == "corrupt":
             library_db.parent.mkdir(parents=True, exist_ok=True)
             library_db.write_bytes(b"not a database, corrupt bytes" * 64)
+        elif request.param == "empty":
+            library_db.parent.mkdir(parents=True, exist_ok=True)
+            library_db.write_bytes(b"")
         else:
             assert not library_db.exists()
         return library_db
