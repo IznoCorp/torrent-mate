@@ -16,6 +16,8 @@ import typing
 from pathlib import Path
 from typing import Any, Optional
 
+import pytest
+
 from personalscraper.app import services as services_module
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.authorise import _ACTOR_PARAMETER, requires
@@ -48,19 +50,29 @@ def _type_checking_names(module: types.ModuleType) -> dict[str, Any]:
     return names
 
 
-def _service_classes() -> list[type]:
-    """The classes of ``AppServices``' fields, ``X | None`` unwrapped.
+def _service_classes(hints: dict[str, Any] | None = None) -> list[type]:
+    """The classes of ``AppServices``' fields, ``X | None`` and ``Optional[X]`` unwrapped.
+
+    Args:
+        hints: The field hints to read; ``AppServices``' own, resolved, when omitted.
 
     Returns:
         Each class once, in field order.
+
+    Raises:
+        AssertionError: when a field resolves to no class (a generic, a union of several
+            classes, ...): it would otherwise escape the guard in silence.
     """
-    hints = typing.get_type_hints(AppServices, localns=_type_checking_names(services_module))
+    if hints is None:
+        hints = typing.get_type_hints(AppServices, localns=_type_checking_names(services_module))
     classes: list[type] = []
-    for hint in hints.values():
-        args = typing.get_args(hint) if isinstance(hint, types.UnionType) else (hint,)
-        for arg in args:
-            if isinstance(arg, type) and arg is not type(None) and arg not in classes:
-                classes.append(arg)
+    for field, hint in hints.items():
+        is_union = typing.get_origin(hint) in (typing.Union, types.UnionType)
+        members = [arg for arg in typing.get_args(hint) if arg is not type(None)] if is_union else [hint]
+        if len(members) != 1 or not isinstance(members[0], type):
+            raise AssertionError(f"AppServices.{field} ({hint!r}) resolves to no class: the guard cannot read its methods")
+        if members[0] not in classes:
+            classes.append(members[0])
     return classes
 
 
@@ -155,3 +167,19 @@ def test_a_planted_actor_parameter_is_flagged_whatever_its_annotation() -> None:
         "Planted.optional_union",
         "Planted.unannotated",
     ]
+
+
+def test_a_planted_optional_service_field_is_seen() -> None:
+    """POSITIVE control: a ``typing.Optional[X]`` field is unwrapped to its class, not dropped."""
+
+    class PlantedService:
+        """A service held by an optional field."""
+
+    assert _service_classes({"planted": Optional[PlantedService]}) == [PlantedService]
+    assert _service_classes({"planted": PlantedService | None}) == [PlantedService]
+
+
+def test_a_field_resolving_to_no_class_fails_the_guard_by_name() -> None:
+    """POSITIVE control: a generic field is never skipped in silence; the guard names it."""
+    with pytest.raises(AssertionError, match="planted_generic"):
+        _service_classes({"planted_generic": list[int]})
