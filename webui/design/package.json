@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.6",
-    "@tanstack/react-router": "^1.170.29",
+    "@tanstack/react-router": "^1.170.41",
     "@tanstack/react-virtual": "^3.14.10",
     "@tanstack/store": "^0.11.1",
     "class-variance-authority": "^0.7.1",
