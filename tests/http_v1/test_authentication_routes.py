@@ -34,7 +34,7 @@ from personalscraper.http_v1.models.accounts import ResetAccountPasswordBody
 from personalscraper.http_v1.models.authentication import ChangeOwnPasswordBody
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
 from personalscraper.i18n import Language
-from tests.conftest import LoggedEvents
+from tests.conftest import ConfiguredLanguage, LoggedEvents
 
 #: The Gravatar key of the seeded account's e-mail, ``account-1@example.org``.
 _GRAVATAR_DIGEST = hashlib.sha256(b"account-1@example.org").hexdigest()
@@ -634,6 +634,18 @@ class TestChangeOwnPassword:
 
 class TestSetOwnLanguage:
     """``PUT /auth/language`` — ``setOwnLanguage``, the signed-in account's own language (FG-1 B)."""
+
+    @pytest.fixture(autouse=True)
+    def _accounts_start_in_english(self, configured_language: ConfiguredLanguage) -> None:
+        """The caller's account starts in English, set here rather than read from the suite's default.
+
+        A new account starts in the configured language, so ``fr`` is a move and « unchanged »
+        reads ``en`` whatever language the shell exports.
+
+        Args:
+            configured_language: The fixture configuring the project's language.
+        """
+        configured_language("en")
 
     def test_sets_it_and_reads_it_back(self, v1_client: Callable[..., TestClient]) -> None:
         """200 with the ``Account`` as now held; ``readAccount`` answers the language chosen."""

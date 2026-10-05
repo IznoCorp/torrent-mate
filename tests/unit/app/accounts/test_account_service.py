@@ -1130,13 +1130,14 @@ class TestCreateOwner:
         assert read.role.kind is RoleKind.ADMIN
         assert (read.name, read.email) == ("Owner", _OWNER_EMAIL)
 
+    @pytest.mark.parametrize("configured", ["fr", "en"])
     def test_the_owner_starts_in_the_projects_configured_language(
-        self, empty_store: AppStore, bus: EventBus, configured_language: ConfiguredLanguage
+        self, empty_store: AppStore, bus: EventBus, configured_language: ConfiguredLanguage, configured: str
     ) -> None:
-        """The seeded owner is a new account: it speaks the configured language."""
-        configured_language("fr")
+        """The seeded owner is a new account: it speaks the configured language, whichever it is."""
+        configured_language(configured)
         account = empty_store.accounts.account(_create_owner(_service(empty_store, bus)))
-        assert account is not None and account.language == "fr"
+        assert account is not None and account.language == configured
 
     def test_one_account_and_one_owner_link_without_a_token(self, empty_store: AppStore, bus: EventBus) -> None:
         """The account holds only a hash; the link is the owner's plex.tv identity, no token kept."""
