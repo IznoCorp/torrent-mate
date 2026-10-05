@@ -124,6 +124,26 @@ module.exports = {
       restart_delay: 60000,
     },
 
+    // ---- Machine guard (B-703) ----
+    // Looks at the one-minute load once a minute; after three minutes in a row above the
+    // machine's capacity it logs the heaviest process trees and kills the trees that run
+    // from an agent checkout or scratchpad — never a service, never a `claude` process —
+    // leaving `GUARD KILLED` lines in ~/Library/Logs/machine-guard.log. A long-lived loop
+    // (`--loop`), not `cron_restart`, for the reason the scheduled jobs below give. A
+    // standalone stdlib script, run by the prod venv's Python from the prod clone.
+    {
+      name: "torrentmate-machine-guard",
+      script: "./scripts/machine_guard.py",
+      args: "--loop",
+      interpreter: "/Users/izno/deploy/torrentmate-venv/bin/python",
+      cwd: "/Users/izno/deploy/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+      },
+    },
+
     // ---- Scheduled jobs (one `schedule` loop per job, autorestart: true) ----
     // All run from the PROD clone binary + cwd, with the canonical config dir passed
     // explicitly. Decoupled from the dev checkout branch.
