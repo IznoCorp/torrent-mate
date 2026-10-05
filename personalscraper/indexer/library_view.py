@@ -462,12 +462,26 @@ def matches(item: IndexItem, query: str) -> bool:
 
 
 def _tm_fold(text: str | None) -> str | None:
-    """SQL ``tm_fold(text)``: :func:`fold`, ``NULL`` kept."""
+    """SQL ``tm_fold(text)``: :func:`fold`, ``NULL`` kept.
+
+    Args:
+        text: The column value.
+
+    Returns:
+        The folded text, or ``None`` for ``NULL``.
+    """
     return fold(text) if text is not None else None
 
 
 def _tm_has_ids(external_ids_json: str | None) -> int:
-    """SQL ``tm_has_ids(json)``: whether the row carries a provider id :func:`parse_ids` keeps."""
+    """SQL ``tm_has_ids(json)``: whether the row carries a provider id :func:`parse_ids` keeps.
+
+    Args:
+        external_ids_json: ``media_item.external_ids_json``.
+
+    Returns:
+        ``1`` when it does, ``0`` otherwise.
+    """
     return int(bool(parse_ids(external_ids_json)))
 
 
@@ -489,7 +503,15 @@ class LibraryReader:
         keys: dict[str, tuple[str, str]] = {}
 
         def collate(left: str, right: str) -> int:
-            """SQL collation ``tm_french``: compare :func:`french_key`."""
+            """SQL collation ``tm_french``: compare :func:`french_key`.
+
+            Args:
+                left: One sort title.
+                right: The other.
+
+            Returns:
+                Negative, zero or positive as ``left`` sorts before, with or after ``right``.
+            """
             a = keys.get(left) or keys.setdefault(left, french_key(left))
             b = keys.get(right) or keys.setdefault(right, french_key(right))
             return (a > b) - (a < b)
@@ -499,13 +521,23 @@ class LibraryReader:
         conn.create_collation("tm_french", collate)
 
     def __enter__(self) -> LibraryReader:
-        """Hand the reader out."""
+        """Hand the reader out.
+
+        Returns:
+            This reader.
+        """
         return self
 
     def __exit__(
         self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None
     ) -> None:
-        """Close the connection."""
+        """Close the connection.
+
+        Args:
+            exc_type: The exception's type, if the block raised.
+            exc: The exception, if the block raised.
+            tb: Its traceback, if the block raised.
+        """
         self._conn.close()
 
     def page(
@@ -554,16 +586,30 @@ class LibraryReader:
             )
             params.extend((wanted, wanted))
         selected = " AND ".join(clauses) or "1"
-        loaded, matching = self._conn.execute(
-            f"SELECT COUNT(*), COALESCE(SUM({selected}), 0) FROM media_item m WHERE {_LISTED_SQL}", params
-        ).fetchone()
         down, up = ("ASC", "DESC") if reversed_ else ("DESC", "ASC")
         recent = f"m.date_created {down}, m.id {down}"
         keys = recent if order is ListingOrder.RECENT else f"{_SORT_TITLE_SQL} COLLATE tm_french {up}, {recent}"
-        rows = self._conn.execute(
-            f"SELECT {_COLUMNS} FROM media_item m WHERE {_LISTED_SQL} AND {selected} ORDER BY {keys} LIMIT ? OFFSET ?",
-            [*params, size, page * size],
-        ).fetchall()
+        # One read transaction: the counts and the page see the same snapshot even if a
+        # writer commits between the two statements.
+        self._conn.execute("BEGIN")
+        try:
+            loaded, matching = self._conn.execute(
+                f"SELECT COUNT(*), COALESCE(SUM({selected}), 0) FROM media_item m WHERE {_LISTED_SQL}", params
+            ).fetchone()
+            # A page past the end is empty; checked before binding, as an offset beyond
+            # SQLite's 64-bit integer would raise ``OverflowError``.
+            rows = (
+                []
+                if page * size >= matching
+                else self._conn.execute(
+                    f"SELECT {_COLUMNS} FROM media_item m WHERE {_LISTED_SQL} AND {selected}"
+                    f" ORDER BY {keys} LIMIT ? OFFSET ?",
+                    [*params, size, page * size],
+                ).fetchall()
+            )
+        finally:
+            if self._conn.in_transaction:
+                self._conn.execute("COMMIT")
         filtered = bool(categories) or bool(query and query.strip())
         return ListingPage(
             items=tuple(_to_item(row) for row in rows),
@@ -614,27 +660,64 @@ class LibraryReader:
         return [_to_item(row) for row in rows]
 
     def holders(self, provider: str, provider_id: str) -> list[IndexItem]:
-        """Every row, live or not, carrying one provider id (:func:`read_holders`)."""
+        """Every row, live or not, carrying one provider id (:func:`read_holders`).
+
+        Args:
+            provider: ``"tvdb"``, ``"tmdb"`` or ``"imdb"``.
+            provider_id: The id at that provider, as text.
+
+        Returns:
+            The holding rows of the kind the id names, by ``id``.
+        """
         return read_holders(self._conn, provider, provider_id)
 
     def live_folders(self, item_ids: Sequence[ItemId]) -> dict[ItemId, set[str]]:
-        """The media folders of each item's live files (:func:`live_folders`)."""
+        """The media folders of each item's live files (:func:`live_folders`).
+
+        Args:
+            item_ids: The ``media_item`` ids asked about.
+
+        Returns:
+            ``{item_id: {"<disk id>:<category>/<media folder>", …}}`` for the items with live files.
+        """
         return live_folders(self._conn, item_ids)
 
     def folder_holders(self, folders: Iterable[str]) -> dict[str, set[ItemId]]:
-        """Every item holding live files in some media folders (:func:`folder_holders`)."""
+        """Every item holding live files in some media folders (:func:`folder_holders`).
+
+        Args:
+            folders: Media folders as :meth:`live_folders` names them.
+
+        Returns:
+            ``{folder: {item_id, …}}`` for the folders some item holds live files in.
+        """
         return folder_holders(self._conn, folders)
 
     def mounted_media_folders(self, item_id: ItemId) -> list[tuple[str, str]]:
-        """One item's media folders on mounted disks (:func:`mounted_media_folders`)."""
+        """One item's media folders on mounted disks (:func:`mounted_media_folders`).
+
+        Args:
+            item_id: The ``media_item`` id asked about.
+
+        Returns:
+            ``[(mount path, "<category>/<media folder>"), …]``, distinct and sorted.
+        """
         return mounted_media_folders(self._conn, item_id)
 
     def live_episode_pairs(self) -> dict[ItemId, set[tuple[int, int]]]:
-        """The held ``(season, episode)`` pairs of every show row (:func:`live_episode_pairs`)."""
+        """The held ``(season, episode)`` pairs of every show row (:func:`live_episode_pairs`).
+
+        Returns:
+            ``{item_id: pairs}`` for the show rows holding at least one live episode.
+        """
         return live_episode_pairs(self._conn)
 
     def any_disk_unmounted(self) -> bool:
-        """Whether a disk the index knows is not mounted (``disk.is_mounted = 0``)."""
+        """Whether a disk the index knows is not mounted (``disk.is_mounted = 0``).
+
+        Returns:
+            Whether one is.
+        """
         return self._conn.execute("SELECT 1 FROM disk WHERE is_mounted = 0 LIMIT 1").fetchone() is not None
 
 

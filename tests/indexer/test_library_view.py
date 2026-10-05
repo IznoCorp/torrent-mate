@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import unicodedata
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from personalscraper.indexer.library_view import (
     LIBRARY_PAGE_SIZE,
     IndexUnavailable,
     LibraryIndex,
+    LibraryReader,
     ListingOrder,
     fold,
     french_key,
@@ -260,3 +262,111 @@ def test_parse_ids_keeps_the_wire_order_and_drops_placeholders() -> None:
 
     assert list(parse_ids(raw).items()) == [("tvdb", 7), ("imdb", "tt1")]
     assert parse_ids("not json") == {}
+
+
+def test_a_page_past_any_integer_is_empty(seeded: FixtureIndex) -> None:
+    """A page whose offset no SQLite integer holds is past the end: empty, the counts kept."""
+    with LibraryIndex(seeded.path).reader() as reader:
+        first = reader.page(categories=frozenset(), query=None, order=ListingOrder.AZ, reversed_=False, page=0)
+        far = reader.page(categories=frozenset(), query=None, order=ListingOrder.AZ, reversed_=False, page=10**30)
+
+    assert far.items == ()
+    assert (far.total, far.matching, far.loaded) == (first.total, first.matching, first.loaded)
+
+
+class _WriterBetweenReads(sqlite3.Connection):
+    """A reader connection that lets a second connection write right after the counts are read."""
+
+    write: str = ""
+    db_path: Path = Path()
+    refused: list[str] = []
+
+    def execute(self, sql: str, parameters: object = (), /) -> sqlite3.Cursor:  # type: ignore[override]
+        """Run one statement; after the ``COUNT`` one, a writer tombstones a file and commits.
+
+        Args:
+            sql: The statement.
+            parameters: Its parameters.
+
+        Returns:
+            The statement's cursor, the counts already fetched for the ``COUNT`` one.
+        """
+        cursor = super().execute(sql, parameters)  # type: ignore[arg-type]
+        if "COUNT(*)" not in sql:
+            return cursor
+        counts = cursor.fetchall()
+        writer = sqlite3.connect(str(self.db_path), isolation_level=None, timeout=0)
+        try:
+            writer.execute(self.write)
+        except sqlite3.OperationalError as exc:
+            self.refused.append(str(exc))
+        finally:
+            writer.close()
+        return _Fetched(counts)  # type: ignore[return-value]
+
+
+class _Fetched:
+    """A cursor already read: ``fetchone`` hands its first row."""
+
+    def __init__(self, rows: list[tuple[int, int]]) -> None:
+        """Keep the rows.
+
+        Args:
+            rows: The fetched rows.
+        """
+        self._rows = rows
+
+    def fetchone(self) -> tuple[int, int]:
+        """The first row.
+
+        Returns:
+            It.
+        """
+        return self._rows[0]
+
+
+def test_the_counts_and_the_page_are_one_snapshot(tmp_path: Path) -> None:
+    """A writer committing between the counts and the page cannot make them disagree."""
+    index = FixtureIndex(tmp_path / "library.db")
+    for number in range(3):
+        index.movie_file(index.item(f"Movie {number}", tmdb=str(number + 1)), f"films/{number}")
+    _WriterBetweenReads.db_path = index.path
+    _WriterBetweenReads.write = "UPDATE media_file SET deleted_at = 1 WHERE id = (SELECT MIN(id) FROM media_file)"
+    _WriterBetweenReads.refused = []
+    conn = sqlite3.connect(
+        f"{index.path.resolve().as_uri()}?mode=ro", uri=True, isolation_level=None, factory=_WriterBetweenReads
+    )
+    conn.row_factory = sqlite3.Row
+
+    with LibraryReader(conn) as reader:
+        got = reader.page(categories=frozenset(), query=None, order=ListingOrder.RECENT, reversed_=False, page=0)
+
+    assert (len(got.items), got.loaded) == (got.loaded, 3)
+    # Rollback journal: the read transaction's lock keeps the writer out until the page is read
+    # (« database is locked »; macOS's SQLite says « disk I/O error », SQLITE_IOERR_LOCK).
+    assert len(_WriterBetweenReads.refused) == 1
+    index.conn.close()
+
+
+def test_pinned_expectations_anchor_the_oracle_helpers(tmp_path: Path) -> None:
+    """Literal expectations the oracle's helpers cannot move: a ligature, an NFD title, a provider id map."""
+    assert fold("Œdipe") == "oedipe"
+    assert parse_ids('{"imdb": {"series_id": "tt9"}, "tmdb": {"series_id": "12"}}') == {"tmdb": 12, "imdb": "tt9"}
+
+    index = FixtureIndex(tmp_path / "library.db")
+    titles = ("Fable", "Élite", unicodedata.normalize("NFD", "Élite"), "Ecole", "Œdipe", "Oasis")
+    for number, title in enumerate(titles, start=1):
+        index.movie_file(index.item(title, tmdb=str(number)), f"films/{number}")
+    with LibraryIndex(index.path).reader() as reader:
+        got = reader.page(categories=frozenset(), query=None, order=ListingOrder.AZ, reversed_=False, page=0)
+    index.conn.close()
+
+    # Equal keys keep the recent order (the NFD row is younger); « Œ » folds to « oe », after « oa ».
+    assert [(item.item_id, unicodedata.normalize("NFC", item.title)) for item in got.items] == [
+        (4, "Ecole"),
+        (3, "Élite"),
+        (2, "Élite"),
+        (1, "Fable"),
+        (6, "Oasis"),
+        (5, "Œdipe"),
+    ]
