@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 
 import pytest
 
 from personalscraper.acquire.delete_authority import StrictDeletePermit
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.plex import PlexClient
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
 from personalscraper.app.accounts.repository import AccountRow
@@ -226,6 +228,88 @@ def test_without_a_registry_the_services_build_their_own_lazily(test_config: Con
     assert tmdb is not None
     assert tmdb._transport._policy.retry == ONE_ATTEMPT  # type: ignore[attr-defined]
     services.close()
+
+
+def test_a_missing_tvdb_key_leaves_tmdb_served(test_config: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only ``TMDB_API_KEY`` set, OMDb listed without its key: the library still gets TMDB, and no TVDB."""
+    monkeypatch.delenv("OMDB_API_KEY", raising=False)
+    providers_config = test_config.providers.model_copy(update={"RatingProvider": {"imdb": 1}})
+    config = test_config.model_copy(update={"providers": providers_config})
+    services = build_app_services(config, Settings(_env_file=None, tvdb_api_key=""), event_bus=EventBus())  # type: ignore[call-arg]
+    try:
+        assert services.library._providers.get("tmdb") is not None
+        assert services.library._providers.get("tvdb") is None
+    finally:
+        services.close()
+
+
+def test_with_neither_key_no_provider_is_served_and_it_is_said_once(
+    test_config: Config, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Neither ``TMDB_API_KEY`` nor ``TVDB_API_KEY``: no client, and ``app.providers.unavailable`` once."""
+    caplog.set_level(logging.DEBUG)
+    services = build_app_services(
+        test_config,
+        Settings(_env_file=None, tmdb_api_key="", tvdb_api_key=""),  # type: ignore[call-arg]
+        event_bus=EventBus(),
+    )
+    try:
+        assert services.library._providers.get("tmdb") is None
+        assert services.library._providers.get("tvdb") is None
+    finally:
+        services.close()
+    said = [record.msg for record in caplog.records if _unavailable(record)]
+    assert len(said) == 1
+    assert said[0]["issues"] == ["missing_credentials"]
+
+
+def test_a_build_that_raises_is_attempted_once_and_said_once(caplog: pytest.LogCaptureFixture) -> None:
+    """A builder raising ``RuntimeError``: one attempt over three calls, no client, said once with its type."""
+    attempts: list[bool] = []
+
+    def build() -> ProviderRegistry:
+        attempts.append(True)
+        raise RuntimeError("planted")
+
+    caplog.set_level(logging.DEBUG)
+    providers = LazyProviders(build)
+
+    assert [providers.get("tmdb") for _ in range(3)] == [None, None, None]
+    assert attempts == [True]
+    said = [record.msg for record in caplog.records if _unavailable(record)]
+    assert len(said) == 1
+    assert said[0]["error"] == "RuntimeError"
+
+
+def test_a_closed_lookup_builds_nothing(test_config: Config) -> None:
+    """``close`` before any call: a later ``get`` builds no registry and answers ``None``."""
+    attempts: list[bool] = []
+
+    def build() -> ProviderRegistry:
+        attempts.append(True)
+        return build_provider_registry(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
+
+    providers = LazyProviders(build)
+    providers.close()
+
+    assert providers.get("tmdb") is None
+    assert attempts == []
+
+
+def _unavailable(record: logging.LogRecord) -> bool:
+    """Whether ``record`` is the composition's ``app.providers.unavailable`` event.
+
+    Args:
+        record: A captured log record.
+
+    Returns:
+        True for that event.
+    """
+    return (
+        record.name == "app.composition"
+        and isinstance(record.msg, dict)
+        and record.msg["event"] == "app.providers.unavailable"
+    )
 
 
 def test_one_plex_client_serves_the_door_and_the_library(test_config: Config) -> None:

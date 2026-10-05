@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from personalscraper.app.library.service import LibraryService
     from personalscraper.app.store.store import AppStore
     from personalscraper.conf.models.config import Config
+    from personalscraper.conf.models.providers import ProvidersConfig
     from personalscraper.config import Settings
     from personalscraper.core.ownership import OwnershipChecker
 
@@ -46,12 +47,14 @@ def build_app_context(
     build_torrent_client: bool = False,
     provider_retry: "RetryPolicy | None" = None,
 ) -> AppContext:
-    """Build the process-scoped :class:`AppContext` for a CLI invocation.
+    """Build the process-scoped :class:`AppContext`, once per process.
 
-    Constructed once per CLI command invocation at the boundary
-    (``personalscraper run``, the launchd ``library-index`` command, the
-    four ``trailers`` subcommands). The :class:`EventBus` is a fresh
-    in-process instance; subscriber wiring (``RichConsoleSubscriber``,
+    Constructed once at the boundary of a CLI command (``personalscraper run``,
+    the launchd ``library-index`` command, the four ``trailers`` subcommands)
+    and once for the lifetime of the web process (``web serve``, with
+    ``provider_retry=ONE_ATTEMPT``), which hands the context's bus and registry
+    over to v1's services. The :class:`EventBus` is built here, the process's
+    only one; subscriber wiring (``RichConsoleSubscriber``,
     ``TelegramSubscriber``, …) is the caller's responsibility.
 
     The :class:`ProviderRegistry` is instantiated here from ``settings`` +
@@ -193,7 +196,10 @@ def build_app_context(
 
 
 def _circuit_policy(config: "Config") -> "CircuitPolicy":
-    """The circuit breaker every provider transport of the process shares, from ``config.thresholds``.
+    """The circuit breaker policy of the provider transports, from ``config.thresholds``.
+
+    A value: each caller builds its own, all equal (the acquire context's and the
+    registry's); the circuit state itself lives in each transport.
 
     Args:
         config: The typed configuration.
@@ -210,7 +216,12 @@ def _circuit_policy(config: "Config") -> "CircuitPolicy":
 
 
 def build_provider_registry(
-    config: "Config", settings: "Settings", *, event_bus: EventBus, retry: RetryPolicy | None = None
+    config: "Config",
+    settings: "Settings",
+    *,
+    event_bus: EventBus,
+    retry: RetryPolicy | None = None,
+    providers_config: "ProvidersConfig | None" = None,
 ) -> "ProviderRegistry":
     """Build the process's metadata provider registry, in the configured language.
 
@@ -221,6 +232,8 @@ def build_provider_registry(
         event_bus: The process's bus, for the clients' transport events.
         retry: Optional ``RetryPolicy`` override for TMDB and TVDB; ``None`` keeps each
             provider's own, :data:`ONE_ATTEMPT` serves a request.
+        providers_config: The providers section to build from instead of
+            ``config.providers``.
 
     Returns:
         The registry.
@@ -237,21 +250,62 @@ def build_provider_registry(
         settings=settings,
         event_bus=event_bus,
         cb_policy=_circuit_policy(config),
-        providers_config=config.providers,
+        providers_config=config.providers if providers_config is None else providers_config,
         language=config.scraper.language,
         retry=retry,
     )
+
+
+#: The providers the library reads, by the ``Settings`` field holding each one's key.
+_LIBRARY_PROVIDER_KEYS: Final[dict[str, str]] = {"tmdb": "tmdb_api_key", "tvdb": "tvdb_api_key"}
+
+
+def _build_library_registry(config: "Config", settings: "Settings", *, event_bus: EventBus) -> "ProviderRegistry":
+    """Build v1's registry, with :data:`ONE_ATTEMPT`, over the providers the library reads.
+
+    The providers section is pruned to TMDB and TVDB, and to those of the two whose key
+    is set, so one missing key (or another provider's) does not take the other client
+    down. A key missing beside a set one is logged once (``app.providers.unavailable``);
+    with neither key nothing is pruned, and the registry refuses to build as before.
+
+    Args:
+        config: The typed configuration.
+        settings: The env-var settings (the provider API keys).
+        event_bus: The process's bus.
+
+    Returns:
+        The registry.
+
+    Raises:
+        RegistryConfigError: The pruned providers section is inconsistent, or neither
+            key is set.
+    """
+    from personalscraper.conf.models.providers import ProvidersConfig  # noqa: PLC0415
+
+    keyed = {name for name, field in _LIBRARY_PROVIDER_KEYS.items() if getattr(settings, field)}
+    kept = keyed or set(_LIBRARY_PROVIDER_KEYS)
+    missing = sorted(set(_LIBRARY_PROVIDER_KEYS) - kept)
+    if missing:
+        log.error("app.providers.unavailable", issues=["missing_credentials"], providers=missing)
+    pruned = ProvidersConfig(
+        **{
+            section: {name: priority for name, priority in entries.items() if name in kept}
+            for section, entries in config.providers.model_dump().items()
+        }
+    )
+    return build_provider_registry(config, settings, event_bus=event_bus, retry=ONE_ATTEMPT, providers_config=pruned)
 
 
 class LazyProviders:
     """The process's registry for v1, built with :data:`ONE_ATTEMPT` on first use.
 
     The library reads its TMDB and TVDB clients through it, whether the registry is the
-    services' own or one the process handed over (then the builder returns it). A
-    :class:`RegistryConfigError` (a missing ``TMDB_API_KEY``, say) is logged once
-    (``app.providers.unavailable``) and every later call gets no client, so its sheets
-    answer ``provider.unavailable`` and the process still serves the rest. Thread-safe:
-    the web serves requests from a pool.
+    services' own or one the process handed over (then the builder returns it). A build
+    that raises — a :class:`RegistryConfigError` (no key at all, say) or anything else —
+    is logged once (``app.providers.unavailable``) and every later call gets no client, so
+    its sheets answer ``provider.unavailable`` and the process still serves the rest. Once
+    closed, it builds nothing and gives no client. Thread-safe: the web serves requests
+    from a pool.
     """
 
     def __init__(self, build: Callable[[], "ProviderRegistry"]) -> None:
@@ -263,6 +317,7 @@ class LazyProviders:
         self._build = build
         self._registry: ProviderRegistry | None = None
         self._unavailable = False
+        self._closed = False
         self._lock = threading.Lock()
 
     def get(self, provider: str) -> "TvCatalogueClient | None":
@@ -272,8 +327,8 @@ class LazyProviders:
             provider: ``"tvdb"`` or ``"tmdb"``.
 
         Returns:
-            The registry's client, or ``None`` when the registry cannot be built or
-            does not hold ``provider``.
+            The registry's client, or ``None`` when the registry cannot be built, does
+            not hold ``provider``, or this lookup is closed.
         """
         from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
 
@@ -286,13 +341,16 @@ class LazyProviders:
             return None
 
     def close(self) -> None:
-        """Close the registry if it was built (idempotent)."""
+        """Close the registry if it was built, once; later calls get no client."""
         with self._lock:
+            if self._closed:
+                return
+            self._closed = True
             if self._registry is not None:
                 self._registry.close()
 
     def _resolve(self) -> "ProviderRegistry | None":
-        """Return the registry, building it once; ``None`` once it failed to build.
+        """Return the registry, building it once; ``None`` once it failed to build or is closed.
 
         Returns:
             The registry, or ``None``.
@@ -300,12 +358,17 @@ class LazyProviders:
         from personalscraper.api.metadata.registry._errors import RegistryConfigError  # noqa: PLC0415
 
         with self._lock:
+            if self._closed:
+                return None
             if self._registry is None and not self._unavailable:
                 try:
                     self._registry = self._build()
                 except RegistryConfigError as exc:
                     self._unavailable = True
                     log.error("app.providers.unavailable", issues=sorted({issue.code for issue in exc.issues}))
+                except Exception as exc:  # noqa: BLE001 — any build failure leaves the sheets unavailable, not a 500
+                    self._unavailable = True
+                    log.error("app.providers.unavailable", error=type(exc).__name__)
             return self._registry
 
 
@@ -329,7 +392,8 @@ def build_app_services(
         event_bus: The process's bus.
         providers: The process's registry, built with :data:`ONE_ATTEMPT` and left to
             its owner to close; ``None`` builds one on the first provider call
-            (:class:`LazyProviders`), which these services own and close.
+            (:class:`LazyProviders`), over TMDB and TVDB as their keys allow, which these
+            services own and close.
 
     Returns:
         The application services, on the process's :class:`EventBus`, with the build
@@ -339,7 +403,7 @@ def build_app_services(
 
     owned: LazyProviders | None = None
     if providers is None:
-        owned = LazyProviders(lambda: build_provider_registry(config, settings, event_bus=event_bus, retry=ONE_ATTEMPT))
+        owned = LazyProviders(lambda: _build_library_registry(config, settings, event_bus=event_bus))
         lookup = owned
     else:
         given = providers
