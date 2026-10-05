@@ -18,10 +18,17 @@ const UNAVAILABLE = {
 /** A read that was refused, as the query hooks report it. */
 const refused = { isError: true, isPending: false, isFetching: false, isPlaceholderData: false, data: undefined, error: UNAVAILABLE, refetch: vi.fn() };
 
-// EVERY READ BELOW THE SURFACE ANSWERS REFUSED: the surface under test names the one it reports.
+/** What the cache still holds when a REFETCH is refused: TanStack v5 keeps the data and reports `isError` all the same. */
+const cached = (address: unknown) =>
+  address === "/api/v1/acquisition/to-handle" ? { inFlight: [], arrivals: [], blocked: [] } : address === "/api/v1/auth/me" ? undefined : [];
+
+// EVERY READ BELOW THE SURFACE ANSWERS REFUSED: the surface under test names the one it reports. `holdsData` is the
+// refused REFETCH, where the cache still holds what was drawn.
+const reads = vi.hoisted(() => ({ holdsData: false }));
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
-  useQuery: () => refused,
+  useQuery: (options: { queryKey: readonly unknown[] }) =>
+    reads.holdsData ? { ...refused, data: cached(options.queryKey[0]) } : refused,
 }));
 // THE SERVER-RENDERED PASS has no snapshot to subscribe to: the version stands still.
 vi.mock("../../lib/query-client", async (importOriginal) => ({
@@ -32,9 +39,11 @@ vi.mock("../../lib/query-client", async (importOriginal) => ({
 vi.hoisted(() => {
   vi.stubGlobal("window", { addEventListener: () => undefined });
 });
-// THE SCREEN IS DRIVEN INTO ITS ERROR PHASE, as the harness names it.
+// THE PHASE IS THE TEST'S: "error" is what the harness names; "ready" is what a real refused read leaves, since
+// nothing but the harness ever sets the error phase.
+const screen = vi.hoisted(() => ({ phase: "error" }));
 vi.mock("../../lib/store-access", () => ({
-  useUiState: () => ({ phase: "error", scen: "" }),
+  useUiState: () => ({ phase: screen.phase, scen: "" }),
   useStoreContent: () => 0,
 }));
 
@@ -61,5 +70,45 @@ describe("the Acquisition tabs in their error phase", () => {
     const text = textOf(createElement(Tab));
     expect(text).toContain(REFUSAL);
     expect(text).not.toContain(TIMEOUT);
+  });
+});
+
+describe("the Acquisition tabs over a real refused read (the phase is not \"error\")", () => {
+  it.each([
+    ["NowTab", () => import("./now-tab").then((m) => m.NowTab)],
+    ["FollowsTab", () => import("./follows-tab").then((m) => m.FollowsTab)],
+    ["TodoTab", () => import("./todo-tab").then((m) => m.TodoTab)],
+    ["DiscoverTab", () => import("./discover-tab").then((m) => m.DiscoverTab)],
+  ])("%s says why the read was refused, whatever the phase", async (_name, load) => {
+    const Tab = await load();
+    for (const phase of ["ready", "loading"]) {
+      screen.phase = phase;
+      try {
+        const text = textOf(createElement(Tab));
+        expect(text, phase).toContain(REFUSAL);
+        expect(text, phase).not.toContain(TIMEOUT);
+      } finally {
+        screen.phase = "error";
+      }
+    }
+  });
+});
+
+describe("the Acquisition tabs over a refused REFETCH (the cache still holds data)", () => {
+  it.each([
+    ["NowTab", () => import("./now-tab").then((m) => m.NowTab)],
+    ["FollowsTab", () => import("./follows-tab").then((m) => m.FollowsTab)],
+    ["TodoTab", () => import("./todo-tab").then((m) => m.TodoTab)],
+    ["DiscoverTab", () => import("./discover-tab").then((m) => m.DiscoverTab)],
+  ])("%s keeps the data drawn instead of taking the error face", async (_name, load) => {
+    const Tab = await load();
+    screen.phase = "ready";
+    reads.holdsData = true;
+    try {
+      expect(textOf(createElement(Tab))).not.toContain(REFUSAL);
+    } finally {
+      reads.holdsData = false;
+      screen.phase = "error";
+    }
   });
 });

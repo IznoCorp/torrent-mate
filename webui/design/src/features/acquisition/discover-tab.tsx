@@ -42,6 +42,8 @@ export function DiscoverTab(): ReactElement {
   // A REJECTION IS A STORE BUMP: the header's count follows it.
   useStoreContent((content) => content.version);
   const read = useQuery(suggestionsQuery);
+  // REFUSED AND HOLDING NOTHING: a refused REFETCH keeps the cache's data, which stays drawn.
+  const refused = read.isError && read.data === undefined;
 
   // THE FRAGMENT FILLS WHAT THIS DRAWS, and it has to be asked AFTER the
   // drawing: `render()` calls the same verbs, but it calls them before React
@@ -116,7 +118,7 @@ export function DiscoverTab(): ReactElement {
           <button className={liveStrip({ inline: true })} data-part="discover/header" data-discover-header="">
             <span className={liveDot()}></span>
             <span data-part="discover/header-text">
-              {state.phase === "error" || read.isError
+              {state.phase === "error" || refused
                 ? t("screens.acquisition.headerUnavailable")
                 : state.phase === "loading" || read.data === undefined
                   ? t("screens.acquisition.headerLoading")
@@ -197,10 +199,12 @@ export function DiscoverTab(): ReactElement {
           <em>{t("screens.acquisition.gesturesNoteInner")}</em>
           {t("screens.acquisition.gesturesNoteAfter")}
         </div>
-        {state.phase === "loading" ? (
-          <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
-        ) : state.phase === "error" ? (
+        {/* A REFUSED READ IS SAID WHATEVER THE PHASE: only the harness sets "error", and the loading face
+            would otherwise stand over a server that answered. */}
+        {state.phase === "error" || refused ? (
           <SurfaceError subject={t("screens.acquisition.errorSuggestions")} failure={read.error ?? undefined} />
+        ) : state.phase === "loading" ? (
+          <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
         ) : null}
         {/* FILLED BY THE FRAGMENT, never by React — see this file's header. */}
         <div id="sugitems" hidden={state.phase !== "ready"}></div>

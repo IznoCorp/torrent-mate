@@ -45,12 +45,20 @@ export function MaintenancePage(): ReactElement | null {
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
   // FROM THE CACHE (invariant 4).
-  const { data: MAINT_ACTIONS = [], error: actionsError } = useMaintenanceActions();
-  const { data: JOURNAL = { total: 0, rows: [] }, error: journalError } = useDeletionJournal();
+  const actions = useMaintenanceActions();
+  const MAINT_ACTIONS = actions.data ?? [];
+  const journal = useDeletionJournal();
+  const JOURNAL = journal.data ?? { total: 0, rows: [] };
 
-  if (state.phase !== "ready") {
-    return state.phase === "error" ? (
-      <SurfaceError subject={t("screens.maintenance.errorSubject")} failure={actionsError ?? journalError ?? undefined} />
+  // A REFUSED READ IS SAID WHATEVER THE PHASE: only the harness sets the error phase, so a real refusal
+  // would otherwise leave the page drawn over nothing. The PAGE is the actions' (the rubric menu); the journal is
+  // read by its own section alone, which says its own refusal. Refused AND HOLDING NOTHING: a refused REFETCH keeps
+  // the cache's data (`isError` stays true), and that data stays drawn.
+  const refused = actions.isError && actions.data === undefined;
+  const journalRefused = journal.isError && journal.data === undefined;
+  if (state.phase !== "ready" || refused) {
+    return state.phase === "error" || refused ? (
+      <SurfaceError subject={t("screens.maintenance.errorSubject")} failure={actions.error ?? journal.error ?? undefined} />
     ) : (
       <div className={section()} data-part="section"><Skeletons count={3} shape="card" /></div>
     );
@@ -137,10 +145,16 @@ export function MaintenancePage(): ReactElement | null {
       })}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.maintenance.journal")}</h2>
-      <div className="note" data-part="note">
-        {t("screens.maintenance.journalNote", { total: JOURNAL.total })}
-      </div>
-      {facts(JOURNAL.rows)}
+      {journalRefused ? (
+        <SurfaceError subject={t("screens.maintenance.errorSubject")} failure={journal.error ?? undefined} />
+      ) : (
+        <>
+          <div className="note" data-part="note">
+            {t("screens.maintenance.journalNote", { total: JOURNAL.total })}
+          </div>
+          {facts(JOURNAL.rows)}
+        </>
+      )}
     </>
   );
 }

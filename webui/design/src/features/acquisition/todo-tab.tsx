@@ -39,7 +39,9 @@ export function TodoTab(): ReactElement {
   const { t } = useTranslation();
   // EVERY HOOK BEFORE THE PLACEHOLDER'S RETURN — `NowTab`'s reason (B-320).
   const scenario = state.scen === "loaded" ? "loaded" : "";
-  const { data: queue, error: queueError } = useAcquisitionQueue(scenario);
+  const { data: queue, error: queueError, isError } = useAcquisitionQueue(scenario);
+  // REFUSED AND HOLDING NOTHING — `NowTab`'s reason.
+  const queueRefused = isError && queue === undefined;
   // THE STAGING READ IS OBSERVED HERE because the panels this tab opens derive
   // their act from it (`queueNow().stuck`): a folder the read does not hold is
   // offered its journey instead of « Résoudre ». An unobserved answer is not
@@ -49,14 +51,15 @@ export function TodoTab(): ReactElement {
   const rights = useRights();
   // A BLOCK THE ENGINE LIFTS while he looks at this tab is said (DECIDED 5).
   useResumedMessage(queue);
-  if (state.phase !== "ready") {
+  // A REFUSED READ IS SAID WHATEVER THE PHASE — `NowTab`'s reason.
+  if (state.phase !== "ready" || queueRefused) {
     return (
       <div
         className={body()}
         data-part="surface/body"
         data-region="acquisition/body"
       >
-        {state.phase === "error" ? (
+        {state.phase === "error" || queueRefused ? (
           <SurfaceError subject={t("screens.acquisition.errorTodo")} failure={queueError ?? undefined} />
         ) : (
           <div className={sectionClass()} data-part="section">

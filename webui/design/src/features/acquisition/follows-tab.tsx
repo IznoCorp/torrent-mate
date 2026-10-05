@@ -53,7 +53,10 @@ export function FollowsTab(): ReactElement {
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
   // follows panel's own, and this is the read.
-  const { data: follows = [], error: followsError } = useFollows();
+  const { data: followsRead, error: followsError, isError: followsIsError } = useFollows();
+  const follows = followsRead ?? [];
+  // REFUSED AND HOLDING NOTHING: a refused REFETCH keeps the cache's data, which stays drawn.
+  const followsRefused = followsIsError && followsRead === undefined;
   // A PAUSED FOLLOW WAITS FOR HIM, folded at the end of the list and outside
   // its counts — the list and its pills are the follows being looked for.
   const paused = follows.filter((follow) => follow.status === "disabled");
@@ -181,13 +184,14 @@ export function FollowsTab(): ReactElement {
   // error surface — and React cannot inject markup without a host, so the host
   // IS that element rather than a wrapper around it.
   let content: ReactElement;
-  if (state.phase === "loading") {
-    content = (
-      <div className={sectionClass()} data-part="section"><Skeletons count={5} shape="card" /></div>
-    );
-  } else if (state.phase === "error") {
+  if (state.phase === "error" || followsRefused) {
+    // BEFORE THE LOADING FACE: a real refused read leaves the phase as it was, since only the harness sets "error".
     content = (
       <SurfaceError subject={t("screens.acquisition.errorFollows")} failure={followsError ?? undefined} />
+    );
+  } else if (state.phase === "loading") {
+    content = (
+      <div className={sectionClass()} data-part="section"><Skeletons count={5} shape="card" /></div>
     );
   } else if (visible.length === 0) {
     content = (
