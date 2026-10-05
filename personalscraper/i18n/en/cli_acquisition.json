@@ -130,5 +130,29 @@
     "dry_run_skipped": "Skipped by cadence:",
     "dry_run_would_abandon": "Would abandon (cutoff):",
     "dry_run_complete": "Dry-run complete — no trackers contacted, no writes performed."
+  },
+  "grab": {
+    "help": "Run the grab loop — search trackers and add top-ranked torrents.",
+    "dry_run_help": "Search, filter, rank — print top candidate. No fetch or add.",
+    "limit_help": "Maximum number of wanted items to process. Default: all pending.",
+    "followed_id_help": "Restrict the run to one followed series' pending items (OBJ3 manual trigger).",
+    "no_context": "AcquireContext not available.",
+    "no_client": "No torrent client configured — cannot run grab. Check config or use --dry-run.",
+    "complete_label": "Grab complete:",
+    "complete_counts": "{{grabbed}} grabbed, {{retried}} retried, {{abandoned}} abandoned, {{skipped}} skipped.",
+    "dry_run_no_store": "No acquire store — nothing to dry-run.",
+    "dry_run_empty": "No pending wanted items.",
+    "item_label": "Item:",
+    "item_line": "{{media_ref}} ({{kind}})",
+    "circuit_open": "Tracker circuit open — skipped this item.",
+    "attempt_search": "Search",
+    "attempt_retry": "Retry (original title)",
+    "attempt_line": "{{label}}: {{results}} results ({{queried}} queried, {{errored}} errored)",
+    "no_match": "No result matches the wanted item (title/episode/year).",
+    "after_filter": "After filter+dedup: {{candidates}} candidates",
+    "all_filtered": "All filtered.",
+    "no_seeders": "No candidate meets the minimum seeders threshold.",
+    "top_label": "Top:",
+    "top_line": "[{{provider}}] {{title}} ({{seeders}} seeders, {{resolution}})"
   }
 }

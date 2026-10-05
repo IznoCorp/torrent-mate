@@ -3,5 +3,12 @@
     "reconcile_label": "Réconciliation:",
     "reconcile_closed": "{{closed}} clos (déjà en médiathèque).",
     "reconcile_fell_back": "{{seasons}} saison(s) repassée(s) en épisodes (pack incomplet)."
+  },
+  "grab": {
+    "reconcile_label": "Réconciliation:",
+    "reconcile_summary": "{{closed}} clos (en médiathèque), {{requeued}} remis en file (torrent disparu), {{confirmed}} confirmés (récupérés après interruption).",
+    "reconcile_fell_back": "{{seasons}} saison(s) repassée(s) en épisodes (pack incomplet).",
+    "reswitch_label": "Bascule:",
+    "reswitch_summary": "{{reswitched}} release(s) bloquée(s) remplacée(s) (sur {{checked}} en cours)."
   }
 }
