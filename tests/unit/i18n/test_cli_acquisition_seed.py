@@ -13,7 +13,7 @@ from personalscraper.i18n import Language, t, use_language
 
 @pytest.mark.parametrize("language", [Language.FR, Language.EN])
 def test_no_client_refusal_comes_from_the_catalogue(language: Language) -> None:
-    """The « no torrent client » refusal is the catalogue's text, the same in both languages until translated."""
+    """The « no torrent client » refusal is the catalogue's text, each language shows its own text."""
     import personalscraper.cli as _cli  # noqa: F401
     from personalscraper.cli_app import app
 
@@ -31,4 +31,9 @@ def test_no_client_refusal_comes_from_the_catalogue(language: Language) -> None:
     assert result.exit_code == 1
     expected = t("cli_acquisition.seed.no_client", language=language)
     assert expected in result.output
-    assert expected == "No torrent client configured. Check config/torrent.json5."
+    if language is Language.EN:
+        assert expected == "No torrent client configured. Check config/torrent.json5."
+    else:
+        # The French side is its own text (not the English one) and keeps the values the command passes.
+        assert expected != "No torrent client configured. Check config/torrent.json5."
+        assert "config/torrent.json5" in expected
