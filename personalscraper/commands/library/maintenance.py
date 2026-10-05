@@ -230,21 +230,20 @@ def library_clean(
 
         if result.dry_run:
             console.print(
-                "[yellow]"
-                + t("cli_library.maintenance.dry_run_label")
-                + "[/yellow] "
-                + t(
+                t(
                     "cli_library.maintenance.would_delete",
+                    label="[yellow]" + t("cli_library.maintenance.dry_run_label") + "[/yellow]",
                     items=result.deleted_count,
                     size=f"{result.freed_bytes / 1024 / 1024:.1f}",
                 )
             )
             if result.skipped_by_obligation:
                 console.print(
-                    "[blue]"
-                    + t("cli_library.maintenance.skipped_obligation_label")
-                    + "[/blue] "
-                    + t("cli_library.maintenance.skipped_obligation", items=result.skipped_by_obligation)
+                    t(
+                        "cli_library.maintenance.skipped_obligation",
+                        label="[blue]" + t("cli_library.maintenance.skipped_obligation_label") + "[/blue]",
+                        items=result.skipped_by_obligation,
+                    )
                 )
             # Orphan deletes a whole release directory at once — high blast
             # radius. List the first matches so the operator can sanity-check
@@ -266,28 +265,28 @@ def library_clean(
                     )
         else:
             console.print(
-                "[green]"
-                + t("cli_library.maintenance.deleted_label")
-                + "[/green] "
-                + t(
+                t(
                     "cli_library.maintenance.deleted",
+                    label="[green]" + t("cli_library.maintenance.deleted_label") + "[/green]",
                     items=result.deleted_count,
                     size=f"{result.freed_bytes / 1024 / 1024:.1f}",
                 )
             )
             if result.skipped_by_obligation:
                 console.print(
-                    "[blue]"
-                    + t("cli_library.maintenance.skipped_obligation_label")
-                    + "[/blue] "
-                    + t("cli_library.maintenance.skipped_obligation", items=result.skipped_by_obligation)
+                    t(
+                        "cli_library.maintenance.skipped_obligation",
+                        label="[blue]" + t("cli_library.maintenance.skipped_obligation_label") + "[/blue]",
+                        items=result.skipped_by_obligation,
+                    )
                 )
             if result.error_count:
                 console.print(
-                    "[red]"
-                    + t("cli_library.maintenance.errors_label")
-                    + "[/red] "
-                    + t("cli_library.maintenance.deletions_failed", items=result.error_count)
+                    t(
+                        "cli_library.maintenance.deletions_failed",
+                        label="[red]" + t("cli_library.maintenance.errors_label") + "[/red]",
+                        items=result.error_count,
+                    )
                 )
                 for err in result.errors:
                     console.print("  " + str(err))
@@ -437,10 +436,11 @@ def library_validate(
                 )
                 if non_indexable:
                     console.print(
-                        "[yellow]"
-                        + t("cli_library.maintenance.note_label")
-                        + "[/yellow] "
-                        + t("cli_library.maintenance.non_indexable", checks=str(non_indexable))
+                        t(
+                            "cli_library.maintenance.non_indexable",
+                            label="[yellow]" + t("cli_library.maintenance.note_label") + "[/yellow]",
+                            checks=str(non_indexable),
+                        )
                     )
             console.print("[bold]" + t("cli_library.maintenance.validating_from_index") + "[/bold]")
             import sqlite3  # noqa: PLC0415
@@ -487,23 +487,16 @@ def library_validate(
         write_json(result, output_path)
 
         console.print(
-            "[green]"
-            + t("cli_library.maintenance.valid_label")
-            + "[/green] "
-            + str(result.valid_count)
-            + "  "
-            + "[yellow]"
-            + t("cli_library.maintenance.fixed_label")
-            + "[/yellow] "
-            + str(result.fixed_count)
-            + "  "
-            + "[red]"
-            + t("cli_library.maintenance.issues_label")
-            + "[/red] "
-            + str(result.issues_count)
-            + "  "
-            + "→ "
-            + str(output_path)
+            t(
+                "cli_library.maintenance.validation_summary",
+                valid_label="[green]" + t("cli_library.maintenance.valid_label") + "[/green]",
+                valid=result.valid_count,
+                fixed_label="[yellow]" + t("cli_library.maintenance.fixed_label") + "[/yellow]",
+                fixed=result.fixed_count,
+                issues_label="[red]" + t("cli_library.maintenance.issues_label") + "[/red]",
+                issues=result.issues_count,
+                path=str(output_path),
+            )
         )
 
         if fix and result.issues_count:

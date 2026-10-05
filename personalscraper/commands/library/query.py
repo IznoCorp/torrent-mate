@@ -90,28 +90,12 @@ def _print_search_table(rows: list[dict[str, object]]) -> None:
     if not rows:
         typer.echo(t("cli_library.query.no_results"))
         return
-    typer.echo(
-        t(
-            "cli_library.query.search_header",
-            id=f"{'ID':<8}",
-            title=f"{'TITLE':<40}",
-            year=f"{'YEAR':<6}",
-            nfo=f"{'NFO':<10}",
-        )
-    )
+    typer.echo(t("cli_library.query.search_header"))
     for r in rows:
         year_str = str(r["year"]) if r["year"] is not None else ""
         nfo_str = str(r["nfo_status"]) or ""
         title = str(r["title"]) or ""
-        typer.echo(
-            t(
-                "cli_library.query.search_row",
-                id=f"{r['id']:<8}",
-                title=f"{title[:38]:<40}",
-                year=f"{year_str:<6}",
-                nfo=f"{nfo_str:<10}",
-            )
-        )
+        typer.echo(f"{r['id']:<8}{title[:38]:<40} {year_str:<6} {nfo_str:<10}")
 
 
 @app.command("library-show", help=t("cli_library.query.library_show_help"))
@@ -158,7 +142,7 @@ def _print_show_sections(payload: dict[str, object]) -> None:
     item_id = payload.get("item_id", "?")
     typer.echo(t("cli_library.query.item_heading", item_id=str(item_id)))
     for key, value in item.items():
-        typer.echo(t("cli_library.query.item_field", key=str(key), value=str(value)))
+        typer.echo(f"  {key}: {value}")
 
     seasons = cast("list[dict[str, object]]", payload.get("seasons", []))
     if seasons:
@@ -207,7 +191,7 @@ def _print_show_sections(payload: dict[str, object]) -> None:
     if attributes:
         typer.echo(t("cli_library.query.attributes_heading", total=len(attributes)))
         for a in attributes:
-            typer.echo(t("cli_library.query.attribute_line", key=str(a.get("key")), value=str(a.get("value"))))
+            typer.echo(f"  {a.get('key')}: {a.get('value')}")
 
     deleted = cast("list[dict[str, object]]", payload.get("deleted_history", []))
     if deleted:
