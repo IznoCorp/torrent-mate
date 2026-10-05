@@ -1,4 +1,8 @@
-"""``AccountService``: the account operations a signed-in actor asks for."""
+"""``AccountService``: the account operations a signed-in actor asks for.
+
+Every method taking an actor is authorised by ``@requires`` before it reads a row;
+the actor-less acts (the sign-in door, the owner's machine acts) take none.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from typing import Final, get_args
 
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
+from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.avatar import resolve_avatar
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal, verify_password
@@ -184,6 +189,7 @@ class AccountService:
             language=account.language,
         )
 
+    @requires("readAccount")
     def read_account(self, actor: Actor) -> AccountView:
         """The signed-in account, its role and the instance's forbidden writes.
 
@@ -404,10 +410,12 @@ class AccountService:
         log.info("account_owner_created", account_id=account_id, plex_id=plex.plex_id)
         return account_id
 
+    @requires("changeOwnPassword")
     def change_own_password(self, actor: Actor, token: str, *, current_password: str, new_password: str) -> None:
         """Replace the signed-in local account's password, and end its other sessions.
 
-        Order: the account (deleted since the perimeter resolved it); who holds its
+        Order: the authorisation (``@requires``: a read-only instance refuses first); the
+        account (deleted since the session was resolved); who holds its
         password (the owner's is the CLI's, a Plex-linked account holds none); the limiter,
         keyed by the account; scrypt against the stored hash, or a dummy one when none is
         held, so every refusal costs a real check; the new password's policy. The new hash
@@ -424,8 +432,9 @@ class AccountService:
 
         Raises:
             AppUnauthenticated: ``auth.required`` — the account was deleted.
-            AppForbidden: ``password.held_by_cli`` (the server's owner),
-                ``auth.plex_only`` (a Plex-linked account).
+            AppForbidden: ``instance.read_only`` (``@requires``, before anything is read);
+                ``password.held_by_cli`` (the server's owner), ``auth.plex_only`` (a
+                Plex-linked account).
             AppTooManyRequests: ``auth.rate_limited`` — the account typed a wrong current
                 password too often in the window; checked before scrypt, so the right one
                 is refused too.
@@ -469,11 +478,12 @@ class AccountService:
             revoked = repo.revoke_sessions_of(current.id, except_id=kept, now=now)
         log.info("account_password_changed", account_id=account.id, sessions_revoked=revoked)
 
+    @requires("setOwnLanguage")
     def set_own_language(self, actor: Actor, language: Language) -> AccountView:
         """Set the language the signed-in account is spoken to in — its own row, and no other.
 
         A session act like the password change: no right to name; the read-only instance
-        refuses it at the perimeter (the rights table's ``SignedIn(write=True)``).
+        refuses it, authorised by ``@requires`` (the rights table's ``SignedIn(write=True)``).
 
         Args:
             actor: The signed-in actor.
@@ -496,6 +506,7 @@ class AccountService:
         log.info("account_language_set", account_id=account.id, language=language.value)
         return view
 
+    @requires("resetAccountPassword")
     def reset_account_password(self, actor: Actor, account_id: str, *, password: str) -> None:
         """Give a local account a provisional password — an Admin's act; its sessions keep running.
 
@@ -537,6 +548,7 @@ class AccountService:
             repo.set_password_hash(account.id, password_hash, now=self._clock())
         log.info("account_password_reset", account_id=account.id, by=actor.account_id)
 
+    @requires("setAccountAccess")
     def set_account_access(self, actor: Actor, account_id: str, *, allowed: bool) -> AccountSummaryView:
         """Allow or cut an account's sign-in — an Admin's act.
 
@@ -610,6 +622,7 @@ class AccountService:
             demoted_from=account.demoted_from,
         )
 
+    @requires("readAccounts")
     def read_roster(self, actor: Actor) -> RosterView:
         """Every account and every role, as the accounts screen and the reassign chooser read them.
 
@@ -635,6 +648,7 @@ class AccountService:
             roles=tuple(role_view(role) for role in roles),
         )
 
+    @requires("createAccount")
     def create_account(
         self, actor: Actor, *, name: str, email: str, role_id: str, password: str | None = None
     ) -> AccountSummaryView:
@@ -702,6 +716,7 @@ class AccountService:
         log.info("account_created", account_id=account_id, role_id=role.id, by=actor.account_id)
         return summary
 
+    @requires("updateAccount")
     def update_account(self, actor: Actor, account_id: str, *, role_id: str) -> AccountSummaryView:
         """Put an account on a role; E8 names it once the change commits.
 
@@ -768,6 +783,7 @@ class AccountService:
             self._bus.emit(AccountRightsChanged(account_ids=(account.id,), cause=RightsChangeCause.ROLE_ASSIGNED))
         return summary
 
+    @requires("createRole")
     def create_role(self, actor: Actor, *, name: str, rights: Sequence[str]) -> RoleView:
         """Create an ordinary role under the name typed; nothing is published (no account holds it yet).
 
@@ -807,6 +823,7 @@ class AccountService:
         log.info("role_created", role_id=role.id, by=actor.account_id)
         return role_view(role)
 
+    @requires("updateRole")
     def update_role(
         self, actor: Actor, role_id: str, *, name: str | None = None, rights: Sequence[str] | None = None
     ) -> RoleView:
@@ -875,6 +892,7 @@ class AccountService:
             self._bus.emit(AccountRightsChanged(account_ids=holders, cause=cause))
         return role_view(updated)
 
+    @requires("deleteRole")
     def delete_role(self, actor: Actor, role_id: str) -> None:
         """Delete a role nothing depends on; nothing is published (no account held it).
 
@@ -910,11 +928,12 @@ class AccountService:
             repo.delete_role(role.id)
         log.info("role_deleted", role_id=role_id, by=actor.account_id)
 
+    @requires("signOut")
     def sign_out(self, actor: Actor, token: str) -> None:
         """Close the session the actor signed in with.
 
         Args:
-            actor: The signed-in actor (the perimeter resolved it from ``token``).
+            actor: The signed-in actor, resolved from ``token``; authorised by ``@requires``.
             token: The session's cookie value.
         """
         self._sessions.close(token)
@@ -988,7 +1007,7 @@ def _rights(names: Sequence[str]) -> frozenset[Right]:
 def _within(actor: Actor, rights: frozenset[Right]) -> bool:
     """Whether rights are included in the actor's own role's (Admin includes every right).
 
-    Measured against the role the actor's session resolved, as the perimeter authorised it.
+    Measured against the role the actor's session resolved, as ``@requires`` authorised it.
 
     Args:
         actor: The caller.

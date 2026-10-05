@@ -4,9 +4,9 @@ Reads over the index (``library.db``), the aired catalogue (``acquire.db``) and 
 metadata providers, and two writes: a medium's rescrape, launched through the
 maintenance path, and a medium's deletion (its folder, its index rows, its Plex entry,
 ``app/library/deletion.py``). Every read is ``library.read``, the rescrape
-``library.rescrape`` and the deletion ``library.delete``, doors the v1 perimeter holds:
-nothing filters by right, so ``actor`` is carried for the signature the routes share and
-is consulted only to journal who deleted.
+``library.rescrape`` and the deletion ``library.delete``: each method is authorised by
+``@requires`` before it opens anything, the same door the v1 perimeter holds; nothing
+filters by right past it, and ``actor`` is consulted again only to journal who deleted.
 
 Identity is the provider id (Q15): a medium is read by the id the wire names, never by
 its title. An id held by two rows, or by one row in two media folders, is a duplicate;
@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Final, Literal
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderLookup
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
+from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.errors import (
     AppBadRequest,
     AppConflict,
@@ -799,6 +800,7 @@ class LibraryService:
 
     # ------------------------------------------------------------------ reads
 
+    @requires("readLibraryItems")
     def read_items(
         self,
         actor: Actor,
@@ -812,7 +814,7 @@ class LibraryService:
         """Read one page of the library.
 
         Args:
-            actor: Who reads (not consulted: every read is ``library.read``).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
             category: The engine leaf categories to keep; ``None`` or empty keeps every one.
             sort: The order.
             reversed_: Whether to read it the other way round.
@@ -852,11 +854,12 @@ class LibraryService:
             items=tuple(_entry(row) for row in page_of(result, page)),
         )
 
+    @requires("readLibraryCategories")
     def read_categories(self, actor: Actor) -> list[CategoryCount]:
         """Count the live entries of each engine leaf category.
 
         Args:
-            actor: Who reads (not consulted).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
 
         Returns:
             One count per leaf holding at least one entry, by category id.
@@ -871,11 +874,12 @@ class LibraryService:
             counts[row.category_id] = counts.get(row.category_id, 0) + 1
         return [CategoryCount(category_id=leaf, count=counts[leaf]) for leaf in sorted(counts)]
 
+    @requires("readLibraryRecent")
     def read_recent(self, actor: Actor) -> list[LibraryEntry]:
         """Read the most recently added entries.
 
         Args:
-            actor: Who reads (not consulted).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
 
         Returns:
             The :data:`RECENT_LIMIT` newest live entries, newest first.
@@ -887,6 +891,7 @@ class LibraryService:
             rows = read_live_rows(conn)
         return [_entry(row) for row in rows[:RECENT_LIMIT]]
 
+    @requires("readLibraryIncomplete")
     def read_incomplete(self, actor: Actor) -> list[IncompleteEntry]:
         """Read the library's shows missing aired episodes, library-wide.
 
@@ -894,7 +899,7 @@ class LibraryService:
         nor « incomplete ».
 
         Args:
-            actor: Who reads (not consulted).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
 
         Returns:
             The shows whose aired episodes outnumber the held ones, most missing first, then
@@ -914,11 +919,12 @@ class LibraryService:
         found.sort(key=lambda pair: -pair[0])
         return [entry for _, entry in found]
 
+    @requires("readLibraryMembership")
     def read_membership(self, actor: Actor, ref: MediaRef) -> Membership:
         """Say what the library holds of one medium.
 
         Args:
-            actor: Who reads (not consulted).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
             ref: The medium, by the one id the wire names.
 
         Returns:
@@ -944,11 +950,12 @@ class LibraryService:
             kind=held.kind,
         )
 
+    @requires("readMediaSeasons")
     def read_seasons(self, actor: Actor, ref: MediaRef) -> SeasonsFacts:
         """Read a show's seasons against its catalogue and the library.
 
         Args:
-            actor: Who reads (not consulted).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
             ref: The show.
 
         Returns:
@@ -1002,13 +1009,14 @@ class LibraryService:
             aired[number] = aired_of_season(listed, today)
         return SeasonsFacts(seasons=tuple(seasons), owned=owned, aired=aired)
 
+    @requires("readMediaSheet")
     def read_sheet(self, actor: Actor, ref: MediaRef) -> MediaSheetFacts:
         """Read a medium's sheet: the provider's facts crossed with the library's.
 
         A medium the library does not hold is still answered (owned ``False``).
 
         Args:
-            actor: Who reads (not consulted).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
             ref: The medium.
 
         Returns:
@@ -1068,6 +1076,7 @@ class LibraryService:
             metadata_refreshed_at=datetime.fromtimestamp(refreshed).date() if refreshed is not None else None,
         )
 
+    @requires("readMediaPoster")
     def read_local_poster(self, actor: Actor, ref: MediaRef) -> LocalPoster:
         """Read the poster file of the library folder holding a medium.
 
@@ -1076,7 +1085,7 @@ class LibraryService:
         named by the request.
 
         Args:
-            actor: Who reads (not consulted).
+            actor: Who reads; authorised by ``@requires`` (``library.read``).
             ref: The medium.
 
         Returns:
@@ -1100,6 +1109,7 @@ class LibraryService:
 
     # ------------------------------------------------------------------ writes
 
+    @requires("rescrapeMedia")
     def request_rescrape(self, actor: Actor, ref: MediaRef) -> RescrapeAccepted:
         """Rescrape one medium: each row holding it with live files, through the maintenance path.
 
@@ -1110,7 +1120,7 @@ class LibraryService:
         contract's ``rescrapeMedia`` declares no 409).
 
         Args:
-            actor: Who asks (not consulted: the v1 perimeter holds ``library.rescrape``).
+            actor: Who asks; authorised by ``@requires`` (``library.rescrape``).
             ref: The medium, by the one id the wire names.
 
         Returns:
@@ -1177,6 +1187,7 @@ class LibraryService:
             log.info("app.library.rescrape_ended_before_read", provider=provider.value, item_id=item_id)
         raise AppInternalError("the rescrape was refused as running but no run was found")
 
+    @requires("deleteLibraryItems")
     def delete_media(self, actor: Actor, refs: Sequence[MediaRef]) -> DeletionReport:
         """Delete media everywhere: their folders on the disks, their index rows, their Plex entries.
 
@@ -1194,7 +1205,7 @@ class LibraryService:
         failure is reported.
 
         Args:
-            actor: Who deletes (an Admin: the v1 perimeter holds ``library.delete``).
+            actor: Who deletes; authorised by ``@requires`` (``library.delete``).
             refs: The media, each by the one id the wire names; a medium named twice (by
                 one id twice, or by two of its ids) is deleted once.
 
