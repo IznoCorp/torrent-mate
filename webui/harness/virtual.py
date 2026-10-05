@@ -418,7 +418,14 @@ async def hold_the_gallery_keeps_its_ORDER(journal, browser):
 
 
 async def hold_a_deleted_row_leaves_the_screen(journal, browser):
-    """A row deleted beyond the first page leaves the window in the same task.
+    """A row deleted beyond the first page leaves the window once the answer is in, and not before.
+
+    OPERATOR RULING R2 (2026-10-05) MOVED THE PREMISE. The row used to leave
+    optimistically, in the same task; a medium the server may keep must not go
+    before its answer, so offline the row STAYS and the deletion is held, and
+    online it goes when the answer arrives. The regression below is still the
+    window's — the row must redraw off a page other than the first — and is read
+    online now.
 
     THE REGRESSION THIS EXISTS FOR. The window redrew only on a KEY, and the key
     named the first page's identity — but the cache's structural sharing returns
@@ -496,6 +503,20 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
             ROW_PITCH)
         if reached >= PAGE_SIZE + 6:
             break
+    # SETTLED, NOT SLEPT FOR. The fling a touch stream ends with keeps carrying
+    # the port after `touchEnd`, further on a loaded runner than on this machine
+    # (CI read index 51 where the loop stopped at 30). A window still moving when
+    # the row is measured recycles that row out of the DOM for a reason that is
+    # not the delete, which is the CI red this waits out: the port must hold one
+    # position over several samples before anything is read from it.
+    still, last = 0, -1
+    for _ in range(50):
+        now = await page.evaluate("()=>document.querySelector('#port').scrollTop")
+        still = still + 1 if now == last else 0
+        last = now
+        if still >= 5:
+            break
+        await page.wait_for_timeout(100)
     await page.wait_for_timeout(400)
 
     # THE MEASURED ROW'S INDEX, derived from the window's own leading spacer
@@ -522,19 +543,20 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     if not drawn["title"]:
         await context.close()
         return
-    # NO NETWORK, and a short bounded wait. `setOffline` makes the mutation
-    # HELD — the layer keeps it and invalidates nothing — so nothing but the
-    # optimistic write can take the row off the screen: waiting up to a second
-    # for the row to go still proves « at once, not when the network answers »,
-    # because the network cannot answer. The bound absorbs a loaded runner
-    # painting the optimistic render a frame late, which a single macrotask
-    # read mistook for « still drawn ». The store bump the engine's own delete
-    # makes is deliberately NOT sent: what is measured is the query
-    # notification alone.
+    # OFFLINE, THE ROW STAYS (operator ruling R2): a medium the server may keep
+    # must not leave the list before its answer. `setOffline` makes the delete
+    # HELD — the layer keeps it and answers `held` — so nothing may take the row
+    # off the screen: the old optimistic removal is exactly what this reads for.
+    # The bounded wait gives a premature removal time to paint, so a build that
+    # still removes optimistically fails here and does not slip past one task.
+    # (The « held » toast is the dialog's, drawn after this call returns; the
+    # hold calls the delete directly and reads its answer instead.)
     await page.evaluate("()=>window.__mocks.setOffline(true)")
-    await page.evaluate(
-        """(title)=>{
-             window.__deleteLibraryItems([...window.__librarySelection([title]).values()]);
+    held = await page.evaluate(
+        """async (title) => {
+             const answer = await window.__deleteLibraryItems(
+               [...window.__librarySelection([title]).values()]);
+             return typeof answer === 'symbol' && answer.description === 'held';
            }""", drawn["title"])
     try:
         await page.wait_for_function(
@@ -544,6 +566,12 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
             arg={"row": ROW, "title": drawn["title"]}, timeout=1000)
     except PlaywrightTimeout:
         pass
+    # « NOT DRAWN » IS NOT « REMOVED »: a window recycles a row that scrolls out.
+    # The port is put back where the row was measured, so the same rows are in
+    # range and a row missing from them is a row the list dropped.
+    await page.evaluate(
+        "(top)=>{document.querySelector('#port').scrollTop = top;}", drawn["scrolled"])
+    await page.wait_for_timeout(300)
     after = await page.evaluate("""(row) => {
       const inside = row + ' [data-part="card/title"]';
       const titles = [...document.querySelectorAll(inside)]
@@ -551,11 +579,33 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
       return { titles, count: titles.length };
     }""", ROW)
     journal.check(
-        "and a row deleted there is off the screen at once, not when the "
-        "network answers",
-        drawn["title"] not in after["titles"],
-        f"{drawn['title']!r} still drawn: {drawn['title'] in after['titles']}; "
-        f"{after['count']} row(s) now, one task after the delete, offline")
+        "and a row deleted there while the network is down is kept and the "
+        "deletion is said held — it does not leave before the server answers",
+        held and drawn["title"] in after["titles"],
+        f"answer held: {held}; {drawn['title']!r} still drawn: "
+        f"{drawn['title'] in after['titles']}; {after['count']} row(s) now, offline")
+    # ONLINE, THE ROW GOES ONCE THE ANSWER IS IN — read, not slept for. A delete
+    # that never reaches the window times out here and fails the check.
+    await page.evaluate("()=>window.__mocks.setOffline(false)")
+    await page.evaluate(
+        """(title)=>{
+             window.__deleteLibraryItems([...window.__librarySelection([title]).values()]);
+           }""", drawn["title"])
+    try:
+        await page.wait_for_function(
+            """({ row, title }) => ![...document.querySelectorAll(
+                 row + ' [data-part="card/title"]')]
+               .some((node) => node.textContent.trim() === title)""",
+            arg={"row": ROW, "title": drawn["title"]}, timeout=5000)
+    except PlaywrightTimeout:
+        pass
+    gone = await page.evaluate("""({ row, title }) => ![...document.querySelectorAll(
+        row + ' [data-part="card/title"]')]
+      .some((node) => node.textContent.trim() === title)""",
+        {"row": ROW, "title": drawn["title"]})
+    journal.check(
+        "and online the same row leaves once the answer arrives",
+        gone, f"{drawn['title']!r} gone after the answer: {gone}")
     await page.evaluate("()=>window.__mocks.setOffline(false)")
     await context.close()
 

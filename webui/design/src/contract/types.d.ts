@@ -142,7 +142,7 @@ export interface paths {
         post?: never;
         /**
          * Delete media from the library, by provider identity
-         * @description Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock.
+         * @description Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2).
          */
         delete: operations["deleteLibraryItems"];
         options?: never;
@@ -1858,7 +1858,8 @@ export interface components {
             owned: number;
             /** @description episodes aired */
             aired: number;
-            year: number;
+            /** @description the year the show is known by, or null when nothing states one */
+            year: number | null;
             /** @description the medium's provider identity — the key its sheet is addressed by; at least one id, every library entry is identified */
             ids: components["schemas"]["LibraryIds"];
             /** @description the poster's address, or null when none is known */
@@ -3020,7 +3021,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -3049,6 +3050,23 @@ export interface components {
          * @enum {string}
          */
         MediaStatus: "continuing" | "ended" | "canceled" | "released" | "in_production" | "planned";
+        /** @description What the deletion did to ONE medium the request named (operator ruling R2, « Raison par médias », 2026-10-05): it went, or it was kept and why. A kept medium keeps its folders, its library row and its Plex entry; the reason is a closed code the interface words itself (X4). */
+        LibraryDeletion: {
+            /** @description the medium, as the request named it */
+            ref: components["schemas"]["MediaRef"];
+            /**
+             * @description `deleted`: its folders, its library row and its Plex entry went; `kept`: it is still in the library
+             * @enum {string}
+             */
+            outcome: "deleted" | "kept";
+            /**
+             * @description why a kept medium was kept, null when it went. `seed_owed`: a tracker is still owed seeding of one of its folders; `disk_unreachable`: one of its folders is on a disk that is not mounted; `failed`: removing one of its folders failed. When several hold, the first in that order is answered
+             * @enum {string|null}
+             */
+            reason: "seed_owed" | "disk_unreachable" | "failed" | null;
+            /** @description on `seed_owed`: when the seeding owed is met, Unix-epoch seconds — the latest over its folders — or null when the store does not know it; null for any other reason */
+            owedUntil: number | null;
+        };
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -3348,14 +3366,15 @@ export interface operations {
             };
         };
         responses: {
-            /** @description how many library rows went */
+            /** @description what the deletion did, per medium */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        deleted: number;
+                        /** @description one entry per medium deleted or kept, in request order; a medium named twice (by one id twice, or by two of its ids) is answered once */
+                        media: components["schemas"]["LibraryDeletion"][];
                     };
                 };
             };

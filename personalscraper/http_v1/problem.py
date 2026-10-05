@@ -74,6 +74,7 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.MEDIA_AMBIGUOUS: "Several library rows or folders hold this provider identity.",
     RefusalCode.PROVIDER_UNAVAILABLE: "A metadata provider did not answer.",
     RefusalCode.LIBRARY_LOCKED: "The pipeline holds the library.",
+    RefusalCode.LIBRARY_OBLIGATIONS_UNREADABLE: "The seed obligations cannot be read.",
 }
 
 _INTERNAL_DETAIL: Final[str] = "An unexpected error occurred."

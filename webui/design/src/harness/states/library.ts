@@ -8,6 +8,43 @@ import { applyState, type NamedState } from "../drive";
 import { redraw } from "../../lib/shell-doors";
 import { openDeleteDialog } from "../../features/library/delete-dialog";
 import { librarySelection } from "../library-selection";
+import type { Schemas } from "../../lib/contract-schemas";
+import { libraryIncompleteQuery } from "../../features/library/queries";
+
+/** When the kept states' seeding is owed until: 12 October 2026, 20:00 UTC, epoch seconds. */
+const OWED_UNTIL = Date.UTC(2026, 9, 12, 20, 0) / 1000;
+
+/**
+ * Opens the delete dialog for some titles with some of them kept by the layer,
+ * and confirms it as a reader would — the state is the dialog drawn AFTER.
+ *
+ * @param titles The titles the removal names.
+ * @param keep The titles the layer keeps, each with its reason and the date its
+ *     seeding is owed until (null when the store does not know it, or for
+ *     another reason).
+ */
+function keptAfterConfirming(
+  titles: string[],
+  keep: Record<string, [NonNullable<Schemas["LibraryDeletion"]["reason"]>, number | null]>,
+): void {
+  // ONE TITLE IS SEARCHED FOR, as a reader finds the row they swipe: its row is
+  // then drawn, and the state shows it still drawn once the layer kept it.
+  applyState({ page: "lib", libLens: "cat", libMode: "list", q: titles.length === 1 ? titles[0] : "", phase: "ready" });
+  const doomed = [...librarySelection(titles).values()];
+  for (const one of doomed) {
+    const kept = keep[one.title];
+    if (kept !== undefined) window.__mocks?.setDeletionKept(one.ref, kept[0], kept[1]);
+  }
+  void openDeleteDialog(doomed).then(() => {
+    let framesLeft = 60;
+    const confirm = () => {
+      const button = document.querySelector<HTMLElement>('[data-part="dialog/button"]');
+      if (button !== null) button.click();
+      else if (--framesLeft > 0) requestAnimationFrame(confirm);
+    };
+    confirm();
+  });
+}
 
 export function libraryStates(): NamedState[] {
   // The store the shell creates and publishes, read when the table is built.
@@ -178,6 +215,49 @@ export function libraryStates(): NamedState[] {
           };
           confirm();
         });
+      },
+    ],
+    /* R2 (« Raison par médias », 2026-10-05): the deletion answers medium by
+       medium, and a medium it KEPT stays in the library — its row is never
+       taken off the screen — while the dialog that follows names it with its
+       reason. What keeps it is what the machine IS, a dial turned AFTER the
+       state's reset; the removal is confirmed as a reader would. */
+    [
+      "lib-delete-kept-seed",
+      "Médiathèque — suppression : gardé, partage dû jusqu'à une date",
+      () => keptAfterConfirming(["Les Animaniacs"], { "Les Animaniacs": ["seed_owed", OWED_UNTIL] }),
+    ],
+    [
+      "lib-delete-kept-disk",
+      "Médiathèque — suppression : gardé, disque débranché",
+      () => keptAfterConfirming(["Les Animaniacs"], { "Les Animaniacs": ["disk_unreachable", null] }),
+    ],
+    [
+      "lib-delete-kept-failed",
+      "Médiathèque — suppression : gardé, un dossier n'a pas pu partir",
+      () => keptAfterConfirming(["Les Animaniacs"], { "Les Animaniacs": ["failed", null] }),
+    ],
+    [
+      "lib-delete-partly",
+      "Médiathèque — suppression partielle : deux partis, un gardé",
+      () =>
+        keptAfterConfirming(["Les Animaniacs", "La cour de récré", "Earl"], {
+          "La cour de récré": ["seed_owed", OWED_UNTIL],
+        }),
+    ],
+    /* N1: a show whose year nothing states is served `year: null`, and its line
+       says what it is missing and nothing else. */
+    [
+      "lib-incomplete-yearless",
+      "Médiathèque · Incomplets — une série sans année",
+      () => {
+        window.__mocks?.reset();
+        // french-ok: a media title, which is data.
+        window.__mocks?.setIncompleteYearless("Les Animaniacs");
+        applyState({ page: "lib", libLens: "inc", libMode: "list", phase: "ready" });
+        // The page asks for the incomplete shows as soon as the reset redraws it,
+        // before this dial is turned: the answer it holds is asked again.
+        void window.__queries?.resetQueries({ queryKey: libraryIncompleteQuery.queryKey });
       },
     ],
     [

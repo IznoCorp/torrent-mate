@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Annotated
+from urllib.parse import quote
 
 from pydantic import Field, WithJsonSchema
 
@@ -22,12 +23,26 @@ from personalscraper.app.library.facts import (
     MediaStatus,
     SeasonSummaryFact,
 )
+from personalscraper.app.library.identity import Provider
 from personalscraper.app.library.service import RescrapeAccepted, SeasonFacts, SeasonsFacts
-from personalscraper.http_v1.contract import ContractModel
+from personalscraper.http_v1.contract import V1_PREFIX, ContractModel
 
 #: One provider id: an integer (TVDB, TMDB) or a string (IMDb). The contract's ``ProviderIds``
 #: writes the union as a ``oneOf`` — the two are disjoint — where pydantic writes an ``anyOf``.
 ProviderIdValue = Annotated[int | str, WithJsonSchema({"oneOf": [{"type": "integer"}, {"type": "string"}]})]
+
+
+def poster_route_url(provider: Provider, provider_id: str) -> str:
+    """``readMediaPoster``'s URL for one identity, prefix included, usable as an image source.
+
+    Args:
+        provider: The provider the id belongs to.
+        provider_id: The id at that provider, percent-encoded as one path segment.
+
+    Returns:
+        ``/api/v1/media/{provider}/{providerId}/poster``.
+    """
+    return f"{V1_PREFIX}/media/{provider.value}/{quote(provider_id, safe='')}/poster"
 
 
 class CastMemberModel(ContractModel):

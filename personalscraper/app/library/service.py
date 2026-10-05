@@ -30,7 +30,14 @@ from typing import TYPE_CHECKING, Final, Literal
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderClients
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.errors import AppBadRequest, AppConflict, AppInternalError, AppNotFound, RefusalCode
+from personalscraper.app.errors import (
+    AppBadRequest,
+    AppConflict,
+    AppInternalError,
+    AppNotFound,
+    AppUnavailable,
+    RefusalCode,
+)
 from personalscraper.app.library.catalogue import (
     Completeness,
     aired_of_season,
@@ -84,7 +91,7 @@ from personalscraper.app.maintenance.service import LaunchedRun, launch_action, 
 from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.preprod_guard import PreprodGuardError
 from personalscraper.core.artwork_naming import artwork_inventory
-from personalscraper.core.delete_permit import DeletePermit
+from personalscraper.core.delete_permit import DeletePermit, PermitDecision
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.deletion import DeleteOutcome, delete_media_folder
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
@@ -354,6 +361,83 @@ class _Deleted:
     deletion: MediaDeletion
     folders: tuple[Path, ...]
     removed: tuple[Path, ...]
+
+
+class _Decided:
+    """The permit decisions of a request's folders, read once, all before any folder goes.
+
+    A :class:`DeletePermit` the folder-deletion primitive consults: it answers each
+    folder the decision read for it. Reading them all up front is what makes R1's refusal
+    whole: a deletion authority that cannot read the seed obligations refuses the request
+    before its first folder is touched, never halfway through it. The decisions cannot
+    go stale meanwhile: a seed obligation's path is written by the dispatch, which holds
+    ``pipeline.lock``, and the request holds it too.
+    """
+
+    def __init__(self, decisions: Mapping[Path, PermitDecision]) -> None:
+        """Hold the decisions read.
+
+        Args:
+            decisions: Each folder's decision.
+        """
+        self._decisions = dict(decisions)
+
+    @classmethod
+    def read(cls, permit: DeletePermit, plans: Sequence[_DeletionPlan]) -> _Decided:
+        """Read the permit's decision for every folder the request deletes.
+
+        Args:
+            permit: The deletion authority.
+            plans: The request's validated media.
+
+        Returns:
+            The decisions.
+
+        Raises:
+            AppUnavailable: ``library.obligations_unreadable`` when the permit cannot read
+                the seed obligations of a folder (:class:`ObligationsUnreadable`), or fails
+                in any other way: a folder whose seeding owed is unknown is never deleted.
+        """
+        decisions: dict[Path, PermitDecision] = {}
+        for plan in plans:
+            for _root, directory in plan.targets:
+                try:
+                    decisions[directory] = permit.may_delete(directory)
+                except Exception as exc:
+                    # ObligationsUnreadable, or any other failure of the lookup: unknown is refused.
+                    log.error(
+                        "app.library.delete_obligations_unreadable",
+                        item_id=plan.item_id,
+                        error=type(exc).__name__,
+                        detail=str(exc),
+                    )
+                    raise AppUnavailable(
+                        "The seed obligations cannot be read.", code=RefusalCode.LIBRARY_OBLIGATIONS_UNREADABLE
+                    ) from exc
+        return cls(decisions)
+
+    def may_delete(self, path: Path) -> PermitDecision:
+        """The decision read for a folder.
+
+        Args:
+            path: A folder of the request.
+
+        Returns:
+            Its decision.
+        """
+        return self._decisions[path]
+
+    def owed_until(self, path: Path) -> int | None:
+        """When a vetoed folder's seeding is met, as its veto says.
+
+        Args:
+            path: A vetoed folder of the request.
+
+        Returns:
+            Epoch seconds, or ``None`` when the permit does not know it.
+        """
+        owed: int | None = getattr(self._decisions[path], "owed_until", None)
+        return owed
 
 
 #: The Plex outcomes of a medium's sections, the worst first: the worst speaks for it.
@@ -1053,8 +1137,9 @@ class LibraryService:
     def delete_media(self, actor: Actor, refs: Sequence[MediaRef]) -> DeletionReport:
         """Delete media everywhere: their folders on the disks, their index rows, their Plex entries.
 
-        All or nothing at the refusal: ``pipeline.lock`` is taken for the whole request, and
-        every reference is validated before any folder is touched. Then, per medium, each
+        All or nothing at the refusal: ``pipeline.lock`` is taken for the whole request,
+        every reference is validated and every folder's permit decision read before any
+        folder is touched. Then, per medium, each
         of its media folders (one per distinct directory on its disks) is deleted through
         the folder-deletion primitive (the deletion authority consulted, the deletion
         journaled with ``web:<account id>``, the indexer told), the parent folders each left
@@ -1083,6 +1168,9 @@ class LibraryService:
                 medium's media folder. Nothing is deleted.
             AppNotFound: ``media.not_found`` (``params.provider`` / ``params.providerId``)
                 when no index row holds an id. Nothing is deleted.
+            AppUnavailable: ``library.obligations_unreadable`` when the deletion authority
+                cannot read the seed obligations of a folder (operator ruling R1): every
+                folder's decision is read before any folder goes, so nothing is deleted.
         """
         permit = self._delete_permit
         if permit is None:
@@ -1093,7 +1181,8 @@ class LibraryService:
             raise AppConflict("The pipeline holds the library.", code=RefusalCode.LIBRARY_LOCKED)
         try:
             plans = self._deletion_plans(refs)
-            done = [self._delete_one(actor, plan, permit) for plan in plans]
+            decided = _Decided.read(permit, plans)
+            done = [self._delete_one(actor, plan, decided) for plan in plans]
             return self._told_plex(done)
         finally:
             release_lock(lock_file)
@@ -1170,7 +1259,7 @@ class LibraryService:
                 )
         return plans
 
-    def _delete_one(self, actor: Actor, plan: _DeletionPlan, permit: DeletePermit) -> _Deleted:
+    def _delete_one(self, actor: Actor, plan: _DeletionPlan, permit: _Decided) -> _Deleted:
         """Delete one validated medium's folders, its emptied parents and, when nothing was kept, its rows.
 
         An index write failure (``sqlite3.Error`` from :func:`remove_item_rows`) is logged
@@ -1180,7 +1269,8 @@ class LibraryService:
         Args:
             actor: Who deletes.
             plan: What the medium's deletion touches.
-            permit: The deletion authority each folder's deletion consults.
+            permit: The decisions read for every folder of the request, which each
+                folder's deletion consults.
 
         Returns:
             What was done, its deleted folders and the parents their deletion removed (for
@@ -1194,6 +1284,7 @@ class LibraryService:
             log.warning("app.library.delete_folder_unresolved", provider=provider.value, item_id=plan.item_id)
         folders: list[Path] = []
         removed: list[Path] = []
+        owed: list[int | None] = []
         for root, directory in plan.targets:
             try:
                 result = delete_media_folder(
@@ -1210,6 +1301,7 @@ class LibraryService:
                 continue
             if result.outcome is DeleteOutcome.VETOED:
                 vetoed += 1
+                owed.append(permit.owed_until(directory))
             elif result.outcome is DeleteOutcome.FAILED:
                 failed += 1
             else:
@@ -1234,6 +1326,9 @@ class LibraryService:
                     error=type(exc).__name__,
                     detail=str(exc),
                 )
+        # The latest moment its vetoed folders' seeding is met; unknown when any one's is.
+        known = [moment for moment in owed if moment is not None]
+        owed_until = max(known) if owed and len(known) == len(owed) else None
         log.info(
             "app.library.media_deleted",
             provider=provider.value,
@@ -1254,6 +1349,7 @@ class LibraryService:
                 parents_removed=parents_removed,
                 rows_removed=rows,
                 plex=PlexOutcome.NOT_NEEDED,
+                owed_until=owed_until,
             ),
             tuple(folders),
             tuple(removed),

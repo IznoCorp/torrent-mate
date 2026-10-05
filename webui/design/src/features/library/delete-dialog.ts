@@ -16,11 +16,12 @@
 // the `followedTitles` door, because the library never imports acquisition.
 import i18next from "i18next";
 import { membershipByRefQuery, type MediaRef, type Membership } from "../../lib/membership";
-import { quietWhenCancelled, sharedQueryClient } from "../../lib/query-client";
+import { HELD, quietWhenCancelled, sharedQueryClient } from "../../lib/query-client";
 import { dialog, followedTitles, stopFollow, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
-import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
-import type { DialogDescriptor } from "../../ui/dialog/contract";
+import { deleteLibraryItems, libraryIncompleteQuery, type LibraryDeletion } from "./queries";
+import { timeOfDay } from "../../lib/clock";
+import type { DialogBlock, DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./types";
 import { followedAs } from "../../lib/titles";
 
@@ -29,23 +30,91 @@ export type Doomed = { title: string; ref: MediaRef };
 
 /**
  * Removes media from the library: the layer deletes, the selection ends, the
- * page redraws, and the removal is said.
+ * page redraws, and what each medium did is said.
  *
- * The confirmation that calls it says what was done in its own words right
- * after, and that message replaces this one — so this one is what a caller
- * with nothing more precise to say is left with.
+ * WHAT WENT IS SAID, AND WHAT STAYED IS SAID WHY (operator ruling R2,
+ * 2026-10-05; § 8 « Rien en silence »). The layer answers medium by medium:
+ * when everything went, the caller's sentence says so; when anything was kept
+ * — a tracker still owed its seeding, its disk unplugged, a folder that would
+ * not go — the dialog that follows names each kept medium and its reason, and
+ * the media that went are counted against the ones asked.
  *
  * @param doomed The media removed, each by its identity.
+ * @param went Says what went, and does what follows from it (a follow
+ *     stopped), for the media that did; called only when every medium went or
+ *     before the kept media are drawn.
  */
-function removeMedia(doomed: Doomed[]): void {
-  const titles = doomed.map((one) => one.title);
-  deleteLibraryItems?.(doomed);
+async function removeMedia(doomed: Doomed[], went: (gone: Doomed[]) => void): Promise<void> {
+  const answer = await deleteLibraryItems?.(doomed);
   store.write({ selMode: false, selected: new Map() });
   redraw();
-  toast?.show({
-    message: i18next.t(titles.length > 1 ? "verbs.library.deletedMany" : "verbs.library.deletedOne", {
-      count: titles.length,
-    }),
+  if (answer === HELD) {
+    toast?.show({ message: i18next.t("verbs.library.deleteHeld") });
+    return;
+  }
+  // REFUSED: the layer's refusal is already said, and nothing went.
+  if (answer === null || answer === undefined) return;
+  const named = (one: Doomed, ref: MediaRef) => one.ref.provider === ref.provider && one.ref.providerId === ref.providerId;
+  const gone = doomed.filter((one) => answer.some((medium) => medium.outcome === "deleted" && named(one, medium.ref)));
+  const kept = answer.flatMap((medium) => {
+    const one = doomed.find((candidate) => named(candidate, medium.ref));
+    return medium.outcome === "kept" && one !== undefined ? [{ ...one, medium }] : [];
+  });
+  if (gone.length > 0) went(gone);
+  if (kept.length > 0) openKeptDialog(kept, gone.length + kept.length);
+}
+
+/**
+ * Why one medium was kept, in the interface's words.
+ *
+ * Args:
+ *     medium: The layer's answer for it.
+ *
+ * Returns:
+ *     The reason, with the date the seeding is owed until when the store knows it.
+ */
+function keptReason(medium: LibraryDeletion): string {
+  if (medium.reason === "disk_unreachable") return say("keptDiskUnreachable");
+  if (medium.reason === "seed_owed") {
+    if (medium.owedUntil === null) return say("keptSeedOwedUndated");
+    const until = new Date(medium.owedUntil * 1000);
+    const day = new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long" }).format(until);
+    return say("keptSeedOwed", { day, time: timeOfDay(medium.owedUntil) });
+  }
+  return say("keptFailed");
+}
+
+/**
+ * The dialog a deletion that kept media draws: each kept medium named with its
+ * reason, and, for a request of several media, how many of them went.
+ *
+ * A kept medium is a line of its own — its title in bold, then its reason —
+ * and never a `manifest` entry: that block holds a short figure on one line,
+ * and a reason is a sentence it ran past the dialog's edge on a phone.
+ *
+ * Args:
+ *     kept: The media kept, each with the layer's answer for it.
+ *     asked: How many media the layer answered for.
+ */
+function openKeptDialog(kept: (Doomed & { medium: LibraryDeletion })[], asked: number): void {
+  const heading =
+    kept.length < asked
+      ? say("partlyHeading", { deleted: asked - kept.length, asked })
+      : kept.length > 1
+        ? say("keptHeadingMany", { count: kept.length })
+        : say("keptHeadingOne", { title: kept[0].title });
+  dialog?.open({
+    heading,
+    body: [
+      ...kept.map(
+        (one): DialogBlock => ({
+          type: "paragraph",
+          runs: [{ text: one.title, strong: true }, { text: say("keptSeparator") }, { text: keptReason(one.medium) }],
+        }),
+      ),
+      { type: "paragraph", runs: [{ text: say("keptText") }] },
+    ],
+    actions: [{ text: say("close"), tone: "ghost", dismiss: true }],
   });
 }
 
@@ -212,19 +281,21 @@ export async function openDeleteDialog(doomed: Doomed[]): Promise<void> {
      the tap registry answers a verb in the CAPTURE phase and stops the click
      there, so a button carrying one never reached its own `onClick` and the
      removal it confirms never ran. */
-  const removed = titles.length > 1 ? say("doneMany", { count: titles.length }) : say("done", { title: titles[0] });
-  const removeSaying = (follow?: string, stop = false) => () => {
-    removeMedia(doomed);
-    // THE FOLLOW IS STOPPED, NOT ONLY SAID STOPPED (B-689): both confirmations
-    // removed the same titles and differed only in their sentence, so the
-    // follow lived on everywhere. It is stopped under ITS title (« Silo »), the
-    // one `followedAs` reads, never the row's (« Silo (2023) »).
-    if (stop) for (const one of followed) {
-      const followTitle = followedAs(followingNow, one);
-      if (followTitle !== undefined) stopFollow?.(followTitle);
-    }
-    toast?.show({ message: follow ? `${removed} ${follow}` : removed });
-  };
+  const removeSaying = (follow?: string, stop = false) => () =>
+    removeMedia(doomed, (gone) => {
+      // THE FOLLOW IS STOPPED, NOT ONLY SAID STOPPED (B-689): both confirmations
+      // removed the same titles and differed only in their sentence, so the
+      // follow lived on everywhere. It is stopped under ITS title (« Silo »), the
+      // one `followedAs` reads, never the row's (« Silo (2023) »). Only for a
+      // medium that WENT: a kept one is still there to follow.
+      if (stop) for (const one of gone) {
+        const followTitle = followedAs(followingNow, one.title);
+        if (followTitle !== undefined) stopFollow?.(followTitle);
+      }
+      if (gone.length < doomed.length) return;
+      const removed = titles.length > 1 ? say("doneMany", { count: titles.length }) : say("done", { title: titles[0] });
+      toast?.show({ message: follow ? `${removed} ${follow}` : removed });
+    });
   const actions: DialogDescriptor["actions"] = [];
   if (followed.length > 0) {
     actions.push({

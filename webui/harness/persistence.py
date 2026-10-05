@@ -589,7 +589,9 @@ async def main():
         await page.evaluate("()=>window.__go('lib-grid')")
         await page.evaluate("()=>window.__mocks?.quiet()")
         await page.wait_for_timeout(400)
-        await page.evaluate("()=>window.__mocks?.setOffline(true)")
+        # ONLINE ON PURPOSE. A delete the network would not take is HELD and no
+        # row leaves until the layer says it went (operator ruling R2), so a
+        # hold run offline would watch a page where nothing can happen.
         moved = await page.evaluate("""(row) => {
           const rows = [...document.querySelectorAll(row)];
           const first = rows[0] && rows[0].querySelector('[data-part="tile/title"]');
@@ -608,7 +610,15 @@ async def main():
         if moved.get("above"):
             await page.evaluate(
                 "(title)=>window.__deleteLibraryItems([...window.__librarySelection([title]).values()])", moved["above"])
-            await page.wait_for_timeout(300)
+            # WAIT FOR WHAT IS READ, bounded: the row goes once the per-medium
+            # answer is in, not on a clock. A delete that never reaches the
+            # window times out here and fails the check below, not the run.
+            try:
+                await page.wait_for_function(
+                    "()=>!(window.__watchedTile && window.__watchedTile.isConnected)",
+                    timeout=5000)
+            except Exception:  # noqa: BLE001 — the check below reports it
+                pass
             settled = await page.evaluate(
                 "()=>Math.round(document.querySelector('#port').scrollTop)")
             # DID THE DELETE ACTUALLY REACH THE ROW? The check below is

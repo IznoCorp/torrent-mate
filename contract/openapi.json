@@ -607,18 +607,22 @@
         ],
         "responses": {
           "200": {
-            "description": "how many library rows went",
+            "description": "what the deletion did, per medium",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "deleted": {
-                      "type": "integer"
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LibraryDeletion"
+                      },
+                      "description": "one entry per medium deleted or kept, in request order; a medium named twice (by one id twice, or by two of its ids) is answered once"
                     }
                   },
                   "required": [
-                    "deleted"
+                    "media"
                   ]
                 }
               }
@@ -668,8 +672,8 @@
             }
           }
         },
-        "x-unseeded": "a count of what went. It is derived from the request and from the seeded library, never from a fixture of its own.",
-        "description": "Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock."
+        "x-unseeded": "what the deletion did per medium. It is derived from the request and from the seeded library, never from a fixture of its own; a kept medium is a dial a named state turns.",
+        "description": "Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2)."
       }
     },
     "/library/categories": {
@@ -7328,7 +7332,11 @@
             "description": "episodes aired"
           },
           "year": {
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the year the show is known by, or null when nothing states one"
           },
           "ids": {
             "$ref": "#/components/schemas/LibraryIds",
@@ -11132,7 +11140,8 @@
           "media.not_found",
           "media.ambiguous",
           "provider.unavailable",
-          "library.locked"
+          "library.locked",
+          "library.obligations_unreadable"
         ],
         "description": "WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them."
       },
@@ -11225,6 +11234,50 @@
           "planned"
         ],
         "description": "Where a medium stands at its provider, as a closed token: a series `continuing`, `ended` or `canceled`; a film `released`; either `in_production` or `planned`. The interface says it in fr.json."
+      },
+      "LibraryDeletion": {
+        "type": "object",
+        "description": "What the deletion did to ONE medium the request named (operator ruling R2, « Raison par médias », 2026-10-05): it went, or it was kept and why. A kept medium keeps its folders, its library row and its Plex entry; the reason is a closed code the interface words itself (X4).",
+        "properties": {
+          "ref": {
+            "$ref": "#/components/schemas/MediaRef",
+            "description": "the medium, as the request named it"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "deleted",
+              "kept"
+            ],
+            "description": "`deleted`: its folders, its library row and its Plex entry went; `kept`: it is still in the library"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "seed_owed",
+              "disk_unreachable",
+              "failed",
+              null
+            ],
+            "description": "why a kept medium was kept, null when it went. `seed_owed`: a tracker is still owed seeding of one of its folders; `disk_unreachable`: one of its folders is on a disk that is not mounted; `failed`: removing one of its folders failed. When several hold, the first in that order is answered"
+          },
+          "owedUntil": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "on `seed_owed`: when the seeding owed is met, Unix-epoch seconds — the latest over its folders — or null when the store does not know it; null for any other reason"
+          }
+        },
+        "required": [
+          "ref",
+          "outcome",
+          "reason",
+          "owedUntil"
+        ]
       }
     },
     "responses": {

@@ -71,6 +71,7 @@ class RefusalCode(StrEnum):
     MEDIA_AMBIGUOUS = "media.ambiguous"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
     LIBRARY_LOCKED = "library.locked"
+    LIBRARY_OBLIGATIONS_UNREADABLE = "library.obligations_unreadable"
 
 
 class AppRefusal(Exception):

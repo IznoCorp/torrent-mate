@@ -921,6 +921,8 @@
       "incompleteEpisodes": "{{owned}}/{{all}} episodes",
       "incompleteSubOne": "{{year}} · {{count}} episode missing",
       "incompleteSubMany": "{{year}} · {{count}} episodes missing",
+      "incompleteSubNoYearOne": "{{count}} episode missing",
+      "incompleteSubNoYearMany": "{{count}} episodes missing",
       "incompleteChip": "Incomplete",
       "recentTitle": "Seen by the index for the first time",
       "recentNoteLead": "Honest wording.",
@@ -1978,11 +1980,21 @@
         "blockedHeadingMany": "{{count}} titles cannot be deleted",
         "heldByRows": "{{count}} rows, one identifier",
         "ambiguousText": "One identifier is carried by several lines of the library: this is a duplicate. Settle it first — nothing is deleted until we know which of the two would go.",
-        "close": "Close"
+        "close": "Close",
+        "keptHeadingOne": "“{{title}}” is kept",
+        "keptHeadingMany": "{{count}} media are kept",
+        "partlyHeading": "Deleted: {{deleted}} of {{asked}}",
+        "keptSeedOwed": "Seeding owed to the tracker until {{day}} at {{time}}",
+        "keptSeedOwedUndated": "Seeding still owed to the tracker",
+        "keptDiskUnreachable": "Its disk is not plugged in",
+        "keptFailed": "Removing one of its folders failed",
+        "keptSeparator": " — ",
+        "keptText": "What is kept stays whole: its files, its library row and its Plex entry."
       },
       "deletedOne": "{{count}} title deleted.",
       "deletedMany": "{{count}} titles deleted.",
-      "deleteRefused": "The deletion was refused: nothing was deleted."
+      "deleteRefused": "The deletion was refused: nothing was deleted.",
+      "deleteHeld": "The deletion will go as soon as the server answers."
     },
     "acquisition": {
       "taken": "“{{title}}” grabbed — follow it in “In flight”.",
@@ -2355,7 +2367,8 @@
       "unavailable": "The metadata provider is not answering: try again in a moment."
     },
     "library": {
-      "locked": "The pipeline is running: the library cannot be modified while it runs. Try again when the run ends."
+      "locked": "The pipeline is running: the library cannot be modified while it runs. Try again when the run ends.",
+      "obligations_unreadable": "The seeding obligations cannot be read: nothing is deleted while what a tracker is still owed is unknown."
     }
   },
   "push": {

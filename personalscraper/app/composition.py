@@ -272,18 +272,23 @@ def _build_plex_sign_in(
 
 
 def _build_library_service(config: "Config", settings: "Settings", event_bus: EventBus) -> "LibraryService":
-    """Build the library's read service over the index, the aired catalogue and the providers.
+    """Build the library's service over the index, the aired catalogue, the providers, Plex and the deletion authority.
 
-    Inert: the catalogue store and the ownership checker open on first use, and the
-    provider clients connect on their first call (TVDB logs in then). A provider whose
-    API key is not set gets no client: its sheets answer ``provider.unavailable``. The
-    clients make ONE attempt per call, so a dead provider cannot hold a web request
-    through a backed-off retry loop (v0's sheet rule, D1).
+    Inert: the catalogue store and the ownership checker open on first use, the deletion
+    authority reads ``acquire.db`` on each deletion only, and the provider clients connect
+    on their first call (TVDB logs in then). A provider whose API key is not set gets no
+    client: its sheets answer ``provider.unavailable``. The clients make ONE attempt per
+    call, so a dead provider cannot hold a web request through a backed-off retry loop
+    (v0's sheet rule, D1). The deletion makes the decision the pipeline's deleters'
+    :class:`DeleteAuthority` makes (a folder still owed to a tracker is kept), through a
+    :class:`StrictDeletePermit` that opens ``acquire.db`` read-only and refuses the deletion
+    when it cannot read it (operator ruling R1); it tells the Plex server ``PLEX_URL``
+    names when ``PLEX_TOKEN`` is set, and with no token reports Plex as not configured.
 
     Args:
         config: The typed configuration; ``indexer.db_path`` and ``acquire.db_path`` are
             resolved by the loader.
-        settings: The env-var settings (the provider API keys).
+        settings: The env-var settings (the provider API keys, ``PLEX_URL``, ``PLEX_TOKEN``).
         event_bus: The process's bus, for the clients' transport events.
 
     Returns:
@@ -292,8 +297,10 @@ def _build_library_service(config: "Config", settings: "Settings", event_bus: Ev
     # Lazy imports: the provider clients and the indexer pull heavy trees; building
     # AppServices for a command that never reads the library stays import-light.
     from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients  # noqa: PLC0415
+    from personalscraper.acquire.delete_authority import StrictDeletePermit  # noqa: PLC0415
     from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
     from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
+    from personalscraper.api.plex import PlexClient  # noqa: PLC0415
     from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
     from personalscraper.api.transport._policy import RetryPolicy  # noqa: PLC0415
     from personalscraper.app.library.service import LibraryService  # noqa: PLC0415
@@ -316,12 +323,19 @@ def _build_library_service(config: "Config", settings: "Settings", event_bus: Ev
         if settings.tvdb_api_key
         else None
     )
+    # The pipeline's decision, read-only and refusing what it cannot read (operator ruling
+    # R1): the web process never creates nor migrates acquire.db, and a deletion whose seed
+    # obligations are unreadable is refused rather than allowed.
+    delete_permit = StrictDeletePermit(acquire_db)
     return LibraryService(
         index_db=index_db,
         data_dir=config.paths.data_dir,
         catalogue=CatalogueStore(acquire_db),
         ownership=IndexerOwnershipChecker(index_db),
         providers=ProviderClients(tvdb=tvdb, tmdb=tmdb),
+        plex=PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None,
+        delete_permit=delete_permit,
+        config=config,
     )
 
 

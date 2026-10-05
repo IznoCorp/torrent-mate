@@ -10,16 +10,15 @@ at when no provider names a poster.
 from __future__ import annotations
 
 from typing import Annotated, Final
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Path, Response
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.library.identity import Provider, parse_media_ref
 from personalscraper.app.services import AppServices
-from personalscraper.http_v1.contract import PROBLEM_RESPONSES, V1_PREFIX
+from personalscraper.http_v1.contract import PROBLEM_RESPONSES
 from personalscraper.http_v1.deps import actor, services
-from personalscraper.http_v1.models.media import MediaSeasons, MediaSheet, RescrapeQueued
+from personalscraper.http_v1.models.media import MediaSeasons, MediaSheet, RescrapeQueued, poster_route_url
 
 router = APIRouter()
 
@@ -67,21 +66,8 @@ def read_media_sheet(
     """
     ref = parse_media_ref(provider.value, provider_id)
     return MediaSheet.from_facts(
-        app_services.library.read_sheet(signed_in, ref), local_poster_url=_poster_url(provider, provider_id)
+        app_services.library.read_sheet(signed_in, ref), local_poster_url=poster_route_url(provider, provider_id)
     )
-
-
-def _poster_url(provider: Provider, provider_id: str) -> str:
-    """``readMediaPoster``'s URL for one identity, prefix included, usable as an image source.
-
-    Args:
-        provider: The provider the id belongs to.
-        provider_id: The id at that provider, percent-encoded as one path segment.
-
-    Returns:
-        ``/api/v1/media/{provider}/{providerId}/poster``.
-    """
-    return f"{V1_PREFIX}/media/{provider.value}/{quote(provider_id, safe='')}/poster"
 
 
 @router.get(
