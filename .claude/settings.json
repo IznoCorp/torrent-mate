@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/bash_logger.py\" \"$HOME/.claude/hooks/block_disk_destructive.py\" \"$HOME/.claude/hooks/block_ai_attribution.py\" \"$HOME/.claude/hooks/block_background_pipeline.py\" \"$HOME/.claude/hooks/block_curl_without_timeout.py\" \"$D/block_rg_without_filter.py\""
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/bash_logger.py\" \"$HOME/.claude/hooks/block_disk_destructive.py\" \"$HOME/.claude/hooks/block_ai_attribution.py\" \"$HOME/.claude/hooks/block_background_pipeline.py\" \"$HOME/.claude/hooks/block_curl_without_timeout.py\" \"$D/block_rg_without_filter.py\" \"$D/block_load_generators.py\""
           }
         ]
       },
