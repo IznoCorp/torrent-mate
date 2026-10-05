@@ -19,7 +19,10 @@ reported and nothing is copied. The tool refuses to run:
 - unless ``PERSONALSCRAPER_ENV`` is ``dev``;
 - when a target is outside the dev sandbox's marked, mounted roots (the sandbox guard);
 - when a dev disk root has a ``medias`` child (a volume root, the parent of prod's media);
-- when the titles weigh more than ``--max-gb`` (sizes are read with ``stat`` only).
+- when the titles weigh more than ``--max-gb`` (sizes are read with ``stat`` only);
+- when a copy would leave a target disk with less free space than a margin of its size
+  (the dev roots sit on prod's own volumes);
+- when a title's source or target tree holds a symlink (rsync would write through it).
 
 The copy is ``rsync -a --ignore-existing``: a file already in the sandbox is never
 overwritten, prod's folders are only read, and nothing is ever deleted. A re-run restores
@@ -34,7 +37,8 @@ Usage:
 
 Exit codes:
     0 — the plan was printed (dry run) or copied and indexed.
-    1 — refused, or a title could not be resolved; nothing was copied.
+    1 — refused, or a title could not be resolved; nothing was copied, or, when refused
+        mid-copy, only the titles already done (each one named).
     2 — usage error (unreadable manifest, config or index), or a copy or child failed.
 """
 
@@ -42,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -72,6 +77,11 @@ BYTES_PER_GB = 10**9
 PROVIDERS = ("tmdb", "tvdb")
 #: The folder that holds prod's media on each volume; a dev root never holds one.
 PROD_MEDIA_FOLDER = "medias"
+#: The share of each target disk's total size a seed must leave free: the dev roots sit on
+#: prod's own volumes, which prod still dispatches to.
+FREE_SPACE_MARGIN = 0.10
+#: This checkout: the indexing children run its code, whatever the caller's cwd.
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 #: Live files of an item matched by provider id, through a movie release or an episode release.
 #: ``{provider}`` is one of :data:`PROVIDERS`, never user text.
@@ -238,14 +248,20 @@ def find_title_folder(conn: sqlite3.Connection, title: Title) -> tuple[Path, str
         parts = Path(rel_path).parts
         if mount_path is None:
             return "its disk is not mounted, according to the prod index"
+        # The indexer writes rel_path from walked paths; one with '..' or an absolute part
+        # would point the source anywhere, so it is reported rather than followed.
+        if Path(rel_path).is_absolute() or ".." in parts:
+            return f"its indexed directory is not normalised ({rel_path!r})"
         if len(parts) < 2:
             return f"its files sit outside a title folder ({rel_path!r})"
-        folders.add(Path(mount_path, *parts[:2]))
+        folders.add((Path(mount_path), Path(mount_path, *parts[:2])))
     if len(folders) > 1:
-        return f"its files span {len(folders)} folders: {', '.join(sorted(map(str, folders)))}"
-    folder = folders.pop()
+        return f"its files span {len(folders)} folders: {', '.join(sorted(str(f) for _m, f in folders))}"
+    mount, folder = folders.pop()
     if not folder.is_dir():
         return f"its folder {folder} does not exist"
+    if not folder.resolve().is_relative_to(mount.resolve()):
+        return f"its folder {folder} resolves outside its disk {mount}"
     return folder, rows[0][1]
 
 
@@ -263,6 +279,25 @@ def folder_size(folder: Path) -> int:
         for name in filenames:
             total += os.lstat(os.path.join(dirpath, name)).st_size
     return total
+
+
+def find_symlink(tree: Path) -> Path | None:
+    """Find a symlink in a tree, the tree itself included, never following one.
+
+    Args:
+        tree: The folder to walk; an absent folder holds none.
+
+    Returns:
+        The first symlink met, or ``None``.
+    """
+    if tree.is_symlink():
+        return tree
+    for dirpath, dirnames, filenames in os.walk(tree):
+        for name in (*dirnames, *filenames):
+            path = Path(dirpath, name)
+            if path.is_symlink():
+                return path
+    return None
 
 
 def check_target(config: Config, disk: DiskConfig, target: Path) -> None:
@@ -315,7 +350,10 @@ def plan(config: Config, conn: sqlite3.Connection, titles: list[Title]) -> list[
             unresolved.append(f"{title.label()}: {found}")
             continue
         source, category_id = found
-        target = folder_for(config, disk, category_id) / source.name
+        category_folder = folder_for(config, disk, category_id)
+        target = category_folder / source.name
+        if Path(os.path.normpath(target)).parent != Path(os.path.normpath(category_folder)):
+            raise SeedRefused(f"{title.label()}: target {target} is not a folder of {category_folder}")
         check_target(config, disk, target)
         copies.append(Copy(title=title, source=source, target=target, disk=disk, size_bytes=folder_size(source)))
     if unresolved:
@@ -339,6 +377,35 @@ def print_plan(copies: list[Copy]) -> int:
     return total
 
 
+def check_free_space(copies: list[Copy]) -> None:
+    """Print each target disk's free space, and refuse a plan that would eat into its margin.
+
+    Args:
+        copies: The planned copies.
+
+    Raises:
+        SeedRefused: On some target disk, the free space less the bytes planned there
+            falls under :data:`FREE_SPACE_MARGIN` of the disk's total size.
+    """
+    planned: dict[str, int] = {}
+    disks: dict[str, DiskConfig] = {}
+    for copy in copies:
+        planned[copy.disk.id] = planned.get(copy.disk.id, 0) + copy.size_bytes
+        disks[copy.disk.id] = copy.disk
+    short = []
+    for disk_id, planned_bytes in planned.items():
+        usage = shutil.disk_usage(disks[disk_id].path)
+        margin = usage.total * FREE_SPACE_MARGIN
+        print(
+            f"Disk {disk_id}: {usage.free / BYTES_PER_GB:.2f} GB free, {planned_bytes / BYTES_PER_GB:.2f} GB planned, "
+            f"margin {margin / BYTES_PER_GB:.2f} GB ({FREE_SPACE_MARGIN:.0%} of {usage.total / BYTES_PER_GB:.2f} GB)."
+        )
+        if usage.free - planned_bytes < margin:
+            short.append(f"{disk_id} would keep {(usage.free - planned_bytes) / BYTES_PER_GB:.2f} GB free")
+    if short:
+        raise SeedRefused(f"under the {FREE_SPACE_MARGIN:.0%} free-space margin: {'; '.join(short)}; nothing copied.")
+
+
 def _run_child(cmd: list[str]) -> None:
     """Run one command in the foreground, with this process's environment.
 
@@ -348,24 +415,31 @@ def _run_child(cmd: list[str]) -> None:
     Raises:
         subprocess.CalledProcessError: The command failed.
     """
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, cwd=REPO_ROOT)
 
 
 def copy_title(config: Config, copy: Copy) -> None:
     """Copy one title into the sandbox, never overwriting nor deleting.
 
     The target is judged again right before the copy: a disk may have dropped off the
-    bus since the plan.
+    bus since the plan. Neither tree may hold a symlink: with ``--ignore-existing`` rsync
+    keeps a link already in the target and writes the source's files through it, and
+    ``-a`` would carry a source link into the sandbox.
 
     Args:
         config: The dev config.
         copy: The planned copy.
 
     Raises:
-        SeedRefused: The target no longer passes :func:`check_target`.
+        SeedRefused: The target no longer passes :func:`check_target`, or the source or
+            target tree holds a symlink.
         subprocess.CalledProcessError: rsync failed.
     """
     check_target(config, copy.disk, copy.target)
+    for tree in (copy.source, copy.target):
+        link = find_symlink(tree)
+        if link is not None:
+            raise SeedRefused(f"{copy.title.label()}: {link} is a symlink; rsync would write through it")
     copy.target.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["rsync", "-a", "--ignore-existing", f"{copy.source}/", f"{copy.target}/"], check=True)
 
@@ -434,19 +508,27 @@ def main(argv: list[str] | None = None) -> int:
     if total > args.max_gb * BYTES_PER_GB:
         print(f"Refused: {total} bytes is above --max-gb {args.max_gb:g}; nothing copied.", file=sys.stderr)
         return 1
+    try:
+        check_free_space(copies)
+    except SeedRefused as exc:
+        print(f"Refused: {exc}", file=sys.stderr)
+        return 1
     if args.dry_run:
         print("Dry run: nothing copied.")
         return 0
 
+    done: list[str] = []
     try:
         for copy in copies:
             print(f"Copying {copy.title.label()}: {copy.source} -> {copy.target}", flush=True)
             copy_title(config, copy)
+            done.append(copy.title.label())
         for command in ("library-index", "library-catalogue-refresh"):
             print(f"Running personalscraper {command}", flush=True)
             _run_child([sys.executable, "-m", "personalscraper", command])
     except SeedRefused as exc:
-        print(f"Refused: {exc}", file=sys.stderr)
+        copied = ", ".join(done) if done else "none"
+        print(f"Refused: {exc}\nCopied so far: {copied}; nothing more copied, nothing indexed.", file=sys.stderr)
         return 1
     except subprocess.CalledProcessError as exc:
         print(f"Error: {' '.join(map(str, exc.cmd))} exited {exc.returncode}", file=sys.stderr)
