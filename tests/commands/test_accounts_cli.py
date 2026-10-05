@@ -9,6 +9,8 @@ CLI's own ``cli_refusals`` catalogue.
 from __future__ import annotations
 
 import json
+import logging
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
@@ -17,12 +19,14 @@ import pytest
 from typer.testing import CliRunner
 
 from personalscraper.app.accounts.passwords import verify_password
-from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
+from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.cli import app as cli_app
 from personalscraper.conf.isolation import ENVIRONMENT_MARKER
 from personalscraper.conf.models.config import Config
 from personalscraper.i18n import Language, use_language
+from tests.conftest import LoggedEvents
 
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
@@ -412,3 +416,298 @@ class TestPasswordPolicy:
         assert _catalogue_line(Language.FR, "cli_refusals", "password", "too_weak") != _catalogue_line(
             Language.EN, "cli_refusals", "password", "too_weak"
         )
+
+
+def _seed_owner(db: Path, *, allowed: bool = True, owner_link: bool = True) -> str:
+    """Seed an Admin account in a store file, linked as the Plex server's owner unless told not to.
+
+    Args:
+        db: The store file.
+        allowed: Whether the account may sign in.
+        owner_link: Whether the account is linked as the server's owner.
+
+    Returns:
+        The account's key.
+    """
+    app_store = AppStore(db)
+    try:
+        repo = app_store.accounts
+        repo.insert_account(
+            AccountRow(
+                id="account-owner",
+                name="Owner",
+                email=_EMAIL,
+                avatar="",
+                role_id="admin",
+                password_hash=None,
+                created_at=1.0,
+                updated_at=1.0,
+            )
+        )
+        if owner_link:
+            repo.upsert_plex_link(
+                PlexLinkRow(
+                    account_id="account-owner",
+                    plex_id=4242,
+                    plex_uuid="0f1e2d3c4b5a6978",
+                    plex_username="owner",
+                    server_access="owner",
+                    token_ciphertext=None,
+                    token_stored_at=None,
+                    linked_at=1.0,
+                    last_sign_in_at=None,
+                )
+            )
+        if not allowed:
+            repo.set_sign_in_allowed("account-owner", allowed=False, now=2.0)
+    finally:
+        app_store.close()
+    return "account-owner"
+
+
+def _session_user_agents(db: Path) -> list[str]:
+    """The user agent of every session row a store file holds.
+
+    Args:
+        db: The store file.
+
+    Returns:
+        One user agent per session row, in creation order.
+    """
+    connection = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        return [row[0] for row in connection.execute("SELECT user_agent FROM session ORDER BY id")]
+    finally:
+        connection.close()
+
+
+_OPEN_SESSION_ARGS = ["accounts", "open-session", "--owner"]
+
+
+@pytest.fixture
+def kept_log_capture() -> Iterator[None]:
+    """Keep pytest's log capture attached through a CLI run.
+
+    The CLI's callback runs ``configure_logging``, whose ``dictConfig`` replaces the root
+    logger's handlers, ``caplog``'s among them: every record after it would go unseen and a
+    « never logged » assertion would pass on nothing. The session's structlog chain, set up by
+    ``tests/conftest.py``, stays the one in force.
+
+    Yields:
+        Nothing; the patch holds while the test runs.
+    """
+    with patch("personalscraper.cli.configure_logging"):
+        yield
+
+
+class TestOpenSession:
+    """``accounts open-session --owner`` — the design host's smoke check signs in with no stored secret."""
+
+    @pytest.mark.parametrize("value", ["", "prod"])
+    def test_production_is_refused(
+        self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch, value: str
+    ) -> None:
+        """Under production: exit 1, the command's refusal line, nothing on stdout, no store created.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            monkeypatch: Pytest monkeypatch fixture.
+            value: ``PERSONALSCRAPER_ENV``, empty or ``prod``.
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", value)
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 1
+        assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "refused_prod") in result.stderr
+        assert result.stdout == ""
+        assert not (test_config.paths.data_dir / "app.db").exists()
+
+    def test_staging_is_refused(
+        self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Dev only: preprod holds a full owner session, so ``staging`` is refused with its own line, no store created.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            monkeypatch: Pytest monkeypatch fixture.
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 1
+        assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "refused_not_dev") in result.stderr
+        assert result.stdout == ""
+        assert not (test_config.paths.data_dir / "app-staging.db").exists()
+
+    def test_an_unknown_environment_is_refused(
+        self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Fail closed: a value that is no environment opens nothing, whatever refuses it.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            monkeypatch: Pytest monkeypatch fixture.
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "bogus")
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code != 0
+        assert result.stdout == ""
+
+    @pytest.mark.usefixtures("kept_log_capture")
+    def test_dev_prints_a_token_the_session_service_accepts(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path, logged_events: LoggedEvents
+    ) -> None:
+        """The token alone on stdout; it resolves to the owner; the journal names the account, never the token."""
+        store_file = dev_data_dir / "app-dev.db"
+        owner_id = _seed_owner(store_file)
+
+        with logged_events() as events:
+            result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 0, result.output
+        token = result.stdout.strip()
+        assert token and result.stdout == f"{token}\n"
+        app_store = AppStore(store_file)
+        try:
+            actor = SessionService(lambda: app_store.accounts, idle_days=30).resolve(token)
+        finally:
+            app_store.close()
+        assert actor is not None and actor.account_id == owner_id
+        # The row the command opened says who opened it: the smoke check's own user agent.
+        assert _session_user_agents(store_file) == ["design-host-smoke"]
+        opened = [event for event in events if event["event"] == "v1_session_opened_by_cli"]
+        assert opened == [{"event": "v1_session_opened_by_cli", "account_id": owner_id, "log_level": "info"}]
+        assert all(token not in repr(event) for event in events)
+
+    @pytest.mark.usefixtures("kept_log_capture")
+    def test_the_token_is_never_in_the_log(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Whatever the logger, no record carries the token, and stderr does not either."""
+        _seed_owner(dev_data_dir / "app-dev.db")
+        caplog.set_level(logging.DEBUG)
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 0, result.output
+        token = result.stdout.strip()
+        # The capture saw the run: an empty one would prove nothing.
+        events = [record.msg.get("event") for record in caplog.records if isinstance(record.msg, dict)]
+        assert "v1_signed_in" in events
+        assert token not in caplog.text
+        assert all(token not in repr(record.msg) for record in caplog.records)
+        assert token not in result.stderr
+
+    @pytest.mark.parametrize("language", list(Language))
+    def test_a_cut_owner_is_refused(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path, language: Language
+    ) -> None:
+        """The owner's access cut in the store: exit 1, the ``auth.access_disabled`` line, no session opened.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            dev_data_dir: The marked ``dev`` data directory.
+            language: The process's language.
+        """
+        store_file = dev_data_dir / "app-dev.db"
+        _seed_owner(store_file, allowed=False)
+        sessions_before = len(_session_user_agents(store_file))
+
+        with use_language(language):
+            result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 1
+        assert _catalogue_line(language, "cli_refusals", "auth", "access_disabled") in result.stderr.splitlines()
+        assert result.stdout == ""
+        assert len(_session_user_agents(store_file)) == sessions_before
+
+    @pytest.mark.parametrize("owner_link", [True, False], ids=["empty-store", "admin-without-owner-link"])
+    def test_no_owner_exits_1(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path, owner_link: bool
+    ) -> None:
+        """No account linked as the server's owner: exit 1, the command's line, nothing on stdout.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            dev_data_dir: The marked ``dev`` data directory.
+            owner_link: ``False`` seeds an Admin with no owner link; ``True`` seeds nothing.
+        """
+        if not owner_link:
+            _seed_owner(dev_data_dir / "app-dev.db", owner_link=False)
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 1
+        assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "no_owner") in result.stderr.splitlines()
+        assert result.stdout == ""
+
+    def test_several_owner_links_are_refused(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path
+    ) -> None:
+        """Two accounts linked as the owner: exit 1, the ambiguity line, nothing on stdout, no session opened."""
+        store_file = dev_data_dir / "app-dev.db"
+        _seed_owner(store_file)
+        app_store = AppStore(store_file)
+        try:
+            repo = app_store.accounts
+            repo.insert_account(
+                AccountRow(
+                    id="account-former-owner",
+                    name="Former owner",
+                    email="former@example.test",
+                    avatar="",
+                    role_id="admin",
+                    password_hash=None,
+                    created_at=1.0,
+                    updated_at=1.0,
+                )
+            )
+            repo.upsert_plex_link(
+                PlexLinkRow(
+                    account_id="account-former-owner",
+                    plex_id=4343,
+                    plex_uuid="1a2b3c4d5e6f7089",
+                    plex_username="former",
+                    server_access="owner",
+                    token_ciphertext=None,
+                    token_stored_at=None,
+                    linked_at=2.0,
+                    last_sign_in_at=None,
+                )
+            )
+        finally:
+            app_store.close()
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 1
+        assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "ambiguous_owner") in result.stderr
+        assert result.stdout == ""
+        assert _session_user_agents(store_file) == []
+
+    def test_the_owner_flag_is_required(self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path) -> None:
+        """Without ``--owner``: exit 2, the command's line, no session opened."""
+        _seed_owner(dev_data_dir / "app-dev.db")
+
+        result = _invoke(cli_runner, test_config, ["accounts", "open-session"])
+
+        assert result.exit_code == 2
+        assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "owner_required") in result.stderr
+        assert result.stdout == ""
+
+    def test_the_lines_exist_in_both_languages(self) -> None:
+        """Every line of the command is worded in French and English, and they differ."""
+        catalogue = json.loads((_CATALOGUES / "en" / "cli_accounts.json").read_text(encoding="utf-8"))
+        for key in catalogue["open_session"]:
+            assert _catalogue_line(Language.FR, "cli_accounts", "open_session", key) != _catalogue_line(
+                Language.EN, "cli_accounts", "open_session", key
+            ), key

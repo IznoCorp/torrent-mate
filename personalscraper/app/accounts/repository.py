@@ -607,6 +607,21 @@ class AccountRepository:
         return _link(row) if row else None
 
     @serialised
+    def owner_links(self) -> list[PlexLinkRow]:
+        """Every link whose ``server_access`` is ``owner``, oldest first.
+
+        The schema holds no unique index on it, so a stale former owner can sit beside the
+        current one: a caller that needs the one owner must refuse more than one.
+
+        Returns:
+            The owner links; empty when no account holds one.
+        """
+        rows = self._conn.execute(
+            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE server_access = 'owner' ORDER BY linked_at, rowid"  # noqa: S608
+        ).fetchall()
+        return [_link(row) for row in rows]
+
+    @serialised
     def upsert_plex_link(self, link: PlexLinkRow) -> None:
         """Insert an account's Plex link, or replace the fields of the existing one.
 
