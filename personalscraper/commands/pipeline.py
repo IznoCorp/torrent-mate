@@ -57,7 +57,8 @@ def _journal_lock_conflict(config: Config, *, dry_run: bool) -> None:
         writer.finalize(
             run_uid,
             "error",
-            error=t("cli_core.pipeline.lock_conflict_row"),
+            # Stored in a DB row: a literal, whatever the process language.
+            error="Could not acquire pipeline.lock — another run is already active.",
         )
     except Exception:
         log.warning("pipeline_lock_conflict_row_write_failed", run_uid=run_uid, exc_info=True)

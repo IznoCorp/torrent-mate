@@ -13,7 +13,6 @@ from typing import Any, Callable
 import typer
 
 from personalscraper.cli_state import state
-from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli.output")
@@ -63,4 +62,4 @@ def emit(
             typer.echo(payload)
         else:
             for key, value in payload.items():
-                typer.echo(t("cli_core.output.pair", key=key, value=value))
+                typer.echo(f"{key}: {value}")  # french-ok: layout only, a machine-readable key: value line

@@ -174,17 +174,19 @@ def init_config_sync(
     conflicts = [line for line in report if "conflict (kept target)" in line]
 
     for msg in additions:
-        typer.echo(t("cli_core.init_config.indented", message=msg))
+        typer.echo(f"  {msg}")  # french-ok: layout only, indentation around a reported line
 
     if conflicts:
         typer.echo(t("cli_core.init_config.conflicts"))
         for msg in conflicts:
             # Strip the "conflict (kept target):" prefix for cleaner display.
             clean = msg.removeprefix("conflict (kept target):").strip()
-            typer.echo(t("cli_core.init_config.indented", message=clean))
+            typer.echo(f"  {clean}")  # french-ok: layout only, indentation around a reported line
 
-    summary_key = "cli_core.init_config.would_add" if dry_run else "cli_core.init_config.added"
-    typer.echo(t(summary_key, items=len(additions)))
+    if dry_run:
+        typer.echo(t("cli_core.init_config.would_add", items=len(additions)))
+    else:
+        typer.echo(t("cli_core.init_config.added", items=len(additions)))
 
     # Commit the canonical mini-repo after a non-dry-run sync with additions
     # (DESIGN §3.3).  This also sweeps any manual edits via ``add -A``.

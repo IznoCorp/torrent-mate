@@ -4,5 +4,22 @@
     "host_help": "The bind address (loopback by default).",
     "port_help": "The bind port.",
     "refused_prod": "The standalone v1 server never runs on production stores: set PERSONALSCRAPER_ENV to dev or staging, with a data directory marked for it. Nothing was started."
+  },
+  "app_help": "TorrentMate web UI daemon and admin commands.",
+  "host_help": "Override config.web.host (bind address). Defaults to config.web.host.",
+  "port_help": "Override config.web.port (e.g. 8711 for the staging clone). Defaults to config.web.port.",
+  "disabled": "Web daemon is disabled (config.web.enabled=false).",
+  "spa_missing": "SPA not built — static/index.html is missing. Run the deploy script or set web.dev_mode=true in config/web.json5.",
+  "set_password": {
+    "help": "Generate the web UI password hash (and a JWT secret) for ``.env``.\n\nPrompts for a username (default: ``config.web.username``) and a password\n(entered twice, hidden), then produces the ``WEB_PASSWORD_HASH`` line the\nlogin route expects.  When ``WEB_JWT_SECRET`` is absent/empty in the\ncurrent environment, a fresh ``secrets.token_urlsafe(32)`` value is\ngenerated and included.\n\nBy default the ``.env`` lines are printed for the operator to paste; the\nfile is never touched.  With ``--write`` the keys are upserted into the\nrepo-root ``.env`` in place (existing lines replaced, everything else\npreserved) after an interactive confirmation.  Secret values are never\nlogged.\n\nArgs:\n    ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.\n    write: When True, atomically update the repo-root ``.env`` after\n        confirmation instead of printing the lines.",
+    "write_help": "Atomically write the generated keys into the repo-root .env (after confirmation).",
+    "username_prompt": "Web UI username",
+    "password_prompt": "Password",
+    "confirm_write": "Write these keys into {{path}}?",
+    "aborted": "Aborted; .env left unchanged.",
+    "updated": "Updated {{path}} (restart the web daemon to apply).",
+    "reminder": "Reminder: username '{{username}}' differs from config.web.username ('{{configured}}') — update config/web.json5 to match.",
+    "add_lines": "# Add these lines to your .env file:",
+    "note": "# Note: username '{{username}}' differs from config.web.username ('{{configured}}') — update config/web.json5 to match."
   }
 }

@@ -51,11 +51,11 @@ _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
 web_app = typer.Typer(
     name="web",
     invoke_without_command=True,
-    help=t("cli_core.web.app_help"),
+    help=t("cli_web.app_help"),
 )
 
 
-@web_app.callback(invoke_without_command=True, help=t("cli_core.web.app_help"))
+@web_app.callback(invoke_without_command=True, help=t("cli_web.app_help"))
 @cli_telemetry("web")
 @handle_cli_errors
 def web(
@@ -63,12 +63,12 @@ def web(
     host: str | None = typer.Option(
         None,
         "--host",
-        help=t("cli_core.web.host_help"),
+        help=t("cli_web.host_help"),
     ),
     port: int | None = typer.Option(
         None,
         "--port",
-        help=t("cli_core.web.port_help"),
+        help=t("cli_web.port_help"),
     ),
 ) -> None:
     """Start the TorrentMate web UI daemon (FastAPI + uvicorn).
@@ -106,7 +106,7 @@ def web(
     assert config is not None
 
     if not config.web.enabled:
-        typer.echo(t("cli_core.web.disabled"))
+        typer.echo(t("cli_web.disabled"))
         log.info("web_disabled")
         raise typer.Exit(code=1)
 
@@ -116,7 +116,7 @@ def web(
     index_html = static_dir / "index.html"
 
     if not index_html.exists() and not config.web.dev_mode:
-        typer.echo(t("cli_core.web.spa_missing"), err=True)
+        typer.echo(t("cli_web.spa_missing"), err=True)
         log.error("web_boot_refused", reason="spa_missing", static_dir=str(static_dir))
         raise typer.Exit(code=1)
 
@@ -196,14 +196,14 @@ def serve_v1(
     )
 
 
-@web_app.command("set-password", help=t("cli_core.web.set_password.help"))
+@web_app.command("set-password", help=t("cli_web.set_password.help"))
 @handle_cli_errors
 def set_password(
     ctx: typer.Context,
     write: bool = typer.Option(
         False,
         "--write",
-        help=t("cli_core.web.set_password.write_help"),
+        help=t("cli_web.set_password.write_help"),
     ),
 ) -> None:
     """Generate the web UI password hash (and a JWT secret) for ``.env``.
@@ -229,8 +229,8 @@ def set_password(
     assert config is not None
 
     default_username = config.web.username
-    username = typer.prompt(t("cli_core.web.set_password.username_prompt"), default=default_username)
-    password = typer.prompt(t("cli_core.web.set_password.password_prompt"), hide_input=True, confirmation_prompt=True)
+    username = typer.prompt(t("cli_web.set_password.username_prompt"), default=default_username)
+    password = typer.prompt(t("cli_web.set_password.password_prompt"), hide_input=True, confirmation_prompt=True)
 
     password_hash = hash_password(password)
 
@@ -243,14 +243,14 @@ def set_password(
     username_matches_config = username == default_username
 
     if write:
-        confirmed = typer.confirm(t("cli_core.web.set_password.confirm_write", path=str(_ENV_PATH)))
+        confirmed = typer.confirm(t("cli_web.set_password.confirm_write", path=str(_ENV_PATH)))
         if not confirmed:
-            typer.echo(t("cli_core.web.set_password.aborted"))
+            typer.echo(t("cli_web.set_password.aborted"))
             raise typer.Exit(code=0)
         write_env_keys(keys, _ENV_PATH)
-        typer.echo(t("cli_core.web.set_password.updated", path=str(_ENV_PATH)))
+        typer.echo(t("cli_web.set_password.updated", path=str(_ENV_PATH)))
         if not username_matches_config:
-            typer.echo(t("cli_core.web.set_password.reminder", username=username, configured=default_username))
+            typer.echo(t("cli_web.set_password.reminder", username=username, configured=default_username))
         # Never log secret values — only booleans about what changed.
         log.info(
             "web_set_password_written",
@@ -259,9 +259,9 @@ def set_password(
         )
         return
 
-    typer.echo(t("cli_core.web.set_password.add_lines"))
+    typer.echo(t("cli_web.set_password.add_lines"))
     for key, value in keys.items():
-        typer.echo(t("cli_core.web.set_password.env_line", key=key, value=value))
+        typer.echo(f"{key}={value}")  # french-ok: layout only, a .env line
     if not username_matches_config:
-        typer.echo(t("cli_core.web.set_password.note", username=username, configured=default_username))
+        typer.echo(t("cli_web.set_password.note", username=username, configured=default_username))
     log.info("web_set_password_printed", jwt_secret_generated=jwt_secret_generated)

@@ -27,12 +27,12 @@ from typer.testing import CliRunner
 from personalscraper import i18n
 from personalscraper.cli import app
 from personalscraper.cli_state import state
-from personalscraper.i18n import Language, t, use_language
+from personalscraper.i18n import Language, use_language
 from personalscraper.pipeline_step_codes import StepCode
 from personalscraper.pipeline_steps import DEFAULT_STEPS
 
 _PREFIX = "FR|"
-_PREFIXED_NAMESPACES = ("cli_core", "cli_trailers")
+_PREFIXED_NAMESPACES = ("cli_core", "cli_trailers", "cli_web")
 
 
 def _prefixed(tree: Any) -> Any:
@@ -101,7 +101,8 @@ def test_main_callback_refuses_an_unknown_format_in_the_current_language(marked_
 def _help_values(relative: str) -> list[ast.expr]:
     """The value of every ``help=`` keyword in a package module, read from its source."""
     tree = ast.parse((Path(i18n.__file__).parents[1] / relative).read_text(encoding="utf-8"))
-    return [kw.value for node in ast.walk(tree) if isinstance(node, ast.Call) for kw in node.keywords if kw.arg == "help"]
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    return [kw.value for call in calls for kw in call.keywords if kw.arg == "help"]
 
 
 def _is_t_call(node: ast.expr) -> bool:
@@ -141,7 +142,7 @@ def test_configuration_error_label_is_translated(marked_french: None, monkeypatc
 def test_plain_output_pairs_go_through_the_catalogue(
     marked_french: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """``cli_helpers/output.py``: the plain ``key: value`` line is ``cli_core.output.pair``."""
+    """``cli_helpers/output.py``: the plain ``key: value`` line is layout, never translated."""
     from personalscraper.cli_helpers.output import emit
 
     monkeypatch.setitem(state, "format", "plain")
@@ -151,7 +152,9 @@ def test_plain_output_pairs_go_through_the_catalogue(
         captured = capsys.readouterr()
         return captured.out + captured.err
 
-    _says(produce, "answer: 42")
+    for language in Language:
+        with use_language(language):
+            assert produce() == "answer: 42\n"
 
 
 def test_step_tally_and_check_row_go_through_the_catalogue(marked_french: None) -> None:
@@ -214,7 +217,7 @@ def test_init_config_missing_example_is_translated(
 
 
 def test_info_helps_are_catalogue_texts() -> None:
-    """``commands/info.py``: every ``help=`` is a ``t(...)`` call, and the providers line comes from ``cli_core.info``."""
+    """``commands/info.py``: every ``help=`` is a ``t(...)`` call; the providers help renders its placeholders."""
     helps = _help_values("commands/info.py")
     assert len(helps) == 3
     assert all(_is_t_call(value) for value in helps)
@@ -247,7 +250,7 @@ def test_schedule_without_a_job_is_refused_in_the_current_language(marked_french
 
 
 def test_web_daemon_disabled_message_is_translated(marked_french: None, capsys: pytest.CaptureFixture[str]) -> None:
-    """``commands/web.py``: a disabled daemon says so through ``cli_core.web.disabled``."""
+    """``commands/web.py``: a disabled daemon says so through ``cli_web.disabled``."""
     from personalscraper.commands import web as web_module
 
     config = SimpleNamespace(web=SimpleNamespace(enabled=False))
