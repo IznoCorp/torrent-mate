@@ -266,9 +266,7 @@ def test_every_word_of_the_shell_is_keyed_and_its_french_is_the_catalogues() -> 
     """
     reader = _Fallbacks()
     reader.feed(SERVE.SHELL_DOCUMENT.read_text(encoding="utf-8"))
-    unkeyed = [
-        word for word, key in reader.found if key is None and word not in BRAND_WORDS | WORDED_ELSEWHERE
-    ]
+    unkeyed = [word for word, key in reader.found if key is None and word not in BRAND_WORDS | WORDED_ELSEWHERE]
     assert unkeyed == []
     retyped = [(word, key) for word, key in reader.found if key is not None and _word(key) != word]
     assert retyped == []
