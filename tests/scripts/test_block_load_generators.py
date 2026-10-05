@@ -70,6 +70,8 @@ def decide(command: str, port: int | None = None) -> dict[str, object]:
         "node -e 'while(true){}' &",
         "sysbench cpu --threads=8 run",
         "openssl speed -multi 8",
+        "bash <<'EOF'\nyes > /dev/null\nEOF",
+        "cat <<EOF\n$(yes > /dev/null)\nEOF",
     ],
 )
 def test_a_deliberate_load_generator_is_refused(command: str) -> None:
@@ -93,6 +95,8 @@ def test_a_deliberate_load_generator_is_refused(command: str) -> None:
         "while true; do sleep 5; curl -s --max-time 2 localhost; done",
         "sh scripts/heavy.sh --class test me pytest -n 2",
         "pytest tests/scripts/test_block_load_generators.py",
+        "cat > body.md <<'EOF'\nrefuses `yes >` burners and `stress-ng`\nEOF",
+        'gh pr create --body-file - <<"EOF"\nwhile true; do :; done is refused\nEOF',
     ],
 )
 def test_an_ordinary_command_passes(command: str) -> None:

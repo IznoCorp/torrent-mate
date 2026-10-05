@@ -20,8 +20,10 @@ Refused:
   port while one already listens there (``LOAD_HOOK_HARNESS_PORT``, 8899).
 
 A generator only MENTIONED in a quoted argument (a commit message, a search
-pattern, an ``echo``) passes; the body of ``sh -c '…'`` and ``eval '…'`` is read
-as a command. This hook catches the deliberate case; ``scripts/heavy.sh``'s
+pattern, an ``echo``) or in the body of a heredoc whose delimiter is quoted
+(``<<'EOF'``, text no shell expands) passes — unless that heredoc feeds a shell
+or an interpreter; the body of ``sh -c '…'`` and ``eval '…'`` is read as a
+command. This hook catches the deliberate case; ``scripts/heavy.sh``'s
 watcher and ``scripts/machine_guard.py`` catch what slips past it.
 """
 
@@ -63,6 +65,11 @@ _BUSY_LOOPS = (
 
 _INNER = re.compile(r"""(?:\b(?:ba|z|da)?sh\s+-c|\beval)\s+(?:'([^']*)'|"([^"]*)")""")
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+# A heredoc whose delimiter is quoted: its body is literal text, never expanded.
+_LITERAL_HEREDOC = re.compile(
+    r"""(?P<head>[^\n]*?)<<-?\s*(['"])(?P<tag>\w+)\2(?P<rest>[^\n]*)\n.*?\n\s*(?P=tag)(?=\n|$)""", re.S
+)
+_INTERPRETER = re.compile(r"(?:^|[\s;&|(/])(?:(?:ba|z|da)?sh|python[\d.]*|node|perl|ruby|osascript|eval|xargs)\b")
 _SERVE = re.compile(r"(?:server\.py\s+--serve|http\.server|--serve)\s+(\d+)\b")
 
 _ALTERNATIVE = (
@@ -72,6 +79,25 @@ _ALTERNATIVE = (
     "scripts/heavy.sh's watcher and scripts/machine_guard.py kill a run that saturates the "
     "machine. See CLAUDE.md « The machine »."
 )
+
+
+def without_literal_text(command: str) -> str:
+    """The command with the bodies of its quoted-delimiter heredocs removed, save those a program runs.
+
+    Args:
+        command: The Bash command.
+
+    Returns:
+        The command, each such heredoc reduced to its first line.
+    """
+
+    def keep_or_drop(heredoc: re.Match[str]) -> str:
+        """A heredoc fed to a shell or an interpreter stays; any other loses its body."""
+        if _INTERPRETER.search(heredoc.group("head")):
+            return heredoc.group(0)
+        return heredoc.group("head") + heredoc.group("rest")
+
+    return _LITERAL_HEREDOC.sub(keep_or_drop, command)
 
 
 def commands_in(command: str) -> list[str]:
@@ -151,7 +177,7 @@ def main() -> None:
         return
 
     command: str = input_data.get("tool_input", {}).get("command", "")
-    rule = load_rule(command)
+    rule = load_rule(without_literal_text(command))
     if rule is not None:
         print(json.dumps({"decision": "block", "reason": f"BLOCKED: {rule}. {_ALTERNATIVE}"}))
         return
