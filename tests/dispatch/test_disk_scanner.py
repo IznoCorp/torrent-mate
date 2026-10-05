@@ -127,7 +127,7 @@ class TestPreprodMarker:
         monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
         with (
             patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True),
-            patch("personalscraper.conf.preprod_guard.is_mounted", return_value=True),
+            patch("personalscraper.conf.sandbox_guard.is_mounted", return_value=True),
         ):
             status = get_disk_status(self._dc(tmp_path))
         assert status.is_mounted is False
@@ -139,7 +139,7 @@ class TestPreprodMarker:
         (tmp_path / ".tm-preprod-root").write_text("", encoding="utf-8")
         with (
             patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True),
-            patch("personalscraper.conf.preprod_guard.is_mounted", return_value=True),
+            patch("personalscraper.conf.sandbox_guard.is_mounted", return_value=True),
         ):
             assert get_disk_status(self._dc(tmp_path)).is_mounted is True
 

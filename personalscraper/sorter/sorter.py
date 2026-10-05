@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.preprod_guard import assert_all_within_preprod
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import folder_name
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
@@ -241,7 +241,7 @@ class Sorter:
             A :class:`SortResult` (``moved`` / ``skipped`` / ``dry-run``).
 
         Raises:
-            PreprodGuardError: Under ``staging``, *item* or its destination is outside
+            SandboxGuardError: Under ``staging``, *item* or its destination is outside
                 preprod's marked, mounted roots. Nothing is moved or replaced.
         """
         # Get destination via strategy
@@ -293,7 +293,7 @@ class Sorter:
             )
 
         # Preprod guard (``staging`` only): a move or a replace stays inside preprod's own roots.
-        assert_all_within_preprod(self.config, item, dest_path)
+        assert_all_within_sandbox(self.config, item, dest_path)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         if is_movie_dir_replace:

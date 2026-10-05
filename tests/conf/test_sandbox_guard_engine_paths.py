@@ -17,8 +17,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from personalscraper.conf import preprod_guard
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_all_within_preprod
+from personalscraper.conf import sandbox_guard
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_all_within_sandbox
 from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._item import _refused_by_preprod_guard
 from personalscraper.dispatch._types import DispatchResult
@@ -29,7 +29,7 @@ from personalscraper.dispatch.crash_recovery import (
     SweepRoot,
     sweep_orphans,
 )
-from tests.conf.test_preprod_guard import _config, _root
+from tests.conf.test_sandbox_guard import _config, _root
 
 JUNK_NAME = ".DS_Store"
 
@@ -44,7 +44,7 @@ def preprod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     disk = _root(tmp_path, "disk")
     stage = _root(tmp_path, "stage", marked=False)
     config = _config(tmp_path, disk, stage)
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     movies = stage / "001-MOVIES"
     media = movies / "Film (2024)"
     media.mkdir(parents=True)
@@ -70,11 +70,11 @@ def test_assert_all_within_preprod_judges_every_path(
     """One path outside the roots refuses the whole call, under staging only."""
     outside = tmp_path / "prod-media"
     inside = preprod.disk / "movies"
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         _staging(monkeypatch)
-        assert_all_within_preprod(preprod.config, inside, outside)
+        assert_all_within_sandbox(preprod.config, inside, outside)
     monkeypatch.delenv("PERSONALSCRAPER_ENV")
-    assert_all_within_preprod(preprod.config, inside, outside)
+    assert_all_within_sandbox(preprod.config, inside, outside)
 
 
 # --- sweep_orphans (crash recovery) --------------------------------------------------------------
@@ -115,7 +115,7 @@ def test_sweep_orphans_needs_the_config_under_staging(
     """Under staging, a sweep with no config cannot know preprod's roots and removes nothing."""
     media_orphan, _ = _orphans(tmp_path)
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         sweep_orphans([SweepRoot(tmp_path / "prod-media", RootKind.MEDIA_TREE)], dry_run=False)
     assert media_orphan.exists()
 
@@ -154,9 +154,9 @@ def test_run_ingest_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, m
     orphan.mkdir()
     elsewhere = preprod.stage.parent / "other-ingest"
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_ingest(MagicMock(), config=preprod.config, event_bus=EventBus())
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_ingest(MagicMock(), ingest_dir=elsewhere, config=preprod.config, event_bus=EventBus())
     assert orphan.exists()
     assert not elsewhere.exists()
@@ -206,7 +206,7 @@ def test_run_sort_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, mon
     from personalscraper.sorter.run import run_sort
 
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_sort(MagicMock(), preprod.stage, preprod.config, event_bus=EventBus())
     assert (preprod.ingest / "Loose.Film.2024.mkv").exists()
 
@@ -219,7 +219,7 @@ def test_run_clean_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, mo
     from personalscraper.process.run import run_clean
 
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_clean(MagicMock(), preprod.config, event_bus=EventBus())
     assert (preprod.media / JUNK_NAME).exists()
 
@@ -231,7 +231,7 @@ def test_run_cleanup_refuses_an_unmarked_staging_tree(
     from personalscraper.process.run import run_cleanup
 
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_cleanup(MagicMock(), preprod.config, event_bus=EventBus())
     assert (preprod.movies / "Empty Folder").exists()
 
@@ -252,7 +252,7 @@ def test_run_scrape_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, m
     from personalscraper.scraper.run import run_scrape
 
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_scrape(MagicMock(), preprod.config, event_bus=EventBus(), registry=MagicMock())
     assert sorted(p.name for p in preprod.media.iterdir()) == [JUNK_NAME]
 
@@ -267,7 +267,7 @@ def test_run_enforce_refuses_an_unmarked_staging_tree(
     from personalscraper.enforce.run import run_enforce
 
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_enforce(MagicMock(), preprod.config, event_bus=EventBus())
     assert (preprod.media / JUNK_NAME).exists()
 
@@ -288,7 +288,7 @@ def test_run_verify_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, m
     from personalscraper.verify.run import run_verify
 
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         run_verify(MagicMock(), preprod.config, event_bus=EventBus())
     assert (preprod.media / JUNK_NAME).exists()
 
@@ -452,7 +452,7 @@ def test_scrape_movie_forced_refuses_a_folder_outside_preprod(
     scraper = _forced_scraper(preprod)
     before = _tree(preprod.stage)
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         scraper.scrape_movie_forced(preprod.media, 603)
     assert _tree(preprod.stage) == before
     scraper._registry.get.assert_not_called()
@@ -477,7 +477,7 @@ def test_scrape_tvshow_forced_refuses_a_folder_outside_preprod(
     scraper._forced_series_lookup = MagicMock(return_value=None)
     before = _tree(preprod.stage)
     _staging(monkeypatch)
-    with pytest.raises(PreprodGuardError):
+    with pytest.raises(SandboxGuardError):
         scraper.scrape_tvshow_forced(show, "tvdb", 1)
     assert _tree(preprod.stage) == before
     scraper._forced_series_lookup.assert_not_called()
@@ -529,7 +529,7 @@ def test_ingest_refuses_a_torrent_source_outside_preprod_and_continues(
     disk = _root(tmp_path, "disk")
     stage = _root(tmp_path, "stage")
     config = _config(tmp_path, disk, stage)
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     ingest_dir = stage / "097-TEMP"
     bad = tmp_path / "prod-downloads" / "Bad.Film.2024"
     bad.mkdir(parents=True)

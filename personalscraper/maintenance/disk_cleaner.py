@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.environment import Environment, current_environment
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.indexer.deletion import DeleteOutcome, _publish_deleted, delete_media_folder
@@ -134,7 +134,7 @@ def _delete_dir(
         outcome = delete_media_folder(
             path, db_path=db_path, actor="disk-clean", label=label, permit=permit, dry_run=dry_run, config=config
         )
-    except PreprodGuardError as exc:
+    except SandboxGuardError as exc:
         result.error_count += 1
         result.errors.append(f"Refused to delete {label}: {path} — {exc}")
         return
@@ -195,9 +195,9 @@ def _delete_file(
     if current_environment() is Environment.STAGING:
         try:
             if config is None:
-                raise PreprodGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
-            assert_within_preprod(config, path)
-        except PreprodGuardError as exc:
+                raise SandboxGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+            assert_within_sandbox(config, path)
+        except SandboxGuardError as exc:
             result.error_count += 1
             result.errors.append(f"Refused to delete {label}: {path} — {exc}")
             return

@@ -8,7 +8,7 @@ hold its marker: a disk that dropped off the bus leaves an empty folder on the s
 disk, and an unmarked folder is not one an operator declared as preprod's.
 
 In every other environment the guard is a no-op by construction (the environment check
-is the first thing :func:`assert_within_preprod` does), so prod behaves as before.
+is the first thing :func:`assert_within_sandbox` does), so prod behaves as before.
 """
 
 from __future__ import annotations
@@ -24,11 +24,11 @@ from personalscraper.core.sqlite._fs_probe import is_mounted
 PREPROD_ROOT_MARKER: Final[str] = ".tm-preprod-root"
 
 
-class PreprodGuardError(RuntimeError):
+class SandboxGuardError(RuntimeError):
     """A preprod write or purge aimed outside preprod's own marked, mounted roots."""
 
 
-def preprod_roots(config: Config) -> tuple[Path, ...]:
+def sandbox_roots(config: Config) -> tuple[Path, ...]:
     """List the roots a staging process may write under.
 
     Args:
@@ -45,24 +45,24 @@ def preprod_roots(config: Config) -> tuple[Path, ...]:
     return tuple(dict.fromkeys(roots))
 
 
-def assert_preprod_root(root: Path) -> None:
+def assert_sandbox_root(root: Path) -> None:
     """Raise unless *root* is on a mounted volume and holds the preprod marker.
 
     Args:
         root: A candidate preprod root.
 
     Raises:
-        PreprodGuardError: The root is not on a mounted volume, or has no marker file
+        SandboxGuardError: The root is not on a mounted volume, or has no marker file
             of its own (a symlink named like the marker does not count).
     """
     if not is_mounted(root):
-        raise PreprodGuardError(f"preprod root {root} is not on a mounted volume")
+        raise SandboxGuardError(f"preprod root {root} is not on a mounted volume")
     marker = root / PREPROD_ROOT_MARKER
     if marker.is_symlink() or not marker.is_file():
-        raise PreprodGuardError(f"preprod root {root} has no {PREPROD_ROOT_MARKER} marker")
+        raise SandboxGuardError(f"preprod root {root} has no {PREPROD_ROOT_MARKER} marker")
 
 
-def assert_within_preprod(config: Config, path: Path, env: Environment | None = None) -> None:
+def assert_within_sandbox(config: Config, path: Path, env: Environment | None = None) -> None:
     """Raise unless *path* is under one marked, mounted preprod root (``staging`` only).
 
     A no-op unless *env* (default :func:`current_environment`) is ``staging``. The
@@ -75,24 +75,24 @@ def assert_within_preprod(config: Config, path: Path, env: Environment | None = 
         env: The environment to judge for; the process's own when ``None``.
 
     Raises:
-        PreprodGuardError: Under ``staging``, *path* is outside every root, or the root
-            holding it fails :func:`assert_preprod_root`.
+        SandboxGuardError: Under ``staging``, *path* is outside every root, or the root
+            holding it fails :func:`assert_sandbox_root`.
     """
     if (env if env is not None else current_environment()) is not Environment.STAGING:
         return
     real = Path(os.path.realpath(path))
-    for root in preprod_roots(config):
+    for root in sandbox_roots(config):
         real_root = Path(os.path.realpath(root))
         if real == real_root or real.is_relative_to(real_root):
-            assert_preprod_root(real_root)
+            assert_sandbox_root(real_root)
             return
-    raise PreprodGuardError(f"{path} is outside every preprod root")
+    raise SandboxGuardError(f"{path} is outside every preprod root")
 
 
-def assert_all_within_preprod(config: Config, *paths: Path, env: Environment | None = None) -> None:
+def assert_all_within_sandbox(config: Config, *paths: Path, env: Environment | None = None) -> None:
     """Raise unless every one of *paths* is under a marked, mounted preprod root (``staging`` only).
 
-    The step-level form of :func:`assert_within_preprod`: a pipeline step names the
+    The step-level form of :func:`assert_within_sandbox`: a pipeline step names the
     directories it is about to write to or purge, once, before it touches any of them.
 
     Args:
@@ -101,8 +101,8 @@ def assert_all_within_preprod(config: Config, *paths: Path, env: Environment | N
         env: The environment to judge for; the process's own when ``None``.
 
     Raises:
-        PreprodGuardError: Under ``staging``, any of *paths* fails
-            :func:`assert_within_preprod`. A no-op in every other environment.
+        SandboxGuardError: Under ``staging``, any of *paths* fails
+            :func:`assert_within_sandbox`. A no-op in every other environment.
     """
     for path in paths:
-        assert_within_preprod(config, path, env)
+        assert_within_sandbox(config, path, env)

@@ -46,7 +46,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
@@ -364,8 +364,8 @@ def library_fix_nfo(
         if apply:
             # Preprod guard (``staging`` only): the NFO and its backup stay inside preprod's roots.
             try:
-                assert_within_preprod(cfg, nfo_path)
-            except PreprodGuardError as exc:
+                assert_within_sandbox(cfg, nfo_path)
+            except SandboxGuardError as exc:
                 stats.inc("preprod_refused")
                 log.error("nfo_fix_preprod_refused", item_id=item_id, nfo=str(nfo_path), error=str(exc))
                 continue

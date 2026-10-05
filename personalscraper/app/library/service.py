@@ -89,7 +89,7 @@ from personalscraper.app.library.listing import (
 from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
 from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
 from personalscraper.conf.environment import Environment, current_environment
-from personalscraper.conf.preprod_guard import PreprodGuardError
+from personalscraper.conf.sandbox_guard import SandboxGuardError
 from personalscraper.core.artwork_naming import artwork_inventory
 from personalscraper.core.delete_permit import DeletePermit, PermitDecision
 from personalscraper.core.identity import MediaRef
@@ -1339,7 +1339,7 @@ class LibraryService:
                     permit=permit,
                     config=self._config,
                 )
-            except PreprodGuardError as exc:
+            except SandboxGuardError as exc:
                 log.warning("app.library.delete_preprod_refused", item_id=plan.item_id, error=str(exc))
                 failed += 1
                 continue

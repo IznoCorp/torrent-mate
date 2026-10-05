@@ -38,7 +38,7 @@ from rich.table import Table
 from personalscraper import cli_helpers
 from personalscraper.app.composition import build_app_context
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.core.media_types import trailer_folders_in
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -1149,11 +1149,11 @@ def purge(
         for trailer_p in orphan_trailer_paths:
             try:
                 # Preprod guard (``staging`` only): a purge stays inside preprod's own roots.
-                assert_within_preprod(config, trailer_p)
+                assert_within_sandbox(config, trailer_p)
                 trailer_p.unlink()
                 deleted += 1
                 log.info("trailers_purge_deleted", path=str(trailer_p))
-            except PreprodGuardError as exc:
+            except SandboxGuardError as exc:
                 log.error("preprod_trailer_purge_refused", path=str(trailer_p), error=str(exc))
             except OSError as exc:
                 log.warning("trailers_purge_delete_failed", path=str(trailer_p), error=str(exc))
