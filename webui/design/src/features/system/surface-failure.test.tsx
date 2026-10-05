@@ -22,11 +22,21 @@ const answered = { isError: false, isPending: false, isFetching: false, isPlaceh
 
 // BY DEFAULT EVERY READ BELOW THE SURFACE ANSWERS REFUSED; `onlyRefused` narrows that to one address, so a test can
 // refuse the LAST read of a `??` chain alone.
-const reads = vi.hoisted(() => ({ onlyRefused: undefined as string | undefined }));
+// THE SIX READS THE PAGE REPORTS: the others (pipeline status, locks, account) stay unread, as they are here.
+const SIX_LISTS = [
+  "/api/v1/system/services", "/api/v1/maintenance/schedulers", "/api/v1/maintenance/disks",
+  "/api/v1/maintenance/index-health", "/api/v1/system/dependencies",
+];
+const ERRORS = { total: 0, outOf: 0, latest: "", what: "", where: "" };
+const reads = vi.hoisted(() => ({ onlyRefused: undefined as string | undefined, answeredExcept: undefined as string | undefined, holdsData: false }));
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
-  useQuery: (options: { queryKey: readonly unknown[] }) =>
-    reads.onlyRefused === undefined || reads.onlyRefused === options.queryKey[0] ? refused : answered,
+  useQuery: (options: { queryKey: readonly unknown[] }) => {
+    const address = options.queryKey[0];
+    if (reads.answeredExcept !== undefined) return address === reads.answeredExcept ? answered : refused;
+    if (reads.onlyRefused !== undefined && reads.onlyRefused !== address) return answered;
+    return reads.holdsData ? { ...refused, data: address === "/api/v1/system/errors" ? ERRORS : SIX_LISTS.includes(String(address)) ? [] : undefined } : refused;
+  },
 }));
 // THE SERVER-RENDERED PASS has no snapshot to subscribe to: the version stands still.
 vi.mock("../../lib/query-client", async (importOriginal) => ({
@@ -100,4 +110,32 @@ describe("SystemPage over real refused reads (the phase is not \"error\")", () =
       screen.phase = "error";
     }
   });
-})
+});
+
+describe("SystemPage at the boundary of \"all six\" and over a refused REFETCH", () => {
+  it("leaves the page drawn when five of the six reads are refused", async () => {
+    reads.answeredExcept = "/api/v1/system/errors";
+    screen.phase = "ready";
+    try {
+      const { SystemPage } = await import("./page");
+      const text = textOf(createElement(SystemPage));
+      expect(text).not.toContain(REFUSAL);
+      expect(text).not.toContain(TIMEOUT);
+    } finally {
+      reads.answeredExcept = undefined;
+      screen.phase = "error";
+    }
+  });
+
+  it("keeps the data drawn when a REFETCH is refused while the cache holds it", async () => {
+    reads.holdsData = true;
+    screen.phase = "ready";
+    try {
+      const { SystemPage } = await import("./page");
+      expect(textOf(createElement(SystemPage))).not.toContain(REFUSAL);
+    } finally {
+      reads.holdsData = false;
+      screen.phase = "error";
+    }
+  });
+});

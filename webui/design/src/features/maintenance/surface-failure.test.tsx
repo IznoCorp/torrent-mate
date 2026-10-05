@@ -22,11 +22,14 @@ const answered = { isError: false, isPending: false, isFetching: false, isPlaceh
 
 // BY DEFAULT EVERY READ BELOW THE SURFACE ANSWERS REFUSED; `onlyRefused` narrows that to one address, so a test can
 // refuse the LAST read of a `??` chain alone.
-const reads = vi.hoisted(() => ({ onlyRefused: undefined as string | undefined }));
+const JOURNAL_ADDRESS = "/api/v1/maintenance/destructive-log";
+const reads = vi.hoisted(() => ({ onlyRefused: undefined as string | undefined, holdsData: false }));
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
   useQuery: (options: { queryKey: readonly unknown[] }) =>
-    reads.onlyRefused === undefined || reads.onlyRefused === options.queryKey[0] ? refused : answered,
+    reads.onlyRefused === undefined || reads.onlyRefused === options.queryKey[0]
+      ? reads.holdsData ? { ...refused, data: options.queryKey[0] === JOURNAL_ADDRESS ? { total: 0, rows: [] } : [] } : refused
+      : answered,
 }));
 // THE SERVER-RENDERED PASS has no snapshot to subscribe to: the version stands still.
 vi.mock("../../lib/query-client", async (importOriginal) => ({
@@ -61,34 +64,46 @@ describe("MaintenancePage in its error phase", () => {
     expect(text).not.toContain(TIMEOUT);
   });
 
-  it("names the refusal when only the LAST read of its chain (the journal) is refused", async () => {
-    reads.onlyRefused = "/api/v1/maintenance/destructive-log";
+});
+
+describe("MaintenancePage over a real refused read (the phase is not \"error\")", () => {
+  it("says why when both reads are refused", async () => {
+    screen.phase = "ready";
     try {
       const { MaintenancePage } = await import("./page");
       const text = textOf(createElement(MaintenancePage) as ReactElement);
       expect(text).toContain(REFUSAL);
       expect(text).not.toContain(TIMEOUT);
     } finally {
-      reads.onlyRefused = undefined;
+      screen.phase = "error";
     }
   });
-});
 
-describe("MaintenancePage over a real refused read (the phase is not \"error\")", () => {
-  it.each([["both reads", undefined], ["only the LAST read (the journal)", "/api/v1/maintenance/destructive-log"]])(
-    "says why when %s is refused",
-    async (_name, only) => {
-      reads.onlyRefused = only;
-      screen.phase = "ready";
-      try {
-        const { MaintenancePage } = await import("./page");
-        const text = textOf(createElement(MaintenancePage) as ReactElement);
-        expect(text).toContain(REFUSAL);
-        expect(text).not.toContain(TIMEOUT);
-      } finally {
-        reads.onlyRefused = undefined;
-        screen.phase = "error";
-      }
-    },
-  );
+  it("says why in the journal's place, the page staying drawn, when only the journal is refused", async () => {
+    reads.onlyRefused = JOURNAL_ADDRESS;
+    screen.phase = "ready";
+    try {
+      const { MaintenancePage } = await import("./page");
+      const text = textOf(createElement(MaintenancePage) as ReactElement);
+      expect(text).toContain(REFUSAL);
+      expect(text).not.toContain(TIMEOUT);
+      // THE PAGE IS DRAWN: the whole-screen face would carry the subject alone, with none of the page's own words.
+      expect(text).toContain(i18next.t("screens.maintenance.journal"));
+    } finally {
+      reads.onlyRefused = undefined;
+      screen.phase = "error";
+    }
+  });
+
+  it("keeps the data drawn when a REFETCH is refused while the cache holds it", async () => {
+    reads.holdsData = true;
+    screen.phase = "ready";
+    try {
+      const { MaintenancePage } = await import("./page");
+      expect(textOf(createElement(MaintenancePage) as ReactElement)).not.toContain(REFUSAL);
+    } finally {
+      reads.holdsData = false;
+      screen.phase = "error";
+    }
+  });
 });

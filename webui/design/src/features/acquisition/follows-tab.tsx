@@ -53,7 +53,10 @@ export function FollowsTab(): ReactElement {
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
   // follows panel's own, and this is the read.
-  const { data: follows = [], error: followsError, isError: followsRefused } = useFollows();
+  const { data: followsRead, error: followsError, isError: followsIsError } = useFollows();
+  const follows = followsRead ?? [];
+  // REFUSED AND HOLDING NOTHING: a refused REFETCH keeps the cache's data, which stays drawn.
+  const followsRefused = followsIsError && followsRead === undefined;
   // A PAUSED FOLLOW WAITS FOR HIM, folded at the end of the list and outside
   // its counts — the list and its pills are the follows being looked for.
   const paused = follows.filter((follow) => follow.status === "disabled");

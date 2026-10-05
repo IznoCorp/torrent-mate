@@ -39,7 +39,9 @@ export function TodoTab(): ReactElement {
   const { t } = useTranslation();
   // EVERY HOOK BEFORE THE PLACEHOLDER'S RETURN — `NowTab`'s reason (B-320).
   const scenario = state.scen === "loaded" ? "loaded" : "";
-  const { data: queue, error: queueError, isError: queueRefused } = useAcquisitionQueue(scenario);
+  const { data: queue, error: queueError, isError } = useAcquisitionQueue(scenario);
+  // REFUSED AND HOLDING NOTHING — `NowTab`'s reason.
+  const queueRefused = isError && queue === undefined;
   // THE STAGING READ IS OBSERVED HERE because the panels this tab opens derive
   // their act from it (`queueNow().stuck`): a folder the read does not hold is
   // offered its journey instead of « Résoudre ». An unobserved answer is not
