@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import typer
 
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.scraper._match_movie import (
     _search_with_language,
@@ -123,16 +124,17 @@ def prompt_user_choice(
     if not results:
         return None
 
-    typer.echo(f"\nMatching: {local_title}")
+    typer.echo("\n" + t("cli_acquisition.confidence.heading", title=local_title))
     typer.echo("-" * 50)
     for i, r in enumerate(results, 1):
         year_str = f" ({r.api_year})" if r.api_year else ""
-        typer.echo(f"  [{i}] {r.api_title}{year_str} — {r.confidence:.0%} [{r.source}]")
-    typer.echo("  [0] Aucun de ces résultats")
+        score = format(r.confidence, ".0%")
+        typer.echo("  [" + str(i) + "] " + r.api_title + year_str + " — " + score + " [" + r.source + "]")
+    typer.echo(t("cli_acquisition.confidence.none_of_these"))
 
     while True:
         try:
-            choice = int(input("\nChoix : "))
+            choice = int(input("\n" + t("cli_acquisition.confidence.choice_prompt")))
         except EOFError:
             # Non-interactive context (launchd, cron) — skip prompt
             log.warning("prompt_non_interactive")

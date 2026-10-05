@@ -20,24 +20,25 @@ from personalscraper import cli_helpers
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli.cross_seed")
 
 
-@command_with_telemetry("cross-seed")
+@command_with_telemetry("cross-seed", help=t("cli_acquisition.cross_seed.help"))
 @handle_cli_errors
 def cross_seed(
     ctx: typer.Context,
     sweep: bool = typer.Option(
         False,
         "--sweep",
-        help="Run throttled back-catalog cross-seed sweep (X2).",
+        help=t("cli_acquisition.cross_seed.sweep_help"),
     ),
     info_hash: str | None = typer.Option(
         None,
         "--hash",
-        help="Cross-seed a single torrent by info-hash (X1 per-completion path).",
+        help=t("cli_acquisition.cross_seed.hash_help"),
     ),
 ) -> None:
     """Native cross-seeding engine — find matching torrents on other trackers and inject them.
@@ -78,20 +79,21 @@ def cross_seed(
 
     # --sweep and --hash are mutually exclusive; at least one is required.
     if sweep and info_hash is not None:
-        typer.echo("--sweep and --hash are mutually exclusive", err=True)
+        typer.echo(t("cli_acquisition.cross_seed.exclusive"), err=True)
         raise typer.Exit(code=2)
 
     if not sweep and info_hash is None:
-        typer.echo("Use --sweep or --hash", err=True)
+        typer.echo(t("cli_acquisition.cross_seed.need_flag"), err=True)
         raise typer.Exit(code=2)
 
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         acquire = app_context.acquire
         if acquire is None or acquire.cross_seed is None:
             console.print(
-                "[red]Cross-seed not available: no compatible torrent client configured.[/red]"
-                "  The active torrent client must support TorrentInjector"
-                " (qBittorrent; Transmission lacks this capability)."
+                "[red]"
+                + t("cli_acquisition.cross_seed.not_available")
+                + "[/red]  "
+                + t("cli_acquisition.cross_seed.not_available_detail")
             )
             raise typer.Exit(code=1)
 
@@ -100,15 +102,17 @@ def cross_seed(
         # Echo disabled state before calling the service so the operator knows
         # the reason for an immediate zero-result return.
         if not config.cross_seed.enabled:
-            console.print("[yellow]Cross-seed is disabled in config (cross_seed.enabled=false).[/yellow]")
+            console.print("[yellow]" + t("cli_acquisition.cross_seed.disabled") + "[/yellow]")
 
         if sweep:
             sweep_result = cs.sweep()
 
             if sweep_result.lister_failed:
                 console.print(
-                    "[red]Sweep failed:[/red] could not enumerate completed torrents "
-                    "(torrent client unreachable or error)."
+                    "[red]"
+                    + t("cli_acquisition.cross_seed.sweep_failed_label")
+                    + "[/red] "
+                    + t("cli_acquisition.cross_seed.lister_failed")
                 )
                 raise typer.Exit(code=1)
 
@@ -118,17 +122,29 @@ def cross_seed(
             # errored (checked == 0 and item_errors > 0 → total failure).
             if sweep_result.item_errors > 0:
                 console.print(
-                    f"[yellow]Sweep: {sweep_result.item_errors} item error(s) (see log for details).[/yellow]"
+                    "[yellow]"
+                    + t("cli_acquisition.cross_seed.item_errors", errors=sweep_result.item_errors)
+                    + "[/yellow]"
                 )
                 if sweep_result.checked == 0:
-                    console.print("[red]Sweep failed:[/red] all items raised errors (see log for per-item details).")
+                    console.print(
+                        "[red]"
+                        + t("cli_acquisition.cross_seed.sweep_failed_label")
+                        + "[/red] "
+                        + t("cli_acquisition.cross_seed.all_items_failed")
+                    )
                     raise typer.Exit(code=1)
 
+            summary = t(
+                "cli_acquisition.cross_seed.sweep_summary",
+                checked=sweep_result.checked,
+                injected=sweep_result.injected,
+            )
+            quota = ""
+            if sweep_result.quota_exhausted:
+                quota = " [yellow]" + t("cli_acquisition.cross_seed.quota_exhausted") + "[/yellow]"
             console.print(
-                f"[green]Sweep complete:[/green] "
-                f"{sweep_result.checked} checked, "
-                f"{sweep_result.injected} injected"
-                + (" [yellow](quota exhausted)[/yellow]" if sweep_result.quota_exhausted else "")
+                "[green]" + t("cli_acquisition.cross_seed.sweep_complete_label") + "[/green] " + summary + quota
             )
             log.info(
                 "cross_seed_sweep_done",
@@ -143,13 +159,18 @@ def cross_seed(
             check_result = cs.check(info_hash)
 
             if check_result.skipped:
-                console.print(f"[dim]Skipped: {check_result.skip_reason}[/dim]")
+                console.print(
+                    "[dim]" + t("cli_acquisition.cross_seed.skipped", reason=str(check_result.skip_reason)) + "[/dim]"
+                )
             if check_result.injected:
                 for inj_hash in check_result.injected:
-                    console.print(f"[green]Injected: {inj_hash}[/green]")
+                    console.print("[green]" + t("cli_acquisition.cross_seed.injected", info_hash=inj_hash) + "[/green]")
             if check_result.rejected:
                 for rej_hash, tracker, reason in check_result.rejected:
-                    console.print(f"[yellow]Rejected: {rej_hash} @ {tracker} — {reason}[/yellow]")
+                    rejected = t(
+                        "cli_acquisition.cross_seed.rejected", info_hash=rej_hash, tracker=tracker, reason=reason
+                    )
+                    console.print("[yellow]" + rejected + "[/yellow]")
 
             log.info(
                 "cross_seed_check_done",

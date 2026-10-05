@@ -41,6 +41,7 @@ from personalscraper.cli_helpers import (
 )
 from personalscraper.cli_state import state
 from personalscraper.commands._cli_run_row import cli_run_row
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.subscribers.redis_stream import build_redis_publisher
 
@@ -57,25 +58,25 @@ log = get_logger("cli.search")
 # ── Command ──────────────────────────────────────────────────────────────────────
 
 
-@command_with_telemetry("search")
+@command_with_telemetry("search", help=t("cli_acquisition.search.help"))
 @handle_cli_errors
 def search(
     ctx: typer.Context,
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Show what WOULD be searched after cadence gating. No tracker calls, no writes.",
+        help=t("cli_acquisition.search.dry_run_help"),
     ),
     limit: int | None = typer.Option(
         None,
         "--limit",
         "-n",
-        help="Maximum number of wanted items to search. Default: all pending.",
+        help=t("cli_acquisition.search.limit_help"),
     ),
     followed_id: int | None = typer.Option(
         None,
         "--followed-id",
-        help="Restrict the run to one followed series' pending items.",
+        help=t("cli_acquisition.search.followed_id_help"),
     ),
 ) -> None:
     """Run the search pass — state availability for pending wanted items."""
@@ -97,10 +98,12 @@ def search(
         try:
             acquire = app_context.acquire
             if acquire is None:
-                console.print("[red]AcquireContext not available.[/red]")
+                msg = t("cli_acquisition.search.no_context")
+                console.print("[red]" + msg + "[/red]")
                 raise typer.Exit(1)
             if acquire.store is None:
-                console.print("[red]No acquire store — cannot run search.[/red]")
+                msg = t("cli_acquisition.search.no_store")
+                console.print("[red]" + msg + "[/red]")
                 raise typer.Exit(1)
 
             service = _build_search_service(acquire, config, app_context.event_bus)
@@ -113,14 +116,15 @@ def search(
                 reconcile = _reconcile_before_search(acquire, app_context.event_bus, console)
 
                 summary = service.run_search(limit=limit, followed_id=followed_id)
-                console.print(
-                    f"[green]Search complete:[/green] "
-                    f"{summary.available} available, "
-                    f"{summary.waiting} waiting, "
-                    f"{summary.unverified} unverified, "
-                    f"{summary.abandoned} abandoned, "
-                    f"{summary.skipped} skipped."
+                counts = t(
+                    "cli_acquisition.search.complete_counts",
+                    available=summary.available,
+                    waiting=summary.waiting,
+                    unverified=summary.unverified,
+                    abandoned=summary.abandoned,
+                    skipped=summary.skipped,
                 )
+                console.print("[green]" + t("cli_acquisition.search.complete_label") + "[/green] " + counts)
                 # §5 « résultat chiffré »: persist the run's numbers on its
                 # pipeline_run row (self-owned for cron/CLI; the web runner's row
                 # when spawned by a web-triggered search).  ``requeued_missing`` is
@@ -273,15 +277,14 @@ def _reconcile_before_search(acquire: "AcquireContext", event_bus: "EventBus", c
         log.warning("cli.search.reconcile_failed", error=str(exc))
         return ReconcileSummary()
     if summary.closed_owned:
-        console.print(f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (déjà en médiathèque).")
+        closed = t("cli_acquisition.search.reconcile_closed", closed=summary.closed_owned)
+        console.print("[cyan]" + t("cli_acquisition.search.reconcile_label") + "[/cyan] " + closed)
     # Announced on its OWN line, and only when it happened: appending « 0 saisons »
     # to the line above would have printed a zero on every ordinary run — a number
     # nobody reads, which is how a number nobody compares gets there in the first place.
     if summary.fell_back_to_episodes:
-        console.print(
-            f"[cyan]Réconciliation:[/cyan] {summary.fell_back_to_episodes} "
-            "saison(s) repassée(s) en épisodes (pack incomplet)."
-        )
+        fell_back = t("cli_acquisition.search.reconcile_fell_back", seasons=summary.fell_back_to_episodes)
+        console.print("[cyan]" + t("cli_acquisition.search.reconcile_label") + "[/cyan] " + fell_back)
     return summary
 
 
@@ -319,7 +322,8 @@ def _run_dry(
 
     store = acquire.store
     if store is None:
-        console.print("[yellow]No acquire store — nothing to dry-run.[/yellow]")
+        msg = t("cli_acquisition.search.dry_run_no_store")
+        console.print("[yellow]" + msg + "[/yellow]")
         return
 
     now = int(time.time())
@@ -336,7 +340,8 @@ def _run_dry(
     )
 
     if not queue:
-        console.print("[yellow]No pending wanted items.[/yellow]")
+        msg = t("cli_acquisition.search.dry_run_empty")
+        console.print("[yellow]" + msg + "[/yellow]")
         return
 
     global_cadence = cadence_from_config(config.acquire.cadence)
@@ -358,17 +363,24 @@ def _run_dry(
         else:
             would_search.append(label)
 
-    console.print(f"\n[bold]Search dry-run:[/bold] {len(queue)} items in queue")
-    console.print(f"  [green]Would search:[/green] {len(would_search)}")
+    console.print(
+        "\n[bold]"
+        + t("cli_acquisition.search.dry_run_title")
+        + "[/bold] "
+        + t("cli_acquisition.search.dry_run_queue", items=len(queue))
+    )
+    console.print("  [green]" + t("cli_acquisition.search.dry_run_would_search") + "[/green] " + str(len(would_search)))
     for label in would_search:
-        console.print(f"    • {label}")
+        console.print("    • " + label)
     if would_skip:
-        console.print(f"  [yellow]Skipped by cadence:[/yellow] {len(would_skip)}")
+        console.print("  [yellow]" + t("cli_acquisition.search.dry_run_skipped") + "[/yellow] " + str(len(would_skip)))
         for label in would_skip:
-            console.print(f"    • {label}")
+            console.print("    • " + label)
     if would_abandon:
-        console.print(f"  [red]Would abandon (cutoff):[/red] {len(would_abandon)}")
+        console.print(
+            "  [red]" + t("cli_acquisition.search.dry_run_would_abandon") + "[/red] " + str(len(would_abandon))
+        )
         for label in would_abandon:
-            console.print(f"    • {label}")
+            console.print("    • " + label)
 
-    console.print("\n[dim]Dry-run complete — no trackers contacted, no writes performed.[/dim]")
+    console.print("\n[dim]" + t("cli_acquisition.search.dry_run_complete") + "[/dim]")
