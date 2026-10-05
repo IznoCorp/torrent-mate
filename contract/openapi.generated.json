@@ -737,7 +737,9 @@
           "plex.pin_unknown",
           "plex.pin_expired",
           "media.not_found",
-          "provider.unavailable"
+          "media.ambiguous",
+          "provider.unavailable",
+          "library.locked"
         ],
         "title": "RefusalCode",
         "type": "string"

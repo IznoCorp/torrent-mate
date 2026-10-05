@@ -68,7 +68,9 @@ class RefusalCode(StrEnum):
     PLEX_PIN_UNKNOWN = "plex.pin_unknown"
     PLEX_PIN_EXPIRED = "plex.pin_expired"
     MEDIA_NOT_FOUND = "media.not_found"
+    MEDIA_AMBIGUOUS = "media.ambiguous"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
+    LIBRARY_LOCKED = "library.locked"
 
 
 class AppRefusal(Exception):
