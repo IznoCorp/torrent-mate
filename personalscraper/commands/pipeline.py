@@ -17,9 +17,10 @@ from personalscraper.cli_helpers import (
 )
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
-from personalscraper.i18n import t
+from personalscraper.i18n import t, t_code
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
+from personalscraper.pipeline_step_codes import StepCode
 from personalscraper.run_journal import LogTailHandler
 
 if TYPE_CHECKING:
@@ -79,6 +80,21 @@ def _counts(report: StepReport) -> str:
         skipped=report.skip_count,
         errors=report.error_count,
     )
+
+
+def _step_label(step: StepCode) -> str:
+    """Return a step's summary-line label: its ``cli_core.step`` word, capitalised, then the colon.
+
+    One word per step for the whole CLI (the progress table and the summary lines read the same
+    ``cli_core.step.*`` keys); only the colon's typography is the catalogue's, per language.
+
+    Args:
+        step: The pipeline step.
+
+    Returns:
+        E.g. ``"Ingest:"`` in English.
+    """
+    return t("cli_core.pipeline.step_label", step=t_code("cli_core.step", step).capitalize())
 
 
 def _summary_line(label: str, body: str) -> str:
@@ -168,7 +184,7 @@ def ingest(
         seed_checker=_seed_checker,
         provenance=_provenance,
     )
-    console.print(_summary_line(t("cli_core.pipeline.label_ingest"), _counts(report)))
+    console.print(_summary_line(_step_label(StepCode.INGEST), _counts(report)))
 
 
 @command_with_telemetry(help=t("cli_core.pipeline.sort.help"))
@@ -194,7 +210,7 @@ def sort(
         config=config,
         event_bus=app_context.event_bus,
     )
-    console.print(_summary_line(t("cli_core.pipeline.label_sort"), _counts(report)))
+    console.print(_summary_line(_step_label(StepCode.SORT), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
             console.print("  " + detail)
@@ -230,7 +246,7 @@ def scrape(
         event_bus=app_context.event_bus,
         registry=app_context.provider_registry,
     )
-    console.print(_summary_line(t("cli_core.pipeline.label_scrape"), _counts(report)))
+    console.print(_summary_line(_step_label(StepCode.SCRAPE), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
             console.print("  " + detail)
@@ -325,7 +341,7 @@ def _verify_run(
         raise typer.BadParameter(str(exc)) from exc
     console.print(
         _summary_line(
-            t("cli_core.pipeline.label_verify"),
+            _step_label(StepCode.VERIFY),
             t("cli_core.pipeline.verify_counts", ok=report.success_count, blocked=report.skip_count),
         )
     )
@@ -504,7 +520,7 @@ def dispatch(
         if plex_subscriber is not None:
             plex_subscriber.close()
 
-    console.print(_summary_line(t("cli_core.pipeline.label_dispatch"), _counts(report)))
+    console.print(_summary_line(_step_label(StepCode.DISPATCH), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
             console.print("  " + detail)
@@ -547,7 +563,7 @@ def clean(
         get_logger("pipeline").exception("clean_command_failed", error=str(exc))
         raise typer.Exit(1) from exc
 
-    console.print(_summary_line(t("cli_core.pipeline.label_clean"), _counts(report)))
+    console.print(_summary_line(_step_label(StepCode.CLEAN), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
             console.print("  " + detail)
@@ -594,7 +610,7 @@ def cleanup(
 
     console.print(
         _summary_line(
-            t("cli_core.pipeline.label_cleanup"), t("cli_core.pipeline.cleanup_counts", removed=report.success_count)
+            _step_label(StepCode.CLEANUP), t("cli_core.pipeline.cleanup_counts", removed=report.success_count)
         )
     )
     if state["verbose"]:
@@ -636,9 +652,9 @@ def process(
         raise typer.Exit(1) from exc
 
     for label, report in [
-        (t("cli_core.pipeline.label_clean"), clean),
-        (t("cli_core.pipeline.label_scrape"), scrape),
-        (t("cli_core.pipeline.label_cleanup"), cleanup),
+        (_step_label(StepCode.CLEAN), clean),
+        (_step_label(StepCode.SCRAPE), scrape),
+        (_step_label(StepCode.CLEANUP), cleanup),
     ]:
         console.print(_summary_line(label, _counts(report)))
         if state["verbose"]:

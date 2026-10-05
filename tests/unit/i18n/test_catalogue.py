@@ -274,5 +274,5 @@ def test_the_orphan_check_flags_a_key_nothing_references() -> None:
     sources = ['t("cli_core.main.invalid_format", value="x")']
     orphans = _orphan_keys("cli_core", sources, set())
     assert "cli_core.main.invalid_format" not in orphans
-    assert "cli_core.pipeline.label_ingest" in orphans
+    assert "cli_core.pipeline.step_label" in orphans
     assert "cli_core.step.ingest" not in _orphan_keys("cli_core", sources, _coded_keys())
