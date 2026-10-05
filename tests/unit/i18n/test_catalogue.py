@@ -331,7 +331,9 @@ _IDENTICAL_IN_BOTH_LANGUAGES: dict[str, frozenset[str]] = {
 
 
 def test_cli_catalogues_are_translated_not_copied() -> None:
-    """``cli_core``, ``cli_acquisition``, ``cli_trailers``, ``cli_web``: every French value is non-empty and differs from its English one.
+    """Every ``cli_*`` French value is non-empty and differs from its English one.
+
+    Covers ``cli_core``, ``cli_acquisition``, ``cli_trailers`` and ``cli_web``.
 
     A French value left equal to its English source is an untranslated key; only the named
     exceptions above may read the same in both languages, and each of them must still be identical
