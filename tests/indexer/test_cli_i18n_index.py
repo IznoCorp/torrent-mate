@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import json
+import sqlite3
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -17,7 +22,9 @@ from personalscraper.indexer.cli import (
     library_repair_command,
     library_status_command,
 )
+from personalscraper.indexer.db import apply_migrations
 
+MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 _ERROR = "no config here"
 
 
@@ -90,3 +97,48 @@ def test_config_error_line_differs_between_the_languages(
     en = t(f"cli_library.{stem}.config_error", language=Language.EN, error=_ERROR)
     assert fr in printed[Language.FR] and en in printed[Language.EN]
     assert fr != en
+
+
+def _status_json(tmp_path: Path, language: Language, capsys: pytest.CaptureFixture[str]) -> dict[str, Any]:
+    """Runs ``library_status_command --format json`` on a DB holding one never-seen disk, under *language*.
+
+    Args:
+        tmp_path: Directory holding the (empty) database file the command's drift guard looks at.
+        language: Language pinned around the call.
+        capsys: Capture fixture; its stdout is parsed.
+
+    Returns:
+        The decoded JSON payload.
+    """
+    conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
+    apply_migrations(conn, MIGRATIONS_DIR)
+    conn.execute(
+        "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+        "VALUES ('u1', 'DiskA', '/x', NULL, 1, 0)"
+    )
+    db_file = tmp_path / "library.db"
+    db_file.touch()
+    cfg = SimpleNamespace(indexer=SimpleNamespace(db_path=db_file), all_category_ids=frozenset())
+
+    @contextmanager
+    def _open(*_args: Any, **_kwargs: Any) -> Iterator[sqlite3.Connection]:
+        yield conn
+
+    with (
+        use_language(language),
+        patch("personalscraper.conf.loader.load_config", return_value=cfg),
+        patch("personalscraper.conf.loader.resolve_config_path", return_value=tmp_path),
+        patch("personalscraper.indexer.commands._ceremony.open_indexer_db", _open),
+    ):
+        library_status_command(None, event_bus=EventBus(), output_format="json")
+    out = capsys.readouterr().out
+    return json.loads(out[out.index("{") :])
+
+
+@pytest.mark.parametrize("language", [Language.FR, Language.EN])
+def test_status_json_payload_is_not_translated(
+    language: Language, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The ``--format json`` payload carries the machine value ``never`` whatever the language."""
+    payload = _status_json(tmp_path, language, capsys)
+    assert payload["disks"][0]["last_seen"] == "never"
