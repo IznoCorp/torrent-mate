@@ -112,12 +112,12 @@ class TestGetDiskStatus:
 
 
 # ---------------------------------------------------------------------------
-# preprod mount-point guard
+# sandbox mount-point guard
 # ---------------------------------------------------------------------------
 
 
-class TestPreprodMarker:
-    """Under ``staging`` a disk root without the preprod marker reads as not mounted."""
+class TestSandboxMarker:
+    """Under a sandbox environment a disk root without that environment's marker reads as not mounted."""
 
     def _dc(self, path: Path) -> DiskConfig:
         return DiskConfig(id="disk_p", path=path, categories=["movies"])

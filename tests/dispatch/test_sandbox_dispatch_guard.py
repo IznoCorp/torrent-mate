@@ -1,4 +1,4 @@
-"""Tests for the preprod guard on the dispatch target folder."""
+"""Tests for the sandbox guard on the dispatch target folder."""
 
 from __future__ import annotations
 

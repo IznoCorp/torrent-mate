@@ -27,20 +27,24 @@ export function NowTab(): ReactElement {
   // WHICH WORLD. The prototype carries two and the harness switches between
   // them; the key carries it, so a surface never reads the other one's cards.
   const scenario = state.scen === "loaded" ? "loaded" : "";
-  const { data: queue } = useAcquisitionQueue(scenario);
+  const { data: queue, error: queueError, isError } = useAcquisitionQueue(scenario);
+  // REFUSED AND HOLDING NOTHING: a refused REFETCH keeps the cache's data (`isError` stays true), and that data stays drawn.
+  const queueRefused = isError && queue === undefined;
   const { data: follows } = useFollows();
   // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
   const rights = useRights();
 
-  if (state.phase !== "ready") {
+  // A REFUSED READ IS SAID WHATEVER THE PHASE: only the harness sets the error phase, so a real refusal
+  // would otherwise leave the loading face.
+  if (state.phase !== "ready" || queueRefused) {
     return (
       <div
         className={body()}
         data-part="surface/body"
         data-region="acquisition/body"
       >
-        {state.phase === "error" ? (
-          <SurfaceError subject={t("screens.acquisition.errorNow")} />
+        {state.phase === "error" || queueRefused ? (
+          <SurfaceError subject={t("screens.acquisition.errorNow")} failure={queueError ?? undefined} />
         ) : (
           <div className={sectionClass()} data-part="section">
             <Skeletons count={4} shape="card" />
