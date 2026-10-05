@@ -391,6 +391,57 @@ def test_a_pid_reused_before_a_signal_is_never_signalled(tmp_path: Path) -> None
     assert signalled[201] == [STOP, TERM, CONT, KILL], signalled
 
 
+def test_guard_killed_is_logged_only_when_a_kill_was_sent(tmp_path: Path) -> None:
+    """B-703: `GUARD KILLED` was written for a tree whose every process was gone before the KILL."""
+    reads = iter([{process.pid: STARTED for process in TICK_TABLE}] * 2 + [{}])
+    log = tmp_path / "guard.log"
+
+    guard.tick(
+        guard.SUSTAINED_MINUTES - 1,
+        load=40.0,
+        capacity=8,
+        table=lambda: TICK_TABLE,
+        started=lambda: next(reads),
+        send=lambda pid, number: None,
+        log=guard.Log(log),
+        me=9999,
+        home=HOME,
+        grace_seconds=0,
+    )
+
+    assert "GUARD KILLED" not in log.read_text(encoding="utf-8")
+
+
+def test_ps_and_lsof_are_bounded_and_a_hung_one_reads_as_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """B-703: `ps` and `lsof` ran unbounded, and `lsof` blocks on a hung macFUSE or NTFS mount.
+
+    Each call has a timeout, `lsof` does not block on a mount (`-b`), and a call
+    that times out reads as an empty listing: no cwd, so no tree is chosen.
+    """
+    calls: list[tuple[list[str], object]] = []
+
+    def run(argv: list[str], **options: object) -> object:
+        calls.append((argv, options.get("timeout")))
+        if argv[0] == "lsof":
+            raise guard.subprocess.TimeoutExpired(argv, options.get("timeout") or 0)
+        listings = {
+            "pid=,ppid=,uid=,pcpu=,lstart=,command=": f"4242 1 {guard.os.getuid()} 99.0 {STARTED} yes\n",
+            "pid=,comm=": "4242 yes\n",
+            "pid=,lstart=": f"4242 {STARTED}\n",
+        }
+        return guard.subprocess.CompletedProcess(argv, 0, stdout=listings[argv[2]], stderr="")
+
+    monkeypatch.setattr(guard.subprocess, "run", run)
+
+    table = guard.read_table()
+    started = guard.read_started()
+
+    assert [process.pid for process in table] == [4242] and table[0].cwd == ""
+    assert started == {4242: STARTED}
+    assert all(timeout for _, timeout in calls), calls
+    assert "-b" in next(argv for argv, _ in calls if argv[0] == "lsof"), calls
+
+
 def test_the_guard_runs_from_a_stdlib_copy_declared_in_no_ecosystem() -> None:
     """B-703: the guard's PM2 entry ran from the prod clone, which holds no guard before v1.
 

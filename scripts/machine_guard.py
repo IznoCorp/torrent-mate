@@ -58,6 +58,8 @@ LOG_MAX_BYTES = 1_048_576
 LOOK_SECONDS = 60
 # `ps` prints a start time in the C locale's words whatever the operator's locale.
 PS_ENV = {**os.environ, "LC_ALL": "C"}
+# Seconds a `ps` or an `lsof` may take: `lsof` can hang on a dead macFUSE or NTFS mount.
+LISTING_TIMEOUT_SECONDS = 30
 
 # Services, by their executable (never an argument: a prompt or a test path
 # names them all the time); their every descendant is theirs, never killed.
@@ -438,8 +440,30 @@ def tick(
     for tree, pids in zip(victims, same(), strict=True):
         for pid in pids:
             send(pid, signal.SIGKILL)
-        log.write(f"GUARD KILLED {_describe(tree)}")
+        # Only a KILL sent is a tree killed: one already gone is said so.
+        if pids:
+            log.write(f"GUARD KILLED {_describe(tree)}")
+        else:
+            log.write(f"gone before the kill: {_describe(tree)}")
     return 0
+
+
+def _listing(argv: list[str]) -> str:
+    """A listing command's output, bounded in time.
+
+    Args:
+        argv: The command.
+
+    Returns:
+        Its standard output; empty when it timed out, which chooses no tree and
+        signals no process.
+    """
+    try:
+        return subprocess.run(
+            argv, capture_output=True, text=True, check=False, env=PS_ENV, timeout=LISTING_TIMEOUT_SECONDS
+        ).stdout
+    except subprocess.TimeoutExpired:
+        return ""
 
 
 def read_table() -> list[Process]:
@@ -449,20 +473,17 @@ def read_table() -> list[Process]:
         The processes.
     """
     uid = str(os.getuid())
-    listing = subprocess.run(
-        ["ps", "-Ao", "pid=,ppid=,uid=,pcpu=,lstart=,command="], capture_output=True, text=True, check=False, env=PS_ENV
-    ).stdout
+    listing = _listing(["ps", "-Ao", "pid=,ppid=,uid=,pcpu=,lstart=,command="])
     # `comm` may hold spaces: a listing of its own, the pid first, is unambiguous.
-    names = subprocess.run(["ps", "-Ao", "pid=,comm="], capture_output=True, text=True, check=False).stdout
+    names = _listing(["ps", "-Ao", "pid=,comm="])
     executables: dict[int, str] = {}
     for line in names.splitlines():
         fields = line.split(None, 1)
         if len(fields) == 2:
             executables[int(fields[0])] = fields[1].strip()
     cwds: dict[int, str] = {}
-    files = subprocess.run(
-        ["lsof", "-w", "-a", "-u", uid, "-d", "cwd", "-Fpn"], capture_output=True, text=True, check=False
-    ).stdout
+    # `-b`: never block on a mount's kernel call (a hung macFUSE or NTFS disk).
+    files = _listing(["lsof", "-b", "-w", "-a", "-u", uid, "-d", "cwd", "-Fpn"])
     current = 0
     for line in files.splitlines():
         if line.startswith("p"):
@@ -496,9 +517,7 @@ def read_started() -> dict[int, str]:
     Returns:
         The start times, by pid.
     """
-    listing = subprocess.run(
-        ["ps", "-Ao", "pid=,lstart="], capture_output=True, text=True, check=False, env=PS_ENV
-    ).stdout
+    listing = _listing(["ps", "-Ao", "pid=,lstart="])
     started: dict[int, str] = {}
     for line in listing.splitlines():
         fields = line.split()
