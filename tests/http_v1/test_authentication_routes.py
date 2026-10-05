@@ -106,8 +106,14 @@ class TestReadAccount:
         client.cookies.set(SESSION_COOKIE, "forged")
         assert client.get("/auth/me").status_code == 401
 
-    def test_answers_the_signed_in_account(self, v1_client: Callable[..., TestClient]) -> None:
-        """The account, its seeded role (no name, its start kinds), signs in locally, its Gravatar."""
+    def test_answers_the_signed_in_account(
+        self, v1_client: Callable[..., TestClient], configured_language: ConfiguredLanguage
+    ) -> None:
+        """The account, its seeded role (no name, its start kinds), signs in locally, its Gravatar.
+
+        The account starts in English, set here rather than read from the suite's default.
+        """
+        configured_language("en")
         client = v1_client(role="household")
         role = _services(client).app_store.accounts.role("household")
         assert role is not None
