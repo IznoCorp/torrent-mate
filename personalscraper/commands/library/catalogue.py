@@ -24,6 +24,7 @@ from personalscraper.api.metadata.registry._errors import UnknownProviderError
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.i18n import t
 
 _DEFAULT_MAX_SHOWS = 50
 
@@ -46,7 +47,7 @@ def _client_of(registry: ProviderRegistry, name: str) -> TvCatalogueClient | Non
         return None
 
 
-@app.command("library-catalogue-refresh")
+@app.command("library-catalogue-refresh", help=t("cli_library.catalogue.library_catalogue_refresh_help"))
 @handle_cli_errors
 def library_catalogue_refresh(
     ctx: typer.Context,
@@ -54,7 +55,7 @@ def library_catalogue_refresh(
         _DEFAULT_MAX_SHOWS,
         "--max",
         min=1,
-        help="Upper bound of shows attempted in this run.",
+        help=t("cli_library.catalogue.library_catalogue_refresh_max_shows_help"),
     ),
 ) -> None:
     """Refresh the aired catalogue of the shows that are due, at most ``--max``.
@@ -68,7 +69,7 @@ def library_catalogue_refresh(
     config = ctx.obj.config
     assert config is not None  # noqa: S101 — set by the CLI root callback
     if config.acquire.db_path is None or config.indexer.db_path is None:
-        typer.echo("acquire.db_path and indexer.db_path must be configured", err=True)
+        typer.echo(t("cli_library.catalogue.db_paths_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     settings = cli_helpers.get_settings()

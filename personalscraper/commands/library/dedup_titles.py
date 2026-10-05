@@ -44,6 +44,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
+from personalscraper.i18n import t
 from personalscraper.indexer.phantom_rows import item_holds_live_files, journal_item_removal, tombstone_item
 from personalscraper.logger import get_logger
 
@@ -199,13 +200,13 @@ class DedupTitlesStats(CliFixStatsMixin):
         }
 
 
-@app.command("library-dedup-titles")
+@app.command("library-dedup-titles", help=t("cli_library.dedup_titles.command_help"))
 @handle_cli_errors
 def library_dedup_titles(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Apply fixes (default: dry-run)."),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.dedup_titles.apply_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.dedup_titles.config_help")),
+    db: Path | None = typer.Option(None, "--db", help=t("cli_library.dedup_titles.db_help")),
 ) -> None:
     """De-duplicate ``media_item`` rows that differ only by NFD/NFC normalization.
 
@@ -226,11 +227,11 @@ def library_dedup_titles(
     elif cfg.indexer.db_path is not None:
         db_path = Path(cfg.indexer.db_path)
     else:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.dedup_titles.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     if not db_path.exists():
-        typer.echo(f"Database not found: {db_path}", err=True)
+        typer.echo(t("cli_library.dedup_titles.db_not_found", path=str(db_path)), err=True)
         raise typer.Exit(code=1)
 
     conn = _sqlite3.connect(str(db_path))

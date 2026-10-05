@@ -31,6 +31,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -93,13 +94,13 @@ class FixSeasonCountsStats(CliFixStatsMixin):
         return {f.name: getattr(self, f.name) for f in fields(self) if f.name != "details"}
 
 
-@app.command("library-fix-season-counts")
+@app.command("library-fix-season-counts", help=t("cli_library.fix_season_counts.command_help"))
 @handle_cli_errors
 def library_fix_season_counts(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Apply fixes (default: dry-run preview)."),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.fix_season_counts.apply_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.fix_season_counts.config_help")),
+    db: Path | None = typer.Option(None, "--db", help=t("cli_library.fix_season_counts.db_help")),
 ) -> None:
     """Repair season.episode_count drift where cached count != actual episode rows.
 
@@ -118,7 +119,7 @@ def library_fix_season_counts(
     elif cfg.indexer.db_path is not None:
         db_path = Path(cfg.indexer.db_path)
     else:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.fix_season_counts.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     from personalscraper.indexer.db import _apply_pragmas as _db_apply_pragmas  # noqa: PLC0415

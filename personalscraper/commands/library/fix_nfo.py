@@ -47,6 +47,7 @@ from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
 from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -200,13 +201,15 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> tuple[Path | None, Liter
     return nfo_files[0], "ok"
 
 
-@app.command("library-fix-nfo")
+@app.command(
+    "library-fix-nfo", help=t("cli_library.fix_nfo.command_help", tvshow_close="</tvshow>", movie_close="</movie>")
+)
 @handle_cli_errors
 def library_fix_nfo(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Apply fixes (default: dry-run preview)."),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.fix_nfo.apply_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.fix_nfo.config_help")),
+    db: Path | None = typer.Option(None, "--db", help=t("cli_library.fix_nfo.db_help")),
 ) -> None:
     """Repair NFO files broken by trailing content after root XML close tag.
 
@@ -230,7 +233,7 @@ def library_fix_nfo(
     elif cfg.indexer.db_path is not None:
         db_path = Path(cfg.indexer.db_path)
     else:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.fix_nfo.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     from personalscraper.indexer.db import _apply_pragmas as _db_apply_pragmas  # noqa: PLC0415

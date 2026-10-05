@@ -28,15 +28,22 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.i18n import t
 
 
-@app.command("library-remove-phantom-rows")
+@app.command("library-remove-phantom-rows", help=t("cli_library.remove_phantom_rows.library_remove_phantom_rows_help"))
 @handle_cli_errors
 def library_remove_phantom_rows(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Remove the rows (default: dry-run)."),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    apply: bool = typer.Option(
+        False, "--apply", help=t("cli_library.remove_phantom_rows.library_remove_phantom_rows_apply_help")
+    ),
+    config: Path | None = typer.Option(
+        None, "--config", "-c", help=t("cli_library.remove_phantom_rows.library_remove_phantom_rows_config_help")
+    ),
+    db: Path | None = typer.Option(
+        None, "--db", help=t("cli_library.remove_phantom_rows.library_remove_phantom_rows_db_help")
+    ),
 ) -> None:
     """Remove the index rows holding no file beside a row of the same provider id that holds some.
 
@@ -53,12 +60,12 @@ def library_remove_phantom_rows(
     else:
         cfg = ctx.obj.config if ctx.obj is not None else load_config(config)
         if cfg.indexer.db_path is None:
-            typer.echo("indexer.db_path is not configured", err=True)
+            typer.echo(t("cli_library.remove_phantom_rows.db_path_not_configured"), err=True)
             raise typer.Exit(code=1)
         db_path = Path(cfg.indexer.db_path)
 
     if not db_path.exists():
-        typer.echo(f"Database not found: {db_path}", err=True)
+        typer.echo(t("cli_library.remove_phantom_rows.database_not_found", path=str(db_path)), err=True)
         raise typer.Exit(code=1)
 
     # A dry run opens the database read only: it cannot write, even by mistake.

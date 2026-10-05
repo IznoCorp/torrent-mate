@@ -12,28 +12,26 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 
 
-@app.command("library-verify")
+@app.command("library-verify", help=t("cli_library.maintenance.verify_help"))
 @handle_cli_errors
 @boundary(needs="app", lock=False, journal=False, staging=False)
 def library_verify(
     ctx: typer.Context,
-    disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
+    disk: Optional[str] = typer.Option(None, "--disk", help=t("cli_library.maintenance.verify_disk_help")),
     budget: Optional[int] = typer.Option(
         None,
         "--budget",
-        help="Wall-clock budget in seconds; partial verifies are safe to resume.",
+        help=t("cli_library.maintenance.verify_budget_help"),
     ),
     no_enqueue: bool = typer.Option(
         False,
         "--no-enqueue",
-        help=(
-            "Read-only mode: walk and compare files but do NOT write to repair_queue. "
-            "Useful for a dry audit where writing repair rows is undesirable."
-        ),
+        help=t("cli_library.maintenance.no_enqueue_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.maintenance.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -77,21 +75,18 @@ def library_verify(
         raise typer.Exit(rc)
 
 
-@app.command("library-repair")
+@app.command("library-repair", help=t("cli_library.maintenance.repair_help"))
 @handle_cli_errors
 @boundary(needs="app", lock=False, journal=False, staging=False)
 def library_repair(
     ctx: typer.Context,
-    budget: int = typer.Option(60, "--budget", help="Maximum seconds to spend draining the repair queue"),
+    budget: int = typer.Option(60, "--budget", help=t("cli_library.maintenance.repair_budget_help")),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help=(
-            "Preview mode: show how many repair_queue rows would be processed "
-            "without actually draining them.  No DB writes occur."
-        ),
+        help=t("cli_library.maintenance.repair_dry_run_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.maintenance.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -123,27 +118,23 @@ def library_repair(
         raise typer.Exit(rc)
 
 
-@app.command()
+@app.command(help=t("cli_library.maintenance.clean_help"))
 @handle_cli_errors
 def library_clean(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.maintenance.clean_apply_help")),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help=(
-            "Preview mode (explicit alias for the default behaviour). "
-            "Show what would be deleted without deleting. "
-            "Mutually exclusive with --apply."
-        ),
+        help=t("cli_library.maintenance.clean_dry_run_help"),
     ),
     only: str = typer.Option(
         None,
         "--only",
-        help="Only clean: actors, empty, junk, release, orphans",
+        help=t("cli_library.maintenance.clean_only_help"),
     ),
-    disk: str = typer.Option(None, "--disk", help="Clean only this disk (id from config)"),
-    category: str = typer.Option(None, "--category", help="Clean only this category"),
+    disk: str = typer.Option(None, "--disk", help=t("cli_library.maintenance.clean_disk_help")),
+    category: str = typer.Option(None, "--category", help=t("cli_library.maintenance.clean_category_help")),
 ) -> None:
     """Remove .actors/, empty dirs, junk files from storage disks.
 
@@ -183,13 +174,17 @@ def library_clean(
     # --dry-run and --apply are mutually exclusive: dry-run wins if both given
     # (belt-and-suspenders guard — Typer does not enforce XOR automatically).
     if dry_run and apply:
-        console.print("[red]--dry-run and --apply are mutually exclusive.[/red]")
+        console.print("[red]" + t("cli_library.maintenance.clean_exclusive") + "[/red]")
         raise typer.Exit(1)
 
     # Validate --only parameter
     valid_only = {"actors", "empty", "junk", "release", "orphans"}
     if only and only not in valid_only:
-        console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
+        console.print(
+            "[red]"
+            + t("cli_library.maintenance.invalid_only", value=only, valid=", ".join(sorted(valid_only)))
+            + "[/red]"
+        )
         raise typer.Exit(1)
 
     # Acquire lock only when applying changes. Exit 3 = lock busy — the
@@ -200,7 +195,7 @@ def library_clean(
             config.paths.data_dir / "pipeline.lock",
             cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
-            console.print("[red]Another instance is running. Exiting.[/red]")
+            console.print("[red]" + t("cli_library.maintenance.lock_busy") + "[/red]")
             raise typer.Exit(3)
 
     def _run_and_report(permit: DeletePermit) -> None:
@@ -217,8 +212,12 @@ def library_clean(
             permit: The deletion authority (live ``DeleteAuthority`` or the
                 fail-open ``AllowAllPermit`` fallback).
         """
-        mode = "[bold red]APPLY[/bold red]" if apply else "[bold yellow]DRY-RUN[/bold yellow]"
-        console.print(f"[bold]Cleaning library ({mode})...[/bold]")
+        mode = (
+            "[bold red]" + t("cli_library.maintenance.mode_apply") + "[/bold red]"
+            if apply
+            else "[bold yellow]" + t("cli_library.maintenance.mode_dry_run") + "[/bold yellow]"
+        )
+        console.print("[bold]" + t("cli_library.maintenance.cleaning", mode=mode) + "[/bold]")
 
         result = clean_library(
             config,
@@ -231,32 +230,67 @@ def library_clean(
 
         if result.dry_run:
             console.print(
-                f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
-                f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
+                "[yellow]"
+                + t("cli_library.maintenance.dry_run_label")
+                + "[/yellow] "
+                + t(
+                    "cli_library.maintenance.would_delete",
+                    items=result.deleted_count,
+                    size=f"{result.freed_bytes / 1024 / 1024:.1f}",
+                )
             )
             if result.skipped_by_obligation:
-                console.print(f"[blue]Skipped by seed obligation:[/blue] {result.skipped_by_obligation} item(s)")
+                console.print(
+                    "[blue]"
+                    + t("cli_library.maintenance.skipped_obligation_label")
+                    + "[/blue] "
+                    + t("cli_library.maintenance.skipped_obligation", items=result.skipped_by_obligation)
+                )
             # Orphan deletes a whole release directory at once — high blast
             # radius. List the first matches so the operator can sanity-check
             # before re-running with --apply.
             if only == "orphans" and result.details:
                 preview = result.details[:20]
-                console.print(f"[dim]Preview ({len(preview)} of {len(result.details)}):[/dim]")
+                console.print(
+                    "[dim]"
+                    + t("cli_library.maintenance.preview", shown=len(preview), total=len(result.details))
+                    + "[/dim]"
+                )
                 for line in preview:
-                    console.print(f"  {line}")
+                    console.print("  " + str(line))
                 if len(result.details) > len(preview):
-                    console.print(f"  [dim]… and {len(result.details) - len(preview)} more[/dim]")
+                    console.print(
+                        "  [dim]"
+                        + t("cli_library.maintenance.and_more", items=len(result.details) - len(preview))
+                        + "[/dim]"
+                    )
         else:
             console.print(
-                f"[green]Deleted:[/green] {result.deleted_count} items "
-                f"({result.freed_bytes / 1024 / 1024:.1f} MB freed)"
+                "[green]"
+                + t("cli_library.maintenance.deleted_label")
+                + "[/green] "
+                + t(
+                    "cli_library.maintenance.deleted",
+                    items=result.deleted_count,
+                    size=f"{result.freed_bytes / 1024 / 1024:.1f}",
+                )
             )
             if result.skipped_by_obligation:
-                console.print(f"[blue]Skipped by seed obligation:[/blue] {result.skipped_by_obligation} item(s)")
+                console.print(
+                    "[blue]"
+                    + t("cli_library.maintenance.skipped_obligation_label")
+                    + "[/blue] "
+                    + t("cli_library.maintenance.skipped_obligation", items=result.skipped_by_obligation)
+                )
             if result.error_count:
-                console.print(f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)")
+                console.print(
+                    "[red]"
+                    + t("cli_library.maintenance.errors_label")
+                    + "[/red] "
+                    + t("cli_library.maintenance.deletions_failed", items=result.error_count)
+                )
                 for err in result.errors:
-                    console.print(f"  {err}")
+                    console.print("  " + str(err))
 
     # Build the fail-open deletion authority from the acquisition lobe
     # (DESIGN §7.4 / §9), then run clean_library WHILE the store is still open.
@@ -298,26 +332,21 @@ def library_clean(
             cli_helpers.release_lock()
 
 
-@app.command()
+@app.command(help=t("cli_library.maintenance.validate_help"))
 @handle_cli_errors
 def library_validate(
     ctx: typer.Context,
-    disk: str = typer.Option(None, "--disk", help="Validate only this disk"),
-    category: str = typer.Option(None, "--category", help="Validate only this category"),
-    fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
-    apply: bool = typer.Option(False, "--apply", help="Apply fixes (requires --fix)"),
+    disk: str = typer.Option(None, "--disk", help=t("cli_library.maintenance.validate_disk_help")),
+    category: str = typer.Option(None, "--category", help=t("cli_library.maintenance.validate_category_help")),
+    fix: bool = typer.Option(False, "--fix", help=t("cli_library.maintenance.fix_help")),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.maintenance.validate_apply_help")),
     from_index: bool = typer.Option(
         False,
         "--from-index",
-        help=(
-            "Read NFO + artwork status from the indexer DB instead of walking "
-            "the filesystem. Skips structural checks (empty dirs, NTFS chars, "
-            "dir naming) and does not support --fix. See validate_from_index "
-            "docstring for the full trade-off list."
-        ),
+        help=t("cli_library.maintenance.validate_from_index_help"),
     ),
-    check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
-    list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
+    check: list[str] = typer.Option(None, "--check", help=t("cli_library.maintenance.check_help")),
+    list_checks: bool = typer.Option(False, "--list-checks", help=t("cli_library.maintenance.list_checks_help")),
 ) -> None:
     """Validate NFO, artwork, naming conformity of library items.
 
@@ -342,13 +371,14 @@ def library_validate(
         from personalscraper.verify.checks.catalog import list_checks as _list
 
         for spec in (s for s in _list() if s.stage == CheckStage.DISPATCH):
-            fix_label = "fixable" if spec.fixable else "-"
-            idx_label = "indexable" if spec.indexable else "-"
-            console.print(
+            fix_label = t("cli_library.maintenance.fixable") if spec.fixable else "-"
+            idx_label = t("cli_library.maintenance.indexable") if spec.indexable else "-"
+            row = (
                 f"  {spec.name:<34} [{spec.group}] "
                 f"{spec.default_severity.value:<7} {fix_label:<8} {idx_label:<9} "
                 f"{spec.description}"
             )
+            console.print(row)
         raise typer.Exit(0)
     only = frozenset(check) if check else None
     if only is not None:
@@ -359,18 +389,22 @@ def library_validate(
         _unknown = only - _available
         if _unknown:
             raise typer.BadParameter(
-                f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
+                t(
+                    "cli_library.maintenance.unknown_checks",
+                    unknown=str(sorted(_unknown)),
+                    available=str(sorted(_available)),
+                )
             )
 
     category_id = _resolve_category(ctx, category)
     config = ctx.obj.config
 
     if from_index and (fix or apply):
-        console.print("[red]--from-index does not support --fix / --apply[/red]")
+        console.print("[red]" + t("cli_library.maintenance.from_index_no_fix") + "[/red]")
         raise typer.Exit(1)
 
     if apply and not fix:
-        console.print("[red]--apply requires --fix[/red]")
+        console.print("[red]" + t("cli_library.maintenance.apply_requires_fix") + "[/red]")
         raise typer.Exit(1)
 
     if fix and apply:
@@ -379,7 +413,7 @@ def library_validate(
             cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
             # Exit 3 = lock busy (the maintenance runner re-queues on this code).
-            console.print("[red]Another instance is running. Exiting.[/red]")
+            console.print("[red]" + t("cli_library.maintenance.lock_busy") + "[/red]")
             raise typer.Exit(3)
 
     try:
@@ -403,10 +437,12 @@ def library_validate(
                 )
                 if non_indexable:
                     console.print(
-                        f"[yellow]Note:[/yellow] {non_indexable} do not apply in --from-index mode "
-                        "(they need the filesystem); they will produce no results."
+                        "[yellow]"
+                        + t("cli_library.maintenance.note_label")
+                        + "[/yellow] "
+                        + t("cli_library.maintenance.non_indexable", checks=str(non_indexable))
                     )
-            console.print("[bold]Validating library (from index)...[/bold]")
+            console.print("[bold]" + t("cli_library.maintenance.validating_from_index") + "[/bold]")
             import sqlite3  # noqa: PLC0415
 
             from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
@@ -434,7 +470,7 @@ def library_validate(
             finally:
                 conn.close()
         else:
-            console.print("[bold]Validating library...[/bold]")
+            console.print("[bold]" + t("cli_library.maintenance.validating") + "[/bold]")
             try:
                 result = validate_library(
                     config,
@@ -451,16 +487,31 @@ def library_validate(
         write_json(result, output_path)
 
         console.print(
-            f"[green]Valid:[/green] {result.valid_count}  "
-            f"[yellow]Fixed:[/yellow] {result.fixed_count}  "
-            f"[red]Issues:[/red] {result.issues_count}  "
-            f"→ {output_path}"
+            "[green]"
+            + t("cli_library.maintenance.valid_label")
+            + "[/green] "
+            + str(result.valid_count)
+            + "  "
+            + "[yellow]"
+            + t("cli_library.maintenance.fixed_label")
+            + "[/yellow] "
+            + str(result.fixed_count)
+            + "  "
+            + "[red]"
+            + t("cli_library.maintenance.issues_label")
+            + "[/red] "
+            + str(result.issues_count)
+            + "  "
+            + "→ "
+            + str(output_path)
         )
 
         if fix and result.issues_count:
             console.print(
-                f"\n[yellow]{result.issues_count} items have API-dependent issues.[/yellow]\n"
-                "  Use: personalscraper library-rescrape"
+                "\n[yellow]"
+                + t("cli_library.maintenance.api_issues", items=result.issues_count)
+                + "[/yellow]\n"
+                + t("cli_library.maintenance.use_rescrape")
             )
     finally:
         if fix and apply:
