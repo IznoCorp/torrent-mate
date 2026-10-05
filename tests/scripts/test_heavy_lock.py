@@ -701,7 +701,7 @@ def test_a_run_holding_more_browsers_than_its_class_is_stopped_then_killed(tmp_p
 # crashpad handlers re-parented to 1 (members through the run's tag), and its
 # helpers — renderer, GPU, network — under the main.
 CHROME_APP = "/Users/someone/Library/Caches/ms-playwright/chromium-1187/chrome-mac-arm64/Google Chrome for Testing.app"
-CHROME_FRAMEWORK = f"{CHROME_APP}/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/140.0.7339.16"
+CHROME_FRAMEWORK = f"{CHROME_APP}/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/140"
 
 
 def real_chrome(first: int, parent: int) -> list[tuple[int, int, float, str]]:
