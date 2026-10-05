@@ -1,0 +1,20 @@
+[
+  "plex_guard.help",
+  "plex_guard.repair_help",
+  "plex_guard.item_id_help",
+  "plex_guard.no_indexer_db",
+  "plex_guard.no_token",
+  "plex_guard.mode_dry_run",
+  "plex_guard.mode_repair",
+  "plex_guard.heading",
+  "plex_guard.finding_item",
+  "plex_guard.finding_ids",
+  "plex_guard.finding_rating_key",
+  "plex_guard.finding_plex_title",
+  "plex_guard.finding_title_suspect",
+  "plex_guard.finding_path",
+  "plex_guard.repaired_label",
+  "plex_guard.misaligned_label",
+  "plex_guard.aligned_label",
+  "plex_guard.errors_label"
+]

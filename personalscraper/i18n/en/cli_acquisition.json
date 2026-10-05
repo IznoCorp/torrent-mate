@@ -1,0 +1,22 @@
+{
+  "plex_guard": {
+    "help": "Check that Plex matched every dispatched item to the pipeline's ids.\n\nThe default run is READ-ONLY: it compares, for each dispatched movie/show,\nthe provider guids Plex resolved against the canonical ids in the indexer\n(tmdb for movies, tvdb for shows) and reports every misalignment — dry-run\nwrites nothing, not even to the local data dir. With ``--repair``, a\nmisaligned item is re-matched over the Plex API (``matches`` → ``match``);\nthe local filesystem and the indexer DB are never written.\n\nFail-soft: Plex down, wrong token, or a folder Plex has not scanned yet\ndegrades to a per-item report line. The guard never fails the run. A\ndry-run writes NOTHING (report included — the repair mode is what\npersists ``library_plex_guard.json``); it does issue read-only requests,\nincluding one match-resolution probe per misaligned item, so the report\ncan tell « the id resolves to nothing » apart from « Plex was down ».\n\nExamples:\n    personalscraper plex-guard\n    personalscraper plex-guard --item-id 1600\n    personalscraper plex-guard --repair --item-id 1600",
+    "repair_help": "Apply the match over the Plex API (default: dry-run)",
+    "item_id_help": "Check only this item by DB id (repeatable), bypassing the sweep.",
+    "no_indexer_db": "Indexer DB not found; run `library-index` first.",
+    "no_token": "No Plex token configured — nothing to compare against.",
+    "mode_dry_run": "DRY-RUN",
+    "mode_repair": "REPAIR",
+    "heading": "Plex match coherence ({{mode}})...",
+    "finding_item": "item {{item_id}} « {{title}} »",
+    "finding_ids": " ({{provider}}-{{id}})",
+    "finding_rating_key": " → {{rating_key}}",
+    "finding_plex_title": " [Plex: « {{plex_title}} »]",
+    "finding_title_suspect": " [title suspect]",
+    "finding_path": " [path: {{path}}]",
+    "repaired_label": "Repaired:",
+    "misaligned_label": "Misaligned (would repair):",
+    "aligned_label": "Aligned:",
+    "errors_label": "Errors/skipped:"
+  }
+}
