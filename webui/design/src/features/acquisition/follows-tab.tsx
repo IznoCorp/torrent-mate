@@ -53,7 +53,7 @@ export function FollowsTab(): ReactElement {
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
   // follows panel's own, and this is the read.
-  const { data: follows = [] } = useFollows();
+  const { data: follows = [], error: followsError } = useFollows();
   // A PAUSED FOLLOW WAITS FOR HIM, folded at the end of the list and outside
   // its counts — the list and its pills are the follows being looked for.
   const paused = follows.filter((follow) => follow.status === "disabled");
@@ -187,7 +187,7 @@ export function FollowsTab(): ReactElement {
     );
   } else if (state.phase === "error") {
     content = (
-      <SurfaceError subject={t("screens.acquisition.errorFollows")} />
+      <SurfaceError subject={t("screens.acquisition.errorFollows")} failure={followsError ?? undefined} />
     );
   } else if (visible.length === 0) {
     content = (

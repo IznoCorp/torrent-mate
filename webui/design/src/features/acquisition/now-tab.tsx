@@ -27,7 +27,7 @@ export function NowTab(): ReactElement {
   // WHICH WORLD. The prototype carries two and the harness switches between
   // them; the key carries it, so a surface never reads the other one's cards.
   const scenario = state.scen === "loaded" ? "loaded" : "";
-  const { data: queue } = useAcquisitionQueue(scenario);
+  const { data: queue, error: queueError } = useAcquisitionQueue(scenario);
   const { data: follows } = useFollows();
   // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
   const rights = useRights();
@@ -40,7 +40,7 @@ export function NowTab(): ReactElement {
         data-region="acquisition/body"
       >
         {state.phase === "error" ? (
-          <SurfaceError subject={t("screens.acquisition.errorNow")} />
+          <SurfaceError subject={t("screens.acquisition.errorNow")} failure={queueError ?? undefined} />
         ) : (
           <div className={sectionClass()} data-part="section">
             <Skeletons count={4} shape="card" />

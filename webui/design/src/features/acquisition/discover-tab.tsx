@@ -200,7 +200,7 @@ export function DiscoverTab(): ReactElement {
         {state.phase === "loading" ? (
           <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
         ) : state.phase === "error" ? (
-          <SurfaceError subject={t("screens.acquisition.errorSuggestions")} />
+          <SurfaceError subject={t("screens.acquisition.errorSuggestions")} failure={read.error ?? undefined} />
         ) : null}
         {/* FILLED BY THE FRAGMENT, never by React — see this file's header. */}
         <div id="sugitems" hidden={state.phase !== "ready"}></div>
