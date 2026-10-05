@@ -20,7 +20,7 @@ from personalscraper.cli_state import state
 from personalscraper.i18n import t
 
 
-@command_with_telemetry("torrents-list")
+@command_with_telemetry("torrents-list", help=t("cli_core.torrents.list_help"))
 @handle_cli_errors
 def torrents_list(ctx: typer.Context) -> None:
     """List completed torrents from the active qBittorrent client.
