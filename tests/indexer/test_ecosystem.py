@@ -44,14 +44,12 @@ _EXPECTED_APP_NAMES = frozenset(
         "torrentmate-web",
         "torrentmate-web-staging",
         "torrentmate-autodeploy",
-        "torrentmate-machine-guard",
     }
 )
 
 #: Apps whose ``script`` is NOT the personalscraper Python CLI (so their
-#: ``interpreter`` is not ``"none"``). The autodeploy poller is a bash script; the machine
-#: guard a stdlib Python script run by the prod venv's interpreter.
-_NON_PYTHON_APP_NAMES = frozenset({"torrentmate-autodeploy", "torrentmate-machine-guard"})
+#: ``interpreter`` is not ``"none"``). The autodeploy poller is a bash script.
+_NON_PYTHON_APP_NAMES = frozenset({"torrentmate-autodeploy"})
 
 #: ENV-SEP canonical paths — every daemon/cron runs from the PROD clone, decoupled
 #: from the dev checkout (so a cron never executes an in-flight feature branch).
@@ -724,15 +722,3 @@ def test_daemon_apps_do_not_have_cron_restart() -> None:
         if app.get("autorestart") is True:
             name = app["name"]
             assert "cron_restart" not in app, f"{name}: daemon must not have cron_restart"
-
-
-def test_machine_guard_app_loops_from_the_prod_clone() -> None:
-    """B-703: the machine guard is a long-lived loop from the prod clone, never ``cron_restart``."""
-    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    guard = _get_app_by_name(apps, "torrentmate-machine-guard")
-    assert guard.get("script") == "./scripts/machine_guard.py"
-    assert guard.get("args") == "--loop"
-    assert guard.get("interpreter") == "/Users/izno/deploy/torrentmate-venv/bin/python"
-    assert guard.get("cwd") == _PROD_CLONE
-    assert guard.get("autorestart") is True
-    assert "cron_restart" not in guard

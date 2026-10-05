@@ -436,3 +436,30 @@ These guarantees mean that the web UI is as safe as the terminal: every action
 can be previewed, destructive actions are gated on a verified preview, and the
 same lock that serialises Watcher-driven pipeline runs also serialises
 maintenance actions.
+
+## Machine guard (B-703) — a PM2 app outside `ecosystem.config.js`
+
+`scripts/machine_guard.py` is the machine-wide guard against a saturating run: once a minute it reads the one-minute
+load and, after three minutes in a row above the machine's capacity, kills the heavy process trees whose working
+directory is an agent's workspace checkout or a checkout's scratchpad — never a service nor a `claude` process. It is
+the source; the machine runs a copy of it.
+
+**Why a copy.** The apps of `ecosystem.config.js` run from the prod clone, which holds no guard until v1's release.
+The guard therefore runs, like `qbit-watchdog` (`~/.local/bin/qbit-watchdog.py`), from a copy in `~/.local/bin`,
+started by hand under PM2 and saved. The script imports the standard library only
+(`tests/scripts/test_machine_guard.py` holds it), so any `python3` runs it.
+
+**Install, or update after a change to the script:**
+
+```bash
+cp scripts/machine_guard.py ~/.local/bin/machine-guard.py
+pm2 start ~/.local/bin/machine-guard.py --name machine-guard --interpreter python3 --restart-delay 60000 -- --loop
+pm2 save
+```
+
+An update copies the script again, then `pm2 restart machine-guard`. The copy drifts from the repository until it is
+copied again: re-copy after every merged change to the guard.
+
+**Logs.** Its own log, `~/Library/Logs/machine-guard.log` (`MACHINE_GUARD_LOG`), moved to `machine-guard.log.1` past
+1 MiB: the minutes above capacity, the heaviest trees, one `GUARD KILLED` line per tree it killed. PM2's stdout and stderr:
+`~/.pm2/logs/machine-guard-out.log` and `machine-guard-error.log`, under pm2-logrotate.

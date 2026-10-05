@@ -7,6 +7,7 @@ starts a load, reads the machine's load or signals a real process.
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import sys
 from pathlib import Path
@@ -14,7 +15,8 @@ from types import ModuleType
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "machine_guard.py"
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "machine_guard.py"
 HOME = "/Users/someone"
 CHECKOUT = f"{HOME}/dev/workspaces/PersonalScraper/some-lot"
 SCRATCHPAD = "/private/tmp/claude-501/some-session/scratchpad"
@@ -195,3 +197,20 @@ def test_a_tick_logs_the_trees_and_a_guard_killed_line(tmp_path: Path) -> None:
     assert "GUARD KILLED" in text, text
     assert {pid for pid, _ in signalled} >= {200, 201, 104}
     assert 100 not in {pid for pid, _ in signalled}
+
+
+def test_the_guard_runs_from_a_stdlib_copy_declared_in_no_ecosystem() -> None:
+    """B-703: the guard's PM2 entry ran from the prod clone, which holds no guard before v1.
+
+    It runs from a copy in `~/.local/bin` (docs/production/maintenance.md), so it
+    may import the standard library only, and `ecosystem.config.js` declares it nowhere.
+    """
+    imported: set[str] = set()
+    for node in ast.walk(ast.parse(SCRIPT.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            imported |= {alias.name.split(".")[0] for alias in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            imported.add(node.module.split(".")[0])
+
+    assert imported <= set(sys.stdlib_module_names), imported - set(sys.stdlib_module_names)
+    assert "machine_guard" not in (ROOT / "ecosystem.config.js").read_text(encoding="utf-8")
