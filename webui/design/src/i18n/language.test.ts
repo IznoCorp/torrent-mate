@@ -6,7 +6,7 @@
 // emptying that entry — a sign-out — gives the browser's back. Every leg reads `i18next.language`
 // and a word the catalogue really holds, not the function's return alone.
 import { QueryClient } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18next, { browserLanguage, speak } from ".";
 import { accountQuery, followAccountLanguage } from "../lib/account";
 import EN from "./en.json";
@@ -53,5 +53,38 @@ describe("the account's language", () => {
   it("speaks English for a language it does not speak", () => {
     speak("de");
     expect(i18next.language).toBe("en");
+  });
+});
+
+// A WORD MISSING FROM ONE CATALOGUE SHOWS ITS KEY, never the other language's word: a silent
+// English word in a French page is the defect `harness/identity.py` guards. English when nothing
+// names a language is the FIRST language's rule (OPEN-2 B), not the fallback's.
+describe("a missing word, and no language named", () => {
+  const KEY = "suiteOnly.missingFromOne";
+
+  afterEach(() => {
+    // The store holds the imported catalogues themselves: the added word is taken out of them.
+    for (const language of ["fr", "en"]) {
+      delete (i18next.store.data[language]?.translation as Record<string, unknown>).suiteOnly;
+    }
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    speak("fr");
+  });
+
+  it.each([
+    ["fr", "en"],
+    ["en", "fr"],
+  ] as const)("speaking %s, a word only %s holds shows its key", (spoken, holder) => {
+    i18next.addResource(holder, "translation", KEY, "present elsewhere");
+    speak(spoken);
+    expect(i18next.t(KEY)).toBe(KEY);
+  });
+
+  it("starts in English when the browser names no language the interface speaks", async () => {
+    vi.stubGlobal("navigator", { languages: ["de-DE"] });
+    vi.resetModules();
+    const fresh = await import(".");
+    expect(fresh.default.language).toBe("en");
   });
 });

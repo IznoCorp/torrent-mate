@@ -92,7 +92,10 @@ i18next.on("languageChanged", (language) => {
 
 void i18next.use(initReactI18next).init({
   lng: browserLanguage(),
-  fallbackLng: DEFAULT_LANGUAGE,
+  // NO FALLBACK: a word missing from the language spoken shows its key, never
+  // the other language's word (a silent English word in a French page). English
+  // when nothing names a language is `lng`'s rule (`browserLanguage`), not this.
+  fallbackLng: false,
   supportedLngs: [...LANGUAGES],
   resources: { fr: { translation: fr }, en: { translation: en } },
   // React already escapes interpolated values when it renders text nodes,
