@@ -5,6 +5,10 @@ Each test moves the script's home into its own temporary directory
 the memory pressure, the free memory, and the three services that hold a
 reserve — so nothing here waits on the machine's real state or touches a run
 another session started.
+
+NO REAL LOAD, EVER. The watcher's tests hand it a fake process table
+(`HEAVY_PS_TABLE`) that SAYS a run holds browsers or burns cores; the only real
+processes started here are `sleep`s.
 """
 
 from __future__ import annotations
@@ -52,6 +56,8 @@ def environment(home: Path, capacity: str = "100", **signals: str) -> dict[str, 
         "HEAVY_PLEX_URL": "http://127.0.0.1:9/never",
         "HEAVY_PARSEC": "0",
         "HEAVY_QBIT": "0",
+        # Never the operator's own log: each test reads its private one.
+        "HEAVY_LOG": str(home.parent / "heavy.log"),
         **signals,
     }
 
@@ -531,3 +537,230 @@ def test_a_slow_transcode_holds_new_runs(tmp_path: Path) -> None:
             run.wait()
     assert run.returncode == 0, errors
     assert "Plex transcodes at 1.3" in errors, errors
+
+
+# A pid no machine hands out (Linux's ceiling is 4 194 304, macOS's 99 999):
+# the fake table's processes can never name a real one.
+FAKE_PID = 5_000_000
+
+
+def alive(pid: int) -> bool:
+    """Whether a process still exists (a zombie counts as gone).
+
+    Args:
+        pid: The process id.
+
+    Returns:
+        True while the process runs or is stopped.
+    """
+    state = process_state(pid)
+    return bool(state) and not state.startswith("Z")
+
+
+def escaped_sleep(pid_file: Path) -> str:
+    """A command whose grandchild leaves the run's process group and is re-parented to 1.
+
+    The intermediate shell exits at once (a double fork) and the `sleep` calls
+    `setsid` first, as Playwright starts its browsers (`detached`): a signal to
+    the run's group never reaches it.
+
+    Args:
+        pid_file: Where the escaped `sleep` writes its pid.
+
+    Returns:
+        The shell command.
+    """
+    return f"(perl -MPOSIX -e 'POSIX::setsid(); print \"$$\\n\"; exec q(sleep), 300' > {pid_file} 2>/dev/null </dev/null &)"
+
+
+def test_a_descendant_that_left_the_group_dies_with_the_run(tmp_path: Path) -> None:
+    """B-700: heavy.sh signalled its run's process group alone.
+
+    A descendant that left the group — a double fork plus `setsid`, the way
+    Playwright detaches its browsers and the way the incident's CPU burners
+    re-parented to 1 — outlived the run.
+    """
+    pid_file = tmp_path / "escaped.pid"
+    escaped = 0
+    try:
+        result = subprocess.run(
+            ["sh", str(SCRIPT), "--class", "test", "escaper", "sh", "-c", f"{escaped_sleep(pid_file)}; sleep 1"],
+            env=environment(tmp_path / "home"),
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert wait_for(lambda: pid_file.exists() and pid_file.read_text().strip() != ""), result.stderr
+        escaped = int(pid_file.read_text().strip())
+        assert wait_for(lambda: not alive(escaped), seconds=10), "the escaped sleep outlived the run"
+    finally:
+        if escaped and alive(escaped):
+            os.kill(escaped, signal.SIGKILL)
+
+
+def test_a_descendant_that_left_the_group_dies_when_the_run_is_interrupted(tmp_path: Path) -> None:
+    """B-700: an interrupted run left its escaped descendants behind."""
+    pid_file = tmp_path / "escaped.pid"
+    escaped = 0
+    run = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "test", "escaper", "sh", "-c", f"{escaped_sleep(pid_file)}; sleep 60"],
+        env=environment(tmp_path / "home"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert wait_for(lambda: pid_file.exists() and pid_file.read_text().strip() != ""), "the run never started"
+        escaped = int(pid_file.read_text().strip())
+        run.send_signal(signal.SIGTERM)
+        run.communicate(timeout=30)
+        assert wait_for(lambda: not alive(escaped), seconds=10), "the escaped sleep outlived the interrupted run"
+    finally:
+        if run.poll() is None:
+            run.kill()
+            run.wait()
+        if escaped and alive(escaped):
+            os.kill(escaped, signal.SIGKILL)
+
+
+def fake_table(path: Path, root: int, rows: list[tuple[int, int, float, str]]) -> None:
+    """Writes the process table the watcher reads in place of `ps`.
+
+    Columns as `ps -Ao pid=,ppid=,pgid=,pcpu=,comm=` prints them; the run's own
+    process heads the table, at no CPU.
+
+    Args:
+        path: The table's file.
+        root: The run's real process, the group's leader.
+        rows: Its fake descendants, as (pid, parent, % CPU, command).
+    """
+    lines = [f"{root} 1 {root} 0.0 sh"]
+    lines += [f"{pid} {parent} {root} {cpu} {command}" for pid, parent, cpu, command in rows]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def watched_run(tmp_path: Path, run_class: str, **signals: str) -> tuple[subprocess.Popen[str], int, Path]:
+    """Starts a `sleep` run under heavy.sh with a fast watcher reading a fake table.
+
+    Args:
+        tmp_path: The test's directory.
+        run_class: The run's class.
+        **signals: More variables for the run's environment.
+
+    Returns:
+        The heavy.sh process, its run's pid and the fake table's path.
+    """
+    pid_file = tmp_path / "child.pid"
+    table = tmp_path / "ps.txt"
+    run = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", run_class, "watched", "sh", "-c", f"echo $$ > {pid_file}; exec sleep 60"],
+        env=environment(
+            tmp_path / "home",
+            capacity="8",
+            HEAVY_PS_TABLE=str(table),
+            HEAVY_GUARD_SECONDS="1",
+            HEAVY_GUARD_STRIKES="2",
+            **signals,
+        ),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert wait_for(lambda: pid_file.exists() and pid_file.read_text().strip() != ""), "the run never started"
+    return run, int(pid_file.read_text().strip()), table
+
+
+def test_a_run_holding_more_browsers_than_its_class_is_stopped_then_killed(tmp_path: Path) -> None:
+    """B-701: heavy.sh admitted ONE browser run, then never looked again.
+
+    The incident's run started eight Playwright browsers under `--class browser`;
+    the watcher must see them and stop the run, then kill it.
+    """
+    run, child, table = watched_run(tmp_path, "browser")
+    try:
+        browsers = [(FAKE_PID + index, child, 5.0, "/opt/ms-playwright/chromium/Chromium") for index in range(8)]
+        fake_table(table, child, browsers)
+        _, errors = run.communicate(timeout=30)
+    finally:
+        if run.poll() is None:
+            run.kill()
+            run.wait()
+            # The run never reached its verdict: its sleep is not left behind.
+            if alive(child):
+                os.kill(child, signal.SIGKILL)
+    assert run.returncode == 75, errors
+    assert wait_for(lambda: not alive(child), seconds=10), "the run outlived its verdict"
+    assert "8 browsers" in errors, errors
+    log = (tmp_path / "heavy.log").read_text(encoding="utf-8")
+    assert log.index("STOPPED") < log.index("KILLED"), log
+
+
+def test_a_run_burning_far_more_than_its_cost_is_stopped_then_killed(tmp_path: Path) -> None:
+    """B-701: a run declared at 2 cores that burns nine is beyond its class."""
+    run, child, table = watched_run(tmp_path, "test")
+    try:
+        fake_table(table, child, [(FAKE_PID + index, 1, 100.0, "yes") for index in range(9)])
+        _, errors = run.communicate(timeout=30)
+    finally:
+        if run.poll() is None:
+            run.kill()
+            run.wait()
+            # The run never reached its verdict: its sleep is not left behind.
+            if alive(child):
+                os.kill(child, signal.SIGKILL)
+    assert run.returncode == 75, errors
+    assert wait_for(lambda: not alive(child), seconds=10), "the run outlived its verdict"
+    assert "900% CPU" in errors, errors
+
+
+def test_a_run_within_its_class_is_left_to_its_end(tmp_path: Path) -> None:
+    """The watcher touches nothing while a run holds what its class allows."""
+    run, child, table = watched_run(tmp_path, "browser")
+    try:
+        fake_table(table, child, [(FAKE_PID, child, 120.0, "/opt/ms-playwright/chromium/Chromium")])
+        time.sleep(4)
+        assert alive(child), "a run within its class was stopped"
+        assert not process_state(child).startswith("T"), "a run within its class was suspended"
+    finally:
+        run.send_signal(signal.SIGTERM)
+        _, errors = run.communicate(timeout=30)
+    assert "STOPPED" not in errors, errors
+
+
+def test_every_line_also_goes_to_the_persistent_log(tmp_path: Path) -> None:
+    """B-702: heavy.sh logged to its caller's stderr alone, so an audit read nothing."""
+    result = subprocess.run(
+        ["sh", str(SCRIPT), "--class", "test", "logged", "true"],
+        env=environment(tmp_path / "home"),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    log = (tmp_path / "heavy.log").read_text(encoding="utf-8").splitlines()
+    assert any("wants 2 cores" in line for line in log), log
+    assert any("logged starts" in line for line in log), log
+    assert any("logged done (exit 0)" in line for line in log), log
+    assert all(re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} heavy\[\d+\] ", line) for line in log), log
+
+
+def test_the_persistent_log_rotates_by_size(tmp_path: Path) -> None:
+    """B-702: the persistent log is kept to a size, its previous part beside it."""
+    log = tmp_path / "heavy.log"
+    log.write_text("old line\n" * 200, encoding="utf-8")
+    result = subprocess.run(
+        ["sh", str(SCRIPT), "--class", "test", "rotated", "true"],
+        env=environment(tmp_path / "home", HEAVY_LOG_MAX_BYTES="1000"),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "heavy.log.1").read_text(encoding="utf-8").startswith("old line"), "the old part was not kept"
+    assert "old line" not in log.read_text(encoding="utf-8")
+    assert "rotated done" in log.read_text(encoding="utf-8")

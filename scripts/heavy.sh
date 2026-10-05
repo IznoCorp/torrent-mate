@@ -44,6 +44,28 @@
 # ticket whose process is alive may be admitted.
 #
 # EVERY LINE IS TIMED, and the start says how long the run waited (B-495).
+# Every line also goes to a persistent log, `~/Library/Logs/heavy.log`
+# (`HEAVY_LOG`), dated and signed with the script's pid, so an audit reads what
+# was admitted, refused, stopped and killed after the caller's terminal is gone
+# (B-702); past HEAVY_LOG_MAX_BYTES it is moved to `heavy.log.1`.
+#
+# THE RUN IS OWNED WHOLE (B-700). A descendant that leaves the run's process
+# group — a double fork plus `setsid`, the way Playwright detaches its browsers
+# and the way CPU burners re-parent to 1 — never hears a signal sent to the
+# group. The command runs with a tag in its environment that every descendant
+# inherits (`HEAVY_RUN_<pid>=<second asked>`); the watcher records, every
+# GUARD_SECONDS, every process of the group, of the tree or carrying the tag,
+# with its start time; when the run ends, is interrupted or is stopped, the
+# group and every recorded process still alive (same pid, same start time:
+# never a pid reused by someone else) are stopped, terminated, then killed.
+#
+# WHAT WAS ADMITTED IS WATCHED (B-701). An admission is one look; the incident
+# of 2026-10-05 was a `browser` run that started eight browsers and eight CPU
+# burners after it was admitted. Every GUARD_SECONDS the watcher counts the
+# run's browsers (a browser process whose parent is not one) and its CPU; a run
+# beyond its class — more browsers than CLASS_MAX_BROWSERS, or more CPU than
+# CPU_LIMIT_PERCENT — for GUARD_STRIKES looks in a row is stopped (SIGSTOP),
+# logged, then killed whole.
 #
 # THE PLEX TOKEN reaches curl on its standard input, never on a command line,
 # in a file or in a line printed: it opens the operator's Plex account.
@@ -74,11 +96,33 @@ PLEX_URL=${HEAVY_PLEX_URL:-http://127.0.0.1:32400/status/sessions}
 
 # How often a run's watcher looks at the memory and at Plex, in seconds.
 WATCH_SECONDS=${HEAVY_WATCH_SECONDS:-15}
+# How often it records the run's processes and weighs them against the class,
+# and how many looks in a row beyond the class stop the run: 30 s.
+GUARD_SECONDS=${HEAVY_GUARD_SECONDS:-3}
+GUARD_STRIKES=${HEAVY_GUARD_STRIKES:-10}
+# A run may burn this many times its declared cost, never more than the
+# machine's capacity less two cores.
+CPU_COST_FACTOR=4
+CPU_HEADROOM_CORES=2
+
+LOG_FILE=${HEAVY_LOG:-$HOME/Library/Logs/heavy.log}
+LOG_MAX_BYTES=${HEAVY_LOG_MAX_BYTES:-1048576}
 
 export LC_ALL=C
 
+# The persistent log's line; the file is rotated once past its size. A log
+# that cannot be written never stops a run.
+log_line() {
+    mkdir -p "${LOG_FILE%/*}" 2>/dev/null
+    if [ -f "$LOG_FILE" ] && [ "$(wc -c < "$LOG_FILE" | tr -d ' ')" -ge "$LOG_MAX_BYTES" ]; then
+        mv -f "$LOG_FILE" "$LOG_FILE.1" 2>/dev/null
+    fi
+    echo "$(date '+%Y-%m-%d %H:%M:%S') heavy[$$] $*" >> "$LOG_FILE" 2>/dev/null
+}
+
 say() {
     echo "heavy: $(date '+%H:%M:%S') $*" >&2
+    log_line "$*"
 }
 
 add() {
@@ -349,11 +393,14 @@ shift
 
 # Each class's cost in cores, measured: a harness run of two rules about 1.5,
 # `pytest -n 2` about 2, a build about 3.
+# The browsers a class may hold at once: `run.sh` runs half the processors'
+# rules side by side (4 here), and a rule may hold two engines (Chromium and
+# WebKit); a test run's workers may each hold one; a build none.
 case "$RUN_CLASS" in
-    browser) CLASS_COST=1.5; CLASS_FLOOR_MB=4096 ;;
-    rule)    CLASS_COST=1.5; CLASS_FLOOR_MB=2560 ;;
-    test)    CLASS_COST=2;   CLASS_FLOOR_MB=3072 ;;
-    build)   CLASS_COST=3;   CLASS_FLOOR_MB=3072 ;;
+    browser) CLASS_COST=1.5; CLASS_FLOOR_MB=4096; CLASS_MAX_BROWSERS=6 ;;
+    rule)    CLASS_COST=1.5; CLASS_FLOOR_MB=2560; CLASS_MAX_BROWSERS=6 ;;
+    test)    CLASS_COST=2;   CLASS_FLOOR_MB=3072; CLASS_MAX_BROWSERS=4 ;;
+    build)   CLASS_COST=3;   CLASS_FLOOR_MB=3072; CLASS_MAX_BROWSERS=2 ;;
     *)
         echo "heavy: unknown class '$RUN_CLASS' — say browser, rule, test or build" >&2
         exit 64
@@ -366,6 +413,11 @@ FREE_FLOOR_MB=${HEAVY_FREE_FLOOR_MB:-$CLASS_FLOOR_MB}
 LOAD_CEILING=${HEAVY_LOAD_CEILING:-$(add "$CAPACITY_CORES" "-$COST")}
 HARD_FLOOR_MB=${HEAVY_HARD_FLOOR_MB:-2048}
 HARD_STRIKES=3
+MAX_BROWSERS=${HEAVY_MAX_BROWSERS:-$CLASS_MAX_BROWSERS}
+CPU_LIMIT_PERCENT=${HEAVY_CPU_LIMIT_PERCENT:-$(awk -v cost="$COST" -v factor="$CPU_COST_FACTOR" \
+    -v capacity="$CAPACITY_CORES" -v headroom="$CPU_HEADROOM_CORES" 'BEGIN {
+        limit = cost * factor; if (limit > capacity - headroom) limit = capacity - headroom
+        printf "%d", limit * 100 }')}
 
 # 0 when the run fits, 1 when it does not; `refusal` says why and `refused_by`
 # names which signal, so a long wait is said once per reason.
@@ -422,11 +474,160 @@ entry="$RUNNING/$$"
 echo "$WHO" > "$ticket"
 
 marker="$SUSPENDED/$$"
+tree="$HOME_DIR/tree/$$"
+RUN_TAG="HEAVY_RUN_$$=$ASKED"
 child=""
-# A stopped process keeps a TERM pending until it is continued.
+
+# --- The run's processes (B-700, B-701) --------------------------------------
+
+# The machine's process table: pid, parent, group, % CPU, command.
+real_table() {
+    ps -Ao pid=,ppid=,pgid=,pcpu=,comm= 2>/dev/null
+}
+
+# The table the watcher weighs: the machine's, or the tests' fake one. It only
+# ever COUNTS; what is signalled is read from the machine's table alone.
+weighed_table() {
+    if [ -n "${HEAVY_PS_TABLE:-}" ]; then
+        cat "$HEAVY_PS_TABLE" 2>/dev/null
+        return
+    fi
+    real_table
+}
+
+# The pids whose environment carries this run's tag.
+tagged_pids() {
+    if [ -r /proc/self/environ ]; then
+        for environ in /proc/[0-9]*/environ; do
+            if tr '\0' '\n' < "$environ" 2>/dev/null | grep -qx "$RUN_TAG"; then
+                tagged=${environ#/proc/}
+                echo "${tagged%/environ}"
+            fi
+        done
+    else
+        ps -E -ww -Ao pid=,command= 2>/dev/null |
+            awk -v tag="$RUN_TAG" '{ for (i = 2; i <= NF; i++) if ($i == tag) { print $1; break } }'
+    fi
+}
+
+# The rows of a table on stdin that belong to the run: its leader ($1), its
+# group, the pids listed in $2, and every descendant of those. Never this
+# script nor pid 1.
+members_of() {
+    awk -v root="$1" -v listed="$2" -v me="$$" '
+        BEGIN { count = split(listed, pids, " "); for (i = 1; i <= count; i++) wanted[pids[i]] = 1 }
+        $1 == me || $1 == 1 { next }
+        {
+            row[$1] = $0
+            parent[$1] = $2
+            if ($1 == root || $3 == root || ($1 in wanted)) member[$1] = 1
+        }
+        END {
+            do {
+                grew = 0
+                for (pid in parent)
+                    if (!(pid in member) && (parent[pid] in member)) { member[pid] = 1; grew = 1 }
+            } while (grew)
+            for (pid in member) if (pid in row) print row[pid]
+        }'
+}
+
+# The pids recorded so far, on one line.
+recorded_pids() {
+    cut -d' ' -f1 "$tree" 2>/dev/null | tr '\n' ' '
+}
+
+# Records every process of the run not yet recorded, with its start time.
+record_run() {
+    known=$(recorded_pids)
+    fresh=$(real_table | members_of "$child" "$(tagged_pids | tr '\n' ' ') $known" |
+        awk -v known=" $known " 'index(known, " " $1 " ") == 0 { print $1 }' | tr '\n' ',' | sed 's/,$//')
+    [ -n "$fresh" ] && ps -o pid=,lstart= -p "$fresh" 2>/dev/null | awk '{ $1 = $1; print }' >> "$tree"
+}
+
+# The recorded processes still alive under the start time they were recorded
+# with: a pid reused by another process is never one of them.
+recorded_alive() {
+    pids=$(recorded_pids | tr ' ' ',' | sed 's/,*$//')
+    [ -n "$pids" ] || return 0
+    ps -o pid=,lstart= -p "$pids" 2>/dev/null | awk '{ $1 = $1; print }' | grep -Fxf "$tree" | cut -d' ' -f1
+}
+
+# Signals the run's group and every recorded process still alive.
+signal_run() {
+    kill "-$1" -"$child" 2>/dev/null
+    for pid in $(recorded_alive); do
+        [ "$pid" = "$$" ] || kill "-$1" "$pid" 2>/dev/null
+    done
+}
+
+# Stops, terminates, then kills the whole run; a stopped process keeps a TERM
+# pending until it is continued. Says how many processes were still there.
+reap_run() {
+    [ -n "$child" ] || return 0
+    record_run
+    survivors=$(recorded_alive | wc -l | tr -d ' ')
+    signal_run STOP
+    signal_run TERM
+    signal_run CONT
+    waited=0
+    while [ "$waited" -lt 3 ] && [ -n "$(recorded_alive)" ]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+    signal_run KILL
+    child=""
+    rm -f "$tree"
+}
+
+# How many browsers and how much % CPU the run's rows on stdin hold. A browser
+# is a browser process whose parent is not one: its helpers are not counted.
+weigh() {
+    awk '
+        {
+            name = $5
+            for (i = 6; i <= NF; i++) name = name " " $i
+            parent[$1] = $2
+            browser[$1] = (tolower(name) ~ /chrom|firefox|webkit|minibrowser|headless.shell/)
+            cpu += $4
+        }
+        END {
+            for (pid in parent) if (browser[pid] && !browser[parent[pid]]) browsers++
+            printf "%d %d\n", browsers, cpu
+        }'
+}
+
+guard_strikes=0
+# Records the run's processes and weighs them against its class; a run beyond
+# it for GUARD_STRIKES looks in a row is stopped, then killed (exit 75).
+watch_run() {
+    record_run
+    weight=$(weighed_table | members_of "$child" "$(recorded_pids)" | weigh)
+    browsers=${weight% *}
+    cpu=${weight#* }
+    beyond=""
+    if [ "$browsers" -gt "$MAX_BROWSERS" ]; then
+        beyond="$browsers browsers, class $RUN_CLASS holds $MAX_BROWSERS at most"
+    elif [ "$cpu" -gt "$CPU_LIMIT_PERCENT" ]; then
+        beyond="${cpu}% CPU, class $RUN_CLASS burns ${CPU_LIMIT_PERCENT}% at most (declared $COST cores)"
+    fi
+    if [ -z "$beyond" ]; then
+        guard_strikes=0
+        return
+    fi
+    guard_strikes=$((guard_strikes + 1))
+    say "$WHO's run is beyond its class — $beyond (look $guard_strikes of $GUARD_STRIKES)"
+    [ "$guard_strikes" -ge "$GUARD_STRIKES" ] || return
+    signal_run STOP
+    say "STOPPED $WHO's run — $beyond"
+    held=$(recorded_alive | wc -l | tr -d ' ')
+    reap_run
+    say "KILLED $WHO's run — $held processes"
+    exit 75
+}
+
 release() {
-    [ -n "$child" ] && { kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null; }
-    [ -n "$child" ] && [ -f "$marker" ] && { kill -CONT -"$child" 2>/dev/null || kill -CONT "$child" 2>/dev/null; }
+    reap_run
     rm -f "$ticket" "$entry" "$marker"
     [ "$(cat "$ADMIT/pid" 2>/dev/null)" = "$$" ] && rm -rf "$ADMIT"
 }
@@ -488,9 +689,12 @@ done
 rm -f "$ticket"
 say "$WHO starts after $(( $(date +%s) - ASKED )) s waiting ($left of $CAPACITY_CORES cores free before it, ${free}MB free, load $load)"
 # Job control puts the child in its own process group, so the watchdog can
-# stop the whole tree (browsers, workers), not only the direct child.
+# stop the whole tree (browsers, workers), not only the direct child; the tag
+# finds the descendants that leave the group.
+mkdir -p "${tree%/*}" 2>/dev/null
+: > "$tree"
 set -m
-"$@" &
+env "$RUN_TAG" "$@" &
 child=$!
 set +m
 
@@ -520,6 +724,7 @@ ticks=0
 while kill -0 "$child" 2>/dev/null; do
     sleep 1
     ticks=$((ticks + 1))
+    [ "$((ticks % GUARD_SECONDS))" -eq 0 ] && watch_run
     [ "$((ticks % WATCH_SECONDS))" -eq 0 ] || continue
     follow_plex
     free=$(free_megabytes)
@@ -529,11 +734,7 @@ while kill -0 "$child" 2>/dev/null; do
         say "${free}MB free — strike $strikes of $HARD_STRIKES"
         if [ "$strikes" -ge "$HARD_STRIKES" ]; then
             say "STOPPING $WHO's run — the machine is out of room"
-            kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
-            kill -CONT -"$child" 2>/dev/null || kill -CONT "$child" 2>/dev/null
-            sleep 5
-            kill -KILL -"$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null
-            wait "$child" 2>/dev/null
+            reap_run
             exit 75
         fi
     else
