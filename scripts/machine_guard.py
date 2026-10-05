@@ -56,13 +56,13 @@ TOP_TREES = 10
 LOG_MAX_BYTES = 1_048_576
 LOOK_SECONDS = 60
 
+# Services, by their executable (never an argument: a prompt or a test path
+# names them all the time); their every descendant is theirs, never killed.
+SERVICE = re.compile(r"Plex|parsecd|Parsec\.app|qBittorrent|qbittorrent|^PM2 v[\d.]+: God Daemon")
+# The system's own processes, by their executable: never killed.
+SYSTEM = re.compile(r"WindowServer|loginwindow|launchd|kernel_task")
 # Never killed. A `claude` session by its binary's name or its npm package.
-PROTECTED = re.compile(
-    r"Plex|parsecd|Parsec\.app|qBittorrent|qbittorrent|WindowServer|loginwindow|launchd|kernel_task"
-    r"|PM2 v|God Daemon|(?:^|/)claude(?:\s|$)|@anthropic-ai/claude-code|claude-code/cli"
-)
-# Services whose every descendant is theirs, hence never killed either.
-SERVICE = re.compile(r"Plex|parsecd|Parsec\.app|qBittorrent|qbittorrent|PM2 v|God Daemon")
+CLAUDE = re.compile(r"(?:^|/)claude(?:\s|$)|@anthropic-ai/claude-code|claude-code/cli")
 
 
 @dataclass(frozen=True)
@@ -75,6 +75,8 @@ class Process:
         cpu: Its % CPU (100 is one core).
         command: Its command line.
         cwd: Its working directory, empty when unknown.
+        executable: What `ps -o comm=` names: the executable, or the title a
+            program gave itself (PM2's God Daemon); never its arguments.
     """
 
     pid: int
@@ -82,6 +84,7 @@ class Process:
     cpu: float
     command: str
     cwd: str = ""
+    executable: str = ""
 
 
 @dataclass(frozen=True)
@@ -221,11 +224,11 @@ def choose_victims(table: list[Process], *, me: int, home: str, min_cpu: float =
             return True
         seen: set[int] = set()
         current = by_pid.get(pid)
-        if current is not None and PROTECTED.search(current.command):
+        if current is not None and (SYSTEM.search(current.executable) or CLAUDE.search(current.command)):
             return True
         while current is not None and current.pid not in seen:
             seen.add(current.pid)
-            if SERVICE.search(current.command):
+            if SERVICE.search(current.executable):
                 return True
             current = by_pid.get(current.ppid)
         return False
@@ -386,6 +389,13 @@ def read_table() -> list[Process]:
     listing = subprocess.run(
         ["ps", "-Ao", "pid=,ppid=,uid=,pcpu=,command="], capture_output=True, text=True, check=False
     ).stdout
+    # `comm` may hold spaces: a listing of its own, the pid first, is unambiguous.
+    names = subprocess.run(["ps", "-Ao", "pid=,comm="], capture_output=True, text=True, check=False).stdout
+    executables: dict[int, str] = {}
+    for line in names.splitlines():
+        fields = line.split(None, 1)
+        if len(fields) == 2:
+            executables[int(fields[0])] = fields[1].strip()
     cwds: dict[int, str] = {}
     files = subprocess.run(
         ["lsof", "-w", "-a", "-u", uid, "-d", "cwd", "-Fpn"], capture_output=True, text=True, check=False
@@ -409,6 +419,7 @@ def read_table() -> list[Process]:
                 cpu=float(fields[3].replace(",", ".")),
                 command=fields[4],
                 cwd=cwds.get(pid, ""),
+                executable=executables.get(pid, ""),
             )
         )
     return table

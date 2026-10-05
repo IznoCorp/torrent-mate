@@ -59,7 +59,7 @@ def load_guard() -> ModuleType:
 guard = load_guard()
 
 
-def proc(pid: int, ppid: int, cpu: float, command: str, cwd: str = "/") -> object:
+def proc(pid: int, ppid: int, cpu: float, command: str, cwd: str = "/", executable: str | None = None) -> object:
     """One row of a fake process table.
 
     Args:
@@ -68,11 +68,14 @@ def proc(pid: int, ppid: int, cpu: float, command: str, cwd: str = "/") -> objec
         cpu: Its % CPU.
         command: Its command line.
         cwd: Its working directory.
+        executable: What `ps -o comm=` names; the command's first word when None.
 
     Returns:
         The guard's process record.
     """
-    return guard.Process(pid=pid, ppid=ppid, cpu=cpu, command=command, cwd=cwd)
+    if executable is None:
+        executable = command.split(" ")[0]
+    return guard.Process(pid=pid, ppid=ppid, cpu=cpu, command=command, cwd=cwd, executable=executable)
 
 
 def killed(table: list[object], me: int = 9999) -> set[int]:
@@ -114,10 +117,14 @@ def test_the_incident_trees_are_killed_and_the_session_is_not() -> None:
     assert 1 not in victims
 
 
+PLEX_TRANSCODER = "/Applications/Plex Media Server.app/Contents/MacOS/Plex Transcoder"
+PM2_DAEMON = "PM2 v6.0.8: God Daemon (/Users/someone/.pm2)"
+
+
 @pytest.mark.parametrize(
     "service",
     [
-        proc(400, 1, 300.0, "/Applications/Plex Media Server.app/Contents/MacOS/Plex Transcoder", CHECKOUT),
+        proc(400, 1, 300.0, f"{PLEX_TRANSCODER} -i movie.mkv", CHECKOUT, PLEX_TRANSCODER),
         proc(400, 1, 300.0, "/Applications/Parsec.app/Contents/MacOS/parsecd", CHECKOUT),
         proc(400, 1, 300.0, "/Applications/qBittorrent.app/Contents/MacOS/qbittorrent", CHECKOUT),
         proc(400, 1, 300.0, "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer", CHECKOUT),
@@ -135,12 +142,45 @@ def test_what_a_pm2_app_runs_is_never_killed() -> None:
     """B-703: a PM2-managed app, and anything it starts, is a service."""
     table = [
         proc(1, 0, 0.0, "/sbin/launchd"),
-        proc(500, 1, 1.0, "PM2 v6.0.8: God Daemon (/Users/someone/.pm2)"),
+        proc(500, 1, 1.0, PM2_DAEMON, executable=PM2_DAEMON),
         proc(501, 500, 250.0, "python -m personalscraper serve", CHECKOUT),
         proc(502, 501, 250.0, "ffprobe movie.mkv", CHECKOUT),
     ]
 
     assert killed(table) == set()
+
+
+def test_what_plex_starts_is_never_killed() -> None:
+    """B-703: a service is known by its executable, and everything under it is its own."""
+    table = [
+        proc(1, 0, 0.0, "/sbin/launchd"),
+        proc(510, 1, 5.0, f"{PLEX_TRANSCODER} -i movie.mkv", CHECKOUT, PLEX_TRANSCODER),
+        proc(511, 510, 300.0, "/usr/local/bin/ffmpeg -i movie.mkv", CHECKOUT),
+    ]
+
+    assert killed(table) == set()
+
+
+def test_a_prompt_naming_a_service_does_not_immunise_the_tree() -> None:
+    """B-703: a service was sought in every ancestor's argv, and a session's prompt names anything."""
+    table = [
+        proc(1, 0, 0.0, "/sbin/launchd"),
+        proc(520, 1, 3.0, "/opt/homebrew/bin/claude fix the Plex scan and the PM2 v6 God Daemon", CHECKOUT),
+        proc(521, 520, 0.0, bash_wrapper("python3 burn.py"), CHECKOUT),
+        proc(522, 521, 99.0, "python3 burn.py", CHECKOUT),
+    ]
+
+    assert killed(table) == {521, 522}
+
+
+def test_a_test_path_naming_a_service_does_not_protect_the_run() -> None:
+    """B-703: `pytest tests/…/test_qbittorrent_client.py` is an agent's run, not qBittorrent."""
+    table = [
+        proc(1, 0, 0.0, "/sbin/launchd"),
+        proc(530, 1, 600.0, "python -m pytest tests/clients/test_qbittorrent_client.py -k Plex", CHECKOUT),
+    ]
+
+    assert killed(table) == {530}
 
 
 def test_a_heavy_tree_outside_any_checkout_is_left_alone() -> None:
