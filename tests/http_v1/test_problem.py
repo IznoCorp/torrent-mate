@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
 
-import structlog
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
@@ -13,6 +12,7 @@ from starlette.types import Message, Receive, Scope, Send
 from personalscraper.app.errors import AppConflict, AppForbidden, RefusalCode
 from personalscraper.http_v1.app import V1_PREFIX
 from personalscraper.http_v1.contract import ContractModel
+from tests.conftest import LoggedEvents
 
 _SECRET = "s3cr3t-value"
 
@@ -86,11 +86,13 @@ def test_coded_refusal_is_its_status_code_and_params(make_v1_app: Callable[..., 
     assert isinstance(body["title"], str) and body["title"]
 
 
-def test_codeless_refusal_is_internal_and_logged(make_v1_app: Callable[..., FastAPI]) -> None:
+def test_codeless_refusal_is_internal_and_logged(
+    make_v1_app: Callable[..., FastAPI], logged_events: LoggedEvents
+) -> None:
     """Row 2: a code-less refusal is a v1 defect: 500 ``internal`` and an error log naming its class."""
     client = _client(make_v1_app)
 
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         response = client.get("/codeless")
 
     assert response.status_code == 500
@@ -128,11 +130,13 @@ def test_wrong_method_is_route_unknown(make_v1_app: Callable[..., FastAPI]) -> N
     assert response.headers["allow"] == "GET"
 
 
-def test_http_exception_other_than_404_405_is_internal_and_logged(make_v1_app: Callable[..., FastAPI]) -> None:
+def test_http_exception_other_than_404_405_is_internal_and_logged(
+    make_v1_app: Callable[..., FastAPI], logged_events: LoggedEvents
+) -> None:
     """A v1 route raising ``HTTPException`` is a v1 defect: 500 ``internal``, status logged, detail never answered."""
     client = _client(make_v1_app)
 
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         response = client.get("/teapot")
 
     assert response.status_code == 500
@@ -141,11 +145,11 @@ def test_http_exception_other_than_404_405_is_internal_and_logged(make_v1_app: C
     assert any(entry["event"] == "v1_http_exception" and entry["status"] == 418 for entry in logs)
 
 
-def test_crash_is_internal_with_no_trace(make_v1_app: Callable[..., FastAPI]) -> None:
+def test_crash_is_internal_with_no_trace(make_v1_app: Callable[..., FastAPI], logged_events: LoggedEvents) -> None:
     """Row 5: an unhandled exception is 500 ``internal``, a fixed English line, nothing of the trace."""
     client = _client(make_v1_app)
 
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         response = client.get("/crash")
 
     assert response.status_code == 500
@@ -172,6 +176,7 @@ def test_crash_inside_the_mount_does_not_reach_the_parent(make_v1_app: Callable[
 
 def test_crash_after_the_response_started_is_swallowed_and_never_answered_twice(
     make_v1_app: Callable[..., FastAPI],
+    logged_events: LoggedEvents,
 ) -> None:
     """Row 5, late: once the response has started nothing is re-raised and no second start is sent."""
     v1_app = make_v1_app()
@@ -205,7 +210,7 @@ def test_crash_after_the_response_started_is_swallowed_and_never_answered_twice(
 
         await parent(scope, receive, _record)
 
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         response = TestClient(recorder, raise_server_exceptions=True).get(f"{V1_PREFIX}/started")
 
     assert response.status_code == 200

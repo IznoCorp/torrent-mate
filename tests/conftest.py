@@ -49,9 +49,12 @@ _os.environ["PERSONALSCRAPER_ENV"] = ""
 # ruff: noqa: E402
 
 import inspect
+import logging
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -168,6 +171,52 @@ def _clean_structlog_contextvars() -> Iterator[None]:
     structlog.contextvars.clear_contextvars()
     yield
     structlog.contextvars.clear_contextvars()
+
+
+#: The keys the configured processor chain adds to every event, which ``capture_logs`` never shows.
+_STRUCTLOG_FRAME = frozenset({"level", "logger", "timestamp"})
+
+#: What :func:`logged_events` hands a test: open it around the code whose events it reads.
+LoggedEvents = Callable[[], AbstractContextManager[list[dict[str, Any]]]]
+
+
+@pytest.fixture
+def logged_events(caplog: pytest.LogCaptureFixture) -> LoggedEvents:
+    """Read the structlog events logged inside a block, whatever the order the tests ran in.
+
+    ``structlog.testing.capture_logs`` misses them depending on order. It swaps the capture into
+    the processor list configured NOW, in place; but ``cache_logger_on_first_use`` pins a
+    module-level ``log = get_logger(...)`` to the list that was configured at its first use. A
+    CLI run in the same worker calls ``configure_logging``, which configures a NEW list, and from
+    then on every logger cached before it writes past the capture — an empty capture. Every event
+    still reaches the stdlib logger it is rendered through, so this reads ``caplog``'s records.
+
+    Each event has the ``capture_logs`` shape: the logged keys, ``event`` and ``log_level``,
+    without the frame the processor chain adds (``level``, ``logger``, ``timestamp``). The chain
+    ran, so a value :func:`personalscraper.logger.redact_secrets` masks is masked here too.
+
+    Args:
+        caplog: pytest's log capture.
+
+    Returns:
+        A factory of context managers, each yielding the list of the events logged inside it,
+        filled when the block exits.
+    """
+    caplog.set_level(logging.DEBUG)
+
+    @contextmanager
+    def capture() -> Iterator[list[dict[str, Any]]]:
+        start = len(caplog.records)
+        events: list[dict[str, Any]] = []
+        try:
+            yield events
+        finally:
+            for record in caplog.records[start:]:
+                if isinstance(record.msg, dict):
+                    event = {key: value for key, value in record.msg.items() if key not in _STRUCTLOG_FRAME}
+                    events.append({**event, "log_level": record.levelname.lower()})
+
+    return capture
 
 
 @pytest.fixture(autouse=True)

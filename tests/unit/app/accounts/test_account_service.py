@@ -16,7 +16,6 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-import structlog
 
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
@@ -30,6 +29,7 @@ from personalscraper.app.accounts.views import SignInKind
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, AppRefusal, RefusalCode
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
+from tests.conftest import LoggedEvents
 
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 _PASSWORD = "A provisional one 1!"
@@ -489,10 +489,10 @@ class TestCreateAccount:
         assert len(store.accounts.accounts()) == before
 
     def test_a_creation_publishes_nothing_and_never_logs_the_password(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged], logged_events: LoggedEvents
     ) -> None:
         """No account's rights moved: no E8; the password is in no log line."""
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             accounts.create_account(
                 admin, name="New", email="new@example.org", role_id="local-guest", password=_PASSWORD
             )

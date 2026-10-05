@@ -14,7 +14,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import structlog
 
 from personalscraper.app.accounts import service as service_module
 from personalscraper.app.accounts.ceiling import InstanceCeiling
@@ -26,6 +25,7 @@ from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import AppBadRequest, AppNotFound, AppTooManyRequests, AppUnauthenticated, RefusalCode
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
+from tests.conftest import LoggedEvents
 
 _PASSWORD = "correct horse battery staple"
 _WRONG = "not the password"
@@ -248,9 +248,9 @@ class TestRefused:
         assert refusal.status == 401
         assert refusal.params == {}
 
-    def test_the_refusal_carries_no_credential(self, accounts: AccountService) -> None:
+    def test_the_refusal_carries_no_credential(self, accounts: AccountService, logged_events: LoggedEvents) -> None:
         """Neither the e-mail nor the password is in the refusal or any log line."""
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             refusal = _refused(accounts, "local@example.org", _WRONG)
             _refused(accounts, "nobody@example.org", _WRONG)
             _sign_in(accounts, "local@example.org", _PASSWORD)

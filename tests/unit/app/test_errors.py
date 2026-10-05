@@ -75,3 +75,9 @@ def test_every_code_is_a_contract_code() -> None:
     listed = set(json.loads(CONTRACT.read_text(encoding="utf-8"))["components"]["schemas"]["RefusalCode"]["enum"])
 
     assert {code.value for code in errors.RefusalCode} <= listed
+
+
+def test_the_library_deletion_codes() -> None:
+    """Deletion by medium refuses an ambiguous id and a library the pipeline holds, by code (K2-10)."""
+    assert errors.RefusalCode.MEDIA_AMBIGUOUS.value == "media.ambiguous"
+    assert errors.RefusalCode.LIBRARY_LOCKED.value == "library.locked"
