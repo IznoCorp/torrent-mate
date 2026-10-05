@@ -534,7 +534,7 @@ jobs:
           THRESHOLD=$(python3 scripts/get_coverage_threshold.py)
           coverage report --fail-under="${THRESHOLD}"
           coverage xml -o coverage.xml
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
