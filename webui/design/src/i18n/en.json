@@ -2515,5 +2515,27 @@
         }
       }
     }
+  },
+  "shell": {
+    "splash": {
+      "region": "Starting up",
+      "progress": "Loading the interface",
+      "message": "Loading your media library…"
+    },
+    "skipLink": "Skip to content",
+    "menuOpen": "Open the navigation menu",
+    "userMenu": "User menu",
+    "install": {
+      "region": "Installing the app",
+      "title": "Install the app",
+      "subtitle": "Add TorrentMate to your home screen for direct access.",
+      "stepSafari": "Open this page in Safari.",
+      "stepTap": "Tap",
+      "share": "Share",
+      "stepBar": "in the bottom bar.",
+      "stepAdd": "Choose “Add to Home Screen”, then “Add”.",
+      "action": "Install TorrentMate",
+      "dismiss": "Dismiss"
+    }
   }
 }

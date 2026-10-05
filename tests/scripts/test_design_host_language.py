@@ -19,6 +19,7 @@ import importlib.util
 import json
 import re
 import sys
+from html.parser import HTMLParser
 from types import ModuleType
 
 import pytest
@@ -79,15 +80,195 @@ def test_the_sign_in_page_is_worded_in_the_language(language: str) -> None:
     assert f"<span>{gate['email']}</span>" in page
 
 
+# THE BRAND IS NO LANGUAGE's: the wordmark's two halves are drawn as they are.
+BRAND_WORDS = frozenset({"Torrent", "Mate"})
+
+
+def _leaves(node: object) -> list[str]:
+    """Every string of a catalogue, at any depth.
+
+    Args:
+        node: A catalogue, or one of its branches or leaves.
+
+    Returns:
+        The strings it holds.
+    """
+    if isinstance(node, str):
+        return [node]
+    if isinstance(node, dict):
+        return [leaf for child in node.values() for leaf in _leaves(child)]
+    if isinstance(node, list):
+        return [leaf for child in node for leaf in _leaves(child)]
+    return []
+
+
+class _Words(HTMLParser):
+    """Collects what a visitor reads of a page: its text nodes and its accessible names."""
+
+    def __init__(self) -> None:
+        """Starts with nothing read, outside any script or style."""
+        super().__init__()
+        self.words: list[str] = []
+        self._skipped = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Reads an element's accessible name, and enters a script or a style.
+
+        Args:
+            tag: The element's name.
+            attrs: Its attributes.
+        """
+        if tag in ("script", "style", "title"):
+            self._skipped += 1
+        self.words.extend(value for name, value in attrs if name == "aria-label" and value)
+
+    def handle_endtag(self, tag: str) -> None:
+        """Leaves a script or a style.
+
+        Args:
+            tag: The element's name.
+        """
+        if tag in ("script", "style", "title"):
+            self._skipped -= 1
+
+    def handle_data(self, data: str) -> None:
+        """Reads a text node outside a script or a style.
+
+        Args:
+            data: The text.
+        """
+        text = " ".join(data.split())
+        if text and not self._skipped:
+            self.words.append(text)
+
+
 def test_the_english_page_keeps_none_of_the_french_fallback() -> None:
-    """The markup's French — the page-without-script fallback — never reaches an English visitor."""
+    """Every word an English visitor reads — text and accessible names, the splash's too — is English.
+
+    Read against the whole page rather than a list of keys: a French fallback nobody keyed (the
+    startup screen the page appends) is no English catalogue's word, and fails here.
+    """
     page = SERVE.login_page(False, language="en").decode()
-    french = CATALOGUES["fr"]["screens"]["gate"]
-    for key in ("subtitle", "password", "invalid", "submit", "email"):
-        assert french[key] not in page, key
+    english = {" ".join(leaf.split()) for leaf in _leaves(CATALOGUES["en"])}
+    reader = _Words()
+    reader.feed(page)
+    foreign = [word for word in reader.words if word not in english and word not in BRAND_WORDS]
+    assert foreign == []
 
 
 def test_the_reason_is_said_in_the_language() -> None:
     """A session ended is said in the visitor's language, under the English subtitle."""
     page = SERVE.login_page(False, "reasonExpired", language="en").decode()
     assert CATALOGUES["en"]["server"]["login"]["reasonExpired"] in page
+
+
+# ELEMENTS THAT NEVER CLOSE: the reader must not wait for their end tag.
+VOID_ELEMENTS = frozenset({"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "wbr"})
+# WORDED ELSEWHERE, OR NOBODY'S: the sign-in field's label is replaced by the e-mail's words at boot
+# (`app/gate.ts`) and on the design host (`v1_door.as_v1_form`); the frame switch is the design
+# review's own control, outside the interface.
+WORDED_ELSEWHERE = frozenset({"Identifiant"})
+OUTSIDE_THE_INTERFACE = "harness/"
+
+
+def _word(key: str) -> str:
+    """The French catalogue's word at a dotted key.
+
+    Args:
+        key: The key, as the markup names it.
+
+    Returns:
+        The word, its white space folded.
+    """
+    node: object = CATALOGUES["fr"]
+    for part in key.split("."):
+        assert isinstance(node, dict), key
+        node = node[part]
+    assert isinstance(node, str), key
+    return " ".join(node.split())
+
+
+class _Fallbacks(HTMLParser):
+    """Collects every word of the shell document's body with the key it is worded by, if any."""
+
+    def __init__(self) -> None:
+        """Starts outside the body, with no element open."""
+        super().__init__()
+        self.found: list[tuple[str, str | None]] = []
+        self._open: list[tuple[str, str | None, bool]] = []
+        self._in_body = False
+
+    def _skipped(self) -> bool:
+        """Whether the reader stands in a script, a style or a region outside the interface.
+
+        Returns:
+            True when what it reads now is no word of the interface.
+        """
+        return any(tag in ("script", "style") or outside for tag, _, outside in self._open)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Reads an element's accessible name and opens it.
+
+        Args:
+            tag: The element's name.
+            attrs: Its attributes.
+        """
+        if tag == "body":
+            self._in_body = True
+            return
+        named = dict(attrs)
+        outside = (named.get("data-part") or "").startswith(OUTSIDE_THE_INTERFACE)
+        if self._in_body and not self._skipped() and not outside and named.get("aria-label"):
+            self.found.append((str(named["aria-label"]), named.get("data-words-label")))
+        if tag not in VOID_ELEMENTS:
+            self._open.append((tag, named.get("data-words"), outside))
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Reads a self-closed element's accessible name; nothing is opened.
+
+        Args:
+            tag: The element's name.
+            attrs: Its attributes.
+        """
+        named = dict(attrs)
+        if self._in_body and not self._skipped() and named.get("aria-label"):
+            self.found.append((str(named["aria-label"]), named.get("data-words-label")))
+
+    def handle_endtag(self, tag: str) -> None:
+        """Closes the element.
+
+        Args:
+            tag: The element's name.
+        """
+        if tag in VOID_ELEMENTS:
+            return
+        while self._open:
+            if self._open.pop()[0] == tag:
+                break
+
+    def handle_data(self, data: str) -> None:
+        """Reads a text node with the key of the element that holds it.
+
+        Args:
+            data: The text.
+        """
+        text = " ".join(data.split())
+        if text and self._in_body and not self._skipped():
+            self.found.append((text, self._open[-1][1] if self._open else None))
+
+
+def test_every_word_of_the_shell_is_keyed_and_its_french_is_the_catalogues() -> None:
+    """The markup no component draws — the splash, the install bar, the top bar — is worded by key.
+
+    A word with no key stays French for an English account: the boot rewords only what names its
+    key (`src/i18n/index.ts` `wordMarkup`). And each fallback IS the French catalogue's word, so
+    the page without script reads what the boot would say, extracted rather than retyped.
+    """
+    reader = _Fallbacks()
+    reader.feed(SERVE.SHELL_DOCUMENT.read_text(encoding="utf-8"))
+    unkeyed = [
+        word for word, key in reader.found if key is None and word not in BRAND_WORDS | WORDED_ELSEWHERE
+    ]
+    assert unkeyed == []
+    retyped = [(word, key) for word, key in reader.found if key is not None and _word(key) != word]
+    assert retyped == []

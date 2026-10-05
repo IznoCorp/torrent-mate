@@ -463,7 +463,8 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/", l
     # The form posts by script (`v1_door.sign_in_script`), to v1 itself.
     # WORDED IN THE VISITOR'S LANGUAGE, from the keys the markup carries — the
     # same the prototype's boot reads; the markup's French is only the fallback.
-    markup = v1_door.worded(markup, json.loads(resource))
+    catalogue = json.loads(resource)
+    markup = v1_door.worded(markup, catalogue)
     markup = v1_door.as_v1_form(markup, v1_door.email_label(resource))
     if reason is not None:
         markup = v1_door.with_reason(markup, served_texts(language)["login"][reason])
@@ -472,8 +473,10 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/", l
     if refused and reason is None:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
-    # here it waits for the submit that makes it true.
-    markup += extract(markup_source, "splash").replace(' id="splash"', ' id="splash" hidden', 1)
+    # here it waits for the submit that makes it true — worded in the same
+    # language, or an English visitor's sign-in would load in French.
+    splash = extract(markup_source, "splash").replace(' id="splash"', ' id="splash" hidden', 1)
+    markup += v1_door.worded(splash, catalogue)
     # Everything the screen INHERITS inside the prototype — the palette, the box
     # model, the typography — is taken from it rather than restated. Both were
     # retyped here once, and both times the copy rendered correctly while the
