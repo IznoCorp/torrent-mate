@@ -580,6 +580,8 @@ class TestOpenSession:
         finally:
             app_store.close()
         assert actor is not None and actor.account_id == owner_id
+        # The row the command opened says who opened it: the smoke check's own user agent.
+        assert _session_user_agents(store_file) == ["design-host-smoke"]
         opened = [event for event in events if event["event"] == "v1_session_opened_by_cli"]
         assert opened == [{"event": "v1_session_opened_by_cli", "account_id": owner_id, "log_level": "info"}]
         assert all(token not in repr(event) for event in events)
