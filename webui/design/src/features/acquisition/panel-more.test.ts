@@ -37,8 +37,8 @@ function sheet() {
 function sheetText(): string[] {
   const descriptor = sheet();
   const words: string[] = [descriptor.title ?? "", String(descriptor.meta ?? "")];
-  for (const bloc of descriptor.blocs as { lignes?: { c: string }[]; actions?: { text: string }[] }[]) {
-    words.push(...(bloc.lignes ?? []).map((ligne) => ligne.c), ...(bloc.actions ?? []).map((action) => action.text));
+  for (const block of descriptor.blocs as { lignes?: { c: string }[]; actions?: { text: string }[] }[]) {
+    words.push(...(block.lignes ?? []).map((ligne) => ligne.c), ...(block.actions ?? []).map((action) => action.text));
   }
   return words;
 }
@@ -47,9 +47,7 @@ describe("the « ⋮ » sheet", () => {
   it("is titled, explained and offered in the decided words", () => {
     const descriptor = sheet();
     expect(descriptor.title).toBe("Détection des nouveautés"); // french-ok: the engine's own output, asserted
-    expect(descriptor.meta).toBe(
-      "Vérifie si vos suivis ont du nouveau — un épisode diffusé, un film sorti — pour qu'il soit cherché. Se fait automatiquement à intervalles réguliers.", // french-ok: the engine's own output, asserted
-    );
+    expect(descriptor.meta).toBe(i18next.t("panels.standby.meta"));
     expect(sheetText()).toEqual(
       expect.arrayContaining(["Dernière vérification", "Prochaine vérification", "Vérifier maintenant"]), // french-ok: the engine's own output, asserted
     );
