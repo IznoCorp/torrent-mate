@@ -70,6 +70,8 @@ def decide(command: str, port: int | None = None) -> dict[str, object]:
         "node -e 'while(true){}' &",
         "sysbench cpu --threads=8 run",
         "openssl speed -multi 8",
+        "some-burner --cpu-load 100 --cpu-method matrixprod",
+        'python3 -c "while 1: pass" &',
         "bash <<'EOF'\nyes > /dev/null\nEOF",
         "cat <<EOF\n$(yes > /dev/null)\nEOF",
     ],
@@ -97,6 +99,13 @@ def test_a_deliberate_load_generator_is_refused(command: str) -> None:
         "pytest tests/scripts/test_block_load_generators.py",
         "cat > body.md <<'EOF'\nrefuses `yes >` burners and `stress-ng`\nEOF",
         'gh pr create --body-file - <<"EOF"\nwhile true; do :; done is refused\nEOF',
+        # A tool's worker count is no load generator.
+        "pytest --cpu 4 tests/scripts",
+        "make test --cpus 2",
+        # A busy loop only named in a quoted string: a commit message, an echo.
+        "git commit -m 'fix(hook): refuse while true; do :; done'",
+        'echo "a busy loop: while True: pass"',
+        "git commit -F - <<'EOF'\nfix(hook): refuse node -e 'while(true){}'\nEOF",
     ],
 )
 def test_an_ordinary_command_passes(command: str) -> None:

@@ -13,9 +13,10 @@ Refused:
 - ``yes`` written to a file or ``/dev/null`` (``yes >``, ``yes | … > /dev/null``);
   ``yes | cmd`` answering prompts passes;
 - ``stress``, ``stress-ng``, ``cpuburn``, ``burnP6``, ``sysbench cpu``,
-  ``openssl speed``, and ``--cpu N``-style load flags (save docker/podman's limits);
-- busy loops with an empty body: ``while true; do :; done`` and its shell,
-  Python and JavaScript spellings;
+  ``openssl speed``, and a generator's ``--cpu-load`` / ``--cpu-method`` flags
+  (a bare ``--cpu N`` is a tool's worker count: ``pytest --cpu 4`` passes);
+- busy loops with an empty body: ``while true; do :; done`` and its shell spellings,
+  and the Python and JavaScript ones an interpreter's ``-c`` / ``-e`` runs;
 - a harness host (``server.py --serve``, ``http.server``) started on the harness
   port while one already listens there (``LOAD_HOOK_HARNESS_PORT``, 8899).
 
@@ -23,7 +24,8 @@ A generator only MENTIONED in a quoted argument (a commit message, a search
 pattern, an ``echo``) or in the body of a heredoc whose delimiter is quoted
 (``<<'EOF'``, text no shell expands) passes — unless that heredoc feeds a shell
 or an interpreter; the body of ``sh -c '…'`` and ``eval '…'`` is read as a
-command. This hook catches the deliberate case; ``scripts/heavy.sh``'s
+command, and the program of ``python -c '…'`` / ``node -e '…'`` is read for a
+busy loop. This hook catches the deliberate case; ``scripts/heavy.sh``'s
 watcher and ``scripts/machine_guard.py`` catch what slips past it.
 """
 
@@ -53,10 +55,12 @@ _COMMAND_RULES = (
         re.compile(_START + r"(?:stress-ng|stress|cpuburn|burnP6|sysbench\s+cpu|openssl\s+speed)\b"),
     ),
 )
-_CPU_FLAG = re.compile(r"(?:^|\s)--cpu(?:s|-load|-method)?[= ]+\d+")
-_CONTAINER = re.compile(r"\b(?:docker|podman)\b")
+# A load generator's own flags; a bare `--cpu N` / `--cpus N` is a tool's worker
+# count (`pytest --cpu 4`, docker's limit), not a load.
+_CPU_FLAG = re.compile(r"(?:^|\s)--cpu-(?:load|method)\b")
 
-# Rules read on the raw command: an interpreter's busy loop sits inside quotes.
+# Read on the command with its quoted strings removed, and in the program an
+# interpreter's `-c` / `-e` runs: there an interpreter's busy loop sits in quotes.
 _BUSY_LOOPS = (
     re.compile(r"\b(?:while\s+(?:true|:|\[\s*1\s*\])|until\s+false)\s*;\s*do\s+(?::|true)?\s*;?\s*done\b"),
     re.compile(r"\bwhile\s+(?:True|1)\s*:\s*pass\b"),
@@ -64,6 +68,7 @@ _BUSY_LOOPS = (
 )
 
 _INNER = re.compile(r"""(?:\b(?:ba|z|da)?sh\s+-c|\beval)\s+(?:'([^']*)'|"([^"]*)")""")
+_PROGRAM = re.compile(r"""\b(?:python[\d.]*|node|perl|ruby)\s+(?:-\S+\s+)*?-[ce]\s+(?:'([^']*)'|"([^"]*)")""")
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 # A heredoc whose delimiter is quoted: its body is literal text, never expanded.
 _LITERAL_HEREDOC = re.compile(
@@ -123,13 +128,15 @@ def load_rule(command: str) -> str | None:
     Returns:
         The rule's name, or None when the command breaks none.
     """
-    for text in commands_in(command):
+    texts = commands_in(command)
+    for text in texts:
         for name, pattern in _COMMAND_RULES:
             if pattern.search(text):
                 return name
-        if _CPU_FLAG.search(text) and not _CONTAINER.search(text):
-            return "a `--cpu N` load flag"
-    if any(pattern.search(command) for pattern in _BUSY_LOOPS):
+        if _CPU_FLAG.search(text):
+            return "a `--cpu-load`-style load flag"
+    programs = [single or double for single, double in _PROGRAM.findall(command)]
+    if any(pattern.search(text) for text in texts + programs for pattern in _BUSY_LOOPS):
         return "a busy loop"
     return None
 
