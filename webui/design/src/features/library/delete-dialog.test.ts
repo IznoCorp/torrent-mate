@@ -212,10 +212,13 @@ describe("the library's delete flow", () => {
       return opened[1];
     }
 
-    /** What the kept dialog says each medium did, title by title. */
+    /** What the kept dialog says each medium did, title by title: a line each, the title in bold, then its reason. */
     function reasons(descriptor: DialogDescriptor | undefined): Record<string, string> {
-      const manifest = descriptor?.body.find((block) => block.type === "manifest");
-      return Object.fromEntries(manifest?.type === "manifest" ? manifest.entries.map((e) => [e.text, e.value]) : []);
+      const lines = (descriptor?.body ?? []).flatMap((block) =>
+        block.type === "paragraph" && block.runs[0]?.strong ? [block.runs] : [],
+      );
+      for (const runs of lines) expect(runs[1]?.text).toBe(i18next.t("verbs.library.delete.keptSeparator"));
+      return Object.fromEntries(lines.map((runs) => [runs[0].text, runs[2]?.text ?? ""]));
     }
 
     it("is named with the date its seeding is owed until, and is never said deleted", async () => {

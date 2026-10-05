@@ -1988,6 +1988,7 @@
         "keptSeedOwedUndated": "Partage encore dû au tracker",
         "keptDiskUnreachable": "Son disque n'est pas branché",
         "keptFailed": "La suppression d'un de ses dossiers a échoué",
+        "keptSeparator": " — ",
         "keptText": "Ce qui est gardé reste entier : ses fichiers, sa ligne de la médiathèque et son entrée Plex."
       },
       "deletedOne": "{{count}} média supprimé.",

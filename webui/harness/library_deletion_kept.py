@@ -14,6 +14,10 @@ reason in place of removing the row. Constitution § 8, « Rien en silence ».
    asked and names only the medium kept; the two that went are no longer drawn, the kept one is.
 4. THE YEAR-LESS INCOMPLETE SHOW (`lib-incomplete-yearless`, N1): a show served `year: null`
    reads what it is missing and nothing else — never « null · ».
+5. AT 369 PX, EVERY KEPT LINE FITS: in the four deletion states, each line of the dialog naming a
+   kept medium holds its title and its reason inside its own box (`scrollWidth <= clientWidth`).
+   A reason is a sentence, and a line built for a short figure (`whitespace-nowrap`) ran it past
+   the dialog's edge at a phone's width.
 """
 import asyncio
 
@@ -54,6 +58,18 @@ OWED_WORDS = """(epoch) => {
   const two = (value) => String(value).padStart(2, '0');
   const time = window.__i18n.t('surfaces.clock.timeOfDay', { hour: two(until.getHours()), minute: two(until.getMinutes()) });
   return window.__i18n.t('verbs.library.delete.keptSeedOwed', { day, time });
+}"""
+
+# The narrowest phone the interface is drawn for.
+NARROW = {"width": 369, "height": 800}
+
+# Each line of the open dialog that names a kept medium, with its box and what it holds.
+KEPT_LINES = """(title) => {
+  const dialog = document.querySelector('#dlg[data-open]');
+  if (!dialog) return null;
+  return [...dialog.querySelectorAll('p, li')]
+    .filter((line) => line.textContent.includes(title))
+    .map((line) => ({ text: line.textContent, scroll: line.scrollWidth, client: line.clientWidth }));
 }"""
 
 
@@ -118,9 +134,10 @@ async def main():
         drawn = await page.evaluate(DRAWN)
         heading = await say("verbs.library.delete.partlyHeading", deleted=2, asked=3)
         reason = await page.evaluate(OWED_WORDS, OWED_UNTIL)
+        separator = await say("verbs.library.delete.keptSeparator")
         gone = [title for title in PARTLY if title != PARTLY_KEPT]
         journal.check("lib-delete-partly: the dialog counts two gone of three asked, and names the one kept",
-                      heading in drawn["text"] and f"{PARTLY_KEPT}{reason}" in drawn["text"]
+                      heading in drawn["text"] and f"{PARTLY_KEPT}{separator}{reason}" in drawn["text"]
                       and not any(title in drawn["text"] for title in gone),
                       str(drawn)[:400])
         still = {title: await held(ref) for title, ref in (await page.evaluate(
@@ -145,6 +162,19 @@ async def main():
 
         journal.check("no error was raised", not errors, " · ".join(errors[:3]))
         await context.close()
+
+        # ── 5. at 369 px, every kept line fits ──────────────────────────────
+        narrow, page = await open_page(browser, viewport=NARROW)
+        for state, title in (("lib-delete-kept-seed", ANIMANIACS_TITLE),
+                             ("lib-delete-kept-disk", ANIMANIACS_TITLE),
+                             ("lib-delete-kept-failed", ANIMANIACS_TITLE),
+                             ("lib-delete-partly", PARTLY_KEPT)):
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await page.wait_for_timeout(SETTLED + ACTED + SETTLED)
+            lines = await page.evaluate(KEPT_LINES, title)
+            journal.check(f"{state} at {NARROW['width']} px: each line naming « {title} » fits its box",
+                          bool(lines) and all(line["scroll"] <= line["client"] for line in lines), str(lines))
+        await narrow.close()
         await browser.close()
     journal.summary()
 

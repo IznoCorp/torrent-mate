@@ -21,7 +21,7 @@ import { dialog, followedTitles, stopFollow, toast, redraw } from "../../lib/she
 import { store } from "../../lib/store-access";
 import { deleteLibraryItems, libraryIncompleteQuery, type LibraryDeletion } from "./queries";
 import { timeOfDay } from "../../lib/clock";
-import type { DialogDescriptor } from "../../ui/dialog/contract";
+import type { DialogBlock, DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./types";
 import { followedAs } from "../../lib/titles";
 
@@ -88,6 +88,10 @@ function keptReason(medium: LibraryDeletion): string {
  * The dialog a deletion that kept media draws: each kept medium named with its
  * reason, and, for a request of several media, how many of them went.
  *
+ * A kept medium is a line of its own — its title in bold, then its reason —
+ * and never a `manifest` entry: that block holds a short figure on one line,
+ * and a reason is a sentence it ran past the dialog's edge on a phone.
+ *
  * Args:
  *     kept: The media kept, each with the layer's answer for it.
  *     asked: How many media the layer answered for.
@@ -102,7 +106,12 @@ function openKeptDialog(kept: (Doomed & { medium: LibraryDeletion })[], asked: n
   dialog?.open({
     heading,
     body: [
-      { type: "manifest", entries: kept.map((one) => ({ text: one.title, value: keptReason(one.medium) })) },
+      ...kept.map(
+        (one): DialogBlock => ({
+          type: "paragraph",
+          runs: [{ text: one.title, strong: true }, { text: say("keptSeparator") }, { text: keptReason(one.medium) }],
+        }),
+      ),
       { type: "paragraph", runs: [{ text: say("keptText") }] },
     ],
     actions: [{ text: say("close"), tone: "ghost", dismiss: true }],
