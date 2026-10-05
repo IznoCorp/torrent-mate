@@ -283,3 +283,135 @@ def test_the_french_splash_is_served_as_the_prototype_writes_it() -> None:
     splash = SERVE.extract(SERVE.SHELL_DOCUMENT.read_text(encoding="utf-8"), "splash")
     assert "'" in splash, "the splash holds no apostrophe: this test would distinguish nothing"
     assert SERVE.v1_door.worded(splash, CATALOGUES["fr"]) == splash
+
+
+# THE OTHER PAGES BEFORE THE SIGN-IN. The build failure's 503, the offline notice and the manifest are
+# served without a session, so they follow the browser's language exactly as the sign-in page does
+# (OPEN-2 B). Each is read as the visitor gets it: through the handler's own GET, with a header.
+class _Capture:
+    """The answer a handler gave: its status, its body and its declared type."""
+
+    def __init__(self) -> None:
+        """Starts with nothing answered."""
+        self.status = 0
+        self.body = b""
+
+
+def _answer(path: str, accept_language: str | None, *, broken: bool = False) -> _Capture:
+    """Runs the handler's GET for one request and captures what it would have written.
+
+    No socket is opened: the handler is built bare, given its path and headers, and its ``_send`` is
+    replaced by a capture.
+
+    Args:
+        path: The request path.
+        accept_language: The ``Accept-Language`` header, or None for none.
+        broken: Whether the page builders fail with an OSError, to reach the build failure's 503.
+
+    Returns:
+        What it answered.
+    """
+    handler = SERVE.Handler.__new__(SERVE.Handler)
+    handler.path = path
+    handler.headers = {} if accept_language is None else {"Accept-Language": accept_language}
+    handler.command = "GET"
+    captured = _Capture()
+
+    def send(status: int, body: bytes, *_: object, **__: object) -> None:
+        captured.status, captured.body = status, body
+
+    handler._send = send  # type: ignore[method-assign]
+    if not broken:
+        handler.do_GET()
+        return captured
+
+    def fail(*_: object, **__: object) -> bytes:
+        raise OSError("the build is gone")
+
+    original = SERVE.worker
+    SERVE.worker = fail
+    try:
+        handler.do_GET()
+    finally:
+        SERVE.worker = original
+    return captured
+
+
+@pytest.mark.parametrize(
+    ("header", "language"),
+    [("en-US,en;q=0.9", "en"), ("fr-FR,fr;q=0.9,en;q=0.8", "fr"), (None, "en")],
+)
+def test_the_offline_page_follows_the_browser(header: str | None, language: str) -> None:
+    """``lang`` and every word of the offline notice are the visitor's language's."""
+    answer = _answer("/offline.html", header)
+    page, words = answer.body.decode(), CATALOGUES[language]["server"]["offline"]
+    assert answer.status == 200
+    assert f'<html lang="{language}">' in page
+    assert f"<title>{words['title']}</title>" in page
+    assert words["heading"] in page and words["body"] in page
+
+
+@pytest.mark.parametrize(
+    ("header", "language"),
+    [("en-US,en;q=0.9", "en"), ("fr-FR,fr;q=0.9,en;q=0.8", "fr"), (None, "en")],
+)
+def test_the_build_failure_follows_the_browser(header: str | None, language: str) -> None:
+    """The 503 a broken build answers is worded, and its ``lang`` set, in the visitor's language."""
+    answer = _answer("/sw.js", header, broken=True)
+    page, words = answer.body.decode(), CATALOGUES[language]["server"]["buildFailure"]
+    assert answer.status == 503
+    assert f'<html lang="{language}">' in page
+    assert f"<title>{words['title']}</title>" in page
+    assert words["heading"] in page and words["body"] in page
+
+
+@pytest.mark.parametrize(
+    ("header", "language"),
+    [("en-US,en;q=0.9", "en"), ("fr-FR,fr;q=0.9,en;q=0.8", "fr")],
+)
+def test_the_failed_build_answers_in_the_browsers_language(
+    header: str, language: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ``_document`` that raises ``RuntimeError`` is the 503 of the visitor's language, not the default's."""
+
+    def broken(_: object) -> bytes:
+        raise RuntimeError("the build is gone")
+
+    monkeypatch.setattr(SERVE.Handler, "_document", broken)
+    monkeypatch.setattr(SERVE.v1_door, "check_session", lambda _: (True, 200))
+    answer = _answer("/", header)
+    words = CATALOGUES[language]["server"]["buildFailure"]
+    page = answer.body.decode()
+    assert answer.status == 503
+    assert f'<html lang="{language}">' in page
+    assert words["heading"] in page and words["body"] in page
+
+
+@pytest.mark.parametrize("language", ["fr", "en"])
+def test_the_manifest_follows_the_browser(language: str) -> None:
+    """The manifest's ``lang`` and description are the visitor's language's."""
+    answer = _answer("/manifest.webmanifest", language)
+    document = json.loads(answer.body)
+    assert document["lang"] == language
+    assert document["description"] == CATALOGUES[language]["server"]["manifest"]["description"]
+
+
+@pytest.mark.parametrize(
+    ("header", "language"),
+    [("en-US,en;q=0.9", "en"), ("fr-FR,fr;q=0.9,en;q=0.8", "fr"), (None, "en")],
+)
+def test_the_v1_unreachable_page_follows_the_browser(
+    header: str | None, language: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The 503 a visitor meets when v1 is down is worded, and its ``lang`` set, in the visitor's language."""
+
+    def down(_: str | None) -> tuple[bool, str]:
+        raise SERVE.v1_door.V1Unreachable("v1 did not answer")
+
+    monkeypatch.setattr(SERVE.v1_door, "check_session", down)
+    answer = _answer("/", header)
+    page, words = answer.body.decode(), CATALOGUES[language]["server"]["v1Unreachable"]
+    assert answer.status == 503
+    assert f'<html lang="{language}">' in page
+    for key in ("title", "heading", "body"):
+        assert words[key] in page

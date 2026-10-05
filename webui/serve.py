@@ -311,7 +311,7 @@ ASSET_FILE = {
 }
 
 
-def build_failure(error: str) -> bytes:
+def build_failure(error: str, language: str = DEFAULT_LANGUAGE) -> bytes:
     """Builds the 503 shown when the build fails.
 
     Serving the PREVIOUS build instead would be a stale reference wearing
@@ -320,21 +320,23 @@ def build_failure(error: str) -> bytes:
 
     Args:
         error: The error message from the failed build, typically stderr output.
+        language: The visitor's language (`request_language`): the page is
+            worded and declared in it; English when none is given.
 
     Returns:
         A complete HTML 503 error page as bytes, with the error escaped.
     """
     try:
-        texts = served_texts()["buildFailure"]
+        texts = served_texts(language)["buildFailure"]
     except (OSError, ValueError, KeyError) as unreadable:
         # This page is how every other failure here gets reported, so it is the
-        # one page that may not fail itself. Restating its French copy as a
+        # one page that may not fail itself. Restating its words here as a
         # fallback would reintroduce exactly the second copy this indirection
-        # removes, so the last resort speaks the developer's language and names
+        # removes, so the last resort is the English diagnostic page and names
         # the copy as what broke — alongside the error it was called for.
         return diagnostic_page(f"{error}\n\n{unreadable}")
     return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{texts['title']}</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
@@ -630,7 +632,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def _send_page(
-        self, status: int, build: Callable[[], bytes], content_type: str = "text/html; charset=utf-8"
+        self,
+        status: int,
+        build: Callable[[], bytes],
+        content_type: str = "text/html; charset=utf-8",
+        language: str = DEFAULT_LANGUAGE,
     ) -> None:
         """Sends a page built from the served copy, or the 503 that names the break.
 
@@ -643,6 +649,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             status: The status the page answers with when it builds.
             build: The page builder to call.
             content_type: The Content-Type to declare.
+            language: The visitor's language, for the 503 that names the break.
         """
         try:
             body = build()
@@ -653,7 +660,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(503, diagnostic_page(f"missing entry in the served copy: {incomplete}"))
             return
         except (OSError, ValueError) as broken:
-            self._send(503, build_failure(str(broken)))
+            self._send(503, build_failure(str(broken), language))
             return
         self._send(status, body, content_type=content_type)
 
@@ -664,26 +671,34 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except v1_door.V1Unreachable as down:
             # Never the sign-in page: it would send a signed-in person to a
             # door that cannot open, saying nothing about why.
+            language = request_language(self.headers.get("Accept-Language"))
             try:
-                texts = served_texts()["v1Unreachable"]
+                texts = served_texts(language)["v1Unreachable"]
             except (OSError, ValueError, KeyError) as unreadable:
                 # As `build_failure`: the last resort names the copy as what broke.
                 self._send(503, diagnostic_page(f"{down}\n\n{unreadable}"))
                 return
-            self._send(503, v1_door.unreachable_page(str(down), texts))
+            self._send(503, v1_door.unreachable_page(str(down), texts, language))
 
     def _get(self) -> None:
         """Answers a GET: the prototype to a session, the login screen otherwise."""
         path_ = self.path.split("?", 1)[0]
+        # Read once for every page built before the sign-in, as the sign-in page does.
+        language = request_language(self.headers.get("Accept-Language"))
         if path_ == "/manifest.webmanifest":
-            self._send_page(200, lambda: manifest(served_texts), "application/manifest+json")
+            self._send_page(
+                200,
+                lambda: manifest(lambda: served_texts(language), language),
+                "application/manifest+json",
+                language,
+            )
             return
         if path_ == "/sw.js":
             # Through `_send_page`, like the manifest and the offline notice:
             # the build can be absent or broken, and a host that answered an
             # empty worker there would install a worker that caches nothing and
             # say nothing about it. The named build error is the honest answer.
-            self._send_page(200, lambda: worker(DESIGN_ROOT), "text/javascript")
+            self._send_page(200, lambda: worker(DESIGN_ROOT), "text/javascript", language)
             return
         # WHAT BUILD IS BEING SERVED — the update discipline's one question. It
         # sits outside `/api/` deliberately: the mock layer replaces the page's
@@ -691,12 +706,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # could never fail. Outside the session like the manifest, because the
         # worker asks for it before anyone has signed in.
         if path_ == "/build.json":
-            self._send_page(200, lambda: build_identity(DESIGN_ROOT), "application/json")
+            self._send_page(200, lambda: build_identity(DESIGN_ROOT), "application/json", language)
             return
         # Outside the session, like the manifest: the worker caches this page at
         # install time, and that install happens before anyone has signed in.
         if path_ == "/offline.html":
-            self._send_page(200, lambda: offline_page(served_texts))
+            self._send_page(
+                200,
+                lambda: offline_page(lambda: served_texts(language), language),
+                language=language,
+            )
             return
         if path_ in ASSETS:
             file_ = ASSETS_DIR / ASSET_FILE[path_]
@@ -777,15 +796,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # never submitted anything.
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             reason = v1_door.refusal_reason(code, (params.get("why") or [None])[0])
-            language = request_language(self.headers.get("Accept-Language"))
             self._send_page(
-                401, lambda: login_page("refus" in params, reason, v1_door.return_target(self.path), language)
+                401,
+                lambda: login_page("refus" in params, reason, v1_door.return_target(self.path), language),
+                language=language,
             )
             return
         try:
             body = self._document()
         except RuntimeError as error:
-            self._send(503, build_failure(str(error)))
+            self._send(503, build_failure(str(error), language))
             return
         # AFTER the cache, never inside it. `_document()` caches the built bytes
         # by mtime; the identity is not a property of the build and must not
