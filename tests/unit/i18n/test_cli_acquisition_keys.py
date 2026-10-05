@@ -49,3 +49,11 @@ def test_follow_backfill_labels_are_all_keyed() -> None:
     """The four backfill field labels are shown to the user: a label back to a literal leaves its key orphaned."""
     for field in ("title", "poster", "overview", "year"):
         assert f"{_NAMESPACE}.follow.backfill.field_{field}" in _catalogue_keys() & _literal_keys()
+
+
+def test_layout_only_finding_texts_are_not_in_the_catalogue() -> None:
+    """The ids and rating-key fragments carry no words: they stay literals, never catalogue keys."""
+    layout_only = {f"{_NAMESPACE}.plex_guard.finding_ids", f"{_NAMESPACE}.plex_guard.finding_rating_key"}
+    assert not layout_only & _catalogue_keys()
+    one_sided = json.loads((_ROOT / "i18n" / "one_sided" / f"{_NAMESPACE}.json").read_text(encoding="utf-8"))
+    assert not {key.removeprefix(f"{_NAMESPACE}.") for key in layout_only} & set(one_sided)

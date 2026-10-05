@@ -9,8 +9,6 @@
     "mode_repair": "REPAIR",
     "heading": "Plex match coherence ({{mode}})...",
     "finding_item": "item {{item_id}} « {{title}} »",
-    "finding_ids": " ({{provider}}-{{id}})",
-    "finding_rating_key": " → {{rating_key}}",
     "finding_plex_title": " [Plex: « {{plex_title}} »]",
     "finding_title_suspect": " [title suspect]",
     "finding_path": " [path: {{path}}]",

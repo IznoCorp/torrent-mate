@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -10,6 +10,9 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.i18n import t
+
+if TYPE_CHECKING:
+    from personalscraper.maintenance.plex_guard import PlexGuardFinding
 
 
 @app.command(help=t("cli_acquisition.plex_guard.help"))
@@ -128,7 +131,7 @@ _STATE_COLORS = {
 }
 
 
-def _finding_line(finding: Any) -> str:
+def _finding_line(finding: PlexGuardFinding) -> str:
     """Render one finding as its console line (Rich markup stays here, the words come from the catalogue).
 
     Args:
@@ -143,14 +146,10 @@ def _finding_line(finding: Any) -> str:
         t("cli_acquisition.plex_guard.finding_item", item_id=finding.item_id, title=finding.title),
     ]
     if finding.canonical_id:
-        ids = t(
-            "cli_acquisition.plex_guard.finding_ids",
-            provider=finding.canonical_provider,
-            id=finding.canonical_id,
-        )
-        parts.append(ids)
+        # Layout only (no words): never translated.
+        parts.append(f" ({finding.canonical_provider}-{finding.canonical_id})")
     if finding.rating_key:
-        parts.append(t("cli_acquisition.plex_guard.finding_rating_key", rating_key=finding.rating_key))
+        parts.append(f" → {finding.rating_key}")
     if finding.plex_title:
         parts.append(t("cli_acquisition.plex_guard.finding_plex_title", plex_title=finding.plex_title))
     if finding.title_suspect:

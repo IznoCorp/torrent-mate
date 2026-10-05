@@ -8,8 +8,6 @@
   "plex_guard.mode_repair",
   "plex_guard.heading",
   "plex_guard.finding_item",
-  "plex_guard.finding_ids",
-  "plex_guard.finding_rating_key",
   "plex_guard.finding_plex_title",
   "plex_guard.finding_title_suspect",
   "plex_guard.finding_path",
