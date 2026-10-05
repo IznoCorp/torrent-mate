@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 
 import pytest
 
 from personalscraper.api.metadata._base import ArtworkItem, CastMember, MediaDetails, SeasonInfo
+from personalscraper.app.composition import LazyProviders, build_app_services
 from personalscraper.app.errors import AppNotFound, AppUnavailable, RefusalCode
 from personalscraper.app.library.facts import CastFact, GenreId, MediaStatus
+from personalscraper.conf.models.config import Config
+from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 from tests.unit.app.library.world import World, catalogued
 
@@ -207,6 +212,40 @@ def test_a_provider_down(world: World) -> None:
 
     assert refused.value.code is RefusalCode.PROVIDER_UNAVAILABLE
     assert refused.value.params == {"provider": "tmdb"}
+
+
+def test_no_tmdb_key_builds_the_services_and_answers_provider_unavailable(
+    world: World, test_config: Config, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No ``TMDB_API_KEY``: the services still build, and a sheet answers ``provider.unavailable``, said once."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+    config = test_config.model_copy(
+        update={
+            "indexer": test_config.indexer.model_copy(update={"db_path": world.index.path}),
+            "acquire": test_config.acquire.model_copy(update={"db_path": world.data_dir / "acquire.db"}),
+        }
+    )
+    services = build_app_services(config, Settings(_env_file=None, tmdb_api_key=""), event_bus=EventBus())  # type: ignore[call-arg]
+    caplog.set_level(logging.DEBUG)
+    try:
+        assert isinstance(services.library._providers, LazyProviders)
+        for _ in range(2):
+            with pytest.raises(AppUnavailable) as refused:
+                services.library.read_sheet(world.actor, MediaRef(tmdb_id=949))
+            assert refused.value.code is RefusalCode.PROVIDER_UNAVAILABLE
+            assert refused.value.params == {"provider": "tmdb"}
+    finally:
+        services.close()
+    said = [
+        record.msg
+        for record in caplog.records
+        if record.name == "app.composition"
+        and isinstance(record.msg, dict)
+        and record.msg["event"] == "app.providers.unavailable"
+    ]
+    assert len(said) == 1
+    assert said[0]["issues"] == ["missing_credentials"]
 
 
 def test_the_provider_answer_is_cached_five_minutes(world: World) -> None:

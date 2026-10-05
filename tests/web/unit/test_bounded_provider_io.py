@@ -81,6 +81,8 @@ class TestPolicyOverrideSeam:
             cb_policy: object,
             event_bus: object,
             retry: object = None,
+            *,
+            language: str = "fr-FR",
         ) -> dict[str, object]:
             captured["retry"] = retry
             return {}
@@ -99,6 +101,7 @@ class TestPolicyOverrideSeam:
                     event_bus=MagicMock(),
                     cb_policy=MagicMock(),
                     providers_config=providers_config,
+                    language="fr-FR",
                     retry=RetryPolicy(max_attempts=1),
                 )
             except Exception:  # noqa: BLE001 — validation of a mock config may reject; the capture is what matters

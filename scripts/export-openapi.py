@@ -48,6 +48,7 @@ from personalscraper.conf.models.providers import ProvidersConfig
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.conf.models.web import WebConfig
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import create_v1_app
 from personalscraper.web.app import create_app
 
@@ -171,7 +172,7 @@ def main() -> None:
         config = _build_minimal_config(Path(tmpdir))
         settings = Settings(_env_file=None)  # type: ignore[call-arg]
         if arguments.v1:
-            services = build_app_services(config, settings)
+            services = build_app_services(config, settings, event_bus=EventBus())
             try:
                 schema = create_v1_app(config, settings, services).openapi()
             finally:

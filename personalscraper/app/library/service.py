@@ -27,7 +27,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal
 
-from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderClients
+from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderLookup
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.errors import (
@@ -602,7 +602,7 @@ class LibraryService:
         data_dir: Path,
         catalogue: CatalogueStore,
         ownership: IndexerOwnershipChecker,
-        providers: ProviderClients,
+        providers: ProviderLookup,
         clock: Callable[[], float] = time.time,
         plex: PlexClient | None = None,
         delete_permit: DeletePermit | None = None,
@@ -617,7 +617,7 @@ class LibraryService:
             data_dir: The pipeline data directory holding ``pipeline.lock``.
             catalogue: The aired catalogue's store (owned: closed by :meth:`close`).
             ownership: The ownership checker over ``library.db`` (owned: closed by :meth:`close`).
-            providers: The metadata provider clients; ``None`` for an unconfigured one.
+            providers: Where the metadata provider clients are found; ``None`` for an unavailable one.
             clock: Epoch seconds; « today » for the aired counts and the provider cache's clock.
             plex: The Plex server a deletion tells; ``None`` when none is configured.
             delete_permit: The deletion authority a deletion consults (fail-open); ``None``
@@ -1508,7 +1508,7 @@ class LibraryService:
         details, answered = fetch_details(self._providers.get(provider), provider, provider_id, kind)
         creator = details.creator
         tmdb_id = details.external_ids.get("tmdb", "").strip()
-        tmdb = self._providers.tmdb
+        tmdb = self._providers.get("tmdb")
         lacking = not creator or not details.trailer_url or details.rating is None
         if answered == "show" and lacking and provider == "tvdb" and tmdb_id not in ("", "0"):
             if isinstance(tmdb, SheetClient):
