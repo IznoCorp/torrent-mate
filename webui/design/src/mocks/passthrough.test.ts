@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import V1 from "../../../../contract/openapi.generated.json";
 import CONTRACT from "../../../../contract/openapi.json";
-import { passesThrough, servedOperations } from "./passthrough";
+import { LIBRARY_STORE_OPERATIONS, passesThrough, servedOperations } from "./passthrough";
 
 type Document = { paths: Record<string, Record<string, { operationId?: string }>> };
 
@@ -54,6 +54,28 @@ describe("the operations v1 serves", () => {
     expect(passesThrough("readFollows", true)).toBe(false);
   });
 
+  it("keep the library store's operations on the mocks, and the account ones through", () => {
+    expect([...LIBRARY_STORE_OPERATIONS].sort()).toEqual([
+      "deleteLibraryItems",
+      "readLibraryCategories",
+      "readLibraryIncomplete",
+      "readLibraryItems",
+      "readLibraryMembership",
+      "readLibraryRecent",
+      "readMediaPoster",
+      "readMediaSeasons",
+      "readMediaSheet",
+      "rescrapeMedia",
+    ]);
+    for (const id of LIBRARY_STORE_OPERATIONS) {
+      expect(SERVED).toContain(id);
+      expect(passesThrough(id, true)).toBe(false);
+    }
+    for (const id of ["signIn", "signOut", "readAccount", "readAccounts", "readVersion"]) {
+      expect(passesThrough(id, true)).toBe(true);
+    }
+  });
+
   it("stay on the mocks in every build but the design host's", () => {
     expect(passesThrough("signIn")).toBe(false);
   });
@@ -92,6 +114,15 @@ describe("the layer, installed", () => {
     vi.stubGlobal("__DESIGN_HOST__", true);
     expect(await ask("/api/v1/version")).toEqual({ status: 299, recorded: 299 });
     expect(network).toHaveBeenCalledTimes(1);
+  });
+
+  it("on the design host, sends no library or media read to the network", async () => {
+    vi.stubGlobal("__DESIGN_HOST__", true);
+    for (const path of ["/api/v1/library/categories", "/api/v1/library/incomplete", "/api/v1/media/tmdb/1"]) {
+      network.mockClear();
+      await ask(path);
+      expect(network).not.toHaveBeenCalled();
+    }
   });
 
   it("on the design host, answers an unserved operation from the mocks", async () => {
