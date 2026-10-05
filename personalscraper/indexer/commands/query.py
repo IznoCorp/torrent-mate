@@ -108,7 +108,8 @@ def library_status_command(
                 )
                 last_seen_str = str(last_seen_at) if last_seen_at is not None else t("cli_library.indexer_query.never")
                 root_str = (merkle_root or "")[:12] if merkle_root else ""
-                typer.echo(f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}")
+                row = f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}"
+                typer.echo(row)
                 disks_data.append(
                     {
                         "label": label,
