@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import V1 from "../../../../contract/openapi.generated.json";
 import CONTRACT from "../../../../contract/openapi.json";
-import { LIBRARY_STORE_OPERATIONS, passesThrough, servedOperations } from "./passthrough";
+import { passesThrough, servedOperations } from "./passthrough";
 
 type Document = { paths: Record<string, Record<string, { operationId?: string }>> };
 
@@ -54,8 +54,8 @@ describe("the operations v1 serves", () => {
     expect(passesThrough("readFollows", true)).toBe(false);
   });
 
-  it("keep the library store's operations on the mocks, and the account ones through", () => {
-    expect([...LIBRARY_STORE_OPERATIONS].sort()).toEqual([
+  it("on the design host, the library and media operations pass through, with the account ones", () => {
+    const libraryAndMedia = [
       "deleteLibraryItems",
       "readLibraryCategories",
       "readLibraryIncomplete",
@@ -66,12 +66,9 @@ describe("the operations v1 serves", () => {
       "readMediaSeasons",
       "readMediaSheet",
       "rescrapeMedia",
-    ]);
-    for (const id of LIBRARY_STORE_OPERATIONS) {
+    ];
+    for (const id of [...libraryAndMedia, "signIn", "signOut", "readAccount", "readAccounts", "readVersion"]) {
       expect(SERVED).toContain(id);
-      expect(passesThrough(id, true)).toBe(false);
-    }
-    for (const id of ["signIn", "signOut", "readAccount", "readAccounts", "readVersion"]) {
       expect(passesThrough(id, true)).toBe(true);
     }
   });
@@ -116,12 +113,12 @@ describe("the layer, installed", () => {
     expect(network).toHaveBeenCalledTimes(1);
   });
 
-  it("on the design host, sends no library or media read to the network", async () => {
+  it("on the design host, sends a library or media read to the network", async () => {
     vi.stubGlobal("__DESIGN_HOST__", true);
     for (const path of ["/api/v1/library/categories", "/api/v1/library/incomplete", "/api/v1/media/tmdb/1"]) {
       network.mockClear();
       await ask(path);
-      expect(network).not.toHaveBeenCalled();
+      expect(network).toHaveBeenCalledTimes(1);
     }
   });
 
