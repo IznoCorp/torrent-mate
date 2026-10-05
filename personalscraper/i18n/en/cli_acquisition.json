@@ -112,5 +112,23 @@
     "mark_failed": "NFO written but resolve-mark failed for decision {{decision_id}}: {{error}}",
     "mark_lost": "NFO written but decision {{decision_id}} was no longer pending — not marked resolved.",
     "resolved": "Successfully resolved decision {{decision_id}} via {{provider}}:{{provider_id}}."
+  },
+  "search": {
+    "help": "Run the search pass — state availability for pending wanted items.",
+    "dry_run_help": "Show what WOULD be searched after cadence gating. No tracker calls, no writes.",
+    "limit_help": "Maximum number of wanted items to search. Default: all pending.",
+    "followed_id_help": "Restrict the run to one followed series' pending items.",
+    "no_context": "AcquireContext not available.",
+    "no_store": "No acquire store — cannot run search.",
+    "complete_label": "Search complete:",
+    "complete_counts": "{{available}} available, {{waiting}} waiting, {{unverified}} unverified, {{abandoned}} abandoned, {{skipped}} skipped.",
+    "dry_run_no_store": "No acquire store — nothing to dry-run.",
+    "dry_run_empty": "No pending wanted items.",
+    "dry_run_title": "Search dry-run:",
+    "dry_run_queue": "{{items}} items in queue",
+    "dry_run_would_search": "Would search:",
+    "dry_run_skipped": "Skipped by cadence:",
+    "dry_run_would_abandon": "Would abandon (cutoff):",
+    "dry_run_complete": "Dry-run complete — no trackers contacted, no writes performed."
   }
 }

@@ -1,1 +1,7 @@
-{}
+{
+  "search": {
+    "reconcile_label": "Réconciliation:",
+    "reconcile_closed": "{{closed}} clos (déjà en médiathèque).",
+    "reconcile_fell_back": "{{seasons}} saison(s) repassée(s) en épisodes (pack incomplet)."
+  }
+}
