@@ -26,9 +26,9 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 105 |
-| operations v1 serves | 19 |
-| required and not served | 86 |
-| served, different response shape | 3 |
+| operations v1 serves | 20 |
+| required and not served | 85 |
+| served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
 | fields carried pre-formatted | 22 |
@@ -121,7 +121,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
 | `PUT /api/v1/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
 | `PUT /api/v1/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
-| `PUT /api/v1/auth/language` | `setOwnLanguage` | Set the signed-in account's language |
 | `PUT /api/v1/config/files/{name}` | `updateConfigurationFile` | Write one configuration file |
 | `PUT /api/v1/config/secrets` | `updateSecrets` | Set secret values |
 | `PUT /api/v1/notifications/preferences/{type}` | `updateNotificationPreference` | Switch one notification type on or off for the signed-in account |
@@ -129,11 +128,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 
 ## 2. Operations both declare, whose response carries different property names
 
-| operation | the interface adds | v1 has and the interface does not use |
-| --- | --- | --- |
-| `GET /api/v1/auth/me` (`readAccount`) | `language` | — |
-| `POST /api/v1/auth/login` (`signIn`) | `language` | — |
-| `POST /api/v1/auth/plex` (`signInWithPlex`) | `language` | — |
+None.
 
 ## 2b. Operations both declare, whose path parameter is spelled differently
 
