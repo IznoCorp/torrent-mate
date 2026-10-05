@@ -512,7 +512,10 @@ tagged_pids() {
 
 # The rows of a table on stdin that belong to the run: its leader ($1), its
 # group, the pids listed in $2, and every descendant of those. Never this
-# script nor pid 1.
+# script nor pid 1, nor a service the run started — a PM2 daemon (`pm2 start`
+# from a run hands it the run's tag), Plex, Parsec, qBittorrent — nor anything
+# under one: weighed and reaped with the run, it would take the machine's
+# services down. The guard (`scripts/machine_guard.py`) knows them alike.
 members_of() {
     awk -v root="$1" -v listed="$2" -v me="$$" '
         BEGIN { count = split(listed, pids, " "); for (i = 1; i <= count; i++) wanted[pids[i]] = 1 }
@@ -520,6 +523,9 @@ members_of() {
         {
             row[$1] = $0
             parent[$1] = $2
+            name = $5
+            for (i = 6; i <= NF; i++) name = name " " $i
+            if (name ~ /Plex|parsecd|Parsec\.app|qBittorrent|qbittorrent|^PM2 v[0-9.]+: God Daemon/) service[$1] = 1
             if ($1 == root || $3 == root || ($1 in wanted)) member[$1] = 1
         }
         END {
@@ -528,7 +534,17 @@ members_of() {
                 for (pid in parent)
                     if (!(pid in member) && (parent[pid] in member)) { member[pid] = 1; grew = 1 }
             } while (grew)
-            for (pid in member) if (pid in row) print row[pid]
+            for (pid in member) {
+                if (!(pid in row)) continue
+                # A service, or a descendant of one, is never the run.
+                kept = 1
+                for (up = pid; up in parent && hops < 64; up = parent[up]) {
+                    hops++
+                    if (up in service) { kept = 0; break }
+                }
+                hops = 0
+                if (kept) print row[pid]
+            }
         }'
 }
 

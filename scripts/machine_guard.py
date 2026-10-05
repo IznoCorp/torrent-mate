@@ -17,11 +17,12 @@ killed. Each tree killed leaves a `GUARD KILLED` line in its
 log (`~/Library/Logs/machine-guard.log`, `MACHINE_GUARD_LOG`), which the
 orchestrator watches.
 
-WHAT IT NEVER TOUCHES. A service: Plex, Parsec, qBittorrent, a PM2-managed app
-and anything those start, WindowServer, launchd — and no `claude` process, ever:
-a tree is cut at a Claude session, so its shell's command may go, never the
-session. Another user's processes are not even read. The guard and its parents
-are never chosen.
+WHAT IT NEVER TOUCHES. A service, known by its executable: Plex, Parsec,
+qBittorrent, a PM2 daemon and anything those start, WindowServer, launchd — no
+`claude` process, ever (its binary, a versioned binary, the npm package or the
+agent SDK), nor the operator's login shells: a tree is cut at a Claude session
+or a login shell, so a command they run may go, never they. Another user's
+processes are not even read. The guard and its parents are never chosen.
 
 Allow and deny are decided by pure functions over a process table
 (`choose_victims`, `overloaded_minutes`), unit-tested on fake tables in
@@ -63,8 +64,14 @@ PS_ENV = {**os.environ, "LC_ALL": "C"}
 SERVICE = re.compile(r"Plex|parsecd|Parsec\.app|qBittorrent|qbittorrent|^PM2 v[\d.]+: God Daemon")
 # The system's own processes, by their executable: never killed.
 SYSTEM = re.compile(r"WindowServer|loginwindow|launchd|kernel_task")
-# Never killed. A `claude` session by its binary's name or its npm package.
-CLAUDE = re.compile(r"(?:^|/)claude(?:\s|$)|@anthropic-ai/claude-code|claude-code/cli")
+# Never killed: a `claude` session, by its program — its binary, a versioned
+# native binary, or the npm package a JavaScript runtime runs.
+CLAUDE = re.compile(r"(?:^|/)claude$|/claude/versions/|@anthropic-ai/claude-code/|claude-code/cli|claude-agent-sdk/")
+# The runtimes whose program is their first argument.
+RUNTIMES = frozenset({"node", "bun"})
+# The shells, and the parents that make one the operator's login shell.
+SHELLS = frozenset({"sh", "bash", "zsh", "fish", "dash", "ksh", "tcsh", "csh"})
+TERMINAL = re.compile(r"iTerm|^sshd|(?:^|/)login$")
 
 
 @dataclass(frozen=True)
@@ -157,6 +164,49 @@ def runs_from_agent(process: Process, places: re.Pattern[str]) -> bool:
     return places.match(process.cwd) is not None
 
 
+def _program(process: Process) -> str:
+    """What a process runs: its executable, or the script a JavaScript runtime runs.
+
+    Args:
+        process: The process.
+
+    Returns:
+        The executable's path, or the runtime's first argument.
+    """
+    if process.executable.rsplit("/", 1)[-1] in RUNTIMES:
+        words = process.command.split()
+        return words[1] if len(words) > 1 else process.executable
+    return process.executable
+
+
+def is_claude(process: Process) -> bool:
+    """Whether a process is a Claude session.
+
+    Args:
+        process: The process.
+
+    Returns:
+        True when its program is `claude`, a versioned Claude binary or the npm package.
+    """
+    return CLAUDE.search(_program(process)) is not None
+
+
+def is_login_shell(process: Process, parent: Process | None) -> bool:
+    """Whether a process is the operator's own shell: a login shell, or one a terminal or sshd started.
+
+    Args:
+        process: The process.
+        parent: Its parent, None when not in the table.
+
+    Returns:
+        True for `-zsh`-style login shells and for a shell under iTerm, sshd or login.
+    """
+    name = process.executable.rsplit("/", 1)[-1]
+    if name.startswith("-") and name[1:] in SHELLS:
+        return True
+    return name in SHELLS and parent is not None and TERMINAL.search(parent.executable) is not None
+
+
 def _subtree(root: int, children: dict[int, list[int]], cut: Callable[[int], bool]) -> list[int]:
     """A process and its descendants, a cut process and its own descendants left out.
 
@@ -223,12 +273,14 @@ def choose_victims(table: list[Process], *, me: int, home: str, min_cpu: float =
     mine.add(me)
 
     def protected(pid: int) -> bool:
-        """Whether a pid is a service, a service's descendant, a Claude session or the guard's own line."""
+        """Whether a pid is a service, a service's descendant, a Claude session, a login shell or the guard's line."""
         if pid <= 1 or pid in mine:
             return True
         seen: set[int] = set()
         current = by_pid.get(pid)
-        if current is not None and (SYSTEM.search(current.executable) or CLAUDE.search(current.command)):
+        if current is not None and (
+            SYSTEM.search(current.executable) or is_claude(current) or is_login_shell(current, by_pid.get(current.ppid))
+        ):
             return True
         while current is not None and current.pid not in seen:
             seen.add(current.pid)

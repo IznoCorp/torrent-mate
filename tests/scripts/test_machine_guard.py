@@ -132,8 +132,23 @@ PM2_DAEMON = "PM2 v6.0.8: God Daemon (/Users/someone/.pm2)"
         proc(400, 1, 300.0, "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer", CHECKOUT),
         proc(400, 1, 300.0, "/Users/someone/.local/bin/claude --resume", CHECKOUT),
         proc(400, 1, 300.0, "node /Users/someone/.npm/lib/node_modules/@anthropic-ai/claude-code/cli.js", CHECKOUT),
+        proc(400, 1, 300.0, "/Users/someone/.local/share/claude/versions/2.0.14 --resume", CHECKOUT),
+        proc(
+            400, 1, 300.0, "node /Users/someone/.npm/lib/node_modules/@anthropic-ai/claude-agent-sdk/cli.js", CHECKOUT
+        ),
+        proc(400, 1, 300.0, PM2_DAEMON, CHECKOUT, PM2_DAEMON),
     ],
-    ids=["plex", "parsec", "qbittorrent", "windowserver", "claude", "claude-node"],
+    ids=[
+        "plex",
+        "parsec",
+        "qbittorrent",
+        "windowserver",
+        "claude",
+        "claude-node",
+        "claude-versioned",
+        "agent-sdk",
+        "pm2",
+    ],
 )
 def test_a_service_is_never_killed_even_from_a_checkout(service: object) -> None:
     """B-703: Plex, Parsec, qBittorrent, WindowServer and Claude itself are never chosen."""
@@ -183,6 +198,30 @@ def test_a_test_path_naming_a_service_does_not_protect_the_run() -> None:
     ]
 
     assert killed(table) == {530}
+
+
+ITERM_SERVER = "/Applications/iTerm.app/Contents/MacOS/iTermServer-3.5.14"
+
+
+@pytest.mark.parametrize(
+    ("shell", "parent"),
+    [
+        ("-zsh", "/usr/bin/login"),
+        ("/bin/zsh", ITERM_SERVER),
+        ("-bash", "sshd: someone@ttys004"),
+    ],
+    ids=["login", "iterm", "ssh"],
+)
+def test_the_operators_login_shell_is_never_killed_only_its_job(shell: str, parent: str) -> None:
+    """B-703: a login shell in a checkout was chosen with its heavy job, and SIGHUP took its session."""
+    table = [
+        proc(1, 0, 0.0, "/sbin/launchd"),
+        proc(540, 1, 0.0, parent, "/"),
+        proc(541, 540, 0.0, shell, CHECKOUT),
+        proc(542, 541, 99.0, "python3 burn.py", CHECKOUT),
+    ]
+
+    assert killed(table) == {542}
 
 
 def test_a_heavy_tree_outside_any_checkout_is_left_alone() -> None:

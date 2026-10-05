@@ -778,6 +778,26 @@ def test_a_run_within_its_class_is_left_to_its_end(tmp_path: Path) -> None:
     assert "STOPPED" not in errors, errors
 
 
+def test_a_pm2_daemon_the_run_started_is_never_the_runs(tmp_path: Path) -> None:
+    """B-700: a run that starts PM2 (`pm2 start … --update-env`) handed it the run's tag.
+
+    The daemon and every app it runs became members, weighed and reaped with the
+    run; a PM2 daemon, and what it runs, is a service. The members are sought by
+    one function for the weighing and for the reaping: the weighing shows it.
+    """
+    daemon = "PM2 v6.0.8: God Daemon (/Users/someone/.pm2)"
+    run, child, table = watched_run(tmp_path, "test")
+    try:
+        apps = [(FAKE_PID + 1 + index, FAKE_PID, 100.0, "node /Users/someone/app.js") for index in range(9)]
+        fake_table(table, child, [(FAKE_PID, 1, 1.0, daemon), *apps])
+        time.sleep(4)
+        assert run.poll() is None, "a PM2 daemon and its apps were weighed as the run's"
+    finally:
+        run.send_signal(signal.SIGTERM)
+        _, errors = run.communicate(timeout=30)
+    assert "beyond its class" not in errors, errors
+
+
 def test_a_reused_pids_children_are_not_the_runs(tmp_path: Path) -> None:
     """B-700: the watcher took every RECORDED pid as the run's, alive or not.
 
