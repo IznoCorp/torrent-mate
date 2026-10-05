@@ -65,6 +65,8 @@ def test_layout_only_library_texts_are_not_in_the_catalogue() -> None:
         f"{_NAMESPACE}.query.search_row",
         f"{_NAMESPACE}.query.attribute_line",
         f"{_NAMESPACE}.query.item_field",
+        f"{_NAMESPACE}.indexer_query.disk_row",
+        f"{_NAMESPACE}.indexer_query.oldest_hours",
     }
     assert not layout_only & _catalogue_keys()
     one_sided = json.loads((_ROOT / "i18n" / "one_sided" / f"{_NAMESPACE}.json").read_text(encoding="utf-8"))
