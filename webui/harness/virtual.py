@@ -503,6 +503,20 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
             ROW_PITCH)
         if reached >= PAGE_SIZE + 6:
             break
+    # SETTLED, NOT SLEPT FOR. The fling a touch stream ends with keeps carrying
+    # the port after `touchEnd`, further on a loaded runner than on this machine
+    # (CI read index 51 where the loop stopped at 30). A window still moving when
+    # the row is measured recycles that row out of the DOM for a reason that is
+    # not the delete, which is the CI red this waits out: the port must hold one
+    # position over several samples before anything is read from it.
+    still, last = 0, -1
+    for _ in range(50):
+        now = await page.evaluate("()=>document.querySelector('#port').scrollTop")
+        still = still + 1 if now == last else 0
+        last = now
+        if still >= 5:
+            break
+        await page.wait_for_timeout(100)
     await page.wait_for_timeout(400)
 
     # THE MEASURED ROW'S INDEX, derived from the window's own leading spacer
@@ -552,6 +566,12 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
             arg={"row": ROW, "title": drawn["title"]}, timeout=1000)
     except PlaywrightTimeout:
         pass
+    # « NOT DRAWN » IS NOT « REMOVED »: a window recycles a row that scrolls out.
+    # The port is put back where the row was measured, so the same rows are in
+    # range and a row missing from them is a row the list dropped.
+    await page.evaluate(
+        "(top)=>{document.querySelector('#port').scrollTop = top;}", drawn["scrolled"])
+    await page.wait_for_timeout(300)
     after = await page.evaluate("""(row) => {
       const inside = row + ' [data-part="card/title"]';
       const titles = [...document.querySelectorAll(inside)]
