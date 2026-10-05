@@ -33,9 +33,11 @@ vi.mock("../../lib/query-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/query-client")>()),
   useServerStateVersion: () => 0,
 }));
-// THE SCREEN IS DRIVEN INTO ITS ERROR PHASE, as the harness names it.
+// THE PHASE IS THE TEST'S: "error" is what the harness names; "ready" is what a real refused read leaves, since
+// nothing but the harness ever sets the error phase.
+const screen = vi.hoisted(() => ({ phase: "error" }));
 vi.mock("../../lib/store-access", () => ({
-  useUiState: () => ({ phase: "error", scen: "" }),
+  useUiState: () => ({ phase: screen.phase, scen: "" }),
   useStoreContent: () => 0,
 }));
 
@@ -70,4 +72,23 @@ describe("MaintenancePage in its error phase", () => {
       reads.onlyRefused = undefined;
     }
   });
+});
+
+describe("MaintenancePage over a real refused read (the phase is not \"error\")", () => {
+  it.each([["both reads", undefined], ["only the LAST read (the journal)", "/api/v1/maintenance/destructive-log"]])(
+    "says why when %s is refused",
+    async (_name, only) => {
+      reads.onlyRefused = only;
+      screen.phase = "ready";
+      try {
+        const { MaintenancePage } = await import("./page");
+        const text = textOf(createElement(MaintenancePage) as ReactElement);
+        expect(text).toContain(REFUSAL);
+        expect(text).not.toContain(TIMEOUT);
+      } finally {
+        reads.onlyRefused = undefined;
+        screen.phase = "error";
+      }
+    },
+  );
 });

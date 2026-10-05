@@ -49,7 +49,7 @@ export function SystemPage(): ReactElement | null {
   const services = useServices();
   const SERVICES = services.data ?? [];
   const SERVICES_DOWN = useServicesDown(SERVICES);
-  const { data: SCHEDULERS = [], error: schedulersError } = useSchedulers();
+  const { data: SCHEDULERS = [], error: schedulersError, isError: schedulersRefused } = useSchedulers();
   const SCHEDULERS_DOWN = useSchedulersDown(SCHEDULERS);
   const disks = useDisks();
   const index = useIndexHealth();
@@ -57,7 +57,7 @@ export function SystemPage(): ReactElement | null {
   // The errors are an OBJECT, not a list, so the empty case is the shape
   // rather than an empty array — and it is stated here rather than left to a
   // question mark at each of its five readers.
-  const { data: ERRORS = { total: 0, outOf: 0, latest: "", what: "", where: "" }, error: errorsError } =
+  const { data: ERRORS = { total: 0, outOf: 0, latest: "", what: "", where: "" }, error: errorsError, isError: errorsRefused } =
     useSystemErrors();
   // WHY THE PAGE FAILED is the first of its six reads that a server refused: the surface names one
   // reason, and the readers of the others are no less wrong to say a timeout.
@@ -67,10 +67,14 @@ export function SystemPage(): ReactElement | null {
   // The two non-ready surfaces, emitted by the fragment exactly as before. The
   // host element is the `div.body` the legacy returned, so what goes here is
   // its CONTENT.
-  if (state.phase !== "ready") {
+  // EVERY READ REFUSED is the page's failure, and only then: one section that cannot be read says so in its
+  // own row while the others stay drawn (R400, `factsOf`). The harness's error phase says it too.
+  const allRefused =
+    services.isError && schedulersRefused && disks.isError && index.isError && dependencies.isError && errorsRefused;
+  if (state.phase !== "ready" || allRefused) {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
-    return state.phase === "error" ? (
+    return state.phase === "error" || allRefused ? (
       <SurfaceError subject={t("screens.system.errorSubject")} failure={failure} />
     ) : (
       <div className={section()} data-part="section"><Skeletons count={3} shape="card" /></div>

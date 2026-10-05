@@ -45,11 +45,14 @@ export function MaintenancePage(): ReactElement | null {
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
   // FROM THE CACHE (invariant 4).
-  const { data: MAINT_ACTIONS = [], error: actionsError } = useMaintenanceActions();
-  const { data: JOURNAL = { total: 0, rows: [] }, error: journalError } = useDeletionJournal();
+  const { data: MAINT_ACTIONS = [], error: actionsError, isError: actionsRefused } = useMaintenanceActions();
+  const { data: JOURNAL = { total: 0, rows: [] }, error: journalError, isError: journalRefused } = useDeletionJournal();
 
-  if (state.phase !== "ready") {
-    return state.phase === "error" ? (
+  // A REFUSED READ IS SAID WHATEVER THE PHASE: only the harness sets the error phase, so a real refusal
+  // would otherwise leave the page drawn over nothing.
+  const refused = actionsRefused || journalRefused;
+  if (state.phase !== "ready" || refused) {
+    return state.phase === "error" || refused ? (
       <SurfaceError subject={t("screens.maintenance.errorSubject")} failure={actionsError ?? journalError ?? undefined} />
     ) : (
       <div className={section()} data-part="section"><Skeletons count={3} shape="card" /></div>

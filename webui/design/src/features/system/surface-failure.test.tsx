@@ -33,9 +33,11 @@ vi.mock("../../lib/query-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/query-client")>()),
   useServerStateVersion: () => 0,
 }));
-// THE SCREEN IS DRIVEN INTO ITS ERROR PHASE, as the harness names it.
+// THE PHASE IS THE TEST'S: "error" is what the harness names; "ready" is what a real refused read leaves, since
+// nothing but the harness ever sets the error phase.
+const screen = vi.hoisted(() => ({ phase: "error" }));
 vi.mock("../../lib/store-access", () => ({
-  useUiState: () => ({ phase: "error", scen: "" }),
+  useUiState: () => ({ phase: screen.phase, scen: "" }),
   useStoreContent: () => 0,
 }));
 
@@ -71,3 +73,31 @@ describe("SystemPage in its error phase", () => {
     }
   });
 });
+
+describe("SystemPage over real refused reads (the phase is not \"error\")", () => {
+  it("says why when all six reads are refused", async () => {
+    screen.phase = "ready";
+    try {
+      const { SystemPage } = await import("./page");
+      const text = textOf(createElement(SystemPage));
+      expect(text).toContain(REFUSAL);
+      expect(text).not.toContain(TIMEOUT);
+    } finally {
+      screen.phase = "error";
+    }
+  });
+
+  it("leaves the page drawn when one section's read is refused (R400: its own row says so)", async () => {
+    reads.onlyRefused = "/api/v1/system/errors";
+    screen.phase = "ready";
+    try {
+      const { SystemPage } = await import("./page");
+      const text = textOf(createElement(SystemPage));
+      expect(text).not.toContain(REFUSAL);
+      expect(text).not.toContain(TIMEOUT);
+    } finally {
+      reads.onlyRefused = undefined;
+      screen.phase = "error";
+    }
+  });
+})
