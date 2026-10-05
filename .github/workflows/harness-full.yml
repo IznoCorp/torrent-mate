@@ -44,7 +44,7 @@ jobs:
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         if: github.event_name == 'pull_request'
         with:
@@ -75,10 +75,10 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "22" }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - run: pip install playwright && python -m playwright install --with-deps chromium webkit
       - run: pip install jsonschema
@@ -91,7 +91,7 @@ jobs:
           # state per pass, and three at a time no longer fit run.sh's 600 s bound.
           TM_RESPONSIVE_PARALLEL: "9"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: harness-full-shard-${{ matrix.shard }}
           path: harness-logs

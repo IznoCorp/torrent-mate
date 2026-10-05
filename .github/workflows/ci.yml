@@ -89,7 +89,7 @@ jobs:
       # `personalscraper/**` is not in the `python` and `frontend_app` filters
       # below: it is read by the `package` filter of the next step, and joined
       # to both in the job outputs.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filtre
         if: github.event_name == 'pull_request'
         with:
@@ -134,7 +134,7 @@ jobs:
       #   not a second one that can drift from it.
       # `webui/**` is NOT a frontend-app change, and no `frontend_app` pattern
       # matches it: the maquette has its own steps, gated by the `maquette` output.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: refine
         if: github.event_name == 'pull_request'
         with:
@@ -157,13 +157,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: needs.changes.outputs.python == 'true'
         with:
           path: ~/.cache/pip
@@ -188,8 +188,8 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
@@ -214,13 +214,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: needs.changes.outputs.python == 'true'
         with:
           path: |
@@ -240,10 +240,10 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         id: cache-gitleaks
         with:
           path: ~/.local/bin/gitleaks
@@ -272,13 +272,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.deps == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: needs.changes.outputs.deps == 'true'
         with:
           path: .venv/
@@ -302,13 +302,13 @@ jobs:
     env:
       PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: needs.changes.outputs.python == 'true'
         with:
           path: .venv/
@@ -329,7 +329,7 @@ jobs:
       # machine that happens to have run `npm ci`. Installing the ONE package
       # into an empty prefix keeps this to seconds instead of the
       # maquette's full dependency tree (same version as its lockfile).
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.python == 'true'
         with:
           node-version: "22"
@@ -361,7 +361,7 @@ jobs:
       # (v4 silently skips dotfiles by default).
       - run: mv .coverage coverage.dat
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.changes.outputs.python == 'true'
         with:
           name: coverage
@@ -375,13 +375,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.deps == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: needs.changes.outputs.deps == 'true'
         with:
           path: .venv/
@@ -408,9 +408,9 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           node-version: "22"
@@ -453,7 +453,7 @@ jobs:
         working-directory: frontend
       # Python for the OpenAPI export below, and for the conformance test at the end,
       # which a contract-only (maquette) change must run too.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           python-version: "3.12"
@@ -510,15 +510,15 @@ jobs:
     # show `lint` red, `test` skipped, and coverage-merge green-and-idle rather
     # than red-and-misleading.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           name: coverage
@@ -534,7 +534,7 @@ jobs:
           THRESHOLD=$(python3 scripts/get_coverage_threshold.py)
           coverage report --fail-under="${THRESHOLD}"
           coverage xml -o coverage.xml
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -572,13 +572,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           path: .venv/
