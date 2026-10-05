@@ -78,6 +78,9 @@ module.exports = {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
         PERSONALSCRAPER_PM2_NAME: "torrentmate-web",
+        // A new account starts in the project's configured language (the
+        // operator, 2026-10-05): set here, not inherited from PM2's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -99,6 +102,7 @@ module.exports = {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
         PERSONALSCRAPER_WEB_ROLE: "staging",
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 

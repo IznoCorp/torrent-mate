@@ -41,6 +41,9 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         # One's own password, on one's own account: a session act, no right to name; a write,
         # refused on a read-only instance (the account's own writes, ruling of 2026-10-03).
         "changeOwnPassword": SignedIn(write=True),
+        # One's own language, chosen in Profil: the same session act, the same refusal on a
+        # read-only instance (FG-1 B, ruling of 2026-10-03).
+        "setOwnLanguage": SignedIn(write=True),
         # The account's own notification choices and devices: a session act, no right; the
         # writes are refused on a read-only instance (ruling of 2026-10-03).
         "readNotificationPreferences": SignedIn(),

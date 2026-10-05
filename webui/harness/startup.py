@@ -209,7 +209,9 @@ async def main():
                 gate = ""
                 for _ in range(50):
                     try:
-                        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/", timeout=2) as r:
+                        # FRENCH NAMED: with none, the gate speaks English (OPEN-2 B), and the prototype's markup is the French wording.
+                        request = urllib.request.Request(f"http://127.0.0.1:{PORT}/", headers={"Accept-Language": "fr"})
+                        with urllib.request.urlopen(request, timeout=2) as r:
                             gate = r.read().decode()
                         break
                     except urllib.error.HTTPError as err:  # 401 carries the gate

@@ -19,6 +19,7 @@ const OWNER: Account = {
   email: "owner@example.invalid",
   role: { id: "admin", name: "Admin", kind: "admin", rights: [] },
   signInKind: "owner",
+  language: "fr",
   forbiddenWrites: [],
 };
 

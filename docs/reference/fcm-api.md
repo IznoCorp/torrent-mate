@@ -60,7 +60,8 @@ without delivering it (the probe's credential check). 200 answers `{"name": "pro
 Source: `https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages`.
 
 The application sends a **data-only** web-push message — the service worker, not the browser,
-composes what is shown, from `fr.json` (no sentence on the wire):
+composes what is shown, from the catalogue of the recipient's language, `fr.json` or `en.json`
+(no sentence on the wire):
 
 ```json
 {
@@ -69,13 +70,17 @@ composes what is shown, from `fr.json` (no sentence on the wire):
     "webpush": {
       "headers": {"TTL": "86400", "Urgency": "normal"},
       "data": {"code": "tracker.ratio_low", "params": "{\"ratio\": 1.12, \"tracker\": \"c411\"}",
-               "link": "/trackers/c411", "tag": "ratio-c411"}
+               "link": "/trackers/c411", "tag": "ratio-c411", "language": "fr"}
     }
   }
 }
 ```
 
 - every `data` value is a STRING (FCM's rule) — `params` is JSON-encoded;
+- `language` is the RECIPIENT ACCOUNT's language (`Account.language`, `"fr"` or `"en"`), filled by
+  the server per account (FG-2 A; the contract's `PushCode`): the worker words the code in it, and in
+  English when it is absent or names a language the interface does not speak (OPEN-2 B). The
+  backend does not fill it yet — that is the push-language phase;
 - `link` is a same-origin path (`PushMessage` refuses anything else); the worker's
   `notificationclick` opens or focuses it; `fcm_options.link` is NOT used (it wants an absolute HTTPS
   URL and applies only to notification messages);
@@ -169,10 +174,11 @@ Source: `https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/`
 ## The worker
 
 `webui/design/sw.js` — `push` composes the notification from the `push` namespace of
-`fr.json` (written into the worker at build time at `__PUSH_TEXTS__`; the build refuses a catalogue
-without `push.generic` and a worker where a placeholder survived — `worker-source.mjs`): the code
-looked up as a dotted path, `{{param}}` filled from the JSON-encoded `params`, the generic line for
-anything it cannot word. `notificationclick` focuses an open window of the application and sends it
+`fr.json` and `en.json` (both written into the worker at build time at `__PUSH_TEXTS__`, by
+language; the build refuses a catalogue without `push.generic` and a worker where a placeholder
+survived — `worker-source.mjs`): the catalogue the message's `language` names, else English
+(`PUSH_DEFAULT_LANGUAGE`); the code looked up in it as a dotted path, `{{param}}` filled from the
+JSON-encoded `params`, that language's generic line for anything it cannot word. `notificationclick` focuses an open window of the application and sends it
 to the message's link, or opens one there; any link that is not a same-origin path opens `/`.
 
 ## The dispatcher

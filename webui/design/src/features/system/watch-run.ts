@@ -1,4 +1,4 @@
-// « Relancer la veille » — the ask, the run it names, and the figures it ends with.
+// « Vérifier maintenant » — the ask, the run it names, and the figures it ends with.
 //
 // ONE VERB, TWO EMITTERS. The « ⋮ » sheet's panel and the levers section carry
 // the same `data-watch-now`, and it is registered here ONCE. §13 is one

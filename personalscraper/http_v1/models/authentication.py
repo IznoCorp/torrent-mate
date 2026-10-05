@@ -14,7 +14,7 @@ from pydantic import Field
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.repository import StartKind
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.views import AccountView, RoleView, SignInKind
+from personalscraper.app.accounts.views import AccountView, Language, RoleView, SignInKind
 from personalscraper.http_v1.contract import ContractModel
 
 
@@ -66,6 +66,7 @@ class AccountModel(ContractModel):
         role: Its one role.
         sign_in_kind: How it signs in.
         forbidden_writes: The instance's forbidden writes.
+        language: The language it is spoken to in.
     """
 
     name: str
@@ -75,6 +76,7 @@ class AccountModel(ContractModel):
     role: RoleModel
     sign_in_kind: SignInKind
     forbidden_writes: list[Right]
+    language: Language
 
     @classmethod
     def from_view(cls, view: AccountView) -> AccountModel:
@@ -94,6 +96,7 @@ class AccountModel(ContractModel):
             role=RoleModel.from_view(view.role),
             sign_in_kind=view.sign_in_kind,
             forbidden_writes=list(view.forbidden_writes),
+            language=view.language,
         )
 
 
@@ -151,6 +154,16 @@ class ChangeOwnPasswordBody(ContractModel):
 
     current_password: str = Field(repr=False)
     new_password: str = Field(repr=False)
+
+
+class SetOwnLanguageBody(ContractModel):
+    """``setOwnLanguage``'s body.
+
+    Attributes:
+        language: The language chosen; a value outside ``Language`` is refused 400.
+    """
+
+    language: Language
 
 
 class PasswordSet(ContractModel):

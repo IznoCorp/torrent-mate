@@ -106,7 +106,8 @@ def ask_v1(token: str) -> tuple[int, str | None]:
     """
     # Only v1's own cookie is forwarded: the host's other cookies are not v1's.
     request = urllib.request.Request(
-        f"{V1_URL}/api/v1/auth/me", headers={"Cookie": f"{V1_COOKIE}={token}", "Accept": "application/json"})
+        f"{V1_URL}/api/v1/auth/me", headers={"Cookie": f"{V1_COOKIE}={token}", "Accept": "application/json"}
+    )
     try:
         with urllib.request.urlopen(request, timeout=V1_TIMEOUT) as answer:  # noqa: S310 — a configured loopback URL
             return answer.status, None
@@ -323,6 +324,52 @@ def sign_in_script(return_to: str) -> str:
     )
 
 
+def worded(markup: str, catalogue: dict[str, object]) -> str:
+    """Words the extracted sign-in screen from one language's catalogue.
+
+    The shell's markup carries its French as the fallback of a page without
+    script, and the key of each word beside it: `data-words` for an element's
+    text, `data-words-label` for its accessible name. The prototype's boot reads
+    the same keys (`src/i18n/index.ts`'s `wordMarkup`); no script of the
+    application runs on this page, so the host words it here.
+
+    Args:
+        markup: The sign-in screen, as extracted from the shell document.
+        catalogue: The interface's resource for the visitor's language.
+
+    Returns:
+        The markup in that language.
+
+    Raises:
+        KeyError: When a key names no word of the catalogue — a page must not
+            be served with a hole where a word goes.
+    """
+
+    def word(key: str) -> str:
+        node: object = catalogue
+        for part in key.split("."):
+            if not isinstance(node, dict):
+                raise KeyError(key)
+            node = node[part]
+        if not isinstance(node, str):
+            raise KeyError(key)
+        # ONLY WHAT THE MARKUP NEEDS: `&`, `<`, `>`, and `"` for the double-quoted
+        # `aria-label`. An apostrophe left as written keeps the French screen the
+        # prototype's own text, extracted and never retyped (`harness/startup.py`).
+        return html.escape(node, quote=False).replace('"', "&quot;")
+
+    texts = re.sub(
+        r'(<(\w+)\b[^>]*\bdata-words="([^"]+)"[^>]*>)[^<]*(</\2>)',
+        lambda match: f"{match.group(1)}{word(match.group(3))}{match.group(4)}",
+        markup,
+    )
+    return re.sub(
+        r'(<[^>]*\bdata-words-label="([^"]+)"[^>]*?\baria-label=")[^"]*(")',
+        lambda match: f"{match.group(1)}{word(match.group(2))}{match.group(3)}",
+        texts,
+    )
+
+
 def with_reason(markup: str, reason: str) -> str:
     """Says why the session ended, under the sign-in form's subtitle.
 
@@ -339,7 +386,7 @@ def with_reason(markup: str, reason: str) -> str:
             says nothing about why they are there.
     """
     line = f'<p class="loginerr" data-part="login/reason" role="status">{html.escape(reason)}</p>'
-    said, found = re.subn(r'(<p class="loginsub">[^<]*</p>)', lambda match: match.group(1) + line, markup, count=1)
+    said, found = re.subn(r'(<p class="loginsub"[^>]*>[^<]*</p>)', lambda match: match.group(1) + line, markup, count=1)
     if found != 1:
         raise ValueError("the sign-in form carries no subtitle to say the reason under")
     return said
@@ -376,7 +423,7 @@ def email_label(resource: str) -> str:
     """The identifier's label when it is an e-mail, read from the interface's resource.
 
     Args:
-        resource: The text of `design/src/i18n/fr.json`.
+        resource: The text of one language's `design/src/i18n/<language>.json`.
 
     Returns:
         `screens.gate.email`.
@@ -408,7 +455,7 @@ def unreachable_page(error: str, texts: dict[str, str]) -> bytes:
         f"<title>{html.escape(texts['title'], quote=False)}</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
         f"<h1>{html.escape(texts['heading'], quote=False)}</h1><p>{html.escape(texts['body'], quote=False)}"
-        "</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
+        '</p><pre style="white-space:pre-wrap;background:#f6f6f6;'
         'padding:12px;border-radius:8px">'
         f"{html.escape(error)}"
         "</pre></body></html>"

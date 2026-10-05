@@ -17,6 +17,7 @@ wrapped the boot's writers, and both are answers to « where is the interface? �
 rather than holds about it. A model read in one script is a model the next one
 transcribes, and a transcription drifts.
 """
+
 import os
 import pathlib
 import re
@@ -56,6 +57,7 @@ if os.environ.get(PROTOTYPE_URL_VARIABLE) and not os.environ.get(served_copy.ROO
         "  The served-copy stamp would vouch for a build this run never read.\n"
         f"  Set {served_copy.ROOT_VARIABLE} to the directory that URL serves."
     )
+
 
 # FROM THIS MACHINE, THE DEPLOYED HOST'S OWN PUBLIC ADDRESS CAN CROSS THE
 # ROUTER'S NAT LOOPBACK — a hairpin, and an intermittent one: QUIC and the
@@ -253,22 +255,33 @@ def _component_sources():
     for suffix in ("*.tsx", "*.ts", "*.css", "*.js"):
         found.extend(_COMPONENT_TREE.rglob(suffix))
     return sorted(
-        path for path in found
-        if _NOT_THE_DESIGN not in path.parents
-        and "i18n" not in path.relative_to(_COMPONENT_TREE).parts
+        path
+        for path in found
+        if _NOT_THE_DESIGN not in path.parents and "i18n" not in path.relative_to(_COMPONENT_TREE).parts
     )
 
 
-DESIGN_SOURCES = (
-    ROOT / "design" / "index.html",
-) + tuple(_component_sources())
+DESIGN_SOURCES = (ROOT / "design" / "index.html",) + tuple(_component_sources())
 
 
 # A slash opens a regular expression rather than a division when the last
 # significant character before it cannot end an expression.
 BEFORE_REGEX = set("(,=:[!&|?{};+-*%^~<>")
-WORDS_BEFORE_REGEX = ("return", "typeof", "case", "in", "of", "new", "delete",
-                    "do", "else", "void", "instanceof", "yield", "await")
+WORDS_BEFORE_REGEX = (
+    "return",
+    "typeof",
+    "case",
+    "in",
+    "of",
+    "new",
+    "delete",
+    "do",
+    "else",
+    "void",
+    "instanceof",
+    "yield",
+    "await",
+)
 
 
 # THE COMMENT STRIPPER, SHARED. It lived in `bridge.py` and served one rule.
@@ -313,15 +326,15 @@ def without_comments(source):
     def word_before(position):
         """True when a keyword ends right before `position` (regex context)."""
         prefix = source[:position].rstrip()
-        return any(prefix.endswith(word)
-                   and (len(prefix) == len(word)
-                        or not (prefix[-len(word) - 1].isalnum()
-                                or prefix[-len(word) - 1] in "_$"))
-                   for word in WORDS_BEFORE_REGEX)
+        return any(
+            prefix.endswith(word)
+            and (len(prefix) == len(word) or not (prefix[-len(word) - 1].isalnum() or prefix[-len(word) - 1] in "_$"))
+            for word in WORDS_BEFORE_REGEX
+        )
 
     while i < n:
         c = source[i]
-        pair = source[i:i + 2]
+        pair = source[i : i + 2]
 
         if pair == "//":
             while i < n and source[i] != "\n":
@@ -330,7 +343,7 @@ def without_comments(source):
             continue
 
         if pair == "/*":
-            while i < n and source[i:i + 2] != "*/":
+            while i < n and source[i : i + 2] != "*/":
                 out.append("\n" if source[i] == "\n" else " ")
                 i += 1
             if i < n:
@@ -344,7 +357,7 @@ def without_comments(source):
             i += 1
             while i < n and source[i] != c:
                 if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
+                    out.append(source[i : i + 2])
                     i += 2
                     continue
                 if source[i] == "\n":  # unterminated: do not eat the file
@@ -364,7 +377,7 @@ def without_comments(source):
             i += 1
             while i < n:
                 if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
+                    out.append(source[i : i + 2])
                     i += 2
                     continue
                 if source[i] == "`":
@@ -372,7 +385,7 @@ def without_comments(source):
                     i += 1
                     previous = "`"
                     break
-                if source[i:i + 2] == "${":
+                if source[i : i + 2] == "${":
                     out.append("${")
                     i += 2
                     templates.append(depth)
@@ -390,7 +403,7 @@ def without_comments(source):
             depth = templates.pop()
             while i < n:
                 if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
+                    out.append(source[i : i + 2])
                     i += 2
                     continue
                 if source[i] == "`":
@@ -398,7 +411,7 @@ def without_comments(source):
                     i += 1
                     previous = "`"
                     break
-                if source[i:i + 2] == "${":
+                if source[i : i + 2] == "${":
                     out.append("${")
                     i += 2
                     templates.append(depth)
@@ -409,8 +422,7 @@ def without_comments(source):
                 i += 1
             continue
 
-        if c == "/" and (previous == "" or previous in BEFORE_REGEX
-                         or word_before(i)):
+        if c == "/" and (previous == "" or previous in BEFORE_REGEX or word_before(i)):
             # A regular expression literal: its `/` delimiters, its character
             # classes (where a `/` is literal) and its escapes.
             out.append(c)
@@ -418,7 +430,7 @@ def without_comments(source):
             in_class = False
             while i < n and source[i] != "\n":
                 if source[i] == "\\" and i + 1 < n:
-                    out.append(source[i:i + 2])
+                    out.append(source[i : i + 2])
                     i += 2
                     continue
                 if source[i] == "[":
@@ -446,7 +458,6 @@ def without_comments(source):
     return "".join(out)
 
 
-
 def design_source():
     """Returns every source the design is written in, concatenated.
 
@@ -458,8 +469,8 @@ def design_source():
         FileNotFoundError: If a declared source no longer exists — the failure
             this helper is built to make loud.
     """
-    return "\n".join(path.read_text(encoding="utf-8")
-                      for path in DESIGN_SOURCES)
+    return "\n".join(path.read_text(encoding="utf-8") for path in DESIGN_SOURCES)
+
 
 # The phone the design targets. Every measurement is taken here, because a
 # geometry read at another width answers a question nobody asked.
@@ -468,8 +479,17 @@ def design_source():
 # an accident of its defaults. The rules measure the reference appearance —
 # dark — deterministically; a rule that wants to measure the light theme
 # passes color_scheme="light" itself.
-PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
-         "is_mobile": True, "has_touch": True, "color_scheme": "dark"}
+# A FRENCH BROWSER, the operator's: before sign-in the interface speaks the
+# browser's language (OPEN-2 B), and headless Chromium is en-US by default — the
+# suite reads the French it always read; `account_language.py` opens the others.
+PHONE = {
+    "viewport": {"width": 390, "height": 844},
+    "device_scale_factor": 2,
+    "is_mobile": True,
+    "has_touch": True,
+    "color_scheme": "dark",
+    "locale": "fr-FR",
+}
 
 
 # THE WAITS, NAMED ONCE, EACH AGAINST THE DURATION IT HAS TO OUTLAST.
@@ -484,15 +504,15 @@ PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
 # and that sentence stood here, over a `PANEL_OUT` sitting under the 450 ms
 # of `panel-down`, until a reader compared the two. A wait is long enough for
 # the QUESTION it is asked after, and no longer.
-SETTLED = 500       # a named state asked for: --duration-3 and the mocks' answer
-PANEL_IN = 550      # the panel's entrance, --duration-4 plus a frame
-PANEL_OUT = 250     # the panel's exit AS THE STORE REPORTS IT, which is the only
-                    # thing any hold asks after it. Not the tree and not the
-                    # pixels: measured, the store closes at +0 ms while the
-                    # sheet's title and its actions are still in the document at
-                    # +900 ms, so a wait that claimed the content had gone would
-                    # be claiming something no reading supports
-ACTED = 700         # an action tapped: the mutation, the refetch, the redraw
+SETTLED = 500  # a named state asked for: --duration-3 and the mocks' answer
+PANEL_IN = 550  # the panel's entrance, --duration-4 plus a frame
+PANEL_OUT = 250  # the panel's exit AS THE STORE REPORTS IT, which is the only
+# thing any hold asks after it. Not the tree and not the
+# pixels: measured, the store closes at +0 ms while the
+# sheet's title and its actions are still in the document at
+# +900 ms, so a wait that claimed the content had gone would
+# be claiming something no reading supports
+ACTED = 700  # an action tapped: the mutation, the refetch, the redraw
 
 # A LAYER'S WAIT READ FROM THE PAGE, NOT TYPED BESIDE IT (B-276). A sheet, a
 # scrim, a drawer: what a rule waits for after opening or closing one is its
@@ -609,7 +629,9 @@ async def screen_arrives(page, key, ceiling=READY_CEILING_MS):
         await page.wait_for_function(
             """(key) => [...document.querySelectorAll('[data-part="screen"][data-open]')]
                  .some((one) => key.endsWith(':') ? one.dataset.key?.startsWith(key) : one.dataset.key === key)""",
-            arg=key, timeout=ceiling)
+            arg=key,
+            timeout=ceiling,
+        )
         return True
     except PlaywrightTimeoutError:
         return False
@@ -639,8 +661,7 @@ class Journal:
                 shows its number is what makes a rule readable a year later.
         """
         self.executed += 1
-        print(("  PASS" if condition else "  FAIL") + f" {name}"
-              + (f" — {detail}" if detail else ""))
+        print(("  PASS" if condition else "  FAIL") + f" {name}" + (f" — {detail}" if detail else ""))
         if not condition:
             self.failures.append(name)
         return bool(condition)
@@ -657,9 +678,14 @@ class Journal:
         # false reading B-256 is about.
         served_copy.assert_unchanged(STARTED_AGAINST, f"finishing {self.title}")
         print()
-        print(f"{BAR}\n{self.executed} rules EXECUTED — "
-              + ("no violation" if not self.failures
-                 else f"{len(self.failures)} violation(s): {', '.join(self.failures)}"))
+        print(
+            f"{BAR}\n{self.executed} rules EXECUTED — "
+            + (
+                "no violation"
+                if not self.failures
+                else f"{len(self.failures)} violation(s): {', '.join(self.failures)}"
+            )
+        )
         if errors:
             print("JS errors:", list(errors))
         if self.failures or errors:
@@ -779,8 +805,7 @@ async def shot(pg, name):
 MODEL = ROOT / "design" / "src" / "lib" / "addresses.ts"
 DECLARATION = MODEL.read_text(encoding="utf-8")
 DIAL_PARAMETERS = tuple(
-    re.findall(r'parameter:\s*"([^"]+)"', DECLARATION)
-    + re.findall(r'PANEL_PARAMETER = "([^"]+)"', DECLARATION)
+    re.findall(r'parameter:\s*"([^"]+)"', DECLARATION) + re.findall(r'PANEL_PARAMETER = "([^"]+)"', DECLARATION)
 )
 PAGE_PATHS = dict(re.findall(r'^\s{2}(\w+):\s*"(/[^"]*)"', DECLARATION, re.M))
 # And the SCREEN routes WITH THE PAGE EACH BELONGS TO, from the same
@@ -870,12 +895,8 @@ History.prototype.PRIMITIVE = function (...args) {
 # push » would refuse the floor and a hold naming the arrival would report the
 # wrong write as caught.
 BOOT_WRITES = (
-    ("the arrival address", "replaceState", f'url.includes("{BOOT_ADDRESS}")',
-     NAV_MARKER, BOOT_PATH),
-    ("the exit guard", "replaceState", f'given.tm === "{GUARD_MARKER}"',
-     GUARD_MARKER, BOOT_PATH),
-    ("the floor beneath the arrival", "pushState", f'url.endsWith("{HOME}")',
-     NAV_MARKER, HOME),
-    ("the arrival entry", "pushState", f'url.includes("{BOOT_ADDRESS}")',
-     NAV_MARKER, BOOT_PATH),
+    ("the arrival address", "replaceState", f'url.includes("{BOOT_ADDRESS}")', NAV_MARKER, BOOT_PATH),
+    ("the exit guard", "replaceState", f'given.tm === "{GUARD_MARKER}"', GUARD_MARKER, BOOT_PATH),
+    ("the floor beneath the arrival", "pushState", f'url.endsWith("{HOME}")', NAV_MARKER, HOME),
+    ("the arrival entry", "pushState", f'url.includes("{BOOT_ADDRESS}")', NAV_MARKER, BOOT_PATH),
 )
