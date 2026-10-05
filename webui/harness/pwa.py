@@ -189,7 +189,10 @@ async def signing_out_empties_the_shell(browser):
             return executed, failures
 
         # THE SIGN-OUT, once, with the shell AND the queue populated.
-        await page.evaluate("async()=>{ await window.__entry.signOut(); }")
+        # STARTED, NOT AWAITED THROUGH THE BRIDGE (as `account_language.py`): the gate comes up
+        # only once the shell, the worker and the queue are forgotten, so the gate up is the end.
+        await page.evaluate("()=>{ void window.__entry.signOut(); }")
+        await page.wait_for_function("()=>document.querySelector('#login')?.hidden === false")
         await page.wait_for_timeout(600)
 
         executed += 1

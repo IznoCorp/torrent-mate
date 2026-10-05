@@ -188,7 +188,7 @@
     <!-- A NAMED REGION, so what it draws is not content adrift outside every
          landmark. It is not `<main>`: `#port` already is, and two of them make
          a landmark list a guessing game exactly as two identical names do. -->
-    <div class="splash" id="splash" role="region" aria-label="Démarrage">
+    <div class="splash" id="splash" role="region" data-words-label="shell.splash.region" aria-label="Démarrage">
       <div class="brandbig" data-part="brand/large">
         <svg
           class="mk w-[28px] h-[28px] text-primary"
@@ -213,11 +213,11 @@
         class="splashbar"
         data-part="splash/progress"
         role="progressbar"
-        aria-label="Chargement de l'interface"
+        data-words-label="shell.splash.progress" aria-label="Chargement de l'interface"
       >
         <i></i>
       </div>
-      <p class="splashmsg">Chargement de votre médiathèque…</p>
+      <p class="splashmsg" data-words="shell.splash.message">Chargement de votre médiathèque…</p>
     </div>
     <!-- login:splash:end -->
 
@@ -226,7 +226,7 @@
          `.skip-link` in the stylesheet — so it costs the layout nothing and the
          oracle measures no difference: an unfocused element is never styled by
          `:focus-visible`, and this one is out of flow either way. -->
-    <a class="skip-link" href="#port" data-part="shell/skip-link"
+    <a class="skip-link" href="#port" data-part="shell/skip-link" data-words="shell.skipLink"
       >Aller au contenu</a
     >
 
@@ -239,7 +239,7 @@
       <button
         class="burger relative -ml-2 inline-flex w-[44px] h-[44px] shrink-0 items-center justify-center
                [border:0] rounded-2 bg-transparent text-muted-foreground desk:hidden"
-        aria-label="Ouvrir le menu de navigation"
+        data-words-label="shell.menuOpen" aria-label="Ouvrir le menu de navigation"
         data-drawer="1"
       >
         <!-- THE ICON CARRIES ITS OWN SIZE. An `<svg>` sized by its viewBox
@@ -303,7 +303,7 @@
                  text-3 font-medium grid place-items-center"
           data-part="avatar"
           data-account
-          aria-label="Menu utilisateur"
+          data-words-label="shell.userMenu" aria-label="Menu utilisateur"
         >
           <img class="w-full h-full object-cover rounded-[inherit] block" alt="" />
         </button>
@@ -378,14 +378,14 @@
              z-[54] flex justify-center py-0 px-7"
       id="installbar"
       role="region"
-      aria-label="Installation de l'application" hidden>
+      data-words-label="shell.install.region" aria-label="Installation de l'application" hidden>
       <div
         class="installcard w-full max-w-[420px] flex items-start gap-6 p-7 border border-border
                rounded-4 bg-card [box-shadow:var(--mq-shadow-card)]"
       >
         <div class="installtext flex-auto min-w-0 flex flex-col gap-2">
-          <p class="installtitle m-0 text-4 font-semibold">Installer l'application</p>
-          <p class="installsub m-0 text-2 leading-[1.4] text-muted-foreground" id="installsub">
+          <p class="installtitle m-0 text-4 font-semibold" data-words="shell.install.title">Installer l'application</p>
+          <p class="installsub m-0 text-2 leading-[1.4] text-muted-foreground" id="installsub" data-words="shell.install.subtitle">
             Ajoutez TorrentMate à votre écran d'accueil pour un accès direct.
           </p>
           <ol
@@ -394,9 +394,9 @@
             id="installsteps"
             hidden
           >
-            <li>Ouvrez cette page dans Safari.</li>
+            <li data-words="shell.install.stepSafari">Ouvrez cette page dans Safari.</li>
             <li>
-              Touchez
+              <span data-words="shell.install.stepTap">Touchez</span>
               <span class="installkey inline-flex items-center gap-1 font-semibold text-foreground"
                 ><svg
                   viewBox="0 0 24 24"
@@ -410,11 +410,11 @@
                   <path
                     d="M12 3v13M8 7l4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"
                   /></svg
-                >Partager</span
+                ><span data-words="shell.install.share">Partager</span></span
               >
-              dans la barre du bas.
+              <span data-words="shell.install.stepBar">dans la barre du bas.</span>
             </li>
-            <li>
+            <li data-words="shell.install.stepAdd">
               Choisissez «&nbsp;Sur l'écran d'accueil&nbsp;», puis
               «&nbsp;Ajouter&nbsp;».
             </li>
@@ -436,10 +436,10 @@
               aria-hidden="true"
             >
               <path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg
-            >Installer TorrentMate
+            ><span data-words="shell.install.action">Installer TorrentMate</span>
           </button>
         </div>
-        <button class="installclose flex-none grid place-items-center w-[28px] h-[28px] p-0 [border:0] rounded-3 bg-transparent text-muted-foreground" id="installclose" aria-label="Masquer">
+        <button class="installclose flex-none grid place-items-center w-[28px] h-[28px] p-0 [border:0] rounded-3 bg-transparent text-muted-foreground" id="installclose" data-words-label="shell.install.dismiss" aria-label="Masquer">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -459,9 +459,13 @@
          a session exists there is nothing to navigate to, so showing a
          navigation bar would offer destinations that answer with a redirect.
          It carries no credentials of its own — the server decides, and a
-         password living in a page anyone can read is not a password. -->
+         password living in a page anyone can read is not a password.
+         Its words are French here, the fallback of a page without script;
+         each carries its key (`data-words`, `data-words-label`), and the boot
+         — or, on the design host, the server — words it in the reader's
+         language. -->
     <div class="loginscreen" data-part="login" id="login" role="region"
-      aria-label="Connexion" hidden>
+      data-words-label="screens.gate.title" aria-label="Connexion" hidden>
       <div class="brandbig" data-part="brand/large">
         <svg
           class="mk"
@@ -479,8 +483,8 @@
         <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
       </div>
       <form class="logincard" id="loginform" data-part="login/form" autocomplete="on">
-        <h1 class="logintitle">Connexion</h1>
-        <p class="loginsub">Accès à votre médiathèque et à vos acquisitions.</p>
+        <h1 class="logintitle" data-words="screens.gate.title">Connexion</h1>
+        <p class="loginsub" data-words="screens.gate.subtitle">Accès à votre médiathèque et à vos acquisitions.</p>
         <label class="loginfield" data-part="login/field">
           <span>Identifiant</span>
           <input
@@ -493,7 +497,7 @@
           />
         </label>
         <label class="loginfield" data-part="login/field">
-          <span>Mot de passe</span>
+          <span data-words="screens.gate.password">Mot de passe</span>
           <input
             type="password"
             name="password"
@@ -501,8 +505,8 @@
             required
           />
         </label>
-        <p class="loginerr" id="loginerr" hidden>Identifiants invalides</p>
-        <button class="loginsubmit" data-part="login/submit" type="submit">Se connecter</button>
+        <p class="loginerr" data-words="screens.gate.invalid" id="loginerr" hidden>Identifiants invalides</p>
+        <button class="loginsubmit" data-part="login/submit" data-words="screens.gate.submit" type="submit">Se connecter</button>
       </form>
     </div>
     <!-- login:markup:end -->

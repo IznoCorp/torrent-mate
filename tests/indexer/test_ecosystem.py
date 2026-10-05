@@ -667,9 +667,9 @@ def test_engine_apps_that_can_write_telegram_speak_french_explicitly() -> None:
     inherit ``LANG=fr_FR.UTF-8`` from the PM2 daemon; a PM2 started without ``LANG`` would
     have switched his messages to English silently, so the language is set explicitly.
 
-    Out of scope on purpose: ``torrentmate-web`` / ``torrentmate-web-staging`` (the v1 web
-    language follows the signed-in account, a separate ruling) and ``torrentmate-autodeploy``
-    (a bash poller, no engine messages).
+    Out of scope here: ``torrentmate-web`` / ``torrentmate-web-staging`` (the next test pins
+    them, for the language a new account starts in) and ``torrentmate-autodeploy`` (a bash
+    poller, no engine messages).
     """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     engine_apps = [a for a in apps if str(a["name"]).startswith("personalscraper-")]
@@ -678,6 +678,22 @@ def test_engine_apps_that_can_write_telegram_speak_french_explicitly() -> None:
         str(a["name"]): a.get("PERSONALSCRAPER_LANG") for a in engine_apps if a.get("PERSONALSCRAPER_LANG") != "fr"
     }
     assert offenders == {}, f'apps without PERSONALSCRAPER_LANG: "fr" in env: {offenders}'
+
+
+def test_web_apps_create_accounts_in_french_explicitly() -> None:
+    """``torrentmate-web`` and ``torrentmate-web-staging`` pin ``PERSONALSCRAPER_LANG: "fr"``.
+
+    The operator, 2026-10-05: a NEW account starts in the project's configured language, French
+    here. Accounts are created in the web process (Comptes, a first Plex sign-in), which reads
+    that language from ``PERSONALSCRAPER_LANG`` and otherwise from the PM2 daemon's ``LANG`` —
+    English the day the daemon starts without it. So the language is set explicitly, as on the
+    engine apps.
+    """
+    apps = {str(a["name"]): a for a in _parse_ecosystem_apps(_ECOSYSTEM_PATH)}
+    web_apps = ("torrentmate-web", "torrentmate-web-staging")
+    assert all(name in apps for name in web_apps), "a web app is not parsed — the guard would pass vacuously"
+    offenders = {name: apps[name].get("PERSONALSCRAPER_LANG") for name in web_apps}
+    assert offenders == dict.fromkeys(web_apps, "fr"), f'web apps without PERSONALSCRAPER_LANG: "fr": {offenders}'
 
 
 # ---------------------------------------------------------------------------

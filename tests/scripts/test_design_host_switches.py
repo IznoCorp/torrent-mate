@@ -67,7 +67,9 @@ def scratch_root(tmp_path: Path, *, stale: bool) -> Path:
     shutil.copy2(DESIGN / "index.html", root / "index.html")
     for name in ("base.css", "theme.css"):
         shutil.copy2(DESIGN / "src" / "styles" / name, root / "src" / "styles" / name)
-    shutil.copy2(DESIGN / "src" / "i18n" / "fr.json", root / "src" / "i18n" / "fr.json")
+    # BOTH catalogues: the sign-in page is worded in the visitor's language.
+    for language in ("fr", "en"):
+        shutil.copy2(DESIGN / "src" / "i18n" / f"{language}.json", root / "src" / "i18n" / f"{language}.json")
     for name in ("vite.config.mjs", "build-identity.mjs", "worker-source.mjs"):
         (root / name).write_text("// scratch\n", encoding="utf-8")
     (root / "package.json").write_text(
@@ -152,6 +154,9 @@ def ask(
     """
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=60)
     headers = {"Content-Type": "application/x-www-form-urlencoded"} if body is not None else {}
+    # A FRENCH BROWSER, the operator's: the sign-in page speaks the visitor's language, and the
+    # words these holds read are the French catalogue's (`test_design_host_language.py` holds the rest).
+    headers["Accept-Language"] = "fr-FR,fr;q=0.9"
     if cookie is not None:
         headers["Cookie"] = cookie
     connection.request(method, path, body=body, headers=headers)

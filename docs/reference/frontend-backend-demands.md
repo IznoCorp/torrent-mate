@@ -24,9 +24,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 104 |
+| operations the interface requires | 105 |
 | operations the backend has | 65 |
-| required and missing | 51 |
+| required and missing | 52 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -87,6 +87,7 @@ than a blank page.
 | `PUT /api/v1/accounts/{accountId}/access` | `setAccountAccess` | Allow or cut an account's sign-in |
 | `PUT /api/v1/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
 | `PUT /api/v1/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
+| `PUT /api/v1/auth/language` | `setOwnLanguage` | Set the signed-in account's language |
 | `PUT /api/v1/auth/password` | `changeOwnPassword` | Change the signed-in account's password |
 | `PUT /api/v1/notifications/preferences/{type}` | `updateNotificationPreference` | Switch one notification type on or off for the signed-in account |
 | `PUT /api/v1/torrents/{infoHash}/cross-seed/exclusions` | `writeCrossSeedExclusion` | Exclude one pair, or a whole title, from the engine's future cross-seed passes |
@@ -106,7 +107,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/v1/acquisition/search` (`searchProviders`) | `followed`, `ids`, `owned`, `poster`, `shown` | `already_owned`, `limit`, `offset`, `poster_url`, `provider`, `provider_id`, `score` |
 | `GET /api/v1/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
 | `GET /api/v1/acquisition/to-handle` (`readAcquisitionQueue`) | `absorbedBy`, `arrivals`, `at`, `blocked`, `blockedSince`, `blocks`, `chip`, `closure`, `droppedByHand`, `failedStep`, `id`, `ids`, `inFlight`, `keptNewer`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `provider`, `release`, `requester`, `requesters`, `resumedAt`, `resumes`, `rung`, `secondaryLine`, `since`, `size`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `winner`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `followed_id`, `info_hash`, `items`, `orphan_count`, `stage`, `year` |
-| `GET /api/v1/auth/me` (`readAccount`) | `avatar`, `defaultFor`, `email`, `forbiddenWrites`, `id`, `kind`, `name`, `rights`, `role`, `signInKind` | — |
+| `GET /api/v1/auth/me` (`readAccount`) | `avatar`, `defaultFor`, `email`, `forbiddenWrites`, `id`, `kind`, `language`, `name`, `rights`, `role`, `signInKind` | — |
 | `GET /api/v1/config/files` (`readConfigurationFiles`) | `changed` | `files`, `mtime`, `owned_keys`, `sha256`, `shadowed_keys`, `size` |
 | `GET /api/v1/config/files/{name}` (`readConfigurationFile`) | `digest`, `shadowedKeys` | `sha256`, `shadowed_keys` |
 | `GET /api/v1/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `precision`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
@@ -134,7 +135,7 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/v1/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/ranking/preview` (`previewRanking`) | `freeleech`, `knownTrackers`, `sizeBytes`, `trackerRatioState` | `is_freeleech`, `known_trackers` |
-| `POST /api/v1/auth/login` (`signIn`) | `avatar`, `defaultFor`, `email`, `forbiddenWrites`, `id`, `kind`, `name`, `rights`, `role`, `signInKind` | — |
+| `POST /api/v1/auth/login` (`signIn`) | `avatar`, `defaultFor`, `email`, `forbiddenWrites`, `id`, `kind`, `language`, `name`, `rights`, `role`, `signInKind` | — |
 | `POST /api/v1/auth/logout` (`signOut`) | `ok` | — |
 | `POST /api/v1/config/restart-web` (`restartWeb`) | `ok` | `status` |
 | `POST /api/v1/decisions/{decisionId}/dismiss` (`dismissDecision`) | `state` | `candidates`, `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `id`, `media_kind`, `overview`, `poster_url`, `provider`, `provider_id`, `resolution_json`, `score`, `staging_path`, `status`, `title`, `trigger`, `year` |

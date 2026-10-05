@@ -100,8 +100,11 @@ async def main():
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args(resolve_deployed_host_locally(HOST)))
+        # FRENCH, PINNED: the host side is the LIVE tm-design, which serves `develop` and words its
+        # page in French until the account's language is merged there; the runner's own locale
+        # would otherwise decide the verdict.
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
-                                  device_scale_factor=2, is_mobile=True, has_touch=True)
+                                  device_scale_factor=2, is_mobile=True, has_touch=True, locale="fr-FR")
         errors = []
 
         pg = await ctx.new_page()
@@ -117,7 +120,10 @@ async def main():
         await pg2.goto(PROTOTYPE, wait_until="load")
         await pg2.evaluate("()=>document.querySelector('#toastx').click()")
         await pg2.wait_for_timeout(250)
-        await pg2.evaluate("()=>window.__entry.signOut()")
+        # THE SIGN-OUT IS STARTED, NOT AWAITED THROUGH THE BRIDGE (as `account_language.py`): what
+        # is read is the gate once it is up, not a promise the page may let go of.
+        await pg2.evaluate("()=>{ void window.__entry.signOut(); }")
+        await pg2.wait_for_function("()=>document.querySelector('#login')?.hidden === false")
         await pg2.wait_for_timeout(700)
         await pg2.evaluate("()=>document.querySelector('[data-part=\"login/password-disclosure\"]')?.click()")
         await pg2.wait_for_timeout(250)

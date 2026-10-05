@@ -26,6 +26,7 @@ from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.rights import Right
 from personalscraper.core.sqlite import serialised
 from personalscraper.core.sqlite._migrate import safe_rollback
+from personalscraper.i18n import Language, configured_language
 
 #: Who starts on a role at a first sign-in or a link: a Plex Home member, a Plex guest. A local
 #: account has none — its role is chosen at its creation.
@@ -69,6 +70,8 @@ class AccountRow:
         sign_in_allowed: Whether it may sign in; ``True`` until an Admin cuts it.
         demoted_from: The role it held before its Plex link dropped it to its Plex kind's
             starting role; ``None`` when not demoted, or once an Admin gave it a role.
+        language: The language it is spoken to in; a new row starts in the project's
+            configured language (the operator, 2026-10-05) until the account chooses.
     """
 
     id: str
@@ -81,6 +84,7 @@ class AccountRow:
     updated_at: float
     sign_in_allowed: bool = True
     demoted_from: str | None = None
+    language: Language = field(default_factory=configured_language)
 
 
 @dataclass(frozen=True)
@@ -159,7 +163,7 @@ class PlexPinRow:
 
 
 _ACCOUNT_COLUMNS = (
-    "id, name, email, avatar, role_id, password_hash, created_at, updated_at, sign_in_allowed, demoted_from"
+    "id, name, email, avatar, role_id, password_hash, created_at, updated_at, sign_in_allowed, demoted_from, language"
 )
 _LINK_COLUMNS = (
     "account_id, plex_id, plex_uuid, plex_username, server_access,"
@@ -172,7 +176,8 @@ _PIN_COLUMNS = "pin_id, code, nonce_hash, created_at, expires_at, last_checked_a
 def _account(row: tuple[object, ...]) -> AccountRow:
     """Build an :class:`AccountRow` from a row in ``_ACCOUNT_COLUMNS`` order.
 
-    SQLite stores ``sign_in_allowed`` as an integer: it is read back as a bool.
+    SQLite stores ``sign_in_allowed`` as an integer and ``language`` as text: they are read
+    back as a bool and a :class:`Language`.
 
     Args:
         row: The row.
@@ -181,7 +186,7 @@ def _account(row: tuple[object, ...]) -> AccountRow:
         The dataclass.
     """
     account = AccountRow(*row)  # type: ignore[arg-type]
-    return replace(account, sign_in_allowed=bool(account.sign_in_allowed))
+    return replace(account, sign_in_allowed=bool(account.sign_in_allowed), language=Language(account.language))
 
 
 def _link(row: tuple[object, ...]) -> PlexLinkRow:
@@ -454,7 +459,7 @@ class AccountRepository:
             sqlite3.IntegrityError: On a taken key, a taken e-mail (any case) or an unknown role.
         """
         self._conn.execute(
-            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
+            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
             (
                 account.id,
                 account.name,
@@ -466,6 +471,7 @@ class AccountRepository:
                 account.updated_at,
                 account.sign_in_allowed,
                 account.demoted_from,
+                account.language.value,
             ),
         )
 
@@ -512,6 +518,19 @@ class AccountRepository:
         """
         self._conn.execute(
             "UPDATE account SET sign_in_allowed = ?, updated_at = ? WHERE id = ?", (int(allowed), now, account_id)
+        )
+
+    @serialised
+    def set_language(self, account_id: str, language: Language, *, now: float) -> None:
+        """Set the language an account is spoken to in.
+
+        Args:
+            account_id: The account.
+            language: The language.
+            now: The change time (epoch seconds).
+        """
+        self._conn.execute(
+            "UPDATE account SET language = ?, updated_at = ? WHERE id = ?", (language.value, now, account_id)
         )
 
     @serialised

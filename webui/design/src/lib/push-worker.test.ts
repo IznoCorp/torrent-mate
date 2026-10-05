@@ -6,19 +6,23 @@
 // `params` arrive JSON-encoded as FCM requires, and every hostile link is asserted to open
 // the root — so a worker that echoed the wire, skipped the lookup or trusted the link fails.
 import { describe, expect, it, vi } from "vitest";
-import catalogue from "../i18n/fr.json";
+import catalogue from "../i18n/en.json";
+import french from "../i18n/fr.json";
 import workerSource from "../../sw.js?raw";
-import { PLACEHOLDERS, pushTexts, substituteWorker } from "../../worker-source.mjs";
+import { PLACEHOLDERS, pushCatalogues, pushTexts, substituteWorker } from "../../worker-source.mjs";
 
 const ORIGIN = "https://tm.example";
 type Listener = (event: unknown) => void;
 
+// THE WORDS PER LANGUAGE, as the build writes them (`pushCatalogues`): English with a code
+// worded for the test, French as its catalogue holds it.
 const TEST_TEXTS = {
   ...pushTexts(catalogue),
   tracker: { ratio_low: { title: "Low ratio on {{tracker}}", body: "{{ratio}} under {{threshold}} ({{missing}})" } },
 };
+const CATALOGUES = { fr: pushTexts(french), en: TEST_TEXTS };
 
-function bootWorker(push: Record<string, unknown> = TEST_TEXTS) {
+function bootWorker(push: Record<string, unknown> = CATALOGUES) {
   const listeners: Record<string, Listener> = {};
   const shown: Array<{ title: string; options: Record<string, unknown> }> = [];
   const windows: Array<{ url: string; focus: ReturnType<typeof vi.fn>; navigate: ReturnType<typeof vi.fn> }> = [];
@@ -67,6 +71,24 @@ describe("the worker's push listener", () => {
     expect(worker.shown).toEqual([{ title: "Low ratio on c411", options: expect.objectContaining({
       body: "1.12 under 1.2 ({{missing}})", tag: "ratio-c411", data: { link: "/trackers/c411" },
     }) }]);
+  });
+
+  it("words a push in the RECIPIENT's language, the message's `language` (FG-2 A)", async () => {
+    const worker = bootWorker();
+    const words = (french as unknown as { push: { tracker: { ratio_low: { title: string } } } }).push.tracker.ratio_low;
+    await worker.push({ data: { code: "tracker.ratio_low", params: JSON.stringify({ tracker: "c411" }), language: "fr" } });
+    await worker.push({ data: { code: "tracker.ratio_low", params: JSON.stringify({ tracker: "c411" }), language: "en" } });
+    expect(worker.shown.map((one) => one.title)).toEqual([words.title.replace("{{tracker}}", "c411"), "Low ratio on c411"]);
+  });
+
+  it.each([
+    ["no language", undefined],
+    ["a language the interface does not speak", "de"],
+    ["a language that is no string", 7],
+  ])("words a push in English for %s (OPEN-2 B)", async (_label, language) => {
+    const worker = bootWorker();
+    await worker.push({ data: { code: "tracker.ratio_low", params: JSON.stringify({ tracker: "c411" }), language } });
+    expect(worker.shown[0]!.title).toBe("Low ratio on c411");
   });
 
   it.each([
@@ -138,26 +160,33 @@ describe("the worker's notificationclick listener", () => {
 
 describe("the build's substitution", () => {
   it("writes the four placeholders, the push words included", () => {
-    const built = substituteWorker(workerSource, { build: "b1", shell: ["/"], extras: [], push: pushTexts(catalogue) });
+    const built = substituteWorker(workerSource, {
+      build: "b1", shell: ["/"], extras: [], push: pushCatalogues({ fr: french, en: catalogue }),
+    });
     for (const placeholder of PLACEHOLDERS) expect(built).not.toContain(placeholder);
     expect(built).toContain(JSON.stringify(generic.title));
   });
 
   it("writes a push text holding replacement patterns ($&, $', $`) as it is", async () => {
     const text = "Ratio $& $' $` $$ $1";
-    const worker = bootWorker({ ...TEST_TEXTS, generic: { title: text, body: text } });
+    const worker = bootWorker({ ...CATALOGUES, en: { ...TEST_TEXTS, generic: { title: text, body: text } } });
     await worker.push({ data: { code: "nobody.knows" } });
     expect(worker.shown[0]).toEqual({ title: text, options: expect.objectContaining({ body: text }) });
   });
 
   it("refuses a worker whose __PUSH_TEXTS__ survived", () => {
     const doubled = workerSource.replace("__PUSH_TEXTS__", "__PUSH_TEXTS__ || __PUSH_TEXTS__");
-    expect(() => substituteWorker(doubled, { build: "b", shell: ["/"], extras: [], push: pushTexts(catalogue) }))
+    expect(() => substituteWorker(doubled, { build: "b", shell: ["/"], extras: [], push: CATALOGUES }))
       .toThrow(/placeholder survived/);
   });
 
   it("refuses a catalogue without the generic line", () => {
     expect(() => pushTexts({ push: { tracker: {} } })).toThrow(/push.generic/);
     expect(() => pushTexts({})).toThrow(/push.generic/);
+  });
+
+  it("refuses a language whose catalogue holds no generic line, naming it", () => {
+    expect(() => pushCatalogues({ fr: french, en: {} })).toThrow(/en\.json/);
+    expect(() => pushCatalogues({ fr: {}, en: catalogue })).toThrow(/fr\.json/);
   });
 });

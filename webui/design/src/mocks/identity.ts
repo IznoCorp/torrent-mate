@@ -18,6 +18,13 @@ import { mockState } from "./state";
 
 type Schemas = components["schemas"];
 type Role = Schemas["Role"];
+type Language = Schemas["Language"];
+
+// WHERE THE LANGUAGES CHOSEN OUTLIVE A RELOAD. The server holds an account's
+// language in its own store, which a reload of the page does not touch; the
+// layer lives in the page, so it keeps the choices in the tab's session storage
+// — per tab, like the layer — and forgets them when it is reset.
+const CHOSEN_LANGUAGES = "tm.mocks.languages";
 
 /** What the dials hold, per layer state. */
 type Dialled = {
@@ -51,7 +58,34 @@ type Dialled = {
   accessCut: string[];
   /** Accounts whose sessions were ended by a cut, until their next sign-in opens one. */
   sessionsEnded: string[];
+  /** The languages accounts chose since the seed, by account id (`setOwnLanguage`). */
+  languages: Record<string, Language>;
 };
+
+/**
+ * The languages chosen since the seed, as the tab's session storage keeps them.
+ *
+ * @returns The choices, by account id; none where there is no storage or nothing readable.
+ */
+function keptLanguages(): Record<string, Language> {
+  try {
+    const kept: unknown = JSON.parse(globalThis.sessionStorage?.getItem(CHOSEN_LANGUAGES) ?? "{}");
+    return kept !== null && typeof kept === "object" ? (kept as Record<string, Language>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Forgets every language chosen since the seed — the layer's reset. */
+export function forgetChosenLanguages(): void {
+  try {
+    globalThis.sessionStorage?.removeItem(CHOSEN_LANGUAGES);
+  } catch {
+    // No storage: nothing was kept.
+  }
+  const held = dialled.get(mockState());
+  if (held) held.languages = {};
+}
 
 /**
  * What a Plex PIN comes to: claimed by the identity dialled, still unclaimed,
@@ -88,6 +122,7 @@ function dials(): Dialled {
       assigned: {},
       accessCut: [],
       sessionsEnded: [],
+      languages: keptLanguages(),
     };
     dialled.set(held, found);
   }
@@ -124,6 +159,8 @@ export type HeldAccount = {
   demotedFrom?: string;
   /** Its picture's address, as the server resolves it; absent when it has neither a Plex picture nor a Gravatar. */
   avatar?: string;
+  /** The language it is spoken to in, as seeded or created. */
+  language: Language;
 };
 
 /** Every account: the owner first, then the invented ones. */
@@ -131,7 +168,8 @@ export function heldAccounts(): HeldAccount[] {
   const { assigned, createdAccounts, testRoster } = dials();
   return [
     { id: ACCOUNT.id, name: accountName(), email: ACCOUNT.email, role: ACCOUNT.role,
-      signInKind: ACCOUNT.signInKind as Schemas["SignInKind"], avatar: ACCOUNT.avatar },
+      signInKind: ACCOUNT.signInKind as Schemas["SignInKind"], avatar: ACCOUNT.avatar,
+      language: ACCOUNT.language as Language },
     ...(ACCOUNTS.accounts as HeldAccount[]),
     ...(testRoster ? (ACCOUNTS.testAccounts as HeldAccount[]) : []),
     ...createdAccounts,
@@ -243,8 +281,41 @@ export function signedIn(): Schemas["Account"] {
     ...(held.avatar ? { avatar: held.avatar } : {}),
     role: roleFor(held.role),
     signInKind: held.signInKind,
+    language: languageOf(held.id) ?? held.language,
     forbiddenWrites: [...dials().forbiddenWrites],
   };
+}
+
+/**
+ * The language one account chose since the seed.
+ *
+ * @param id The account.
+ * @returns Its choice, or undefined while it has made none.
+ */
+function languageOf(id: string): Language | undefined {
+  return dials().languages[id];
+}
+
+/**
+ * Sets the signed-in account's language — what `setOwnLanguage` holds.
+ *
+ * KEPT FOR THE ACCOUNT, NOT THE PAGE: another account signed in later reads its
+ * own, and a reload of the page reads this one back.
+ *
+ * @param language The language chosen.
+ * @returns The account, as now held.
+ */
+export function chooseLanguage(language: Language): Schemas["Account"] {
+  const id = signedInId();
+  dials().languages[id] = language;
+  try {
+    globalThis.sessionStorage?.setItem(CHOSEN_LANGUAGES, JSON.stringify(dials().languages));
+  } catch {
+    // No storage: the choice holds until the page is reloaded.
+  }
+  // THE DESIGN HOST'S REAL ACCOUNT answers without a language until v1 serves
+  // one: the choice is laid over what it answered.
+  return adopted === null ? signedIn() : { ...adopted, language };
 }
 
 /** What the signed-in account may do — the model's own derivation. */
@@ -393,6 +464,8 @@ export type IdentityDials = {
   setAccountAccess: (id: string, allowed: boolean) => void;
   /** Adds one ordinary role, as « Comptes »' creation page would — a role no account holds yet. */
   addRole: (role: Role) => void;
+  /** Sets the signed-in account's language, as Profil would, until the layer is next reset. */
+  setLanguage: (language: Language) => void;
 };
 
 /** Those dials, over the layer's own state. */
@@ -426,4 +499,5 @@ export const identityDials: IdentityDials = {
   },
   setAccountAccess: (id, allowed) => roster.setAccess(id, allowed),
   addRole: (role) => roster.addRole(role),
+  setLanguage: (language) => { chooseLanguage(language); },
 };

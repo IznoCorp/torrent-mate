@@ -246,7 +246,7 @@
       "add": "Add",
       "addedItem": "value {{position}}",
       "undefinedPlaceholder": "not set",
-      "durationFormat": "format 72h"
+      "durationFormat": "72h format"
     }
   },
   "screens": {
@@ -1154,7 +1154,7 @@
     },
     "accountPage": {
       "install": {
-        "heading": "Application",
+        "heading": "App",
         "install": {
           "label": "Install the app",
           "line": "Adds it to your home screen: it opens like an app, without the browser's bar.",
@@ -1200,6 +1200,17 @@
       "forbiddenHere": "forbidden on this instance, for every account",
       "held": "held",
       "noRight": "No right: this role opens nothing here.",
+      "language": {
+        "heading": "Language",
+        "label": "Interface language",
+        "line": "The same on all your devices; your notifications are written in this language.",
+        "saving": "Saving the language…",
+        "refused": "The language could not be changed.",
+        "names": {
+          "fr": "Français",
+          "en": "English"
+        }
+      },
       "notifications": {
         "heading": "Notifications",
         "intro": "Your choices apply to all your devices. Only the types your role lets you follow are offered.",
@@ -1359,6 +1370,10 @@
       "body": " Its role gives it no right here: the administrator can assign it another one in “Accounts”."
     },
     "gate": {
+      "title": "Sign in",
+      "subtitle": "Access to your library and your acquisitions.",
+      "password": "Password",
+      "submit": "Sign in",
       "reasonExpired": "Session expired: sign in again.",
       "reasonDisabled": "Access disabled by an administrator.",
       "plex": "Sign in with Plex",
@@ -2500,6 +2515,28 @@
           "description": "A provider or a service is no longer answering."
         }
       }
+    }
+  },
+  "shell": {
+    "splash": {
+      "region": "Starting up",
+      "progress": "Loading the interface",
+      "message": "Loading your media library…"
+    },
+    "skipLink": "Skip to content",
+    "menuOpen": "Open the navigation menu",
+    "userMenu": "User menu",
+    "install": {
+      "region": "Installing the app",
+      "title": "Install the app",
+      "subtitle": "Add TorrentMate to your home screen for direct access.",
+      "stepSafari": "Open this page in Safari.",
+      "stepTap": "Tap",
+      "share": "Share",
+      "stepBar": "in the bottom bar.",
+      "stepAdd": "Choose “Add to Home Screen”, then “Add”.",
+      "action": "Install TorrentMate",
+      "dismiss": "Dismiss"
     }
   }
 }

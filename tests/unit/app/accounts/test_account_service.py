@@ -29,7 +29,8 @@ from personalscraper.app.accounts.views import SignInKind
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, AppRefusal, RefusalCode
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
-from tests.conftest import LoggedEvents
+from personalscraper.i18n import Language
+from tests.conftest import ConfiguredLanguage, LoggedEvents
 
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 _PASSWORD = "A provisional one 1!"
@@ -342,6 +343,27 @@ class TestCreateAccount:
         assert row.password_hash is not None
         assert row.password_hash.startswith("scrypt$")
         assert verify_password(_PASSWORD, row.password_hash)
+
+    @pytest.mark.parametrize(("configured", "expected"), [("fr", "fr"), ("en", "en"), ("", "en")])
+    def test_starts_in_the_projects_configured_language(
+        self,
+        store: AppStore,
+        accounts: AccountService,
+        admin: Actor,
+        configured_language: ConfiguredLanguage,
+        configured: str,
+        expected: str,
+    ) -> None:
+        """A new account speaks the project's configured language until it chooses; English when none is.
+
+        The operator, 2026-10-05: « nouveaux dans la langue configuré du projet ».
+        """
+        configured_language(configured)
+        created = accounts.create_account(
+            admin, name="New", email="new@example.org", role_id="local-guest", password=_PASSWORD
+        )
+        row = store.accounts.account(created.id)
+        assert row is not None and row.language == expected
 
     def test_on_the_role_asked(self, accounts: AccountService, admin: Actor) -> None:
         """A role named: the account starts on it."""
@@ -1108,6 +1130,15 @@ class TestCreateOwner:
         assert read.role.kind is RoleKind.ADMIN
         assert (read.name, read.email) == ("Owner", _OWNER_EMAIL)
 
+    @pytest.mark.parametrize("configured", ["fr", "en"])
+    def test_the_owner_starts_in_the_projects_configured_language(
+        self, empty_store: AppStore, bus: EventBus, configured_language: ConfiguredLanguage, configured: str
+    ) -> None:
+        """The seeded owner is a new account: it speaks the configured language, whichever it is."""
+        configured_language(configured)
+        account = empty_store.accounts.account(_create_owner(_service(empty_store, bus)))
+        assert account is not None and account.language == configured
+
     def test_one_account_and_one_owner_link_without_a_token(self, empty_store: AppStore, bus: EventBus) -> None:
         """The account holds only a hash; the link is the owner's plex.tv identity, no token kept."""
         account_id = _create_owner(_service(empty_store, bus))
@@ -1244,3 +1275,34 @@ class TestCreateOwner:
 
         assert refusal.code is RefusalCode.PASSWORD_REQUIRED
         assert empty_store.accounts.accounts() == []
+
+
+class TestSetOwnLanguage:
+    """``set_own_language`` — ``setOwnLanguage``, the signed-in account's own language."""
+
+    def test_sets_it_and_reads_it_back_another_account_untouched(
+        self, store: AppStore, accounts: AccountService
+    ) -> None:
+        """The account answered carries the language chosen, so does the next read; no other row moves."""
+        caller = _actor_of(store.accounts, "account-guest")
+        store.accounts.set_language("account-household", Language.EN, now=1.0)
+
+        first = accounts.set_own_language(caller, Language.EN)
+        last = accounts.set_own_language(caller, Language.FR)
+
+        assert (first.language, last.language) == (Language.EN, Language.FR)
+        assert accounts.read_account(caller).language is Language.FR
+        other = store.accounts.account("account-household")
+        assert other is not None and other.language is Language.EN
+
+    def test_an_account_gone_since_its_session_is_auth_required(
+        self, store: AppStore, accounts: AccountService
+    ) -> None:
+        """The session's account was deleted: ``auth.required``, nothing written."""
+        caller = _actor_of(store.accounts, "account-guest")
+        store.accounts._conn.execute("DELETE FROM account WHERE id = ?", (caller.account_id,))  # noqa: SLF001
+
+        with pytest.raises(AppRefusal) as raised:
+            accounts.set_own_language(caller, Language.EN)
+
+        assert raised.value.code is RefusalCode.AUTH_REQUIRED
