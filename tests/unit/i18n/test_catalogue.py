@@ -265,7 +265,7 @@ def test_every_converted_key_is_referenced_by_a_literal_call_or_a_code_set() -> 
     sources = [p.read_text(encoding="utf-8") for p in sorted(_PACKAGE_ROOT.rglob("*.py"))]
     coded = _coded_keys()
     orphans = [key for namespace in _CONVERTED_NAMESPACES for key in _orphan_keys(namespace, sources, coded)]
-    assert not orphans, "keys no t(\"…\") call and no code set uses:\n" + "\n".join(orphans)
+    assert not orphans, 'keys no t("…") call and no code set uses:\n' + "\n".join(orphans)
 
 
 def test_the_orphan_check_flags_a_key_nothing_references() -> None:
