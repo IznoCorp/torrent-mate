@@ -60,21 +60,27 @@ class ValidationFinding(StrEnum):
     NTFS_SAFE_NAMES = "ntfs_safe_names"
 
 
+class AudioProfile(StrEnum):
+    """The audio-profile codes the report labels (the closed set behind ``cli_library.reporter.audio``)."""
+
+    MULTI = "multi"
+    VF = "vf"
+    VOSTFR = "vostfr"
+    VO = "vo"
+
+
+class RecommendationPriority(StrEnum):
+    """The recommendation priorities the report labels (the closed set behind ``cli_library.reporter.priority``)."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 # The characters Windows file systems refuse, kept out of the catalogue text (it holds no markup characters).
 _NTFS_FORBIDDEN = '<>:"/\\|?*'
 
-_AUDIO_LABELS = {
-    "multi": "cli_library.reporter.audio_multi",
-    "vf": "cli_library.reporter.audio_vf",
-    "vostfr": "cli_library.reporter.audio_vostfr",
-    "vo": "cli_library.reporter.audio_vo",
-}
-_PRIORITY_MARKS = {"high": "\U0001f534", "medium": "\U0001f7e1", "low": "\U0001f535"}
-_PRIORITY_LABELS = {
-    "high": "cli_library.reporter.priority_high",
-    "medium": "cli_library.reporter.priority_medium",
-    "low": "cli_library.reporter.priority_low",
-}
+_PRIORITY_MARKS = {"high": "🔴", "medium": "🟡", "low": "🔵"}
 
 
 def _explain_issue(issue: str) -> str:
@@ -382,10 +388,10 @@ def format_report_text(report: LibraryReport) -> str:
             explanation = _explain_issue(issue)
             pct_str = f" ({count * 100 // report.total_items}%)" if report.total_items else ""
             lines.append(f"    {issue}: {count}{pct_str}")
-            lines.append(f"      \u2192 {explanation}")
+            lines.append(f"      → {explanation}")
             fix = _ISSUE_FIXES.get(issue)
             if fix:
-                lines.append("      \u2713 " + t("cli_library.reporter.fix_hint", command=fix))
+                lines.append("      ✓ " + t("cli_library.reporter.fix_hint", command=fix))
             lines.append("")
 
         # Total cleanable summary
@@ -393,7 +399,7 @@ def format_report_text(report: LibraryReport) -> str:
         if cleanable:
             lines.append("    " + t("cli_library.reporter.cleanable_summary", total=cleanable))
             lines.append(
-                "    \u2713 " + t("cli_library.reporter.clean_all", command="personalscraper library-clean --apply")
+                "    ✓ " + t("cli_library.reporter.clean_all", command="personalscraper library-clean --apply")
             )
             lines.append("")
 
@@ -418,10 +424,10 @@ def format_report_text(report: LibraryReport) -> str:
             for err, count in report.validation_errors.items():
                 explanation = _explain_finding(err)
                 lines.append(f"      {err}: {count}")
-                lines.append(f"        \u2192 {explanation}")
+                lines.append(f"        → {explanation}")
                 fix = _VALIDATION_FIXES.get(err)
                 if fix:
-                    lines.append(f"        \u2713 {fix}")
+                    lines.append(f"        ✓ {fix}")
                 lines.append("")
 
         if report.validation_warnings:
@@ -431,16 +437,15 @@ def format_report_text(report: LibraryReport) -> str:
             for warn, count in report.validation_warnings.items():
                 explanation = _explain_finding(warn)
                 lines.append(f"      {warn}: {count}")
-                lines.append(f"        \u2192 {explanation}")
+                lines.append(f"        → {explanation}")
             lines.append("")
 
         # Rescrape summary
         rescrape = report.validation_errors.get("nfo_present", 0) + report.validation_errors.get("nfo_valid", 0)
         if rescrape:
-            lines.append("    \u26a0 " + t("cli_library.reporter.rescrape_needed", total=rescrape))
+            lines.append("    ⚠ " + t("cli_library.reporter.rescrape_needed", total=rescrape))
             lines.append(
-                "      \u2713 "
-                + t("cli_library.reporter.fix_hint", command="personalscraper library-rescrape --dry-run")
+                "      ✓ " + t("cli_library.reporter.fix_hint", command="personalscraper library-rescrape --dry-run")
             )
             lines.append("")
 
@@ -462,7 +467,7 @@ def format_report_text(report: LibraryReport) -> str:
         )
         if coverage < 100:
             lines.append(
-                "    \u26a0 "
+                "    ⚠ "
                 + t("cli_library.reporter.partial_analysis", command="personalscraper library-analyze --incremental")
             )
         lines.append("")
@@ -478,8 +483,7 @@ def format_report_text(report: LibraryReport) -> str:
         if report.audio_distribution:
             lines.append("    " + t("cli_library.reporter.audio_heading"))
             for profile, count in sorted(report.audio_distribution.items(), key=lambda x: -x[1]):
-                label_key = _AUDIO_LABELS.get(profile)
-                label = t(label_key) if label_key else profile
+                label = t_code("cli_library.reporter.audio", profile) if profile in AudioProfile else profile
                 lines.append("      " + t("cli_library.reporter.audio_line", label=label, files=count))
             lines.append("")
 
@@ -498,23 +502,22 @@ def format_report_text(report: LibraryReport) -> str:
         for prio in ("high", "medium", "low"):
             count = report.recommendations_by_priority.get(prio, 0)
             if count:
-                lines.append(f"    {_PRIORITY_MARKS[prio]} {t(_PRIORITY_LABELS[prio])}: {count}")
+                lines.append(f"    {_PRIORITY_MARKS[prio]} {t_code('cli_library.reporter.priority', prio)}: {count}")
 
         lines.append("")
         lines.append("    " + t("cli_library.reporter.detail_heading"))
         for rec in report.recommendation_details:
             prio_mark = _PRIORITY_MARKS.get(rec["priority"], "?")
             lines.append(
-                f"      {prio_mark} {rec['title']} \u2014 {rec['codec']} {rec['resolution']} "
+                f"      {prio_mark} {rec['title']} — {rec['codec']} {rec['resolution']} "
                 f"{rec['size_gb']:.1f}GB {rec['audio_profile']}"
             )
             for reason in rec["reasons"]:
-                lines.append(f"           \u2192 {reason}")
+                lines.append(f"           → {reason}")
 
         lines.append("")
         lines.append(
-            "    \u2713 "
-            + t("cli_library.reporter.export_hint", command="personalscraper library-recommend --export csv")
+            "    ✓ " + t("cli_library.reporter.export_hint", command="personalscraper library-recommend --export csv")
         )
         lines.append("")
 
@@ -553,9 +556,9 @@ def format_report_text(report: LibraryReport) -> str:
         if report.rescrape_episodes_count:
             lines.append("    " + t("cli_library.reporter.episodes_renamed", total=report.rescrape_episodes_count))
         if report.rescrape_skipped:
-            lines.append("    \u26a0 " + t("cli_library.reporter.skipped_warning", total=report.rescrape_skipped))
+            lines.append("    ⚠ " + t("cli_library.reporter.skipped_warning", total=report.rescrape_skipped))
             lines.append(
-                "      \u2713 "
+                "      ✓ "
                 + t("cli_library.reporter.retry_hint", command="personalscraper library-rescrape --interactive")
             )
         lines.append("")
@@ -570,11 +573,11 @@ def format_report_text(report: LibraryReport) -> str:
     if report.scan_issues.get("actors_dir_present", 0):
         n = report.scan_issues["actors_dir_present"]
         actions.append("  1. " + t("cli_library.reporter.action_actors", total=n))
-        actions.append("     \u2192 personalscraper library-clean --only actors --apply")
+        actions.append("     → personalscraper library-clean --only actors --apply")
     if report.scan_issues.get("junk_files", 0):
         n = report.scan_issues["junk_files"]
         actions.append("  2. " + t("cli_library.reporter.action_junk", total=n))
-        actions.append("     \u2192 personalscraper library-clean --only junk --apply")
+        actions.append("     → personalscraper library-clean --only junk --apply")
     # NFO presence/validity gap. ``nfo_invalid_count`` aggregates DB rows where
     # ``nfo_status`` is missing OR invalid (analyzer.nfo.invalid + analyzer.nfo.missing)
     # — we surface it here so a freshly-loaded library that never went through
@@ -584,17 +587,17 @@ def format_report_text(report: LibraryReport) -> str:
         rescrape = report.nfo_invalid_count
     if rescrape:
         actions.append("  3. " + t("cli_library.reporter.action_rescrape", total=rescrape))
-        actions.append("     \u2192 personalscraper library-rescrape --dry-run")
+        actions.append("     → personalscraper library-rescrape --dry-run")
     if report.poster_missing_count:
         actions.append("  3b. " + t("cli_library.reporter.action_artwork", total=report.poster_missing_count))
-        actions.append("     \u2192 personalscraper library-rescrape --only artwork")
+        actions.append("     → personalscraper library-rescrape --only artwork")
     if report.analysis_item_count and report.total_items and report.analysis_item_count < report.total_items:
         remaining = report.total_items - report.analysis_item_count
         actions.append("  4. " + t("cli_library.reporter.action_analysis", remaining=remaining))
-        actions.append("     \u2192 personalscraper library-analyze --incremental")
+        actions.append("     → personalscraper library-analyze --incremental")
     if report.recommendation_count:
         actions.append("  5. " + t("cli_library.reporter.action_recommendations", total=report.recommendation_count))
-        actions.append("     \u2192 personalscraper library-recommend --export csv")
+        actions.append("     → personalscraper library-recommend --export csv")
 
     if actions:
         lines.extend(actions)

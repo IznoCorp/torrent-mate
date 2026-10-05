@@ -101,20 +101,14 @@ def library_status_command(
             typer.echo(t("cli_library.indexer_query.disks_header"))
             disks_data: list[dict[str, object]] = []
             for d_id, label, is_mounted, last_seen_at, merkle_root in disk_rows:
-                mounted_str = t(
-                    "cli_library.indexer_query.mounted_yes" if is_mounted else "cli_library.indexer_query.mounted_no"
+                mounted_str = (
+                    t("cli_library.indexer_query.mounted_yes")
+                    if is_mounted
+                    else t("cli_library.indexer_query.mounted_no")
                 )
                 last_seen_str = str(last_seen_at) if last_seen_at is not None else t("cli_library.indexer_query.never")
                 root_str = (merkle_root or "")[:12] if merkle_root else ""
-                typer.echo(
-                    t(
-                        "cli_library.indexer_query.disk_row",
-                        label=f"{label:<18}",
-                        mounted=f"{mounted_str:<10}",
-                        last_seen=f"{last_seen_str:<20}",
-                        merkle_root=root_str,
-                    )
-                )
+                typer.echo(f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}")
                 disks_data.append(
                     {
                         "label": label,
@@ -163,7 +157,7 @@ def library_status_command(
             if oldest_pending_age_seconds is None:
                 oldest_label = t("cli_library.indexer_query.never")
             else:
-                oldest_label = t("cli_library.indexer_query.oldest_hours", hours=oldest_pending_age_seconds // 3600)
+                oldest_label = f"{oldest_pending_age_seconds // 3600}h"
             typer.echo(t("cli_library.indexer_query.repair_queue", depth=pending_depth, oldest=oldest_label))
 
             # --- Outbox pending depth ---

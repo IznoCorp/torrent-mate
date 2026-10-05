@@ -18,12 +18,14 @@
     "analysed": "Analysés: {{items}} items, {{files}} fichiers ({{coverage}}% de la bibliothèque)",
     "analysis_heading": "3. ANALYSE — Encodage vidéo (ffprobe)",
     "artwork_downloaded": "Artwork téléchargé: {{total}}",
+    "audio": {
+      "multi": "MULTI (multi-langues)",
+      "vf": "VF (français)",
+      "vostfr": "VOSTFR (VO + sous-titres FR)",
+      "vo": "VO (version originale)"
+    },
     "audio_heading": "Profils audio:",
     "audio_line": "{{label}}: {{files}} fichiers",
-    "audio_multi": "MULTI (multi-langues)",
-    "audio_vf": "VF (français)",
-    "audio_vo": "VO (version originale)",
-    "audio_vostfr": "VOSTFR (VO + sous-titres FR)",
     "categories_heading": "CATÉGORIES",
     "clean_all": "Tout nettoyer: {{command}}",
     "cleanable_summary": "Nettoyable automatiquement: {{total}} problèmes",
@@ -44,9 +46,11 @@
     "non_compliant": "Non-conformes: {{issues}} ({{pct}}%)",
     "overview": "Total: {{items}} items, {{size}} GB",
     "partial_analysis": "Analyse partielle. Compléter: {{command}}",
-    "priority_high": "Haute",
-    "priority_low": "Basse",
-    "priority_medium": "Moyenne",
+    "priority": {
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
     "recommendations_heading": "4. RECOMMANDATIONS — Re-téléchargements suggérés",
     "recommendations_savings": "Économie potentielle: ~{{savings}} GB",
     "recommendations_total": "Total: {{total}} items à améliorer",
