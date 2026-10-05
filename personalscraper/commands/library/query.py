@@ -9,14 +9,15 @@ import typer
 
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
+from personalscraper.i18n import t
 
 
-@app.command("library-status")
+@app.command("library-status", help=t("cli_library.query.library_status_help"))
 @handle_cli_errors
 @boundary(needs="config", staging=False)
 def library_status(
     ctx: typer.Context,
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.query.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -46,14 +47,14 @@ def library_status(
     raise typer.Exit(rc)
 
 
-@app.command("library-search")
+@app.command("library-search", help=t("cli_library.query.library_search_help"))
 @handle_cli_errors
 @boundary(needs="config", staging=False)
 def library_search(
     ctx: typer.Context,
-    query: str = typer.Argument(..., help="Query string, e.g. 'year:2024 disk:Disk1 -nfo:valid'"),
-    limit: int = typer.Option(50, "--limit", help="Maximum number of results to return"),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    query: str = typer.Argument(..., help=t("cli_library.query.library_search_query_help")),
+    limit: int = typer.Option(50, "--limit", help=t("cli_library.query.library_search_limit_help")),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.query.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -87,9 +88,9 @@ def _print_search_table(rows: list[dict[str, object]]) -> None:
         rows: List of row dicts with ``id``, ``title``, ``year``, ``kind``, ``nfo_status`` keys.
     """
     if not rows:
-        typer.echo("(no results)")
+        typer.echo(t("cli_library.query.no_results"))
         return
-    typer.echo(f"{'ID':<8}{'TITLE':<40} {'YEAR':<6} {'NFO':<10}")
+    typer.echo(t("cli_library.query.search_header"))
     for r in rows:
         year_str = str(r["year"]) if r["year"] is not None else ""
         nfo_str = str(r["nfo_status"]) or ""
@@ -97,13 +98,13 @@ def _print_search_table(rows: list[dict[str, object]]) -> None:
         typer.echo(f"{r['id']:<8}{title[:38]:<40} {year_str:<6} {nfo_str:<10}")
 
 
-@app.command("library-show")
+@app.command("library-show", help=t("cli_library.query.library_show_help"))
 @handle_cli_errors
 @boundary(needs="config", staging=False)
 def library_show(
     ctx: typer.Context,
-    item_id: int = typer.Argument(..., help="media_item.id to display"),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    item_id: int = typer.Argument(..., help=t("cli_library.query.library_show_item_id_help")),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.query.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -139,43 +140,68 @@ def _print_show_sections(payload: dict[str, object]) -> None:
 
     item = cast("dict[str, object]", payload.get("item", {}))
     item_id = payload.get("item_id", "?")
-    typer.echo(f"=== media_item id={item_id} ===")
+    typer.echo(t("cli_library.query.item_heading", item_id=str(item_id)))
     for key, value in item.items():
         typer.echo(f"  {key}: {value}")
 
     seasons = cast("list[dict[str, object]]", payload.get("seasons", []))
     if seasons:
-        typer.echo(f"\n=== seasons ({len(seasons)}) ===")
+        typer.echo(t("cli_library.query.seasons_heading", total=len(seasons)))
         for s in seasons:
             typer.echo(
-                f"  season {s.get('number')}: episodes={s.get('episode_count')}, "
-                f"has_poster={s.get('has_poster')}, nfo_count={s.get('episodes_with_nfo')}"
+                t(
+                    "cli_library.query.season_line",
+                    number=str(s.get("number")),
+                    episodes=str(s.get("episode_count")),
+                    has_poster=str(s.get("has_poster")),
+                    nfo_count=str(s.get("episodes_with_nfo")),
+                )
             )
             for ep in cast("list[dict[str, object]]", s.get("episodes", [])):
-                typer.echo(f"    episode {ep.get('number')}: {ep.get('title')}")
+                typer.echo(
+                    t("cli_library.query.episode_line", number=str(ep.get("number")), title=str(ep.get("title")))
+                )
 
     files = cast("list[dict[str, object]]", payload.get("files", []))
     if files:
-        typer.echo(f"\n=== media_files ({len(files)}) ===")
+        typer.echo(t("cli_library.query.files_heading", total=len(files)))
         for f in files:
             typer.echo(
-                f"  file id={f.get('id')} {f.get('rel_path')}/{f.get('filename')}"
-                f" size={f.get('size_bytes')} mtime_ns={f.get('mtime_ns')}"
+                t(
+                    "cli_library.query.file_line",
+                    id=str(f.get("id")),
+                    rel_path=str(f.get("rel_path")),
+                    filename=str(f.get("filename")),
+                    size_bytes=str(f.get("size_bytes")),
+                    mtime_ns=str(f.get("mtime_ns")),
+                )
             )
             for st in cast("list[dict[str, object]]", f.get("streams", [])):
                 typer.echo(
-                    f"    stream idx={st.get('idx')} kind={st.get('kind')} "
-                    f"codec={st.get('codec')} lang={st.get('lang')}"
+                    t(
+                        "cli_library.query.stream_line",
+                        idx=str(st.get("idx")),
+                        kind=str(st.get("kind")),
+                        codec=str(st.get("codec")),
+                        lang=str(st.get("lang")),
+                    )
                 )
 
     attributes = cast("list[dict[str, object]]", payload.get("attributes", []))
     if attributes:
-        typer.echo(f"\n=== item_attributes ({len(attributes)}) ===")
+        typer.echo(t("cli_library.query.attributes_heading", total=len(attributes)))
         for a in attributes:
             typer.echo(f"  {a.get('key')}: {a.get('value')}")
 
     deleted = cast("list[dict[str, object]]", payload.get("deleted_history", []))
     if deleted:
-        typer.echo(f"\n=== deleted_item history ({len(deleted)}) ===")
+        typer.echo(t("cli_library.query.deleted_heading", total=len(deleted)))
         for d in deleted:
-            typer.echo(f"  kind={d.get('kind')} deleted_at={d.get('deleted_at')} reason={d.get('reason')}")
+            typer.echo(
+                t(
+                    "cli_library.query.deleted_line",
+                    kind=str(d.get("kind")),
+                    deleted_at=str(d.get("deleted_at")),
+                    reason=str(d.get("reason")),
+                )
+            )

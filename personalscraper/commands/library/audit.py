@@ -11,12 +11,29 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.core.sqlite._fs_probe import is_mounted
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
 
+_BOLD_GREEN = "bold green"
+_BOLD_RED = "bold red"
 
-@app.command("library-reconcile")
+
+def _styled(style: str, text: str) -> str:
+    """Wrap a looked-up line in a Rich style tag (markup stays in code, never in the catalogue).
+
+    Args:
+        style: The Rich style name, e.g. ``"red"`` or ``"bold green"``.
+        text: The already translated text.
+
+    Returns:
+        ``text`` between the opening and closing tags of ``style``.
+    """
+    return f"[{style}]{text}[/{style}]"
+
+
+@app.command("library-reconcile", help=t("cli_library.audit.reconcile_command_help"))
 @handle_cli_errors
 @boundary(needs="app", lock=False, journal=False, staging=False)
 def library_reconcile(
@@ -24,44 +41,29 @@ def library_reconcile(
     scope: list[str] = typer.Option(
         [],
         "--scope",
-        help=(
-            "Restrict to a detector scope (repeatable). "
-            "Choices: merkle, dispatch_path, enrich, release, season, item, path_missing. "
-            "Omit to run every detector."
-        ),
+        help=t("cli_library.audit.reconcile_scope_help"),
     ),
     read_only: bool = typer.Option(
         False,
         "--read-only",
-        help=(
-            "Explicit read-only mode (default behaviour). "
-            "No divergence is written to repair_queue. "
-            "Mutually exclusive with --enqueue-repairs."
-        ),
+        help=t("cli_library.audit.reconcile_read_only_help"),
     ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Alias for --read-only. Preview findings without enqueuing repairs.",
+        help=t("cli_library.audit.reconcile_dry_run_help"),
     ),
     enqueue_repairs: bool = typer.Option(
         False,
         "--enqueue-repairs",
-        help=(
-            "Opt-in: push every divergence into repair_queue for library-repair to drain. "
-            "Mutually exclusive with --read-only / --dry-run."
-        ),
+        help=t("cli_library.audit.reconcile_enqueue_repairs_help"),
     ),
     clean_fk_orphans: bool = typer.Option(
         False,
         "--clean-fk-orphans",
-        help=(
-            "Delete foreign-key orphan rows (child rows whose parent media_item is gone) "
-            "under ON DELETE CASCADE. Combine with --dry-run/--read-only to preview the "
-            "cascade impact (media_file/media_stream rows removed) before applying."
-        ),
+        help=t("cli_library.audit.reconcile_clean_fk_orphans_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.audit.reconcile_config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -106,7 +108,7 @@ def library_reconcile(
     # --read-only / --dry-run are mutually exclusive with --enqueue-repairs.
     # Both flags mean the same thing: stay in the default read-only mode.
     if enqueue_repairs and (read_only or dry_run):
-        typer.echo("--enqueue-repairs is mutually exclusive with --read-only / --dry-run.", err=True)
+        typer.echo(t("cli_library.audit.reconcile_modes_exclusive"), err=True)
         raise typer.Exit(1)
 
     # --read-only and --dry-run are aliases for each other; both simply
@@ -210,18 +212,26 @@ def _print_reconcile_rich(payload: dict[str, object]) -> None:
 
     console = state["console"]
     if "error" in payload:
-        console.print(f"[red]Error:[/red] {payload['error']}")
+        console.print(_styled("red", t("cli_library.audit.error_label")) + " " + str(payload["error"]))
         return
 
-    console.print(f"[bold]total_findings:[/bold] {payload.get('total_findings', 0)}")
-    console.print(f"merkle_drift: {payload.get('merkle_drift', 0)}")
-    console.print(f"dispatch_path_missing_count: {payload.get('dispatch_path_missing_count', 0)}")
-    console.print(f"enrich_stale: {payload.get('enrich_stale', 0)}")
-    console.print(f"release_orphans_count: {payload.get('release_orphans_count', 0)}")
-    console.print(f"files_without_release: {payload.get('files_without_release', 0)}")
-    console.print(f"season_count_drift_count: {payload.get('season_count_drift_count', 0)}")
-    console.print(f"items_without_files_count: {payload.get('items_without_files_count', 0)}")
-    console.print(f"path_missing_count: {payload.get('path_missing_count', 0)}")
+    console.print(
+        _styled("bold", t("cli_library.audit.total_findings_label")) + " " + str(payload.get("total_findings", 0))
+    )
+    console.print(t("cli_library.audit.merkle_drift", value=str(payload.get("merkle_drift", 0))))
+    console.print(
+        t("cli_library.audit.dispatch_path_missing_count", value=str(payload.get("dispatch_path_missing_count", 0)))
+    )
+    console.print(t("cli_library.audit.enrich_stale", value=str(payload.get("enrich_stale", 0))))
+    console.print(t("cli_library.audit.release_orphans_count", value=str(payload.get("release_orphans_count", 0))))
+    console.print(t("cli_library.audit.files_without_release", value=str(payload.get("files_without_release", 0))))
+    console.print(
+        t("cli_library.audit.season_count_drift_count", value=str(payload.get("season_count_drift_count", 0)))
+    )
+    console.print(
+        t("cli_library.audit.items_without_files_count", value=str(payload.get("items_without_files_count", 0)))
+    )
+    console.print(t("cli_library.audit.path_missing_count", value=str(payload.get("path_missing_count", 0))))
 
     samples: list[tuple[str, str]] = [
         ("dispatch_path_missing", "dispatch_path_missing_sample"),
@@ -233,29 +243,28 @@ def _print_reconcile_rich(payload: dict[str, object]) -> None:
     for label, key in samples:
         sample = cast("list[str]", payload.get(key, []))
         if sample:
-            console.print(f"[yellow]{label} (sample {len(sample)}):[/yellow]")
+            console.print(_styled("yellow", t("cli_library.audit.sample_header", label=label, number=len(sample))))
             for s in sample[:5]:
-                console.print(f"  {s}")
+                console.print("  " + s)
 
     if payload.get("enqueued_repairs", 0):
-        console.print(f"[bold green]enqueued_repairs:[/bold green] {payload['enqueued_repairs']}")
+        console.print(
+            _styled(_BOLD_GREEN, t("cli_library.audit.enqueued_repairs_label")) + " " + str(payload["enqueued_repairs"])
+        )
 
     # Proactive no-NFO visibility (DESIGN decision #3): a yellow advisory line
     # pointing the operator at the targeted re-scrape repair command.
     nfo_missing_count = cast("int", payload.get("nfo_missing_count", 0))
     if nfo_missing_count > 0:
-        console.print(
-            f"[yellow]{nfo_missing_count} item(s) without a valid NFO — "
-            "run `library-rescrape --only nfo` to repair.[/yellow]"
-        )
+        console.print(_styled("yellow", t("cli_library.audit.nfo_missing_advisory", number=nfo_missing_count)))
 
 
-@app.command("library-ghost-audit")
+@app.command("library-ghost-audit", help=t("cli_library.audit.ghost_command_help"))
 @handle_cli_errors
 def library_ghost_audit(
     ctx: typer.Context,
-    disk: str = typer.Option(None, "--disk", help="Audit only this disk (id from config)"),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    disk: str = typer.Option(None, "--disk", help=t("cli_library.audit.ghost_disk_help")),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.audit.ghost_config_help")),
 ) -> None:
     """Audit storage disks for NTFS-via-macFUSE ghost dirents.
 
@@ -289,7 +298,7 @@ def library_ghost_audit(
         if disk and d.id != disk:
             continue
         if not is_mounted(d.path):
-            console.print(f"[yellow]{d.id}: not mounted, skipped[/yellow]")
+            console.print(_styled("yellow", t("cli_library.audit.ghost_not_mounted", disk=d.id)))
             continue
         ghosts: list[str] = []
         try:
@@ -304,45 +313,41 @@ def library_ghost_audit(
                         # Permission denied / EIO are not ghosts; skip.
                         continue
         except OSError as exc:
-            console.print(f"[red]{d.id}: walk error: {exc}[/red]")
+            console.print(_styled("red", t("cli_library.audit.ghost_walk_error", disk=d.id, error=str(exc))))
             continue
 
         total_ghosts += len(ghosts)
         if ghosts:
-            console.print(f"[red]{d.id}: {len(ghosts)} ghost dirent(s)[/red]")
+            console.print(_styled("red", t("cli_library.audit.ghost_found", disk=d.id, number=len(ghosts))))
             for g in ghosts[:10]:
-                console.print(f"  {g}")
+                console.print("  " + g)
             if len(ghosts) > 10:
-                console.print(f"  … and {len(ghosts) - 10} more")
+                console.print("  " + t("cli_library.audit.ghost_more", number=len(ghosts) - 10))
         else:
-            console.print(f"[green]{d.id}: clean[/green]")
+            console.print(_styled("green", t("cli_library.audit.ghost_clean", disk=d.id)))
 
     if total_ghosts == 0:
-        console.print("[bold green]All disks clean — no ghost dirents.[/bold green]")
+        console.print(_styled(_BOLD_GREEN, t("cli_library.audit.ghost_all_clean")))
     else:
         console.print(
-            f"[bold red]{total_ghosts} total ghost dirent(s) across all audited disks.[/bold red]\n"
-            "Recovery: unmount the affected NTFS volume and run fsck, or "
-            "remount on a Windows host to repair the directory entries."
+            _styled(_BOLD_RED, t("cli_library.audit.ghost_total", number=total_ghosts))
+            + "\n"
+            + t("cli_library.audit.ghost_recovery")
         )
         raise typer.Exit(1)
 
 
-@app.command("library-relink")
+@app.command("library-relink", help=t("cli_library.audit.relink_command_help"))
 @handle_cli_errors
 def library_relink(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Persist link updates (default: dry-run)"),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.audit.relink_apply_help")),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help=(
-            "Preview mode (explicit alias for the default behaviour). "
-            "Report what would be linked without writing to the database. "
-            "Mutually exclusive with --apply."
-        ),
+        help=t("cli_library.audit.relink_dry_run_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.audit.relink_config_help")),
 ) -> None:
     """Relink ``media_file`` rows whose ``release_id`` is NULL.
 
@@ -374,7 +379,7 @@ def library_relink(
 
     # --dry-run and --apply are mutually exclusive.
     if dry_run and apply:
-        console.print("[red]--dry-run and --apply are mutually exclusive.[/red]")
+        console.print(_styled("red", t("cli_library.audit.relink_modes_exclusive")))
         raise typer.Exit(1)
 
     cfg = ctx.obj.config
@@ -387,7 +392,7 @@ def library_relink(
         conn.execute("BEGIN IMMEDIATE")
         disks = {did: _Path(mp) for did, mp in conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted = 1")}
         if not disks:
-            console.print("[yellow]No mounted disks — nothing to relink.[/yellow]")
+            console.print(_styled("yellow", t("cli_library.audit.relink_no_disks")))
             raise typer.Exit(0)
 
         rows = list(
@@ -402,7 +407,7 @@ def library_relink(
         )
         linked = unmatched = errors = 0
         if rows:
-            console.print(f"Found [bold]{len(rows)}[/bold] orphan media_file row(s).")
+            console.print(t("cli_library.audit.relink_found", number=_styled("bold", str(len(rows)))))
             for mf_id, filename, disk_id, rel_path in rows:
                 mount = disks.get(disk_id)
                 if mount is None:
@@ -418,7 +423,7 @@ def library_relink(
                     errors += 1
                     log.warning("library_relink_failed", file_id=mf_id, path=str(abs_path), error=str(exc))
         else:
-            console.print("[green]No orphan media_file rows.[/green]")
+            console.print(_styled("green", t("cli_library.audit.relink_none")))
 
         # Pass 2 — span repair: files linked BEFORE multi-episode support
         # (migration 014) carry a release whose episode_end_id is NULL even
@@ -460,28 +465,40 @@ def library_relink(
         if apply:
             conn.commit()
             console.print(
-                f"[green]Applied:[/green] linked={linked}, unmatched={unmatched}, "
-                f"span_repaired={span_repaired}, errors={errors}",
+                t(
+                    "cli_library.audit.relink_applied",
+                    label=_styled("green", t("cli_library.audit.applied_label")),
+                    linked=linked,
+                    unmatched=unmatched,
+                    span_repaired=span_repaired,
+                    errors=errors,
+                ),
             )
         else:
             conn.rollback()
             console.print(
-                f"[yellow]DRY-RUN:[/yellow] would link={linked}, unmatched={unmatched}, "
-                f"span_repaired={span_repaired}, errors={errors}",
+                t(
+                    "cli_library.audit.relink_dry_run",
+                    label=_styled("yellow", t("cli_library.audit.dry_run_label")),
+                    linked=linked,
+                    unmatched=unmatched,
+                    span_repaired=span_repaired,
+                    errors=errors,
+                ),
             )
     finally:
         conn.close()
 
 
-@app.command("library-refresh-path")
+@app.command("library-refresh-path", help=t("cli_library.audit.refresh_path_command_help"))
 @handle_cli_errors
 def library_refresh_path(
     ctx: typer.Context,
-    path: str = typer.Argument(..., help="Absolute path of the renamed/moved media folder"),
+    path: str = typer.Argument(..., help=t("cli_library.audit.refresh_path_path_help")),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Show the resolved disk + maintenance plan without touching anything.",
+        help=t("cli_library.audit.refresh_path_dry_run_help"),
     ),
 ) -> None:
     """Targeted index reconciliation after a MANUAL rename/move of one folder.
@@ -508,10 +525,10 @@ def library_refresh_path(
 
     target = Path(path)
     if not target.is_absolute():
-        console.print("[red]The path must be absolute.[/red]")
+        console.print(_styled("red", t("cli_library.audit.refresh_path_not_absolute")))
         raise typer.Exit(2)
     if not target.exists():
-        console.print(f"[red]Path does not exist:[/red] {target}")
+        console.print(_styled("red", t("cli_library.audit.refresh_path_missing_label")) + " " + str(target))
         raise typer.Exit(2)
 
     # Resolve the owning disk: the config disk whose root is an ancestor.
@@ -524,18 +541,27 @@ def library_refresh_path(
         owning_label = disk_cfg.id
         break
     if owning_label is None:
-        console.print(f"[red]No configured disk owns this path.[/red] Disks: {', '.join(d.id for d in cfg.disks)}")
+        console.print(
+            _styled("red", t("cli_library.audit.refresh_path_no_disk"))
+            + " "
+            + t("cli_library.audit.refresh_path_disks", disks=", ".join(d.id for d in cfg.disks))
+        )
         raise typer.Exit(2)
 
     if dry_run:
         console.print(
-            f"[yellow]DRY-RUN:[/yellow] would invalidate subtree [bold]{target}[/bold] "
-            f"on disk [bold]{owning_label}[/bold], then incremental scan + relink "
-            "+ fix-season-counts + repair drain."
+            t(
+                "cli_library.audit.refresh_path_dry_run",
+                label=_styled("yellow", t("cli_library.audit.dry_run_label")),
+                target=_styled("bold", str(target)),
+                disk=_styled("bold", str(owning_label)),
+            )
         )
         return
 
-    console.print(f"Refreshing index for [bold]{target}[/bold] (disk {owning_label})…")
+    console.print(
+        t("cli_library.audit.refresh_path_refreshing", target=_styled("bold", str(target)), disk=owning_label)
+    )
     # This command IS a composition root: it owns its bus, and no acquire subscriber
     # is wired on this path (a targeted manual re-index must not gain a reconciliation
     # side effect). Constructing the bus here is therefore correct — the D4 defect was
@@ -549,4 +575,4 @@ def library_refresh_path(
         destinations={owning_label: {target}},
         enabled=True,
     )
-    console.print("[green]Done.[/green] See logs for scan/relink/season-count details.")
+    console.print(t("cli_library.audit.refresh_path_done", label=_styled("green", t("cli_library.audit.done_label"))))

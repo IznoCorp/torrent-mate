@@ -12,27 +12,24 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 
 
-@app.command("library-gc")
+@app.command("library-gc", help=t("cli_library.gc.command_help", less_than="<"))
 @handle_cli_errors
 def library_gc(
     ctx: typer.Context,
     older_than_days: int = typer.Option(
         30,
         "--older-than-days",
-        help=(
-            "Delete ``index_outbox`` rows with status=done whose "
-            "``processed_at`` timestamp is older than this many days. "
-            "Default: 30."
-        ),
+        help=t("cli_library.gc.older_than_days_help"),
     ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help=("Preview mode: count how many rows would be deleted without actually deleting them. No DB writes occur."),
+        help=t("cli_library.gc.dry_run_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.gc.config_help")),
 ) -> None:
     """Garbage-collect old index_outbox rows (status=done, processed_at < cutoff).
 
@@ -65,7 +62,7 @@ def library_gc(
     cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
 
     if cfg.indexer.db_path is None:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.gc.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     db_path = Path(cfg.indexer.db_path)  # narrow Any|Path|None → Path for mypy strict mode

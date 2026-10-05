@@ -49,6 +49,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
+from personalscraper.i18n import t
 from personalscraper.indexer.release_linker import parse_episode_number
 from personalscraper.logger import get_logger
 
@@ -300,32 +301,23 @@ def _try_episode_level_link(
     return [(int(r[0]), r[1]) for r in rows]
 
 
-@app.command("library-fix-orphan-files")
+@app.command("library-fix-orphan-files", help=t("cli_library.fix_orphan_files.command_help", bold="**"))
 @handle_cli_errors
 def library_fix_orphan_files(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Apply fixes (default: dry-run preview)."),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.fix_orphan_files.apply_help")),
     purge_unrecoverable: bool = typer.Option(
         False,
         "--purge-unrecoverable",
-        help=(
-            "After the repair pass, DELETE media_file rows still with release_id "
-            "IS NULL. These have no parent release to link to and are unrecoverable. "
-            "Requires --apply to take effect (otherwise reported as would_purge)."
-        ),
+        help=t("cli_library.fix_orphan_files.purge_unrecoverable_help"),
     ),
     purge_release_orphans: bool = typer.Option(
         False,
         "--purge-release-orphans",
-        help=(
-            "After the repair pass, DELETE media_release rows with no surviving "
-            "(non-soft-deleted) media_file pointing at them. Mirrors "
-            "detect_release_orphans from reconcile.py (Phase 14.8). Requires "
-            "--apply to take effect (otherwise reported as would_purge_release_orphans)."
-        ),
+        help=t("cli_library.fix_orphan_files.purge_release_orphans_help"),
     ),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.fix_orphan_files.config_help")),
+    db: Path | None = typer.Option(None, "--db", help=t("cli_library.fix_orphan_files.db_help")),
 ) -> None:
     """Repair ``media_file`` rows with ``release_id IS NULL``.
 
@@ -354,7 +346,7 @@ def library_fix_orphan_files(
     elif cfg.indexer.db_path is not None:
         db_path = Path(cfg.indexer.db_path)
     else:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.fix_orphan_files.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     from personalscraper.indexer.db import _apply_pragmas as _db_apply_pragmas  # noqa: PLC0415
