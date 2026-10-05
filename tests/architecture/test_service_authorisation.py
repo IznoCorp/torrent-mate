@@ -70,7 +70,7 @@ def _service_classes(hints: dict[str, Any] | None = None) -> list[type]:
         is_union = typing.get_origin(hint) in (typing.Union, types.UnionType)
         members = [arg for arg in typing.get_args(hint) if arg is not type(None)] if is_union else [hint]
         if len(members) != 1 or not isinstance(members[0], type):
-            raise AssertionError(f"AppServices.{field} ({hint!r}) resolves to no class: the guard cannot read its methods")
+            raise AssertionError(f"AppServices.{field} ({hint!r}) resolves to no class: the guard cannot read it")
         if members[0] not in classes:
             classes.append(members[0])
     return classes
