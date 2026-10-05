@@ -15,9 +15,14 @@ from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, 
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.library.service import LibraryService
+from personalscraper.app.library.completeness import CatalogueView
+from personalscraper.app.library.deleting import LibraryDeletion
+from personalscraper.app.library.reads import LibraryReads
+from personalscraper.app.library.rescrape import LibraryRescrape
+from personalscraper.app.library.sheets import MediaSheets
 from personalscraper.core._contracts import ApiError
 from personalscraper.indexer.db import apply_migrations
+from personalscraper.indexer.library_view import LibraryIndex
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 
 _MIGRATIONS_DIR = Path(__file__).resolve().parents[4] / "personalscraper" / "indexer" / "migrations"
@@ -251,7 +256,11 @@ class World:
     store: CatalogueStore
     tvdb: FakeClient
     tmdb: FakeClient
-    service: LibraryService
+    view: CatalogueView
+    library: LibraryReads
+    sheets: MediaSheets
+    rescrape: LibraryRescrape
+    deletion: LibraryDeletion
     actor: Actor
     clock: list[float]
     data_dir: Path
@@ -272,17 +281,20 @@ def world(tmp_path: Path) -> Iterator[World]:
     tvdb, tmdb = FakeClient(), FakeClient()
     clock = [NOW]
     ownership = IndexerOwnershipChecker(index.path)
-    service = LibraryService(
-        index_db=index.path,
-        data_dir=tmp_path,
-        catalogue=store,
-        ownership=ownership,
+    library_index = LibraryIndex(index.path)
+    view = CatalogueView(catalogue=store, ownership=ownership)
+    sheets = MediaSheets(
+        index=library_index,
+        view=view,
         providers=ProviderClients(tvdb=tvdb, tmdb=tmdb),  # type: ignore[arg-type]
         clock=lambda: clock[0],
     )
+    library = LibraryReads(index=library_index, view=view, sheets=sheets, clock=lambda: clock[0])
+    rescrape = LibraryRescrape(index=library_index, index_db=index.path, data_dir=tmp_path)
+    deletion = LibraryDeletion(index=library_index, index_db=index.path, data_dir=tmp_path)
     actor = Actor.system(InstanceCeiling(forbidden=frozenset(), read_only=False), account_id="owner", name="Owner")
-    yield World(index, store, tvdb, tmdb, service, actor, clock, tmp_path)
-    service.close()
+    yield World(index, store, tvdb, tmdb, view, library, sheets, rescrape, deletion, actor, clock, tmp_path)
+    view.close()
     ownership.close()
     store.close()
     index.conn.close()

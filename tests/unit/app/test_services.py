@@ -13,7 +13,7 @@ from personalscraper.api.plex import PlexClient
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
 from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
-from personalscraper.app.library.service import LibraryService
+from personalscraper.app.library.reads import LibraryReads
 from personalscraper.app.services import AppServices
 from personalscraper.conf.environment import Environment
 from personalscraper.conf.models.config import Config
@@ -34,7 +34,7 @@ def test_the_library_service_is_built_inert(test_config: Config) -> None:
     """The library service is built over the configured stores without opening them; no key, no client."""
     services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
 
-    assert isinstance(services.library, LibraryService)
+    assert isinstance(services.library, LibraryReads)
     assert test_config.acquire.db_path is not None
     assert not test_config.acquire.db_path.exists()
     services.close()
@@ -138,12 +138,12 @@ def test_the_library_deletes_through_the_strict_permit_over_the_configured_acqui
     """The library's permit reads ``acquire.db`` read-only and refuses what it cannot read (R1); nothing created."""
     services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
     try:
-        permit = services.library._delete_permit
+        permit = services.deletion._delete_permit
         assert isinstance(permit, StrictDeletePermit)
         assert permit._db_path == test_config.acquire.db_path
         assert test_config.acquire.db_path is not None
         assert not test_config.acquire.db_path.exists()
-        assert services.library._config is test_config
+        assert services.deletion._config is test_config
     finally:
         services.close()
 
@@ -153,7 +153,7 @@ def test_the_library_tells_the_plex_server_the_settings_name(test_config: Config
     settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="planted-server-token")  # type: ignore[call-arg]
     services = build_app_services(test_config, settings, event_bus=EventBus())
     try:
-        plex = services.library._plex
+        plex = services.deletion._plex
         assert isinstance(plex, PlexClient)
         assert plex.base_url == "http://plex.example.invalid:32400"
         assert plex._token == "planted-server-token"
@@ -165,7 +165,7 @@ def test_the_library_has_no_plex_server_without_a_token(test_config: Config) -> 
     """No ``PLEX_TOKEN``: the library holds no Plex client, and a deletion reports Plex not configured."""
     services = build_app_services(test_config, Settings(_env_file=None, plex_token=""), event_bus=EventBus())  # type: ignore[call-arg]
     try:
-        assert services.library._plex is None
+        assert services.deletion._plex is None
     finally:
         services.close()
 
@@ -200,8 +200,8 @@ def test_a_given_registry_serves_the_library_and_stays_its_owners(test_config: C
     registry.close = lambda: closed.append(True)  # type: ignore[method-assign]
     services = build_app_services(test_config, settings, providers=registry, event_bus=EventBus())
     try:
-        assert services.library._providers.get("tmdb") is registry.get("tmdb")
-        assert services.library._providers.get("tvdb") is registry.get("tvdb")
+        assert services.sheets._providers.get("tmdb") is registry.get("tmdb")
+        assert services.sheets._providers.get("tvdb") is registry.get("tvdb")
     finally:
         services.close()
         assert closed == []
@@ -211,7 +211,7 @@ def test_a_given_registry_serves_the_library_and_stays_its_owners(test_config: C
 def test_without_a_registry_the_services_build_their_own_lazily(test_config: Config) -> None:
     """No registry handed over: the services build one on the first provider call, with one attempt."""
     services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
-    providers = services.library._providers
+    providers = services.sheets._providers
     assert isinstance(providers, LazyProviders)
     assert providers._registry is None
     tmdb = providers.get("tmdb")
@@ -233,7 +233,7 @@ def test_the_lazy_registry_and_the_plex_door_are_on_the_process_bus(test_config:
     settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="planted-server-token")  # type: ignore[call-arg]
     services = build_app_services(test_config, settings, event_bus=bus)
     try:
-        tmdb = services.library._providers.get("tmdb")
+        tmdb = services.sheets._providers.get("tmdb")
         assert tmdb is not None
         assert tmdb._transport._event_bus is bus  # type: ignore[attr-defined]
         assert services.plex_sign_in._bus is bus
@@ -248,8 +248,8 @@ def test_a_missing_tvdb_key_leaves_tmdb_served(test_config: Config, monkeypatch:
     config = test_config.model_copy(update={"providers": providers_config})
     services = build_app_services(config, Settings(_env_file=None, tvdb_api_key=""), event_bus=EventBus())  # type: ignore[call-arg]
     try:
-        assert services.library._providers.get("tmdb") is not None
-        assert services.library._providers.get("tvdb") is None
+        assert services.sheets._providers.get("tmdb") is not None
+        assert services.sheets._providers.get("tvdb") is None
     finally:
         services.close()
 
@@ -265,8 +265,8 @@ def test_with_neither_key_no_provider_is_served_and_it_is_said_once(
         event_bus=EventBus(),
     )
     try:
-        assert services.library._providers.get("tmdb") is None
-        assert services.library._providers.get("tvdb") is None
+        assert services.sheets._providers.get("tmdb") is None
+        assert services.sheets._providers.get("tvdb") is None
     finally:
         services.close()
     said = [record.msg for record in caplog.records if _unavailable(record)]
@@ -328,7 +328,7 @@ def test_one_plex_client_serves_the_door_and_the_library(test_config: Config) ->
     settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="planted-server-token")  # type: ignore[call-arg]
     services = build_app_services(test_config, settings, event_bus=EventBus())
     try:
-        assert isinstance(services.library._plex, PlexClient)
-        assert services.plex_sign_in._server is services.library._plex
+        assert isinstance(services.deletion._plex, PlexClient)
+        assert services.plex_sign_in._server is services.deletion._plex
     finally:
         services.close()

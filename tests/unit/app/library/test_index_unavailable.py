@@ -8,28 +8,37 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.errors import AppUnavailable, RefusalCode
+from personalscraper.app.library.deleting import LibraryDeletion
 from personalscraper.app.library.listing import LibrarySort
-from personalscraper.app.library.service import LibraryService
+from personalscraper.app.library.reads import LibraryReads
+from personalscraper.indexer.library_view import LibraryIndex
 from tests.unit.app.library.world import World
 
 
-def _service_over(world: World, index_db: Path) -> LibraryService:
-    """Build a service over another index, sharing the world's stores and providers.
+def _reads_over(world: World, index_db: Path) -> LibraryReads:
+    """Build the reads over another index, sharing the world's catalogue view and sheets.
 
     Args:
         world: The service's world.
         index_db: The index the service reads.
 
     Returns:
-        The service; it opens nothing until a read asks.
+        The reads; they open nothing until a read asks.
     """
-    return LibraryService(
-        index_db=index_db,
-        data_dir=world.data_dir,
-        catalogue=world.store,
-        ownership=world.service._ownership,  # noqa: SLF001 - the world's own checker, not under test
-        providers=world.service._providers,  # noqa: SLF001 - the world's own fakes
-    )
+    return LibraryReads(index=LibraryIndex(index_db), view=world.view, sheets=world.sheets)
+
+
+def _deletion_over(world: World, index_db: Path) -> LibraryDeletion:
+    """Build the deletion over another index.
+
+    Args:
+        world: The service's world.
+        index_db: The index the service reads.
+
+    Returns:
+        The deletion; it opens nothing until a deletion asks.
+    """
+    return LibraryDeletion(index=LibraryIndex(index_db), index_db=index_db, data_dir=world.data_dir)
 
 
 @pytest.mark.parametrize("case", ["zero_byte", "schema_less"])
@@ -44,7 +53,7 @@ def test_an_index_without_the_item_table_is_unavailable(world: World, tmp_path: 
         sqlite3.connect(index_db).close()
 
     with pytest.raises(AppUnavailable) as refused:
-        _service_over(world, index_db).read_items(
+        _reads_over(world, index_db).read_items(
             world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=0
         )
 
@@ -55,4 +64,4 @@ def test_an_unreadable_index_counts_as_an_unmounted_disk(world: World, tmp_path:
     """Plex's bundle clean is told a disk is gone when the index cannot say: the trash is kept."""
     absent = tmp_path / "absent.db"
 
-    assert _service_over(world, absent)._disk_unmounted() is True  # noqa: SLF001 - the branch under test is private
+    assert _deletion_over(world, absent)._disk_unmounted() is True  # noqa: SLF001 - the branch under test is private

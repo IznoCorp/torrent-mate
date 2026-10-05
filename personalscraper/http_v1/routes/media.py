@@ -2,7 +2,7 @@
 
 The contract files them under its ``media`` tag. Each route parses the wire identity
 with :func:`~personalscraper.app.library.identity.parse_media_ref` and makes ONE
-``LibraryService`` call; the sheet answers any identity the provider knows, held or not.
+library service call; the sheet answers any identity the provider knows, held or not.
 The poster route answers the library folder's own poster file, the one a sheet points
 at when no provider names a poster.
 """
@@ -70,7 +70,7 @@ def read_media_sheet(
     """
     ref = parse_media_ref(provider.value, provider_id)
     return MediaSheet.from_facts(
-        app_services.library.read_sheet(signed_in, ref), local_poster_url=poster_route_url(provider, provider_id)
+        app_services.sheets.read_sheet(signed_in, ref), local_poster_url=poster_route_url(provider, provider_id)
     )
 
 
@@ -109,7 +109,7 @@ def read_media_poster(
         AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
-    poster = app_services.library.read_local_poster(signed_in, ref)
+    poster = app_services.sheets.read_local_poster(signed_in, ref)
     return Response(content=poster.content, media_type=poster.media_type)
 
 
@@ -172,4 +172,4 @@ def rescrape_media(
         AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
-    return RescrapeQueued.from_acceptance(app_services.library.request_rescrape(signed_in, ref))
+    return RescrapeQueued.from_acceptance(app_services.rescrape.request_rescrape(signed_in, ref))

@@ -12,8 +12,22 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Sequence
 from enum import StrEnum
 from pathlib import Path
+from typing import ContextManager
 
-from personalscraper.indexer.library_view import LIBRARY_PAGE_SIZE, MEDIA_FOLDER_DEPTH, IndexItem
+from personalscraper.app.errors import AppUnavailable, RefusalCode
+from personalscraper.app.library.identity import ref_key
+from personalscraper.core.identity import ItemId, MediaRef
+from personalscraper.indexer.library_view import (
+    LIBRARY_PAGE_SIZE,
+    MEDIA_FOLDER_DEPTH,
+    IndexItem,
+    IndexUnavailable,
+    LibraryIndex,
+    LibraryReader,
+)
+from personalscraper.logger import get_logger
+
+log = get_logger("app.library.listing")
 
 
 class LibrarySort(StrEnum):
@@ -92,3 +106,64 @@ def page_of(rows: Sequence[IndexItem], page: int, size: int = LIBRARY_PAGE_SIZE)
         The page's rows.
     """
     return rows[page * size : (page + 1) * size]
+
+
+def library_unavailable(exc: IndexUnavailable) -> AppUnavailable:
+    """Log why ``library.db`` cannot be read, and build the refusal the wire answers.
+
+    Args:
+        exc: The indexer's refusal to open the index; its cause is the SQLite failure.
+
+    Returns:
+        The 503 ``library.unavailable`` refusal; it names no path and no SQLite text.
+    """
+    cause = exc.__cause__ or exc
+    log.error("app.library.index_unavailable", error=type(cause).__name__, reason=str(cause))
+    return AppUnavailable("The library index cannot be read.", code=RefusalCode.LIBRARY_UNAVAILABLE)
+
+
+def open_reader(index: LibraryIndex) -> ContextManager[LibraryReader]:
+    """Open a reader over ``library.db`` (:meth:`LibraryIndex.reader`).
+
+    Args:
+        index: The library index.
+
+    Returns:
+        The reader, to be used as a context manager that closes it.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` is absent, cannot be
+            opened or is not a database; the cause goes to the log, never to the wire.
+    """
+    try:
+        return index.reader()
+    except IndexUnavailable as exc:
+        raise library_unavailable(exc) from exc
+
+
+def holders_of(reader: LibraryReader, ref: MediaRef) -> list[IndexItem]:
+    """Every row carrying the reference's id.
+
+    Args:
+        reader: The open index.
+        ref: The medium.
+
+    Returns:
+        The holding rows, live or not, by id.
+    """
+    provider, provider_id = ref_key(ref)
+    return reader.holders(provider.value, provider_id)
+
+
+def held_of(reader: LibraryReader, ref: MediaRef) -> tuple[list[IndexItem], dict[ItemId, set[str]]]:
+    """The rows holding a reference and the media folders of their live files.
+
+    Args:
+        reader: The open index.
+        ref: The medium.
+
+    Returns:
+        ``(holders, {item_id: folders})``; a holder absent from the mapping has no live file.
+    """
+    holders = holders_of(reader, ref)
+    return holders, reader.live_folders([row.item_id for row in holders])

@@ -1,4 +1,4 @@
-"""``LibraryService`` authorises its actor before it touches a store.
+"""The library services authorise its actor before it touches a store.
 
 An in-process caller is refused what the v1 perimeter refuses an HTTP one: the same
 requirement, the same refusal, and nothing opened, locked or reserved before it.
@@ -15,11 +15,12 @@ from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.errors import AppForbidden, RefusalCode
-from personalscraper.app.library import service as library_service
+from personalscraper.app.library import deleting as library_service
 from personalscraper.app.library.listing import LibrarySort
-from personalscraper.app.library.service import LibraryService
+from personalscraper.app.library.reads import LibraryReads
 from personalscraper.app.maintenance import service as maintenance_service
 from personalscraper.core.identity import MediaRef
+from personalscraper.indexer.library_view import LibraryIndex
 from tests.unit.app.library.test_delete_media import Shelf, shelf
 from tests.unit.app.library.world import World
 
@@ -53,13 +54,7 @@ def test_a_reader_without_library_read_is_refused_before_the_index_opens(world: 
     """``right.missing``, not ``library.unavailable``: the refusal comes before the index is opened."""
     unreadable = tmp_path / "unreadable.db"
     unreadable.write_bytes(b"")
-    service = LibraryService(
-        index_db=unreadable,
-        data_dir=world.data_dir,
-        catalogue=world.store,
-        ownership=world.service._ownership,  # noqa: SLF001 - the world's own checker, not under test
-        providers=world.service._providers,  # noqa: SLF001 - the world's own fakes
-    )
+    service = LibraryReads(index=LibraryIndex(unreadable), view=world.view, sheets=world.sheets)
     try:
         with pytest.raises(AppForbidden) as refused:
             service.read_items(
@@ -71,7 +66,7 @@ def test_a_reader_without_library_read_is_refused_before_the_index_opens(world: 
                 page=0,
             )
     finally:
-        service.close()
+        world.view.close()
 
     assert refused.value.code is RefusalCode.RIGHT_MISSING
     assert refused.value.params == {"rights": [Right.LIBRARY_READ.value]}
@@ -92,7 +87,7 @@ def test_the_system_under_the_preprod_ceiling_never_deletes(shelf: Shelf, monkey
     system = Actor.system(_PREPROD_CEILING, account_id="owner", name="Owner")
 
     with pytest.raises(AppForbidden) as refused:
-        shelf.service.delete_media(system, [MediaRef(tmdb_id=11)])
+        shelf.deletion.delete_media(system, [MediaRef(tmdb_id=11)])
 
     assert refused.value.code is RefusalCode.INSTANCE_FORBIDDEN_WRITE
     assert refused.value.params == {"right": Right.LIBRARY_DELETE.value}
@@ -115,7 +110,7 @@ def test_an_asker_without_library_rescrape_reserves_no_run(world: World, monkeyp
     world.index.movie_file(movie, "films/Heat")
 
     with pytest.raises(AppForbidden) as refused:
-        world.service.request_rescrape(_ordinary(Right.LIBRARY_READ), MediaRef(tmdb_id=949))
+        world.rescrape.request_rescrape(_ordinary(Right.LIBRARY_READ), MediaRef(tmdb_id=949))
 
     assert refused.value.code is RefusalCode.RIGHT_MISSING
     assert spawned == []

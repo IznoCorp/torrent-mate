@@ -16,14 +16,16 @@ from types import SimpleNamespace
 
 import pytest
 
-from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients
+from personalscraper.acquire.catalogue import CatalogueStore
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.errors import AppConflict, AppInternalError, AppNotFound, RefusalCode
+from personalscraper.app.library.completeness import CatalogueView
+from personalscraper.app.library.deleting import LibraryDeletion
 from personalscraper.app.library.deletion import PlexOutcome, TrashKept
-from personalscraper.app.library.service import LibraryService
 from personalscraper.core.delete_permit import ALLOW, PermitDecision, veto
 from personalscraper.core.identity import MediaRef
+from personalscraper.indexer.library_view import LibraryIndex
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from tests.unit.app.library.plex_fakes import FakePlex, FakeTime
 from tests.unit.app.library.world import FixtureIndex
@@ -48,7 +50,8 @@ class Shelf:
     """Everything one deletion test touches."""
 
     index: FixtureIndex
-    service: LibraryService
+    view: CatalogueView
+    deletion: LibraryDeletion
     plex: FakePlex
     time: FakeTime
     permit: _Permit
@@ -114,20 +117,19 @@ def shelf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Shelf]:
     plex = FakePlex({str(root): "1"})
     clock = FakeTime()
     permit = _Permit()
-    service = LibraryService(
+    view = CatalogueView(catalogue=store, ownership=ownership)
+    deletion = LibraryDeletion(
+        index=LibraryIndex(index.path),
         index_db=index.path,
         data_dir=tmp_path,
-        catalogue=store,
-        ownership=ownership,
-        providers=ProviderClients(tvdb=None, tmdb=None),
         plex=plex,  # type: ignore[arg-type]
         delete_permit=permit,
         sleep=clock.sleep,
         monotonic=clock.clock,
     )
     actor = Actor.system(InstanceCeiling(forbidden=frozenset(), read_only=False), account_id="owner", name="Owner")
-    yield Shelf(index, service, plex, clock, permit, root, tmp_path, actor, mounts)
-    service.close()
+    yield Shelf(index, view, deletion, plex, clock, permit, root, tmp_path, actor, mounts)
+    view.close()
     ownership.close()
     store.close()
     index.conn.close()
@@ -138,7 +140,7 @@ def test_one_movie_goes_from_the_disk_the_index_and_plex(shelf: Shelf) -> None:
     item, folder = shelf.movie("Movie (2020)", "11")
     _, other = shelf.movie("Other (2019)", "12")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert other.is_dir()
@@ -166,7 +168,7 @@ def test_the_emptied_parent_goes_and_the_library_root_stays(shelf: Shelf) -> Non
     """The last medium of a category: its category folder goes, the disk's root never; Plex rescans the root."""
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.parent.exists()
     assert shelf.root.is_dir()
@@ -184,7 +186,7 @@ def test_a_show_folder_goes_whole(shelf: Shelf) -> None:
     (shelf.root / "series" / "Show" / "season01-poster.jpg").write_bytes(b"x")
     (shelf.root / "series" / "Keep").mkdir()
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tvdb_id=77)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tvdb_id=77)])
 
     assert not (shelf.root / "series" / "Show").exists()
     assert (shelf.root / "series" / "Keep").is_dir()
@@ -197,7 +199,7 @@ def test_a_vetoed_folder_is_kept_counted_and_not_deleted(shelf: Shelf) -> None:
     item, folder = shelf.movie("Movie (2020)", "11")
     shelf.permit.kept.add(folder)
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert (folder / "movie.mkv").is_file()
     assert shelf.rows() == [item]
@@ -218,7 +220,7 @@ def test_an_ambiguous_id_touches_nothing(shelf: Shelf, shape: str) -> None:
         shelf.index.movie_file(item, "films/Friends [UNCUT]")
 
     with pytest.raises(AppConflict) as refused:
-        shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=5)])
+        shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=5)])
 
     assert refused.value.code is RefusalCode.MEDIA_AMBIGUOUS
     assert refused.value.params == {"provider": "tmdb", "providerId": "5"}
@@ -234,7 +236,7 @@ def test_every_ref_is_checked_before_anything_goes(shelf: Shelf) -> None:
     item, folder = shelf.movie("Movie (2020)", "11")
 
     with pytest.raises(AppNotFound) as refused:
-        shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tvdb_id=404)])
+        shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tvdb_id=404)])
 
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
     assert refused.value.params == {"provider": "tvdb", "providerId": "404"}
@@ -250,7 +252,7 @@ def test_a_held_pipeline_lock_refuses_and_touches_nothing(shelf: Shelf) -> None:
     lock.write_text(str(os.getpid()))
 
     with pytest.raises(AppConflict) as refused:
-        shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+        shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert refused.value.code is RefusalCode.LIBRARY_LOCKED
     assert folder.is_dir()
@@ -262,10 +264,10 @@ def test_a_held_pipeline_lock_refuses_and_touches_nothing(shelf: Shelf) -> None:
 def test_plex_down_leaves_the_files_gone_and_reports_failed(shelf: Shelf, down: str) -> None:
     """A Plex step fails: the files and rows are gone all the same, the medium deleted, its Plex outcome failed."""
     shelf.plex = FakePlex({str(shelf.root): "1"}, **{down: False})  # type: ignore[arg-type]
-    shelf.service._plex = shelf.plex  # type: ignore[assignment]
+    shelf.deletion._plex = shelf.plex  # type: ignore[assignment]
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert shelf.rows() == []
@@ -275,10 +277,10 @@ def test_plex_down_leaves_the_files_gone_and_reports_failed(shelf: Shelf, down: 
 
 def test_no_plex_configured_is_reported(shelf: Shelf) -> None:
     """No Plex server: the medium goes, its Plex outcome is « not configured »."""
-    shelf.service._plex = None
+    shelf.deletion._plex = None
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert report.media[0].plex is PlexOutcome.NOT_CONFIGURED
@@ -290,7 +292,7 @@ def test_two_media_in_one_section_ask_plex_once(shelf: Shelf) -> None:
     shelf.movie("B (2021)", "12")
     shelf.movie("C (2022)", "13")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
 
     assert report.deleted == 2
     assert shelf.plex.calls == [
@@ -309,7 +311,7 @@ def test_a_folder_on_an_unmounted_disk_is_kept_and_counted(shelf: Shelf) -> None
     item = shelf.index.item("Away", tmdb="21")
     shelf.index.movie_file(item, "films/Away", disk=2)
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=21)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=21)])
 
     assert shelf.rows() == [item]
     assert report.deleted == 0
@@ -320,7 +322,7 @@ def test_a_row_without_files_goes_from_the_index(shelf: Shelf) -> None:
     """A row holding no live file: its row goes, Plex is not asked, the medium counted."""
     item = shelf.index.item("Phantom", tmdb="31")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=31)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=31)])
 
     assert shelf.rows() == []
     assert shelf.journal() == [("delete", f"index:media_item/{item}", "web:owner")]
@@ -332,7 +334,7 @@ def test_a_medium_named_twice_is_deleted_once(shelf: Shelf) -> None:
     """The same id twice in one request: one deletion, one report."""
     shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=11)])
 
     assert (report.deleted, len(report.media)) == (1, 1)
 
@@ -347,7 +349,7 @@ def test_a_folder_escaping_its_disk_is_never_deleted(shelf: Shelf, tmp_path: Pat
     item = shelf.index.item("Evil", tmdb="66")
     shelf.index.movie_file(item, "films/Evil")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=66)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=66)])
 
     assert (outside / "keep.txt").is_file()
     assert shelf.rows() == [item]
@@ -359,14 +361,14 @@ def test_under_staging_the_preprod_guard_refuses_a_folder_outside_its_roots(
 ) -> None:
     """Preprod's roots do not hold the folder: the guard refuses it, nothing is deleted, the folder counted failed."""
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
-    shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
+    shelf.deletion._config = SimpleNamespace(  # type: ignore[assignment]
         disks=[SimpleNamespace(path=tmp_path / "preprod")],
         paths=SimpleNamespace(staging_dir=tmp_path / "preprod-staging"),
         torrent=SimpleNamespace(clients={}),
     )
     item, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert (folder / "movie.mkv").is_file()
     assert shelf.rows() == [item]
@@ -377,12 +379,10 @@ def test_under_staging_the_preprod_guard_refuses_a_folder_outside_its_roots(
 def test_no_deletion_authority_refuses_and_touches_nothing(shelf: Shelf) -> None:
     """No permit wired: the request is refused before the lock is taken; folder, rows and Plex untouched."""
     item, folder = shelf.movie("Movie (2020)", "11")
-    service = LibraryService(
+    service = LibraryDeletion(
+        index=LibraryIndex(shelf.index.path),
         index_db=shelf.index.path,
         data_dir=shelf.data_dir,
-        catalogue=shelf.service._catalogue,
-        ownership=shelf.service._ownership,
-        providers=ProviderClients(tvdb=None, tmdb=None),
         plex=shelf.plex,  # type: ignore[arg-type]
     )
 
@@ -404,7 +404,7 @@ def test_one_row_named_by_two_ids_is_deleted_once(shelf: Shelf) -> None:
     folder = shelf.root / "series" / "Show"
     (folder / "Season 01").mkdir(parents=True)
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tvdb_id=77), MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tvdb_id=77), MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert shelf.rows() == []
@@ -419,7 +419,7 @@ def test_another_rows_files_in_the_folder_refuse_and_touch_nothing(shelf: Shelf)
     shelf.index.movie_file(other, "films/Movie (2020)/extended")
 
     with pytest.raises(AppConflict) as refused:
-        shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+        shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert refused.value.code is RefusalCode.MEDIA_AMBIGUOUS
     assert refused.value.params == {"provider": "tmdb", "providerId": "11"}
@@ -439,7 +439,7 @@ def test_two_unicode_spellings_of_one_folder_delete_it_once(shelf: Shelf) -> Non
         pytest.skip("this filesystem tells NFC and NFD names apart: the two spellings are two folders")
     shelf.index.movie_file(item, f"films/{nfd}")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert shelf.rows() == []
@@ -460,7 +460,7 @@ def test_a_disk_root_that_is_no_mount_point_is_never_deleted_from(shelf: Shelf, 
     item = shelf.index.item("Away", tmdb="21")
     shelf.index.movie_file(item, "films/Away", disk=2)
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=21)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=21)])
 
     assert (folder / "movie.mkv").is_file()
     assert shelf.rows() == [item]
@@ -482,7 +482,7 @@ def test_a_folder_reached_through_a_symlink_on_its_disk_is_never_deleted(shelf: 
     item = shelf.index.item("Evil", tmdb="66")
     shelf.index.movie_file(item, rel)
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=66)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=66)])
 
     assert (sibling / "movie.mkv").is_file()
     assert item in shelf.rows()
@@ -496,7 +496,7 @@ def test_a_folder_live_in_the_index_but_absent_from_the_disk_is_failed(shelf: Sh
     shelf.index.movie_file(item, "films/Gone (2020)")
     (shelf.root / "films").mkdir()
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=41)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=41)])
 
     assert shelf.rows() == [item]
     assert shelf.journal() == []
@@ -510,7 +510,7 @@ def test_an_index_write_failure_is_reported_and_the_request_goes_on(
     shelf: Shelf, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The first medium's rows fail to go: it is reported not deleted, the second still goes, Plex told of both."""
-    from personalscraper.app.library import service as service_module
+    from personalscraper.app.library import deleting as service_module
 
     real = service_module.remove_items
     calls: list[int] = []
@@ -526,7 +526,7 @@ def test_an_index_write_failure_is_reported_and_the_request_goes_on(
     second, b = shelf.movie("B (2021)", "12")
     shelf.movie("C (2022)", "13")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
 
     assert not a.exists() and not b.exists()
     assert first in shelf.rows() and second not in shelf.rows()
@@ -546,14 +546,14 @@ def test_under_staging_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.Monk
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     (shelf.root / sandbox_guard.root_marker(Environment.STAGING)).write_bytes(b"")
-    shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
+    shelf.deletion._config = SimpleNamespace(  # type: ignore[assignment]
         disks=[SimpleNamespace(path=shelf.root)],
         paths=SimpleNamespace(staging_dir=shelf.root),
         torrent=SimpleNamespace(clients={}),
     )
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert shelf.rows() == []
@@ -569,14 +569,14 @@ def test_under_dev_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     (shelf.root / ".tm-dev-root").write_bytes(b"")
-    shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
+    shelf.deletion._config = SimpleNamespace(  # type: ignore[assignment]
         disks=[SimpleNamespace(path=shelf.root)],
         paths=SimpleNamespace(staging_dir=shelf.root),
         torrent=SimpleNamespace(clients={}),
     )
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert shelf.plex.calls == []
@@ -596,7 +596,7 @@ def test_a_sandboxed_delete_logs_its_plex_outcome(
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     (shelf.root / ".tm-dev-root").write_bytes(b"")
-    shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
+    shelf.deletion._config = SimpleNamespace(  # type: ignore[assignment]
         disks=[SimpleNamespace(path=shelf.root)],
         paths=SimpleNamespace(staging_dir=shelf.root),
         torrent=SimpleNamespace(clients={}),
@@ -604,12 +604,12 @@ def test_a_sandboxed_delete_logs_its_plex_outcome(
     item_id, _ = shelf.movie("Movie (2020)", "11")
     caplog.set_level(logging.INFO)
 
-    shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     lines = [
         dict(record.msg)
         for record in caplog.records
-        if record.name == "app.library.service"
+        if record.name == "app.library.deleting"
         and isinstance(record.msg, dict)
         and record.msg.get("event") == "app.library.delete_plex"
     ]
@@ -621,7 +621,7 @@ def test_in_prod_plex_is_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert ("clean_bundles", "") in shelf.plex.calls
@@ -639,7 +639,7 @@ def _category_sections(shelf: Shelf) -> FakePlex:
     """
     plex = FakePlex({str(shelf.root / "films"): "1"})
     shelf.plex = plex
-    shelf.service._plex = plex  # type: ignore[assignment]
+    shelf.deletion._plex = plex  # type: ignore[assignment]
     return plex
 
 
@@ -648,7 +648,7 @@ def test_the_last_medium_of_a_category_section_tells_plex_its_location(shelf: Sh
     plex = _category_sections(shelf)
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.parent.exists()
     assert plex.calls == [
@@ -667,7 +667,7 @@ def test_a_parent_a_later_deletion_removes_is_never_rescanned(shelf: Shelf) -> N
     shelf.movie("A (2020)", "11")
     shelf.movie("B (2021)", "12")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
 
     assert not (shelf.root / "films").exists()
     assert [call for call in shelf.plex.calls if call[0] == "refresh"] == [("refresh", str(shelf.root))]
@@ -681,7 +681,7 @@ def test_a_disk_the_index_knows_unmounted_keeps_the_plex_trash(shelf: Shelf) -> 
     )
     _, folder = shelf.movie("Movie (2020)", "11")
 
-    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+    report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
 
     assert not folder.exists()
     assert ("empty_trash", "1") not in shelf.plex.calls
@@ -696,8 +696,8 @@ def test_one_folder_deleted_and_one_failed_keeps_the_rows_and_tells_plex_of_the_
     shelf: Shelf, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A medium in two folders, one removal failing: the rows kept, Plex told where the deleted one stood only."""
-    from personalscraper.app.library import service as service_module
-    from personalscraper.app.library.service import _DeletionPlan
+    from personalscraper.app.library import deleting as service_module
+    from personalscraper.app.library.deleting import _DeletionPlan
     from personalscraper.indexer.deletion import DeleteOutcome, DeleteResult
 
     item, kept = shelf.movie("Movie (2020)", "11", folder="docs/Movie (2020)")
@@ -719,7 +719,7 @@ def test_one_folder_deleted_and_one_failed_keeps_the_rows_and_tells_plex_of_the_
         unreachable=0,
     )
 
-    report = shelf.service._told_plex([shelf.service._delete_one(shelf.actor, plan, shelf.permit)])
+    report = shelf.deletion._told_plex([shelf.deletion._delete_one(shelf.actor, plan, shelf.permit)])
 
     assert not gone.exists()
     assert (kept / "movie.mkv").is_file()

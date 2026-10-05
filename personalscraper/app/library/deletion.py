@@ -1,6 +1,6 @@
 """Deletion by medium: what a deletion reports, and the steps after its folders go (K2-10).
 
-:meth:`LibraryService.delete_media <personalscraper.app.library.service.LibraryService.delete_media>`
+:meth:`LibraryDeletion.delete_media <personalscraper.app.library.deleting.LibraryDeletion.delete_media>`
 validates every reference, then deletes each medium's folders through the one folder-deletion
 primitive (``indexer/deletion.py``). This module holds what follows a folder's deletion, each
 step reported, none rolled back:

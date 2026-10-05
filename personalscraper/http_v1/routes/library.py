@@ -1,7 +1,7 @@
 """The library routes: the listing, its categories, the recents, the incomplete shows, one membership and the deletion.
 
 The contract files them under its ``library`` tag. Each route makes ONE
-``LibraryService`` call; a medium is named by its provider identity, parsed with
+library service call; a medium is named by its provider identity, parsed with
 :func:`~personalscraper.app.library.identity.parse_media_ref`.
 """
 
@@ -116,7 +116,7 @@ def delete_library_items(
             be read; nothing deleted.
     """
     refs = [parse_media_ref(medium.provider.value, medium.provider_id) for medium in body.media]
-    return DeleteLibraryItemsResult.from_report(app_services.library.delete_media(signed_in, refs))
+    return DeleteLibraryItemsResult.from_report(app_services.deletion.delete_media(signed_in, refs))
 
 
 @router.get(
