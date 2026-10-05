@@ -156,8 +156,8 @@ class Config(_StrictModel):
                 value (a ``ValueError``, so Pydantic wraps it as a load error).
             EnvironmentIsolationError: ``paths.data_dir`` is marked for another
                 environment or its marker is unreadable, is unmarked outside prod, a
-                store lies outside it outside prod, or ``staging`` uses prod's stream
-                key (a ``ValueError`` too).
+                store lies outside it outside prod, or, outside prod, the stream key is
+                prod's or an enabled torrent client has no scope (a ``ValueError`` too).
         """
         if self.indexer.db_path is None:
             object.__setattr__(self.indexer, "db_path", store_path(self.paths.data_dir, StoreName.LIBRARY))

@@ -180,8 +180,8 @@ def _sweep_ingest_orphans(
         ingest_dir: The ingest directory to sweep.
         dry_run: Whether the ingest step is a preview (sweep is SKIP-in-dry-run).
         recover_orphans: When False, boot already swept — do nothing.
-        config: Loaded configuration, naming preprod's roots for the sweep's guard (required
-            under ``staging``).
+        config: Loaded configuration, naming the sandbox's roots for the sweep's guard
+            (required in a sandbox).
 
     Returns:
         Number of orphaned temp directories removed.
@@ -334,7 +334,7 @@ def run_ingest(
     # probe and the per-torrent transfer path use the same paths.
     resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else staging_path(config, find_ingest_dir(config))
     resolved_staging_dir: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
-    # Preprod guard (``staging`` only): nothing is created, swept or moved outside its roots.
+    # Sandbox guard (a no-op in prod): nothing is created, swept or moved outside its roots.
     assert_all_within_sandbox(config, resolved_ingest_dir, resolved_staging_dir)
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -565,7 +565,7 @@ def run_ingest(
                     force_copy = getattr(config.ingest, "force_copy", False)
                     is_copy = force_copy or client.is_seeding(torrent) or owes_seed
                     action = "copied" if is_copy else "moved"
-                    # A move purges the client's download root: judge both ends (``staging`` only).
+                    # A move purges the client's download root: judge both ends (a no-op in prod).
                     assert_all_within_sandbox(config, source, dest)
                     success = transfer_torrent(source, dest, copy=is_copy, dry_run=dry_run)
 

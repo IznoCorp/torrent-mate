@@ -667,12 +667,12 @@ class MovieServiceMixin:
             when the provider fetch fails (fail-soft, never raises).
 
         Raises:
-            SandboxGuardError: Under ``staging``, *movie_dir* is outside preprod's marked,
+            SandboxGuardError: In a sandbox, *movie_dir* is outside the sandbox's marked,
                 mounted roots. Nothing is written or renamed.
         """
         from personalscraper.scraper.confidence import MatchResult  # noqa: PLC0415
 
-        # Preprod guard (``staging`` only): the forced scrape bypasses ``run_scrape``, so the
+        # Sandbox guard (a no-op in prod): the forced scrape bypasses ``run_scrape``, so the
         # choke point judges the folder itself before the NFO, artwork and renames.
         if self.config is not None:
             assert_all_within_sandbox(self.config, movie_dir)

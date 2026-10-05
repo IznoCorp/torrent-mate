@@ -6,7 +6,7 @@ converts VerifyResult lists to StepReport.
 
 from dataclasses import asdict
 
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -85,14 +85,14 @@ def run_verify(
         Tuple of (StepReport, dispatchable VerifyResult list).
 
     Raises:
-        SandboxGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+        SandboxGuardError: In a sandbox, the staging tree is outside the sandbox's marked,
             mounted roots. Nothing is touched.
     """
-    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
-    # The category folders are resolved only under ``staging``: outside it the guard must cost
+    # Sandbox guard (a no-op in prod): no write or purge outside the sandbox's own roots.
+    # The category folders are resolved only in a sandbox: in prod the guard must cost
     # nothing and raise nothing (a production config may have no entry for a category).
     staging = config.paths.staging_dir
-    if current_environment() is Environment.STAGING:
+    if is_sandboxed():
         assert_all_within_sandbox(
             config,
             staging,

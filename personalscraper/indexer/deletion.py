@@ -17,7 +17,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
@@ -210,8 +210,8 @@ def delete_media_folder(
         run_uid: Optional correlating ``pipeline_run`` uid for the journal row.
         dry_run: Consult the permit and measure the folder; delete, journal and
             publish nothing.
-        config: The loaded configuration, naming preprod's roots. Only read under
-            ``staging``, where it is required (without it the roots are unknown).
+        config: The loaded configuration, naming the sandbox's roots. Only read in
+            a sandbox, where it is required (without it the roots are unknown).
 
     Returns:
         A :class:`DeleteResult`: ``VETOED`` when the permit refused, ``FAILED``
@@ -219,12 +219,12 @@ def delete_media_folder(
         otherwise ``DELETED`` with the folder's size.
 
     Raises:
-        SandboxGuardError: Under ``staging``, *path* is outside preprod's marked,
+        SandboxGuardError: In a sandbox, *path* is outside the sandbox's marked,
             mounted roots, or no *config* was given. Nothing is deleted or journaled.
     """
-    if current_environment() is Environment.STAGING:
+    if is_sandboxed():
         if config is None:
-            raise SandboxGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+            raise SandboxGuardError(f"cannot delete {path}: a sandbox needs the config to know its roots")
         assert_within_sandbox(config, path)
     try:
         decision: PermitDecision = permit.may_delete(path)

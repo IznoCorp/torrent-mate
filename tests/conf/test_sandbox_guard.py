@@ -1,4 +1,4 @@
-"""Tests for the preprod mount-point guard: preprod writes only inside its own marked, mounted roots.
+"""Tests for the sandbox mount-point guard: a sandbox writes only inside its own marked, mounted roots.
 
 ``tmp_path`` is never a mount point, so ``is_mounted`` is patched. The Config is built
 before the environment is switched to ``staging`` (a staging Config needs an isolated
@@ -20,7 +20,6 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.sandbox_guard import (
-    PREPROD_ROOT_MARKER,
     SandboxGuardError,
     assert_sandbox_root,
     assert_within_sandbox,
@@ -28,9 +27,11 @@ from personalscraper.conf.sandbox_guard import (
 )
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
+PREPROD_ROOT_MARKER = sandbox_guard.root_marker(Environment.STAGING)
+
 
 def _root(tmp_path: Path, name: str, *, marked: bool = True) -> Path:
-    """Create a root folder, with or without the preprod marker."""
+    """Create a root folder, with or without the preprod (staging) marker."""
     root = tmp_path / name
     root.mkdir()
     if marked:
@@ -86,7 +87,7 @@ def test_unmarked_root_is_refused(tmp_path: Path, mounted: None, staging: Callab
     with pytest.raises(SandboxGuardError, match=PREPROD_ROOT_MARKER):
         assert_within_sandbox(config, disk / "Film")
     with pytest.raises(SandboxGuardError):
-        assert_sandbox_root(disk)
+        assert_sandbox_root(disk, Environment.STAGING)
 
 
 def test_marker_that_is_a_symlink_is_refused(tmp_path: Path, mounted: None) -> None:
@@ -96,7 +97,7 @@ def test_marker_that_is_a_symlink_is_refused(tmp_path: Path, mounted: None) -> N
     real_file.write_text("", encoding="utf-8")
     (disk / PREPROD_ROOT_MARKER).symlink_to(real_file)
     with pytest.raises(SandboxGuardError, match=PREPROD_ROOT_MARKER):
-        assert_sandbox_root(disk)
+        assert_sandbox_root(disk, Environment.STAGING)
 
 
 def test_unmounted_root_is_refused(
@@ -123,9 +124,9 @@ def test_symlink_out_of_the_root_is_refused(tmp_path: Path, mounted: None, stagi
         assert_within_sandbox(config, disk / "link" / "Film")
 
 
-@pytest.mark.parametrize("env", [None, "dev", "prod"])
-def test_outside_staging_the_guard_is_a_no_op(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, env: str | None) -> None:
-    """Unset (prod) or dev: any path passes, unmarked or not."""
+@pytest.mark.parametrize("env", [None, "prod"])
+def test_in_prod_the_guard_is_a_no_op(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, env: str | None) -> None:
+    """Unset or explicit prod: any path passes, unmarked or not."""
     config = _config(tmp_path, tmp_path / "disk", tmp_path / "stage")
     if env is None:
         monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
@@ -161,3 +162,80 @@ def test_download_root_is_guarded_like_any_root(tmp_path: Path, mounted: None, s
     config = _config(tmp_path, disk, stage, scope_root=downloads)
     staging()
     assert_within_sandbox(config, downloads / "Film.mkv")
+
+
+# ---------------------------------------------------------------------------
+# Every sandboxed environment: dev is guarded like staging, each with its own marker
+# ---------------------------------------------------------------------------
+
+_DEV_ROOT_MARKER = ".tm-dev-root"
+_PREPROD_ROOT_MARKER = ".tm-preprod-root"
+
+
+@pytest.fixture
+def dev(monkeypatch: pytest.MonkeyPatch) -> Callable[[], None]:
+    """Return the switch that puts the process in ``dev`` (called once the Config is built)."""
+    return lambda: monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+
+
+def _marked(tmp_path: Path, name: str, marker: str) -> Path:
+    """Create a root folder holding *marker* only."""
+    root = tmp_path / name
+    root.mkdir()
+    (root / marker).write_text("", encoding="utf-8")
+    return root
+
+
+def test_dev_refuses_a_path_under_an_unmarked_mounted_root(
+    tmp_path: Path, mounted: None, dev: Callable[[], None]
+) -> None:
+    """Under dev a path under a mounted root with no marker is refused, naming the dev marker."""
+    disk = tmp_path / "disk"
+    disk.mkdir()
+    config = _config(tmp_path, disk, _marked(tmp_path, "stage", _DEV_ROOT_MARKER))
+    dev()
+    with pytest.raises(SandboxGuardError, match=_DEV_ROOT_MARKER):
+        assert_within_sandbox(config, disk / "Film (2024)")
+
+
+def test_dev_refuses_a_preprod_root_and_staging_refuses_a_dev_root(
+    tmp_path: Path, mounted: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each sandbox's root is its own: a preprod marker does not admit dev, nor a dev marker staging."""
+    preprod_disk = _marked(tmp_path, "preprod-disk", _PREPROD_ROOT_MARKER)
+    preprod = _config(tmp_path, preprod_disk, _marked(tmp_path, "preprod-stage", _PREPROD_ROOT_MARKER))
+    dev_disk = _marked(tmp_path, "dev-disk", _DEV_ROOT_MARKER)
+    dev_config = _config(tmp_path, dev_disk, _marked(tmp_path, "dev-stage", _DEV_ROOT_MARKER))
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    with pytest.raises(SandboxGuardError, match=_DEV_ROOT_MARKER):
+        assert_within_sandbox(preprod, preprod_disk / "Film (2024)")
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    with pytest.raises(SandboxGuardError, match=_PREPROD_ROOT_MARKER):
+        assert_within_sandbox(dev_config, dev_disk / "Film (2024)")
+
+
+def test_dev_passes_a_path_under_a_dev_root(tmp_path: Path, mounted: None, dev: Callable[[], None]) -> None:
+    """Under dev a path under a mounted root holding ``.tm-dev-root`` passes; one outside is refused."""
+    disk = _marked(tmp_path, "disk", _DEV_ROOT_MARKER)
+    config = _config(tmp_path, disk, _marked(tmp_path, "stage", _DEV_ROOT_MARKER))
+    dev()
+    assert_within_sandbox(config, disk / "movies" / "Film (2024)")
+    with pytest.raises(SandboxGuardError, match="outside every sandbox root"):
+        assert_within_sandbox(config, tmp_path / "elsewhere" / "Film (2024)")
+
+
+def test_root_markers_name_one_marker_per_sandbox() -> None:
+    """Staging keeps preprod's marker, dev has its own, and prod has none."""
+    assert sandbox_guard.ROOT_MARKERS == {Environment.STAGING: _PREPROD_ROOT_MARKER, Environment.DEV: _DEV_ROOT_MARKER}
+    assert sandbox_guard.root_marker(Environment.DEV) == _DEV_ROOT_MARKER
+    with pytest.raises(SandboxGuardError, match="prod"):
+        sandbox_guard.root_marker(Environment.PROD)
+
+
+def test_prod_unchanged_the_guard_ignores_every_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the variable unset (prod), an unmounted, unmarked root and any path pass, as before."""
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    config = _config(tmp_path, tmp_path / "disk", tmp_path / "stage")
+    assert_within_sandbox(config, tmp_path / "disk" / "Film (2024)")
+    assert_within_sandbox(config, tmp_path / "anywhere")

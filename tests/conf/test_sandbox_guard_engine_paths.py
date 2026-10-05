@@ -1,4 +1,4 @@
-"""Tests for the preprod guard on every engine write and purge path.
+"""Tests for the sandbox guard on every engine write and purge path, driven under preprod.
 
 Each family is driven twice: under ``PERSONALSCRAPER_ENV=staging`` a path aimed outside
 preprod's marked, mounted roots is refused and nothing on disk is touched; with the
@@ -20,7 +20,7 @@ import pytest
 from personalscraper.conf import sandbox_guard
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_all_within_sandbox
 from personalscraper.core.event_bus import EventBus
-from personalscraper.dispatch._item import _refused_by_preprod_guard
+from personalscraper.dispatch._item import _refused_by_sandbox_guard
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.crash_recovery import (
     DISPATCH_TMP_PREFIX,
@@ -64,7 +64,7 @@ def _staging(monkeypatch: pytest.MonkeyPatch) -> None:
 # --- helper -----------------------------------------------------------------------------------
 
 
-def test_assert_all_within_preprod_judges_every_path(
+def test_assert_all_within_sandbox_judges_every_path(
     preprod: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One path outside the roots refuses the whole call, under staging only."""
@@ -143,6 +143,15 @@ def test_sweep_orphans_is_unchanged_outside_staging(preprod: SimpleNamespace, tm
     assert not ingest_orphan.exists()
 
 
+def test_sweep_orphans_without_a_config_is_unchanged_in_prod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``PERSONALSCRAPER_ENV`` unset: a sweep with no config and no marker removes the orphan, as before."""
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
+    media_orphan, _ = _orphans(tmp_path)
+    assert sweep_orphans([SweepRoot(tmp_path / "prod-media", RootKind.MEDIA_TREE)], dry_run=False) == 1
+    assert not media_orphan.exists()
+
+
 # --- ingest ---------------------------------------------------------------------------------------
 
 
@@ -181,7 +190,7 @@ def test_sorter_refuses_a_move_outside_preprod(
     _staging(monkeypatch)
     result = sorter.sort_item(source, dest_root)
     assert result.status == "error"
-    assert "preprod" in (result.message or "")
+    assert "sandbox root" in (result.message or "")
     assert source.exists()
     assert list(dest_root.iterdir()) == []
 
@@ -293,6 +302,15 @@ def test_run_verify_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, m
     assert (preprod.media / JUNK_NAME).exists()
 
 
+def test_run_verify_is_unchanged_in_prod(preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``PERSONALSCRAPER_ENV`` unset: verify runs over the same unmarked staging tree without a refusal."""
+    from personalscraper.verify.run import run_verify
+
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    report, _ = run_verify(MagicMock(), preprod.config, event_bus=EventBus())
+    assert report.name == "verify"
+
+
 # --- dispatch (staging source purge) ----------------------------------------------------------------
 
 
@@ -303,7 +321,7 @@ def test_dispatch_refuses_a_source_outside_preprod(
     dispatcher: Any = SimpleNamespace(config=preprod.config)
     result = DispatchResult(source=tmp_path / "prod-staging" / "Film (2024)")
     _staging(monkeypatch)
-    assert _refused_by_preprod_guard(dispatcher, result, preprod.disk / "movies" / "Film (2024)") is True
+    assert _refused_by_sandbox_guard(dispatcher, result, preprod.disk / "movies" / "Film (2024)") is True
     assert result.action == "error"
 
 

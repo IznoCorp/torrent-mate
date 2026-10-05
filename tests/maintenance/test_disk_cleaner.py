@@ -985,7 +985,8 @@ class TestPreprodGuard:
         neither deleted nor journaled.
         """
         from personalscraper.conf import sandbox_guard
-        from personalscraper.conf.sandbox_guard import PREPROD_ROOT_MARKER
+        from personalscraper.conf.environment import Environment
+        from personalscraper.conf.sandbox_guard import ROOT_MARKERS
         from personalscraper.indexer.destructive_journal import list_recent
         from personalscraper.maintenance import disk_cleaner
 
@@ -993,7 +994,7 @@ class TestPreprodGuard:
         inside_actors = disk / "films" / "Inside (2024)" / ".actors"
         inside_actors.mkdir(parents=True)
         (inside_actors / "Actor.jpg").write_bytes(b"\x00" * 100)
-        (disk / PREPROD_ROOT_MARKER).write_text("", encoding="utf-8")
+        (disk / ROOT_MARKERS[Environment.STAGING]).write_text("", encoding="utf-8")
         outside = tmp_path / "prod-media" / "Outside (2024)"
         outside_actors = outside / ".actors"
         outside_actors.mkdir(parents=True)
@@ -1019,6 +1020,24 @@ class TestPreprodGuard:
         journaled = [str(row["path"]) for row in list_recent(config.indexer.db_path)]
         assert not any("Outside (2024)" in path or "prod-media" in path for path in journaled)
 
+    def test_prod_unchanged_cleans_an_unmarked_root(self, tmp_path: Path, monkeypatch) -> None:
+        """``PERSONALSCRAPER_ENV`` unset: an unmarked, unmounted-for-the-guard root is cleaned with no refusal."""
+        from personalscraper.conf import sandbox_guard
+
+        disk = tmp_path / "medias"
+        actors = disk / "films" / "Movie (2024)" / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "Actor.jpg").write_bytes(b"\x00" * 100)
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
+        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+
+        result = clean_library(config, apply=True, only="actors")
+
+        assert not actors.exists()
+        assert result.deleted_count == 1
+        assert result.error_count == 0
+
     def test_junk_file_outside_the_roots_is_refused_and_counted(self, tmp_path: Path, monkeypatch) -> None:
         """A junk file inside a root is unlinked; one reached through a symlink out of it is refused.
 
@@ -1026,7 +1045,8 @@ class TestPreprodGuard:
         neither unlinked, journaled nor published.
         """
         from personalscraper.conf import sandbox_guard
-        from personalscraper.conf.sandbox_guard import PREPROD_ROOT_MARKER
+        from personalscraper.conf.environment import Environment
+        from personalscraper.conf.sandbox_guard import ROOT_MARKERS
         from personalscraper.indexer.destructive_journal import list_recent
         from personalscraper.maintenance import disk_cleaner
 
@@ -1034,7 +1054,7 @@ class TestPreprodGuard:
         inside = disk / "films" / "Inside (2024)"
         inside.mkdir(parents=True)
         (inside / ".DS_Store").write_bytes(b"\x00")
-        (disk / PREPROD_ROOT_MARKER).write_text("", encoding="utf-8")
+        (disk / ROOT_MARKERS[Environment.STAGING]).write_text("", encoding="utf-8")
         outside = tmp_path / "prod-media" / "Outside (2024)"
         outside.mkdir(parents=True)
         (outside / ".DS_Store").write_bytes(b"\x00")

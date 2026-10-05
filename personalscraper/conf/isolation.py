@@ -5,8 +5,9 @@ load, a process whose environment differs from the marker refuses to start, so a
 mistyped variable can never point production at a preprod data directory, nor the
 reverse. A data directory with no marker is production's, as it always was: production
 sets nothing and writes nothing. Every other environment must find its own marker and
-keep every store it resolves inside that directory; ``staging`` must also publish on a
-stream key of its own. The marker is written by hand, never by the code.
+keep every store it resolves inside that directory. Every sandbox (every environment
+but prod) must also publish on a stream key of its own, and may use a torrent client
+only inside a scope of its own. The marker is written by hand, never by the code.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import Environment, current_environment, is_sandboxed
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -24,7 +25,7 @@ PROD_STREAM_KEY: Final[str] = "personalscraper:events"  # the WebConfig default,
 
 
 class EnvironmentIsolationError(ValueError):
-    """A process was pointed at another environment's data directory, or preprod shares prod's stream key."""
+    """A process was pointed at another environment's data directory, or a sandbox shares prod's key or client."""
 
 
 def read_marker(data_dir: Path) -> Environment | None:
@@ -73,7 +74,7 @@ def _store_paths(config: Config) -> list[Path]:
 
 
 def assert_isolated(config: Config, env: Environment | None = None) -> None:
-    """Refuse a config whose data directory, stores or stream key belong to another environment.
+    """Refuse a config whose data directory, stores, stream key or torrent client belong to another environment.
 
     Args:
         config: The configuration, its store paths already resolved.
@@ -82,7 +83,8 @@ def assert_isolated(config: Config, env: Environment | None = None) -> None:
     Raises:
         EnvironmentIsolationError: The marker names another environment or cannot be
             read; the data directory is unmarked outside prod; a store path sits outside
-            the data directory outside prod; or ``staging`` uses prod's stream key.
+            the data directory outside prod; or, outside prod, the stream key is prod's
+            or an enabled torrent client has no scope.
         EnvironmentSettingError: ``env`` is ``None`` and the variable is invalid.
     """
     env = env if env is not None else current_environment()
@@ -107,7 +109,16 @@ def assert_isolated(config: Config, env: Environment | None = None) -> None:
                     f"this process runs in {env.value!r} but its store {path} lies outside {data_dir}; "
                     f"outside prod every store lives in the environment's own data directory"
                 )
-    if env is Environment.STAGING and config.web.stream_key == PROD_STREAM_KEY:
+    if not is_sandboxed(env):
+        return
+    if config.web.stream_key == PROD_STREAM_KEY:
         raise EnvironmentIsolationError(
-            f"staging must set web.stream_key to a key of its own, not prod's {PROD_STREAM_KEY!r}"
+            f"{env.value!r} must set web.stream_key to a key of its own, not prod's {PROD_STREAM_KEY!r}"
         )
+    for name, entry in config.torrent.clients.items():
+        # A sandbox shares prod's client only inside its own category (operator ruling Q4 A).
+        if entry.enabled and entry.scope is None:
+            raise EnvironmentIsolationError(
+                f"{env.value!r} enables torrent client {name!r} with no scope; "
+                f"outside prod a client is used only inside a scope of its own"
+            )

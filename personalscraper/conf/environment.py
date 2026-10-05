@@ -58,6 +58,25 @@ def current_environment() -> Environment:
         raise EnvironmentSettingError(f"{ENV_VAR}={raw!r} is not an environment; expected one of {allowed}") from None
 
 
+def is_sandboxed(env: Environment | None = None) -> bool:
+    """Tell whether an environment is a sandbox, held off prod's folders and data.
+
+    Every environment but prod is one: its writes stay inside its own marked roots
+    (``conf/sandbox_guard.py``), it publishes on a stream key of its own and never
+    tells prod's Plex.
+
+    Args:
+        env: The environment; ``None`` reads ``PERSONALSCRAPER_ENV``.
+
+    Returns:
+        ``True`` for every environment but prod.
+
+    Raises:
+        EnvironmentSettingError: ``env`` is ``None`` and the variable is invalid.
+    """
+    return (env if env is not None else current_environment()) is not Environment.PROD
+
+
 def store_filename(store: StoreName, env: Environment) -> str:
     """Name a store's file in an environment.
 

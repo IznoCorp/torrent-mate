@@ -241,8 +241,8 @@ class Sorter:
             A :class:`SortResult` (``moved`` / ``skipped`` / ``dry-run``).
 
         Raises:
-            SandboxGuardError: Under ``staging``, *item* or its destination is outside
-                preprod's marked, mounted roots. Nothing is moved or replaced.
+            SandboxGuardError: In a sandbox, *item* or its destination is outside
+                the sandbox's marked, mounted roots. Nothing is moved or replaced.
         """
         # Get destination via strategy
         strategy = _get_strategy(file_type)
@@ -292,7 +292,7 @@ class Sorter:
                 message=None,
             )
 
-        # Preprod guard (``staging`` only): a move or a replace stays inside preprod's own roots.
+        # Sandbox guard (a no-op in prod): a move or a replace stays inside the sandbox's own roots.
         assert_all_within_sandbox(self.config, item, dest_path)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 

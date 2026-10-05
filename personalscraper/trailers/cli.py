@@ -1148,7 +1148,7 @@ def purge(
         deleted = 0
         for trailer_p in orphan_trailer_paths:
             try:
-                # Preprod guard (``staging`` only): a purge stays inside preprod's own roots.
+                # Sandbox guard (a no-op in prod): a purge stays inside the sandbox's own roots.
                 assert_within_sandbox(config, trailer_p)
                 trailer_p.unlink()
                 deleted += 1
