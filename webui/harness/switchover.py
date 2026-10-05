@@ -10,7 +10,9 @@ measurement must never write into the operator's source — and holds all
 three over plain HTTP.
 """
 import contextlib
+import html
 import http.client
+import json
 import os
 import pathlib
 import re
@@ -87,9 +89,25 @@ def prepare_scratch() -> None:
                 shutil.copy(design / step, landing)
 
 
-def request_(path_, cookie=None, method="GET", body=None):
+def served_words(language, key):
+    """One `server.<key>` entry of a language's catalogue, as the host words it.
+
+    Args:
+        language: `fr` or `en`.
+        key: The entry under the catalogue's `server` namespace (`buildFailure`).
+
+    Returns:
+        The entry's texts by name, read from the catalogue the host itself reads.
+    """
+    catalogue = ROOT / "design" / "src" / "i18n" / f"{language}.json"
+    return json.loads(catalogue.read_text(encoding="utf-8"))["server"][key]
+
+
+def request_(path_, cookie=None, method="GET", body=None, language=None):
     conn = http.client.HTTPConnection("127.0.0.1", PORT, timeout=150)
     headers = {}
+    if language:
+        headers["Accept-Language"] = language
     if cookie:
         headers["Cookie"] = cookie
     if body is not None:
@@ -257,8 +275,11 @@ def main():
         # (c) A broken build answers 503 and SAYS it broke.
         (SCRATCH / "vite.config.mjs").write_text("ceci n'est pas du javascript {\n")
         # The config is a build input: its mtime alone must trigger the try.
-        response, body = request_("/", cookie)
+        # The page is worded in the browser's language: the request names English and the
+        # check reads the English catalogue's heading, never a retyped literal.
+        response, body = request_("/", cookie, language="en")
         body_str = body.decode("utf-8", "replace")
+        heading = html.escape(served_words("en", "buildFailure")["heading"])
         # Extract text between <pre and </pre> and check for non-empty error.
         pre_start = body_str.find("<pre")
         pre_end = body_str.find("</pre>")
@@ -270,7 +291,7 @@ def main():
         error_not_empty = len("".join(error_excerpt.split())) >= 10
         journal.check("a broken build answers 503 and says so",
                          response.status == 503
-                         and "build de la maquette a" in body_str
+                         and heading in body_str
                          and error_not_empty,
                          f"{response.status}, error: {error_excerpt[:60]}")
 
