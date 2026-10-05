@@ -353,7 +353,10 @@ def worded(markup: str, catalogue: dict[str, object]) -> str:
             node = node[part]
         if not isinstance(node, str):
             raise KeyError(key)
-        return html.escape(node)
+        # ONLY WHAT THE MARKUP NEEDS: `&`, `<`, `>`, and `"` for the double-quoted
+        # `aria-label`. An apostrophe left as written keeps the French screen the
+        # prototype's own text, extracted and never retyped (`harness/startup.py`).
+        return html.escape(node, quote=False).replace('"', "&quot;")
 
     texts = re.sub(
         r'(<(\w+)\b[^>]*\bdata-words="([^"]+)"[^>]*>)[^<]*(</\2>)',

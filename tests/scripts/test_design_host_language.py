@@ -270,3 +270,16 @@ def test_every_word_of_the_shell_is_keyed_and_its_french_is_the_catalogues() -> 
     assert unkeyed == []
     retyped = [(word, key) for word, key in reader.found if key is not None and _word(key) != word]
     assert retyped == []
+
+
+def test_the_french_splash_is_served_as_the_prototype_writes_it() -> None:
+    """Worded in French, the startup screen the host serves IS the prototype's, byte for byte.
+
+    Its fallback words are the French catalogue's, so wording them in French must change nothing:
+    an escape the markup does not write (an apostrophe turned ``&#x27;``) makes the served screen a
+    retyping of the prototype's, which the harness's « extracted from the prototype, never
+    retyped » (``webui/harness/startup.py``) refuses.
+    """
+    splash = SERVE.extract(SERVE.SHELL_DOCUMENT.read_text(encoding="utf-8"), "splash")
+    assert "'" in splash, "the splash holds no apostrophe: this test would distinguish nothing"
+    assert SERVE.v1_door.worded(splash, CATALOGUES["fr"]) == splash
