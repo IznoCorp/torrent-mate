@@ -201,6 +201,40 @@
         "title": "CreateRoleBody",
         "type": "object"
       },
+      "DeleteLibraryItemsBody": {
+        "additionalProperties": false,
+        "description": "``deleteLibraryItems``'s request: the media to delete, by provider identity.\n\nAttributes:\n    media: The media, one at least.",
+        "properties": {
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefModel"
+            },
+            "minItems": 1,
+            "title": "Media",
+            "type": "array"
+          }
+        },
+        "required": [
+          "media"
+        ],
+        "title": "DeleteLibraryItemsBody",
+        "type": "object"
+      },
+      "DeleteLibraryItemsResult": {
+        "additionalProperties": false,
+        "description": "``deleteLibraryItems``'s answer: how many media went entirely.\n\nAttributes:\n    deleted: The media deleted entirely.",
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "deleted"
+        ],
+        "title": "DeleteLibraryItemsResult",
+        "type": "object"
+      },
       "EpisodeModel": {
         "additionalProperties": false,
         "description": "The contract's ``Episode``: one catalogued episode.\n\nAttributes:\n    number: The episode number.\n    title: Its title; ``None`` when the catalogue gives none.\n    air_date: Its air date, or ``None``.\n    duration: Minutes, where known; never assigned (the catalogue holds none).",
@@ -281,6 +315,378 @@
         ],
         "title": "GenreId",
         "type": "string"
+      },
+      "IncompleteShow": {
+        "additionalProperties": false,
+        "description": "The contract's ``IncompleteShow``: a show missing aired episodes.\n\nAttributes:\n    title: The title the library files it under.\n    owned: Its aired episodes held.\n    aired: Its aired episodes.\n    year: Its year, or ``None`` when nothing states one.\n    ids: Its provider ids, at least one.\n    poster: Its poster's address, or ``None``.\n    category: The engine leaf category it is stored under.\n    kind: Always ``show``.",
+        "properties": {
+          "aired": {
+            "title": "Aired",
+            "type": "integer"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "ids": {
+            "allOf": [
+              {
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "object"
+              }
+            ],
+            "minProperties": 1,
+            "title": "Ids"
+          },
+          "kind": {
+            "const": "show",
+            "title": "Kind",
+            "type": "string"
+          },
+          "owned": {
+            "title": "Owned",
+            "type": "integer"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "title",
+          "owned",
+          "aired",
+          "year",
+          "ids",
+          "poster",
+          "category",
+          "kind"
+        ],
+        "title": "IncompleteShow",
+        "type": "object"
+      },
+      "LibraryCategory": {
+        "additionalProperties": false,
+        "description": "The contract's ``LibraryCategory``: one engine leaf and its live media.\n\nAttributes:\n    id: The leaf category id.\n    count: Its live media.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "count"
+        ],
+        "title": "LibraryCategory",
+        "type": "object"
+      },
+      "LibraryItem": {
+        "additionalProperties": false,
+        "description": "The contract's ``LibraryItem``: a listing row with its category and its synopsis.\n\nAttributes:\n    title: The title the library files it under.\n    category: The engine leaf category it is filed under.\n    overview: The NFO's synopsis, or ``None``.\n    ids: Its provider ids, at least one.\n    poster: Its poster's address, or ``None``.\n    year: Its year, or ``None``.\n    kind: ``movie`` or ``show``.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "ids": {
+            "allOf": [
+              {
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "object"
+              }
+            ],
+            "minProperties": 1,
+            "title": "Ids"
+          },
+          "kind": {
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "title",
+          "category",
+          "ids",
+          "poster",
+          "year",
+          "kind"
+        ],
+        "title": "LibraryItem",
+        "type": "object"
+      },
+      "LibraryItemsPage": {
+        "additionalProperties": false,
+        "description": "``readLibraryItems``'s answer: one page and its three counts.\n\nAttributes:\n    total: The library's count when nothing filters, else ``matching``.\n    matching: How many entries the question matches.\n    loaded: How many entries the library holds, whatever is filtered.\n    items: The page's entries.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LibraryItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "loaded": {
+            "title": "Loaded",
+            "type": "integer"
+          },
+          "matching": {
+            "title": "Matching",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "matching",
+          "loaded",
+          "items"
+        ],
+        "title": "LibraryItemsPage",
+        "type": "object"
+      },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "description": "The contract's ``LibraryMembership``: what the library holds of one medium.\n\nAttributes:\n    in_library: Whether some live row holds the id.\n    rows: How many holdings the id names; two or more is a duplicate.\n    incomplete: Whether it is a show held with aired episodes missing.\n    ids: The held row's provider ids, or ``None`` when not held.\n    kind: The held row's kind, or ``None`` when not held.",
+        "properties": {
+          "ids": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "type": "object"
+                  }
+                ],
+                "minProperties": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          },
+          "inLibrary": {
+            "title": "Inlibrary",
+            "type": "boolean"
+          },
+          "incomplete": {
+            "title": "Incomplete",
+            "type": "boolean"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "movie",
+                  "show"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inLibrary",
+          "rows",
+          "incomplete",
+          "ids",
+          "kind"
+        ],
+        "title": "LibraryMembership",
+        "type": "object"
+      },
+      "LibraryRow": {
+        "additionalProperties": false,
+        "description": "The contract's ``LibraryRow``: a row as a listing shows it, facts only.\n\nAttributes:\n    title: The title the library files it under.\n    ids: Its provider ids, at least one.\n    poster: Its poster's address, or ``None``.\n    year: Its year, or ``None``.\n    kind: ``movie`` or ``show``.",
+        "properties": {
+          "ids": {
+            "allOf": [
+              {
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "object"
+              }
+            ],
+            "minProperties": 1,
+            "title": "Ids"
+          },
+          "kind": {
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "title",
+          "ids",
+          "poster",
+          "year",
+          "kind"
+        ],
+        "title": "LibraryRow",
+        "type": "object"
+      },
+      "MediaRefModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``MediaRef``: a medium named by its provider identity.\n\nAttributes:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.",
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/Provider"
+          },
+          "providerId": {
+            "title": "Providerid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "providerId"
+        ],
+        "title": "MediaRefModel",
+        "type": "object"
       },
       "MediaSeasons": {
         "additionalProperties": false,
@@ -2219,6 +2625,627 @@
           }
         },
         "summary": "Start Plex Sign In"
+      }
+    },
+    "/library/categories": {
+      "get": {
+        "description": "The engine's leaf categories and their live media.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    One count per leaf holding a medium.",
+        "operationId": "readLibraryCategories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryCategory"
+                  },
+                  "title": "Response Readlibrarycategories",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Library Categories"
+      }
+    },
+    "/library/incomplete": {
+      "get": {
+        "description": "The shows missing aired episodes, and how many.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The incomplete shows, most missing first.",
+        "operationId": "readLibraryIncomplete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IncompleteShow"
+                  },
+                  "title": "Response Readlibraryincomplete",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Library Incomplete"
+      }
+    },
+    "/library/items": {
+      "delete": {
+        "description": "Delete media from the disks, the index and Plex, each named by its provider identity.\n\nArgs:\n    body: The media to delete.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    How many media went entirely.",
+        "operationId": "deleteLibraryItems",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteLibraryItemsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteLibraryItemsResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Delete Library Items"
+      },
+      "get": {
+        "description": "One page of the library listing.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    category: The leaf categories to keep, repeated; absent, every one.\n    sort: ``az`` or ``missing``; absent, the most recently added first.\n    reversed_: ``\"1\"`` to run the order the other way.\n    query: The search text.\n    page: The page, zero based.\n\nReturns:\n    The page and its three counts.",
+        "operationId": "readLibraryItems",
+        "parameters": [
+          {
+            "description": "the engine leaf category ids to keep",
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the engine leaf category ids to keep",
+              "title": "Category"
+            }
+          },
+          {
+            "description": "the order; absent, the most recent first",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "az",
+                    "missing"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the order; absent, the most recent first",
+              "title": "Sort"
+            }
+          },
+          {
+            "description": "the other way round",
+            "in": "query",
+            "name": "reversed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "1",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the other way round",
+              "title": "Reversed"
+            }
+          },
+          {
+            "description": "the search text",
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the search text",
+              "title": "Query"
+            }
+          },
+          {
+            "description": "the page, zero based",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "the page, zero based",
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryItemsPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Library Items"
+      }
+    },
+    "/library/membership": {
+      "get": {
+        "description": "What the library holds of one medium, named by its provider identity.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The membership, read from the whole library.",
+        "operationId": "readLibraryMembership",
+        "parameters": [
+          {
+            "description": "the provider the id is read at",
+            "in": "query",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Provider",
+              "description": "the provider the id is read at"
+            }
+          },
+          {
+            "description": "the medium's id at that provider",
+            "in": "query",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "description": "the medium's id at that provider",
+              "title": "Providerid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryMembership"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Library Membership"
+      }
+    },
+    "/library/recent": {
+      "get": {
+        "description": "The most recently added media.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The newest rows, newest first.",
+        "operationId": "readLibraryRecent",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryRow"
+                  },
+                  "title": "Response Readlibraryrecent",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Library Recent"
       }
     },
     "/media/{provider}/{providerId}": {
