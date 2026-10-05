@@ -77,7 +77,7 @@ const IDENTICAL_IN_BOTH_LANGUAGES: ReadonlySet<string> = new Set([
   "screens.acquisition.emptyNoFollowsBodyPlus", "screens.maintenance.arrow", "screens.settings.arrow",
   "surfaces.ladder.step", "surfaces.ladder.subStep", "settingValue.andMore", "panels.sort.ways.az.normal",
   "panels.sort.ways.az.inverse", "verbs.library.delete.videoFilesValue", "verbs.acquisition.searchAgain",
-  "verbs.trackers.remove.bodyFiles",
+  "verbs.trackers.remove.bodyFiles", "verbs.library.delete.keptSeparator",
   // Words both languages spell alike.
   "settings.units.minutes", "settings.units.m", "settings.units.ratio", "settings.genre",
   "settings.field.structureWord", "screens.ranking.previewScore", "screens.trackers.ratio",
