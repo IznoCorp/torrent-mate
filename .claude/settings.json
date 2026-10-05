@@ -80,6 +80,9 @@
     ]
   },
   "enabledPlugins": {
-    "greptile@claude-plugins-official": true
+    "greptile@claude-plugins-official": false,
+    "claude-statusbar@lounisbou": false,
+    "commit-commands@claude-plugins-official": false,
+    "pr-review@lounisbou": false
   }
 }
