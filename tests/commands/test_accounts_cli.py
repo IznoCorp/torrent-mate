@@ -617,7 +617,9 @@ class TestOpenSession:
             dev_data_dir: The marked ``dev`` data directory.
             language: The process's language.
         """
-        _seed_owner(dev_data_dir / "app-dev.db", allowed=False)
+        store_file = dev_data_dir / "app-dev.db"
+        _seed_owner(store_file, allowed=False)
+        sessions_before = len(_session_user_agents(store_file))
 
         with use_language(language):
             result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
@@ -625,6 +627,7 @@ class TestOpenSession:
         assert result.exit_code == 1
         assert _catalogue_line(language, "cli_refusals", "auth", "access_disabled") in result.stderr.splitlines()
         assert result.stdout == ""
+        assert len(_session_user_agents(store_file)) == sessions_before
 
     @pytest.mark.parametrize("owner_link", [True, False], ids=["empty-store", "admin-without-owner-link"])
     def test_no_owner_exits_1(
