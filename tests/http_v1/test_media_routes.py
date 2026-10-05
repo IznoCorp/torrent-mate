@@ -524,6 +524,62 @@ class TestRescrapeMedia:
         assert asked == []
 
 
+class TestLibraryUnavailable:
+    """Every media operation over a ``library.db`` that cannot be opened: 503 ``library.unavailable``.
+
+    Operator bugs B-697, B-698, B-699 (the Kyma and Silo sheets): the dev server's index was absent and each
+    read crashed into a 500 the sheet printed in English. The composed service reads the
+    configured index; absent or corrupt, each operation answers the typed refusal the
+    interface words.
+    """
+
+    @pytest.fixture(params=["absent", "corrupt"])
+    def unreadable_index(self, request: pytest.FixtureRequest, test_config: Config) -> Path:
+        """The configured ``library.db``: absent, or a file of corrupt bytes.
+
+        Args:
+            request: Pytest's request, naming the case.
+            test_config: The synthetic config.
+
+        Returns:
+            The index's path.
+        """
+        library_db = Path(test_config.indexer.db_path)
+        if request.param == "corrupt":
+            library_db.parent.mkdir(parents=True, exist_ok=True)
+            library_db.write_bytes(b"not a database, corrupt bytes" * 64)
+        else:
+            assert not library_db.exists()
+        return library_db
+
+    @pytest.mark.parametrize(
+        ("method", "path", "rights"),
+        [
+            ("GET", "/media/tvdb/403245", _READ),
+            ("GET", "/media/tmdb/1365362", _READ),
+            ("GET", "/media/tvdb/403245/seasons", _READ),
+            ("GET", "/media/tvdb/403245/poster", _READ),
+            ("POST", "/media/tvdb/403245/rescrape", _RESCRAPE),
+        ],
+    )
+    def test_the_operation_is_refused_unavailable(
+        self,
+        v1_client: Callable[..., TestClient],
+        unreadable_index: Path,
+        method: str,
+        path: str,
+        rights: frozenset[Right],
+    ) -> None:
+        """503 ``library.unavailable``, never the 500 ``internal``, no word of the failure on the wire."""
+        response = v1_client(rights=rights).request(method, path)
+
+        assert response.status_code == 503
+        assert response.json()["code"] == "library.unavailable"
+        assert response.json()["status"] == 503
+        assert "sqlite" not in response.text.lower()
+        assert str(unreadable_index) not in response.text
+
+
 def _silent_provider() -> MagicMock:
     """A v0 provider client that never answers: the v0 sheet degrades, no network is reached.
 

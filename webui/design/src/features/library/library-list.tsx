@@ -174,7 +174,9 @@ export function LibraryList(): ReactElement {
         id="libitems"
         className={grid ? posterGrid() : section()} data-part={grid ? "grid" : "section"}
       >
-        <SurfaceError subject={t("screens.library.errorSubject")} />
+        {/* WHY, in the reader's words: an unreadable library (503
+            `library.unavailable`) is said as such, not as a timeout. */}
+        <SurfaceError subject={t("screens.library.errorSubject")} failure={listing.error ?? undefined} />
       </div>
     );
   } else if (rows.length === 0) {

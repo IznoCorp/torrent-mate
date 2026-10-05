@@ -831,3 +831,63 @@ class TestDeleteLibraryItemsEndToEnd:
         }
         assert (folder / "movie.mkv").is_file()
         assert self._rows(test_config) == 1
+
+
+class TestLibraryUnavailable:
+    """Every library operation over a ``library.db`` that cannot be opened: 503 ``library.unavailable``.
+
+    The composed service reads the configured index; absent or corrupt, each operation
+    answers the typed refusal the interface words, never an unhandled 500 ``internal``.
+    """
+
+    @pytest.fixture(params=["absent", "corrupt", "empty"])
+    def unreadable_index(self, request: pytest.FixtureRequest, test_config: Config) -> Path:
+        """The configured ``library.db``: absent, a file of corrupt bytes, or a 0-byte file.
+
+        Args:
+            request: Pytest's request, naming the case.
+            test_config: The synthetic config.
+
+        Returns:
+            The index's path.
+        """
+        library_db = Path(test_config.indexer.db_path)
+        if request.param == "corrupt":
+            library_db.parent.mkdir(parents=True, exist_ok=True)
+            library_db.write_bytes(b"not a database, corrupt bytes" * 64)
+        elif request.param == "empty":
+            library_db.parent.mkdir(parents=True, exist_ok=True)
+            library_db.write_bytes(b"")
+        else:
+            assert not library_db.exists()
+        return library_db
+
+    @pytest.mark.parametrize(
+        ("method", "path", "role", "rights", "body"),
+        [
+            ("GET", "/library/items", "household", _READ, None),
+            ("GET", "/library/categories", "household", _READ, None),
+            ("GET", "/library/recent", "household", _READ, None),
+            ("GET", "/library/incomplete", "household", _READ, None),
+            ("GET", "/library/membership?provider=tvdb&providerId=403245", "household", _READ, None),
+            ("DELETE", "/library/items", "admin", None, {"media": [{"provider": "tvdb", "providerId": "403245"}]}),
+        ],
+    )
+    def test_the_operation_is_refused_unavailable(
+        self,
+        v1_client: Callable[..., TestClient],
+        unreadable_index: Path,
+        method: str,
+        path: str,
+        role: str,
+        rights: frozenset[Right] | None,
+        body: dict[str, Any] | None,
+    ) -> None:
+        """503 ``library.unavailable``, its title the code's, no word of the failure on the wire."""
+        response = v1_client(role=role, rights=rights).request(method, path, json=body)
+
+        assert response.status_code == 503
+        assert response.json()["code"] == "library.unavailable"
+        assert response.json()["status"] == 503
+        assert "sqlite" not in response.text.lower()
+        assert str(unreadable_index) not in response.text

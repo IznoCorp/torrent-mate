@@ -156,13 +156,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The library listing, one page of it */
+        /**
+         * The library listing, one page of it
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
+         */
         get: operations["readLibraryItems"];
         put?: never;
         post?: never;
         /**
          * Delete media from the library, by provider identity
-         * @description Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2).
+         * @description Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2). 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         delete: operations["deleteLibraryItems"];
         options?: never;
@@ -177,7 +180,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The engine's leaf categories and their counts */
+        /**
+         * The engine's leaf categories and their counts
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
+         */
         get: operations["readLibraryCategories"];
         put?: never;
         post?: never;
@@ -194,7 +200,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The most recently added titles */
+        /**
+         * The most recently added titles
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
+         */
         get: operations["readLibraryRecent"];
         put?: never;
         post?: never;
@@ -211,7 +220,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The series with holes, and how big each hole is */
+        /**
+         * The series with holes, and how big each hole is
+         * @description 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
+         */
         get: operations["readLibraryIncomplete"];
         put?: never;
         post?: never;
@@ -230,7 +242,7 @@ export interface paths {
         };
         /**
          * Whether the library holds one medium, asked by its provider identity
-         * @description An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate.
+         * @description An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readLibraryMembership"];
         put?: never;
@@ -250,7 +262,7 @@ export interface paths {
         };
         /**
          * One media sheet, by its provider identity
-         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer.
+         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readMediaSheet"];
         put?: never;
@@ -270,7 +282,7 @@ export interface paths {
         };
         /**
          * The seasons of a show, and what the library holds of each
-         * @description Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer.
+         * @description Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readMediaSeasons"];
         put?: never;
@@ -290,7 +302,7 @@ export interface paths {
         };
         /**
          * The poster file a medium's library folder holds
-         * @description The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster.
+         * @description The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         get: operations["readMediaPoster"];
         put?: never;
@@ -332,7 +344,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the providers for one medium's metadata again
-         * @description Refused 404 `media.not_found` when no library row holds the id.
+         * @description Refused 404 `media.not_found` when no library row holds the id. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).
          */
         post: operations["rescrapeMedia"];
         delete?: never;
@@ -3043,7 +3055,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -3659,6 +3671,7 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     readMediaCrossSeed: {

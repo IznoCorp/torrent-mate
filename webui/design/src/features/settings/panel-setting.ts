@@ -236,7 +236,9 @@ async function saveEdits(): Promise<void> {
       // failure decided nothing about the value: the edits stay, to be saved again.
       if (!isRequestFailure(failure)) throw failure;
       for (const identifier of Object.keys(values)) {
-        SETTINGS_STATE.refused.set(identifier, { status: failure.status, detail: failure.detail });
+        SETTINGS_STATE.refused.set(identifier, {
+          status: failure.status, detail: failure.detail, code: failure.code, params: failure.params,
+        });
         if (failure.status === REFUSED) pending.delete(identifier);
       }
       continue;

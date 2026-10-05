@@ -29,8 +29,9 @@ _READ_RESPONSES = {**PROBLEM_RESPONSES, 404: PROBLEM_RESPONSES[400]}
 #: already running is an accepted ask.
 _RESCRAPE_RESPONSES = {status: answer for status, answer in _READ_RESPONSES.items() if status != 409}
 
-#: ``readMediaPoster``'s refusals: it reads no provider (no 503) and changes nothing (no 409).
-_POSTER_RESPONSES = {status: answer for status, answer in _READ_RESPONSES.items() if status not in (409, 503)}
+#: ``readMediaPoster``'s refusals: it changes nothing (no 409); its 503 is the library index
+#: that cannot be read (``library.unavailable``), since it reads no provider.
+_POSTER_RESPONSES = {status: answer for status, answer in _READ_RESPONSES.items() if status != 409}
 
 #: ``readMediaPoster``'s answer: the file's bytes, under the media type its extension names.
 _POSTER_IMAGE: Final = {"schema": {"type": "string", "format": "binary"}}
@@ -63,6 +64,9 @@ def read_media_sheet(
 
     Returns:
         The sheet; a film's carries no episodes, seasons or TMDB television id.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return MediaSheet.from_facts(
@@ -102,6 +106,7 @@ def read_media_poster(
             ``providerId``), before any disk is read.
         AppNotFound: ``media.not_found`` when no row holding the id has a live file, or
             when none of its folders holds a poster that can be read inside it.
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     poster = app_services.library.read_local_poster(signed_in, ref)
@@ -131,6 +136,9 @@ def read_media_seasons(
 
     Returns:
         The seasons, the held episodes and the aired counts.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return MediaSeasons.from_facts(app_services.library.read_seasons(signed_in, ref))
@@ -159,6 +167,9 @@ def rescrape_media(
 
     Returns:
         The acceptance: running now, or visibly in file.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return RescrapeQueued.from_acceptance(app_services.library.request_rescrape(signed_in, ref))

@@ -574,6 +574,19 @@ def _by_season(pairs: set[tuple[int, int]]) -> dict[int, tuple[int, ...]]:
     return {season: tuple(sorted(grouped[season])) for season in sorted(grouped)}
 
 
+def _library_unavailable(exc: sqlite3.Error) -> AppUnavailable:
+    """Log why ``library.db`` cannot be read, and build the refusal the wire answers.
+
+    Args:
+        exc: The SQLite failure opening or probing the index.
+
+    Returns:
+        The 503 ``library.unavailable`` refusal; it names no path and no SQLite text.
+    """
+    log.error("app.library.index_unavailable", error=type(exc).__name__, reason=str(exc))
+    return AppUnavailable("The library index cannot be read.", code=RefusalCode.LIBRARY_UNAVAILABLE)
+
+
 class LibraryService:
     """The library's reads, its rescrape and its deletion.
 
@@ -641,20 +654,33 @@ class LibraryService:
         """Open ``library.db`` read-only, with ``sqlite3.Row`` rows.
 
         Read-only at the file (``mode=ro``: an absent index is an error, never a new empty
-        file) and at the connection (``query_only``).
+        file) and at the connection (``query_only``). The schema is read once before the
+        connection is handed out, so a file that is not a database is refused here rather
+        than by the first query.
 
         Returns:
             A connection that can take no writer lock.
 
         Raises:
-            sqlite3.OperationalError: When ``library.db`` cannot be opened.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` is absent, cannot be
+                opened or is not a database; the cause goes to the log, never to the wire.
         """
         uri = f"{self._index_db.resolve().as_uri()}?mode=ro"
-        conn = sqlite3.connect(uri, uri=True, isolation_level=None, check_same_thread=False)
-        # Not the canonical writer PRAGMA set: WAL ``journal_mode`` raises on a read-only
-        # connection (scripts/check-pragma-discipline.py allow-lists this reader).
-        conn.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
-        conn.execute("PRAGMA query_only=ON")
+        try:
+            conn = sqlite3.connect(uri, uri=True, isolation_level=None, check_same_thread=False)
+        except sqlite3.Error as exc:
+            raise _library_unavailable(exc) from exc
+        try:
+            # Not the canonical writer PRAGMA set: WAL ``journal_mode`` raises on a read-only
+            # connection (scripts/check-pragma-discipline.py allow-lists this reader).
+            conn.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
+            conn.execute("PRAGMA query_only=ON")
+            # The core table, not ``sqlite_master``: a 0-byte or schema-less file opens and passes
+            # that, and the first real query then dies on « no such table ».
+            conn.execute("SELECT 1 FROM media_item LIMIT 1").fetchone()
+        except sqlite3.Error as exc:
+            conn.close()
+            raise _library_unavailable(exc) from exc
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -799,6 +825,7 @@ class LibraryService:
 
         Raises:
             AppBadRequest: ``request.invalid`` on a negative page.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         if page < 0:
             raise AppBadRequest("The page is negative.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["page"]})
@@ -833,6 +860,9 @@ class LibraryService:
 
         Returns:
             One count per leaf holding at least one entry, by category id.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
@@ -849,6 +879,9 @@ class LibraryService:
 
         Returns:
             The :data:`RECENT_LIMIT` newest live entries, newest first.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
@@ -866,6 +899,9 @@ class LibraryService:
         Returns:
             The shows whose aired episodes outnumber the held ones, most missing first, then
             most recently added.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
@@ -888,6 +924,9 @@ class LibraryService:
         Returns:
             The membership. ``rows`` counts every holding row (a 0-file phantom included)
             plus the extra media folders of a row spread over several.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             holders, folders = self._held(conn, ref)
@@ -919,7 +958,8 @@ class LibraryService:
         Raises:
             AppNotFound: ``media.not_found`` for an id a held movie carries, for an IMDb id
                 the library does not hold, and when the provider does not know the id.
-            AppUnavailable: ``provider.unavailable`` when the provider is not configured or
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read;
+                ``provider.unavailable`` when the provider is not configured or
                 does not answer for an id the library does not hold.
         """
         with closing(self._connect()) as conn:
@@ -977,7 +1017,8 @@ class LibraryService:
         Raises:
             AppNotFound: ``media.not_found`` when the provider does not know the id, or for
                 an IMDb id the library does not hold (no client reads a sheet by IMDb id).
-            AppUnavailable: ``provider.unavailable`` when the provider is not configured or
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read;
+                ``provider.unavailable`` when the provider is not configured or
                 does not answer.
         """
         with closing(self._connect()) as conn:
@@ -1044,6 +1085,7 @@ class LibraryService:
         Raises:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file, or
                 when none of its folders holds a poster that can be read inside it.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         provider, _ = ref_key(ref)
         with closing(self._connect()) as conn:
@@ -1080,6 +1122,7 @@ class LibraryService:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file.
             AppInternalError: When a runner cannot be spawned; the runs spawned before it
                 stay live.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         provider, provider_id = ref_key(ref)
         with closing(self._connect()) as conn:
@@ -1170,7 +1213,8 @@ class LibraryService:
                 when no index row holds an id. Nothing is deleted.
             AppUnavailable: ``library.obligations_unreadable`` when the deletion authority
                 cannot read the seed obligations of a folder (operator ruling R1): every
-                folder's decision is read before any folder goes, so nothing is deleted.
+                folder's decision is read before any folder goes, so nothing is deleted;
+                ``library.unavailable`` when ``library.db`` cannot be read.
         """
         permit = self._delete_permit
         if permit is None:
@@ -1364,7 +1408,7 @@ class LibraryService:
         try:
             with closing(self._connect()) as conn:
                 return conn.execute("SELECT 1 FROM disk WHERE is_mounted = 0 LIMIT 1").fetchone() is not None
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, AppUnavailable) as exc:
             log.warning("app.library.delete_disks_unreadable", error=type(exc).__name__)
             return True
 

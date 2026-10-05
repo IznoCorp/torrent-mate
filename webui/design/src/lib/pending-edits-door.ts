@@ -7,6 +7,7 @@
 // setting, and the frame that asks before a page with edits waiting is left
 // (`app/leave-confirm.ts`), read it and name no feature.
 
+import type { RequestFailure } from "./query-client";
 // WHO HEARS A SAVE: a page drawing what a setting governs re-reads it once the
 // setting is written, whichever page wrote it — the door names no feature.
 const saveListeners: (() => void)[] = [];
@@ -25,15 +26,18 @@ export function editsWritten(): void {
   for (const listener of saveListeners) listener();
 }
 
+/** The failure a setting's last write earned: the layer's own answer, kept whole so a surface can say its code. */
+export type WriteRefusal = Pick<RequestFailure, "status" | "detail" | "code" | "params">;
+
 /** What another page — and the frame — may ask of the pending edits, through the feature that owns them. */
 export type PendingEditsDoor = {
   /** The value a setting will be written as, when an edit of it is pending. */
   pending: (identifier: string) => { value: unknown } | undefined;
   /** Files an edit of one setting — the same edit Réglages files. */
   file: (identifier: string, value: unknown) => void;
-  /** The failure the last write of a setting earned — its status and the layer's
-   * words — until it is written again. */
-  refusal: (identifier: string) => { status: number; detail: string } | undefined;
+  /** The failure the last write of a setting earned — its status, its code and the
+   * layer's words — until it is written again. */
+  refusal: (identifier: string) => WriteRefusal | undefined;
   /** How many edits wait — the one answer the bar and the leave confirmation read. */
   waiting: () => number;
   /** Writes every waiting edit, as « Enregistrer » on the bar does. */

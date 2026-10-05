@@ -21,6 +21,7 @@
 // same phase, because it made a component write a server-state key.
 import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { failureWords } from "../lib/refusal";
 import { skeleton, skeletonLine, surfaceError } from "./variants";
 
 /**
@@ -76,8 +77,8 @@ export function SkeletonLine({
 type FailedRead = {
   /** What could not be loaded, in the interface's own words. */
   subject: string;
-  /** What the server said, if it said anything. Data, never copy. */
-  detail?: string;
+  /** What the read was refused with: its code is said in the reader's words, never its wire text. */
+  failure?: unknown;
   /** Re-asks the caller's own read. Without one, the retry stays delegated. */
   onRetry?: () => void;
 };
@@ -113,11 +114,15 @@ type Notice = {
  * UI phase instead and re-asked nothing, so the control said « Réessayer » and
  * did something else.
  *
- * AND A FAILURE CARRIES ITS OWN REASON. `detail` is what the server said — data,
- * never copy — and it stands where the body sentence would. That sentence
- * asserts a TIMEOUT, and it was printed over a 502 that had answered with its
- * reason in hand: a constant that cannot change when the reality does is the
- * first thing §13 forbids, and an error surface is not exempt.
+ * AND A FAILURE CARRIES ITS OWN REASON — BY CODE. A server that answered says why
+ * in the reader's language: its refusal code read from `fr.json`, and a server
+ * failure's own sentence when it carried no code the interface knows. That stands
+ * where the body sentence would, which asserts a TIMEOUT and was printed over a
+ * 502 that had answered: a constant that cannot change when the reality does is
+ * the first thing §13 forbids. The wire's `detail` is never drawn — it is an
+ * English line for logs, and the sheet printed « An unexpected error occurred. »
+ * under a French lead until the surface took the failure instead of its text
+ * (B-697, B-699; i18n OPEN-1 B).
  *
  * AN `onRetry` PROP WAS WRITTEN AND TAKEN BACK ONCE BEFORE. It made the
  * library's surface write `phase` — a SERVER-STATE key — from a component, and
@@ -146,15 +151,16 @@ export function SurfaceError(props: FailedRead | Notice): ReactElement {
       </div>
     );
   }
-  const { subject, detail, onRetry } = props;
+  const { subject, failure, onRetry } = props;
+  const reason = failureWords(failure);
   return (
     <div className={surfaceError()} data-part="surface-error" role="alert">
       <b>{t("surfaces.error.lead", { subject })}</b>
       {/* PRESENCE, NOT TRUTHINESS. A failure whose reason is an empty string is
           still a failure that ANSWERED, and falling back on the timeout sentence
           there says the opposite of what happened. */}
-      {detail !== undefined ? (
-        <span data-part="surface-error/detail">{detail}</span>
+      {reason !== undefined ? (
+        <span data-part="surface-error/detail">{reason}</span>
       ) : (
         t("surfaces.error.body")
       )}
