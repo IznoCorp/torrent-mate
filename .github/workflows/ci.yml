@@ -361,7 +361,7 @@ jobs:
       # (v4 silently skips dotfiles by default).
       - run: mv .coverage coverage.dat
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.changes.outputs.python == 'true'
         with:
           name: coverage

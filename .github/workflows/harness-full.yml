@@ -91,7 +91,7 @@ jobs:
           # state per pass, and three at a time no longer fit run.sh's 600 s bound.
           TM_RESPONSIVE_PARALLEL: "9"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: harness-full-shard-${{ matrix.shard }}
           path: harness-logs
