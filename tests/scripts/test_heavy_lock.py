@@ -697,6 +697,55 @@ def test_a_run_holding_more_browsers_than_its_class_is_stopped_then_killed(tmp_p
     assert log.index("STOPPED") < log.index("KILLED"), log
 
 
+# A real Chrome for Testing as `ps -o comm=` shows it: the main executable, two
+# crashpad handlers re-parented to 1 (members through the run's tag), and its
+# helpers — renderer, GPU, network — under the main.
+CHROME_APP = "/Users/someone/Library/Caches/ms-playwright/chromium-1187/chrome-mac-arm64/Google Chrome for Testing.app"
+CHROME_FRAMEWORK = f"{CHROME_APP}/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/140.0.7339.16"
+
+
+def real_chrome(first: int, parent: int) -> list[tuple[int, int, float, str]]:
+    """One real Chrome for Testing's processes, as a fake table's rows.
+
+    Args:
+        first: The main executable's pid; the others follow it.
+        parent: The main executable's parent.
+
+    Returns:
+        The rows: the main, two crashpad handlers at ppid 1, three helpers under the main.
+    """
+    helper = f"{CHROME_FRAMEWORK}/Helpers/Google Chrome for Testing Helper"
+    return [
+        (first, parent, 20.0, f"{CHROME_APP}/Contents/MacOS/Google Chrome for Testing"),
+        (first + 1, 1, 0.0, f"{CHROME_FRAMEWORK}/Helpers/chrome_crashpad_handler"),
+        (first + 2, 1, 0.0, f"{CHROME_FRAMEWORK}/Helpers/chrome_crashpad_handler"),
+        (first + 3, first, 10.0, f"{helper} (Renderer).app/Contents/MacOS/Google Chrome for Testing Helper (Renderer)"),
+        (first + 4, first, 5.0, f"{helper} (GPU).app/Contents/MacOS/Google Chrome for Testing Helper (GPU)"),
+        (first + 5, first, 1.0, f"{helper}.app/Contents/MacOS/Google Chrome for Testing Helper"),
+    ]
+
+
+@pytest.mark.parametrize("chromes", [1, 4], ids=["one chrome", "four chromes"])
+def test_a_browser_is_counted_once_never_its_crashpad_nor_its_helpers(tmp_path: Path, chromes: int) -> None:
+    """B-701: a real Chrome counted as three browsers, its two crashpad handlers at ppid 1 counted too.
+
+    Four Chromes within the class's cap of six were twelve, and the run was killed.
+    The cap is forced to 0 here so the watcher says the count it made.
+    """
+    run, child, table = watched_run(tmp_path, "browser", HEAVY_MAX_BROWSERS="0")
+    try:
+        rows = [row for index in range(chromes) for row in real_chrome(FAKE_PID + 10 * index, child)]
+        fake_table(table, child, rows)
+        _, errors = run.communicate(timeout=30)
+    finally:
+        if run.poll() is None:
+            run.kill()
+            run.wait()
+            if alive(child):
+                os.kill(child, signal.SIGKILL)
+    assert f"— {chromes} browsers, class browser" in errors, errors
+
+
 def test_a_run_burning_far_more_than_its_cost_is_stopped_then_killed(tmp_path: Path) -> None:
     """B-701: a run declared at 2 cores that burns nine is beyond its class."""
     run, child, table = watched_run(tmp_path, "test")

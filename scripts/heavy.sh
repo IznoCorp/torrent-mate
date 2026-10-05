@@ -581,14 +581,20 @@ reap_run() {
 }
 
 # How many browsers and how much % CPU the run's rows on stdin hold. A browser
-# is a browser process whose parent is not one: its helpers are not counted.
+# is a browser's MAIN executable whose parent is not one: never a Chrome
+# helper (`… Helper (Renderer)`, a `--type=` process) nor a crashpad handler,
+# which Chrome starts twice and re-parents to pid 1 with the run's tag.
 weigh() {
     awk '
         {
             name = $5
             for (i = 6; i <= NF; i++) name = name " " $i
             parent[$1] = $2
-            browser[$1] = (tolower(name) ~ /chrom|firefox|webkit|minibrowser|headless.shell/)
+            name = tolower(name)
+            executable = name
+            sub(/.*\//, "", executable)
+            browser[$1] = (name ~ /chrom|firefox|webkit|minibrowser|headless.shell/ &&
+                executable !~ /crashpad|helper/ && name !~ / --type=/)
             cpu += $4
         }
         END {
