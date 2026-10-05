@@ -52,6 +52,7 @@ from personalscraper.api.plex_account import (
     PlexTokenRefused,
 )
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
+from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.repository import (
     AccountRepository,
@@ -61,7 +62,6 @@ from personalscraper.app.accounts.repository import (
     RoleRow,
     StartKind,
 )
-from personalscraper.app.accounts.service import AccountService, SignInResult
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.errors import (
     AppBadRequest,
@@ -157,7 +157,7 @@ class PlexSignInService:
     def __init__(
         self,
         repo_factory: Callable[[], AccountRepository],
-        accounts: AccountService,
+        credentials: CredentialService,
         *,
         vault: TokenVault | None,
         client_factory: Callable[[str, str], PlexAccountClient],
@@ -173,7 +173,7 @@ class PlexSignInService:
 
         Args:
             repo_factory: Returns the account repository (opening ``app.db`` on first use).
-            accounts: The account service, whose public door opens the session.
+            credentials: The credential service, whose public door opens the session.
             vault: The token vault; ``None`` when no key is set — the token is then not kept.
             client_factory: Builds the plex.tv account client from the product and the
                 client identifier.
@@ -189,7 +189,7 @@ class PlexSignInService:
                 the door with no vault: a token not kept is then a warning, not a choice.
         """
         self._repo_factory = repo_factory
-        self._accounts = accounts
+        self._credentials = credentials
         self._vault = vault
         self._client_factory = client_factory
         self._server = server
@@ -364,7 +364,7 @@ class PlexSignInService:
             raise
         if moved:
             self._bus.emit(AccountRightsChanged(account_ids=(account_id,), cause=RightsChangeCause.PLEX_LINKED))
-        return self._accounts.open_proven_session(account_id, user_agent=user_agent)
+        return self._credentials.open_proven_session(account_id, user_agent=user_agent)
 
     def _access(self, client: PlexAccountClient, token: str, plex: PlexAccount) -> PlexServerAccess:
         """What the identity is to this server, OWNER only when cross-checked.

@@ -1,4 +1,4 @@
-"""Unit tests for an account's access: ``AccountService.set_account_access`` and the sign-in it gates.
+"""Unit tests for an account's access: ``RosterService.set_account_access`` and the sign-in it gates.
 
 An Admin, and only an Admin, cuts or gives back any account's access but the Plex server
 owner's and its own. Cutting ends every session of the account in the same transaction;
@@ -16,14 +16,15 @@ from unittest.mock import patch
 
 import pytest
 
-from personalscraper.app.accounts import service as service_module
+from personalscraper.app.accounts import credentials as credentials_module
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.passwords import hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, SlidingWindowRateLimiter
 from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import AppForbidden, AppNotFound, AppUnauthenticated, RefusalCode
 from personalscraper.app.store.store import AppStore
@@ -34,8 +35,8 @@ _WRONG = "not the password at all"
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 
 
-#: The logger the service writes its structlog events through.
-_SERVICE_LOGGER = "app.accounts.service"
+#: The loggers the services write their structlog events through.
+_SERVICE_LOGGERS = ("app.accounts.roster", "app.accounts.credentials")
 
 
 def _service_events(caplog: pytest.LogCaptureFixture) -> list[dict[str, object]]:
@@ -48,10 +49,12 @@ def _service_events(caplog: pytest.LogCaptureFixture) -> list[dict[str, object]]
         caplog: pytest's log capture.
 
     Returns:
-        The event dicts of ``app.accounts.service``, in order.
+        The event dicts of the roster and credential services, in order.
     """
     return [
-        dict(record.msg) for record in caplog.records if record.name == _SERVICE_LOGGER and isinstance(record.msg, dict)
+        dict(record.msg)
+        for record in caplog.records
+        if record.name in _SERVICE_LOGGERS and isinstance(record.msg, dict)
     ]
 
 
@@ -172,21 +175,32 @@ def limiter() -> SlidingWindowRateLimiter:
 
 
 @pytest.fixture
-def accounts(
-    store: AppStore, sessions: SessionService, bus: EventBus, limiter: SlidingWindowRateLimiter
-) -> AccountService:
-    """The account service.
+def accounts(store: AppStore, bus: EventBus) -> RosterService:
+    """The roster service.
+
+    Args:
+        store: The store.
+        bus: The bus.
+
+    Returns:
+        The service.
+    """
+    return RosterService(lambda: store.accounts, bus)
+
+
+@pytest.fixture
+def credentials(store: AppStore, sessions: SessionService, limiter: SlidingWindowRateLimiter) -> CredentialService:
+    """The credential service.
 
     Args:
         store: The store.
         sessions: The session service.
-        bus: The bus.
         limiter: The password door's limiter.
 
     Returns:
         The service.
     """
-    return AccountService(lambda: store.accounts, sessions, bus, limiter=limiter)
+    return CredentialService(lambda: store.accounts, sessions, limiter=limiter)
 
 
 def _signed_in(sessions: SessionService, account_id: str) -> tuple[Actor, str]:
@@ -220,22 +234,22 @@ def _row(store: AppStore, account_id: str) -> AccountRow:
     return row
 
 
-def _sign_in(accounts: AccountService, account_id: str, password: str = _PASSWORD) -> None:
+def _sign_in(credentials: CredentialService, account_id: str, password: str = _PASSWORD) -> None:
     """Sign an account in through the password door.
 
     Args:
-        accounts: The service.
+        credentials: The service.
         account_id: The account, its e-mail ``<key>@example.org``.
         password: The password typed.
     """
-    accounts.sign_in_with_password(f"{account_id}@example.org", password, client_key="client", user_agent="pytest")
+    credentials.sign_in_with_password(f"{account_id}@example.org", password, client_key="client", user_agent="pytest")
 
 
 class TestSetAccountAccess:
     """``set_account_access`` — an Admin cuts or gives back an account's sign-in."""
 
     def test_cutting_ends_every_session_of_the_account_and_no_other(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: RosterService, sessions: SessionService, store: AppStore
     ) -> None:
         """The account is cut and its sessions all end at once; another account's keep running."""
         admin, admin_token = _signed_in(sessions, "admin")
@@ -249,7 +263,7 @@ class TestSetAccountAccess:
         assert sessions.resolve(bystander) is not None and sessions.resolve(admin_token) is not None
 
     def test_a_plex_linked_account_is_cut_too(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: RosterService, sessions: SessionService, store: AppStore
     ) -> None:
         """A Plex-linked account other than the owner is cut like any other."""
         admin, _ = _signed_in(sessions, "admin")
@@ -259,7 +273,7 @@ class TestSetAccountAccess:
         assert sessions.resolve(running) is None
 
     def test_giving_back_opens_no_session(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: RosterService, sessions: SessionService, store: AppStore
     ) -> None:
         """Given back, the account may sign in again; its ended sessions stay ended, none is opened."""
         admin, _ = _signed_in(sessions, "admin")
@@ -273,7 +287,7 @@ class TestSetAccountAccess:
 
     @pytest.mark.parametrize("allowed", [True, False], ids=["allowed-again", "cut-again"])
     def test_the_value_already_held_changes_nothing(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore, allowed: bool
+        self, accounts: RosterService, sessions: SessionService, store: AppStore, allowed: bool
     ) -> None:
         """Setting the value the account holds answers it and writes nothing."""
         admin, _ = _signed_in(sessions, "admin")
@@ -289,7 +303,7 @@ class TestSetAccountAccess:
 
     @pytest.mark.parametrize("account_id", ["local", "manager", "nobody"], ids=["other", "own", "unknown"])
     def test_a_manager_who_is_not_admin_is_refused_first(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore, account_id: str
+        self, accounts: RosterService, sessions: SessionService, store: AppStore, account_id: str
     ) -> None:
         """403 ``account.access_admin_only`` whatever the account — its own, and one that does not exist."""
         manager, _ = _signed_in(sessions, "manager")
@@ -299,7 +313,7 @@ class TestSetAccountAccess:
         assert caught.value.code == RefusalCode.ACCOUNT_ACCESS_ADMIN_ONLY
         assert store.accounts.account(account_id) == before
 
-    def test_an_unknown_account_is_404(self, accounts: AccountService, sessions: SessionService) -> None:
+    def test_an_unknown_account_is_404(self, accounts: RosterService, sessions: SessionService) -> None:
         """For an Admin: 404 ``account.unknown``."""
         admin, _ = _signed_in(sessions, "admin")
         with pytest.raises(AppNotFound) as caught:
@@ -317,7 +331,7 @@ class TestSetAccountAccess:
     )
     def test_the_owner_and_its_own_account_are_refused(
         self,
-        accounts: AccountService,
+        accounts: RosterService,
         sessions: SessionService,
         store: AppStore,
         actor_id: str,
@@ -334,7 +348,7 @@ class TestSetAccountAccess:
         assert sessions.resolve(running) is not None
 
     def test_the_cut_and_the_revocation_are_one_transaction(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: RosterService, sessions: SessionService, store: AppStore
     ) -> None:
         """When the revocation fails, the account is not left cut: both commit or neither does."""
         admin, _ = _signed_in(sessions, "admin")
@@ -348,7 +362,7 @@ class TestSetAccountAccess:
         assert sessions.resolve(running) is not None
 
     def test_publishes_nothing_and_logs_who_acted(
-        self, accounts: AccountService, sessions: SessionService, bus: EventBus, caplog: pytest.LogCaptureFixture
+        self, accounts: RosterService, sessions: SessionService, bus: EventBus, caplog: pytest.LogCaptureFixture
     ) -> None:
         """No event; one log line per change, naming the Admin; none for a no-op."""
         seen: list[object] = []
@@ -372,17 +386,17 @@ class TestCutSignIn:
     """The password door of a cut account."""
 
     def test_the_right_password_is_access_disabled_and_opens_nothing(
-        self, accounts: AccountService, sessions: SessionService
+        self, accounts: RosterService, credentials: CredentialService, sessions: SessionService
     ) -> None:
         """Credentials proven: 403 ``auth.access_disabled``, after one scrypt run, no session opened."""
         admin, _ = _signed_in(sessions, "admin")
         accounts.set_account_access(admin, "local", allowed=False)
         with (
-            patch.object(service_module, "verify_password", wraps=verify_password) as spy,
+            patch.object(credentials_module, "verify_password", wraps=verify_password) as spy,
             patch.object(sessions, "open", wraps=sessions.open) as opened,
             pytest.raises(AppForbidden) as caught,
         ):
-            _sign_in(accounts, "local")
+            _sign_in(credentials, "local")
         assert caught.value.code == RefusalCode.AUTH_ACCESS_DISABLED
         assert spy.call_count == 1
         assert opened.call_count == 0
@@ -393,42 +407,53 @@ class TestCutSignIn:
         ids=["wrong-password", "plex-linked"],
     )
     def test_unproven_credentials_stay_auth_refused(
-        self, accounts: AccountService, sessions: SessionService, account_id: str, password: str
+        self,
+        accounts: RosterService,
+        credentials: CredentialService,
+        sessions: SessionService,
+        account_id: str,
+        password: str,
     ) -> None:
         """A cut account's wrong password, or a cut Plex-linked account's password: the one 401, one scrypt run."""
         admin, _ = _signed_in(sessions, "admin")
         accounts.set_account_access(admin, account_id, allowed=False)
         with (
-            patch.object(service_module, "verify_password", wraps=verify_password) as spy,
+            patch.object(credentials_module, "verify_password", wraps=verify_password) as spy,
             pytest.raises(AppUnauthenticated) as caught,
         ):
-            _sign_in(accounts, account_id, password)
+            _sign_in(credentials, account_id, password)
         assert caught.value.code == RefusalCode.AUTH_REFUSED
         assert spy.call_count == 1
 
     def test_a_refused_cut_sign_in_spends_no_failure(
-        self, accounts: AccountService, sessions: SessionService, limiter: SlidingWindowRateLimiter
+        self,
+        accounts: RosterService,
+        credentials: CredentialService,
+        sessions: SessionService,
+        limiter: SlidingWindowRateLimiter,
     ) -> None:
         """The credentials were right: the refusal is not a failed attempt, the client's budget is whole."""
         admin, _ = _signed_in(sessions, "admin")
         accounts.set_account_access(admin, "local", allowed=False)
         for _ in range(MAX_FAILED_ATTEMPTS + 1):
             with pytest.raises(AppForbidden):
-                _sign_in(accounts, "local")
+                _sign_in(credentials, "local")
         assert limiter.allow("client")
 
-    def test_given_back_the_account_signs_in(self, accounts: AccountService, sessions: SessionService) -> None:
+    def test_given_back_the_account_signs_in(
+        self, accounts: RosterService, credentials: CredentialService, sessions: SessionService
+    ) -> None:
         """Once given back, the right password opens a session again."""
         admin, _ = _signed_in(sessions, "admin")
         accounts.set_account_access(admin, "local", allowed=False)
         accounts.set_account_access(admin, "local", allowed=True)
-        result = accounts.sign_in_with_password(
+        result = credentials.sign_in_with_password(
             "local@example.org", _PASSWORD, client_key="client", user_agent="pytest"
         )
         assert result.account.id == "local" and sessions.resolve(result.session_token) is not None
 
     def test_a_cut_landing_during_the_check_opens_no_session(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: RosterService, credentials: CredentialService, sessions: SessionService, store: AppStore
     ) -> None:
         """A cut committed while scrypt runs is read when the session would open: refused, nothing left live."""
         admin, _ = _signed_in(sessions, "admin")
@@ -447,26 +472,26 @@ class TestCutSignIn:
             return verify_password(password, stored)
 
         with (
-            patch.object(service_module, "verify_password", side_effect=cut_meanwhile),
+            patch.object(credentials_module, "verify_password", side_effect=cut_meanwhile),
             patch.object(sessions, "open", wraps=sessions.open) as opened,
             pytest.raises(AppForbidden) as caught,
         ):
-            _sign_in(accounts, "local")
+            _sign_in(credentials, "local")
         assert caught.value.code == RefusalCode.AUTH_ACCESS_DISABLED
         assert opened.call_count == 0
 
 
 def test_no_password_reaches_a_refusal_or_a_log(
-    accounts: AccountService, sessions: SessionService, caplog: pytest.LogCaptureFixture
+    accounts: RosterService, credentials: CredentialService, sessions: SessionService, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Neither the right nor a wrong password is in the access refusal or any log line."""
     admin, _ = _signed_in(sessions, "admin")
     caplog.set_level(logging.DEBUG)
     accounts.set_account_access(admin, "local", allowed=False)
     with pytest.raises(AppForbidden) as caught:
-        _sign_in(accounts, "local")
+        _sign_in(credentials, "local")
     with pytest.raises(AppUnauthenticated):
-        _sign_in(accounts, "local", _WRONG)
+        _sign_in(credentials, "local", _WRONG)
     logs = [record.msg for record in caplog.records]
     text = f"{logs} {caught.value} {caught.value.detail} {caught.value.params}"
     for secret in (_PASSWORD, _WRONG):

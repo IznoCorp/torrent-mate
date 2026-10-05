@@ -11,8 +11,10 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Final, cast
 
 from personalscraper.api.transport._policy import RetryPolicy
+from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
-from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.roles import RoleService
+from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.services import AppServices
@@ -411,7 +413,9 @@ def build_app_services(
     plex = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
     app_store = build_app_store(config)
     sessions = SessionService(lambda: app_store.accounts, idle_days=config.web.session_idle_days)
-    accounts = AccountService(lambda: app_store.accounts, sessions, event_bus)
+    accounts = RosterService(lambda: app_store.accounts, event_bus)
+    roles = RoleService(lambda: app_store.accounts, event_bus)
+    credentials = CredentialService(lambda: app_store.accounts, sessions)
     return AppServices(
         event_bus=event_bus,
         build_info=BUILD_INFO,
@@ -419,7 +423,9 @@ def build_app_services(
         app_store=app_store,
         sessions=sessions,
         accounts=accounts,
-        plex_sign_in=_build_plex_sign_in(config, settings, app_store, accounts, event_bus, plex),
+        roles=roles,
+        credentials=credentials,
+        plex_sign_in=_build_plex_sign_in(config, settings, app_store, credentials, event_bus, plex),
         owned_providers=owned,
     )
 
@@ -428,7 +434,7 @@ def _build_plex_sign_in(
     config: "Config",
     settings: "Settings",
     app_store: "AppStore",
-    accounts: AccountService,
+    credentials: CredentialService,
     event_bus: EventBus,
     server: "PlexClient | None",
 ) -> PlexSignInService:
@@ -442,7 +448,7 @@ def _build_plex_sign_in(
         config: The typed configuration (``web.plex_forward_url``).
         settings: The env-var settings (``PLEX_TOKEN``, ``PLEX_TOKEN_KEYS``).
         app_store: The environment's ``app.db``.
-        accounts: The account service, which opens the session.
+        credentials: The credential service, which opens the session.
         event_bus: The bus E8 is published on.
         server: The process's client of the Plex server ``PLEX_URL`` names; ``None``
             without a ``PLEX_TOKEN``.
@@ -462,7 +468,7 @@ def _build_plex_sign_in(
         vault, keys_malformed = None, True
     return PlexSignInService(
         lambda: app_store.accounts,
-        accounts,
+        credentials,
         vault=vault,
         client_factory=lambda product, client_id: PlexAccountClient(product=product, client_identifier=client_id),
         server=server,

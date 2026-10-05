@@ -1,4 +1,4 @@
-"""Unit tests for the password writes of ``AccountService``: ``change_own_password`` and ``reset_account_password``.
+"""Unit tests for the password writes: ``change_own_password`` (credentials) and ``reset_account_password`` (roster).
 
 A local account changes its own password from its current one; the change ends the
 account's other sessions and keeps the caller's. The Plex server owner's fallback is the
@@ -16,14 +16,15 @@ from unittest.mock import patch
 
 import pytest
 
-from personalscraper.app.accounts import service as service_module
+from personalscraper.app.accounts import credentials as credentials_module
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, WINDOW_SECONDS, SlidingWindowRateLimiter
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import (
     AppBadRequest,
@@ -180,24 +181,36 @@ def sessions(store: AppStore) -> SessionService:
 
 
 @pytest.fixture
-def accounts(store: AppStore, sessions: SessionService, bus: EventBus, limiter_clock: _Clock) -> AccountService:
-    """The account service, its password-change limiter on a settable clock.
+def accounts(store: AppStore, sessions: SessionService, limiter_clock: _Clock) -> CredentialService:
+    """The credential service, its password-change limiter on a settable clock.
 
     Args:
         store: The store.
         sessions: The session service.
-        bus: The bus.
         limiter_clock: The limiter's clock.
 
     Returns:
         The service.
     """
-    return AccountService(
+    return CredentialService(
         lambda: store.accounts,
         sessions,
-        bus,
         password_limiter=SlidingWindowRateLimiter(clock=limiter_clock),
     )
+
+
+@pytest.fixture
+def roster(store: AppStore, bus: EventBus) -> RosterService:
+    """The roster service.
+
+    Args:
+        store: The store.
+        bus: The bus.
+
+    Returns:
+        The service.
+    """
+    return RosterService(lambda: store.accounts, bus)
 
 
 def _signed_in(sessions: SessionService, account_id: str) -> tuple[Actor, str]:
@@ -216,7 +229,9 @@ def _signed_in(sessions: SessionService, account_id: str) -> tuple[Actor, str]:
     return actor, token
 
 
-def _change(accounts: AccountService, sessions: SessionService, account_id: str, current: str, new: str = _NEW) -> str:
+def _change(
+    accounts: CredentialService, sessions: SessionService, account_id: str, current: str, new: str = _NEW
+) -> str:
     """Sign an account in and change its password.
 
     Args:
@@ -253,7 +268,7 @@ class TestChangeOwnPassword:
     """``change_own_password`` — a local account replaces its own password."""
 
     def test_the_new_password_replaces_the_old(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore
     ) -> None:
         """The new password is kept as a scrypt hash; the old one no longer matches."""
         _change(accounts, sessions, "local", _PASSWORD)
@@ -264,7 +279,7 @@ class TestChangeOwnPassword:
         assert not verify_password(_PASSWORD, stored)
 
     def test_the_other_sessions_end_and_the_callers_stays(
-        self, accounts: AccountService, sessions: SessionService
+        self, accounts: CredentialService, sessions: SessionService
     ) -> None:
         """Every other session of the account is revoked; the caller's and another account's are not."""
         _, elsewhere = _signed_in(sessions, "local")
@@ -275,7 +290,7 @@ class TestChangeOwnPassword:
         assert sessions.resolve(someone_else) is not None
 
     def test_the_owner_is_held_by_cli(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore
     ) -> None:
         """The server owner's fallback is replaced on the server only: 403 ``password.held_by_cli``."""
         before = _stored_hash(store, "owner")
@@ -284,7 +299,7 @@ class TestChangeOwnPassword:
         assert caught.value.code == RefusalCode.PASSWORD_HELD_BY_CLI
         assert _stored_hash(store, "owner") == before
 
-    def test_a_plex_linked_account_is_plex_only(self, accounts: AccountService, sessions: SessionService) -> None:
+    def test_a_plex_linked_account_is_plex_only(self, accounts: CredentialService, sessions: SessionService) -> None:
         """A Plex-linked account holds no password here: 403 ``auth.plex_only``."""
         with pytest.raises(AppForbidden) as caught:
             _change(accounts, sessions, "shared", _PASSWORD)
@@ -292,12 +307,12 @@ class TestChangeOwnPassword:
 
     @pytest.mark.parametrize("account_id", ["local", "nopass"], ids=["wrong-current", "no-password-held"])
     def test_a_wrong_current_password_runs_scrypt_once(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore, account_id: str
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore, account_id: str
     ) -> None:
         """400 ``password.current_wrong``, scrypt run once even when no hash is held, nothing changed."""
         before = _stored_hash(store, account_id)
         actor, token = _signed_in(sessions, account_id)
-        with patch.object(service_module, "verify_password", wraps=verify_password) as spy:
+        with patch.object(credentials_module, "verify_password", wraps=verify_password) as spy:
             with pytest.raises(AppBadRequest) as caught:
                 accounts.change_own_password(actor, token, current_password=_WRONG, new_password=_NEW)
         assert caught.value.code == RefusalCode.PASSWORD_CURRENT_WRONG
@@ -306,7 +321,7 @@ class TestChangeOwnPassword:
 
     @pytest.mark.parametrize("new", ["x" * (PASSWORD_MINIMUM - 1), ""], ids=["one-short", "empty"])
     def test_a_short_new_password_names_the_minimum(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore, new: str
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore, new: str
     ) -> None:
         """400 ``password.too_short`` with ``minimum``; the stored password and the sessions untouched."""
         before = _stored_hash(store, "local")
@@ -324,7 +339,7 @@ class TestChangeOwnPassword:
         ids=["no-uppercase", "no-digit", "no-special"],
     )
     def test_a_weak_new_password_is_refused_by_the_policy(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore, new: str
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore, new: str
     ) -> None:
         """400 ``password.too_weak`` with ``minimum``; the stored password and the sessions untouched."""
         before = _stored_hash(store, "local")
@@ -337,7 +352,7 @@ class TestChangeOwnPassword:
         assert sessions.resolve(elsewhere) is not None
 
     def test_a_deleted_account_is_auth_required(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore
     ) -> None:
         """The account vanished after the perimeter resolved it: 401 ``auth.required``."""
         actor, token = _signed_in(sessions, "local")
@@ -348,12 +363,12 @@ class TestChangeOwnPassword:
         assert caught.value.code == RefusalCode.AUTH_REQUIRED
 
     def test_a_concurrent_change_is_current_wrong(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore
     ) -> None:
         """The hash moved between the check and the write: the typed password is no longer current."""
         actor, token = _signed_in(sessions, "local")
         replaced = hash_password("set meanwhile elsewhere")
-        real_hash = service_module.hash_password
+        real_hash = credentials_module.hash_password
 
         def _hash_then_race(password: str) -> str:
             """Hash the new password, while another writer replaces the stored one.
@@ -367,13 +382,13 @@ class TestChangeOwnPassword:
             store.accounts.set_password_hash("local", replaced, now=2.0)
             return real_hash(password)
 
-        with patch.object(service_module, "hash_password", side_effect=_hash_then_race):
+        with patch.object(credentials_module, "hash_password", side_effect=_hash_then_race):
             with pytest.raises(AppBadRequest) as caught:
                 accounts.change_own_password(actor, token, current_password=_PASSWORD, new_password=_NEW)
         assert caught.value.code == RefusalCode.PASSWORD_CURRENT_WRONG
         assert _stored_hash(store, "local") == replaced
 
-    def test_publishes_nothing(self, accounts: AccountService, sessions: SessionService, bus: EventBus) -> None:
+    def test_publishes_nothing(self, accounts: CredentialService, sessions: SessionService, bus: EventBus) -> None:
         """No event: a password change moves no right."""
         seen: list[object] = []
         bus.subscribe(Event, seen.append)
@@ -384,7 +399,7 @@ class TestChangeOwnPassword:
 class TestChangeRateLimit:
     """Wrong current passwords: ``MAX_FAILED_ATTEMPTS`` per account inside ``WINDOW_SECONDS``."""
 
-    def _exhaust(self, accounts: AccountService, sessions: SessionService, account_id: str = "local") -> None:
+    def _exhaust(self, accounts: CredentialService, sessions: SessionService, account_id: str = "local") -> None:
         """Type a wrong current password as many times as the limiter tolerates.
 
         Args:
@@ -397,7 +412,7 @@ class TestChangeRateLimit:
                 _change(accounts, sessions, account_id, _WRONG)
 
     def test_the_next_attempt_is_rate_limited_even_with_the_right_password(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, accounts: CredentialService, sessions: SessionService, store: AppStore
     ) -> None:
         """The sixth attempt: 429 ``auth.rate_limited``, the right current password included; nothing changed."""
         before = _stored_hash(store, "local")
@@ -407,18 +422,22 @@ class TestChangeRateLimit:
         assert caught.value.code == RefusalCode.AUTH_RATE_LIMITED
         assert _stored_hash(store, "local") == before
 
-    def test_another_account_is_not_limited(self, accounts: AccountService, sessions: SessionService) -> None:
+    def test_another_account_is_not_limited(self, accounts: CredentialService, sessions: SessionService) -> None:
         """The limit is per account."""
         self._exhaust(accounts, sessions)
         _change(accounts, sessions, "other", _PASSWORD)
 
-    def test_the_window_slides(self, accounts: AccountService, sessions: SessionService, limiter_clock: _Clock) -> None:
+    def test_the_window_slides(
+        self, accounts: CredentialService, sessions: SessionService, limiter_clock: _Clock
+    ) -> None:
         """Past the window, the account may try again."""
         self._exhaust(accounts, sessions)
         limiter_clock.now += WINDOW_SECONDS + 1
         _change(accounts, sessions, "local", _PASSWORD)
 
-    def test_a_success_does_not_give_the_budget_back(self, accounts: AccountService, sessions: SessionService) -> None:
+    def test_a_success_does_not_give_the_budget_back(
+        self, accounts: CredentialService, sessions: SessionService
+    ) -> None:
         """Four failures, a success, one more failure: the account has used its five."""
         for _ in range(MAX_FAILED_ATTEMPTS - 1):
             with pytest.raises(AppBadRequest):
@@ -431,7 +450,7 @@ class TestChangeRateLimit:
 
     def test_the_sign_in_limiter_is_another(self, store: AppStore, sessions: SessionService) -> None:
         """Wrong current passwords never spend the sign-in door's budget, nor the reverse."""
-        accounts = AccountService(lambda: store.accounts, sessions, EventBus())
+        accounts = CredentialService(lambda: store.accounts, sessions)
         self._exhaust(accounts, sessions)
         result = accounts.sign_in_with_password("local@example.org", _PASSWORD, client_key="local", user_agent="pytest")
         assert result.account.id == "local"
@@ -441,62 +460,62 @@ class TestResetAccountPassword:
     """``reset_account_password`` — an Admin gives a local account a provisional password."""
 
     def test_an_admin_resets_and_the_sessions_stay(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, roster: RosterService, sessions: SessionService, store: AppStore
     ) -> None:
         """The provisional password is kept as a hash; the account's sessions keep running."""
         admin, _ = _signed_in(sessions, "admin")
         _, running = _signed_in(sessions, "local")
-        accounts.reset_account_password(admin, "local", password=_NEW)
+        roster.reset_account_password(admin, "local", password=_NEW)
         stored = _stored_hash(store, "local")
         assert stored is not None and verify_password(_NEW, stored)
         assert sessions.resolve(running) is not None
 
     def test_an_account_without_a_password_gets_one(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, roster: RosterService, sessions: SessionService, store: AppStore
     ) -> None:
         """A local account holding none is given one."""
         admin, _ = _signed_in(sessions, "admin")
-        accounts.reset_account_password(admin, "nopass", password=_NEW)
+        roster.reset_account_password(admin, "nopass", password=_NEW)
         stored = _stored_hash(store, "nopass")
         assert stored is not None and verify_password(_NEW, stored)
 
     @pytest.mark.parametrize("account_id", ["local", "manager", "nobody"], ids=["other", "own", "unknown"])
     def test_a_manager_who_is_not_admin_is_refused_first(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore, account_id: str
+        self, roster: RosterService, sessions: SessionService, store: AppStore, account_id: str
     ) -> None:
         """403 ``password.reset_admin_only`` whatever the account — its own, and one that does not exist."""
         manager, _ = _signed_in(sessions, "manager")
         before = store.accounts.account(account_id)
         with pytest.raises(AppForbidden) as caught:
-            accounts.reset_account_password(manager, account_id, password=_NEW)
+            roster.reset_account_password(manager, account_id, password=_NEW)
         assert caught.value.code == RefusalCode.PASSWORD_RESET_ADMIN_ONLY
         assert store.accounts.account(account_id) == before
 
     def test_an_admin_never_resets_its_own_password(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore
+        self, roster: RosterService, sessions: SessionService, store: AppStore
     ) -> None:
         """403 ``password.reset_own``: an Admin changes its own password in Profil, the current one required."""
         admin, _ = _signed_in(sessions, "admin")
         before = _stored_hash(store, "admin")
         with pytest.raises(AppForbidden) as caught:
-            accounts.reset_account_password(admin, "admin", password=_NEW)
+            roster.reset_account_password(admin, "admin", password=_NEW)
         assert caught.value.code == RefusalCode.PASSWORD_RESET_OWN
         assert _stored_hash(store, "admin") == before
 
     def test_the_admin_check_comes_before_the_own_account_check(
-        self, accounts: AccountService, sessions: SessionService
+        self, roster: RosterService, sessions: SessionService
     ) -> None:
         """A manager who is not Admin resetting its own password still reads ``password.reset_admin_only``."""
         manager, _ = _signed_in(sessions, "manager")
         with pytest.raises(AppForbidden) as caught:
-            accounts.reset_account_password(manager, "manager", password=_NEW)
+            roster.reset_account_password(manager, "manager", password=_NEW)
         assert caught.value.code == RefusalCode.PASSWORD_RESET_ADMIN_ONLY
 
-    def test_an_unknown_account_is_404(self, accounts: AccountService, sessions: SessionService) -> None:
+    def test_an_unknown_account_is_404(self, roster: RosterService, sessions: SessionService) -> None:
         """For an Admin: 404 ``account.unknown``."""
         admin, _ = _signed_in(sessions, "admin")
         with pytest.raises(AppNotFound) as caught:
-            accounts.reset_account_password(admin, "nobody", password=_NEW)
+            roster.reset_account_password(admin, "nobody", password=_NEW)
         assert caught.value.code == RefusalCode.ACCOUNT_UNKNOWN
 
     @pytest.mark.parametrize(
@@ -505,13 +524,13 @@ class TestResetAccountPassword:
         ids=["owner", "plex-linked"],
     )
     def test_a_password_held_elsewhere_is_refused(
-        self, accounts: AccountService, sessions: SessionService, store: AppStore, account_id: str, code: RefusalCode
+        self, roster: RosterService, sessions: SessionService, store: AppStore, account_id: str, code: RefusalCode
     ) -> None:
         """The owner's fallback is the CLI's; a Plex-linked account holds none: 403, nothing changed."""
         admin, _ = _signed_in(sessions, "admin")
         before = _stored_hash(store, account_id)
         with pytest.raises(AppForbidden) as caught:
-            accounts.reset_account_password(admin, account_id, password=_NEW)
+            roster.reset_account_password(admin, account_id, password=_NEW)
         assert caught.value.code == code
         assert _stored_hash(store, account_id) == before
 
@@ -526,7 +545,7 @@ class TestResetAccountPassword:
     )
     def test_a_refused_password(
         self,
-        accounts: AccountService,
+        roster: RosterService,
         sessions: SessionService,
         store: AppStore,
         password: str,
@@ -537,22 +556,22 @@ class TestResetAccountPassword:
         admin, _ = _signed_in(sessions, "admin")
         before = _stored_hash(store, "local")
         with pytest.raises(AppBadRequest) as caught:
-            accounts.reset_account_password(admin, "local", password=password)
+            roster.reset_account_password(admin, "local", password=password)
         assert caught.value.code == code
         assert caught.value.params == params
         assert _stored_hash(store, "local") == before
 
-    def test_publishes_nothing(self, accounts: AccountService, sessions: SessionService, bus: EventBus) -> None:
+    def test_publishes_nothing(self, roster: RosterService, sessions: SessionService, bus: EventBus) -> None:
         """No event: a reset moves no right."""
         seen: list[object] = []
         bus.subscribe(Event, seen.append)
         admin, _ = _signed_in(sessions, "admin")
-        accounts.reset_account_password(admin, "local", password=_NEW)
+        roster.reset_account_password(admin, "local", password=_NEW)
         assert seen == []
 
 
 def test_no_password_reaches_a_refusal_or_a_log(
-    accounts: AccountService, sessions: SessionService, logged_events: LoggedEvents
+    accounts: CredentialService, roster: RosterService, sessions: SessionService, logged_events: LoggedEvents
 ) -> None:
     """Neither the current, the new nor the provisional password is in any refusal or log line."""
     admin, _ = _signed_in(sessions, "admin")
@@ -564,9 +583,9 @@ def test_no_password_reaches_a_refusal_or_a_log(
             with pytest.raises(AppBadRequest) as caught:
                 accounts.change_own_password(actor, token, current_password=current, new_password=new)
             refusals.append(caught.value)
-        accounts.reset_account_password(admin, "other", password=_NEW + "?")
+        roster.reset_account_password(admin, "other", password=_NEW + "?")
         with pytest.raises(AppForbidden) as forbidden:
-            accounts.reset_account_password(admin, "owner", password=_NEW + "#")
+            roster.reset_account_password(admin, "owner", password=_NEW + "#")
         refusals.append(forbidden.value)
     text = f"{logs} " + " ".join(f"{refusal} {refusal.detail} {refusal.params}" for refusal in refusals)  # type: ignore[attr-defined]
     for secret in (_PASSWORD, _NEW, _WRONG, "tiny-secret"):

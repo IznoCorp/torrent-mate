@@ -34,6 +34,7 @@ from cryptography.fernet import Fernet
 from personalscraper.api.plex_account import PlexAccountClient
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.accounts.plex_sign_in import (
@@ -43,7 +44,6 @@ from personalscraper.app.accounts.plex_sign_in import (
     PlexSignInService,
 )
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, PlexPinRow, SessionRow
-from personalscraper.app.accounts.service import AccountService, SignInResult
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.accounts.views import SignInKind
@@ -407,10 +407,10 @@ def _build(
         The service.
     """
     sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
-    accounts = AccountService(lambda: store.accounts, sessions, bus)
+    credentials = CredentialService(lambda: store.accounts, sessions)
     return PlexSignInService(
         lambda: store.accounts,
-        accounts,
+        credentials,
         vault=vault,
         client_factory=lambda product, client_id: PlexAccountClient(
             product=product,
@@ -995,7 +995,7 @@ class TestLinkByEmail:
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
         _sign_in(door, clock)
         sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
-        accounts = AccountService(lambda: store.accounts, sessions, bus)
+        accounts = CredentialService(lambda: store.accounts, sessions)
 
         refusal = _refusal(
             lambda: accounts.sign_in_with_password(EMAIL, "a local password 1!", client_key="k", user_agent=None)
