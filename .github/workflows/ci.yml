@@ -89,7 +89,7 @@ jobs:
       # `personalscraper/**` is not in the `python` and `frontend_app` filters
       # below: it is read by the `package` filter of the next step, and joined
       # to both in the job outputs.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filtre
         if: github.event_name == 'pull_request'
         with:
@@ -134,7 +134,7 @@ jobs:
       #   not a second one that can drift from it.
       # `webui/**` is NOT a frontend-app change, and no `frontend_app` pattern
       # matches it: the maquette has its own steps, gated by the `maquette` output.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: refine
         if: github.event_name == 'pull_request'
         with:
