@@ -4,15 +4,17 @@ The operator, 2026-10-03 (FG-1 B): « B » — the interface language is an ACCO
 Profil, the same on every device, not the device's storage; its pushes follow it (FG-2 A). And
 2026-10-04 (OPEN-2 B): when nothing names a language, it is English.
 
-R526-a — Profil says the account's language and changes it:
+R526-a — Profil says the account's language and changes it, in an ENGLISH browser: every
+account here speaks French until it chooses, so an interface that followed the browser instead
+of the account would read English where these checks read French:
 1. `profile`: « Langue » is drawn, its control pressed on the account's language — French, the
-   seeded owner's — and the document's `lang` says it;
+   seeded owner's, not the browser's English — and the document's `lang` says it;
 2. a real tap on « English » switches the WHOLE interface at once, with no reload: Profil's own
    headings and the page's heading read the English catalogue, the document's `lang` is `en`;
 3. it persists: reloaded, Profil is still English, and so is another surface opened cold (the
    Médiathèque by its address) — the choice is held for the account, not the page;
-4. it is the account's own: another account signed in reads French, its own, and the first
-   account signed in again reads English again.
+4. it is the account's own: another account signed in reads French, its own — not the
+   browser's — and the first account signed in again reads English again.
 
 R526-b — the choice's own states, drawn:
 5. `profile-language-saving`: while the server has not answered, the control says it is saving,
@@ -150,7 +152,8 @@ async def main():
     errors = []
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
-        context, page = await open_page(browser)
+        # A BROWSER IN ANOTHER LANGUAGE THAN THE ACCOUNT'S: English, the accounts French.
+        context, page = await open_page(browser, locale="en-US")
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         # ── R526-a: Profil says the account's language and changes it ──────
@@ -202,7 +205,7 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         other = await page.evaluate(READ)
         journal.check(
-            "another account signed in keeps its own language, French",
+            "another account signed in keeps its own language, French, not the browser's",
             speaks(other, "fr") and other["language"] == "fr",
             f"lang {other['lang']} · page {other['page']!r}",
         )
