@@ -10,5 +10,15 @@
     "reconcile_fell_back": "{{seasons}} saison(s) repassée(s) en épisodes (pack incomplet).",
     "reswitch_label": "Bascule:",
     "reswitch_summary": "{{reswitched}} release(s) bloquée(s) remplacée(s) (sur {{checked}} en cours)."
+  },
+  "follow": {
+    "detect": {
+      "cell_film_acquired": "acquis — retiré des suivis"
+    },
+    "backfill": {
+      "nameless": "#{{id}} (sans nom)",
+      "field_title": "titre",
+      "resolved_suffix": " → « {{title}} »"
+    }
   }
 }

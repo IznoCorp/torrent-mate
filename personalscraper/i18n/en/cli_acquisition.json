@@ -154,5 +154,76 @@
     "no_seeders": "No candidate meets the minimum seeders threshold.",
     "top_label": "Top:",
     "top_line": "[{{provider}}] {{title}} ({{seeders}} seeders, {{resolution}})"
+  },
+  "follow": {
+    "group_help": "Manage the followed-series list.",
+    "add": {
+      "help": "Follow a TV series by provider ID (idempotent).\n\nAt least one of --tvdb, --tmdb, or --imdb is required. --tvdb is preferred\n(primary identifier). The canonical title is resolved via the metadata\nprovider registry; --title is used as a fallback when resolution fails.",
+      "tvdb_help": "TVDB series ID (primary).",
+      "tmdb_help": "TMDB series ID.",
+      "imdb_help": "IMDB series ID (e.g. tt0903747).",
+      "title_help": "Human-readable title (fallback when metadata unavailable).",
+      "need_id": "Error: at least one of --tvdb, --tmdb, or --imdb is required.",
+      "already_following": "Already following:",
+      "refollowing": "Refollowing:",
+      "now_following": "Now following:"
+    },
+    "list": {
+      "help": "List followed series.\n\nBy default shows only active series. Use --all to include unfollowed ones.",
+      "all_help": "Include inactive (unfollowed) series.",
+      "empty": "No followed series.",
+      "title": "Followed Series",
+      "col_id": "ID",
+      "col_title": "Title",
+      "col_tvdb": "TVDB",
+      "col_tmdb": "TMDB",
+      "col_imdb": "IMDB",
+      "col_active": "Active",
+      "active_yes": "yes",
+      "active_no": "no"
+    },
+    "remove": {
+      "help": "Soft-unfollow a series (sets active=False, preserves history).\n\nProvide --tvdb {{tvdb}} or --id {{followed}}.",
+      "tvdb_help": "TVDB series ID.",
+      "id_help": "followed_series row ID.",
+      "need_id": "Error: provide --tvdb or --id.",
+      "not_found": "Series not found — nothing to remove.",
+      "already_inactive": "Already inactive:",
+      "unfollowed": "Unfollowed:"
+    },
+    "detect": {
+      "help": "Detect aired episodes for followed series and enqueue them as wanted items.\n\nStage A of the DETECT flow: polls the active followed set for every episode\nwith a known air date (one ``poll_known`` call per series — futures included,\ncached but never enqueued), maps each back to its followed series via\n``media_ref``, keeps only the aired ones (``{{aired}}``), skips owned\nepisodes (RP6) and rows already present in the wanted queue, then enqueues the\nremainder as ``WantedItem(kind='episode', status='pending')`` and emits\n``WantedEnqueued`` per enqueue.\n\nBoth ``poll_known`` and ``ownership.owns`` are fail-soft: a failure is logged\nand treated as \"no episodes\" / \"not owned\" so one bad series or a missing\nlibrary never aborts the run.\n\nUse ``--dry-run`` to preview without any writes or events.\nUse ``--series`` to restrict detection to a single series (integer\n``followed_id`` or a case-insensitive title substring).",
+      "dry_run_help": "Preview detected episodes without writing or emitting.",
+      "series_help": "Filter active set by integer followed_id or title substring.",
+      "no_active": "No active followed series.",
+      "no_match": "No matching series.",
+      "title": "Follow Detect",
+      "col_series": "Series",
+      "col_season": "Season",
+      "col_episode": "Episode",
+      "col_air_date": "AirDate",
+      "col_episode_title": "Title",
+      "col_action": "Action",
+      "summary": "{{enqueued}} enqueued, {{skipped_owned}} skipped-owned, {{skipped_dup}} skipped-dup, {{resurrected}} resurrected, {{closed_owned}} closed-owned",
+      "cell_skipped_owned": "skipped-owned",
+      "cell_skipped_dup": "skipped-dup",
+      "cell_resurrect_dry": "resurrect (dry-run)",
+      "cell_resurrected": "resurrected",
+      "cell_dry_run": "dry-run",
+      "cell_enqueued": "enqueued"
+    },
+    "backfill_metadata": {
+      "help": "Backfill ``poster_url`` + ``overview`` + ``year`` for follows added before this fix.\n\nRepairs the rows the server could not enrich at creation time (acq-states\n§7.3). Shares the SINGLE enrichment authority with the create-follow route\n(``acquire.metadata_enrich``): each missing field is fetched from the\nprovider BY ID — never by a title search — so a wrong poster is impossible\nby construction, and the strict TVDB/TMDB separation is honoured for free.\nIdempotent (a complete row is untouched) and additive (``COALESCE`` never\noverwrites an existing value). Read-only under ``--dry-run``.\n\nTransaction shape (PR #320 review, m10): the scan connection is READ-ONLY\nand every write goes through ``store.follow.merge_metadata`` — one short\n``BEGIN IMMEDIATE`` per row, taken AFTER that row's provider calls have\nreturned. The previous form issued raw ``UPDATE``s on the scan connection\nand committed once at the end, so Python's implicit transaction opened on\nthe first update and held the single-writer lock across every remaining\nHTTP round-trip: on a large library that blocked the watcher, the web app\nand the crons for minutes, and one slow provider could stall them all. It\nalso bypassed the store seam that owns acquire-DB writes (ACQUIRE-09).",
+      "dry_run_help": "Preview without writing."
+    },
+    "no_store": "AcquireContext/store not available.",
+    "series_line": "{{title}} (id={{id}})",
+    "dry_run_tag": "(dry-run)",
+    "backfill": {
+      "no_db": "No acquire DB configured.",
+      "no_columns": "followed_series has no poster_url/overview/year columns yet (acquire migration 005 not applied) — nothing to backfill.",
+      "gained": "yes",
+      "done": "Backfilled {{updated}}, skipped {{skipped}}."
+    }
   }
 }

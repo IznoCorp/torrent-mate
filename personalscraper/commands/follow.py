@@ -39,26 +39,27 @@ from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
 from personalscraper.commands._cli_run_row import cli_run_row
 from personalscraper.core.identity import MediaRef
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.subscribers import build_redis_publisher
 
 log = get_logger("cli.follow")
 
 # Typer sub-group for the ``follow`` command.
-follow_app = typer.Typer(help="Manage the followed-series list.")
+follow_app = typer.Typer(help=t("cli_acquisition.follow.group_help"))
 
 
-@follow_app.command("add")
+@follow_app.command("add", help=t("cli_acquisition.follow.add.help"))
 @handle_cli_errors
 def follow_add(
     ctx: typer.Context,
-    tvdb_id: Optional[int] = typer.Option(None, "--tvdb", help="TVDB series ID (primary)."),
-    tmdb_id: Optional[int] = typer.Option(None, "--tmdb", help="TMDB series ID."),
-    imdb_id: Optional[str] = typer.Option(None, "--imdb", help="IMDB series ID (e.g. tt0903747)."),
+    tvdb_id: Optional[int] = typer.Option(None, "--tvdb", help=t("cli_acquisition.follow.add.tvdb_help")),
+    tmdb_id: Optional[int] = typer.Option(None, "--tmdb", help=t("cli_acquisition.follow.add.tmdb_help")),
+    imdb_id: Optional[str] = typer.Option(None, "--imdb", help=t("cli_acquisition.follow.add.imdb_help")),
     title: Optional[str] = typer.Option(
         None,
         "--title",
-        help="Human-readable title (fallback when metadata unavailable).",
+        help=t("cli_acquisition.follow.add.title_help"),
     ),
 ) -> None:
     """Follow a TV series by provider ID (idempotent).
@@ -68,7 +69,7 @@ def follow_add(
     provider registry; --title is used as a fallback when resolution fails.
     """
     if tvdb_id is None and tmdb_id is None and imdb_id is None:
-        typer.echo("Error: at least one of --tvdb, --tmdb, or --imdb is required.", err=True)
+        typer.echo(t("cli_acquisition.follow.add.need_id"), err=True)
         raise typer.Exit(code=2)
 
     config = ctx.obj.config
@@ -81,7 +82,7 @@ def follow_add(
         try:
             acquire = app_context.acquire
             if acquire is None or acquire.store is None:
-                console.print("[red]AcquireContext/store not available.[/red]")
+                console.print("[red]" + t("cli_acquisition.follow.no_store") + "[/red]")
                 raise typer.Exit(1)
 
             store = acquire.store
@@ -96,7 +97,8 @@ def follow_add(
 
             existing = store.follow.find_by_ref(media_ref)
             if existing is not None and existing.active:
-                console.print(f"[yellow]Already following:[/yellow] {existing.title} (id={existing.id})")
+                line = t("cli_acquisition.follow.series_line", title=existing.title, id=str(existing.id))
+                console.print("[yellow]" + t("cli_acquisition.follow.add.already_following") + "[/yellow] " + line)
                 return
 
             if existing is not None and not existing.active:
@@ -104,7 +106,8 @@ def follow_add(
                 assert existing.id is not None
                 store.follow.set_active(existing.id, True)
                 app_context.event_bus.emit(SeriesFollowed(media_ref=media_ref, title=existing.title))
-                console.print(f"[green]Refollowing:[/green] {existing.title} (id={existing.id})")
+                line = t("cli_acquisition.follow.series_line", title=existing.title, id=str(existing.id))
+                console.print("[green]" + t("cli_acquisition.follow.add.refollowing") + "[/green] " + line)
                 log.info("cli.follow.refollowed", tvdb_id=tvdb_id, title=existing.title)
                 return
 
@@ -119,18 +122,19 @@ def follow_add(
             )
             row_id = store.follow.add(new_series)
             app_context.event_bus.emit(SeriesFollowed(media_ref=media_ref, title=resolved_title))
-            console.print(f"[green]Now following:[/green] {resolved_title} (id={row_id})")
+            line = t("cli_acquisition.follow.series_line", title=resolved_title, id=str(row_id))
+            console.print("[green]" + t("cli_acquisition.follow.add.now_following") + "[/green] " + line)
             log.info("cli.follow.added", tvdb_id=tvdb_id, title=resolved_title, row_id=row_id)
         finally:
             if redis_publisher is not None:
                 redis_publisher.close()
 
 
-@follow_app.command("list")
+@follow_app.command("list", help=t("cli_acquisition.follow.list.help"))
 @handle_cli_errors
 def follow_list(
     ctx: typer.Context,
-    all_series: bool = typer.Option(False, "--all", help="Include inactive (unfollowed) series."),
+    all_series: bool = typer.Option(False, "--all", help=t("cli_acquisition.follow.list.all_help")),
 ) -> None:
     """List followed series.
 
@@ -144,23 +148,23 @@ def follow_list(
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         acquire = app_context.acquire
         if acquire is None or acquire.store is None:
-            console.print("[red]AcquireContext/store not available.[/red]")
+            console.print("[red]" + t("cli_acquisition.follow.no_store") + "[/red]")
             raise typer.Exit(1)
 
         store = acquire.store
         rows = store.follow.list_all() if all_series else store.follow.list_active()
 
         if not rows:
-            console.print("[yellow]No followed series.[/yellow]")
+            console.print("[yellow]" + t("cli_acquisition.follow.list.empty") + "[/yellow]")
             return
 
-        table = Table(title="Followed Series", show_header=True)
-        table.add_column("ID", style="dim", justify="right")
-        table.add_column("Title")
-        table.add_column("TVDB", justify="right")
-        table.add_column("TMDB", justify="right")
-        table.add_column("IMDB")
-        table.add_column("Active")
+        table = Table(title=t("cli_acquisition.follow.list.title"), show_header=True)
+        table.add_column(t("cli_acquisition.follow.list.col_id"), style="dim", justify="right")
+        table.add_column(t("cli_acquisition.follow.list.col_title"))
+        table.add_column(t("cli_acquisition.follow.list.col_tvdb"), justify="right")
+        table.add_column(t("cli_acquisition.follow.list.col_tmdb"), justify="right")
+        table.add_column(t("cli_acquisition.follow.list.col_imdb"))
+        table.add_column(t("cli_acquisition.follow.list.col_active"))
 
         for s in rows:
             table.add_row(
@@ -169,24 +173,30 @@ def follow_list(
                 str(s.media_ref.tvdb_id) if s.media_ref.tvdb_id else "-",
                 str(s.media_ref.tmdb_id) if s.media_ref.tmdb_id else "-",
                 s.media_ref.imdb_id or "-",
-                "[green]yes[/green]" if s.active else "[red]no[/red]",
+                "[green]" + t("cli_acquisition.follow.list.active_yes") + "[/green]"
+                if s.active
+                else "[red]" + t("cli_acquisition.follow.list.active_no") + "[/red]",
             )
         console.print(table)
 
 
-@follow_app.command("remove")
+@follow_app.command(
+    "remove",
+    # The metavars carry angle brackets, which the catalogue never holds: they go in as values.
+    help=t("cli_acquisition.follow.remove.help", tvdb="<id>", followed="<followed_id>"),
+)
 @handle_cli_errors
 def follow_remove(
     ctx: typer.Context,
-    tvdb_id: Optional[int] = typer.Option(None, "--tvdb", help="TVDB series ID."),
-    followed_id: Optional[int] = typer.Option(None, "--id", help="followed_series row ID."),
+    tvdb_id: Optional[int] = typer.Option(None, "--tvdb", help=t("cli_acquisition.follow.remove.tvdb_help")),
+    followed_id: Optional[int] = typer.Option(None, "--id", help=t("cli_acquisition.follow.remove.id_help")),
 ) -> None:
     """Soft-unfollow a series (sets active=False, preserves history).
 
     Provide --tvdb <id> or --id <followed_id>.
     """
     if tvdb_id is None and followed_id is None:
-        typer.echo("Error: provide --tvdb or --id.", err=True)
+        typer.echo(t("cli_acquisition.follow.remove.need_id"), err=True)
         raise typer.Exit(code=2)
 
     config = ctx.obj.config
@@ -199,7 +209,7 @@ def follow_remove(
         try:
             acquire = app_context.acquire
             if acquire is None or acquire.store is None:
-                console.print("[red]AcquireContext/store not available.[/red]")
+                console.print("[red]" + t("cli_acquisition.follow.no_store") + "[/red]")
                 raise typer.Exit(1)
 
             store = acquire.store
@@ -210,36 +220,42 @@ def follow_remove(
                 series = store.follow.get(followed_id)  # type: ignore[arg-type]
 
             if series is None:
-                console.print("[yellow]Series not found — nothing to remove.[/yellow]")
+                console.print("[yellow]" + t("cli_acquisition.follow.remove.not_found") + "[/yellow]")
                 return
 
             if not series.active:
-                console.print(f"[yellow]Already inactive:[/yellow] {series.title} (id={series.id})")
+                line = t("cli_acquisition.follow.series_line", title=series.title, id=str(series.id))
+                console.print("[yellow]" + t("cli_acquisition.follow.remove.already_inactive") + "[/yellow] " + line)
                 return
 
             assert series.id is not None
             store.follow.set_active(series.id, False)
             app_context.event_bus.emit(SeriesUnfollowed(media_ref=series.media_ref))
-            console.print(f"[green]Unfollowed:[/green] {series.title} (id={series.id})")
+            line = t("cli_acquisition.follow.series_line", title=series.title, id=str(series.id))
+            console.print("[green]" + t("cli_acquisition.follow.remove.unfollowed") + "[/green] " + line)
             log.info("cli.follow.removed", series_id=series.id, title=series.title)
         finally:
             if redis_publisher is not None:
                 redis_publisher.close()
 
 
-@follow_app.command("detect")
+@follow_app.command(
+    "detect",
+    # The comparison carries an angle bracket, which the catalogue never holds: it goes in as a value.
+    help=t("cli_acquisition.follow.detect.help", aired="air_date <= today"),
+)
 @handle_cli_errors
 def follow_detect(
     ctx: typer.Context,
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Preview detected episodes without writing or emitting.",
+        help=t("cli_acquisition.follow.detect.dry_run_help"),
     ),
     series: Optional[str] = typer.Option(
         None,
         "--series",
-        help="Filter active set by integer followed_id or title substring.",
+        help=t("cli_acquisition.follow.detect.series_help"),
     ),
 ) -> None:
     """Detect aired episodes for followed series and enqueue them as wanted items.
@@ -273,7 +289,7 @@ def follow_detect(
         try:
             acquire = app_context.acquire
             if acquire is None or acquire.store is None:
-                console.print("[red]AcquireContext/store not available.[/red]")
+                console.print("[red]" + t("cli_acquisition.follow.no_store") + "[/red]")
                 raise typer.Exit(1)
 
             # ACQUIRE-03: all DETECT business logic lives in the acquire service
@@ -293,29 +309,34 @@ def follow_detect(
             )
 
             if result.status is DetectStatus.NO_ACTIVE:
-                console.print("[yellow]No active followed series.[/yellow]")
+                console.print("[yellow]" + t("cli_acquisition.follow.detect.no_active") + "[/yellow]")
                 return
             if result.status is DetectStatus.NO_MATCH:
-                console.print("[yellow]No matching series.[/yellow]")
+                console.print("[yellow]" + t("cli_acquisition.follow.detect.no_match") + "[/yellow]")
                 return
 
-            table = Table(title="Follow Detect", show_header=True)
-            table.add_column("Series")
-            table.add_column("Season", justify="right")
-            table.add_column("Episode", justify="right")
-            table.add_column("AirDate")
-            table.add_column("Title")
-            table.add_column("Action")
+            table = Table(title=t("cli_acquisition.follow.detect.title"), show_header=True)
+            table.add_column(t("cli_acquisition.follow.detect.col_series"))
+            table.add_column(t("cli_acquisition.follow.detect.col_season"), justify="right")
+            table.add_column(t("cli_acquisition.follow.detect.col_episode"), justify="right")
+            table.add_column(t("cli_acquisition.follow.detect.col_air_date"))
+            table.add_column(t("cli_acquisition.follow.detect.col_episode_title"))
+            table.add_column(t("cli_acquisition.follow.detect.col_action"))
             for action in result.actions:
                 table.add_row(*_detect_row(action, dry_run=dry_run))
             console.print(table)
 
             s = result.summary
-            console.print(
-                f"{s.enqueued} enqueued, {s.skipped_owned} skipped-owned, {s.skipped_dup} skipped-dup, "
-                f"{s.resurrected} resurrected, {s.closed_owned} closed-owned"
-                + (" [dim](dry-run)[/dim]" if dry_run else "")
+            counts = t(
+                "cli_acquisition.follow.detect.summary",
+                enqueued=s.enqueued,
+                skipped_owned=s.skipped_owned,
+                skipped_dup=s.skipped_dup,
+                resurrected=s.resurrected,
+                closed_owned=s.closed_owned,
             )
+            dry_suffix = " [dim]" + t("cli_acquisition.follow.dry_run_tag") + "[/dim]" if dry_run else ""
+            console.print(counts + dry_suffix)
             # §5 « résultat chiffré »: persist the run's numbers on its
             # pipeline_run row so the web surface shows a real result, never
             # a bare success badge.
@@ -348,14 +369,22 @@ def _detect_action_cell(action: DetectAction, *, dry_run: bool) -> str:
     """
     outcome = action.outcome
     if outcome is DetectOutcome.FILM_ACQUIRED:
-        return "[green]acquis — retiré des suivis[/green]"
+        return "[green]" + t("cli_acquisition.follow.detect.cell_film_acquired") + "[/green]"
     if outcome is DetectOutcome.SKIPPED_OWNED:
-        return "[yellow]skipped-owned[/yellow]"
+        return "[yellow]" + t("cli_acquisition.follow.detect.cell_skipped_owned") + "[/yellow]"
     if outcome is DetectOutcome.SKIPPED_DUP:
-        return "[dim]skipped-dup[/dim]"
+        return "[dim]" + t("cli_acquisition.follow.detect.cell_skipped_dup") + "[/dim]"
     if outcome is DetectOutcome.RESURRECTED:
-        return "[dim]resurrect (dry-run)[/dim]" if dry_run else "[green]resurrected[/green]"
-    return "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
+        return (
+            "[dim]" + t("cli_acquisition.follow.detect.cell_resurrect_dry") + "[/dim]"
+            if dry_run
+            else "[green]" + t("cli_acquisition.follow.detect.cell_resurrected") + "[/green]"
+        )
+    return (
+        "[dim]" + t("cli_acquisition.follow.detect.cell_dry_run") + "[/dim]"
+        if dry_run
+        else "[green]" + t("cli_acquisition.follow.detect.cell_enqueued") + "[/green]"
+    )
 
 
 def _detect_row(action: DetectAction, *, dry_run: bool) -> tuple[str | None, ...]:
@@ -410,11 +439,11 @@ def _media_ref_from_json(media_ref_json: str | None) -> MediaRef | None:
         return None
 
 
-@follow_app.command("backfill-metadata")
+@follow_app.command("backfill-metadata", help=t("cli_acquisition.follow.backfill_metadata.help"))
 @handle_cli_errors
 def follow_backfill_metadata(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing."),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_acquisition.follow.backfill_metadata.dry_run_help")),
 ) -> None:
     """Backfill ``poster_url`` + ``overview`` + ``year`` for follows added before this fix.
 
@@ -448,7 +477,7 @@ def follow_backfill_metadata(
     settings = cli_helpers.get_settings()
     db_path = config.acquire.db_path
     if db_path is None:
-        console.print("[red]No acquire DB configured.[/red]")
+        console.print("[red]" + t("cli_acquisition.follow.backfill.no_db") + "[/red]")
         raise typer.Exit(1)
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
@@ -469,10 +498,7 @@ def follow_backfill_metadata(
             # means every row is treated as a show, which is what it was then.
             columns = {r[1] for r in conn.execute("PRAGMA table_info(followed_series)").fetchall()}
             if not {"poster_url", "overview", "year"} <= columns:
-                console.print(
-                    "[yellow]followed_series has no poster_url/overview/year columns yet "
-                    "(acquire migration 005 not applied) — nothing to backfill.[/yellow]"
-                )
+                console.print("[yellow]" + t("cli_acquisition.follow.backfill.no_columns") + "[/yellow]")
                 return
             has_kind = "kind" in columns
             rows = conn.execute("SELECT * FROM followed_series").fetchall()
@@ -515,20 +541,21 @@ def follow_backfill_metadata(
                     continue
                 # A nameless row has nothing to print as a name — show the id
                 # and the resolved title, or the line reads as an empty repair.
-                shown = row["title"] or f"#{row['id']} (sans nom)"
-                console.print(
-                    f"[green]{shown}[/green] ← "
-                    + " ".join(
-                        f"{label}={'yes' if before is None and after is not None else '—'}"
-                        for label, before, after in (
-                            ("titre", existing.title, resolved.title),
-                            ("poster", existing.poster_url, resolved.poster_url),
-                            ("overview", existing.overview, resolved.overview),
-                            ("year", existing.year, resolved.year),
-                        )
+                shown = row["title"] or t("cli_acquisition.follow.backfill.nameless", id=str(row["id"]))
+                gained = t("cli_acquisition.follow.backfill.gained")
+                marks = " ".join(
+                    label + "=" + (gained if before is None and after is not None else "—")
+                    for label, before, after in (
+                        (t("cli_acquisition.follow.backfill.field_title"), existing.title, resolved.title),
+                        ("poster", existing.poster_url, resolved.poster_url),
+                        ("overview", existing.overview, resolved.overview),
+                        ("year", existing.year, resolved.year),
                     )
-                    + (f" → « {resolved.title} »" if existing.title is None and resolved.title else "")
                 )
+                suffix = ""
+                if existing.title is None and resolved.title:
+                    suffix = t("cli_acquisition.follow.backfill.resolved_suffix", title=resolved.title)
+                console.print("[green]" + shown + "[/green]" + " ← " + marks + suffix)
                 if not dry_run:
                     # One short write transaction for THIS row, taken after its
                     # provider calls returned — never a lock held across I/O.
@@ -544,7 +571,9 @@ def follow_backfill_metadata(
                         original_title=resolved.original_title,
                     )
                     updated += 1
-            console.print(f"[bold]{'(dry-run) ' if dry_run else ''}Backfilled {updated}, skipped {skipped}.[/bold]")
+            done = t("cli_acquisition.follow.backfill.done", updated=updated, skipped=skipped)
+            dry_prefix = t("cli_acquisition.follow.dry_run_tag") + " " if dry_run else ""
+            console.print("[bold]" + dry_prefix + done + "[/bold]")
         finally:
             store.close()
             conn.close()
