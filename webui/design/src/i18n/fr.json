@@ -2368,7 +2368,8 @@
     },
     "library": {
       "locked": "Le pipeline est en cours : la médiathèque ne se modifie pas pendant qu'il tourne. Réessayez à la fin de l'exécution.",
-      "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'est supprimé tant qu'on ne sait pas ce qu'un tracker attend encore."
+      "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'est supprimé tant qu'on ne sait pas ce qu'un tracker attend encore.",
+      "unavailable": "La médiathèque est indisponible : le serveur ne peut pas la lire pour le moment. Réessayez dans un instant."
     }
   },
   "push": {

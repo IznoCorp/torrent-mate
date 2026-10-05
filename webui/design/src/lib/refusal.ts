@@ -52,3 +52,19 @@ export function refusalWords(body: unknown, fallback: string): string {
   const params = (body as { params?: Record<string, string | number> }).params ?? {};
   return i18next.t(refusalKey(code), params);
 }
+
+/** What a server failure that carries no code the interface knows is said with. */
+const SERVER_FAILED = refusalKey("internal");
+
+/**
+ * Says why a read failed, when a server answered it.
+ *
+ * @param failure What the read was refused with.
+ * @returns The refusal's words — its code's, else a server failure's — or undefined when
+ *     no server answered (a network error, a cancellation): the surface then says its own.
+ */
+export function failureWords(failure: unknown): string | undefined {
+  if (typeof failure !== "object" || failure === null) return undefined;
+  if (typeof (failure as { status?: unknown }).status !== "number") return undefined;
+  return refusalWords(failure, SERVER_FAILED);
+}

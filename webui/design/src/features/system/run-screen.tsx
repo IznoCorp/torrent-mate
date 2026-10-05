@@ -327,9 +327,7 @@ export function RunScreen(): ReactElement {
           {read.isError && !missing ? (
             <SurfaceError
               subject={t("screens.run.errorSubject")}
-              detail={
-                isRequestFailure(read.error) ? read.error.detail : undefined
-              }
+              failure={read.error}
               onRetry={() => void read.refetch()}
             />
           ) : null}

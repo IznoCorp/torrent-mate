@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 import { sheetHeadingPlace, synopsisText } from "./variants";
 import { type MediaSheet, type Trailer } from "../../features/media/types";
 import { useStoreContent } from "../../lib/store-access";
-import { isRequestFailure } from "../../lib/query-client";
 import { carriedSheet, completenessHeld, offCatalogueBySeason, seasonsHeld, useFollowCompleteness, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading, screenBarNote } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
@@ -259,11 +258,10 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
           {failed ? (
             <SurfaceError
               subject={t("screens.media.sheetSubject")}
-              // WHAT THE SERVER SAID, not what a constant sentence guesses it
-              // said. The shared body asserts a timeout; this read failed with
-              // a status and a reason in hand, and « the server did not answer
-              // in time » over a 502 that answered is that constant.
-              detail={isRequestFailure(sheetRead.error) ? sheetRead.error.detail : undefined}
+              // WHY THE SERVER REFUSED, in the reader's words, not what a
+              // constant sentence guesses: the shared body asserts a timeout,
+              // and this read failed with a status and a code in hand.
+              failure={sheetRead.error}
               // AND THE RETRY RE-ASKS THIS READ. The delegated attribute writes
               // a page's UI phase and re-asks nothing — on a screen that owns
               // its query that is a button saying « Réessayer » and doing
@@ -299,7 +297,7 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
           {seasonsFailed && isFilm !== true ? (
             <SurfaceError
               subject={t("screens.media.seasonsSubject")}
-              detail={isRequestFailure(seasonsRead.error) ? seasonsRead.error.detail : undefined}
+              failure={seasonsRead.error}
               onRetry={() => void seasonsRead.refetch()}
             />
           ) : null}
