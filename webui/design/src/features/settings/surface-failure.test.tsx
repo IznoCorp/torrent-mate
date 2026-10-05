@@ -8,7 +8,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import i18next from "../../i18n";
-import fr from "../../i18n/fr.json";
 
 const UNAVAILABLE = {
   status: 503, title: "The library index cannot be read.", detail: "The library index cannot be read.",
@@ -41,7 +40,10 @@ function textOf(element: ReactElement): string {
   return html.replace(/<[^>]*>/g, "").replace(/&#x27;/g, "'").replace(/\s+/g, " ");
 }
 
-const TIMEOUT = fr.surfaces.error.body.replace(/\s+/g, " ").trim();
+// THE TWO SENTENCES, WRITTEN OUT: reading them from the catalogue would make the test agree with whatever the code says.
+const REFUSAL =
+  "La médiathèque est indisponible : le serveur ne peut pas la lire pour le moment. Réessayez dans un instant."; // french-ok: the 503 refusal sentence the screen must show
+const TIMEOUT = "Le serveur n'a pas répondu dans le temps imparti."; // french-ok: the timeout sentence a refused read must NOT show
 
 describe("the ranking surfaces over a refused read", () => {
   it.each([
@@ -50,7 +52,7 @@ describe("the ranking surfaces over a refused read", () => {
   ])("%s says why the read was refused, not the timeout sentence", async (_name, load) => {
     const draw = await load();
     const text = textOf(draw());
-    expect(text).toContain(fr.refusals.library.unavailable);
+    expect(text).toContain(REFUSAL);
     expect(text).not.toContain(TIMEOUT);
   });
 });
