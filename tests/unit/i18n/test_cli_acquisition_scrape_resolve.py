@@ -17,7 +17,7 @@ runner = make_cli_runner()
 
 @pytest.mark.parametrize("language", [Language.FR, Language.EN])
 def test_invalid_provider_line_comes_from_the_catalogue(test_config: Any, tmp_path: Path, language: Language) -> None:
-    """The « invalid provider » refusal is the catalogue's text, the same in both languages until translated."""
+    """The « invalid provider » refusal is the catalogue's text, each language shows its own text."""
     staging = tmp_path / "staging" / "item"
     staging.mkdir(parents=True)
 
@@ -33,4 +33,9 @@ def test_invalid_provider_line_comes_from_the_catalogue(test_config: Any, tmp_pa
         "cli_acquisition.scrape_resolve.invalid_provider", provider="imdb", valid="tmdb, tvdb", language=language
     )
     assert expected in result.output
-    assert expected == "Invalid provider 'imdb'. Must be one of: tmdb, tvdb."
+    if language is Language.EN:
+        assert expected == "Invalid provider 'imdb'. Must be one of: tmdb, tvdb."
+    else:
+        # The French side is its own text (not the English one) and keeps the values the command passes.
+        assert expected != "Invalid provider 'imdb'. Must be one of: tmdb, tvdb."
+        assert "imdb" in expected

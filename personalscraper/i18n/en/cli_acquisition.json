@@ -120,6 +120,9 @@
     "no_store": "No acquire store — cannot run search.",
     "complete_label": "Search complete:",
     "complete_counts": "{{available}} available, {{waiting}} waiting, {{unverified}} unverified, {{abandoned}} abandoned, {{skipped}} skipped.",
+    "reconcile_label": "Reconciliation:",
+    "reconcile_closed": "{{closed}} closed (already in the library).",
+    "reconcile_fell_back": "{{seasons}} season(s) fell back to episodes (incomplete pack).",
     "dry_run_no_store": "No acquire store — nothing to dry-run.",
     "dry_run_empty": "No pending wanted items.",
     "dry_run_title": "Search dry-run:",
@@ -138,6 +141,11 @@
     "no_client": "No torrent client configured — cannot run grab. Check config or use --dry-run.",
     "complete_label": "Grab complete:",
     "complete_counts": "{{grabbed}} grabbed, {{retried}} retried, {{abandoned}} abandoned, {{skipped}} skipped.",
+    "reconcile_label": "Reconciliation:",
+    "reconcile_summary": "{{closed}} closed (in the library), {{requeued}} requeued (torrent gone), {{confirmed}} confirmed (recovered after an interruption).",
+    "reconcile_fell_back": "{{seasons}} season(s) fell back to episodes (incomplete pack).",
+    "reswitch_label": "Switch:",
+    "reswitch_summary": "{{reswitched}} stalled release(s) replaced (out of {{checked}} in progress).",
     "dry_run_no_store": "No acquire store — nothing to dry-run.",
     "dry_run_empty": "No pending wanted items.",
     "item_label": "Item:",
@@ -202,6 +210,7 @@
       "col_episode_title": "Title",
       "col_action": "Action",
       "summary": "{{enqueued}} enqueued, {{skipped_owned}} skipped-owned, {{skipped_dup}} skipped-dup, {{resurrected}} resurrected, {{closed_owned}} closed-owned",
+      "cell_film_acquired": "acquired — removed from follows",
       "cell_skipped_owned": "skipped-owned",
       "cell_skipped_dup": "skipped-dup",
       "cell_resurrect_dry": "resurrect (dry-run)",
@@ -219,11 +228,18 @@
     "backfill": {
       "no_db": "No acquire DB configured.",
       "no_columns": "followed_series has no poster_url/overview/year columns yet (acquire migration 005 not applied) — nothing to backfill.",
+      "nameless": "#{{id}} (nameless)",
       "gained": "yes",
+      "field_title": "title",
+      "field_poster": "poster",
+      "field_overview": "overview",
+      "field_year": "year",
       "done": "Backfilled {{updated}}, skipped {{skipped}}."
     }
   },
   "confidence": {
-    "heading": "Matching: {{title}}"
+    "heading": "Matching: {{title}}",
+    "none_of_these": "  [0] None of these results",
+    "choice_prompt": "Choice: "
   }
 }

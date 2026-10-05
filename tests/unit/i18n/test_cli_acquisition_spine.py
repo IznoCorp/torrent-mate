@@ -19,7 +19,7 @@ runner = make_cli_runner()
 def test_requeue_unknown_grab_line_comes_from_the_catalogue(
     test_config: Any, tmp_path: Path, language: Language
 ) -> None:
-    """The « no provenance row » line is the catalogue's text, the same in both languages until translated."""
+    """The « no provenance row » line is the catalogue's text, each language shows its own text."""
     acquire = test_config.acquire.model_copy(update={"db_path": tmp_path / "acquire.db"})
     cfg = test_config.model_copy(update={"acquire": acquire})
 
@@ -33,4 +33,9 @@ def test_requeue_unknown_grab_line_comes_from_the_catalogue(
     assert result.exit_code == 0, result.output
     expected = t("cli_acquisition.spine.requeue_no_provenance", info_hash="nohash", language=language)
     assert expected in result.output
-    assert expected == "No provenance row for grab nohash."
+    if language is Language.EN:
+        assert expected == "No provenance row for grab nohash."
+    else:
+        # The French side is its own text (not the English one) and keeps the values the command passes.
+        assert expected != "No provenance row for grab nohash."
+        assert "nohash" in expected
