@@ -15,7 +15,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import structlog
 
 from personalscraper.app.accounts import service as service_module
 from personalscraper.app.accounts.actor import Actor, RoleKind
@@ -36,6 +35,7 @@ from personalscraper.app.errors import (
 )
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import Event, EventBus
+from tests.conftest import LoggedEvents
 
 _PASSWORD = "correct horse battery staple"
 _NEW = "A brand-new passphrase 7"
@@ -551,11 +551,13 @@ class TestResetAccountPassword:
         assert seen == []
 
 
-def test_no_password_reaches_a_refusal_or_a_log(accounts: AccountService, sessions: SessionService) -> None:
+def test_no_password_reaches_a_refusal_or_a_log(
+    accounts: AccountService, sessions: SessionService, logged_events: LoggedEvents
+) -> None:
     """Neither the current, the new nor the provisional password is in any refusal or log line."""
     admin, _ = _signed_in(sessions, "admin")
     refusals: list[Exception] = []
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         _change(accounts, sessions, "local", _PASSWORD)
         for current, new in ((_WRONG, _NEW + "!"), (_NEW, "tiny-secret")):
             actor, token = _signed_in(sessions, "local")

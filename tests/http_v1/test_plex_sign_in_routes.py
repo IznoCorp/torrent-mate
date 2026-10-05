@@ -19,7 +19,6 @@ from http.cookies import SimpleCookie
 from typing import Any
 
 import pytest
-import structlog
 from fastapi.testclient import TestClient
 
 from personalscraper.api.plex_account import PlexAccountClient
@@ -27,6 +26,7 @@ from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.services import AppServices
 from personalscraper.conf.environment import Environment
 from personalscraper.http_v1.session_cookie import PLEX_PIN_COOKIE, SESSION_COOKIE
+from tests.conftest import LoggedEvents
 from tests.unit.app.accounts.test_plex_sign_in import (
     CODE,
     EMAIL,
@@ -467,7 +467,12 @@ class TestNoLeak:
         ],
     )
     def test_no_secret_reaches_a_log_or_an_answer(
-        self, v1_client: Callable[..., TestClient], arrange: Any, status: int, code: str | None
+        self,
+        v1_client: Callable[..., TestClient],
+        arrange: Any,
+        status: int,
+        code: str | None,
+        logged_events: LoggedEvents,
     ) -> None:
         """Start, arrange the path, poll: every answer body and every log record is free of the planted values."""
         client = v1_client(role=None)
@@ -477,7 +482,7 @@ class TestNoLeak:
         handler = logging.StreamHandler(captured)
         logging.getLogger().addHandler(handler)
         try:
-            with structlog.testing.capture_logs() as logs:
+            with logged_events() as logs:
                 started = client.post("/auth/plex/start")
                 nonce = _cookies(started)[PLEX_PIN_COOKIE].value
                 client.cookies.set(PLEX_PIN_COOKIE, nonce)
@@ -498,7 +503,9 @@ class TestNoLeak:
         for secret in (USER_TOKEN, SERVER_TOKEN, CODE, EMAIL, nonce, FOREIGN_NONCE):
             assert secret.lower() not in everything, secret
 
-    def test_plex_tv_down_at_the_start_leaks_nothing(self, v1_client: Callable[..., TestClient]) -> None:
+    def test_plex_tv_down_at_the_start_leaks_nothing(
+        self, v1_client: Callable[..., TestClient], logged_events: LoggedEvents
+    ) -> None:
         """plex.tv fails at the start with the token in its error: the 503 and the logs carry no planted value."""
         client = v1_client(role=None)
         plextv, _ = _door(client)
@@ -507,7 +514,7 @@ class TestNoLeak:
         handler = logging.StreamHandler(captured)
         logging.getLogger().addHandler(handler)
         try:
-            with structlog.testing.capture_logs() as logs:
+            with logged_events() as logs:
                 response = client.post("/auth/plex/start")
         finally:
             logging.getLogger().removeHandler(handler)

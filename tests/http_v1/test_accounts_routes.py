@@ -14,7 +14,6 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
-import structlog
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.events import AccountRightsChanged
@@ -27,6 +26,7 @@ from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite import open_db
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE
+from tests.conftest import LoggedEvents
 
 _PASSWORD = "A provisional one 1!"
 
@@ -584,12 +584,14 @@ class TestResetAccountPassword:
         assert response.json()["code"] == code
         assert response.json()["params"] == params
 
-    def test_the_password_is_never_echoed_nor_logged(self, v1_client: Callable[..., TestClient]) -> None:
+    def test_the_password_is_never_echoed_nor_logged(
+        self, v1_client: Callable[..., TestClient], logged_events: LoggedEvents
+    ) -> None:
         """Neither a refused nor a kept password reaches the answer or the log."""
         client = v1_client(role="admin")
         _add_account(client, "account-guest", "local-guest")
         short = "tiny-secret"
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             refused = client.post("/accounts/account-guest/password", json={"password": short})
             kept = client.post("/accounts/account-guest/password", json={"password": _PASSWORD})
         assert refused.status_code == 400 and kept.status_code == 200
