@@ -75,7 +75,7 @@ MANIFEST = """{
   "name": "TorrentMate Design",
   "short_name": "TorrentMate Design",
   "description": "DESCRIPTION",
-  "lang": "fr",
+  "lang": "LANGUAGE",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -150,20 +150,21 @@ def build_identity(design_root: Path) -> bytes:
     return (design_root / "dist" / "build.json").read_bytes()
 
 
-def manifest(texts: Callable[[], dict]) -> bytes:
-    """Returns the web manifest, its one French sentence read from the resource.
+def manifest(texts: Callable[[], dict], language: str = "fr") -> bytes:
+    """Returns the web manifest, its one sentence read from the resource.
 
     Args:
         texts: Reads the interface's words; called per request, never cached.
+        language: The language `texts` speaks, declared as the manifest's `lang`.
 
     Returns:
         The manifest's bytes, escaped to ASCII exactly as the served copy was.
     """
     description = json.dumps(texts()["manifest"]["description"])[1:-1]
-    return MANIFEST.replace("DESCRIPTION", description, 1).encode()
+    return MANIFEST.replace("DESCRIPTION", description, 1).replace("LANGUAGE", language, 1).encode()
 
 
-def offline_page(texts: Callable[[], dict]) -> bytes:
+def offline_page(texts: Callable[[], dict], language: str = "fr") -> bytes:
     """Returns the one page that exists offline.
 
     It says what is true — the prototype lives on the server and is not
@@ -171,13 +172,14 @@ def offline_page(texts: Callable[[], dict]) -> bytes:
 
     Args:
         texts: Reads the interface's words; called per request, never cached.
+        language: The language `texts` speaks, declared as the page's `lang`.
 
     Returns:
         A complete HTML document.
     """
     words = texts()["offline"]
     return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{words['title']}</title>"
         "<style>html,body{margin:0;height:100%;display:grid;place-items:center;"
