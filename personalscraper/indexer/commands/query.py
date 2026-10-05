@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
@@ -71,7 +72,7 @@ def library_status_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_query.config_error", error=str(exc)), err=True)
         return 1
 
     db_path = cfg.indexer.db_path
@@ -84,22 +85,10 @@ def library_status_command(
     # absolute-but-nonexistent path is also worth surfacing because that's
     # exactly how the orphan ``.data/library.db`` was created at some point.
     if not db_path.is_absolute():
-        typer.echo(
-            f"WARNING: indexer db_path is relative: {db_path}. "
-            "It will be resolved against the current working directory and "
-            "may produce divergent DB files depending on how the CLI is "
-            "invoked. Set an absolute path in indexer.json5.",
-            err=True,
-        )
+        typer.echo(t("cli_library.indexer_query.db_path_relative", db_path=str(db_path)), err=True)
         log.warning("indexer.status.db_path_relative", db_path=str(db_path))
     elif not db_path.exists():
-        typer.echo(
-            f"WARNING: indexer db_path does not exist yet: {db_path}. "
-            "A new empty database will be created on first write. If you "
-            "expected to read an existing library, double-check the "
-            "configured path.",
-            err=True,
-        )
+        typer.echo(t("cli_library.indexer_query.db_path_missing", db_path=str(db_path)), err=True)
         log.warning("indexer.status.db_path_missing", db_path=str(db_path))
 
     # --- Open DB and apply pending migrations ---
@@ -109,13 +98,23 @@ def library_status_command(
             disk_rows = conn.execute(
                 "SELECT id, label, is_mounted, last_seen_at, merkle_root FROM disk ORDER BY label"
             ).fetchall()
-            typer.echo(f"{'DISK':<20} {'MOUNTED':<10} {'LAST_SEEN':<20} {'MERKLE_ROOT'}")
+            typer.echo(t("cli_library.indexer_query.disks_header"))
             disks_data: list[dict[str, object]] = []
             for d_id, label, is_mounted, last_seen_at, merkle_root in disk_rows:
-                mounted_str = "yes" if is_mounted else "no"
-                last_seen_str = str(last_seen_at) if last_seen_at is not None else "never"
+                mounted_str = t(
+                    "cli_library.indexer_query.mounted_yes" if is_mounted else "cli_library.indexer_query.mounted_no"
+                )
+                last_seen_str = str(last_seen_at) if last_seen_at is not None else t("cli_library.indexer_query.never")
                 root_str = (merkle_root or "")[:12] if merkle_root else ""
-                typer.echo(f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}")
+                typer.echo(
+                    t(
+                        "cli_library.indexer_query.disk_row",
+                        label=f"{label:<18}",
+                        mounted=f"{mounted_str:<10}",
+                        last_seen=f"{last_seen_str:<20}",
+                        merkle_root=root_str,
+                    )
+                )
                 disks_data.append(
                     {
                         "label": label,
@@ -133,13 +132,21 @@ def library_status_command(
 
             latest_scan: dict[str, object] | None = None
             if row is None:
-                typer.echo("no scans yet")
+                typer.echo(t("cli_library.indexer_query.no_scans"))
             else:
                 run_id, finished_at, status, generation, disk_filter = row
-                disk_scope = f" (disk={disk_filter})" if disk_filter else ""
+                disk_scope = (
+                    t("cli_library.indexer_query.scan_disk_scope", disk=str(disk_filter)) if disk_filter else ""
+                )
                 typer.echo(
-                    f"latest scan: id={run_id}, finished_at={finished_at}, status={status},"
-                    f" generation={generation}{disk_scope}"
+                    t(
+                        "cli_library.indexer_query.latest_scan",
+                        id=str(run_id),
+                        finished_at=str(finished_at),
+                        status=str(status),
+                        generation=str(generation),
+                        scope=disk_scope,
+                    )
                 )
                 latest_scan = {
                     "id": run_id,
@@ -154,24 +161,24 @@ def library_status_command(
 
             oldest_pending_age_seconds, pending_depth = repair.get_queue_health(conn)
             if oldest_pending_age_seconds is None:
-                oldest_label = "never"
+                oldest_label = t("cli_library.indexer_query.never")
             else:
-                oldest_label = f"{oldest_pending_age_seconds // 3600}h"
-            typer.echo(f"repair queue: depth={pending_depth}, oldest={oldest_label}")
+                oldest_label = t("cli_library.indexer_query.oldest_hours", hours=oldest_pending_age_seconds // 3600)
+            typer.echo(t("cli_library.indexer_query.repair_queue", depth=pending_depth, oldest=oldest_label))
 
             # --- Outbox pending depth ---
             outbox_depth = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = 'pending'").fetchone()[0]
-            typer.echo(f"outbox pending: {outbox_depth}")
+            typer.echo(t("cli_library.indexer_query.outbox_pending", total=str(outbox_depth)))
 
             # --- Deleted items count ---
             deleted_count = conn.execute("SELECT COUNT(*) FROM deleted_item").fetchone()[0]
-            typer.echo(f"deleted items: {deleted_count}")
+            typer.echo(t("cli_library.indexer_query.deleted_items", total=str(deleted_count)))
 
             # --- Enrich-pending count ---
             enrich_pending = conn.execute(
                 "SELECT COUNT(*) FROM media_file WHERE enriched_at IS NULL AND deleted_at IS NULL"
             ).fetchone()[0]
-            typer.echo(f"enrich pending: {enrich_pending}")
+            typer.echo(t("cli_library.indexer_query.enrich_pending", total=str(enrich_pending)))
 
             # --- Category-orphan count (DESIGN §17.2) ---
             known_ids: frozenset[str] = cfg.all_category_ids
@@ -182,7 +189,7 @@ def library_status_command(
                     f"SELECT COUNT(*) FROM media_item WHERE category_id NOT IN ({placeholders})",
                     list(known_ids),
                 ).fetchone()[0]
-            typer.echo(f"category orphans: {orphan_count}")
+            typer.echo(t("cli_library.indexer_query.category_orphans", total=orphan_count))
 
             # --- Health warnings ---
             unhealthy = False
@@ -190,18 +197,17 @@ def library_status_command(
                 oldest_pending_age_seconds is not None and oldest_pending_age_seconds > 7 * 86400
             ) or pending_depth > 1000:
                 typer.echo(
-                    f"WARNING: repair queue: depth={pending_depth},"
-                    f" oldest pending {(oldest_pending_age_seconds or 0) // 86400} days",
+                    t(
+                        "cli_library.indexer_query.warn_repair_queue",
+                        depth=pending_depth,
+                        days=(oldest_pending_age_seconds or 0) // 86400,
+                    ),
                     err=True,
                 )
                 unhealthy = True
 
             if orphan_count > 0:
-                typer.echo(
-                    f"WARNING: {orphan_count} media_item row(s) with unknown category_id. "
-                    "Run 'config migrate-category' to fix.",
-                    err=True,
-                )
+                typer.echo(t("cli_library.indexer_query.warn_category_orphans", total=orphan_count), err=True)
                 unhealthy = True
 
             if output_format == "json":
@@ -296,7 +302,7 @@ def library_verify_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_query.config_error", error=str(exc)), err=True)
         return 1
 
     db_path = cfg.indexer.db_path
@@ -411,7 +417,7 @@ def library_search_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_query.config_error", error=str(exc)), err=True)
         return 1, []
 
     db_path = cfg.indexer.db_path
@@ -487,7 +493,7 @@ def library_show_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_query.config_error", error=str(exc)), err=True)
         return 1, {}
 
     db_path = cfg.indexer.db_path

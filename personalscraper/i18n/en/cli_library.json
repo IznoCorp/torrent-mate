@@ -174,6 +174,43 @@
     "dry_run_help": "Preview mode: count how many rows would be deleted without actually deleting them. No DB writes occur.",
     "older_than_days_help": "Delete ``index_outbox`` rows with status=done whose ``processed_at`` timestamp is older than this many days. Default: 30."
   },
+  "indexer_diagnose": {
+    "config_error": "Config error: {{error}}",
+    "migration_failed": "migration failed: {{error}}",
+    "no_rows_matched": "no rows matched category_id='{{from_category}}' (already migrated or no such rows)",
+    "rows_updated": "updated {{updated}} media_item row(s): '{{from_category}}' → '{{to_category}}'",
+    "unknown_category": "unknown category '{{to_category}}'; declared ids: {{known_ids}}"
+  },
+  "indexer_query": {
+    "category_orphans": "category orphans: {{total}}",
+    "config_error": "Config error: {{error}}",
+    "db_path_missing": "WARNING: indexer db_path does not exist yet: {{db_path}}. A new empty database will be created on first write. If you expected to read an existing library, double-check the configured path.",
+    "db_path_relative": "WARNING: indexer db_path is relative: {{db_path}}. It will be resolved against the current working directory and may produce divergent DB files depending on how the CLI is invoked. Set an absolute path in indexer.json5.",
+    "deleted_items": "deleted items: {{total}}",
+    "disk_row": "  {{label}} {{mounted}} {{last_seen}} {{merkle_root}}",
+    "disks_header": "DISK                 MOUNTED    LAST_SEEN            MERKLE_ROOT",
+    "enrich_pending": "enrich pending: {{total}}",
+    "latest_scan": "latest scan: id={{id}}, finished_at={{finished_at}}, status={{status}}, generation={{generation}}{{scope}}",
+    "mounted_no": "no",
+    "mounted_yes": "yes",
+    "never": "never",
+    "no_scans": "no scans yet",
+    "oldest_hours": "{{hours}}h",
+    "outbox_pending": "outbox pending: {{total}}",
+    "repair_queue": "repair queue: depth={{depth}}, oldest={{oldest}}",
+    "scan_disk_scope": " (disk={{disk}})",
+    "warn_category_orphans": "WARNING: {{total}} media_item row(s) with unknown category_id. Run 'config migrate-category' to fix.",
+    "warn_repair_queue": "WARNING: repair queue: depth={{depth}}, oldest pending {{days}} days"
+  },
+  "indexer_repair": {
+    "config_error": "Config error: {{error}}"
+  },
+  "indexer_scan": {
+    "backfill_requires_enrich": "--backfill-streams requires --mode enrich",
+    "bulk_restore": "disk {{disk}} looks like a bulk restore ({{delta}} files changed). Re-run with --confirm-bulk-change to proceed.",
+    "config_error": "Config error: {{error}}",
+    "invalid_mode": "Invalid mode '{{mode}}'. Valid: {{valid_modes}}"
+  },
   "maintenance": {
     "and_more": "… and {{items}} more",
     "api_issues": "{{items}} items have API-dependent issues.",
