@@ -11,7 +11,7 @@ from personalscraper import cli_helpers
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
-from personalscraper.i18n import t
+from personalscraper.i18n import Language, t
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -575,7 +575,8 @@ def library_report(
             console.print("[yellow]" + t("cli_library.analyze.report_query_failed", error=str(exc)) + "[/yellow]")
 
     if not any([analysis_result, validation_data, recommendation_data, rescrape_data]):
-        emit(t("cli_library.analyze.no_library_data"))
+        # A JSON payload is a machine value: it stays English whatever the language; only the other formats speak it.
+        emit(t("cli_library.analyze.no_library_data", language=Language.EN if state["format"] == "json" else None))
         raise typer.Exit(1)
 
     # Get live disk free space

@@ -13,6 +13,7 @@ import { DELETE, GET, field, route } from "./shared";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import { holdersOf, incompleteHolding, type MediaRef } from "./membership";
+import type { Schemas } from "../../lib/contract-schemas";
 
 // How many rows one page carries. A page size belongs to the interface, not to
 // a server — the register classifies it `interface` — so the layer states its
@@ -153,7 +154,11 @@ export function libraryRoutes(): MockRoute[] {
     route("readLibraryItems", GET, "/library/items", listing),
     route("readLibraryCategories", GET, "/library/categories", () => LIBRARY_CATEGORIES),
     route("readLibraryRecent", GET, "/library/recent", () => RECENT),
-    route("readLibraryIncomplete", GET, "/library/incomplete", () => INCOMPLETE_SHOWS),
+    route("readLibraryIncomplete", GET, "/library/incomplete", () => {
+      // A SHOW WHOSE YEAR NOTHING STATES answers null, as the contract allows: a dial.
+      const yearless = mockState().yearlessIncomplete;
+      return INCOMPLETE_SHOWS.map((show) => (yearless.includes(show.title) ? { ...show, year: null } : show));
+    }),
     route("deleteLibraryItems", DELETE, "/library/items", (request) => {
       const state = mockState();
       const asked = field(request.body, "media");
@@ -174,23 +179,34 @@ export function libraryRoutes(): MockRoute[] {
         if (rows > 1)
           return refused(409, `${rows} library rows hold ${one.provider} ${one.providerId}`, "media.ambiguous", { ...one });
       }
-      const doomed = new Set(media.flatMap((one) => holdersOf(state.library, one)));
-      const titles = [
-        ...[...doomed].map((row) => row.title),
-        ...media.map((one) => incompleteHolding(one)?.title).filter((title): title is string => title !== undefined),
-      ];
-      // An incomplete series the seed holds no row of still counts as one medium gone.
-      const withoutRow = media.filter((one) => holdersOf(state.library, one).length === 0).length;
-      const before = state.library.length;
-      state.library = state.library.filter((row) => !doomed.has(row));
-      // AND THE SHEETS ARE TOLD. Ownership on a media sheet comes from a seed
-      // keyed by title, so filtering the listing left every sheet answering as
-      // before — and a reader who reopened one after confirming was offered
-      // « Supprimer » a second time, over a toast saying it was done.
-      for (const title of titles) {
-        if (!state.deletedTitles.includes(title)) state.deletedTitles.push(title);
+      // MEDIUM BY MEDIUM, each answered (operator ruling R2): one that is kept —
+      // a tracker still owed its seeding, its disk unplugged, a folder that would
+      // not go — stays whole, and the others still go. A medium named twice, by
+      // one id twice or by two of its ids, is answered once.
+      const answered: Schemas["LibraryDeletion"][] = [];
+      const seen = new Set<unknown>();
+      for (const one of media) {
+        const rows = holdersOf(state.library, one);
+        const show = incompleteHolding(one);
+        const medium = rows[0] ?? show ?? one;
+        if (seen.has(medium)) continue;
+        seen.add(medium);
+        const kept = state.deletionKept[`${one.provider}:${one.providerId}`];
+        if (kept !== undefined) {
+          answered.push({ ref: one, outcome: "kept", reason: kept.reason, owedUntil: kept.reason === "seed_owed" ? kept.owedUntil : null });
+          continue;
+        }
+        state.library = state.library.filter((row) => !rows.includes(row));
+        // AND THE SHEETS ARE TOLD. Ownership on a media sheet comes from a seed
+        // keyed by title, so filtering the listing left every sheet answering as
+        // before — and a reader who reopened one after confirming was offered
+        // « Supprimer » a second time, over a toast saying it was done.
+        // An incomplete series the seed holds no row of still goes as one medium.
+        for (const title of [...rows.map((row) => row.title), ...(show ? [show.title] : [])])
+          if (!state.deletedTitles.includes(title)) state.deletedTitles.push(title);
+        answered.push({ ref: one, outcome: "deleted", reason: null, owedUntil: null });
       }
-      return { deleted: before - state.library.length + withoutRow };
+      return { media: answered };
     }),
   ];
 }

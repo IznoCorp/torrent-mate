@@ -147,7 +147,9 @@ async def main():
         gone = await ask("DELETE", path, {"media": [FILM_REF]})
         after = await ask("GET", MEMBERSHIP.format(**FILM_REF))
         journal.check("and an identified medium held once is deleted",
-                      gone["status"] == 200 and gone["body"]["deleted"] == 1 and not after["body"]["inLibrary"],
+                      gone["status"] == 200
+                      and gone["body"]["media"] == [{"ref": FILM_REF, "outcome": "deleted", "reason": None, "owedUntil": None}]
+                      and not after["body"]["inLibrary"],
                       f"{gone} · {after}")
 
         # ── 3. the ambiguous state ──────────────────────────────────────────

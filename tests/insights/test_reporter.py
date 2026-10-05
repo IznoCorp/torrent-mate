@@ -300,17 +300,17 @@ class TestFormatReportText:
             validation_errors={"nfo_present": 10, "nfo_valid": 10},
         )
         text = format_report_text(report)
-        assert "RAPPORT DE SANTÉ" in text
+        assert "HEALTH REPORT" in text
         assert "VALIDATION" in text
-        assert "ACTIONS SUGGÉRÉES" in text
+        assert "SUGGESTED ACTIONS" in text
         assert "re-scrape" in text.lower()
 
     def test_format_empty_report(self) -> None:
         """Empty report should still produce valid text."""
         report = LibraryReport(generated_at="2026-04-17T12:00:00")
         text = format_report_text(report)
-        assert "RAPPORT DE SANTÉ" in text
-        assert "Aucune action nécessaire" in text
+        assert "HEALTH REPORT" in text
+        assert "No action needed" in text
 
     def test_format_shows_nfo_counts_from_analysis_result(self) -> None:
         """Formatted text should reflect NFO counts populated from AnalysisResult."""
@@ -345,7 +345,7 @@ class TestFormatReportText:
         text = format_report_text(report)
 
         # Report always includes the header
-        assert "RAPPORT DE SANTÉ" in text
+        assert "HEALTH REPORT" in text
         # total_items from AnalysisResult (2 rows seeded)
         assert "Total: 2" in text
 
@@ -390,8 +390,8 @@ class TestRescrapeSection:
         )
         text = format_report_text(report)
         assert "RESCRAPE" in text
-        assert "NFO régénérés: 6" in text
-        assert "Artwork téléchargé: 4" in text
+        assert "NFOs regenerated: 6" in text
+        assert "Artwork downloaded: 4" in text
 
     def test_no_rescrape_data_no_section(self) -> None:
         """Report without rescrape data should not show RESCRAPE section."""
@@ -478,22 +478,22 @@ class TestFormatReportTextSections:
             disk_free_gb={"disk1": 500.0, "disk2": 250.0},
         )
         text = format_report_text(report)
-        assert "DISQUES" in text
+        assert "DISKS" in text
         assert "disk1: 3 items" in text
-        assert "500 GB libre" in text
+        assert "500 GB free" in text
         # Percentages: 3/4 = 75%, 1/4 = 25%.
         assert "[75%]" in text
         assert "[25%]" in text
 
     def test_categories_section_rendered(self) -> None:
-        """CATÉGORIES section lists categories sorted by count desc."""
+        """CATEGORIES section lists categories sorted by count desc."""
         report = LibraryReport(
             generated_at="2026-04-17T12:00:00",
             total_items=10,
             items_per_category={"films": 7, "series": 3},
         )
         text = format_report_text(report)
-        assert "CATÉGORIES" in text
+        assert "CATEGORIES" in text
         # films appears before series (sorted descending by count).
         idx_films = text.index("films:")
         idx_series = text.index("series:")
@@ -517,7 +517,7 @@ class TestFormatReportTextSections:
         assert "actors_dir_present: 12" in text
         assert "library-clean --only actors --apply" in text
         # Cleanable summary should be sum of those that have fixes.
-        assert "Nettoyable automatiquement: 20" in text
+        assert "Automatically cleanable: 20" in text
         assert "library-clean --apply" in text
 
     def test_validation_warnings_only_section(self) -> None:
@@ -529,7 +529,7 @@ class TestFormatReportTextSections:
             validation_warnings={"artwork_landscape": 4},
         )
         text = format_report_text(report)
-        assert "Avertissements" in text
+        assert "Warnings" in text
         assert "artwork_landscape: 4" in text
 
     def test_validation_errors_with_fix_lines(self) -> None:
@@ -558,12 +558,12 @@ class TestFormatReportTextSections:
             audio_distribution={"vf": 60, "vostfr": 30, "multi": 20, "vo": 10, "weird": 5},
         )
         text = format_report_text(report)
-        assert "3. ANALYSE" in text
+        assert "3. ANALYSIS" in text
         # Coverage 50% < 100 ⇒ partial-warning line.
         assert "library-analyze --incremental" in text
-        assert "h264: 80 fichiers" in text
+        assert "h264: 80 files" in text
         # Audio labels resolved.
-        assert "VF (français)" in text
+        assert "VF (French)" in text
         assert "VOSTFR" in text
         # Unknown profile falls back to its raw label.
         assert "weird:" in text or "weird " in text
@@ -599,8 +599,8 @@ class TestFormatReportTextSections:
             ],
         )
         text = format_report_text(report)
-        assert "4. RECOMMANDATIONS" in text
-        assert "Économie potentielle: ~10.5 GB" in text
+        assert "4. RECOMMENDATIONS" in text
+        assert "Potential savings: ~10.5 GB" in text
         assert "Movie A" in text
         assert "rejected codec" in text
         assert "library-recommend --export csv" in text
@@ -628,13 +628,13 @@ class TestFormatReportTextSections:
             rescrape_episodes_count=2,
         )
         text = format_report_text(report)
-        assert "Épisodes renommés: 2" in text
+        assert "Episodes renamed: 2" in text
         # Skipped warning line present.
-        assert "items ignorés" in text
+        assert "items skipped" in text
         assert "library-rescrape --interactive" in text
 
     def test_actions_section_full(self) -> None:
-        """ACTIONS SUGGÉRÉES section lists every action the report can produce."""
+        """SUGGESTED ACTIONS section lists every action the report can produce."""
         report = LibraryReport(
             generated_at="2026-04-17T12:00:00",
             total_items=100,
@@ -646,10 +646,10 @@ class TestFormatReportTextSections:
         )
         text = format_report_text(report)
         # Every numbered/half-numbered action emitted.
-        assert "Supprimer 5 dossiers .actors" in text
-        assert "Supprimer 3 fichiers parasites" in text
+        assert "Delete 5 useless .actors" in text
+        assert "Delete 3 junk files" in text
         # Re-scrape uses nfo_invalid_count fallback when no validation_errors.
-        assert "Re-scraper 4 items" in text
-        assert "Récupérer l'artwork" in text
-        assert "Compléter l'analyse ffprobe (50 items restants)" in text
-        assert "Examiner 7 recommandations" in text
+        assert "Re-scrape 4 items" in text
+        assert "Fetch the missing artwork" in text
+        assert "Complete the ffprobe analysis (50 items remaining)" in text
+        assert "Review 7 re-download recommendations" in text

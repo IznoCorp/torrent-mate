@@ -1,7 +1,7 @@
 """The library analysis and maintenance commands word their output through the translation layer.
 
-Nothing is translated yet, so both languages read the same text; the point is that each
-representative line is the catalogue's, looked up per language, not an inline literal.
+Each representative line is the catalogue's, looked up per language, not an inline literal, and the two
+languages read differently.
 """
 
 from __future__ import annotations
@@ -33,3 +33,20 @@ def test_maintenance_clean_exclusive_line_comes_from_the_catalogue(language: Lan
         expected = t("cli_library.maintenance.clean_exclusive")
     assert result.exit_code == 1
     assert expected in result.output
+
+
+def test_analyze_and_maintenance_lines_differ_between_the_languages() -> None:
+    """The same invocations print French text under FR and English text under EN."""
+    invocations = [
+        (["library-recommend", "--sort", "bogus"], "cli_library.analyze.invalid_sort"),
+        (["library-clean", "--dry-run", "--apply"], "cli_library.maintenance.clean_exclusive"),
+    ]
+    for argv, key in invocations:
+        printed = {}
+        for language in (Language.FR, Language.EN):
+            with use_language(language):
+                printed[language] = runner.invoke(app, argv).output
+        assert printed[Language.FR] != printed[Language.EN], key
+        for language in (Language.FR, Language.EN):
+            line = t(key, language=language, value="bogus", valid="codec, priority, size")
+            assert line in printed[language], (key, language)

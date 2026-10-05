@@ -921,6 +921,8 @@
       "incompleteEpisodes": "{{owned}}/{{all}} épisodes",
       "incompleteSubOne": "{{year}} · il manque {{count}} épisode",
       "incompleteSubMany": "{{year}} · il manque {{count}} épisodes",
+      "incompleteSubNoYearOne": "Il manque {{count}} épisode",
+      "incompleteSubNoYearMany": "Il manque {{count}} épisodes",
       "incompleteChip": "Incomplet",
       "recentTitle": "Vu par l'index pour la première fois",
       "recentNoteLead": "Libellé honnête.",
@@ -1993,11 +1995,21 @@
         "blockedHeadingMany": "{{count}} médias ne peuvent pas être supprimés",
         "heldByRows": "{{count}} lignes, un même identifiant",
         "ambiguousText": "Un même identifiant est porté par plusieurs lignes de la médiathèque : c'est un doublon. Réglez-le d'abord — rien n'est supprimé tant qu'on ne sait pas lequel des deux partirait.",
-        "close": "Fermer"
+        "close": "Fermer",
+        "keptHeadingOne": "« {{title}} » est gardé",
+        "keptHeadingMany": "{{count}} médias sont gardés",
+        "partlyHeading": "Supprimés : {{deleted}} sur {{asked}}",
+        "keptSeedOwed": "Partage dû au tracker jusqu'au {{day}} à {{time}}",
+        "keptSeedOwedUndated": "Partage encore dû au tracker",
+        "keptDiskUnreachable": "Son disque n'est pas branché",
+        "keptFailed": "La suppression d'un de ses dossiers a échoué",
+        "keptSeparator": " — ",
+        "keptText": "Ce qui est gardé reste entier : ses fichiers, sa ligne de la médiathèque et son entrée Plex."
       },
       "deletedOne": "{{count}} média supprimé.",
       "deletedMany": "{{count}} médias supprimés.",
-      "deleteRefused": "La suppression a été refusée : rien n'a été supprimé."
+      "deleteRefused": "La suppression a été refusée : rien n'a été supprimé.",
+      "deleteHeld": "La suppression partira dès que le serveur répondra."
     },
     "acquisition": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
@@ -2370,7 +2382,8 @@
       "unavailable": "Le fournisseur de métadonnées ne répond pas : réessayez dans un instant."
     },
     "library": {
-      "locked": "Le pipeline est en cours : la médiathèque ne se modifie pas pendant qu'il tourne. Réessayez à la fin de l'exécution."
+      "locked": "Le pipeline est en cours : la médiathèque ne se modifie pas pendant qu'il tourne. Réessayez à la fin de l'exécution.",
+      "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'est supprimé tant qu'on ne sait pas ce qu'un tracker attend encore."
     }
   },
   "push": {

@@ -81,3 +81,8 @@ def test_the_library_deletion_codes() -> None:
     """Deletion by medium refuses an ambiguous id and a library the pipeline holds, by code (K2-10)."""
     assert errors.RefusalCode.MEDIA_AMBIGUOUS.value == "media.ambiguous"
     assert errors.RefusalCode.LIBRARY_LOCKED.value == "library.locked"
+
+
+def test_the_unreadable_seed_obligations_code() -> None:
+    """A deletion whose seed obligations cannot be read is refused by code (operator ruling R1)."""
+    assert errors.RefusalCode.LIBRARY_OBLIGATIONS_UNREADABLE.value == "library.obligations_unreadable"

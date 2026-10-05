@@ -69,6 +69,13 @@ ALLOWLIST: frozenset[str] = frozenset(
         # ``journal_mode`` on a read-only connection raises (same rationale as
         # ``scraper/_db_restore.py`` above).
         str(PACKAGE_ROOT / "app" / "library" / "service.py"),
+        # StrictDeletePermit.may_delete: opens a genuine ``file:...?mode=ro`` URI
+        # connection with ``query_only=ON`` for a read-only lookup of the seed
+        # obligations in acquire.db. It MUST bypass the canonical writer PRAGMA
+        # set — WAL ``journal_mode`` on a read-only connection raises, and the
+        # web deletion path never writes, creates or migrates acquire.db
+        # (operator ruling R1; same rationale as ``app/library/service.py`` above).
+        str(PACKAGE_ROOT / "acquire" / "delete_authority.py"),
     }
 )
 

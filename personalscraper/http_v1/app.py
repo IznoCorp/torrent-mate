@@ -21,7 +21,7 @@ from personalscraper.config import Settings
 from personalscraper.http_v1.contract import V1_PREFIX as V1_PREFIX  # re-exported: v0 mounts v1 there
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
-from personalscraper.http_v1.routes import accounts, authentication, media, system
+from personalscraper.http_v1.routes import accounts, authentication, library, media, system
 from personalscraper.http_v1.session_cookie import SessionActorResolver, SessionRenewalCookie
 
 #: The OpenAPI document's ``info.version``, fixed as v0's is: the package version would
@@ -119,6 +119,7 @@ def create_v1_app(
     include_v1_router(app, accounts.router)
     include_v1_router(app, system.router)
     include_v1_router(app, media.router)
+    include_v1_router(app, library.router)
     return app
 
 

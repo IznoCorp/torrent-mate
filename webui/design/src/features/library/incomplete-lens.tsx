@@ -1,5 +1,6 @@
 // The « Incomplets » lens: what is owned and not whole, as tiles or as cards.
 // It reads its own resource; the other two lenses draw the listing.
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { type IncompleteShow } from "./types";
@@ -11,6 +12,23 @@ import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { libraryCardMarkup } from "./card-markup";
 import { tileMarkup } from "../../ui/tile";
 import { Markup } from "../../ui/markup";
+
+/**
+ * The line under an incomplete show's title: its year, then what it is missing.
+ *
+ * A SHOW WHOSE YEAR NOTHING STATES is served `year: null` (the contract allows
+ * it): its line says what it is missing and nothing else — never « null · ».
+ *
+ * @param show The incomplete show.
+ * @returns The line, in the interface's words.
+ */
+export function incompleteLine(show: IncompleteShow): string {
+  const count = show.aired - show.owned;
+  const many = count > 1 ? "Many" : "One";
+  return show.year === null
+    ? i18next.t(`screens.library.incompleteSubNoYear${many}`, { count })
+    : i18next.t(`screens.library.incompleteSub${many}`, { year: show.year, count });
+}
 
 export function IncompleteLens({ rows }: {
   /**
@@ -75,12 +93,7 @@ export function IncompleteLens({ rows }: {
           html={INCOMPLETE.map((show: IncompleteShow) =>
               libraryCardMarkup({
                 title: show.title,
-                secondaryLine: t(
-                  show.aired - show.owned > 1
-                    ? "screens.library.incompleteSubMany"
-                    : "screens.library.incompleteSubOne",
-                  { year: show.year, count: show.aired - show.owned },
-                ),
+                secondaryLine: incompleteLine(show),
                 f: `${show.owned}/${show.aired}`,
                 chip: { tone: "warning", text: t("screens.library.incompleteChip") },
                 poster: show.poster,

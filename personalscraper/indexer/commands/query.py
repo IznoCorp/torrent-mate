@@ -106,6 +106,8 @@ def library_status_command(
                     if is_mounted
                     else t("cli_library.indexer_query.mounted_no")
                 )
+                # The JSON payload is a machine value: it carries the raw ``never``, only the text line is translated.
+                last_seen_raw = str(last_seen_at) if last_seen_at is not None else "never"
                 last_seen_str = str(last_seen_at) if last_seen_at is not None else t("cli_library.indexer_query.never")
                 root_str = (merkle_root or "")[:12] if merkle_root else ""
                 row = f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}"
@@ -114,7 +116,7 @@ def library_status_command(
                     {
                         "label": label,
                         "mounted": is_mounted == 1,
-                        "last_seen": last_seen_str,
+                        "last_seen": last_seen_raw,
                         "merkle_root_prefix": root_str,
                     }
                 )
