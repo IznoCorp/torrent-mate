@@ -63,18 +63,18 @@ ALLOWLIST: frozenset[str] = frozenset(
         # raises, and the lookup takes no writer lock (same rationale as
         # ``cli_helpers/boundary.py`` above).
         str(PACKAGE_ROOT / "scraper" / "_db_restore.py"),
-        # The library's read service (LibraryService._connect): opens a genuine
+        # The library's read view (LibraryIndex.reader): opens a genuine
         # ``file:...?mode=ro`` URI connection with ``query_only`` for the library
         # and media reads. It MUST bypass the canonical writer PRAGMA set — WAL
         # ``journal_mode`` on a read-only connection raises (same rationale as
         # ``scraper/_db_restore.py`` above).
-        str(PACKAGE_ROOT / "app" / "library" / "service.py"),
+        str(PACKAGE_ROOT / "indexer" / "library_view.py"),
         # StrictDeletePermit.may_delete: opens a genuine ``file:...?mode=ro`` URI
         # connection with ``query_only=ON`` for a read-only lookup of the seed
         # obligations in acquire.db. It MUST bypass the canonical writer PRAGMA
         # set — WAL ``journal_mode`` on a read-only connection raises, and the
         # web deletion path never writes, creates or migrates acquire.db
-        # (operator ruling R1; same rationale as ``app/library/service.py`` above).
+        # (operator ruling R1; same rationale as ``indexer/library_view.py`` above).
         str(PACKAGE_ROOT / "acquire" / "delete_authority.py"),
     }
 )

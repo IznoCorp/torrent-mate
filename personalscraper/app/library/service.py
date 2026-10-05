@@ -21,11 +21,10 @@ import sqlite3
 import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
-from contextlib import closing
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Literal
+from typing import TYPE_CHECKING, ContextManager, Final, Literal
 
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderLookup
 from personalscraper.api.metadata._base import MediaDetails
@@ -47,12 +46,12 @@ from personalscraper.app.library.catalogue import (
     off_catalogue,
 )
 from personalscraper.app.library.deletion import (
+    TOMBSTONE_REASON,
     DeletionReport,
     MediaDeletion,
     PlexOutcome,
     follow_up_plex,
     remove_empty_parents,
-    remove_item_rows,
 )
 from personalscraper.app.library.facts import (
     EpisodeFact,
@@ -73,18 +72,9 @@ from personalscraper.app.library.facts import (
 )
 from personalscraper.app.library.identity import Provider, ref_key
 from personalscraper.app.library.listing import (
-    LIBRARY_PAGE_SIZE,
-    IndexRow,
     LibrarySort,
-    folder_holders,
-    live_episode_pairs,
-    live_folders,
-    matches,
-    mounted_media_folders,
-    ordered,
+    ordered_by_missing,
     page_of,
-    read_holders,
-    read_live_rows,
     resolve_media_folder,
 )
 from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
@@ -93,8 +83,17 @@ from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.sandbox_guard import SandboxGuardError
 from personalscraper.core.artwork_naming import artwork_inventory
 from personalscraper.core.delete_permit import DeletePermit, PermitDecision
-from personalscraper.core.identity import MediaRef
-from personalscraper.indexer.deletion import DeleteOutcome, delete_media_folder
+from personalscraper.core.identity import ItemId, MediaRef
+from personalscraper.indexer.deletion import DeleteOutcome, delete_media_folder, remove_items
+from personalscraper.indexer.library_view import (
+    LIBRARY_PAGE_SIZE,
+    IndexItem,
+    IndexUnavailable,
+    LibraryIndex,
+    LibraryReader,
+    ListingOrder,
+    matches,
+)
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.lock import acquire_pipeline_lock, release_lock, scrape_locks_dir_for
 from personalscraper.logger import get_logger
@@ -124,9 +123,6 @@ __all__ = [
 
 #: Rows the « recently added » strip carries.
 RECENT_LIMIT: Final[int] = 12
-
-# How long a read waits on a writer's checkpoint before failing (the canonical set's value).
-_BUSY_TIMEOUT_MS: Final[int] = 5000
 
 #: The maintenance action that rescrapes one index row.
 _RESCRAPE_ITEM_ACTION: Final[str] = "library-rescrape-item"
@@ -343,7 +339,7 @@ class _DeletionPlan:
     """
 
     ref: MediaRef
-    item_id: int
+    item_id: ItemId
     targets: tuple[tuple[Path, Path], ...]
     unresolved: int
     unreachable: int
@@ -509,7 +505,7 @@ def _folder_identity(folder: Path) -> tuple[int, int] | None:
     return stat.st_dev, stat.st_ino
 
 
-def _entry(row: IndexRow) -> LibraryEntry:
+def _entry(row: IndexItem) -> LibraryEntry:
     """Serve an index row as a library entry.
 
     Args:
@@ -531,7 +527,7 @@ def _entry(row: IndexRow) -> LibraryEntry:
 
 
 def _sheet_ids(
-    held: IndexRow | None, answered: Mapping[str, str], provider: str, provider_id: str
+    held: IndexItem | None, answered: Mapping[str, str], provider: str, provider_id: str
 ) -> dict[str, int | str]:
     """Merge the ids the library's row holds with those the provider answered.
 
@@ -575,16 +571,17 @@ def _by_season(pairs: set[tuple[int, int]]) -> dict[int, tuple[int, ...]]:
     return {season: tuple(sorted(grouped[season])) for season in sorted(grouped)}
 
 
-def _library_unavailable(exc: sqlite3.Error) -> AppUnavailable:
+def _library_unavailable(exc: IndexUnavailable) -> AppUnavailable:
     """Log why ``library.db`` cannot be read, and build the refusal the wire answers.
 
     Args:
-        exc: The SQLite failure opening or probing the index.
+        exc: The indexer's refusal to open the index; its cause is the SQLite failure.
 
     Returns:
         The 503 ``library.unavailable`` refusal; it names no path and no SQLite text.
     """
-    log.error("app.library.index_unavailable", error=type(exc).__name__, reason=str(exc))
+    cause = exc.__cause__ or exc
+    log.error("app.library.index_unavailable", error=type(cause).__name__, reason=str(cause))
     return AppUnavailable("The library index cannot be read.", code=RefusalCode.LIBRARY_UNAVAILABLE)
 
 
@@ -630,6 +627,7 @@ class LibraryService:
             monotonic: Monotonic seconds, bounding that wait.
         """
         self._index_db = index_db
+        self._index = LibraryIndex(index_db)
         self._data_dir = data_dir
         self._catalogue = catalogue
         self._ownership = ownership
@@ -651,45 +649,26 @@ class LibraryService:
 
     # ------------------------------------------------------------------ helpers
 
-    def _connect(self) -> sqlite3.Connection:
-        """Open ``library.db`` read-only, with ``sqlite3.Row`` rows.
-
-        Read-only at the file (``mode=ro``: an absent index is an error, never a new empty
-        file) and at the connection (``query_only``). The schema is read once before the
-        connection is handed out, so a file that is not a database is refused here rather
-        than by the first query.
+    def _reader(self) -> ContextManager[LibraryReader]:
+        """Open a reader over ``library.db`` (:meth:`LibraryIndex.reader`).
 
         Returns:
-            A connection that can take no writer lock.
+            The reader, to be used as a context manager that closes it.
 
         Raises:
             AppUnavailable: ``library.unavailable`` when ``library.db`` is absent, cannot be
                 opened or is not a database; the cause goes to the log, never to the wire.
         """
-        uri = f"{self._index_db.resolve().as_uri()}?mode=ro"
         try:
-            conn = sqlite3.connect(uri, uri=True, isolation_level=None, check_same_thread=False)
-        except sqlite3.Error as exc:
+            return self._index.reader()
+        except IndexUnavailable as exc:
             raise _library_unavailable(exc) from exc
-        try:
-            # Not the canonical writer PRAGMA set: WAL ``journal_mode`` raises on a read-only
-            # connection (scripts/check-pragma-discipline.py allow-lists this reader).
-            conn.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
-            conn.execute("PRAGMA query_only=ON")
-            # The core table, not ``sqlite_master``: a 0-byte or schema-less file opens and passes
-            # that, and the first real query then dies on « no such table ».
-            conn.execute("SELECT 1 FROM media_item LIMIT 1").fetchone()
-        except sqlite3.Error as exc:
-            conn.close()
-            raise _library_unavailable(exc) from exc
-        conn.row_factory = sqlite3.Row
-        return conn
 
     def _today(self) -> date:
         """« Today » by the service's clock, local time."""
         return date.fromtimestamp(self._clock())
 
-    def _catalogue_of(self, row: IndexRow) -> list[CatalogueEpisode] | None:
+    def _catalogue_of(self, row: IndexItem) -> list[CatalogueEpisode] | None:
         """Read a show's catalogue under the key the refresh writes it at.
 
         Args:
@@ -704,7 +683,7 @@ class LibraryService:
         with self._lock:
             return self._catalogue.episodes(*key)
 
-    def _owned_pairs(self, row: IndexRow) -> set[tuple[int, int]]:
+    def _owned_pairs(self, row: IndexItem) -> set[tuple[int, int]]:
         """The ``(season, episode)`` pairs the library holds under a show's ids.
 
         Args:
@@ -719,7 +698,7 @@ class LibraryService:
         with self._lock:
             return self._ownership.owned_pairs(ref)
 
-    def _completeness(self, row: IndexRow, today: date) -> Completeness | None:
+    def _completeness(self, row: IndexItem, today: date) -> Completeness | None:
         """How much of what a show has aired the library holds.
 
         Args:
@@ -737,7 +716,7 @@ class LibraryService:
         return completeness(episodes, self._owned_pairs(row), today)
 
     def _library_completeness(
-        self, conn: sqlite3.Connection, rows: Sequence[IndexRow], today: date
+        self, reader: LibraryReader, rows: Sequence[IndexItem], today: date
     ) -> dict[int, Completeness]:
         """Measure every catalogued show of the library at once.
 
@@ -746,15 +725,15 @@ class LibraryService:
         once.
 
         Args:
-            conn: The open index.
+            reader: The open index.
             rows: The live rows.
             today: The reference date.
 
         Returns:
             ``{item_id: completeness}`` for the show rows whose catalogue is known.
         """
-        held = live_episode_pairs(conn)
-        by_key: dict[tuple[str, str], list[IndexRow]] = {}
+        held = reader.live_episode_pairs()
+        by_key: dict[tuple[str, str], list[IndexItem]] = {}
         for row in rows:
             key = catalogue_key(row.ids, row.canonical_provider) if row.kind == "show" else None
             if key is not None:
@@ -772,31 +751,31 @@ class LibraryService:
                     measured[row.item_id] = counts
         return measured
 
-    def _holders(self, conn: sqlite3.Connection, ref: MediaRef) -> list[IndexRow]:
+    def _holders(self, reader: LibraryReader, ref: MediaRef) -> list[IndexItem]:
         """Every row carrying the reference's id.
 
         Args:
-            conn: The open index.
+            reader: The open index.
             ref: The medium.
 
         Returns:
             The holding rows, live or not, by id.
         """
         provider, provider_id = ref_key(ref)
-        return read_holders(conn, provider.value, provider_id)
+        return reader.holders(provider.value, provider_id)
 
-    def _held(self, conn: sqlite3.Connection, ref: MediaRef) -> tuple[list[IndexRow], dict[int, set[str]]]:
+    def _held(self, reader: LibraryReader, ref: MediaRef) -> tuple[list[IndexItem], dict[ItemId, set[str]]]:
         """The rows holding a reference and the media folders of their live files.
 
         Args:
-            conn: The open index.
+            reader: The open index.
             ref: The medium.
 
         Returns:
             ``(holders, {item_id: folders})``; a holder absent from the mapping has no live file.
         """
-        holders = self._holders(conn, ref)
-        return holders, live_folders(conn, [row.item_id for row in holders])
+        holders = self._holders(reader, ref)
+        return holders, reader.live_folders([row.item_id for row in holders])
 
     # ------------------------------------------------------------------ reads
 
@@ -831,22 +810,39 @@ class LibraryService:
         """
         if page < 0:
             raise AppBadRequest("The page is negative.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["page"]})
-        today = self._today()
-        with closing(self._connect()) as conn:
-            rows = read_live_rows(conn)
-            measured = self._library_completeness(conn, rows, today) if sort is LibrarySort.MISSING else {}
         wanted = set(category or ())
+        if sort is not LibrarySort.MISSING:
+            with self._reader() as reader:
+                listed = reader.page(
+                    categories=frozenset(wanted),
+                    query=query,
+                    order=ListingOrder(sort.value),
+                    reversed_=reversed_,
+                    page=page,
+                )
+            return LibraryPage(
+                total=listed.total,
+                matching=listed.matching,
+                loaded=listed.loaded,
+                items=tuple(_entry(row) for row in listed.items),
+            )
+        # « Missing » crosses the aired catalogue (``acquire.db``): the one order SQL over
+        # ``library.db`` cannot compute, read over every live row in Python.
+        today = self._today()
+        with self._reader() as reader:
+            rows = reader.live_items()
+            measured = self._library_completeness(reader, rows, today)
         selected = [
             row for row in rows if (not wanted or row.category_id in wanted) and (query is None or matches(row, query))
         ]
         filtered = bool(wanted) or bool(query and query.strip())
 
-        def missing_of(row: IndexRow) -> int | None:
+        def missing_of(row: IndexItem) -> int | None:
             """The aired episodes a row lacks, or ``None`` when nothing says."""
             counts = measured.get(row.item_id)
             return counts.missing if counts is not None else None
 
-        result = ordered(selected, sort, reversed_, missing_of)
+        result = ordered_by_missing(selected, reversed_, missing_of)
         return LibraryPage(
             total=len(result) if filtered else len(rows),
             matching=len(result),
@@ -867,11 +863,8 @@ class LibraryService:
         Raises:
             AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
-        with closing(self._connect()) as conn:
-            rows = read_live_rows(conn)
-        counts: dict[str, int] = {}
-        for row in rows:
-            counts[row.category_id] = counts.get(row.category_id, 0) + 1
+        with self._reader() as reader:
+            counts = reader.category_counts()
         return [CategoryCount(category_id=leaf, count=counts[leaf]) for leaf in sorted(counts)]
 
     @requires("readLibraryRecent")
@@ -887,9 +880,9 @@ class LibraryService:
         Raises:
             AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
-        with closing(self._connect()) as conn:
-            rows = read_live_rows(conn)
-        return [_entry(row) for row in rows[:RECENT_LIMIT]]
+        with self._reader() as reader:
+            rows = reader.recent(RECENT_LIMIT)
+        return [_entry(row) for row in rows]
 
     @requires("readLibraryIncomplete")
     def read_incomplete(self, actor: Actor) -> list[IncompleteEntry]:
@@ -908,9 +901,9 @@ class LibraryService:
         Raises:
             AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
-        with closing(self._connect()) as conn:
-            rows = read_live_rows(conn)
-            measured = self._library_completeness(conn, rows, self._today())
+        with self._reader() as reader:
+            rows = reader.live_items()
+            measured = self._library_completeness(reader, rows, self._today())
         found: list[tuple[int, IncompleteEntry]] = []
         for row in rows:
             counts = measured.get(row.item_id)
@@ -934,8 +927,8 @@ class LibraryService:
         Raises:
             AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
-        with closing(self._connect()) as conn:
-            holders, folders = self._held(conn, ref)
+        with self._reader() as reader:
+            holders, folders = self._held(reader, ref)
         rows = sum(max(1, len(folders.get(row.item_id, ()))) for row in holders)
         live = [row for row in holders if row.item_id in folders]
         if not live:
@@ -969,8 +962,8 @@ class LibraryService:
                 ``provider.unavailable`` when the provider is not configured or
                 does not answer for an id the library does not hold.
         """
-        with closing(self._connect()) as conn:
-            holders, folders = self._held(conn, ref)
+        with self._reader() as reader:
+            holders, folders = self._held(reader, ref)
         shows = [row for row in holders if row.kind == "show"]
         provider, provider_id = ref_key(ref)
         if holders and not shows:
@@ -1029,8 +1022,8 @@ class LibraryService:
                 ``provider.unavailable`` when the provider is not configured or
                 does not answer.
         """
-        with closing(self._connect()) as conn:
-            holders, folders = self._held(conn, ref)
+        with self._reader() as reader:
+            holders, folders = self._held(reader, ref)
         live = [row for row in holders if row.item_id in folders]
         held = live[0] if live else None
         provider, provider_id = self._provider_for(ref, held)
@@ -1097,10 +1090,10 @@ class LibraryService:
             AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         provider, _ = ref_key(ref)
-        with closing(self._connect()) as conn:
-            holders, folders = self._held(conn, ref)
+        with self._reader() as reader:
+            holders, folders = self._held(reader, ref)
             live = [row for row in holders if row.item_id in folders]
-            mounted = mounted_media_folders(conn, live[0].item_id) if live else []
+            mounted = reader.mounted_media_folders(live[0].item_id) if live else []
         for mount_path, folder in mounted:
             poster = _folder_poster(mount_path, folder)
             if poster is not None:
@@ -1135,8 +1128,8 @@ class LibraryService:
             AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         provider, provider_id = ref_key(ref)
-        with closing(self._connect()) as conn:
-            holders, folders = self._held(conn, ref)
+        with self._reader() as reader:
+            holders, folders = self._held(reader, ref)
         live = [row.item_id for row in holders if row.item_id in folders]
         if not live:
             raise refuse_not_found(provider.value)
@@ -1260,7 +1253,7 @@ class LibraryService:
         plans: list[_DeletionPlan] = []
         seen: set[tuple[Provider, str]] = set()
         planned: set[int] = set()
-        with closing(self._connect()) as conn:
+        with self._reader() as reader:
             for ref in refs:
                 key = ref_key(ref)
                 if key in seen:
@@ -1268,7 +1261,7 @@ class LibraryService:
                 seen.add(key)
                 provider, provider_id = key
                 params = {"provider": provider.value, "providerId": provider_id}
-                holders, folders = self._held(conn, ref)
+                holders, folders = self._held(reader, ref)
                 if not holders:
                     raise AppNotFound("No library row holds this id.", code=RefusalCode.MEDIA_NOT_FOUND, params=params)
                 holdings = sum(max(1, len(folders.get(row.item_id, ()))) for row in holders)
@@ -1283,7 +1276,7 @@ class LibraryService:
                     continue
                 planned.add(row.item_id)
                 own = folders.get(row.item_id, set())
-                if any(holders_of - {row.item_id} for holders_of in folder_holders(conn, own).values()):
+                if any(holders_of - {row.item_id} for holders_of in reader.folder_holders(own).values()):
                     # Another row's live files sit in this medium's folder: deleting it would
                     # take them while that row stays live.
                     raise AppConflict(
@@ -1291,7 +1284,7 @@ class LibraryService:
                         code=RefusalCode.MEDIA_AMBIGUOUS,
                         params=params,
                     )
-                mounted = mounted_media_folders(conn, row.item_id)
+                mounted = reader.mounted_media_folders(row.item_id)
                 # Keyed by the folder's (device, inode): two spellings of one folder (NFC / NFD,
                 # unequal as paths, one directory on APFS) delete it once.
                 targets: dict[tuple[int, int], tuple[Path, Path]] = {}
@@ -1317,7 +1310,7 @@ class LibraryService:
     def _delete_one(self, actor: Actor, plan: _DeletionPlan, permit: _Decided) -> _Deleted:
         """Delete one validated medium's folders, its emptied parents and, when nothing was kept, its rows.
 
-        An index write failure (``sqlite3.Error`` from :func:`remove_item_rows`) is logged
+        An index write failure (``sqlite3.Error`` from :func:`~personalscraper.indexer.deletion.remove_items`) is logged
         and never raised: the medium is reported with ``rows_removed = 0``, so not deleted,
         and its deleted folders are still told to Plex.
 
@@ -1369,7 +1362,7 @@ class LibraryService:
         rows = 0
         if vetoed + failed + unreachable == 0:
             try:
-                rows = remove_item_rows(self._index_db, [plan.item_id], actor=who)
+                rows = remove_items(self._index_db, [plan.item_id], actor=who, reason=TOMBSTONE_REASON)
             except sqlite3.Error as exc:
                 # The folders are gone already: the request goes on, the rows stay live
                 # (the indexer's next scan sees the files gone) and the medium is reported
@@ -1417,8 +1410,8 @@ class LibraryService:
             ``True`` when one is; the index unreadable counts as one (the trash kept).
         """
         try:
-            with closing(self._connect()) as conn:
-                return conn.execute("SELECT 1 FROM disk WHERE is_mounted = 0 LIMIT 1").fetchone() is not None
+            with self._reader() as reader:
+                return reader.any_disk_unmounted()
         except (sqlite3.Error, AppUnavailable) as exc:
             log.warning("app.library.delete_disks_unreadable", error=type(exc).__name__)
             return True
@@ -1471,7 +1464,7 @@ class LibraryService:
 
     # ------------------------------------------------------------------ the sheet's parts
 
-    def _provider_for(self, ref: MediaRef, held: IndexRow | None) -> tuple[str, str]:
+    def _provider_for(self, ref: MediaRef, held: IndexItem | None) -> tuple[str, str]:
         """Choose the provider and id a sheet is read at.
 
         TVDB and TMDB ids are read where the wire names them. An IMDb id is read at the held
