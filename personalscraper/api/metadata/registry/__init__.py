@@ -275,6 +275,7 @@ class ProviderRegistry:
         event_bus: EventBus,
         cb_policy: CircuitPolicy,
         providers_config: ProvidersConfig,
+        language: str,
         retry: "RetryPolicy | None" = None,
     ) -> None:
         """Initialize the registry by instantiating providers and validating config.
@@ -285,6 +286,8 @@ class ProviderRegistry:
                 project architectural contract — event-bus 0.14.0).
             cb_policy: CircuitPolicy applied to all provider transports.
             providers_config: Parsed ProvidersConfig from config/providers.json5.
+            language: The metadata language the TMDB and TVDB clients ask in
+                (``scraper.language``).
             retry: Optional RetryPolicy override forwarded to the metadata
                 clients that accept one (TMDB / TVDB). ``None`` (the default,
                 and every pipeline path) keeps each provider's own policy. A
@@ -314,7 +317,9 @@ class ProviderRegistry:
         # Instantiate providers with cleanup on failure
         instantiated: list[object] = []
         try:
-            self._providers: dict[str, object] = build_providers(provider_names, settings, cb_policy, event_bus, retry)
+            self._providers: dict[str, object] = build_providers(
+                provider_names, settings, cb_policy, event_bus, retry, language=language
+            )
             instantiated.extend(self._providers.values())
 
             # Validate config — aggregated, never fail-fast

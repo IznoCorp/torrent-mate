@@ -292,6 +292,14 @@ class TvCatalogueClient(Protocol):
         ...
 
 
+class ProviderLookup(Protocol):
+    """Where a reader finds a provider's client: :class:`ProviderClients`, or the application's registry."""
+
+    def get(self, provider: str) -> TvCatalogueClient | None:
+        """Return the client of ``provider`` (``"tvdb"`` / ``"tmdb"``), or ``None`` when it is unavailable."""
+        ...
+
+
 @dataclass(frozen=True)
 class ProviderClients:
     """The provider clients a refresh may ask; ``None`` = provider unavailable."""

@@ -19,6 +19,7 @@ from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import build_app_store
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1 import standalone
 from personalscraper.http_v1.standalone import build_standalone_v1_app
 
@@ -126,17 +127,18 @@ def test_lifespan_exit_closes_the_services(test_config: Config) -> None:
     """The v1 services are closed when the server stops, not before: their ``app.db`` is released."""
     built: list[AppServices] = []
 
-    def _build(config: Config, settings: Settings) -> AppServices:
+    def _build(config: Config, settings: Settings, *, event_bus: EventBus) -> AppServices:
         """Build the real services and keep them.
 
         Args:
             config: The configuration.
             settings: The settings.
+            event_bus: The process's bus.
 
         Returns:
             The services.
         """
-        services = build_app_services(config, settings)
+        services = build_app_services(config, settings, event_bus=event_bus)
         built.append(services)
         return services
 

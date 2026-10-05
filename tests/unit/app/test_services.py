@@ -10,7 +10,7 @@ from personalscraper.acquire.delete_authority import StrictDeletePermit
 from personalscraper.api.plex import PlexClient
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
 from personalscraper.app.accounts.repository import AccountRow
-from personalscraper.app.composition import build_app_services
+from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
 from personalscraper.app.library.service import LibraryService
 from personalscraper.app.services import AppServices
 from personalscraper.conf.environment import Environment
@@ -21,7 +21,7 @@ from personalscraper.core.event_bus import EventBus
 
 def test_build_app_services_is_inert(test_config: Config) -> None:
     """The builder opens nothing: a fresh bus, and ``close`` is safe to call."""
-    services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
 
     assert isinstance(services, AppServices)
     assert isinstance(services.event_bus, EventBus)
@@ -33,13 +33,14 @@ def test_each_build_has_its_own_bus(test_config: Config) -> None:
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
 
     assert (
-        build_app_services(test_config, settings).event_bus is not build_app_services(test_config, settings).event_bus
+        build_app_services(test_config, settings, event_bus=EventBus()).event_bus
+        is not build_app_services(test_config, settings, event_bus=EventBus()).event_bus
     )
 
 
 def test_the_library_service_is_built_inert(test_config: Config) -> None:
     """The library service is built over the configured stores without opening them; no key, no client."""
-    services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
 
     assert isinstance(services.library, LibraryService)
     assert test_config.acquire.db_path is not None
@@ -50,7 +51,7 @@ def test_the_library_service_is_built_inert(test_config: Config) -> None:
 def test_the_configured_idle_lifetime_reaches_the_sessions(test_config: Config) -> None:
     """``web.session_idle_days`` = 5: a session the built service opens expires five days after it opens."""
     config = test_config.model_copy(update={"web": test_config.web.model_copy(update={"session_idle_days": 5})})
-    services = build_app_services(config, Settings(_env_file=None))  # type: ignore[call-arg]
+    services = build_app_services(config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
     try:
         repo = services.app_store.accounts
         repo.insert_account(
@@ -86,7 +87,7 @@ def test_the_plex_door_is_composed_from_the_configuration_and_the_settings(
         update={"web": test_config.web.model_copy(update={"plex_forward_url": "https://tm.example.org/"})}
     )
     settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="planted-server-token")  # type: ignore[call-arg]
-    services = build_app_services(config, settings)
+    services = build_app_services(config, settings, event_bus=EventBus())
     try:
         door = services.plex_sign_in
         assert door._forward_url == "https://tm.example.org/"
@@ -103,7 +104,7 @@ def test_the_plex_door_is_composed_from_the_configuration_and_the_settings(
 def test_the_plex_door_has_no_server_without_a_token(test_config: Config) -> None:
     """No ``PLEX_TOKEN``: no server client is built, and the door admits nobody."""
     settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="")  # type: ignore[call-arg]
-    services = build_app_services(test_config, settings)
+    services = build_app_services(test_config, settings, event_bus=EventBus())
     try:
         assert services.plex_sign_in._server is None
         assert services.plex_sign_in._server_token == ""
@@ -118,7 +119,7 @@ def test_malformed_token_keys_leave_the_door_without_a_vault_and_say_so(
 ) -> None:
     """A malformed ``PLEX_TOKEN_KEYS`` does not stop the build: no vault, and the door knows the keys were bad."""
     settings = Settings(_env_file=None, plex_token_keys=keys)  # type: ignore[call-arg]
-    services = build_app_services(test_config, settings)
+    services = build_app_services(test_config, settings, event_bus=EventBus())
     try:
         assert services.plex_sign_in._vault is None
         assert services.plex_sign_in._vault_keys_malformed is malformed
@@ -143,7 +144,7 @@ def test_the_library_deletes_through_the_strict_permit_over_the_configured_acqui
     test_config: Config,
 ) -> None:
     """The library's permit reads ``acquire.db`` read-only and refuses what it cannot read (R1); nothing created."""
-    services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
     try:
         permit = services.library._delete_permit
         assert isinstance(permit, StrictDeletePermit)
@@ -158,7 +159,7 @@ def test_the_library_deletes_through_the_strict_permit_over_the_configured_acqui
 def test_the_library_tells_the_plex_server_the_settings_name(test_config: Config) -> None:
     """``PLEX_URL`` and ``PLEX_TOKEN`` set: the library's deletion tells that server."""
     settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="planted-server-token")  # type: ignore[call-arg]
-    services = build_app_services(test_config, settings)
+    services = build_app_services(test_config, settings, event_bus=EventBus())
     try:
         plex = services.library._plex
         assert isinstance(plex, PlexClient)
@@ -170,8 +171,69 @@ def test_the_library_tells_the_plex_server_the_settings_name(test_config: Config
 
 def test_the_library_has_no_plex_server_without_a_token(test_config: Config) -> None:
     """No ``PLEX_TOKEN``: the library holds no Plex client, and a deletion reports Plex not configured."""
-    services = build_app_services(test_config, Settings(_env_file=None, plex_token=""))  # type: ignore[call-arg]
+    services = build_app_services(test_config, Settings(_env_file=None, plex_token=""), event_bus=EventBus())  # type: ignore[call-arg]
     try:
         assert services.library._plex is None
+    finally:
+        services.close()
+
+
+def test_a_given_bus_is_the_services_bus(test_config: Config) -> None:
+    """A process that already holds a bus hands it over: the services publish on that one, not a second."""
+    bus = EventBus()
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=bus)  # type: ignore[call-arg]
+    try:
+        assert services.event_bus is bus
+    finally:
+        services.close()
+
+
+def test_the_registry_speaks_the_configured_language(test_config: Config) -> None:
+    """``scraper.language`` = ``en-US``: the registry's TMDB and TVDB clients ask in ``en-US``."""
+    config = test_config.model_copy(update={"scraper": test_config.scraper.model_copy(update={"language": "en-US"})})
+    registry = build_provider_registry(config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
+    try:
+        assert registry.get("tmdb")._language == "en-US"  # type: ignore[attr-defined]
+        assert registry.get("tvdb")._language == "en-US"  # type: ignore[attr-defined]
+    finally:
+        registry.close()
+
+
+def test_a_given_registry_serves_the_library_and_stays_its_owners(test_config: Config) -> None:
+    """The library asks the handed-over registry's clients; closing the services leaves that registry to its owner."""
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    registry = build_provider_registry(test_config, settings, event_bus=EventBus(), retry=ONE_ATTEMPT)
+    closed: list[bool] = []
+    original_close = registry.close
+    registry.close = lambda: closed.append(True)  # type: ignore[method-assign]
+    services = build_app_services(test_config, settings, providers=registry, event_bus=EventBus())
+    try:
+        assert services.library._providers.get("tmdb") is registry.get("tmdb")
+        assert services.library._providers.get("tvdb") is registry.get("tvdb")
+    finally:
+        services.close()
+        assert closed == []
+        original_close()
+
+
+def test_without_a_registry_the_services_build_their_own_lazily(test_config: Config) -> None:
+    """No registry handed over: the services build one on the first provider call, with one attempt."""
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
+    providers = services.library._providers
+    assert isinstance(providers, LazyProviders)
+    assert providers._registry is None
+    tmdb = providers.get("tmdb")
+    assert tmdb is not None
+    assert tmdb._transport._policy.retry == ONE_ATTEMPT  # type: ignore[attr-defined]
+    services.close()
+
+
+def test_one_plex_client_serves_the_door_and_the_library(test_config: Config) -> None:
+    """``PLEX_TOKEN`` set: the door's server and the library's deletion follow-up are the same client."""
+    settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="planted-server-token")  # type: ignore[call-arg]
+    services = build_app_services(test_config, settings, event_bus=EventBus())
+    try:
+        assert isinstance(services.library._plex, PlexClient)
+        assert services.plex_sign_in._server is services.library._plex
     finally:
         services.close()

@@ -19,10 +19,11 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
-from personalscraper.app.composition import build_app_services
+from personalscraper.app.composition import ONE_ATTEMPT, build_app_context, build_app_services
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import V1_PREFIX, include_v1_router, v1_lifespan
 from personalscraper.web import app as web_app
 from personalscraper.web.app import create_app
@@ -227,7 +228,7 @@ def test_lifespan_closes_the_services(test_config: Config) -> None:
     """The parent's lifespan closes the sub-application's services; ``None`` is a no-op."""
     closed: list[bool] = []
     v1_app = FastAPI()
-    v1_app.state.services = _recording(build_app_services(test_config, _settings()), closed)
+    v1_app.state.services = _recording(build_app_services(test_config, _settings(), event_bus=EventBus()), closed)
 
     async def enter_both() -> None:
         """Enter the lifespan with no sub-application, then with one, checking nothing closes early."""
@@ -253,3 +254,22 @@ def test_parent_lifespan_enters_the_v1_lifespan(test_config: Config) -> None:
         assert closed == []
 
     assert closed == [True]
+
+
+def test_a_process_building_both_holds_one_bus_and_one_registry(test_config: Config) -> None:
+    """The web process hands its composition over: v1's services publish on its bus and read its registry."""
+    config = _with_v1(test_config, True)
+    settings = _settings()
+    app_context = build_app_context(config, settings, provider_retry=ONE_ATTEMPT)
+    try:
+        app = create_app(config, settings, app_context=app_context)
+        services = app.state.v1_app.state.services
+
+        assert services.event_bus is app_context.event_bus
+        assert services.library._providers.get("tmdb") is app_context.provider_registry.get("tmdb")
+        assert services.owned_providers is None
+        services.close()
+    finally:
+        app_context.provider_registry.close()
+        if app_context.acquire is not None:
+            app_context.acquire.close()

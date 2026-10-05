@@ -20,6 +20,7 @@ from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import create_v1_app
 from personalscraper.http_v1.perimeter import ActorResolver
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE
@@ -48,7 +49,7 @@ def make_v1_services(test_config: Config) -> Iterator[Callable[[], AppServices]]
         Returns:
             The services, inert until first use.
         """
-        services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+        services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
         built.append(services)
         return services
 

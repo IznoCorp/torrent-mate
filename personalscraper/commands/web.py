@@ -24,7 +24,7 @@ import typer
 import uvicorn
 
 from personalscraper.app.accounts.passwords import hash_password
-from personalscraper.app.composition import build_app_context
+from personalscraper.app.composition import ONE_ATTEMPT, build_app_context
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.conf.envfile import write_env_keys
@@ -129,13 +129,15 @@ def web(
     bind_port = config.web.port if port is None else port
 
     # Build the AppContext once for process lifetime — no torrent client
-    # (the web process never contacts a torrent daemon).
-    app_context = build_app_context(config, settings, build_torrent_client=False)
+    # (the web process never contacts a torrent daemon). Its bus and its
+    # registry are the process's: v1 is handed them, so its provider calls
+    # make one attempt (D1).
+    app_context = build_app_context(config, settings, build_torrent_client=False, provider_retry=ONE_ATTEMPT)
 
     try:
         log.info("web_starting", host=bind_host, port=bind_port)
         uvicorn.run(
-            create_app(config, settings),
+            create_app(config, settings, app_context=app_context),
             host=bind_host,
             port=bind_port,
             # ``log_config=None`` keeps uvicorn from installing its OWN logging
