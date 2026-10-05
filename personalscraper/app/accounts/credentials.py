@@ -13,11 +13,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Final
 
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal, verify_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
-from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rules import account_view, is_email, refuse_password_held_elsewhere, sign_in_kind
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.views import AccountView, SignInKind
@@ -30,6 +30,7 @@ from personalscraper.app.errors import (
     AppUnauthenticated,
     RefusalCode,
 )
+from personalscraper.app.store.store import AppStore
 from personalscraper.logger import get_logger
 
 log = get_logger("app.accounts.credentials")
@@ -92,7 +93,7 @@ class CredentialService:
 
     def __init__(
         self,
-        repo_factory: Callable[[], AccountRepository],
+        store: AppStore,
         sessions: SessionService,
         *,
         clock: Callable[[], float] = time.time,
@@ -102,7 +103,7 @@ class CredentialService:
         """Build the service; nothing is opened until the first call.
 
         Args:
-            repo_factory: Returns the account repository (opening ``app.db`` on first use).
+            store: The environment's ``app.db``, opened on first use.
             sessions: The session service.
             clock: The epoch clock.
             limiter: The password door's failed-attempt limiter; ``None`` builds this
@@ -111,7 +112,7 @@ class CredentialService:
                 change, keyed by account; ``None`` builds this service's own, apart from
                 the door's so neither spends the other's budget.
         """
-        self._repo_factory = repo_factory
+        self._store = store
         self._sessions = sessions
         self._clock = clock
         self._limiter = limiter if limiter is not None else SlidingWindowRateLimiter()
@@ -152,11 +153,13 @@ class CredentialService:
         if not self._limiter.allow(client_key):
             log.warning("v1_sign_in_rate_limited", client_key=client_key)
             raise AppTooManyRequests("Too many failed sign-ins from this client.", code=RefusalCode.AUTH_RATE_LIMITED)
-        repo = self._repo_factory()
-        account = repo.account_by_email(email)
+        store = self._store
+        account = store.accounts.account_by_email(email)
         stored = account.password_hash if account is not None else None
         matches = verify_password(password, stored if stored is not None else _DUMMY_HASH) and stored is not None
-        signs_in_with_plex = account is not None and sign_in_kind(repo.plex_link(account.id)) is SignInKind.PLEX
+        signs_in_with_plex = (
+            account is not None and sign_in_kind(store.accounts.plex_link(account.id)) is SignInKind.PLEX
+        )
         if account is None or not matches or signs_in_with_plex:
             self._limiter.record_failure(client_key)
             log.info("v1_sign_in_refused", client_key=client_key)
@@ -185,9 +188,9 @@ class CredentialService:
                 ``auth.required`` — its session no longer resolves.
             AppForbidden: ``auth.access_disabled`` — the account's access is cut.
         """
-        repo = self._repo_factory()
-        with repo.immediate():
-            account = repo.account(account_id)
+        store = self._store
+        with store.immediate():
+            account = store.accounts.account(account_id)
             if account is None:
                 raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
             if not account.sign_in_allowed:
@@ -198,7 +201,7 @@ class CredentialService:
         if actor is None:
             raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
         log.info("v1_signed_in", account_id=account.id)
-        return SignInResult(account=account_view(repo, account, actor), session_token=token)
+        return SignInResult(account=account_view(store, account, actor), session_token=token)
 
     def owner_account_id(self) -> str | None:
         """The key of the account linked as the managed Plex server's owner.
@@ -210,7 +213,7 @@ class CredentialService:
             AmbiguousOwner: Several accounts hold an owner link (the schema does not forbid it):
                 picking one could open the session of a stale former owner.
         """
-        links = self._repo_factory().owner_links()
+        links = self._store.accounts.owner_links()
         if len(links) > 1:
             raise AmbiguousOwner("Several accounts are linked as the server's owner.")
         return links[0].account_id if links else None
@@ -230,11 +233,11 @@ class CredentialService:
         refusal = policy_refusal(password)
         if refusal is not None:
             raise refusal
-        repo = self._repo_factory()
-        account = repo.account_by_email(email)
+        store = self._store
+        account = store.accounts.account_by_email(email)
         if account is None:
             raise AppNotFound("No account has this e-mail.", code=RefusalCode.ACCOUNT_UNKNOWN)
-        repo.set_password_hash(account.id, hash_password(password), now=self._clock())
+        store.accounts.set_password_hash(account.id, hash_password(password), now=self._clock())
         log.info("account_password_set", account_id=account.id)
 
     def create_owner(self, *, email: str, name: str, password: str, plex: OwnerPlexIdentity) -> str:
@@ -274,23 +277,23 @@ class CredentialService:
             raise refusal
         # scrypt runs before the writer lock is taken.
         password_hash = hash_password(password)
-        repo = self._repo_factory()
+        store = self._store
         now = self._clock()
         account_id = f"account-{uuid.uuid4().hex}"
-        with repo.immediate():
+        with store.immediate():
             owner_taken = (
-                repo.count_on_role_kind(RoleKind.ADMIN) > 0
-                or repo.owner_link() is not None
-                or repo.plex_link_by_plex_id(plex.plex_id) is not None
+                store.accounts.count_on_role_kind(RoleKind.ADMIN) > 0
+                or store.accounts.owner_link() is not None
+                or store.accounts.plex_link_by_plex_id(plex.plex_id) is not None
             )
             if owner_taken:
                 raise OwnerAlreadySeeded("The server's owner is already an account.")
-            if repo.account_by_email(email) is not None:
+            if store.accounts.account_by_email(email) is not None:
                 raise AppConflict("An account already carries this e-mail.", code=RefusalCode.ACCOUNT_EMAIL_TAKEN)
-            role = repo.role(SYSTEM_ROLE_ID)
+            role = store.roles.role(SYSTEM_ROLE_ID)
             if role is None or role.kind is not RoleKind.ADMIN:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
-            repo.insert_account(
+            store.accounts.insert_account(
                 AccountRow(
                     id=account_id,
                     name=name,
@@ -302,7 +305,7 @@ class CredentialService:
                     updated_at=now,
                 )
             )
-            repo.upsert_plex_link(
+            store.accounts.upsert_plex_link(
                 PlexLinkRow(
                     account_id=account_id,
                     plex_id=plex.plex_id,
@@ -349,11 +352,11 @@ class CredentialService:
             AppBadRequest: ``password.current_wrong``; ``password.too_short`` /
                 ``password.too_weak`` (``params.minimum``).
         """
-        repo = self._repo_factory()
-        account = repo.account(actor.account_id)
+        store = self._store
+        account = store.accounts.account(actor.account_id)
         if account is None:
             raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
-        refuse_password_held_elsewhere(sign_in_kind(repo.plex_link(account.id)))
+        refuse_password_held_elsewhere(sign_in_kind(store.accounts.plex_link(account.id)))
         if not self._password_limiter.allow(account.id):
             log.warning("password_change_rate_limited", account_id=account.id)
             raise AppTooManyRequests(
@@ -372,18 +375,18 @@ class CredentialService:
             raise refusal
         new_hash = hash_password(new_password)
         kept = self._sessions.live_session_id(token)
-        with repo.immediate():
-            current = repo.account(account.id)
+        with store.immediate():
+            current = store.accounts.account(account.id)
             if current is None:
                 raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
-            refuse_password_held_elsewhere(sign_in_kind(repo.plex_link(current.id)))
+            refuse_password_held_elsewhere(sign_in_kind(store.accounts.plex_link(current.id)))
             if current.password_hash != stored:
                 raise AppBadRequest(
                     "The password changed since it was checked.", code=RefusalCode.PASSWORD_CURRENT_WRONG
                 )
             now = self._clock()
-            repo.set_password_hash(current.id, new_hash, now=now)
-            revoked = repo.revoke_sessions_of(current.id, except_id=kept, now=now)
+            store.accounts.set_password_hash(current.id, new_hash, now=now)
+            revoked = store.sessions.revoke_sessions_of(current.id, except_id=kept, now=now)
         log.info("account_password_changed", account_id=account.id, sessions_revoked=revoked)
 
     @requires("signOut")

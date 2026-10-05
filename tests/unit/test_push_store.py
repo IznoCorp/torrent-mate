@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.api.notify.fcm import PushOutcome, PushResult
-from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.conf.models.config import Config
 from personalscraper.push.store import STALE_AFTER_SECONDS, SqlitePushSubscriptionStore

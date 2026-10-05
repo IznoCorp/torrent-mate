@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from personalscraper.api.notify.fcm import PushMessage, PushOutcome, PushResult, classify
-from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.conf.models.config import Config
 from personalscraper.push.dispatch import PushDispatcher

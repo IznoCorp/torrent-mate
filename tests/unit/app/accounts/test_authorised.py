@@ -12,12 +12,12 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
-from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
@@ -115,7 +115,7 @@ def accounts(store: AppStore) -> RosterService:
     Returns:
         The service.
     """
-    return RosterService(lambda: store.accounts, EventBus())
+    return RosterService(store, EventBus())
 
 
 @pytest.fixture
@@ -129,8 +129,8 @@ def credentials(store: AppStore, limiter: _RecordingLimiter) -> CredentialServic
     Returns:
         The service.
     """
-    sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
-    return CredentialService(lambda: store.accounts, sessions, password_limiter=limiter)
+    sessions = SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
+    return CredentialService(store, sessions, password_limiter=limiter)
 
 
 def _household(store: AppStore, ceiling: InstanceCeiling = _NO_CEILING) -> Actor:
@@ -143,7 +143,7 @@ def _household(store: AppStore, ceiling: InstanceCeiling = _NO_CEILING) -> Actor
     Returns:
         The actor: an ordinary role without ``accounts.manage``.
     """
-    role = store.accounts.role("household")
+    role = store.roles.role("household")
     assert role is not None
     assert Right.ACCOUNTS_MANAGE not in role.rights
     return Actor(

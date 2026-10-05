@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from personalscraper.app.accounts.actor import RoleKind
-from personalscraper.app.accounts.repository import StartKind
 from personalscraper.app.accounts.rights import Right
+from personalscraper.app.accounts.role_repository import StartKind
 from personalscraper.i18n import Language
 
 # ``Language`` is part of what the services answer (``AccountView.language``): the v1

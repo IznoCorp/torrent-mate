@@ -20,10 +20,10 @@ import pytest
 from fastapi import Response
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.avatar import GRAVATAR_SIZE
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.services import AppServices
@@ -115,7 +115,7 @@ class TestReadAccount:
         """
         configured_language("en")
         client = v1_client(role="household")
-        role = _services(client).app_store.accounts.role("household")
+        role = _services(client).app_store.roles.role("household")
         assert role is not None
 
         response = client.get("/auth/me")
@@ -759,7 +759,7 @@ class TestCookie:
                     updated_at=1.0,
                 )
             )
-            sessions = SessionService(lambda: store.accounts, idle_days=web.session_idle_days, clock=lambda: 1_000.0)
+            sessions = SessionService(store, idle_days=web.session_idle_days, clock=lambda: 1_000.0)
             sessions.open("account-ttl", user_agent=None)
             conn = sqlite3.connect(tmp_path / "app.db")
             try:

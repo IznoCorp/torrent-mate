@@ -19,9 +19,9 @@ import json5
 import pytest
 from pydantic import ValidationError
 
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import (
@@ -116,7 +116,7 @@ def sessions(store: AppStore, clock: _Clock) -> SessionService:
     Returns:
         The service.
     """
-    return SessionService(lambda: store.accounts, idle_days=_IDLE_DAYS, ceiling=lambda: _NO_CEILING, clock=clock)
+    return SessionService(store, idle_days=_IDLE_DAYS, ceiling=lambda: _NO_CEILING, clock=clock)
 
 
 def _rows(store: AppStore) -> list[tuple[object, ...]]:
@@ -230,7 +230,7 @@ class TestResolve:
         after = sessions.resolve(token)
         assert before is not None and after is not None
         assert after.role_id == "local-guest"
-        assert after.role_rights == store.accounts.role("local-guest").rights  # type: ignore[union-attr]
+        assert after.role_rights == store.roles.role("local-guest").rights  # type: ignore[union-attr]
         assert after.role_rights != before.role_rights
 
     def test_a_session_whose_role_is_gone_is_nobody(self, sessions: SessionService, store: AppStore) -> None:
@@ -241,7 +241,7 @@ class TestResolve:
 
     def test_read_account_refuses_once_the_role_is_gone(self, sessions: SessionService, store: AppStore) -> None:
         """An actor resolved before its role vanished is refused ``auth.required``."""
-        accounts = RosterService(lambda: store.accounts, EventBus())
+        accounts = RosterService(store, EventBus())
         actor = sessions.resolve(sessions.open(_ACCOUNT_ID, user_agent=None))
         assert actor is not None
         _delete_the_role(store, "household")
@@ -260,7 +260,7 @@ class TestResolve:
     def test_the_ceiling_is_read_at_each_call(self, store: AppStore, clock: _Clock) -> None:
         """The instance ceiling is the one current at resolution."""
         ceilings = [_NO_CEILING, InstanceCeiling(forbidden=frozenset({Right.LIBRARY_DELETE}), read_only=False)]
-        service = SessionService(lambda: store.accounts, idle_days=_IDLE_DAYS, ceiling=lambda: ceilings[0], clock=clock)
+        service = SessionService(store, idle_days=_IDLE_DAYS, ceiling=lambda: ceilings[0], clock=clock)
         token = service.open(_ACCOUNT_ID, user_agent=None)
         ceilings.reverse()
         actor = service.resolve(token)
@@ -389,11 +389,11 @@ class TestRenewal:
         """A second use whose row was read before the first renewed loses the race: one rotation."""
         token = sessions.open(_ACCOUNT_ID, user_agent=None)
         clock.now += SESSION_RENEWAL_INTERVAL_S
-        stale = store.accounts.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
+        stale = store.sessions.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
         first = sessions.use(token)
         assert first is not None and first.renewed_token is not None
         assert stale is not None
-        assert sessions._renew(store.accounts, stale, clock.now) is None  # noqa: SLF001 — the race's loser
+        assert sessions._renew(store, stale, clock.now) is None  # noqa: SLF001 — the race's loser
         assert _rows(store)[0][0] == hashlib.sha256(first.renewed_token.encode()).hexdigest()
 
     def test_a_revoked_session_never_renews(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
@@ -413,7 +413,7 @@ class TestRenewal:
         clock.now += SESSION_RENEWAL_INTERVAL_S
         use = sessions.use(old)
         assert use is not None and use.renewed_token is not None
-        store.accounts.revoke_sessions_of(_ACCOUNT_ID, except_id=None, now=clock.now)
+        store.sessions.revoke_sessions_of(_ACCOUNT_ID, except_id=None, now=clock.now)
         assert sessions.use(old) is None
         assert sessions.use(use.renewed_token) is None
 

@@ -12,8 +12,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.passwords import hash_password
-from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import build_app_store

@@ -16,11 +16,11 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.app.accounts import credentials as credentials_module
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.passwords import hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, WINDOW_SECONDS, SlidingWindowRateLimiter
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import AppBadRequest, AppNotFound, AppTooManyRequests, AppUnauthenticated, RefusalCode
 from personalscraper.app.store.store import AppStore
@@ -151,9 +151,9 @@ def accounts(store: AppStore, limiter_clock: _Clock) -> CredentialService:
     Returns:
         The service.
     """
-    sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
+    sessions = SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
     return CredentialService(
-        lambda: store.accounts,
+        store,
         sessions,
         limiter=SlidingWindowRateLimiter(clock=limiter_clock),
     )
@@ -331,9 +331,9 @@ class TestRateLimit:
 
     def test_each_service_has_its_own_limiter(self, store: AppStore) -> None:
         """Without an injected limiter, each service builds its own (v0's is never shared)."""
-        sessions = SessionService(lambda: store.accounts, idle_days=1)
-        first = CredentialService(lambda: store.accounts, sessions)
-        second = CredentialService(lambda: store.accounts, sessions)
+        sessions = SessionService(store, idle_days=1)
+        first = CredentialService(store, sessions)
+        second = CredentialService(store, sessions)
         self._exhaust(first)
         assert _sign_in(second, "local@example.org", _PASSWORD).account.id == "account-local"
 

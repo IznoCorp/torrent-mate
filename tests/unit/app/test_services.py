@@ -10,8 +10,8 @@ import pytest
 from personalscraper.acquire.delete_authority import StrictDeletePermit
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.plex import PlexClient
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
-from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
 from personalscraper.app.library.reads import LibraryReads
 from personalscraper.app.services import AppServices
@@ -59,7 +59,7 @@ def test_the_configured_idle_lifetime_reaches_the_sessions(test_config: Config) 
             )
         )
         token = services.sessions.open("account-alice", user_agent=None)
-        row = repo.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
+        row = services.app_store.sessions.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
         assert row is not None
         assert row.expires_at - row.created_at == 5 * 86_400
     finally:

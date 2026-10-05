@@ -18,8 +18,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.passwords import verify_password
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.cli import app as cli_app
@@ -560,7 +560,7 @@ class TestOpenSession:
         assert token and result.stdout == f"{token}\n"
         app_store = AppStore(store_file)
         try:
-            actor = SessionService(lambda: app_store.accounts, idle_days=30).resolve(token)
+            actor = SessionService(app_store, idle_days=30).resolve(token)
         finally:
             app_store.close()
         assert actor is not None and actor.account_id == owner_id

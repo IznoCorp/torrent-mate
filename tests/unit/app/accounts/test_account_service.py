@@ -17,13 +17,14 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.app.accounts.account_repository import AccountRepository, AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, verify_password
-from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
+from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
@@ -75,7 +76,9 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     """
     app_store = AppStore(tmp_path / "app.db")
     repo = app_store.accounts
-    repo.insert_role(RoleRow(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=_MANAGER_RIGHTS), now=1.0)
+    app_store.roles.insert_role(
+        RoleRow(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=_MANAGER_RIGHTS), now=1.0
+    )
     repo.insert_account(_account("account-admin", "admin", 1.0))
     repo.insert_account(_account("account-manager", "manager", 2.0))
     repo.insert_account(_account("account-household", "household", 3.0))
@@ -96,7 +99,7 @@ def _service(store: AppStore, bus: EventBus) -> RosterService:
     Returns:
         The service.
     """
-    return RosterService(lambda: store.accounts, bus)
+    return RosterService(store, bus)
 
 
 def _roles(store: AppStore, bus: EventBus) -> RoleService:
@@ -109,7 +112,7 @@ def _roles(store: AppStore, bus: EventBus) -> RoleService:
     Returns:
         The service.
     """
-    return RoleService(lambda: store.accounts, bus)
+    return RoleService(store, bus)
 
 
 def _credentials(store: AppStore) -> CredentialService:
@@ -121,8 +124,8 @@ def _credentials(store: AppStore) -> CredentialService:
     Returns:
         The service.
     """
-    sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
-    return CredentialService(lambda: store.accounts, sessions)
+    sessions = SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
+    return CredentialService(store, sessions)
 
 
 @pytest.fixture
@@ -178,19 +181,19 @@ def roles(store: AppStore, bus: EventBus) -> RoleService:
     return _roles(store, bus)
 
 
-def _actor_of(repo: AccountRepository, account_id: str) -> Actor:
+def _actor_of(store: AppStore, account_id: str) -> Actor:
     """The actor an account signs in as, read from the base.
 
     Args:
-        repo: The repository.
+        store: The ``app`` store.
         account_id: The account.
 
     Returns:
         Its actor, with no ceiling.
     """
-    account = repo.account(account_id)
+    account = store.accounts.account(account_id)
     assert account is not None
-    role = repo.role(account.role_id)
+    role = store.roles.role(account.role_id)
     assert role is not None
     return Actor(
         account_id=account.id,
@@ -212,7 +215,7 @@ def admin(store: AppStore) -> Actor:
     Returns:
         The actor.
     """
-    return _actor_of(store.accounts, "account-admin")
+    return _actor_of(store, "account-admin")
 
 
 @pytest.fixture
@@ -225,7 +228,7 @@ def manager(store: AppStore) -> Actor:
     Returns:
         The actor.
     """
-    return _actor_of(store.accounts, "account-manager")
+    return _actor_of(store, "account-manager")
 
 
 def _make_owner(store: AppStore, account_id: str) -> None:
@@ -261,7 +264,7 @@ def owner(store: AppStore) -> Actor:
         The actor.
     """
     _make_owner(store, "account-admin")
-    return _actor_of(store.accounts, "account-admin")
+    return _actor_of(store, "account-admin")
 
 
 @pytest.fixture(params=["local", "plex-shared"])
@@ -291,7 +294,7 @@ def non_owner_admin(request: pytest.FixtureRequest, store: AppStore) -> Actor:
                 last_sign_in_at=None,
             )
         )
-    return _actor_of(store.accounts, "account-admin")
+    return _actor_of(store, "account-admin")
 
 
 def _refusal(call: Callable[[], object]) -> AppRefusal:
@@ -683,7 +686,7 @@ class TestUpdateAccount:
         """
         _make_owner(store, "account-admin")
         store.accounts.insert_account(_account("account-admin-2", "admin", 5.0))
-        actor = _actor_of(store.accounts, "account-admin" if caller == "the-owner" else "account-admin-2")
+        actor = _actor_of(store, "account-admin" if caller == "the-owner" else "account-admin-2")
 
         refusal = _refusal(lambda: accounts.update_account(actor, "account-admin", role_id="local-guest"))
 
@@ -736,8 +739,8 @@ class TestUpdateAccount:
         """
         store.accounts.insert_account(_account("account-admin-2", "admin", 5.0))
         actors = {
-            "account-admin": _actor_of(store.accounts, "account-admin"),
-            "account-admin-2": _actor_of(store.accounts, "account-admin-2"),
+            "account-admin": _actor_of(store, "account-admin"),
+            "account-admin-2": _actor_of(store, "account-admin-2"),
         }
         barrier = threading.Barrier(2, timeout=1.0)
         stores = [AppStore(tmp_path / "app.db"), AppStore(tmp_path / "app.db")]
@@ -772,8 +775,9 @@ class TestUpdateAccount:
             repo.count_on_role_kind = _count  # type: ignore[method-assign]
             return repo
 
-        repos = [_waiting(one.accounts) for one in stores]
-        services = [RosterService(lambda repo=repo: repo, EventBus()) for repo in repos]  # type: ignore[arg-type,misc]
+        for one in stores:
+            _waiting(one.accounts)
+        services = [RosterService(one, EventBus()) for one in stores]
         outcomes: dict[str, str] = {}
 
         def _demote(index: int, caller: str, other: str) -> None:
@@ -844,28 +848,28 @@ class TestCreateRole:
         assert created.name == "Friends"
         assert created.rights == (Right.LIBRARY_READ, Right.TRACKERS_VIEW)
         assert created.default_for == ()
-        assert store.accounts.role(created.id) is not None
+        assert store.roles.role(created.id) is not None
         assert published == []
 
     @pytest.mark.parametrize("name", ["", "   "], ids=["empty", "blank"])
     def test_a_blank_name_is_required(self, store: AppStore, roles: RoleService, admin: Actor, name: str) -> None:
         """400 ``role.name_required``: a role carries the name typed, none is made up; nothing is created."""
-        before = len(store.accounts.roles())
+        before = len(store.roles.roles())
         refusal = _refusal(lambda: roles.create_role(admin, name=name, rights=[]))
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.ROLE_NAME_REQUIRED
-        assert len(store.accounts.roles()) == before
+        assert len(store.roles.roles()) == before
 
     @pytest.mark.parametrize("name", ["Manager", " manager ", "MANAGER"], ids=["same", "trimmed", "other-case"])
     def test_a_name_another_role_carries_is_taken(
         self, store: AppStore, roles: RoleService, admin: Actor, name: str
     ) -> None:
         """409 ``role.name_taken``, compared trimmed and regardless of case; nothing is created."""
-        before = len(store.accounts.roles())
+        before = len(store.roles.roles())
         refusal = _refusal(lambda: roles.create_role(admin, name=name, rights=[]))
         assert isinstance(refusal, AppConflict)
         assert refusal.code is RefusalCode.ROLE_NAME_TAKEN
-        assert len(store.accounts.roles()) == before
+        assert len(store.roles.roles()) == before
 
     def test_names_compare_by_unicode_lowercase_as_the_maquette_does(self, roles: RoleService, admin: Actor) -> None:
         """« STRASSE » and « straße » are two names, as ``toLowerCase`` reads them; « strasse » is « STRASSE »."""
@@ -1009,7 +1013,7 @@ class TestUpdateRole:
         refusal = _refusal(lambda: roles.update_role(manager, "local-guest", rights=["library.read", "library.delete"]))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
-        role = store.accounts.role("local-guest")
+        role = store.roles.role("local-guest")
         assert role is not None
         assert role.rights == frozenset({Right.LIBRARY_READ})
         assert published == []
@@ -1025,7 +1029,7 @@ class TestUpdateRole:
         refusal = _refusal(lambda: roles.update_role(admin, "plex-guest", name=" manager "))
         assert isinstance(refusal, AppConflict)
         assert refusal.code is RefusalCode.ROLE_NAME_TAKEN
-        role = store.accounts.role("plex-guest")
+        role = store.roles.role("plex-guest")
         assert role is not None and role.name is None
 
     def test_a_role_keeps_its_own_name_in_another_case(self, roles: RoleService, admin: Actor) -> None:
@@ -1051,7 +1055,7 @@ class TestDeleteRole:
 
         roles.delete_role(admin, created.id)
 
-        assert store.accounts.role(created.id) is None
+        assert store.roles.role(created.id) is None
         rows = store.accounts._conn.execute(  # noqa: SLF001
             "SELECT count(*) FROM role_right WHERE role_id = ?", (created.id,)
         ).fetchone()
@@ -1063,7 +1067,7 @@ class TestDeleteRole:
     ) -> None:
         """``requester`` is nobody's start role: deletable once unheld."""
         roles.delete_role(admin, "requester")
-        assert store.accounts.role("requester") is None
+        assert store.roles.role("requester") is None
 
     @pytest.mark.parametrize(
         ("role_id", "status", "code"),
@@ -1083,7 +1087,7 @@ class TestDeleteRole:
         refusal = _refusal(lambda: roles.delete_role(admin, role_id))
         assert (refusal.status, refusal.code) == (status, code)
         if role_id != "nobody":
-            assert store.accounts.role(role_id) is not None
+            assert store.roles.role(role_id) is not None
 
     def test_a_manager_never_deletes_a_role_beyond_its_own(
         self, store: AppStore, roles: RoleService, manager: Actor
@@ -1092,13 +1096,13 @@ class TestDeleteRole:
         refusal = _refusal(lambda: roles.delete_role(manager, "requester"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
-        assert store.accounts.role("requester") is not None
+        assert store.roles.role("requester") is not None
 
     def test_a_manager_deletes_a_role_within_its_own(self, store: AppStore, roles: RoleService, manager: Actor) -> None:
         """A role whose rights the manager holds, held by nobody: gone."""
         created = roles.create_role(manager, name="Readers", rights=["library.read"])
         roles.delete_role(manager, created.id)
-        assert store.accounts.role(created.id) is None
+        assert store.roles.role(created.id) is None
 
 
 _OWNER_EMAIL = "owner@example.org"
@@ -1154,7 +1158,7 @@ class TestCreateOwner:
         signed_in = service.sign_in_with_password(
             _OWNER_EMAIL.upper(), _OWNER_PASSWORD, client_key="test", user_agent=None
         )
-        read = _service(empty_store, bus).read_account(_actor_of(empty_store.accounts, account_id))
+        read = _service(empty_store, bus).read_account(_actor_of(empty_store, account_id))
 
         assert signed_in.account.id == account_id
         assert read.sign_in_kind is SignInKind.OWNER
@@ -1315,7 +1319,7 @@ class TestSetOwnLanguage:
         self, store: AppStore, accounts: RosterService
     ) -> None:
         """The account answered carries the language chosen, so does the next read; no other row moves."""
-        caller = _actor_of(store.accounts, "account-guest")
+        caller = _actor_of(store, "account-guest")
         store.accounts.set_language("account-household", Language.EN, now=1.0)
 
         first = accounts.set_own_language(caller, Language.EN)
@@ -1328,7 +1332,7 @@ class TestSetOwnLanguage:
 
     def test_an_account_gone_since_its_session_is_auth_required(self, store: AppStore, accounts: RosterService) -> None:
         """The session's account was deleted: ``auth.required``, nothing written."""
-        caller = _actor_of(store.accounts, "account-guest")
+        caller = _actor_of(store, "account-guest")
         store.accounts._conn.execute("DELETE FROM account WHERE id = ?", (caller.account_id,))  # noqa: SLF001
 
         with pytest.raises(AppRefusal) as raised:

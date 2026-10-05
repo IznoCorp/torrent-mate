@@ -17,14 +17,16 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.app.accounts import credentials as credentials_module
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.passwords import hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, SlidingWindowRateLimiter
-from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
+from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.roster import RosterService
+from personalscraper.app.accounts.session_repository import SessionRepository
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import AppForbidden, AppNotFound, AppUnauthenticated, RefusalCode
 from personalscraper.app.store.store import AppStore
@@ -120,7 +122,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     """
     app_store = AppStore(tmp_path / "app.db")
     repo = app_store.accounts
-    repo.insert_role(
+    app_store.roles.insert_role(
         RoleRow(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=frozenset({Right.ACCOUNTS_MANAGE})),
         now=1.0,
     )
@@ -161,7 +163,7 @@ def sessions(store: AppStore) -> SessionService:
     Returns:
         The service.
     """
-    return SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
+    return SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
 
 
 @pytest.fixture
@@ -185,7 +187,7 @@ def accounts(store: AppStore, bus: EventBus) -> RosterService:
     Returns:
         The service.
     """
-    return RosterService(lambda: store.accounts, bus)
+    return RosterService(store, bus)
 
 
 @pytest.fixture
@@ -200,7 +202,7 @@ def credentials(store: AppStore, sessions: SessionService, limiter: SlidingWindo
     Returns:
         The service.
     """
-    return CredentialService(lambda: store.accounts, sessions, limiter=limiter)
+    return CredentialService(store, sessions, limiter=limiter)
 
 
 def _signed_in(sessions: SessionService, account_id: str) -> tuple[Actor, str]:
@@ -354,7 +356,7 @@ class TestSetAccountAccess:
         admin, _ = _signed_in(sessions, "admin")
         _, running = _signed_in(sessions, "local")
         with (
-            patch.object(AccountRepository, "revoke_sessions_of", side_effect=RuntimeError("disk")),
+            patch.object(SessionRepository, "revoke_sessions_of", side_effect=RuntimeError("disk")),
             pytest.raises(RuntimeError),
         ):
             accounts.set_account_access(admin, "local", allowed=False)

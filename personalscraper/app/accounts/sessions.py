@@ -31,7 +31,8 @@ from typing import Final
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling, current_ceiling
-from personalscraper.app.accounts.repository import AccountRepository, SessionRow
+from personalscraper.app.accounts.session_repository import SessionRow
+from personalscraper.app.store.store import AppStore
 
 #: A session is renewed — its expiry moved, its value rotated — at most this often
 #: (seconds): a burst of requests is one write, not one per request. An hour is nothing
@@ -110,7 +111,7 @@ class SessionService:
 
     def __init__(
         self,
-        repo_factory: Callable[[], AccountRepository],
+        store: AppStore,
         *,
         idle_days: int,
         ceiling: Callable[[], InstanceCeiling] = current_ceiling,
@@ -119,12 +120,12 @@ class SessionService:
         """Build the service; nothing is opened until the first call.
 
         Args:
-            repo_factory: Returns the account repository (opening ``app.db`` on first use).
+            store: The environment's ``app.db``, opened on first use.
             idle_days: A session's idle lifetime (``config.web.session_idle_days``).
             ceiling: Reads the instance ceiling, at each resolution.
             clock: The epoch clock.
         """
-        self._repo_factory = repo_factory
+        self._store = store
         self._idle_s = session_idle_s(idle_days)
         self._ceiling = ceiling
         self._clock = clock
@@ -155,7 +156,7 @@ class SessionService:
         """
         token = secrets.token_urlsafe(_TOKEN_BYTES)
         now = self._clock()
-        self._repo_factory().insert_session(
+        self._store.sessions.insert_session(
             SessionRow(
                 id=0,
                 account_id=account_id,
@@ -169,14 +170,14 @@ class SessionService:
         )
         return token
 
-    def _live_session(self, repo: AccountRepository, token: str, now: float) -> tuple[SessionRow, bool] | None:
+    def _live_session(self, store: AppStore, token: str, now: float) -> tuple[SessionRow, bool] | None:
         """The live session a cookie value names, by its current value or a replaced one.
 
         Presenting a session's current value proves its browser holds it: the values it
         replaced then have :data:`SESSION_ROTATION_GRACE_S` left.
 
         Args:
-            repo: The account repository.
+            store: The ``app`` store.
             token: The cookie value.
             now: The current time.
 
@@ -186,14 +187,14 @@ class SessionService:
             when unknown, revoked or expired, or a replaced value past its grace.
         """
         token_hash = _token_hash(token)
-        row = repo.session_by_hash(token_hash)
+        row = store.sessions.session_by_hash(token_hash)
         # The lookup is an index equality; the explicit constant-time comparison keeps
         # the acceptance itself free of a timing difference.
         if row is not None and hmac.compare_digest(row.token_hash, token_hash):
             self._confirm(row.id, now)
             found: tuple[SessionRow, bool] | None = (row, True)
         else:
-            found = self._replaced_session(repo, token_hash, now)
+            found = self._replaced_session(store, token_hash, now)
         if found is None or found[0].revoked_at is not None or now >= found[0].expires_at:
             return None
         return found
@@ -211,11 +212,11 @@ class SessionService:
                 if replaced is not None and replaced.until is None:
                     replaced.until = now + SESSION_ROTATION_GRACE_S
 
-    def _replaced_session(self, repo: AccountRepository, token_hash: str, now: float) -> tuple[SessionRow, bool] | None:
+    def _replaced_session(self, store: AppStore, token_hash: str, now: float) -> tuple[SessionRow, bool] | None:
         """The session a replaced value still names.
 
         Args:
-            repo: The account repository.
+            store: The ``app`` store.
             token_hash: The presented value's hash, unknown to the base.
             now: The current time.
 
@@ -231,21 +232,21 @@ class SessionService:
             if replaced.until is not None and now >= replaced.until:
                 del self._replaced[token_hash]
                 return None
-            row = repo.session(replaced.session_id)
+            row = store.sessions.session(replaced.session_id)
             return (row, replaced.until is None) if row is not None else None
 
-    def _actor(self, repo: AccountRepository, session: SessionRow) -> Actor | None:
+    def _actor(self, store: AppStore, session: SessionRow) -> Actor | None:
         """The actor a live session signs in, its role and rights read now.
 
         Args:
-            repo: The account repository.
+            store: The ``app`` store.
             session: The live session.
 
         Returns:
             The actor, or ``None`` when its account or role is gone.
         """
-        account = repo.account(session.account_id)
-        role = repo.role(account.role_id) if account is not None else None
+        account = store.accounts.account(session.account_id)
+        role = store.roles.role(account.role_id) if account is not None else None
         if account is None or role is None:
             return None
         return Actor(
@@ -267,9 +268,9 @@ class SessionService:
             The actor, with its role and rights read now and the current ceiling; ``None``
             when the session is unknown, expired or revoked, or its account or role is gone.
         """
-        repo = self._repo_factory()
-        found = self._live_session(repo, token, self._clock())
-        return self._actor(repo, found[0]) if found is not None else None
+        store = self._store
+        found = self._live_session(store, token, self._clock())
+        return self._actor(store, found[0]) if found is not None else None
 
     def use(self, token: str) -> SessionUse | None:
         """A request's use of a session: the actor it signs in, the session renewed when due.
@@ -281,21 +282,21 @@ class SessionService:
             The actor and, when this use renewed the session, its new value; ``None`` when
             :meth:`resolve` would answer ``None``.
         """
-        repo = self._repo_factory()
+        store = self._store
         now = self._clock()
-        found = self._live_session(repo, token, now)
+        found = self._live_session(store, token, now)
         if found is None:
             return None
         session, renewable = found
-        actor = self._actor(repo, session)
+        actor = self._actor(store, session)
         if actor is None:
             return None
         renewed = None
         if renewable and now - session.last_seen_at >= SESSION_RENEWAL_INTERVAL_S:
-            renewed = self._renew(repo, session, now)
+            renewed = self._renew(store, session, now)
         return SessionUse(actor=actor, renewed_token=renewed)
 
-    def _renew(self, repo: AccountRepository, session: SessionRow, now: float) -> str | None:
+    def _renew(self, store: AppStore, session: SessionRow, now: float) -> str | None:
         """Move a session's expiry to now plus its idle lifetime, under a new value.
 
         The value the renewal overwrites — the row's, whichever value was presented — is
@@ -306,7 +307,7 @@ class SessionService:
         keeps its entry, its grace never reset.
 
         Args:
-            repo: The account repository.
+            store: The ``app`` store.
             session: The session as this request read it; its ``token_hash`` is the value
                 the conditional write overwrites.
             now: The current time.
@@ -317,7 +318,7 @@ class SessionService:
         """
         new_token = secrets.token_urlsafe(_TOKEN_BYTES)
         with self._lock:
-            renewed = repo.renew_session(
+            renewed = store.sessions.renew_session(
                 session.id,
                 seen_at=session.last_seen_at,
                 token_hash=_token_hash(new_token),
@@ -363,7 +364,7 @@ class SessionService:
         Returns:
             The session's key, or ``None`` when unknown, revoked or expired.
         """
-        found = self._live_session(self._repo_factory(), token, self._clock())
+        found = self._live_session(self._store, token, self._clock())
         return found[0].id if found is not None else None
 
     def close(self, token: str) -> None:
@@ -373,8 +374,8 @@ class SessionService:
             token: The cookie value, current or replaced. An unknown, expired or already
                 revoked one is a no-op.
         """
-        repo = self._repo_factory()
+        store = self._store
         now = self._clock()
-        found = self._live_session(repo, token, now)
+        found = self._live_session(store, token, now)
         if found is not None:
-            repo.revoke_session(found[0].id, now=now)
+            store.sessions.revoke_session(found[0].id, now=now)

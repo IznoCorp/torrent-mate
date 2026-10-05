@@ -17,9 +17,9 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.passwords import hash_password
-from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.accounts.sessions import (
     SESSION_RENEWAL_INTERVAL_S,
     SESSION_ROTATION_GRACE_S,
@@ -106,8 +106,8 @@ def wire(test_config: Config, make_v1_services: Callable[[], AppServices]) -> _W
     built = make_v1_services()
     clock = _Clock()
     store = built.app_store
-    sessions = SessionService(lambda: store.accounts, idle_days=test_config.web.session_idle_days, clock=clock)
-    credentials = CredentialService(lambda: store.accounts, sessions)
+    sessions = SessionService(store, idle_days=test_config.web.session_idle_days, clock=clock)
+    credentials = CredentialService(store, sessions)
     services = dataclasses.replace(built, sessions=sessions, credentials=credentials)
     store.accounts.insert_account(
         AccountRow(
@@ -241,7 +241,7 @@ class TestRevocationUnchanged:
 
     def test_a_revoked_session_never_renews(self, wire: _Wire) -> None:
         """Every session of the account revoked (an Admin's cut): 401, and no cookie handed."""
-        wire.services.app_store.accounts.revoke_sessions_of(wire.account_id, except_id=None, now=wire.clock.now)
+        wire.services.app_store.sessions.revoke_sessions_of(wire.account_id, except_id=None, now=wire.clock.now)
         wire.clock.now += SESSION_RENEWAL_INTERVAL_S
         refused = wire.send("GET", "/auth/me", wire.token)
         assert refused.status_code == 401
@@ -262,6 +262,6 @@ class TestRevocationUnchanged:
         """Revoked after a renewal: neither the new value nor the replaced one signs in."""
         wire.clock.now += SESSION_RENEWAL_INTERVAL_S
         new = _renewed(wire.send("GET", "/auth/me", wire.token))
-        wire.services.app_store.accounts.revoke_sessions_of(wire.account_id, except_id=None, now=wire.clock.now)
+        wire.services.app_store.sessions.revoke_sessions_of(wire.account_id, except_id=None, now=wire.clock.now)
         assert wire.send("GET", "/auth/me", wire.token).status_code == 401
         assert wire.send("GET", "/auth/me", new).status_code == 401

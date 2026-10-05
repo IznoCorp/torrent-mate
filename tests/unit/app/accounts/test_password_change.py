@@ -17,13 +17,14 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.app.accounts import credentials as credentials_module
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, WINDOW_SECONDS, SlidingWindowRateLimiter
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
+from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import (
@@ -128,7 +129,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     """
     app_store = AppStore(tmp_path / "app.db")
     repo = app_store.accounts
-    repo.insert_role(
+    app_store.roles.insert_role(
         RoleRow(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=frozenset({Right.ACCOUNTS_MANAGE})),
         now=1.0,
     )
@@ -177,7 +178,7 @@ def sessions(store: AppStore) -> SessionService:
     Returns:
         The service.
     """
-    return SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
+    return SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
 
 
 @pytest.fixture
@@ -193,7 +194,7 @@ def accounts(store: AppStore, sessions: SessionService, limiter_clock: _Clock) -
         The service.
     """
     return CredentialService(
-        lambda: store.accounts,
+        store,
         sessions,
         password_limiter=SlidingWindowRateLimiter(clock=limiter_clock),
     )
@@ -210,7 +211,7 @@ def roster(store: AppStore, bus: EventBus) -> RosterService:
     Returns:
         The service.
     """
-    return RosterService(lambda: store.accounts, bus)
+    return RosterService(store, bus)
 
 
 def _signed_in(sessions: SessionService, account_id: str) -> tuple[Actor, str]:
@@ -450,7 +451,7 @@ class TestChangeRateLimit:
 
     def test_the_sign_in_limiter_is_another(self, store: AppStore, sessions: SessionService) -> None:
         """Wrong current passwords never spend the sign-in door's budget, nor the reverse."""
-        accounts = CredentialService(lambda: store.accounts, sessions)
+        accounts = CredentialService(store, sessions)
         self._exhaust(accounts, sessions)
         result = accounts.sign_in_with_password("local@example.org", _PASSWORD, client_key="local", user_agent="pytest")
         assert result.account.id == "local"

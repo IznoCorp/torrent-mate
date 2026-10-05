@@ -18,7 +18,7 @@ import pytest
 from cryptography.fernet import Fernet
 from typer.testing import CliRunner
 
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.cli import app as cli_app

@@ -417,10 +417,10 @@ def build_app_services(
     plex = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
     view, library, sheets, rescrape, deletion = _build_library_services(config, lookup, plex)
     app_store = build_app_store(config)
-    sessions = SessionService(lambda: app_store.accounts, idle_days=config.web.session_idle_days)
-    accounts = RosterService(lambda: app_store.accounts, event_bus)
-    roles = RoleService(lambda: app_store.accounts, event_bus)
-    credentials = CredentialService(lambda: app_store.accounts, sessions)
+    sessions = SessionService(app_store, idle_days=config.web.session_idle_days)
+    accounts = RosterService(app_store, event_bus)
+    roles = RoleService(app_store, event_bus)
+    credentials = CredentialService(app_store, sessions)
     return AppServices(
         event_bus=event_bus,
         build_info=BUILD_INFO,
@@ -476,7 +476,7 @@ def _build_plex_sign_in(
         log.error("plex_token.keys_malformed", error=str(exc))
         vault, keys_malformed = None, True
     return PlexSignInService(
-        lambda: app_store.accounts,
+        app_store,
         credentials,
         vault=vault,
         client_factory=lambda product, client_id: PlexAccountClient(product=product, client_identifier=client_id),

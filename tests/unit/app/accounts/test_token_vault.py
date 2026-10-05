@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
-from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow
+from personalscraper.app.accounts.account_repository import AccountRepository, AccountRow, PlexLinkRow
 from personalscraper.app.accounts.token_vault import (
     NoKeptTokenOpens,
     RotationResult,
@@ -233,13 +233,13 @@ class TestFromSettings:
 class TestRows:
     """The three operations over the stored rows."""
 
-    def test_rotate_reseals_every_row_under_the_first_key(self, repo: AccountRepository) -> None:
+    def test_rotate_reseals_every_row_under_the_first_key(self, store: AppStore, repo: AccountRepository) -> None:
         """Two rows under ``old``: both re-sealed, counted, and ``[new]`` alone opens them."""
         old, new = Fernet.generate_key(), Fernet.generate_key()
         for account_id in (_ALICE, _BOB):
             repo.set_token_ciphertext(account_id, TokenVault([old]).seal(account_id, _TOKEN), now=1.0)
 
-        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == RotationResult(rotated=2, skipped=0)
+        assert rotate_kept_tokens(store, TokenVault([new, old]), now=_NOW) == RotationResult(rotated=2, skipped=0)
 
         for account_id in (_ALICE, _BOB):
             blob = _kept(repo, account_id)
@@ -249,7 +249,7 @@ class TestRows:
             assert link is not None and link.token_stored_at == _NOW
 
     def test_rotate_leaves_an_undecryptable_row_alone(
-        self, repo: AccountRepository, caplog: pytest.LogCaptureFixture
+        self, store: AppStore, repo: AccountRepository, caplog: pytest.LogCaptureFixture
     ) -> None:
         """A row no key opens is not counted, not changed, and logged by account id."""
         old, new, lost = (Fernet.generate_key() for _ in range(3))
@@ -257,7 +257,7 @@ class TestRows:
         lost_blob = TokenVault([lost]).seal(_BOB, _TOKEN)
         repo.set_token_ciphertext(_BOB, lost_blob, now=1.0)
 
-        result = rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW)
+        result = rotate_kept_tokens(store, TokenVault([new, old]), now=_NOW)
 
         assert result == RotationResult(rotated=1, skipped=1)
         assert _kept(repo, _BOB) == lost_blob
@@ -266,55 +266,55 @@ class TestRows:
         ]
         assert undecryptable == [_BOB]
 
-    def test_rotate_does_not_launder_a_foreign_ciphertext(self, repo: AccountRepository) -> None:
+    def test_rotate_does_not_launder_a_foreign_ciphertext(self, store: AppStore, repo: AccountRepository) -> None:
         """Alice's blob on Bob's row stays unread after a rotation: the binding survives it."""
         old, new = Fernet.generate_key(), Fernet.generate_key()
         repo.set_token_ciphertext(_BOB, TokenVault([old]).seal(_ALICE, _TOKEN), now=1.0)
 
-        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == RotationResult(rotated=0, skipped=1)
+        assert rotate_kept_tokens(store, TokenVault([new, old]), now=_NOW) == RotationResult(rotated=0, skipped=1)
         blob = _kept(repo, _BOB)
         assert blob is not None
         assert TokenVault([new, old]).open(_BOB, blob) is None
 
-    def test_forget_one_account(self, repo: AccountRepository) -> None:
+    def test_forget_one_account(self, store: AppStore, repo: AccountRepository) -> None:
         """One account: its ciphertext nulled, the other's kept."""
         vault = TokenVault([Fernet.generate_key()])
         for account_id in (_ALICE, _BOB):
             repo.set_token_ciphertext(account_id, vault.seal(account_id, _TOKEN), now=1.0)
 
-        assert forget_kept_tokens(repo, account_id=_ALICE) == 1
+        assert forget_kept_tokens(store, account_id=_ALICE) == 1
 
         alice = repo.plex_link(_ALICE)
         assert alice is not None and alice.token_ciphertext is None and alice.token_stored_at is None
         assert _kept(repo, _BOB) is not None
 
-    def test_forget_an_account_keeping_nothing_counts_zero(self, repo: AccountRepository) -> None:
+    def test_forget_an_account_keeping_nothing_counts_zero(self, store: AppStore, repo: AccountRepository) -> None:
         """Nothing kept: nothing forgotten."""
-        assert forget_kept_tokens(repo, account_id=_ALICE) == 0
+        assert forget_kept_tokens(store, account_id=_ALICE) == 0
 
-    def test_forget_all_nulls_every_ciphertext_and_counts_them(self, repo: AccountRepository) -> None:
+    def test_forget_all_nulls_every_ciphertext_and_counts_them(self, store: AppStore, repo: AccountRepository) -> None:
         """``--all``: every row nulled, the count of those that held one."""
         vault = TokenVault([Fernet.generate_key()])
         for account_id in (_ALICE, _BOB):
             repo.set_token_ciphertext(account_id, vault.seal(account_id, _TOKEN), now=1.0)
 
-        assert forget_kept_tokens(repo, account_id=None) == 2
+        assert forget_kept_tokens(store, account_id=None) == 2
         assert repo.plex_links_with_token() == []
 
-    def test_purge_clears_only_what_no_key_opens(self, repo: AccountRepository) -> None:
+    def test_purge_clears_only_what_no_key_opens(self, store: AppStore, repo: AccountRepository) -> None:
         """A row under a removed key and a foreign row are cleared; a readable row stays."""
         key, removed = Fernet.generate_key(), Fernet.generate_key()
         vault = TokenVault([key])
         repo.set_token_ciphertext(_ALICE, vault.seal(_ALICE, _TOKEN), now=1.0)
         repo.set_token_ciphertext(_BOB, TokenVault([removed]).seal(_BOB, _TOKEN), now=1.0)
 
-        assert purge_undecryptable(repo, vault, now=_NOW) == 1
+        assert purge_undecryptable(store, vault, now=_NOW) == 1
 
         assert _kept(repo, _BOB) is None
         alice = _kept(repo, _ALICE)
         assert alice is not None and vault.open(_ALICE, alice) == _TOKEN
 
-    def test_purge_refuses_when_no_kept_token_opens(self, repo: AccountRepository) -> None:
+    def test_purge_refuses_when_no_kept_token_opens(self, store: AppStore, repo: AccountRepository) -> None:
         """Every row unreadable (a wrong key set): refused, every row unchanged."""
         wrong, removed = Fernet.generate_key(), Fernet.generate_key()
         blobs = {}
@@ -323,30 +323,30 @@ class TestRows:
             repo.set_token_ciphertext(account_id, blobs[account_id], now=1.0)
 
         with pytest.raises(NoKeptTokenOpens):
-            purge_undecryptable(repo, TokenVault([wrong]), now=_NOW)
+            purge_undecryptable(store, TokenVault([wrong]), now=_NOW)
 
         for account_id in (_ALICE, _BOB):
             assert _kept(repo, account_id) == blobs[account_id]
 
-    def test_purge_force_clears_every_row_even_when_none_opens(self, repo: AccountRepository) -> None:
+    def test_purge_force_clears_every_row_even_when_none_opens(self, store: AppStore, repo: AccountRepository) -> None:
         """The same vault with ``force``: every row cleared."""
         wrong, removed = Fernet.generate_key(), Fernet.generate_key()
         for account_id in (_ALICE, _BOB):
             repo.set_token_ciphertext(account_id, TokenVault([removed]).seal(account_id, _TOKEN), now=1.0)
 
-        assert purge_undecryptable(repo, TokenVault([wrong]), now=_NOW, force=True) == 2
+        assert purge_undecryptable(store, TokenVault([wrong]), now=_NOW, force=True) == 2
         assert repo.plex_links_with_token() == []
 
-    def test_purge_with_nothing_kept_is_not_a_refusal(self, repo: AccountRepository) -> None:
+    def test_purge_with_nothing_kept_is_not_a_refusal(self, store: AppStore, repo: AccountRepository) -> None:
         """No kept token at all: nothing to refuse over, zero cleared."""
-        assert purge_undecryptable(repo, TokenVault([Fernet.generate_key()]), now=_NOW) == 0
+        assert purge_undecryptable(store, TokenVault([Fernet.generate_key()]), now=_NOW) == 0
 
 
 class TestLeaks:
     """A planted token and a planted key reach no log, ``repr``, ``str`` or exception text."""
 
     def test_the_token_and_key_are_never_written_out(
-        self, repo: AccountRepository, caplog: pytest.LogCaptureFixture
+        self, store: AppStore, repo: AccountRepository, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Every path of the vault, logged at DEBUG: neither secret appears anywhere."""
         key, other = Fernet.generate_key(), Fernet.generate_key()
@@ -364,9 +364,9 @@ class TestLeaks:
         repo.set_token_ciphertext(_BOB, blob, now=1.0)
         vault.open(_BOB, blob)
         TokenVault([Fernet.generate_key()]).open(_ALICE, blob)
-        rotate_kept_tokens(repo, vault, now=_NOW)
-        purge_undecryptable(repo, vault, now=_NOW)
-        forget_kept_tokens(repo, account_id=None)
+        rotate_kept_tokens(store, vault, now=_NOW)
+        purge_undecryptable(store, vault, now=_NOW)
+        forget_kept_tokens(store, account_id=None)
         texts.extend(repr(link) for link in [repo.plex_link(_ALICE), repo.plex_link(_BOB)])
         for raw in (f"{key.decode()},{_TOKEN}", key.decode()[:-2]):
             with pytest.raises(ValueError) as caught:
