@@ -18,6 +18,7 @@ from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
 
 if TYPE_CHECKING:
+    from personalscraper.app.composition import LazyProviders
     from personalscraper.app.library.service import LibraryService
 
 
@@ -34,6 +35,8 @@ class AppServices:
         sessions: v1's sessions.
         accounts: The account operations.
         plex_sign_in: The Plex door.
+        owned_providers: The provider registry these services built for themselves, closed
+            with them; ``None`` when the process handed its own over, which its owner closes.
     """
 
     event_bus: EventBus
@@ -43,12 +46,15 @@ class AppServices:
     sessions: SessionService
     accounts: AccountService
     plex_sign_in: PlexSignInService
+    owned_providers: LazyProviders | None = None
 
     def close(self) -> None:
-        """Release what the services hold: the library's readers and the ``app.db`` connection, if opened.
+        """Release what the services hold: the library's readers, ``app.db`` and their own registry, if opened.
 
         Called once, from the web parent's lifespan (Starlette never runs a mounted
         sub-application's lifespan); a lot adding a store or a publisher closes it here.
         """
         self.library.close()
         self.app_store.close()
+        if self.owned_providers is not None:
+            self.owned_providers.close()

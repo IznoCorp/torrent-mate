@@ -16,8 +16,8 @@ from typing import Any
 import pytest
 from _repo_paths import CONTRACT, DESIGN_SRC
 
+from personalscraper.app.accounts.requirements import OPERATION_RIGHTS, OWN_SCOPED, PENDING_OPERATIONS
 from personalscraper.app.accounts.rights import AnyOf, Public, Requirement, Right, SignedIn, holds
-from personalscraper.http_v1.rights import OPERATION_RIGHTS, OWN_SCOPED, PENDING_OPERATIONS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CONTRACT = CONTRACT

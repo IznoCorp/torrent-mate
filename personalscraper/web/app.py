@@ -10,7 +10,7 @@ import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, closing, suppress
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fastapi import APIRouter, Depends, FastAPI
 from starlette.middleware.gzip import GZipMiddleware
@@ -24,6 +24,7 @@ from personalscraper.app.relay import (
 )
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
 from personalscraper.http_v1.deprecations import DeprecationHeaders
@@ -38,6 +39,9 @@ from personalscraper.web.routes.health import router as health_router
 from personalscraper.web.routes.version import router as version_router
 from personalscraper.web.static import mount_spa
 from personalscraper.web.ws.routes import router as ws_router
+
+if TYPE_CHECKING:
+    from personalscraper.core.app_context import AppContext
 
 logger = get_logger(__name__)
 
@@ -185,7 +189,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("relay_stopped")
 
 
-def create_app(config: Config, settings: Settings) -> FastAPI:
+def create_app(
+    config: Config,
+    settings: Settings,
+    *,
+    app_context: AppContext | None = None,
+) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Stores ``config`` and ``settings`` on ``app.state`` so that route handlers
@@ -194,6 +203,9 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     Args:
         config: The parsed configuration object (config.json5).
         settings: The application settings (secrets from .env).
+        app_context: The process's composition, whose bus and provider registry v1's
+            services are handed, so the process holds one of each; ``None`` gives them a
+            fresh bus and a registry of their own, built on first use.
 
     Returns:
         A fully configured FastAPI application instance.
@@ -285,7 +297,14 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     # Mounted BEFORE mount_spa: its GET catch-all would otherwise answer a v1 GET.
     # A mount is outside this app's openapi(), so frontend/openapi.json cannot move.
     if config.web.v1_enabled:
-        v1_app = create_v1_app(config, settings, build_app_services(config, settings))
+        services = (
+            build_app_services(config, settings, event_bus=EventBus())
+            if app_context is None
+            else build_app_services(
+                config, settings, event_bus=app_context.event_bus, providers=app_context.provider_registry
+            )
+        )
+        v1_app = create_v1_app(config, settings, services)
         app.state.v1_app = v1_app
         app.mount(V1_PREFIX, v1_app)
         # A successor link to an unmounted v1 would be false: only here.

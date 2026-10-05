@@ -24,6 +24,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from personalscraper.app.composition import build_app_services
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
 
 #: The reverse proxy runs on the same machine: only loopback is trusted by default.
@@ -48,7 +49,7 @@ def build_standalone_v1_app(
     Returns:
         The parent application; its lifespan closes the v1 services on exit.
     """
-    v1_app = create_v1_app(config, settings, build_app_services(config, settings))
+    v1_app = create_v1_app(config, settings, build_app_services(config, settings, event_bus=EventBus()))
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:

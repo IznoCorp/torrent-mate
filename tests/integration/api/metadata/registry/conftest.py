@@ -294,6 +294,8 @@ def build_registry_fakes(monkeypatch: pytest.MonkeyPatch):
             cb_policy_arg: object,
             event_bus_arg: object,
             retry_arg: object = None,
+            *,
+            language: str = "fr-FR",
         ) -> dict[str, object]:
             return {n: fakes[n] for n in names if n in fakes}
 
@@ -307,6 +309,7 @@ def build_registry_fakes(monkeypatch: pytest.MonkeyPatch):
             event_bus=event_bus,
             cb_policy=SimpleNamespace(),
             providers_config=providers_config,
+            language="fr-FR",
         )
 
     return _build
