@@ -8,11 +8,12 @@ from pathlib import Path
 import typer
 
 from personalscraper.cli_state import state
+from personalscraper.i18n import t
 
 info_app = typer.Typer(name="info", invoke_without_command=True)
 
 
-@info_app.callback(invoke_without_command=True)
+@info_app.callback(invoke_without_command=True, help=t("cli_core.info.help"))
 def info(ctx: typer.Context) -> None:
     """Display version, config paths, and disk status.
 
@@ -39,13 +40,15 @@ def info(ctx: typer.Context) -> None:
     )
 
 
-@info_app.command("providers")
+@info_app.command(
+    "providers", help=t("cli_core.info.providers.help", name="<name>", state="<state>", failures="<count>")
+)
 def info_providers(
     ctx: typer.Context,
     config_override: Path | None = typer.Option(
         None,
         "--config",
-        help="Override default config/providers.json5 for boot validation.",
+        help=t("cli_core.info.providers.config_help"),
     ),
 ) -> None:
     """Print per-provider circuit state snapshot from the ProviderRegistry.
@@ -93,6 +96,13 @@ def info_providers(
     try:
         status = registry.status()
         for name, s in status.items():
-            typer.echo(f"{name:<20} circuit={s.circuit_state.value}  failures={s.failure_count_recent}")
+            typer.echo(
+                t(
+                    "cli_core.info.providers.line",
+                    name=f"{name:<20}",
+                    state=s.circuit_state.value,
+                    failures=s.failure_count_recent,
+                )
+            )
     finally:
         registry.close()

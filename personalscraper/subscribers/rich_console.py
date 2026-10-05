@@ -14,6 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from personalscraper.core.event_bus import EventBus, SubscriptionToken
+from personalscraper.i18n import t, t_code
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
@@ -22,9 +23,25 @@ from personalscraper.pipeline_events import (
     StepErrored,
     StepStarted,
 )
+from personalscraper.pipeline_step_codes import StepCode
 
 if TYPE_CHECKING:
     from personalscraper.models import PipelineReport, StepReport
+
+
+def _step_word(step: str) -> str:
+    """Return a step's name in the current language, or ``step`` itself when it is not a pipeline step.
+
+    Args:
+        step: The step identifier carried by the pipeline events.
+
+    Returns:
+        The catalogue word for a :class:`StepCode`, else the identifier unchanged.
+    """
+    try:
+        return t_code("cli_core.step", StepCode(step))
+    except ValueError:
+        return step
 
 
 class RichConsoleSubscriber:
@@ -106,9 +123,12 @@ class RichConsoleSubscriber:
             report: Freshly created ``PipelineReport`` with ``started_at``.
         """
         run_id = self._run_id or report.started_at.isoformat(timespec="seconds")
-        mode = "[yellow]DRY-RUN[/yellow]" if self._dry_run else "[green]LIVE[/green]"
+        if self._dry_run:
+            mode = "[yellow]" + t("cli_core.pipeline_run.mode_dry_run") + "[/yellow]"
+        else:
+            mode = "[green]" + t("cli_core.pipeline_run.mode_live") + "[/green]"
         self.console.print(
-            f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
+            "[bold]" + t("cli_core.pipeline_run.banner") + "[/bold] " + mode + "  [dim]" + run_id + "[/dim]",
             highlight=False,
         )
 
@@ -121,28 +141,35 @@ class RichConsoleSubscriber:
         dur = report.duration()
         minutes = int(dur.total_seconds()) // 60
         seconds = int(dur.total_seconds()) % 60
-        dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
+        if minutes:
+            dur_str = t("cli_core.pipeline_run.duration_minutes", minutes=minutes, seconds=f"{seconds:02d}")
+        else:
+            dur_str = t("cli_core.pipeline_run.duration_seconds", seconds=seconds)
 
         table = Table(show_header=True, header_style="bold")
-        table.add_column("Step")
-        table.add_column("OK", justify="right")
-        table.add_column("Skip", justify="right")
-        table.add_column("Err", justify="right")
+        table.add_column(t("cli_core.pipeline_run.column_step"))
+        table.add_column(t("cli_core.pipeline_run.column_ok"), justify="right")
+        table.add_column(t("cli_core.pipeline_run.column_skip"), justify="right")
+        table.add_column(t("cli_core.pipeline_run.column_err"), justify="right")
         for name, step in report.steps.items():
             err_style = "red" if step.error_count else ""
             table.add_row(
-                name.capitalize(),
+                _step_word(name).capitalize(),
                 str(step.success_count),
                 str(step.skip_count),
                 f"[{err_style}]{step.error_count}[/{err_style}]" if err_style else str(step.error_count),
             )
-        status_text = "[green]OK[/green]" if not report.has_errors() else "[red]ERRORS[/red]"
-        self.console.print(Panel(table, title=f"Pipeline {status_text} — {dur_str}", border_style="bold"))
+        if report.has_errors():
+            status_text = "[red]" + t("cli_core.pipeline_run.status_errors") + "[/red]"
+        else:
+            status_text = "[green]" + t("cli_core.pipeline_run.status_ok") + "[/green]"
+        title = t("cli_core.pipeline_run.panel_title", status=status_text, duration=dur_str)
+        self.console.print(Panel(table, title=title, border_style="bold"))
 
     def _render_step_start(self, step: str) -> None:
         """Print step header."""
         icon = self._icon(step)
-        self.console.print(f"\n{icon} [bold]{step.upper()}[/bold]", highlight=False)
+        self.console.print("\n" + icon + " [bold]" + _step_word(step).upper() + "[/bold]", highlight=False)
 
     def _render_step_end(self, step: str, report: StepReport, elapsed: float) -> None:  # noqa: ARG002
         """Print step summary line and verbose details."""
@@ -152,32 +179,41 @@ class RichConsoleSubscriber:
         err = report.error_count
         parts = []
         if ok:
-            parts.append(f"[green]{ok} OK[/green]")
+            parts.append("[green]" + t("cli_core.pipeline_run.summary_ok", number=ok) + "[/green]")
         if skip:
-            parts.append(f"[yellow]{skip} skip[/yellow]")
+            parts.append("[yellow]" + t("cli_core.pipeline_run.summary_skip", number=skip) + "[/yellow]")
         if err:
-            parts.append(f"[red]{err} err[/red]")
-        summary = ", ".join(parts) if parts else "[dim]nothing to do[/dim]"
-        self.console.print(f"   {summary} ({elapsed_str})", highlight=False)
+            parts.append("[red]" + t("cli_core.pipeline_run.summary_err", number=err) + "[/red]")
+        summary = ", ".join(parts) if parts else "[dim]" + t("cli_core.pipeline_run.nothing_to_do") + "[/dim]"
+        self.console.print(
+            t("cli_core.pipeline_run.step_summary", summary=summary, elapsed=elapsed_str), highlight=False
+        )
 
         if self._verbose:
             for detail in report.details:
                 if "skipped_already_done" in detail:
                     continue
-                self.console.print(f"   [dim]{detail}[/dim]", highlight=False)
+                self.console.print("   [dim]" + detail + "[/dim]", highlight=False)
             for warning in report.warnings:
-                self.console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
+                self.console.print("   [yellow]! " + warning + "[/yellow]", highlight=False)
 
     def _render_step_error(self, error_class: str, error_message: str) -> None:
         """Print fatal error message."""
-        self.console.print(f"   [red]FATAL: {error_class}: {error_message}[/red]", highlight=False)
+        self.console.print(
+            "   [red]"
+            + t("cli_core.pipeline_run.fatal", error_class=error_class, error_message=error_message)
+            + "[/red]",
+            highlight=False,
+        )
 
     def _render_item_progress(self, step: str, item: str, status: str) -> None:
         """Print per-item detail in verbose mode."""
         if not self._verbose:
             return
         self.console.print(
-            f"   [dim]{step}: {item} — {status}[/dim]",
+            "   [dim]"
+            + t("cli_core.pipeline_run.item_progress", step=_step_word(step), item=item, status=status)
+            + "[/dim]",
             highlight=False,
         )
 
