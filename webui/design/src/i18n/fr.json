@@ -829,7 +829,7 @@
       "trigger": {
         "completion": "un téléchargement terminé",
         "safety_net": "le filet de sécurité",
-        "watcher": "la détection des nouveautés",
+        "watcher": "la veille des téléchargements",
         "web": "depuis l'interface",
         "cli": "en ligne de commande",
         "cron": "le planificateur",

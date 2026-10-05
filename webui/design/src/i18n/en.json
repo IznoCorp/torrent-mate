@@ -829,7 +829,7 @@
       "trigger": {
         "completion": "a finished download",
         "safety_net": "the safety net",
-        "watcher": "new-release detection",
+        "watcher": "the download watch",
         "web": "from the interface",
         "cli": "on the command line",
         "cron": "the scheduler",

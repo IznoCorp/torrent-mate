@@ -10,8 +10,8 @@ import i18next from "../../lib/unit-words";
 import { producerFor } from "../../ui/panel/contract";
 import "./panel-more";
 
-/** The one leaf allowed to say « veille »: the downloads watcher daemon, not the detection pass. */
-const OTHER_THING_KEYS = new Set(["screens.system.serviceDownLabel"]);
+/** The leaves allowed to say « veille »: they name the downloads watcher daemon, not the detection pass. */
+const OTHER_THING_KEYS = new Set(["screens.system.serviceDownLabel", "screens.system.trigger.watcher"]);
 
 /**
  * Every string leaf of a catalogue, keyed by its dotted path.

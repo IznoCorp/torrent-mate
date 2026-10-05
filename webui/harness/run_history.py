@@ -20,7 +20,7 @@ WHAT THE LIST IS HELD TO:
      drawn as a complete one is NE-DOIT-PAS-5 exactly.
   4. THE EMPTY LIST IS SAID. « Aucun passage enregistré. » — a heading over
      nothing is not an answer, and a fresh install is a real state.
-  5. THE TRIGGER IS IN WORDS. `watcher` reads « la détection des nouveautés », `web` reads « depuis
+  5. THE TRIGGER IS IN WORDS. `watcher` reads « la veille des téléchargements », `web` reads « depuis
      l'interface ». A legend that teaches the reader a vocabulary is a standing
      refusal: the row says the thing itself.
   5b. A RUN STARTED BY HAND IS THE NEWEST ROW: the first drawn, dated after the
@@ -194,7 +194,7 @@ COUNT_PHRASES = (("successCount", "réussi"), ("skipCount", "ignoré"),
                  ("errorCount", "en erreur"), ("unmatchedCount", "non identifié"))
 
 # The words the triggers are said with — the interface's own, never a legend.
-TRIGGER_WORDS = ("la détection des nouveautés", "depuis l'interface", "un téléchargement", "le planificateur",
+TRIGGER_WORDS = ("la veille des téléchargements", "depuis l'interface", "un téléchargement", "le planificateur",
                  "en ligne de commande", "le filet de sécurité")
 
 
