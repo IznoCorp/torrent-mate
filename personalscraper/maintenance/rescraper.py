@@ -384,6 +384,7 @@ def _rescrape_item(
     dry_run: bool,
     episode_default_name: str = "Episode",
     external_ids_json: str | None = None,
+    force: bool = False,
 ) -> RescrapeAction | None:
     """Rescrape a single media item.
 
@@ -406,14 +407,36 @@ def _rescrape_item(
         external_ids_json: Raw ``media_item.external_ids_json`` for this item,
             consulted when the NFO is absent and merged into the regenerated
             NFO's id families. ``None`` on the filesystem-walk path.
+        force: The item was targeted by id: its NFO is regenerated whatever the
+            detectors find (unless *only* excludes the NFO), and an item left with
+            nothing to do is reported skipped (``SKIP_ALREADY_OK``), never dropped.
 
     Returns:
-        RescrapeAction or None if item is already OK.
+        RescrapeAction, or None if the item is already OK and was not forced.
     """
     needs_nfo, needs_artwork, needs_episodes = _detect_needs(media_dir, media_type, only)
+    # A targeted rescrape asks the providers again: a conforming NFO is no reason
+    # to skip it, or the one item the caller named would vanish from the counts.
+    if force and only in (None, "nfo"):
+        needs_nfo = True
 
     if not any([needs_nfo, needs_artwork, needs_episodes]):
-        return None  # Already OK
+        if not force:
+            return None  # Already OK
+        return RescrapeAction(
+            path=str(media_dir),
+            title=title,
+            media_type=media_type,
+            disk=disk,
+            category=category,
+            actions_taken=[],
+            actions_skipped=[SKIP_ALREADY_OK],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=None,
+            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+        )
 
     # Resolve TMDB ID
     provider_id, id_source, confidence, source = _resolve_tmdb_id(
@@ -864,7 +887,8 @@ def rescrape_library(
         disk_filter: Only rescrape this disk (by disk.id). None = all.
         category_filter: Only rescrape this category_id. None = all.
         item_id: Target exactly this item by its indexer DB id, bypassing the
-            needs-rescrape predicate.  Mutually exclusive with *disk_filter* and
+            needs-rescrape predicate and forcing its NFO's regeneration (see
+            ``_rescrape_item``'s *force*).  Mutually exclusive with *disk_filter* and
             *category_filter*.  None = use standard candidate discovery.
         only: Only apply this action: "nfo", "artwork", "episodes". None = all.
         interactive: If True, prompt for low-confidence matches.
@@ -928,6 +952,7 @@ def rescrape_library(
                 dry_run=dry_run,
                 episode_default_name=scraper_config.episode_default_name,
                 external_ids_json=external_ids_json,
+                force=item_id is not None,
             )
         except Exception as exc:
             log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))

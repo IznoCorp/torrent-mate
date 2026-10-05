@@ -356,11 +356,13 @@ class _Deleted:
         deletion: What was done, Plex not yet asked.
         folders: Its deleted folders.
         removed: The parent folders its deletion left empty and removed.
+        item_id: Its index row, naming it in the log.
     """
 
     deletion: MediaDeletion
     folders: tuple[Path, ...]
     removed: tuple[Path, ...]
+    item_id: int
 
 
 class _Decided:
@@ -1397,6 +1399,7 @@ class LibraryService:
             ),
             tuple(folders),
             tuple(removed),
+            plan.item_id,
         )
 
     def _disk_unmounted(self) -> bool:
@@ -1455,6 +1458,8 @@ class LibraryService:
                 mine = [steps[folder] for folder in one.folders]
                 chosen = min(mine, key=lambda step: _PLEX_SEVERITY.index(step.outcome))
                 report = replace(report, plex=chosen.outcome, plex_steps=chosen)
+            # The outcome is not on the wire: the log is where a sandbox proves Plex was left alone.
+            log.info("app.library.delete_plex", item_id=one.item_id, outcome=report.plex.value)
             media.append(report)
         return DeletionReport(deleted=sum(1 for one in media if one.deleted), media=tuple(media))
 

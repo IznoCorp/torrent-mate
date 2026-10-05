@@ -5,6 +5,7 @@ Temporary folders, a temporary index, a fake Plex and a fake deletion authority 
 
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 import unicodedata
@@ -581,6 +582,38 @@ def test_under_dev_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.MonkeyPa
     assert shelf.plex.calls == []
     assert report.deleted == 1
     assert (report.media[0].plex, report.media[0].plex_steps) == (PlexOutcome.SKIPPED_SANDBOX, None)
+
+
+def test_a_sandboxed_delete_logs_its_plex_outcome(
+    shelf: Shelf, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The Plex outcome of each deleted medium reaches the log, ``skipped_sandbox`` in a sandbox.
+
+    It is not on the wire: the log is where an operator proves Plex was left alone.
+    """
+    from personalscraper.conf import sandbox_guard
+
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+    (shelf.root / ".tm-dev-root").write_bytes(b"")
+    shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
+        disks=[SimpleNamespace(path=shelf.root)],
+        paths=SimpleNamespace(staging_dir=shelf.root),
+        torrent=SimpleNamespace(clients={}),
+    )
+    item_id, _ = shelf.movie("Movie (2020)", "11")
+    caplog.set_level(logging.INFO)
+
+    shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    lines = [
+        dict(record.msg)
+        for record in caplog.records
+        if record.name == "app.library.service"
+        and isinstance(record.msg, dict)
+        and record.msg.get("event") == "app.library.delete_plex"
+    ]
+    assert [(line["item_id"], line["outcome"]) for line in lines] == [(item_id, "skipped_sandbox")]
 
 
 def test_in_prod_plex_is_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1796,6 +1796,86 @@ class TestRescrapeLibraryItemIdThreading:
         # item_id must have been forwarded — check keyword or positional
         assert _call_kwargs.kwargs.get("item_id") == 42 or (len(_call_kwargs.args) >= 5 and _call_kwargs.args[4] == 42)
 
+    def _conforming_movie(self, tmp_path: Path) -> Path:
+        """Create a movie folder the detectors find whole: video, complete NFO and poster.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            Path to the prepared movie directory.
+        """
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">42</uniqueid></movie>')
+        (movie / "Movie-poster.jpg").write_bytes(b"\x00" * 100)
+        return movie
+
+    def _run_item(self, tmp_path: Path, movie: Path, *, only: str | None) -> tuple[object, MagicMock]:
+        """Rescrape *movie* live as one targeted item, its NFO writer and TMDB mocked.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+            movie: The movie folder the item resolves to.
+            only: The ``only`` filter forwarded to ``rescrape_library``.
+
+        Returns:
+            The run's result and the mocked NFO generator instance.
+        """
+        from personalscraper.maintenance.rescraper import rescrape_library
+
+        tmdb = MagicMock()
+        tmdb.get_movie.return_value = {"id": 42, "title": "Movie"}
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper._collect_rescrape_candidates",
+                return_value=[(movie, "movie", "disk1", "movies", None)],
+            ),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator") as nfo_cls,
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+            patch("personalscraper.scraper.mediainfo.extract_stream_info", return_value=None),
+        ):
+            result = rescrape_library(
+                self._config(tmp_path),
+                item_id=1,
+                only=only,
+                dry_run=False,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=tmdb, tvdb=MagicMock()),
+            )
+        return result, nfo_cls.return_value
+
+    def test_item_id_regenerates_a_conforming_nfo(self, tmp_path: Path) -> None:
+        """A targeted item is rescraped even when its folder already conforms.
+
+        The item-id path asks the providers again: the NFO is rewritten and the item
+        counted fixed. Before, the folder detectors found nothing to repair, the item
+        was dropped as « already OK » and the run reported success with total 0.
+        """
+        from personalscraper.maintenance.rescraper import ACTION_NFO_REGENERATED
+
+        result, nfo_gen = self._run_item(tmp_path, self._conforming_movie(tmp_path), only=None)
+
+        assert (result.fixed_count, result.skipped_count, result.error_count) == (1, 0, 0)
+        assert result.items[0].actions_taken == [ACTION_NFO_REGENERATED]
+        nfo_gen.write_nfo.assert_called_once()
+
+    def test_item_id_with_nothing_to_do_is_counted_skipped(self, tmp_path: Path) -> None:
+        """A targeted item the ``only`` filter leaves nothing to do is named, never dropped.
+
+        ``only="artwork"`` keeps the poster detector, and the poster is there: the item
+        is reported skipped as already conforming, so the run's total is never 0 for
+        the one item it was given.
+        """
+        from personalscraper.maintenance.rescraper import SKIP_ALREADY_OK
+
+        result, nfo_gen = self._run_item(tmp_path, self._conforming_movie(tmp_path), only="artwork")
+
+        assert (result.fixed_count, result.skipped_count, result.error_count) == (0, 1, 0)
+        assert result.items[0].actions_skipped == [SKIP_ALREADY_OK]
+        nfo_gen.write_nfo.assert_not_called()
+
 
 class TestArtworkTruthfulness:
     """`artwork_downloaded` must reflect files actually written (2026-07-15).
