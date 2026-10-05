@@ -1812,13 +1812,16 @@ class TestRescrapeLibraryItemIdThreading:
         (movie / "Movie-poster.jpg").write_bytes(b"\x00" * 100)
         return movie
 
-    def _run_item(self, tmp_path: Path, movie: Path, *, only: str | None) -> tuple[object, MagicMock]:
+    def _run_item(
+        self, tmp_path: Path, movie: Path, *, only: str | None, item_id: int | None = 1
+    ) -> tuple[object, MagicMock]:
         """Rescrape *movie* live as one targeted item, its NFO writer and TMDB mocked.
 
         Args:
             tmp_path: pytest tmp_path fixture.
             movie: The movie folder the item resolves to.
             only: The ``only`` filter forwarded to ``rescrape_library``.
+            item_id: The targeted item, or ``None`` for a library-wide run.
 
         Returns:
             The run's result and the mocked NFO generator instance.
@@ -1838,7 +1841,7 @@ class TestRescrapeLibraryItemIdThreading:
         ):
             result = rescrape_library(
                 self._config(tmp_path),
-                item_id=1,
+                item_id=item_id,
                 only=only,
                 dry_run=False,
                 event_bus=EventBus(),
@@ -1874,6 +1877,17 @@ class TestRescrapeLibraryItemIdThreading:
 
         assert (result.fixed_count, result.skipped_count, result.error_count) == (0, 1, 0)
         assert result.items[0].actions_skipped == [SKIP_ALREADY_OK]
+        nfo_gen.write_nfo.assert_not_called()
+
+    def test_library_wide_run_skips_a_conforming_movie(self, tmp_path: Path) -> None:
+        """Without ``item_id`` a conforming folder is left alone, its NFO never rewritten.
+
+        Only the targeted path forces a rescrape; a library-wide run that forced every
+        folder would rewrite each conforming NFO.
+        """
+        result, nfo_gen = self._run_item(tmp_path, self._conforming_movie(tmp_path), only=None, item_id=None)
+
+        assert result.fixed_count == 0
         nfo_gen.write_nfo.assert_not_called()
 
 
