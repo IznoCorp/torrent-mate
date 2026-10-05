@@ -68,5 +68,28 @@
     },
     "error_label": "Error:",
     "no_client": "No torrent client configured. Check config/torrent.json5."
+  },
+  "spine": {
+    "rescrape": {
+      "help": "Re-scrape a precise grab / resume stuck items, seeded from the provenance registry.",
+      "hash_help": "Re-scrape the item with this grab info-hash.",
+      "path_help": "Re-scrape the item at this staging folder.",
+      "stuck_help": "Re-scrape ALL stuck in-flight items.",
+      "older_than_help": "Stuck horizon in seconds (with --stuck).",
+      "dry_run_help": "Preview the targets without scraping.",
+      "no_target": "No matching tracked staging item to re-scrape.",
+      "dry_run_would": "would re-scrape {{items}} item(s):",
+      "done_label": "Re-scrape done:"
+    },
+    "requeue": {
+      "help": "Requeue by journey state: send the item's ``wanted`` row back to ``pending``.",
+      "hash_help": "Requeue the wanted row behind this grab info-hash.",
+      "dry_run_help": "Preview without requeuing.",
+      "no_wanted": "No open grabbed wanted row for {{info_hash}} (nothing to requeue).",
+      "dry_run_would": "would requeue {{rows}} wanted row(s).",
+      "done": "Requeued {{rows}} wanted row(s)."
+    },
+    "dry_run_tag": "dry-run",
+    "requeue_no_provenance": "No provenance row for grab {{info_hash}}."
   }
 }

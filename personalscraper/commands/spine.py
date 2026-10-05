@@ -30,6 +30,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
 from personalscraper.commands._cli_run_row import cli_run_row
+from personalscraper.i18n import t
 from personalscraper.lock import (
     acquire_scrape_resolve_lock,
     release_scrape_resolve_lock,
@@ -153,15 +154,17 @@ def _resolve_targets(
     return []
 
 
-@app.command(name="acquisition-rescrape")
+@app.command(name="acquisition-rescrape", help=t("cli_acquisition.spine.rescrape.help"))
 @handle_cli_errors
 def acquisition_rescrape(
     ctx: typer.Context,
-    info_hash: str | None = typer.Option(None, "--hash", help="Re-scrape the item with this grab info-hash."),
-    path: str | None = typer.Option(None, "--path", help="Re-scrape the item at this staging folder."),
-    stuck: bool = typer.Option(False, "--stuck", help="Re-scrape ALL stuck in-flight items."),
-    older_than: int = typer.Option(STUCK_IDLE_SECONDS, "--older-than", help="Stuck horizon in seconds (with --stuck)."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview the targets without scraping."),
+    info_hash: str | None = typer.Option(None, "--hash", help=t("cli_acquisition.spine.rescrape.hash_help")),
+    path: str | None = typer.Option(None, "--path", help=t("cli_acquisition.spine.rescrape.path_help")),
+    stuck: bool = typer.Option(False, "--stuck", help=t("cli_acquisition.spine.rescrape.stuck_help")),
+    older_than: int = typer.Option(
+        STUCK_IDLE_SECONDS, "--older-than", help=t("cli_acquisition.spine.rescrape.older_than_help")
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_acquisition.spine.rescrape.dry_run_help")),
 ) -> None:
     """Re-scrape a precise grab / resume stuck items, seeded from the provenance registry."""
     config = ctx.obj.config
@@ -175,12 +178,13 @@ def acquisition_rescrape(
         store.close()
 
     if not targets:
-        console.print("[yellow]No matching tracked staging item to re-scrape.[/yellow]")
+        console.print(f"[yellow]{t('cli_acquisition.spine.rescrape.no_target')}[/yellow]")
         return
     if dry_run:
-        console.print(f"[bold]\\[dry-run] would re-scrape {len(targets)} item(s):[/bold]")
-        for t in targets:
-            console.print(f"  - {t.current_path}")
+        would = t("cli_acquisition.spine.rescrape.dry_run_would", items=len(targets))
+        console.print(f"[bold]\\[{t('cli_acquisition.spine.dry_run_tag')}] {would}[/bold]")
+        for target in targets:
+            console.print(f"  - {target.current_path}")
         return
 
     counts = {"rescraped": 0, "skipped": 0, "failed": 0}
@@ -192,15 +196,15 @@ def acquisition_rescrape(
         finally:
             # Record even a partial batch (an unexpected raise still persists what landed).
             run_rec.record_counts(counts)
-    console.print(f"[green]Re-scrape done:[/green] {counts}")
+    console.print(f"[green]{t('cli_acquisition.spine.rescrape.done_label')}[/green] {counts}")
 
 
-@app.command(name="acquisition-requeue")
+@app.command(name="acquisition-requeue", help=t("cli_acquisition.spine.requeue.help"))
 @handle_cli_errors
 def acquisition_requeue(
     ctx: typer.Context,
-    info_hash: str = typer.Option(..., "--hash", help="Requeue the wanted row behind this grab info-hash."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without requeuing."),
+    info_hash: str = typer.Option(..., "--hash", help=t("cli_acquisition.spine.requeue.hash_help")),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_acquisition.spine.requeue.dry_run_help")),
 ) -> None:
     """Requeue by journey state: send the item's ``wanted`` row back to ``pending``."""
     config = ctx.obj.config
@@ -210,15 +214,16 @@ def acquisition_requeue(
     try:
         row = store.provenance.by_hash(info_hash)
         if row is None:
-            console.print(f"[yellow]No provenance row for grab {info_hash}.[/yellow]")
+            console.print(f"[yellow]{t('cli_acquisition.spine.requeue_no_provenance', info_hash=info_hash)}[/yellow]")
             return
         # Trace info_hash → the OPEN grabbed wanted row(s) carrying that hash.
         targets = [w for w in store.wanted.list_grabbed() if (w.grabbed_hash or "").lower() == info_hash.lower()]
         if not targets:
-            console.print(f"[yellow]No open grabbed wanted row for {info_hash} (nothing to requeue).[/yellow]")
+            console.print(f"[yellow]{t('cli_acquisition.spine.requeue.no_wanted', info_hash=info_hash)}[/yellow]")
             return
         if dry_run:
-            console.print(f"[bold]\\[dry-run] would requeue {len(targets)} wanted row(s).[/bold]")
+            dry_run_would = t("cli_acquisition.spine.requeue.dry_run_would", rows=len(targets))
+            console.print(f"[bold]\\[{t('cli_acquisition.spine.dry_run_tag')}] {dry_run_would}[/bold]")
             return
         # requeue_for_reswitch (→ pending) ALSO remembers this hash as tried, so the next
         # search+grab picks a DIFFERENT release rather than re-grabbing the same stuck one
@@ -230,6 +235,6 @@ def acquisition_requeue(
                 1 for w in targets if w.id is not None and store.wanted.requeue_for_reswitch(w.id, info_hash, now)
             )
             run_rec.record_counts({"requeued": requeued})
-        console.print(f"[green]Requeued {requeued} wanted row(s).[/green]")
+        console.print(f"[green]{t('cli_acquisition.spine.requeue.done', rows=requeued)}[/green]")
     finally:
         store.close()

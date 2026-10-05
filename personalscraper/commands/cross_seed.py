@@ -153,7 +153,9 @@ def cross_seed(
             check_result = cs.check(info_hash)
 
             if check_result.skipped:
-                console.print(f"[dim]{t('cli_acquisition.cross_seed.skipped', reason=check_result.skip_reason)}[/dim]")
+                console.print(
+                    f"[dim]{t('cli_acquisition.cross_seed.skipped', reason=str(check_result.skip_reason))}[/dim]"
+                )
             if check_result.injected:
                 for inj_hash in check_result.injected:
                     console.print(f"[green]{t('cli_acquisition.cross_seed.injected', info_hash=inj_hash)}[/green]")

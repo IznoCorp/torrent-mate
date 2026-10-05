@@ -54,5 +54,22 @@
   "seed.list.col_name",
   "seed.list.col_tags",
   "seed.list.col_state",
-  "seed.sweep.not_configured"
+  "seed.sweep.not_configured",
+  "spine.rescrape.help",
+  "spine.requeue.help",
+  "spine.rescrape.hash_help",
+  "spine.rescrape.path_help",
+  "spine.rescrape.stuck_help",
+  "spine.rescrape.older_than_help",
+  "spine.rescrape.dry_run_help",
+  "spine.requeue.hash_help",
+  "spine.requeue.dry_run_help",
+  "spine.rescrape.no_target",
+  "spine.dry_run_tag",
+  "spine.rescrape.dry_run_would",
+  "spine.rescrape.done_label",
+  "spine.requeue_no_provenance",
+  "spine.requeue.no_wanted",
+  "spine.requeue.dry_run_would",
+  "spine.requeue.done"
 ]
