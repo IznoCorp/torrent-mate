@@ -12,6 +12,10 @@ succeeded and the indexer reconciles drift at its next scan.
 from __future__ import annotations
 
 import os
+import sqlite3
+import time
+from collections.abc import Sequence
+from contextlib import closing
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -20,7 +24,10 @@ from typing import TYPE_CHECKING
 from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
+from personalscraper.core.identity import ItemId
+from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
+from personalscraper.indexer.phantom_rows import tombstone_item
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -286,4 +293,47 @@ def delete_media_folder(
     return DeleteResult(DeleteOutcome.DELETED, size_bytes=size, deleted_count=1)
 
 
-__all__ = ["DeleteOutcome", "DeleteResult", "delete_media_folder"]
+def remove_items(db_path: Path, item_ids: Sequence[ItemId], *, actor: str, reason: str) -> int:
+    """Remove index rows (their releases, files, seasons and episodes by cascade), tombstoned and journaled.
+
+    The rows go in one transaction, each with its ``deleted_item`` tombstone; the journal
+    rows (``record_destruction(op="delete", path="index:media_item/<id>")``) are written
+    after it commits, through the journal's own connection, and never raise.
+
+    Args:
+        db_path: Path of ``library.db``.
+        item_ids: The ``media_item`` rows to remove.
+        actor: Who deletes, written to the journal (``web:<account id>``).
+        reason: The tombstones' ``deleted_item.reason``.
+
+    Returns:
+        The rows removed (a row already gone is not counted).
+
+    Raises:
+        sqlite3.Error: When the transaction fails; it is rolled back and nothing is removed.
+    """
+    if not item_ids:
+        return 0
+    now = int(time.time())
+    removed: list[ItemId] = []
+    with closing(sqlite3.connect(str(db_path), isolation_level=None)) as conn:
+        apply_pragmas(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            for item_id in dict.fromkeys(item_ids):
+                if conn.execute("SELECT 1 FROM media_item WHERE id = ?", (item_id,)).fetchone() is None:
+                    continue
+                tombstone_item(conn, item_id, now, reason=reason)
+                conn.execute("DELETE FROM media_item WHERE id = ?", (item_id,))
+                removed.append(item_id)
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+    for item_id in removed:
+        record_destruction(db_path, op=OP_DELETE, path=f"index:media_item/{item_id}", actor=actor)
+        log.info("app.library.delete_row_removed", item_id=item_id, actor=actor)
+    return len(removed)
+
+
+__all__ = ["DeleteOutcome", "DeleteResult", "delete_media_folder", "remove_items"]

@@ -512,16 +512,16 @@ def test_an_index_write_failure_is_reported_and_the_request_goes_on(
     """The first medium's rows fail to go: it is reported not deleted, the second still goes, Plex told of both."""
     from personalscraper.app.library import service as service_module
 
-    real = service_module.remove_item_rows
+    real = service_module.remove_items
     calls: list[int] = []
 
-    def failing_once(db_path: Path, item_ids: list[int], *, actor: str) -> int:
+    def failing_once(db_path: Path, item_ids: list[int], *, actor: str, reason: str) -> int:
         calls.append(item_ids[0])
         if len(calls) == 1:
             raise sqlite3.OperationalError("database is locked")
-        return real(db_path, item_ids, actor=actor)
+        return real(db_path, item_ids, actor=actor, reason=reason)
 
-    monkeypatch.setattr(service_module, "remove_item_rows", failing_once)
+    monkeypatch.setattr(service_module, "remove_items", failing_once)
     first, a = shelf.movie("A (2020)", "11")
     second, b = shelf.movie("B (2021)", "12")
     shelf.movie("C (2022)", "13")

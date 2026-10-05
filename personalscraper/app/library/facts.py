@@ -22,8 +22,8 @@ from typing import Final, Literal, Protocol, runtime_checkable
 
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.errors import AppNotFound, AppUnavailable, RefusalCode
-from personalscraper.app.library.listing import fold
 from personalscraper.core._contracts import ApiError
+from personalscraper.indexer.library_view import fold
 from personalscraper.logger import get_logger
 
 log = get_logger("app.library.facts")

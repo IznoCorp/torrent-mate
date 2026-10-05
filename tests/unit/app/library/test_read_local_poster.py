@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.errors import AppNotFound, RefusalCode
-from personalscraper.app.library.listing import mounted_media_folders
 from personalscraper.app.library.service import POSTER_MAX_BYTES, _folder_poster
 from personalscraper.core.identity import MediaRef
+from personalscraper.indexer.library_view import mounted_media_folders
 from tests.unit.app.library.world import World
 
 _JPEG = b"\xff\xd8\xff\xe0poster"
