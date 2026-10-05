@@ -547,9 +547,9 @@ def follow_backfill_metadata(
                     label + "=" + (gained if before is None and after is not None else "—")
                     for label, before, after in (
                         (t("cli_acquisition.follow.backfill.field_title"), existing.title, resolved.title),
-                        ("poster", existing.poster_url, resolved.poster_url),
-                        ("overview", existing.overview, resolved.overview),
-                        ("year", existing.year, resolved.year),
+                        (t("cli_acquisition.follow.backfill.field_poster"), existing.poster_url, resolved.poster_url),
+                        (t("cli_acquisition.follow.backfill.field_overview"), existing.overview, resolved.overview),
+                        (t("cli_acquisition.follow.backfill.field_year"), existing.year, resolved.year),
                     )
                 )
                 suffix = ""

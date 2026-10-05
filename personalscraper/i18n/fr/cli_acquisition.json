@@ -17,7 +17,10 @@
     },
     "backfill": {
       "nameless": "#{{id}} (sans nom)",
-      "field_title": "titre"
+      "field_title": "titre",
+      "field_poster": "poster",
+      "field_overview": "overview",
+      "field_year": "year"
     }
   },
   "confidence": {

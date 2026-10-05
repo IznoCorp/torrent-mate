@@ -43,3 +43,9 @@ def test_every_cli_acquisition_key_is_read_by_a_literal_call() -> None:
     """A key no ``t("...")`` reads means its site went back to a literal; the catalogue must not drift from the code."""
     orphans = sorted(_catalogue_keys() - _literal_keys())
     assert not orphans, f"keys read by no literal t() call: {orphans}"
+
+
+def test_follow_backfill_labels_are_all_keyed() -> None:
+    """The four backfill field labels are shown to the user: a label back to a literal leaves its key orphaned."""
+    for field in ("title", "poster", "overview", "year"):
+        assert f"{_NAMESPACE}.follow.backfill.field_{field}" in _catalogue_keys() & _literal_keys()
