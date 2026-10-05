@@ -6,6 +6,10 @@
 // Shared by the three acts that carry one: a local account's own password in
 // Profil, and the provisional password « Comptes » gives at creation and on a
 // reset (the operator, 2026-10-03: « A »).
+//
+// And by one act that carries none but must be answered before it shows: the
+// account's own language, which the interface speaks only once the server holds
+// it — held back, it would leave the interface in a language nobody chose.
 
 /**
  * Sends one password-bearing write to an address the contract declares.

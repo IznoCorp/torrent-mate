@@ -26,6 +26,10 @@
 // EVERY REFUSAL IS SAID FROM `fr.json` BY ITS CODE (gap G-1), never from the
 // wire's English.
 //
+// IN THE READER'S LANGUAGE: before sign-in, the browser's (OPEN-2 B). Every
+// element built here carries the key of its words (`data-words`), as the
+// markup's own do, so a change of language words the whole gate again.
+//
 // THE GATE READS NO RIGHT ITSELF: after a sign-in the frame reads the account,
 // and the account's entry page is where it lands (round 10 Q7) — unless the
 // gate came up over a place the account opens, which is where it returns (the
@@ -41,6 +45,7 @@ import { postJson, sharedQueryClient } from "../lib/query-client";
 import { landSignedIn } from "./frame-verbs";
 import type { Schemas } from "../lib/contract-schemas";
 import { refusalWords } from "../lib/refusal";
+import { followTheSignedIn } from "../lib/account";
 import { actionButton, crossReferenceLink } from "../ui/variants";
 
 // The statuses the two doors answer with.
@@ -98,6 +103,18 @@ function takePlace(rights: Rights): { page: string; dials: Record<string, string
   return { page: destination.page, dials: destination.dials };
 }
 
+/**
+ * Words one element of the gate, and keeps its key beside it so a change of
+ * language words it again (`i18n/index.ts`'s `wordMarkup`).
+ *
+ * @param element The element.
+ * @param key Its words' key under `screens.gate`.
+ */
+function worded(element: HTMLElement, key: string): void {
+  element.dataset.words = `screens.gate.${key}`;
+  element.textContent = i18next.t(element.dataset.words);
+}
+
 /** An element of the gate, by its selector. */
 function node<Element extends HTMLElement>(selector: string): Element | null {
   return document.querySelector<Element>(selector);
@@ -114,7 +131,7 @@ function plexBlock(): HTMLElement | null {
   const gate = node("#login");
   const form = node("#loginform");
   if (!gate || !form) return null;
-  const say = (key: string) => i18next.t(`screens.gate.${key}`);
+  const say = worded;
   const block = document.createElement("div");
   block.className = "logincard";
   block.dataset.part = "login/plex";
@@ -122,11 +139,11 @@ function plexBlock(): HTMLElement | null {
   plex.type = "button";
   plex.className = "loginsubmit";
   plex.dataset.part = "login/plex-submit";
-  plex.textContent = say("plex");
+  say(plex, "plex");
   const unreachable = document.createElement("p");
   unreachable.className = "loginerr";
   unreachable.dataset.part = "login/plex-unreachable";
-  unreachable.textContent = say("plexUnreachable");
+  say(unreachable, "plexUnreachable");
   unreachable.hidden = true;
   const refusal = document.createElement("p");
   refusal.className = "loginerr";
@@ -138,12 +155,12 @@ function plexBlock(): HTMLElement | null {
   disclosure.type = "button";
   disclosure.className = `${actionButton({ kind: "cardFoot" })} ${crossReferenceLink()}`;
   disclosure.dataset.part = "login/password-disclosure";
-  disclosure.textContent = say("usePassword");
+  say(disclosure, "usePassword");
   disclosure.setAttribute("aria-controls", "loginform");
   const doors = document.createElement("p");
   doors.className = "loginsub";
   doors.dataset.part = "login/doors";
-  doors.textContent = say("doors");
+  say(doors, "doors");
   block.append(disclosure, doors);
   gate.insertBefore(block, form);
   plex.addEventListener("click", () => void signInWithPlex());
@@ -157,28 +174,28 @@ function plexBlock(): HTMLElement | null {
 /**
  * The Plex wait: what is awaited, the way back to Plex's page, and the way out.
  *
- * @param say The gate's words, by key.
+ * @param say Words one element of the gate, by key.
  * @returns The block, hidden until a PIN is unclaimed.
  */
-function pendingBlock(say: (key: string) => string): HTMLElement {
+function pendingBlock(say: (element: HTMLElement, key: string) => void): HTMLElement {
   const pending = document.createElement("div");
   pending.dataset.part = "login/plex-pending";
   pending.setAttribute("role", "status");
   pending.hidden = true;
   const words = document.createElement("p");
   words.className = "loginsub";
-  words.textContent = say("plexPending");
+  say(words, "plexPending");
   const reopen = document.createElement("a");
   reopen.className = `${actionButton({ kind: "cardFoot" })} ${crossReferenceLink()}`;
   reopen.dataset.part = "login/plex-reopen";
   reopen.target = "_blank";
   reopen.rel = "noopener";
-  reopen.textContent = say("plexReopen");
+  say(reopen, "plexReopen");
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = actionButton({ kind: "cardFoot" });
   cancel.dataset.part = "login/plex-cancel";
-  cancel.textContent = say("plexCancel");
+  say(cancel, "plexCancel");
   cancel.addEventListener("click", () => stopPlex());
   pending.append(words, reopen, cancel);
   return pending;
@@ -200,7 +217,7 @@ function loginByEmail(form: HTMLElement): void {
   // before the gate's words could be said.
   (form as HTMLFormElement).noValidate = true;
   const label = field.closest("label")?.querySelector("span");
-  if (label) label.textContent = i18next.t("screens.gate.email");
+  if (label) worded(label, "email");
 }
 
 /**
@@ -251,7 +268,7 @@ export function sayReason(code: string | undefined): void {
     line.setAttribute("role", "status");
     gate.insertBefore(line, anchor);
   }
-  line.textContent = i18next.t(`screens.gate.${key}`);
+  worded(line, key);
   line.hidden = false;
 }
 
@@ -301,6 +318,8 @@ function stopPlex(): void {
 async function land(): Promise<void> {
   const client = sharedQueryClient;
   if (client === undefined) return ending();
+  // SOMEBODY IS SIGNED IN AGAIN: the interface follows the account this landing reads.
+  followTheSignedIn();
   await client.resetQueries();
   let account: Schemas["Account"];
   try {

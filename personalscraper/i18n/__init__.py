@@ -114,6 +114,18 @@ def _process_language() -> Language:
     return resolve_language(os.environ)
 
 
+def configured_language() -> Language:
+    """Return the project's configured language, whatever :func:`use_language` overrides.
+
+    What a new account starts in (the operator, 2026-10-05): the language the environment names,
+    resolved once for the process — never the language of the request that creates it.
+
+    Returns:
+        The environment's language; :data:`DEFAULT_LANGUAGE` when none is configured.
+    """
+    return _process_language()
+
+
 def current_language() -> Language:
     """Return the language of the running code.
 

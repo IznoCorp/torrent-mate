@@ -1,9 +1,10 @@
-"""Unit tests for the accounts migrations of ``app.db`` — ``002_accounts.sql`` to ``005_account_demoted_from.sql``.
+"""Unit tests for the accounts migrations of ``app.db`` — ``002_accounts.sql`` to ``006_account_language.sql``.
 
-A fresh file reaches version 5 with the five seeded roles; an existing file keeps its push
+A fresh file reaches version 6 with the five seeded roles; an existing file keeps its push
 subscriptions through ``003``'s rebuild, and a subscription naming no account makes the
 migration fail loud, the runner restoring the file as it stood before ``003``. ``004`` gives
-every account, existing or new, ``sign_in_allowed = 1``; ``005`` leaves every account not demoted.
+every account, existing or new, ``sign_in_allowed = 1``; ``005`` leaves every account not demoted;
+``006`` gives every existing account French, the language the household always read it in.
 """
 
 from __future__ import annotations
@@ -105,9 +106,9 @@ def fresh(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 class TestFreshFile:
     """A file created today holds the whole schema and the five seeded roles."""
 
-    def test_reaches_version_five(self, fresh: sqlite3.Connection) -> None:
+    def test_reaches_version_six(self, fresh: sqlite3.Connection) -> None:
         """Every migration applied."""
-        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 6
 
     def test_seeds_the_five_roles_with_their_kinds_and_no_name(self, fresh: sqlite3.Connection) -> None:
         """The maquette's five roles; a seeded role carries no name (its id is translated by the interface)."""
@@ -208,6 +209,14 @@ class TestFreshFile:
                 " VALUES ('a1', 'A', 'a@x', 'local-guest', 1, 1, 2)"
             )
 
+    def test_a_language_outside_fr_and_en_is_refused(self, fresh: sqlite3.Connection) -> None:
+        """``006``: the two languages the interface speaks, and no other."""
+        with pytest.raises(sqlite3.IntegrityError):
+            fresh.execute(
+                "INSERT INTO account (id, name, email, role_id, created_at, updated_at, language)"
+                " VALUES ('a1', 'A', 'a@x', 'local-guest', 1, 1, 'de')"
+            )
+
     def test_a_push_subscription_must_name_an_account(self, fresh: sqlite3.Connection) -> None:
         """``003``: the subscription's account is a foreign key."""
         with pytest.raises(sqlite3.IntegrityError):
@@ -259,7 +268,7 @@ class TestExistingFile:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 5
+        assert _user_version(db_path) == 6
         conn = _connect(db_path)
         try:
             rows = conn.execute(f"SELECT {_PUSH_COLUMNS} FROM push_subscription").fetchall()  # noqa: S608 — fixed names
@@ -324,7 +333,7 @@ class TestAccountAccessMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 5
+        assert _user_version(db_path) == 6
         assert account is not None
         assert account.sign_in_allowed is True
         assert (account.name, account.email, account.role_id, account.password_hash) == (
@@ -356,7 +365,43 @@ class TestAccountDemotionMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 5
+        assert _user_version(db_path) == 6
         assert account is not None
         assert account.demoted_from is None
         assert (account.role_id, account.password_hash, account.sign_in_allowed) == ("household", "h", False)
+
+
+class TestAccountLanguageMigration:
+    """``006`` on a file that already holds accounts."""
+
+    def test_an_existing_account_speaks_french(self, tmp_path: Path) -> None:
+        """A version-5 file's account comes out of ``006`` in French, every other column unchanged.
+
+        The operator, 2026-10-05: « Compte existants en fr ».
+        """
+        db_path = _file_at(tmp_path, 5)
+        conn = _connect(db_path)
+        try:
+            conn.execute(
+                "INSERT INTO account (id, name, email, role_id, password_hash, created_at, updated_at,"
+                " sign_in_allowed, demoted_from) VALUES ('account-alice', 'Alice', 'alice@x', 'household', 'h',"
+                " 1, 2, 0, 'requester')"
+            )
+        finally:
+            conn.close()
+
+        store = AppStore(db_path)
+        try:
+            account = store.accounts.account("account-alice")
+        finally:
+            store.close()
+
+        assert _user_version(db_path) == 6
+        assert account is not None
+        assert account.language == "fr"
+        assert (account.role_id, account.password_hash, account.sign_in_allowed, account.demoted_from) == (
+            "household",
+            "h",
+            False,
+            "requester",
+        )

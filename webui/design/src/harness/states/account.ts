@@ -5,6 +5,7 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, onLeave, type NamedState } from "../drive";
+import { forgetOwed, owed } from "../owed";
 import { as, EVERY_WRITE } from "./rights";
 import { poseDevice, type PosedDevice } from "../../features/account/push-device";
 import type { PushEnvironment } from "../../lib/push-registration";
@@ -54,12 +55,56 @@ function profileOn(device: PosedDevice): void {
   applyState({ page: "profile", phase: "ready" });
 }
 
+// How long Profil waits for its section to be drawn before the language is tapped.
+const TAP_AFTER = 400;
+// Long enough that a language asked for is still being asked when the state is read.
+const HELD_FOR = 600_000;
+
+/**
+ * Opens Profil and taps one language of « Langue », the server answering as the state dialled.
+ *
+ * @param language The language tapped.
+ */
+function chooseLanguageInProfile(language: "fr" | "en"): void {
+  applyState({ page: "profile", phase: "ready" });
+  // THE TAP IS FORGOTTEN WHEN THE NEXT STATE IS DRIVEN: landing after it, it would switch the
+  // language of a state that never asked.
+  const tapping = owed(() => {
+    document.querySelector<HTMLElement>(`[data-part="profile/language"] [data-language-choice="${language}"]`)?.click();
+  }, TAP_AFTER);
+  onLeave(() => forgetOwed(tapping));
+}
+
 export function accountStates(): NamedState[] {
   return [
     [
       "profile",
       "Profil et préférences",
       () => applyState({ page: "profile", phase: "ready" }),
+    ],
+    [
+      "profile-language-english",
+      "Profil — un compte dont la langue est l'anglais : toute l'interface est en anglais",
+      () => {
+        window.__mocks?.setLanguage("en");
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "profile-language-saving",
+      "Profil — « Langue » : l'anglais est demandé, le serveur n'a pas encore répondu",
+      () => {
+        window.__mocks?.setOperationOutcome("setOwnLanguage", { latencyMilliseconds: HELD_FOR });
+        chooseLanguageInProfile("en");
+      },
+    ],
+    [
+      "profile-language-refused",
+      "Profil — « Langue » : le serveur refuse le changement, la langue reste celle qu'il tient",
+      () => {
+        window.__mocks?.setOperationOutcome("setOwnLanguage", { status: 403 });
+        chooseLanguageInProfile("en");
+      },
     ],
     [
       "profile-notifications",

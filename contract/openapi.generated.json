@@ -3,7 +3,7 @@
     "schemas": {
       "AccountModel": {
         "additionalProperties": false,
-        "description": "The contract's ``Account``: who is signed in, and what the instance forbids.\n\nAttributes:\n    name: The display name.\n    email: The e-mail.\n    avatar: The picture's address \u2014 its Plex avatar, else its Gravatar; absent for an\n        account that has neither.\n    id: The account's key.\n    role: Its one role.\n    sign_in_kind: How it signs in.\n    forbidden_writes: The instance's forbidden writes.",
+        "description": "The contract's ``Account``: who is signed in, and what the instance forbids.\n\nAttributes:\n    name: The display name.\n    email: The e-mail.\n    avatar: The picture's address \u2014 its Plex avatar, else its Gravatar; absent for an\n        account that has neither.\n    id: The account's key.\n    role: Its one role.\n    sign_in_kind: How it signs in.\n    forbidden_writes: The instance's forbidden writes.\n    language: The language it is spoken to in.",
         "properties": {
           "avatar": {
             "anyOf": [
@@ -31,6 +31,9 @@
             "title": "Id",
             "type": "string"
           },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -48,7 +51,8 @@
           "id",
           "role",
           "signInKind",
-          "forbiddenWrites"
+          "forbiddenWrites",
+          "language"
         ],
         "title": "AccountModel",
         "type": "object"
@@ -407,6 +411,15 @@
           "failed"
         ],
         "title": "KeptReason",
+        "type": "string"
+      },
+      "Language": {
+        "description": "The languages every user text exists in.",
+        "enum": [
+          "fr",
+          "en"
+        ],
+        "title": "Language",
         "type": "string"
       },
       "LibraryCategory": {
@@ -1497,6 +1510,20 @@
         "title": "SetAccountAccessBody",
         "type": "object"
       },
+      "SetOwnLanguageBody": {
+        "additionalProperties": false,
+        "description": "``setOwnLanguage``'s body.\n\nAttributes:\n    language: The language chosen; a value outside ``Language`` is refused 400.",
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          }
+        },
+        "required": [
+          "language"
+        ],
+        "title": "SetOwnLanguageBody",
+        "type": "object"
+      },
       "SignInBody": {
         "additionalProperties": false,
         "description": "``signIn``'s body: the password door's two fields.\n\nAttributes:\n    email: The account's e-mail \u2014 every account's login, matched whatever its case.\n    password: The password typed.",
@@ -2153,6 +2180,95 @@
           }
         },
         "summary": "Reset Account Password"
+      }
+    },
+    "/auth/language": {
+      "put": {
+        "description": "Set the language the signed-in account is spoken to in, on all its devices (FG-1 B).\n\nArgs:\n    body: The language chosen.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The account, as now held.",
+        "operationId": "setOwnLanguage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetOwnLanguageBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Set Own Language"
       }
     },
     "/auth/login": {

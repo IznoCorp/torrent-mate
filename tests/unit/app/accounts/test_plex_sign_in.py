@@ -59,7 +59,7 @@ from personalscraper.app.errors import (
 from personalscraper.app.store.store import AppStore
 from personalscraper.conf.environment import Environment
 from personalscraper.core.event_bus import EventBus
-from tests.conftest import LoggedEvents
+from tests.conftest import ConfiguredLanguage, LoggedEvents
 
 SAMPLES = Path(__file__).resolve().parents[4] / "docs" / "reference" / "_samples" / "plex-account"
 
@@ -633,6 +633,18 @@ class TestFirstSignIn:
         assert vault.open(result.account.id, link.token_ciphertext) == USER_TOKEN
         account = store.accounts.account(result.account.id)
         assert account is not None and account.password_hash is None
+
+    @pytest.mark.parametrize("configured", ["fr", "en"])
+    def test_a_new_account_starts_in_the_projects_configured_language(
+        self, door: PlexSignInService, store: AppStore, configured_language: ConfiguredLanguage, configured: str
+    ) -> None:
+        """The account a first Plex sign-in creates speaks the configured language (the operator, 2026-10-05)."""
+        configured_language(configured)
+        result = _sign_in(door, _clock_of(door))
+
+        assert result.account.language == configured
+        account = store.accounts.account(result.account.id)
+        assert account is not None and account.language == configured
 
     def test_a_home_member_starts_on_the_plex_home_role(
         self, door: PlexSignInService, store: AppStore, plextv: _PlexTv

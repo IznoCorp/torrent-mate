@@ -25,8 +25,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 
 | | |
 | --- | ---: |
-| operations the interface requires | 104 |
-| operations v1 serves | 25 |
+| operations the interface requires | 105 |
+| operations v1 serves | 26 |
 | required and not served | 79 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |

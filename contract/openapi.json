@@ -298,6 +298,67 @@
         "x-unseeded": "an acknowledgement. The prototype holds no credentials, so the layer judges the shape of the request and the account's kind, never a stored password"
       }
     },
+    "/auth/language": {
+      "put": {
+        "operationId": "setOwnLanguage",
+        "x-rights": null,
+        "summary": "Set the signed-in account's language",
+        "description": "The account chooses the language it is spoken to in, in Profil (the operator, 2026-10-03: FG-1 B — « la langue appartient à la personne »). Held by the server for the account, on all its devices, and read back in `Account.language`; its pushes follow it (FG-2 A). A session act like the password change and the notification switches: no right. The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right. A value outside `Language` is refused 400.",
+        "tags": [
+          "authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "language": {
+                    "$ref": "#/components/schemas/Language",
+                    "description": "the language chosen"
+                  }
+                },
+                "required": [
+                  "language"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the account, as now held — its `language` the one chosen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "invented (the operator, 2026-10-03: FG-1 B). The layer holds each account's choice beside the seeded one, for the life of its state — and across a reload of the page, as the server's store outlives a page."
+      }
+    },
     "/notifications/preferences": {
       "get": {
         "operationId": "readNotificationPreferences",
@@ -8134,6 +8195,10 @@
           "signInKind": {
             "$ref": "#/components/schemas/SignInKind"
           },
+          "language": {
+            "$ref": "#/components/schemas/Language",
+            "description": "the account's language: the interface switches to it once the account is read, and its pushes are worded in it; the project's configured language for an account that never chose (the operator, 2026-10-05)"
+          },
           "forbiddenWrites": {
             "type": "array",
             "items": {
@@ -8146,6 +8211,7 @@
           "email",
           "forbiddenWrites",
           "id",
+          "language",
           "name",
           "role",
           "signInKind"
@@ -11088,7 +11154,7 @@
           "system.disk_full",
           "system.service_down"
         ],
-        "description": "THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from `fr.json`'s `push` namespace. A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`."
+        "description": "THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from the `push` namespace of the catalogue `webpush.data.language` names — the RECIPIENT ACCOUNT's `Language`, filled by the server per account (FG-2 A); absent or unknown, the worker words it in English (OPEN-2 B). A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`."
       },
       "RefusalCode": {
         "type": "string",
@@ -11171,6 +11237,14 @@
           "local"
         ],
         "description": "HOW AN ACCOUNT SIGNS IN — a fact of the account, not of its role (the operator, 2026-10-03). Every login is an e-mail. `owner`: the managed Plex server's owner, by Plex, and a fallback password replaced only by a command on the server. `plex`: an account linked to a Plex identity with access to the server, by Plex only. `local`: an account whose e-mail is no user of the server, by its password only, never linked — an Admin gives it a PROVISIONAL password in « Comptes » at its creation and may reset it there; it changes its own in Profil (the operator, 2026-10-03: « A »). When a local account's e-mail becomes a user of the server, it is linked: `plex` from then on, and on its Plex kind's starting role (`Role.defaultFor`; O-K1-4) until an Admin promotes it again; its password is dropped."
+      },
+      "Language": {
+        "type": "string",
+        "enum": [
+          "fr",
+          "en"
+        ],
+        "description": "THE LANGUAGE AN ACCOUNT IS SPOKEN TO IN — the interface's, on every device it signs in from, and its pushes' (the operator, 2026-10-03: FG-1 B, FG-2 A). An account's own setting, never a device's. A new account — created in « Comptes » or on its first Plex sign-in — starts in the project's configured language until it chooses in Profil, and an account that existed before the field speaks `fr` (the operator, 2026-10-05); English only when the project configures none (OPEN-2 B)."
       },
       "MediaRef": {
         "type": "object",

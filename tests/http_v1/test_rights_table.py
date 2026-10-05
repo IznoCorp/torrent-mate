@@ -35,6 +35,7 @@ _OVERRIDES: dict[str, Requirement] = {
     "updateNotificationPreference": SignedIn(write=True),
     "registerPushDevice": SignedIn(write=True),
     "changeOwnPassword": SignedIn(write=True),
+    "setOwnLanguage": SignedIn(write=True),
     "dismissClosure": SignedIn(write=True),
 }
 

@@ -32,7 +32,7 @@ import { crossSeedDials, type CrossSeedDials } from "./cross-seed-state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 import { SERVER_BASE } from "../lib/server-base";
-import { identityDials, requestersOf, sessionEnded, signedInRights, type IdentityDials } from "./identity";
+import { forgetChosenLanguages, identityDials, requestersOf, sessionEnded, signedInRights, type IdentityDials } from "./identity";
 import { OWN_SCOPED, allowed, subjectOf } from "./operation-rights";
 import { declaredRights } from "./declared-rights";
 import { passesThrough, throughNetwork } from "./passthrough";
@@ -365,6 +365,7 @@ export function installMockNetwork(): void {
     setDefaultLatency,
     reset: () => {
       resetScenario();
+      forgetChosenLanguages();
       resetMockState();
       resetStream();
       clearAnswered();

@@ -51,9 +51,12 @@
 const BUILD = "__BUILD__";
 const SHELL = __SHELL__;
 const EXTRAS = __EXTRAS__;
-// The words of a push, from the `push` namespace of `fr.json` — the build writes
-// them here. The wire carries a CODE and its parameters, never a sentence.
+// The words of a push, from the `push` namespace of `fr.json` and `en.json`, by
+// language — the build writes them here. The wire carries a CODE, its
+// parameters and the recipient's language, never a sentence.
 const PUSH_TEXTS = __PUSH_TEXTS__;
+// The language when the message names none the interface speaks (OPEN-2 B).
+const PUSH_DEFAULT_LANGUAGE = "en";
 
 // The cache's name carries the build, so a new build is a NEW cache and the old
 // one is deleted on activation rather than merged into. A single cache reused
@@ -224,22 +227,27 @@ self.addEventListener("fetch", (event) => {
 });
 
 // PUSH (fcm-push DESIGN § 3.5). A data-only FCM message arrives as
-// `{ data: { code, params, link, tag }, … }`; the words are looked up here.
+// `{ data: { code, params, link, tag, language }, … }`; the words are looked
+// up here, in the catalogue of the RECIPIENT ACCOUNT's language (FG-2 A) —
+// English when the message names none the interface speaks.
 //
 // ALWAYS SHOWN. iOS revokes the permission of a web app whose push shows
 // nothing, so a payload this worker cannot read, or a code `fr.json` does not
 // word yet, shows the catalogue's GENERIC line — never silence, and never a
 // sentence typed into this file.
 
-// `tracker.ratio_low` → `PUSH_TEXTS.tracker.ratio_low`, when it holds a title
-// and a body; anything else is the generic line.
-const pushWords = (code) => {
-  let node = PUSH_TEXTS;
+// `tracker.ratio_low` → `PUSH_TEXTS.<language>.tracker.ratio_low`, when it
+// holds a title and a body; anything else is that language's generic line.
+const pushWords = (code, language) => {
+  const texts = Object.prototype.hasOwnProperty.call(PUSH_TEXTS, language)
+    ? PUSH_TEXTS[language]
+    : PUSH_TEXTS[PUSH_DEFAULT_LANGUAGE];
+  let node = texts;
   for (const part of String(code || "").split(".")) {
     node = node && typeof node === "object" ? node[part] : undefined;
   }
   const entry = node && typeof node.title === "string" && typeof node.body === "string" ? node : null;
-  return entry || PUSH_TEXTS.generic;
+  return entry || texts.generic;
 };
 
 // `{{name}}` filled from the parameters; a placeholder with no parameter stays
@@ -271,7 +279,7 @@ const composePush = (payload) => {
   } catch {
     params = {};
   }
-  const words = pushWords(data.code);
+  const words = pushWords(data.code, data.language);
   const options = {
     body: fillParams(words.body, params),
     icon: "/pwa-192.png",

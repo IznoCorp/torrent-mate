@@ -11,7 +11,7 @@ const EVERY = (contract as unknown as { components: { schemas: { Right: { enum: 
 
 function accountOn(roleId: string, forbiddenWrites: Right[] = []): Schemas["Account"] {
   const role = ACCOUNTS.roles.find((one) => one.id === roleId) as Schemas["Role"];
-  return { id: "a", name: "a", email: "a@example.invalid", avatar: "", role, signInKind: "plex", forbiddenWrites };
+  return { id: "a", name: "a", email: "a@example.invalid", avatar: "", role, signInKind: "plex", language: "en", forbiddenWrites };
 }
 
 describe("the rights of an account are its role's", () => {

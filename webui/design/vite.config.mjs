@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import { buildIdentity } from "./build-identity.mjs";
-import { pushTexts, substituteWorker } from "./worker-source.mjs";
+import { pushCatalogues, substituteWorker } from "./worker-source.mjs";
 // Tailwind v4 as a Vite plugin. WHAT CONFINES ITS SCAN IS `source(none)` on
 // the import in `src/styles/theme.css`, and NOT the `@source` rules beside it:
 // v4 scans the project root automatically, and an `@source` rule ADDS to that
@@ -99,7 +99,10 @@ function buildWorker() {
         build: BUILD_ID,
         shell,
         extras: OPTIONAL_ASSETS,
-        push: pushTexts(JSON.parse(readFileSync(resolve(ROOT, "src/i18n/fr.json"), "utf8"))),
+        push: pushCatalogues({
+          fr: JSON.parse(readFileSync(resolve(ROOT, "src/i18n/fr.json"), "utf8")),
+          en: JSON.parse(readFileSync(resolve(ROOT, "src/i18n/en.json"), "utf8")),
+        }),
       });
       writeFileSync(resolve(output, "sw.js"), worker);
       // The built identity, for the update discipline to compare against what
@@ -163,4 +166,6 @@ export default defineConfig(({ mode }) => ({
   // Tailwind FIRST: it must have generated its sheet before the prototype
   // fragment is injected, and the injection deliberately runs `post`.
   plugins: [tailwindcss(), injectPrototype(), buildWorker()],
+  // The unit suite's browser language, pinned whatever the host's locale.
+  test: { setupFiles: ["./src/i18n/suite-language.ts"] },
 }));

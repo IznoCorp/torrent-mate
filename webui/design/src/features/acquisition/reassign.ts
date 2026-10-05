@@ -40,7 +40,7 @@ export function eligibleAccounts(
 ): Schemas["AccountSummary"][] {
   return roster.accounts.filter((one) =>
     requesters.some((requester) => requester.id === one.id)
-    || rightsOf({ ...one, avatar: "", forbiddenWrites: [] }).holds("acquisition.see.others"));
+    || rightsOf({ ...one, avatar: "", language: "en", forbiddenWrites: [] }).holds("acquisition.see.others"));
 }
 
 /**

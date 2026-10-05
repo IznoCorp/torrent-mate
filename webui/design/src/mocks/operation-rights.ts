@@ -41,6 +41,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   // A local account's own password (the operator, 2026-10-03): a session act.
   // The owner's and a Plex-linked account's are refused by their kind, not a right.
   changeOwnPassword: null,
+  // The account's own language, chosen in Profil (FG-1 B): a session act, no right.
+  setOwnLanguage: null,
   readVersion: null,
   // The account's own notification choices and its devices' tokens: each
   // account reads its own, and the read answers only the types its rights
