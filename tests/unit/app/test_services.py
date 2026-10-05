@@ -22,22 +22,12 @@ from personalscraper.core.event_bus import EventBus
 
 
 def test_build_app_services_is_inert(test_config: Config) -> None:
-    """The builder opens nothing: a fresh bus, and ``close`` is safe to call."""
+    """The builder opens nothing: the services hold the bus they are handed, and ``close`` is safe to call."""
     services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
 
     assert isinstance(services, AppServices)
     assert isinstance(services.event_bus, EventBus)
     services.close()
-
-
-def test_each_build_has_its_own_bus(test_config: Config) -> None:
-    """Two builds share no bus (one per process, never a module global)."""
-    settings = Settings(_env_file=None)  # type: ignore[call-arg]
-
-    assert (
-        build_app_services(test_config, settings, event_bus=EventBus()).event_bus
-        is not build_app_services(test_config, settings, event_bus=EventBus()).event_bus
-    )
 
 
 def test_the_library_service_is_built_inert(test_config: Config) -> None:
@@ -227,7 +217,28 @@ def test_without_a_registry_the_services_build_their_own_lazily(test_config: Con
     tmdb = providers.get("tmdb")
     assert tmdb is not None
     assert tmdb._transport._policy.retry == ONE_ATTEMPT  # type: ignore[attr-defined]
+    registry = providers._registry
+    assert registry is not None
+    closed: list[bool] = []
+    original_close = registry.close
+    registry.close = lambda: closed.append(True)  # type: ignore[method-assign]
     services.close()
+    assert closed == [True]
+    original_close()
+
+
+def test_the_lazy_registry_and_the_plex_door_are_on_the_process_bus(test_config: Config) -> None:
+    """The registry the services build and the Plex door publish on the bus handed in, not another."""
+    bus = EventBus()
+    settings = Settings(_env_file=None, plex_url="http://plex.example.invalid:32400", plex_token="planted-server-token")  # type: ignore[call-arg]
+    services = build_app_services(test_config, settings, event_bus=bus)
+    try:
+        tmdb = services.library._providers.get("tmdb")
+        assert tmdb is not None
+        assert tmdb._transport._event_bus is bus  # type: ignore[attr-defined]
+        assert services.plex_sign_in._bus is bus
+    finally:
+        services.close()
 
 
 def test_a_missing_tvdb_key_leaves_tmdb_served(test_config: Config, monkeypatch: pytest.MonkeyPatch) -> None:

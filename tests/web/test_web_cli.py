@@ -14,6 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from personalscraper.app.accounts.passwords import verify_password
+from personalscraper.app.composition import ONE_ATTEMPT
 
 # Import the fully-wired CLI app so the ``web`` sub-app is mounted via
 # ``add_typer`` (matching the trailers/library sub-app test convention).
@@ -132,6 +133,27 @@ class TestWebHappyPath:
         call_kwargs = mock_run.call_args.kwargs
         assert call_kwargs["host"] == web_cfg.host
         assert call_kwargs["port"] == web_cfg.port
+
+    def test_the_boot_context_makes_one_attempt_and_is_handed_to_the_app(
+        self, cli_runner: CliRunner, test_config
+    ) -> None:
+        """The process's context is built with one provider attempt, and ``create_app`` is handed it."""
+        cfg = test_config.model_copy(update={"web": WebConfig(dev_mode=True)})
+        mock_ctx = MagicMock()
+        mock_ctx.acquire = None
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_BUILD_CTX, return_value=mock_ctx) as mock_build,
+            patch("personalscraper.commands.web.create_app") as mock_create_app,
+            patch(_PATCH_UVICORN_RUN),
+        ):
+            result = cli_runner.invoke(cli_app, ["web"])
+
+        assert result.exit_code == 0
+        assert mock_build.call_args.kwargs["provider_retry"] is ONE_ATTEMPT
+        assert mock_create_app.call_args.kwargs["app_context"] is mock_ctx
 
     def test_cli_host_and_port_override_config(self, cli_runner: CliRunner, test_config) -> None:
         """``web --host 0.0.0.0 --port 8711`` overrides config.web.host/port (staging clone).
