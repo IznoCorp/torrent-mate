@@ -215,6 +215,41 @@ def test_info_helps_are_catalogue_texts() -> None:
     assert "circuit=<state>" in CliRunner().invoke(app, ["info", "providers", "--help"]).output
 
 
+@pytest.mark.parametrize(
+    ("relative", "command", "key"),
+    [
+        ("commands/health_check.py", "health-check", "cli_core.health_check.help"),
+        ("commands/watch.py", "watch", "cli_core.watch.help"),
+        ("commands/watch.py", "watch-now", "cli_core.watch.now_help"),
+        ("commands/torrents.py", "torrents-list", "cli_core.torrents.list_help"),
+    ],
+)
+def test_docstring_helped_commands_take_their_help_from_the_catalogue(relative: str, command: str, key: str) -> None:
+    """``health-check``, ``watch``, ``watch-now``, ``torrents-list``: the decorator's ``help=`` is the catalogue key.
+
+    Their help used to be the docstring, so ``--help`` stayed English under French. The English
+    catalogue text stays the docstring byte for byte, and the French one differs.
+    """
+    tree = ast.parse((Path(i18n.__file__).parents[1] / relative).read_text(encoding="utf-8"))
+    decorated = {
+        decorator.args[0].value: decorator
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+        for decorator in node.decorator_list
+        if isinstance(decorator, ast.Call) and decorator.args and isinstance(decorator.args[0], ast.Constant)
+    }
+    helps = [kw.value for kw in decorated[command].keywords if kw.arg == "help"]
+    assert len(helps) == 1 and _is_t_call(helps[0])
+    assert isinstance(helps[0], ast.Call) and ast.literal_eval(helps[0].args[0]) == key
+    docstring = next(
+        ast.get_docstring(node)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and decorated[command] in node.decorator_list
+    )
+    assert i18n.t(key, language=Language.EN, hash="<H>") == docstring  # the markup value stays in code
+    assert i18n.t(key, language=Language.FR, hash="<H>") != docstring
+
+
 def test_health_check_ok_line_is_translated(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
