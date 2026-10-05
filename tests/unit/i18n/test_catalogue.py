@@ -12,6 +12,7 @@ from _repo_paths import DESIGN_SRC
 
 from personalscraper.app.errors import RefusalCode
 from personalscraper.i18n import Language, _catalogue
+from personalscraper.subscribers.rich_console import PipelineStep
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PACKAGE_ROOT = _REPO_ROOT / "personalscraper"
@@ -19,7 +20,7 @@ _FRONTEND_FR = DESIGN_SRC / "i18n" / "fr.json"
 
 # Namespace -> the closed StrEnum whose members are looked up with ``t_code``. A phase that adds
 # a coded namespace declares the pair here and ships a key per member.
-CODE_SETS: dict[str, type[StrEnum]] = {"cli_refusals": RefusalCode}
+CODE_SETS: dict[str, type[StrEnum]] = {"cli_refusals": RefusalCode, "cli_core.step": PipelineStep}
 
 _MARKUP = ("**", "<", "[/", "[bold", "[cyan", "[red", "[green", "[yellow", "[dim")
 
@@ -186,12 +187,17 @@ def test_the_call_checker_catches_a_missing_key_and_a_missing_kwarg() -> None:
 
 
 def test_every_code_set_is_worded() -> None:
-    """Every member of every declared code set has a key in both languages."""
+    """Every member of every declared code set has a key, in both languages unless declared one-sided."""
     for namespace, codes in CODE_SETS.items():
-        for language in Language:
-            keys = set(_catalogue.flatten(_read(language.value, namespace)))
-            for member in codes:
-                assert member.value in keys, f"{namespace}.{member.value} missing in {language.value}"
+        file_stem, _, prefix = namespace.partition(".")  # "cli_core.step" -> file cli_core, keys step.<code>
+        prefix = f"{prefix}." if prefix else ""
+        keys = {language: set(_catalogue.flatten(_read(language.value, file_stem))) for language in Language}
+        for member in codes:
+            full = f"{prefix}{member.value}"
+            assert any(full in found for found in keys.values()), f"{namespace}.{member.value} missing everywhere"
+            for language, found in keys.items():
+                if full not in found:
+                    assert full in _one_sided(file_stem), f"{namespace}.{member.value} missing in {language.value}"
 
 
 def test_every_t_code_namespace_is_declared() -> None:

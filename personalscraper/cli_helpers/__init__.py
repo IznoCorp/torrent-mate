@@ -16,6 +16,7 @@ from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_
 from personalscraper.config import get_settings
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import current_correlation_id
+from personalscraper.i18n import t
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import (
     acquire_lock,
@@ -114,7 +115,8 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
         except ValidationError as exc:
             msg = _format_validation(exc)
             get_logger("cli").error("config_error", message=msg)
-            state["console"].print(f"[red]Configuration error:[/red] {msg}")
+            label = t("cli_core.helpers.config_error_label")
+            state["console"].print("[red]" + label + "[/red] " + msg)
             raise typer.Exit(1)
 
     return wrapper
@@ -138,10 +140,16 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
         alias_map = {cid: ccfg.aliases for cid, ccfg in conf.categories.items() if ccfg.aliases}  # type: ignore[union-attr]
         alias_hint = ", ".join(f"{cid}: {aliases}" for cid, aliases in sorted(alias_map.items()))
         valid_ids = ", ".join(sorted(conf.all_category_ids))  # type: ignore[union-attr]
-        msg = f"Unknown category '{category}'. Valid IDs: {valid_ids}." + (
-            f" Aliases: {alias_hint}." if alias_hint else ""
-        )
-        typer.echo(f"Error: {msg}", err=True)
+        if alias_hint:
+            msg = t(
+                "cli_core.helpers.unknown_category_with_aliases",
+                category=category,
+                valid_ids=valid_ids,
+                aliases=alias_hint,
+            )
+        else:
+            msg = t("cli_core.helpers.unknown_category", category=category, valid_ids=valid_ids)
+        typer.echo(t("cli_core.helpers.error_line", message=msg), err=True)
         raise typer.Exit(code=2)
     return resolved
 

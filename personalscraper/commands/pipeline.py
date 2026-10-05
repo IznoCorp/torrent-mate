@@ -17,12 +17,15 @@ from personalscraper.cli_helpers import (
 )
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.run_journal import LogTailHandler
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
+    from personalscraper.models import StepReport
+    from personalscraper.verify.checks.base import CheckSpec
 
 
 def _journal_lock_conflict(config: Config, *, dry_run: bool) -> None:
@@ -54,10 +57,62 @@ def _journal_lock_conflict(config: Config, *, dry_run: bool) -> None:
         writer.finalize(
             run_uid,
             "error",
-            error="Could not acquire pipeline.lock — another run is already active.",
+            error=t("cli_core.pipeline.lock_conflict_row"),
         )
     except Exception:
         log.warning("pipeline_lock_conflict_row_write_failed", run_uid=run_uid, exc_info=True)
+
+
+def _counts(report: StepReport) -> str:
+    """Return the ``N OK, N skipped, N errors`` tally of a step report.
+
+    Args:
+        report: The step report to tally.
+
+    Returns:
+        The tally in the current language.
+    """
+    return t(
+        "cli_core.pipeline.counts",
+        ok=report.success_count,
+        skipped=report.skip_count,
+        errors=report.error_count,
+    )
+
+
+def _summary_line(label: str, body: str) -> str:
+    """Return a step summary line: the bold label, then its body.
+
+    Args:
+        label: The step's label, colon included.
+        body: What the step did.
+
+    Returns:
+        The Rich-markup line to print.
+    """
+    return "[bold]" + label + "[/bold] " + body
+
+
+def _check_row(spec: CheckSpec) -> str:
+    """Return one ``--list-checks`` row.
+
+    Args:
+        spec: The check to describe.
+
+    Returns:
+        The row, columns padded as the listing has always been.
+    """
+    fix = t("cli_core.pipeline.check_fixable") if spec.fixable else "-"
+    idx = t("cli_core.pipeline.check_indexable") if spec.indexable else "-"
+    return t(
+        "cli_core.pipeline.check_row",
+        name=f"{spec.name:<34}",
+        group=spec.group,
+        severity=f"{spec.default_severity.value:<7}",
+        fixable=f"{fix:<8}",
+        indexable=f"{idx:<9}",
+        description=spec.description,
+    )
 
 
 def _run_help() -> str:
@@ -74,15 +129,15 @@ def _run_help() -> str:
     from personalscraper.pipeline_steps import DEFAULT_STEPS  # noqa: PLC0415
 
     steps = " → ".join(DEFAULT_STEPS.keys())
-    return f"Run full pipeline ({steps})."
+    return t("cli_core.pipeline.run_help", steps=steps)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.ingest.help"))
 @handle_cli_errors
 @boundary(stream_events=True, build_torrent_client=True)
 def ingest(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_moving")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -112,17 +167,15 @@ def ingest(
         seed_checker=_seed_checker,
         provenance=_provenance,
     )
-    console.print(
-        f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(t("cli_core.pipeline.label_ingest"), _counts(report)))
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.sort.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def sort(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_moving")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -140,23 +193,21 @@ def sort(
         config=config,
         event_bus=app_context.event_bus,
     )
-    console.print(
-        f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(t("cli_core.pipeline.label_sort"), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.scrape.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def scrape(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
-    movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
-    tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_writing")),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help=t("cli_core.pipeline.opt.interactive")),
+    movies_only: bool = typer.Option(False, "--movies-only", help=t("cli_core.pipeline.opt.movies_only")),
+    tvshows_only: bool = typer.Option(False, "--tvshows-only", help=t("cli_core.pipeline.opt.tvshows_only")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -178,23 +229,21 @@ def scrape(
         event_bus=app_context.event_bus,
         registry=app_context.provider_registry,
     )
-    console.print(
-        f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(t("cli_core.pipeline.label_scrape"), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.verify.help", marker="**"))
 @handle_cli_errors
 def verify(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
-    movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
-    tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
-    check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
-    list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying_files")),
+    movies_only: bool = typer.Option(False, "--movies-only", help=t("cli_core.pipeline.opt.movies_only")),
+    tvshows_only: bool = typer.Option(False, "--tvshows-only", help=t("cli_core.pipeline.opt.tvshows_only")),
+    check: list[str] = typer.Option(None, "--check", help=t("cli_core.pipeline.opt.check")),
+    list_checks: bool = typer.Option(False, "--list-checks", help=t("cli_core.pipeline.opt.list_checks")),
 ) -> None:
     """Verify and qualify scraped media before dispatch.
 
@@ -211,13 +260,7 @@ def verify(
         from personalscraper.verify.checks.catalog import list_checks as _list
 
         for spec in (s for s in _list() if s.stage == CheckStage.DISPATCH):
-            fix = "fixable" if spec.fixable else "-"
-            idx = "indexable" if spec.indexable else "-"
-            console.print(
-                f"  {spec.name:<34} [{spec.group}] "
-                f"{spec.default_severity.value:<7} {fix:<8} {idx:<9} "
-                f"{spec.description}"
-            )
+            console.print(_check_row(spec))
         raise typer.Exit(0)
     only = frozenset(check) if check else None
     if only is not None:
@@ -228,7 +271,11 @@ def verify(
         _unknown = only - _available
         if _unknown:
             raise typer.BadParameter(
-                f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
+                t(
+                    "cli_core.pipeline.unknown_dispatch_check",
+                    unknown=str(sorted(_unknown)),
+                    available=str(sorted(_available)),
+                )
             )
     _verify_run(ctx, dry_run=dry_run, movies_only=movies_only, tvshows_only=tvshows_only, only=only)
 
@@ -275,20 +322,25 @@ def _verify_run(
         )
     except KeyError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
-    console.print(f"  {len(dispatchable)} ready for dispatch")
+    console.print(
+        _summary_line(
+            t("cli_core.pipeline.label_verify"),
+            t("cli_core.pipeline.verify_counts", ok=report.success_count, blocked=report.skip_count),
+        )
+    )
+    console.print(t("cli_core.pipeline.verify_ready", ready=len(dispatchable)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.enforce.help", marker="**"))
 @handle_cli_errors
 def enforce(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
-    check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
-    list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying")),
+    check: list[str] = typer.Option(None, "--check", help=t("cli_core.pipeline.opt.check")),
+    list_checks: bool = typer.Option(False, "--list-checks", help=t("cli_core.pipeline.opt.list_checks")),
 ) -> None:
     """Enforce staging conventions: sanitize filenames, validate structure, check coherence.
 
@@ -303,13 +355,7 @@ def enforce(
         from personalscraper.verify.checks.catalog import list_checks as _list
 
         for spec in (s for s in _list() if s.stage == CheckStage.STAGING):
-            fix = "fixable" if spec.fixable else "-"
-            idx = "indexable" if spec.indexable else "-"
-            console.print(
-                f"  {spec.name:<34} [{spec.group}] "
-                f"{spec.default_severity.value:<7} {fix:<8} {idx:<9} "
-                f"{spec.description}"
-            )
+            console.print(_check_row(spec))
         raise typer.Exit(0)
     only = frozenset(check) if check else None
     if only is not None:
@@ -320,7 +366,11 @@ def enforce(
         _unknown = only - _available
         if _unknown:
             raise typer.BadParameter(
-                f"Unknown check(s): {sorted(_unknown)}. Available staging checks: {sorted(_available)}"
+                t(
+                    "cli_core.pipeline.unknown_staging_check",
+                    unknown=str(sorted(_unknown)),
+                    available=str(sorted(_available)),
+                )
             )
     _enforce_run(ctx, dry_run=dry_run, only=only)
 
@@ -355,22 +405,29 @@ def _enforce_run(
         report = run_enforce(bundle.settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
     except KeyError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
+    console.print(
+        t(
+            "cli_core.pipeline.enforce_counts",
+            fixed=report.success_count,
+            ok=report.skip_count,
+            errors=report.error_count,
+        )
+    )
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.dispatch.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def dispatch(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_moving")),
     no_post_maintenance: bool = typer.Option(
         False,
         "--no-post-maintenance",
-        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+        help=t("cli_core.pipeline.opt.no_post_maintenance"),
     ),
     *,
     bundle: CommandContext,
@@ -446,20 +503,18 @@ def dispatch(
         if plex_subscriber is not None:
             plex_subscriber.close()
 
-    console.print(
-        f"[bold]Dispatch:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(t("cli_core.pipeline.label_dispatch"), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.clean.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def clean(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -485,24 +540,24 @@ def clean(
             event_bus=app_context.event_bus,
         )
     except Exception as exc:
-        console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
+        console.print(
+            "[red]" + t("cli_core.pipeline.clean_failed", error_class=type(exc).__name__, error=str(exc)) + "[/red]"
+        )
         get_logger("pipeline").exception("clean_command_failed", error=str(exc))
         raise typer.Exit(1) from exc
 
-    console.print(
-        f"[bold]Clean:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(t("cli_core.pipeline.label_clean"), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.cleanup.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def cleanup(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without deleting"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_deleting")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -530,23 +585,29 @@ def cleanup(
             event_bus=app_context.event_bus,
         )
     except Exception as exc:
-        console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
+        console.print(
+            "[red]" + t("cli_core.pipeline.cleanup_failed", error_class=type(exc).__name__, error=str(exc)) + "[/red]"
+        )
         get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
         raise typer.Exit(1) from exc
 
-    console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
+    console.print(
+        _summary_line(
+            t("cli_core.pipeline.label_cleanup"), t("cli_core.pipeline.cleanup_counts", removed=report.success_count)
+        )
+    )
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.process.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def process(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying")),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help=t("cli_core.pipeline.opt.interactive")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -567,17 +628,21 @@ def process(
             registry=app_context.provider_registry,
         )
     except Exception as exc:
-        console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
+        console.print(
+            "[red]" + t("cli_core.pipeline.process_failed", error_class=type(exc).__name__, error=str(exc)) + "[/red]"
+        )
         get_logger("pipeline").exception("process_command_failed", error=str(exc))
         raise typer.Exit(1) from exc
 
-    for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
-        console.print(
-            f"[bold]{label}:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-        )
+    for label, report in [
+        (t("cli_core.pipeline.label_clean"), clean),
+        (t("cli_core.pipeline.label_scrape"), scrape),
+        (t("cli_core.pipeline.label_cleanup"), cleanup),
+    ]:
+        console.print(_summary_line(label, _counts(report)))
         if state["verbose"]:
             for detail in report.details:
-                console.print(f"  {detail}")
+                console.print("  " + detail)
 
 
 #: Valid ``--trigger-reason`` values. MUST include every reason any web-side caller
@@ -603,7 +668,7 @@ def _validate_trigger_reason(value: str) -> str:
     """
     if value not in _VALID_TRIGGER_REASONS:
         allowed = ", ".join(sorted(r for r in _VALID_TRIGGER_REASONS if r))
-        raise typer.BadParameter(f"Must be one of: {allowed} (got '{value}')")
+        raise typer.BadParameter(t("cli_core.pipeline.trigger_reason_invalid", allowed=allowed, value=value))
     return value
 
 
@@ -611,49 +676,39 @@ def _validate_trigger_reason(value: str) -> str:
 @handle_cli_errors
 def run(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_full")),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help=t("cli_core.pipeline.opt.interactive")),
     skip_trailers: bool = typer.Option(
         False,
         "--skip-trailers",
-        help="Skip the trailers pipeline step for this invocation.",
+        help=t("cli_core.pipeline.opt.skip_trailers"),
     ),
     continue_on_trailer_error: bool = typer.Option(
         False,
         "--continue-on-trailer-error",
-        help="Do not abort dispatch when the trailers step crashes.",
+        help=t("cli_core.pipeline.opt.continue_on_trailer_error"),
     ),
     headless: bool = typer.Option(
         False,
         "--headless",
-        help=(
-            "Run with no subscribers (silent mode for cron / CI). "
-            "Disables Rich console output and Telegram notifications."
-        ),
+        help=t("cli_core.pipeline.opt.headless"),
     ),
     no_console: bool = typer.Option(
         False,
         "--no-console",
-        help=(
-            "Disable Rich console output (progress bars, live tables). "
-            "Telegram notifications remain active. "
-            "Used by the Watcher daemon (``personalscraper watch``) when "
-            "spawning pipeline runs; contrast with ``--headless`` which "
-            "disables both Rich and Telegram. If both are passed, "
-            "``--headless`` wins."
-        ),
+        help=t("cli_core.pipeline.opt.no_console"),
     ),
     trigger_reason: str = typer.Option(
         "",
         "--trigger-reason",
         hidden=True,
         callback=_validate_trigger_reason,
-        help="Set by the Watcher daemon to attribute this run.",
+        help=t("cli_core.pipeline.opt.trigger_reason"),
     ),
     no_post_maintenance: bool = typer.Option(
         False,
         "--no-post-maintenance",
-        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+        help=t("cli_core.pipeline.opt.no_post_maintenance"),
     ),
 ) -> None:
     """Execute all pipeline phases via ``Pipeline.run``.
@@ -687,7 +742,7 @@ def run(
         config.paths.data_dir / "pipeline.lock",
         cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
     ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
+        console.print("[red]" + t("cli_core.pipeline.another_instance") + "[/red]")
         _journal_lock_conflict(config, dry_run=dry_run)
         raise typer.Exit(1)
 
@@ -855,7 +910,7 @@ def run(
                 # Trailers step failed and --continue-on-trailer-error was not set.
                 # Exit with code 2 (distinct from generic pipeline error exit 1) so
                 # scripts / launchd jobs can handle this case explicitly.
-                console.print(f"[red]ABORTED: {exc}[/red]", highlight=False)
+                console.print("[red]" + t("cli_core.pipeline.aborted", reason=str(exc)) + "[/red]", highlight=False)
                 _run_log.error("pipeline_aborted_trailer_step_failed", reason=str(exc))
                 raise typer.Exit(code=2) from exc
 

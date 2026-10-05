@@ -45,6 +45,7 @@ from personalscraper.app.composition import build_app_context
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.core.tags import SEED_PURE
+from personalscraper.i18n import t
 from personalscraper.ingest.deferral import classify_deferrals, deferral_probe_dirs
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.lock import is_lock_held
@@ -115,7 +116,7 @@ def _run_disabled_idle_loop(config: Config) -> None:
         config: The typed configuration; only ``watch.poll_interval_s`` is
             read to pace the idle sleep.
     """
-    typer.echo("Watch daemon is disabled (config.watch.enabled=false).")
+    typer.echo(t("cli_core.watch.disabled"))
     log.info("watcher_disabled")
     signal.signal(signal.SIGTERM, _on_signal)
     signal.signal(signal.SIGINT, _on_signal)
@@ -685,7 +686,7 @@ def watch(ctx: typer.Context) -> None:
 
     torrent_client = app_context.torrent_client
     if torrent_client is None:
-        typer.echo("No active torrent client configured (config.torrent.active is empty).", err=True)
+        typer.echo(t("cli_core.watch.no_client"), err=True)
         raise typer.Exit(code=1)
 
     svc = WatcherService(config.watch)
@@ -786,9 +787,5 @@ def watch_now(ctx: typer.Context) -> None:
     sentinel = config.paths.data_dir / "watch.trigger"
     sentinel.write_text("")
     log.info("watch_now_sentinel_written", path=str(sentinel))
-    typer.echo(f"Sentinel written: {sentinel}")
-    typer.echo(
-        "Consumed by the watch daemon next cycle "
-        "-> pipeline run with reason=manual; "
-        "if the daemon is down the sentinel persists until next boot."
-    )
+    typer.echo(t("cli_core.watch.sentinel_written", path=str(sentinel)))
+    typer.echo(t("cli_core.watch.sentinel_consumed"))

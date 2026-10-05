@@ -13,6 +13,7 @@ from pathlib import Path
 import json5
 import typer
 
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("init_config")
@@ -57,32 +58,22 @@ def init_config(
         SystemExit: With code 2 if *output* exists without ``--force``.
     """
     if not example.is_dir():
-        typer.echo(f"Example directory not found: {example}", err=True)
+        typer.echo(t("cli_core.init_config.example_missing", example=str(example)), err=True)
         sys.exit(2)
 
     if output.exists():
         if not force:
-            typer.echo(
-                f"Config directory already exists at {output}. Use --force to overwrite.",
-                err=True,
-            )
+            typer.echo(t("cli_core.init_config.exists", output=str(output)), err=True)
             sys.exit(2)
         _backup_dir(output)
 
     shutil.copytree(example, output)
-    typer.echo(f"Config directory created at {output}")
+    typer.echo(t("cli_core.init_config.created", output=str(output)))
 
     if interactive:
         _prompt_for_values(output)
 
-    typer.echo(
-        "Next steps:\n"
-        f"  1. Edit {output}/paths.json5 to set your paths\n"
-        f"  2. Edit {output}/disks.json5 to configure your storage disks\n"
-        f"  3. Review {output}/metadata.json5 and {output}/torrent.json5 for API config\n"
-        f"  4. Edit .env to set your API keys (see .env.example)\n"
-        f"  5. Run `personalscraper run` to start the pipeline"
-    )
+    typer.echo(t("cli_core.init_config.next_steps", output=str(output)))
 
 
 def _prompt_for_values(config_dir: Path) -> None:
@@ -101,15 +92,15 @@ def _prompt_for_values(config_dir: Path) -> None:
 
         paths = paths_data.get("paths", {})
         torrent_dir = typer.prompt(
-            "qBittorrent completed torrents directory",
+            t("cli_core.init_config.torrent_dir_prompt"),
             default=str(paths.get("torrent_complete_dir", "/path/to/torrents/complete")),
         )
         staging_dir = typer.prompt(
-            "Staging directory",
+            t("cli_core.init_config.staging_dir_prompt"),
             default=str(paths.get("staging_dir", "./staging/")),
         )
         data_dir = typer.prompt(
-            "Data directory (pipeline state, DB, locks)",
+            t("cli_core.init_config.data_dir_prompt"),
             default=str(paths.get("data_dir", "./.data")),
         )
         paths_data["paths"] = {
@@ -118,7 +109,7 @@ def _prompt_for_values(config_dir: Path) -> None:
             "data_dir": data_dir,
         }
         paths_file.write_text(json5.dumps(paths_data, indent=2), encoding="utf-8")
-        typer.echo(f"Paths written to {paths_file}")
+        typer.echo(t("cli_core.init_config.paths_written", path=str(paths_file)))
 
     disks_file = config_dir / "disks.json5"
     if disks_file.is_file():
@@ -130,10 +121,10 @@ def _prompt_for_values(config_dir: Path) -> None:
 
         current_disks = disks_data.get("disks", [])
         if current_disks:
-            typer.echo(f"Found {len(current_disks)} disk(s) in template. Skipping disk prompts.")
-            typer.echo(f"Edit {disks_file} directly to configure storage disks.")
+            typer.echo(t("cli_core.init_config.disks_found", disks=len(current_disks)))
+            typer.echo(t("cli_core.init_config.disks_edit", path=str(disks_file)))
         else:
-            typer.echo("No disks configured. Add them in disks.json5 before running the pipeline.")
+            typer.echo(t("cli_core.init_config.no_disks"))
 
 
 def init_config_sync(
@@ -162,18 +153,18 @@ def init_config_sync(
     from personalscraper.conf.sync import sync_config_dir  # noqa: PLC0415
 
     if dry_run:
-        typer.echo(f"[DRY-RUN] Would sync {example} → {target}")
+        typer.echo(t("cli_core.init_config.sync_dry_run", example=str(example), target=str(target)))
     else:
-        typer.echo(f"Syncing {example} → {target}")
+        typer.echo(t("cli_core.init_config.syncing", example=str(example), target=str(target)))
 
     try:
         report = sync_config_dir(example, target, dry_run=dry_run)
     except ConfigLoadError as exc:
-        typer.echo(f"Error: {exc}", err=True)
+        typer.echo(t("cli_core.init_config.error", error=str(exc)), err=True)
         raise typer.Exit(1) from exc
 
     if not report:
-        typer.echo("No new keys or files to add — config is up to date.")
+        typer.echo(t("cli_core.init_config.up_to_date"))
         return
 
     # Separate additions from conflicts so they can be displayed independently.
@@ -183,17 +174,17 @@ def init_config_sync(
     conflicts = [line for line in report if "conflict (kept target)" in line]
 
     for msg in additions:
-        typer.echo(f"  {msg}")
+        typer.echo(t("cli_core.init_config.indented", message=msg))
 
     if conflicts:
-        typer.echo("\nConflicts (kept your values):")
+        typer.echo(t("cli_core.init_config.conflicts"))
         for msg in conflicts:
             # Strip the "conflict (kept target):" prefix for cleaner display.
             clean = msg.removeprefix("conflict (kept target):").strip()
-            typer.echo(f"  {clean}")
+            typer.echo(t("cli_core.init_config.indented", message=clean))
 
-    prefix = "Would add" if dry_run else "Added"
-    typer.echo(f"\n{prefix} {len(additions)} item(s).")
+    summary_key = "cli_core.init_config.would_add" if dry_run else "cli_core.init_config.added"
+    typer.echo(t(summary_key, items=len(additions)))
 
     # Commit the canonical mini-repo after a non-dry-run sync with additions
     # (DESIGN §3.3).  This also sweeps any manual edits via ``add -A``.
@@ -217,10 +208,10 @@ def init_config_sync(
                         additions=len(additions),
                     )
                 else:
-                    typer.echo("Warning: git commit failed — sync was applied but not versioned.")
+                    typer.echo(t("cli_core.init_config.git_commit_failed"))
             else:
-                typer.echo("Warning: could not initialize git repo for config sync commit.")
+                typer.echo(t("cli_core.init_config.git_init_failed"))
         except Exception:
-            typer.echo("Warning: git commit failed — sync was applied but not versioned.")
+            typer.echo(t("cli_core.init_config.git_commit_failed"))
     elif not dry_run and (target / ".git").exists():
-        typer.echo(f"Tip: the canonical config is a local git repo. Review changes with:\n  git -C {target} diff")
+        typer.echo(t("cli_core.init_config.git_tip", target=str(target)))

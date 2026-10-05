@@ -8,9 +8,10 @@ from typing import Any
 import typer
 
 from personalscraper.cli_telemetry import cli_telemetry
+from personalscraper.i18n import t
 
-app = typer.Typer(help="PersonalScraper — Media pipeline automation.", invoke_without_command=True)
-config_app = typer.Typer(help="Configuration management commands.")
+app = typer.Typer(help=t("cli_core.app.help"), invoke_without_command=True)
+config_app = typer.Typer(help=t("cli_core.app.config_help"))
 
 
 def command_with_telemetry(
