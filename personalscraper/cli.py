@@ -29,6 +29,7 @@ from personalscraper.cli_app import app, config_app
 from personalscraper.cli_helpers import _bootstrap_staging, _format_validation, _resolve_category, handle_cli_errors
 from personalscraper.cli_state import AppCtx, State, state
 from personalscraper.commands.info import info_app
+from personalscraper.i18n import t
 from personalscraper.logger import configure_logging, get_logger
 
 # Rich tracebacks for readable error output.
@@ -44,27 +45,23 @@ app.add_typer(config_app, name="config")
 app.add_typer(info_app, name="info")
 
 
-@app.callback()
+@app.callback(help=t("cli_core.main.help"))
 def main(
     ctx: typer.Context,
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable DEBUG logging"),
-    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress console output"),
-    version: bool = typer.Option(False, "--version", help="Show version and exit"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help=t("cli_core.main.verbose_help")),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help=t("cli_core.main.quiet_help")),
+    version: bool = typer.Option(False, "--version", help=t("cli_core.main.version_help")),
     output_format: str = typer.Option(
         "rich",
         "--format",
         "-f",
-        help="Output format: rich (default), plain, or json.",
+        help=t("cli_core.main.format_help"),
     ),
     config: Path | None = typer.Option(
         None,
         "--config",
         "-c",
-        help=(
-            "Path to a split-config directory (containing config.json5 + "
-            "overlays). Overrides ./config/ and "
-            "$PERSONALSCRAPER_CONFIG. Must be placed BEFORE the subcommand."
-        ),
+        help=t("cli_core.main.config_help"),
     ),
 ) -> None:
     """PersonalScraper — Media pipeline automation."""
@@ -80,7 +77,7 @@ def main(
         raise typer.Exit()
 
     if output_format not in ("rich", "plain", "json"):
-        typer.echo(f"Invalid --format '{output_format}'. Choose rich, plain, or json.", err=True)
+        typer.echo(t("cli_core.main.invalid_format", value=output_format), err=True)
         raise typer.Exit(code=2)
 
     state["console"] = Console(quiet=quiet)
@@ -99,7 +96,7 @@ def main(
     try:
         cfg = load_config(resolve_config_path(config))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_core.main.config_error", error=str(exc)), err=True)
         raise typer.Exit(code=2) from exc
     ctx.obj = AppCtx(config=cfg, config_override=config)
 

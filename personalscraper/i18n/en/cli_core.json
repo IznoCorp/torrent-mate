@@ -1,0 +1,209 @@
+{
+  "app": {
+    "help": "PersonalScraper — Media pipeline automation.",
+    "config_help": "Configuration management commands."
+  },
+  "helpers": {
+    "config_error_label": "Configuration error:",
+    "unknown_category": "Unknown category '{{category}}'. Valid IDs: {{valid_ids}}.",
+    "unknown_category_with_aliases": "Unknown category '{{category}}'. Valid IDs: {{valid_ids}}. Aliases: {{aliases}}.",
+    "error_line": "Error: {{message}}"
+  },
+  "main": {
+    "verbose_help": "Enable DEBUG logging",
+    "quiet_help": "Suppress console output",
+    "version_help": "Show version and exit",
+    "format_help": "Output format: rich (default), plain, or json.",
+    "config_help": "Path to a split-config directory (containing config.json5 + overlays). Overrides ./config/ and $PERSONALSCRAPER_CONFIG. Must be placed BEFORE the subcommand.",
+    "help": "PersonalScraper — Media pipeline automation.",
+    "invalid_format": "Invalid --format '{{value}}'. Choose rich, plain, or json.",
+    "config_error": "Config error: {{error}}"
+  },
+  "config": {
+    "migrate_category": {
+      "help": "Rewrite media_item.category_id for renamed categories.\n\nRewrites every ``media_item`` row whose ``category_id`` equals ``--from``\nto ``--to``.  Run this after renaming a category in ``categories.json5``\nto clear orphan-tagged rows shown by ``library status``.\n\nThe target ``--to`` must already be a declared category id in the current\nconfig (the rename must be applied first).  The operation is idempotent.\n\nExamples:\n    personalscraper config migrate-category --from old_cat --to new_cat",
+      "from_help": "Old category_id to replace",
+      "to_help": "New category_id to write (must be declared in config)",
+      "config_help": "Path to config.json5 or config dir"
+    },
+    "init_config": {
+      "help": "Create ./config/ from the config.example/ template directory.\n\nRun without arguments for interactive mode (prompts for key values).\nUse --yes to skip all prompts and accept defaults.\nUse --dry-run to preview what would be created without writing anything.\n\nExamples:\n    personalscraper init-config\n    personalscraper init-config --yes\n    personalscraper init-config --output /custom/path/config --force\n    personalscraper init-config --dry-run",
+      "example_help": "Path to the example template directory to copy from.",
+      "output_help": "Destination path for the new config directory.",
+      "yes_help": "Skip interactive prompts and accept all defaults.",
+      "force_help": "Overwrite output directory if it already exists.",
+      "dry_run_help": "Preview mode: show what would be created without writing any files. Checks that config.example/ exists and reports the target path.",
+      "sync_help": "Additive sync from config.example to canonical config (non-destructive).",
+      "sync_force_exclusive": "Error: --sync and --force are mutually exclusive.",
+      "canonical_not_found": "Error: canonical config directory not found: {{output}}\nSet ${{env_var}} to point to your config directory, or pass --output explicitly to target a different location.",
+      "target": "Target config: {{output}}",
+      "dry_run_copy": "[DRY-RUN] Would copy {{example}} → {{output}}",
+      "dry_run_example_missing": "[DRY-RUN] WARNING: example directory not found: {{example}}",
+      "dry_run_exists": "[DRY-RUN] WARNING: {{output}} already exists; use --force to overwrite.",
+      "dry_run_none": "[DRY-RUN] No files written."
+    }
+  },
+  "info": {
+    "help": "Display version, config paths, and disk status.\n\nOutput format respects the global ``--format`` flag\n(e.g. ``personalscraper --format json info``).\n\nExamples:\n    personalscraper info\n    personalscraper --format json info",
+    "providers": {
+      "help": "Print per-provider circuit state snapshot from the ProviderRegistry.\n\nOutput: one line per configured provider, format:\n    {{name}}  circuit={{state}}  failures={{failures}}\n\nExits non-zero if RegistryConfigError is raised during boot validation\n(missing credentials or broken config).",
+      "config_help": "Override default config/providers.json5 for boot validation.",
+      "line": "{{name}} circuit={{state}}  failures={{failures}}"
+    }
+  },
+  "schedule": {
+    "help": "Run a personalscraper command at every boundary of a cron expression, forever.\n\nThe job is everything after ``--``: ``personalscraper schedule --cron '15 * * * *' -- health-check``.\nOne run at a time, never started early, never cut by a second tick; stops on SIGINT/SIGTERM.\n\nArgs:\n    ctx: Typer context; its extra arguments are the job's CLI arguments.\n    cron: The 5-field cron expression.\n\nRaises:\n    typer.Exit: Code 2 when the expression is malformed or no job follows ``--``.",
+    "cron_help": "5-field cron expression, local time (e.g. '15 * * * *').",
+    "no_job": "schedule: no job given after '--'",
+    "error": "schedule: {{error}}"
+  },
+  "torrents": {
+    "no_client": "No torrent client configured (set torrent.active in torrent.json5).",
+    "listing_failed_label": "Torrent listing failed:",
+    "seeding": "seeding",
+    "idle": "idle",
+    "row": "  {{state}} {{progress}}%  {{size}} GB  {{seeding}}  {{name}}",
+    "total_label": "Total:",
+    "total": "{{completed}} completed (of {{tracked}} tracked torrents)"
+  },
+  "watch": {
+    "disabled": "Watch daemon is disabled (config.watch.enabled=false).",
+    "no_client": "No active torrent client configured (config.torrent.active is empty).",
+    "sentinel_written": "Sentinel written: {{path}}",
+    "sentinel_consumed": "Consumed by the watch daemon next cycle -> pipeline run with reason=manual; if the daemon is down the sentinel persists until next boot."
+  },
+  "health_check": {
+    "lookback_help": "Recent-error window.",
+    "max_run_help": "Held-lock age considered stuck.",
+    "no_alert_help": "Do not send the Telegram alert (check only).",
+    "ok": "health-check: OK",
+    "anomalies": "health-check: ANOMALIES\n{{anomalies}}"
+  },
+  "init_config": {
+    "example_missing": "Example directory not found: {{example}}",
+    "exists": "Config directory already exists at {{output}}. Use --force to overwrite.",
+    "created": "Config directory created at {{output}}",
+    "next_steps": "Next steps:\n  1. Edit {{output}}/paths.json5 to set your paths\n  2. Edit {{output}}/disks.json5 to configure your storage disks\n  3. Review {{output}}/metadata.json5 and {{output}}/torrent.json5 for API config\n  4. Edit .env to set your API keys (see .env.example)\n  5. Run `personalscraper run` to start the pipeline",
+    "torrent_dir_prompt": "qBittorrent completed torrents directory",
+    "staging_dir_prompt": "Staging directory",
+    "data_dir_prompt": "Data directory (pipeline state, DB, locks)",
+    "paths_written": "Paths written to {{path}}",
+    "disks_found": "Found {{disks}} disk(s) in template. Skipping disk prompts.",
+    "disks_edit": "Edit {{path}} directly to configure storage disks.",
+    "no_disks": "No disks configured. Add them in disks.json5 before running the pipeline.",
+    "sync_dry_run": "[DRY-RUN] Would sync {{example}} → {{target}}",
+    "syncing": "Syncing {{example}} → {{target}}",
+    "error": "Error: {{error}}",
+    "up_to_date": "No new keys or files to add — config is up to date.",
+    "conflicts": "\nConflicts (kept your values):",
+    "would_add": "\nWould add {{items}} item(s).",
+    "added": "\nAdded {{items}} item(s).",
+    "git_commit_failed": "Warning: git commit failed — sync was applied but not versioned.",
+    "git_init_failed": "Warning: could not initialize git repo for config sync commit.",
+    "git_tip": "Tip: the canonical config is a local git repo. Review changes with:\n  git -C {{target}} diff"
+  },
+  "pipeline_run": {
+    "mode_dry_run": "DRY-RUN",
+    "mode_live": "LIVE",
+    "banner": "PersonalScraper Pipeline",
+    "duration_minutes": "{{minutes}}min {{seconds}}s",
+    "duration_seconds": "{{seconds}}s",
+    "column_step": "Step",
+    "column_ok": "OK",
+    "column_skip": "Skip",
+    "column_err": "Err",
+    "status_ok": "OK",
+    "status_errors": "ERRORS",
+    "panel_title": "Pipeline {{status}} — {{duration}}",
+    "summary_ok": "{{number}} OK",
+    "summary_skip": "{{number}} skip",
+    "summary_err": "{{number}} err",
+    "nothing_to_do": "nothing to do",
+    "step_summary": "   {{summary}} ({{elapsed}})",
+    "fatal": "FATAL: {{error_class}}: {{error_message}}",
+    "item_progress": "{{step}}: {{item}} — {{status}}"
+  },
+  "step": {
+    "ingest": "ingest",
+    "sort": "sort",
+    "clean": "clean",
+    "scrape": "scrape",
+    "cleanup": "cleanup",
+    "enforce": "enforce",
+    "verify": "verify",
+    "trailers": "trailers",
+    "dispatch": "dispatch"
+  },
+  "pipeline": {
+    "run_help": "Run full pipeline ({{steps}}).",
+    "counts": "{{ok}} OK, {{skipped}} skipped, {{errors}} errors",
+    "check_fixable": "fixable",
+    "check_indexable": "indexable",
+    "check_row": "  {{name}} [{{group}}] {{severity}} {{fixable}} {{indexable}} {{description}}",
+    "unknown_dispatch_check": "Unknown check(s): {{unknown}}. Available dispatch checks: {{available}}",
+    "unknown_staging_check": "Unknown check(s): {{unknown}}. Available staging checks: {{available}}",
+    "label_ingest": "Ingest:",
+    "label_sort": "Sort:",
+    "label_scrape": "Scrape:",
+    "label_verify": "Verify:",
+    "label_dispatch": "Dispatch:",
+    "label_clean": "Clean:",
+    "label_cleanup": "Cleanup:",
+    "verify_counts": "{{ok}} OK, {{blocked}} blocked",
+    "verify_ready": "  {{ready}} ready for dispatch",
+    "enforce_counts": "Enforce: {{fixed}} fixed, {{ok}} OK, {{errors}} errors",
+    "cleanup_counts": "{{removed}} removed",
+    "clean_failed": "Clean failed: {{error_class}}: {{error}}",
+    "cleanup_failed": "Cleanup failed: {{error_class}}: {{error}}",
+    "process_failed": "Process failed: {{error_class}}: {{error}}",
+    "trigger_reason_invalid": "Must be one of: {{allowed}} (got '{{value}}')",
+    "another_instance": "Another instance is running. Exiting.",
+    "aborted": "ABORTED: {{reason}}",
+    "opt": {
+      "dry_run_moving": "Preview without moving",
+      "dry_run_writing": "Preview without writing",
+      "dry_run_modifying_files": "Preview without modifying files",
+      "dry_run_modifying": "Preview without modifying",
+      "dry_run_deleting": "Preview without deleting",
+      "dry_run_full": "Preview full pipeline",
+      "interactive": "Prompt for ambiguous matches",
+      "movies_only": "Process only movies",
+      "tvshows_only": "Process only TV shows",
+      "check": "Run only the named check(s); repeatable",
+      "list_checks": "List available checks and exit",
+      "no_post_maintenance": "Skip automatic index maintenance after dispatch (scan/relink/fix).",
+      "skip_trailers": "Skip the trailers pipeline step for this invocation.",
+      "continue_on_trailer_error": "Do not abort dispatch when the trailers step crashes.",
+      "headless": "Run with no subscribers (silent mode for cron / CI). Disables Rich console output and Telegram notifications.",
+      "no_console": "Disable Rich console output (progress bars, live tables). Telegram notifications remain active. Used by the Watcher daemon (``personalscraper watch``) when spawning pipeline runs; contrast with ``--headless`` which disables both Rich and Telegram. If both are passed, ``--headless`` wins.",
+      "trigger_reason": "Set by the Watcher daemon to attribute this run."
+    },
+    "ingest": {
+      "help": "Ingest completed torrents from qBittorrent."
+    },
+    "sort": {
+      "help": "Sort and clean media files."
+    },
+    "scrape": {
+      "help": "Scrape metadata and artwork from TMDB/TVDB."
+    },
+    "verify": {
+      "help": "Verify and qualify scraped media before dispatch.\n\nThe ``--list-checks`` listing and the unknown-``--check`` validation run\n{{marker}}before{{marker}} any lock/journal scaffold — a pure listing or an argument error\nmust not take ``pipeline.lock`` nor write a ``pipeline_run`` row. Only once\nthe arguments are accepted does the real work run inside the shared\n:func:`~personalscraper.cli_helpers.boundary` scaffold via\n:func:`_verify_run`."
+    },
+    "enforce": {
+      "help": "Enforce staging conventions: sanitize filenames, validate structure, check coherence.\n\n``--list-checks`` and the unknown-``--check`` validation run {{marker}}before{{marker}} the\nlock/journal scaffold (they must not take ``pipeline.lock`` nor journal a\nrun); the accepted-argument path runs the real work inside the shared\n:func:`~personalscraper.cli_helpers.boundary` scaffold via :func:`_enforce_run`."
+    },
+    "dispatch": {
+      "help": "Move media to storage disks."
+    },
+    "clean": {
+      "help": "Run reclean + dedup only (process sub-step, SH-21 / AR-C).\n\nStandalone CLI surface around :func:`personalscraper.process.run.run_clean`.\nUseful for debugging the clean sub-step in isolation and for composition\nwith other operator workflows (e.g. dry-run a clean pass before launching\nthe full process step). The full pipeline still invokes ``run_clean``\ninternally via ``run_process`` — this command does not alter that flow."
+    },
+    "cleanup": {
+      "help": "Run empty-directory cleanup only (process sub-step, SH-21 / AR-C).\n\nStandalone CLI surface around :func:`personalscraper.process.run.run_cleanup`.\nRemoves empty directories left behind by previous steps. Distinct from\n``clean`` (which performs reclean + dedup of polluted folder names); this\ncommand only operates on empty directories. Useful for tidying staging\nbetween manual operator interventions. The full pipeline still invokes\n``run_cleanup`` internally via ``run_process`` — this command does not\nalter that flow."
+    },
+    "process": {
+      "help": "Run process phase only (reclean + dedup + scrape + cleanup)."
+    }
+  }
+}

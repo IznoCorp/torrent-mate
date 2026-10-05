@@ -70,6 +70,10 @@ KNOWN_VIOLATIONS: set[tuple[str, str]] = set()
 # ---------------------------------------------------------------------------
 
 
+#: Helper that wraps a summary label in ``[bold]`` markup (``commands/pipeline.py``).
+_SUMMARY_HELPER = "_summary_line"
+
+
 class _PipelineCommandVisitor(ast.NodeVisitor):
     """Walk a command module and extract parity information per function.
 
@@ -164,6 +168,14 @@ class _PipelineCommandVisitor(ast.NodeVisitor):
             if not child.args:
                 continue
             first_arg = child.args[0]
+            # The bold markup lives in ``commands.pipeline._summary_line``: a
+            # ``console.print(_summary_line(...))`` is the bold summary.
+            if (
+                isinstance(first_arg, ast.Call)
+                and isinstance(first_arg.func, ast.Name)
+                and first_arg.func.id == _SUMMARY_HELPER
+            ):
+                return True
             text = _extract_string_prefix(first_arg)
             if text is not None and text.startswith("[bold]"):
                 return True
@@ -364,6 +376,30 @@ def test_ingest_command_has_telemetry_coverage() -> None:
         "ingest is expected to have a bold summary console.print call. "
         "The detection logic or the command body changed unexpectedly."
     )
+
+
+def _bold_summary_of(source: str) -> dict[str, bool]:
+    """Run the bold-summary detection over a source snippet.
+
+    Args:
+        source: Python source defining one or more top-level functions.
+
+    Returns:
+        Mapping from function name to whether a bold summary was detected.
+    """
+    visitor = _PipelineCommandVisitor()
+    visitor.visit(ast.parse(source))
+    return visitor.has_bold_summary
+
+
+def test_summary_detection_reads_the_summary_helper_and_still_bites() -> None:
+    """A ``_summary_line(...)`` print is a bold summary; a command without one is not."""
+    found = _bold_summary_of(
+        "def with_helper():\n    console.print(_summary_line(label, body))\n"
+        "def with_literal():\n    console.print('[bold]X:[/bold] 1')\n"
+        "def without_summary():\n    console.print('plain')\n    other(_summary_line(label, body))\n"
+    )
+    assert found == {"with_helper": True, "with_literal": True, "without_summary": False}
 
 
 def test_command_files_are_parseable() -> None:
