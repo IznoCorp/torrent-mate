@@ -184,6 +184,37 @@ def test_staging_deletes_a_folder_inside_a_preprod_root(
     assert not folder.exists()
 
 
+def test_dev_refuses_a_folder_outside_the_dev_roots(
+    tmp_path: Path, spies: _Spies, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under dev a folder outside every dev root is refused: nothing deleted, journaled or published."""
+    from personalscraper.conf import sandbox_guard
+    from personalscraper.conf.sandbox_guard import SandboxGuardError
+    from tests.conf.test_sandbox_guard import _config, _marked
+
+    disk, stage = _marked(tmp_path, "disk", ".tm-dev-root"), _marked(tmp_path, "stage", ".tm-dev-root")
+    config = _config(tmp_path, disk, stage)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    folder = _folder(tmp_path)
+    db_path = _journal_db(tmp_path)
+    with pytest.raises(SandboxGuardError):
+        delete_media_folder(folder, db_path=db_path, actor="t", label="l", config=config)
+    assert folder.exists()
+    assert list_recent(db_path) == []
+    assert spies.journal == []
+    assert spies.published == []
+
+
+def test_prod_unchanged_deletes_without_a_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the variable unset (prod), a folder is deleted with no config and no marker, as before."""
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    folder = _folder(tmp_path)
+    res = delete_media_folder(folder, db_path=_journal_db(tmp_path), actor="t", label="l")
+    assert res.outcome is DeleteOutcome.DELETED
+    assert not folder.exists()
+
+
 def test_staging_without_a_config_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Under staging the roots are unknown without a config: the deletion fails closed."""
     from personalscraper.conf.sandbox_guard import SandboxGuardError

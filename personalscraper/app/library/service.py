@@ -88,7 +88,7 @@ from personalscraper.app.library.listing import (
 )
 from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
 from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.sandbox_guard import SandboxGuardError
 from personalscraper.core.artwork_naming import artwork_inventory
 from personalscraper.core.delete_permit import DeletePermit, PermitDecision
@@ -623,8 +623,8 @@ class LibraryService:
             delete_permit: The deletion authority a deletion consults (fail-open); ``None``
                 when none is wired, and then every deletion is refused (no permit, no
                 deletion: a folder that still owes seeding is never deleted unasked).
-            config: The loaded configuration, naming preprod's roots: required under
-                ``staging``, where a deletion without it deletes nothing.
+            config: The loaded configuration, naming the sandbox's roots: required in
+                a sandbox, where a deletion without it deletes nothing.
             sleep: Pauses a deletion's wait for a Plex scan.
             monotonic: Monotonic seconds, bounding that wait.
         """
@@ -1415,8 +1415,9 @@ class LibraryService:
     def _told_plex(self, done: Sequence[_Deleted]) -> DeletionReport:
         """Tell Plex of every deleted folder at once, and fold its steps into each medium's report.
 
-        Under ``staging`` (preprod) Plex is never told (``PlexOutcome.SKIPPED_PREPROD``):
-        the bundle clean purges the whole server, outside the preprod guard's roots.
+        In a sandbox (every environment but prod) Plex is never told
+        (``PlexOutcome.SKIPPED_SANDBOX``): the bundle clean purges the whole server,
+        outside the sandbox guard's roots.
 
         Called once every deletion of the request is done, so a refresh path is never a
         parent a later deletion removed.
@@ -1429,7 +1430,7 @@ class LibraryService:
         """
         deleted = [folder for one in done for folder in one.folders]
         removed = {parent for one in done for parent in one.removed}
-        preprod = current_environment() is Environment.STAGING
+        sandboxed = is_sandboxed()
         steps = (
             follow_up_plex(
                 self._plex,
@@ -1439,14 +1440,14 @@ class LibraryService:
                 sleep=self._sleep,
                 clock=self._monotonic,
             )
-            if self._plex is not None and deleted and not preprod
+            if self._plex is not None and deleted and not sandboxed
             else {}
         )
         media: list[MediaDeletion] = []
         for one in done:
             report = one.deletion
-            if one.folders and preprod:
-                report = replace(report, plex=PlexOutcome.SKIPPED_PREPROD)
+            if one.folders and sandboxed:
+                report = replace(report, plex=PlexOutcome.SKIPPED_SANDBOX)
             elif one.folders and self._plex is None:
                 report = replace(report, plex=PlexOutcome.NOT_CONFIGURED)
             elif one.folders:

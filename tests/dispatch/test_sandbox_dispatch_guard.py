@@ -1,4 +1,4 @@
-"""Tests for the preprod guard on the dispatch target folder."""
+"""Tests for the sandbox guard on the dispatch target folder."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from personalscraper.conf import sandbox_guard
-from personalscraper.dispatch._item import _refused_by_preprod_guard
+from personalscraper.dispatch._item import _refused_by_sandbox_guard
 from personalscraper.dispatch._types import DispatchResult
 from tests.conf.test_sandbox_guard import _config, _root
 
@@ -27,9 +27,9 @@ def test_destination_outside_the_roots_is_refused_under_staging(
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     result = DispatchResult(source=tmp_path / "src")
-    assert _refused_by_preprod_guard(dispatcher, result, tmp_path / "prod-media" / "Film (2024)") is True
+    assert _refused_by_sandbox_guard(dispatcher, result, tmp_path / "prod-media" / "Film (2024)") is True
     assert result.action == "error"
-    assert "Preprod guard" in result.reason
+    assert "Sandbox guard" in result.reason
 
 
 def test_destination_inside_a_root_passes_under_staging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -38,7 +38,7 @@ def test_destination_inside_a_root_passes_under_staging(tmp_path: Path, monkeypa
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     result = DispatchResult(source=tmp_path / "stage" / "001-MOVIES" / "Film (2024)")
-    assert _refused_by_preprod_guard(dispatcher, result, disk / "movies" / "Film (2024)") is False
+    assert _refused_by_sandbox_guard(dispatcher, result, disk / "movies" / "Film (2024)") is False
     assert result.action == "error"  # untouched: the DispatchResult default
 
 
@@ -47,4 +47,4 @@ def test_unset_environment_never_refuses(tmp_path: Path, monkeypatch: pytest.Mon
     dispatcher, _ = _dispatcher(tmp_path)
     monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
     result = DispatchResult(source=tmp_path / "src")
-    assert _refused_by_preprod_guard(dispatcher, result, tmp_path / "anywhere") is False
+    assert _refused_by_sandbox_guard(dispatcher, result, tmp_path / "anywhere") is False

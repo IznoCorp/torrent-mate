@@ -112,12 +112,12 @@ class TestGetDiskStatus:
 
 
 # ---------------------------------------------------------------------------
-# preprod mount-point guard
+# sandbox mount-point guard
 # ---------------------------------------------------------------------------
 
 
-class TestPreprodMarker:
-    """Under ``staging`` a disk root without the preprod marker reads as not mounted."""
+class TestSandboxMarker:
+    """Under a sandbox environment a disk root without that environment's marker reads as not mounted."""
 
     def _dc(self, path: Path) -> DiskConfig:
         return DiskConfig(id="disk_p", path=path, categories=["movies"])
@@ -147,4 +147,26 @@ class TestPreprodMarker:
         """Without ``PERSONALSCRAPER_ENV`` an unmarked mounted root is mounted, as before."""
         monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
         with patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True):
+            assert get_disk_status(self._dc(tmp_path)).is_mounted is True
+
+    def test_unmarked_root_is_not_mounted_under_dev(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Under dev a mounted root without ``.tm-dev-root`` reads as not mounted, even with preprod's marker."""
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+        (tmp_path / ".tm-preprod-root").write_text("", encoding="utf-8")
+        with (
+            patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True),
+            patch("personalscraper.conf.sandbox_guard.is_mounted", return_value=True),
+        ):
+            status = get_disk_status(self._dc(tmp_path))
+        assert status.is_mounted is False
+        assert status.free_space_gb == 0.0
+
+    def test_dev_marked_root_is_mounted_under_dev(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The same root with the dev marker reads as mounted under dev."""
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+        (tmp_path / ".tm-dev-root").write_text("", encoding="utf-8")
+        with (
+            patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True),
+            patch("personalscraper.conf.sandbox_guard.is_mounted", return_value=True),
+        ):
             assert get_disk_status(self._dc(tmp_path)).is_mounted is True

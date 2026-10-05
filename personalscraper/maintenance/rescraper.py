@@ -877,8 +877,8 @@ def rescrape_library(
             clients (TMDB, TVDB).
 
     Returns:
-        LibraryRescrapeResult with per-item actions. Under ``staging``, an item outside
-        preprod's marked, mounted roots is refused and reported as an error.
+        LibraryRescrapeResult with per-item actions. In a sandbox, an item outside
+        the sandbox's marked, mounted roots is refused and reported as an error.
     """
     from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
@@ -910,7 +910,7 @@ def rescrape_library(
         title, year = parse_title_year(media_dir.name)
 
         try:
-            # Preprod guard (``staging`` only): a refusal lands in this item's error branch.
+            # Sandbox guard (a no-op in prod): a refusal lands in this item's error branch.
             assert_within_sandbox(config, media_dir)
             action = _rescrape_item(
                 media_dir=media_dir,

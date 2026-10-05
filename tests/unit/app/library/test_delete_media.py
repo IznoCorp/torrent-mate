@@ -540,10 +540,11 @@ def test_an_index_write_failure_is_reported_and_the_request_goes_on(
 def test_under_staging_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> None:
     """Preprod deletes inside its roots, and never asks Plex (its bundle clean is server-wide): reported skipped."""
     from personalscraper.conf import sandbox_guard
+    from personalscraper.conf.environment import Environment
 
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
-    (shelf.root / sandbox_guard.PREPROD_ROOT_MARKER).write_bytes(b"")
+    (shelf.root / sandbox_guard.root_marker(Environment.STAGING)).write_bytes(b"")
     shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
         disks=[SimpleNamespace(path=shelf.root)],
         paths=SimpleNamespace(staging_dir=shelf.root),
@@ -557,7 +558,41 @@ def test_under_staging_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.Monk
     assert shelf.rows() == []
     assert shelf.plex.calls == []
     assert report.deleted == 1
-    assert (report.media[0].plex, report.media[0].plex_steps) == (PlexOutcome.SKIPPED_PREPROD, None)
+    assert (report.media[0].plex, report.media[0].plex_steps) == (PlexOutcome.SKIPPED_SANDBOX, None)
+
+
+def test_under_dev_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The dev sandbox deletes inside its roots and never asks prod's Plex: reported skipped."""
+    from personalscraper.conf import sandbox_guard
+
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+    (shelf.root / ".tm-dev-root").write_bytes(b"")
+    shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
+        disks=[SimpleNamespace(path=shelf.root)],
+        paths=SimpleNamespace(staging_dir=shelf.root),
+        torrent=SimpleNamespace(clients={}),
+    )
+    _, folder = shelf.movie("Movie (2020)", "11")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert not folder.exists()
+    assert shelf.plex.calls == []
+    assert report.deleted == 1
+    assert (report.media[0].plex, report.media[0].plex_steps) == (PlexOutcome.SKIPPED_SANDBOX, None)
+
+
+def test_in_prod_plex_is_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``PERSONALSCRAPER_ENV`` unset: with no marker anywhere, the deletion asks Plex as before."""
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    _, folder = shelf.movie("Movie (2020)", "11")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert not folder.exists()
+    assert ("clean_bundles", "") in shelf.plex.calls
+    assert report.media[0].plex is PlexOutcome.REFRESHED
 
 
 def _category_sections(shelf: Shelf) -> FakePlex:

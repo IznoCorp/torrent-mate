@@ -598,7 +598,7 @@ class TrailersOrchestrator:
             )
             return
 
-        # Preprod guard (``staging`` only): a trailer is written inside preprod's own roots.
+        # Sandbox guard (a no-op in prod): a trailer is written inside the sandbox's own roots.
         try:
             assert_within_sandbox(self._config, expected_path)
         except SandboxGuardError as exc:

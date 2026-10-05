@@ -115,11 +115,11 @@ def run_sort(
         StepReport with counts and per-item details.
 
     Raises:
-        SandboxGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+        SandboxGuardError: In a sandbox, the staging tree is outside the sandbox's marked,
             mounted roots. Nothing is touched.
     """
     ingest_dir = staging_path(config, find_ingest_dir(config))
-    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    # Sandbox guard (a no-op in prod): no write or purge outside the sandbox's own roots.
     assert_all_within_sandbox(config, staging_dir, ingest_dir)
 
     # Fast-skip: nothing to sort

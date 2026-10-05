@@ -12,7 +12,7 @@ Key design decisions:
 import shutil
 from dataclasses import dataclass
 
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig  # noqa: F401
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_sandbox_root
@@ -30,8 +30,8 @@ class DiskStatus:
         config: Disk configuration (Pydantic DiskConfig from conf.models).
         free_space_gb: Available free space in GB (0.0 if unmounted or unreadable).
         is_mounted: Whether the disk's volume is really mounted (its folder is not
-            merely present on the system disk); under ``staging`` also whether the
-            root holds the preprod marker.
+            merely present on the system disk); in a sandbox also whether the
+            root holds the sandbox's marker.
     """
 
     config: DiskConfig
@@ -63,9 +63,9 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
     is_mounted = _volume_is_mounted(config.path)
     free_space_gb = 0.0
 
-    if is_mounted and current_environment() is Environment.STAGING:
-        # Preprod: a root nobody marked as preprod's own reads as not mounted, so
-        # nothing is dispatched to it (the same refusal path as a missing disk).
+    if is_mounted and is_sandboxed():
+        # A sandbox: a root nobody marked as this sandbox's own reads as not mounted,
+        # so nothing is dispatched to it (the same refusal path as a missing disk).
         try:
             assert_sandbox_root(config.path)
         except SandboxGuardError as exc:

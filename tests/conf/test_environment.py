@@ -14,6 +14,7 @@ from personalscraper.conf.environment import (
     EnvironmentSettingError,
     StoreName,
     current_environment,
+    is_sandboxed,
     store_filename,
     store_path,
 )
@@ -58,6 +59,7 @@ def _mark(tmp_path: Path, env: str) -> None:
 
 
 _STAGING_WEB = WebConfig(stream_key="personalscraper:events:staging")
+_DEV_WEB = WebConfig(stream_key="personalscraper:events:dev")
 
 
 def test_staging_names_the_stores(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -73,7 +75,7 @@ def test_dev_names_the_stores(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     """``dev`` suffixes both derived store names."""
     monkeypatch.setenv(ENV_VAR, "dev")
     _mark(tmp_path, "dev")
-    cfg = _config(tmp_path)
+    cfg = _config(tmp_path, web=_DEV_WEB)
     assert cfg.acquire.db_path is not None and cfg.acquire.db_path.name == "acquire-dev.db"
     assert cfg.indexer.db_path is not None and cfg.indexer.db_path.name == "library-dev.db"
 
@@ -141,3 +143,19 @@ def test_store_path_joins_data_dir_and_reads_the_variable(tmp_path: Path, monkey
     monkeypatch.setenv(ENV_VAR, "dev")
     assert store_path(tmp_path, StoreName.APP) == tmp_path / "app-dev.db"
     assert store_path(tmp_path, StoreName.APP, Environment.STAGING) == tmp_path / "app-staging.db"
+
+
+@pytest.mark.parametrize(
+    ("env", "sandboxed"), [(Environment.PROD, False), (Environment.STAGING, True), (Environment.DEV, True)]
+)
+def test_is_sandboxed_is_every_environment_but_prod(env: Environment, sandboxed: bool) -> None:
+    """Prod is the one environment that is not a sandbox."""
+    assert is_sandboxed(env) is sandboxed
+
+
+def test_is_sandboxed_reads_the_variable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``None`` reads ``PERSONALSCRAPER_ENV``: unset is prod, ``dev`` is a sandbox."""
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    assert is_sandboxed() is False
+    monkeypatch.setenv(ENV_VAR, "dev")
+    assert is_sandboxed() is True

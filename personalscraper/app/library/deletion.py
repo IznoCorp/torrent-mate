@@ -89,9 +89,9 @@ class PlexOutcome(StrEnum):
     TRASH_KEPT = "trash_kept"
     """Its section rescanned, the scan ended and the bundles cleaned, its trash kept on
     purpose (see :class:`TrashKept`): the medium leaves Plex at a later emptied trash."""
-    SKIPPED_PREPROD = "skipped_preprod"
-    """Under ``staging`` (preprod), Plex is never told: its bundle clean is a server-wide
-    purge no preprod guard bounds (operator ruling Q7 A)."""
+    SKIPPED_SANDBOX = "skipped_sandbox"
+    """In a sandbox (every environment but prod), Plex is never told: its bundle clean is
+    a server-wide purge no sandbox guard bounds (operator ruling Q7 A)."""
 
 
 class KeptReason(StrEnum):
@@ -162,8 +162,8 @@ class MediaDeletion:
         ref: The medium, as the request named it.
         folders_deleted: Its media folders deleted.
         folders_vetoed: Its media folders the deletion authority kept (a seed obligation).
-        folders_failed: Its media folders whose removal failed, that the preprod guard
-            refused (under ``staging``, a folder outside preprod's roots), that do not
+        folders_failed: Its media folders whose removal failed, that the sandbox guard
+            refused (in a sandbox, a folder outside its roots), that do not
             resolve inside their disk (absent, or reached through a symlink), or whose disk
             root is on no mounted volume though the index says it is mounted.
         folders_unreachable: Its media folders on a disk the index says is not mounted.

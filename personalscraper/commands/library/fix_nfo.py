@@ -362,7 +362,7 @@ def library_fix_nfo(
         bytes_trimmed = len(data) - cutoff
 
         if apply:
-            # Preprod guard (``staging`` only): the NFO and its backup stay inside preprod's roots.
+            # Sandbox guard (a no-op in prod): the NFO and its backup stay inside the sandbox's roots.
             try:
                 assert_within_sandbox(cfg, nfo_path)
             except SandboxGuardError as exc:

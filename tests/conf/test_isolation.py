@@ -24,6 +24,7 @@ from personalscraper.conf.isolation import (
     read_marker,
 )
 from personalscraper.conf.models.acquire import AcquireConfig
+from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig, TorrentScope
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.indexer import IndexerConfig
@@ -33,6 +34,7 @@ from personalscraper.conf.models.web import WebConfig
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 _STAGING_KEY = "personalscraper:events:staging"
+_DEV_KEY = "personalscraper:events:dev"
 
 
 def _data_dir(tmp_path: Path, marker: str | None = None) -> Path:
@@ -174,11 +176,73 @@ def test_assert_isolated_explicit_staging_refuses_an_unmarked_data_dir(tmp_path:
         assert_isolated(cfg, Environment.STAGING)
 
 
-def test_dev_loads_on_its_own_marker_with_the_default_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The stream-key rule is ``staging``'s alone: ``dev`` on a ``dev`` marker loads with the default key."""
+def test_dev_loads_on_its_own_marker_with_a_key_of_its_own(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``dev`` on a ``dev`` marker, with a stream key of its own, loads its own stores."""
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
     data_dir = _data_dir(tmp_path, "dev")
-    assert _config(data_dir, tmp_path).indexer.db_path == data_dir / "library-dev.db"
+    assert (
+        _config(data_dir, tmp_path, web=WebConfig(stream_key=_DEV_KEY)).indexer.db_path == data_dir / "library-dev.db"
+    )
+
+
+def test_dev_refuses_prod_stream_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``dev`` publishing on prod's stream key would show its runs in prod's web: refused at load."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    data_dir = _data_dir(tmp_path, "dev")
+    with pytest.raises(ValidationError) as excinfo:
+        _config(data_dir, tmp_path, web=WebConfig(stream_key=PROD_STREAM_KEY))
+    cause = excinfo.value.errors()[0]["ctx"]["error"]
+    assert isinstance(cause, EnvironmentIsolationError)
+    assert PROD_STREAM_KEY in str(cause)
+
+
+def _client(*, enabled: bool, scoped: bool, tmp_path: Path) -> TorrentConfig:
+    """Build a torrent config with one qbittorrent entry.
+
+    Args:
+        enabled: Whether the client is enabled.
+        scoped: Whether the entry carries a scope.
+        tmp_path: Pytest tmp_path fixture value (the scope's download root).
+
+    Returns:
+        The torrent config.
+    """
+    scope = TorrentScope(category="tm-dev", download_root=tmp_path / "dl", instance_tags=("tm-dev", "seed-pure"))
+    entry = TorrentClientEntry(enabled=enabled, scope=scope if scoped else None)
+    return TorrentConfig(active="qbittorrent", clients={"qbittorrent": entry})
+
+
+@pytest.mark.parametrize("env", ["dev", "staging"])
+def test_a_sandbox_refuses_an_enabled_client_with_no_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, env: str
+) -> None:
+    """Outside prod an enabled client with no scope would own the whole shared client: refused at load."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
+    data_dir = _data_dir(tmp_path, env)
+    torrent = _client(enabled=True, scoped=False, tmp_path=tmp_path)
+    with pytest.raises(ValidationError) as excinfo:
+        _config(data_dir, tmp_path, web=WebConfig(stream_key=_DEV_KEY), torrent=torrent)
+    cause = excinfo.value.errors()[0]["ctx"]["error"]
+    assert isinstance(cause, EnvironmentIsolationError)
+    assert "qbittorrent" in str(cause)
+
+
+@pytest.mark.parametrize(("enabled", "scoped"), [(False, False), (True, True)])
+def test_dev_loads_a_disabled_or_scoped_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, enabled: bool, scoped: bool
+) -> None:
+    """A disabled client, or an enabled one kept to its scope, loads under dev."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    data_dir = _data_dir(tmp_path, "dev")
+    torrent = _client(enabled=enabled, scoped=scoped, tmp_path=tmp_path)
+    _config(data_dir, tmp_path, web=WebConfig(stream_key=_DEV_KEY), torrent=torrent)
+
+
+def test_prod_unchanged_loads_prod_key_and_an_unscoped_client(tmp_path: Path) -> None:
+    """With the variable unset (prod), prod's stream key and an enabled unscoped client load, as before."""
+    torrent = _client(enabled=True, scoped=False, tmp_path=tmp_path)
+    cfg = _config(_data_dir(tmp_path), tmp_path, web=WebConfig(stream_key=PROD_STREAM_KEY), torrent=torrent)
+    assert cfg.web.stream_key == PROD_STREAM_KEY
 
 
 def test_staging_refuses_a_prod_marked_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

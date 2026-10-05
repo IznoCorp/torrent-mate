@@ -1,4 +1,4 @@
-"""Tests for the preprod guard on every engine write and purge path.
+"""Tests for the sandbox guard on every engine write and purge path, driven under preprod.
 
 Each family is driven twice: under ``PERSONALSCRAPER_ENV=staging`` a path aimed outside
 preprod's marked, mounted roots is refused and nothing on disk is touched; with the
@@ -18,9 +18,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from personalscraper.conf import sandbox_guard
-from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_all_within_sandbox
+from personalscraper.conf.environment import Environment
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_all_within_sandbox, root_marker
 from personalscraper.core.event_bus import EventBus
-from personalscraper.dispatch._item import _refused_by_preprod_guard
+from personalscraper.dispatch._item import _refused_by_sandbox_guard
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.crash_recovery import (
     DISPATCH_TMP_PREFIX,
@@ -34,14 +35,23 @@ from tests.conf.test_sandbox_guard import _config, _root
 JUNK_NAME = ".DS_Store"
 
 
+# Every sandbox environment (not prod): the guard must hold under each, with its own marker.
+SANDBOX_ENVS = pytest.mark.parametrize("preprod", [Environment.STAGING, Environment.DEV], indirect=True, ids=str)
+
+
 @pytest.fixture
-def preprod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def preprod(request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Build a Config over a marked disk and an UNMARKED staging tree, then mount everything.
+
+    The roots carry the marker of ``request.param`` (staging unless a test parametrizes it
+    with :data:`SANDBOX_ENVS`); ``.env`` holds that environment for :func:`_staging`.
 
     The staging tree holds a ``001-MOVIES`` category with a media folder carrying junk, a
     ``097-TEMP`` ingest dir with one loose item, so a step that touched it would show.
     """
-    disk = _root(tmp_path, "disk")
+    env: Environment = getattr(request, "param", Environment.STAGING)
+    disk = _root(tmp_path, "disk", marked=False)
+    (disk / root_marker(env)).write_text("", encoding="utf-8")
     stage = _root(tmp_path, "stage", marked=False)
     config = _config(tmp_path, disk, stage)
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
@@ -53,18 +63,18 @@ def preprod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     ingest = stage / "097-TEMP"
     ingest.mkdir()
     (ingest / "Loose.Film.2024.mkv").write_bytes(b"x" * 8)
-    return SimpleNamespace(config=config, disk=disk, stage=stage, movies=movies, media=media, ingest=ingest)
+    return SimpleNamespace(env=env, config=config, disk=disk, stage=stage, movies=movies, media=media, ingest=ingest)
 
 
-def _staging(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Put the process in ``staging`` (after the Config is built)."""
-    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+def _staging(monkeypatch: pytest.MonkeyPatch, env: Environment = Environment.STAGING) -> None:
+    """Put the process in a sandbox environment, ``staging`` by default (after the Config is built)."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", env.value)
 
 
 # --- helper -----------------------------------------------------------------------------------
 
 
-def test_assert_all_within_preprod_judges_every_path(
+def test_assert_all_within_sandbox_judges_every_path(
     preprod: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One path outside the roots refuses the whole call, under staging only."""
@@ -90,12 +100,13 @@ def _orphans(tmp_path: Path) -> tuple[Path, Path]:
     return media_orphan, ingest_orphan
 
 
+@SANDBOX_ENVS
 def test_sweep_orphans_refuses_roots_outside_preprod_under_staging(
     preprod: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Under staging a sweep root outside the marked roots is skipped; its orphans stay."""
     media_orphan, ingest_orphan = _orphans(tmp_path)
-    _staging(monkeypatch)
+    _staging(monkeypatch, preprod.env)
     cleaned = sweep_orphans(
         [
             SweepRoot(tmp_path / "prod-media", RootKind.MEDIA_TREE),
@@ -109,24 +120,26 @@ def test_sweep_orphans_refuses_roots_outside_preprod_under_staging(
     assert ingest_orphan.exists()
 
 
+@SANDBOX_ENVS
 def test_sweep_orphans_needs_the_config_under_staging(
     preprod: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Under staging, a sweep with no config cannot know preprod's roots and removes nothing."""
     media_orphan, _ = _orphans(tmp_path)
-    _staging(monkeypatch)
+    _staging(monkeypatch, preprod.env)
     with pytest.raises(SandboxGuardError):
         sweep_orphans([SweepRoot(tmp_path / "prod-media", RootKind.MEDIA_TREE)], dry_run=False)
     assert media_orphan.exists()
 
 
+@SANDBOX_ENVS
 def test_sweep_orphans_cleans_inside_preprod_under_staging(
     preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A root inside a marked, mounted preprod root is swept as usual."""
     orphan = preprod.disk / "movies" / f"{DISPATCH_TMP_PREFIX}Film (2024)"
     orphan.mkdir(parents=True)
-    _staging(monkeypatch)
+    _staging(monkeypatch, preprod.env)
     assert sweep_orphans([SweepRoot(preprod.disk, RootKind.MEDIA_TREE)], dry_run=False, config=preprod.config) == 1
     assert not orphan.exists()
 
@@ -141,6 +154,15 @@ def test_sweep_orphans_is_unchanged_outside_staging(preprod: SimpleNamespace, tm
     )
     assert not media_orphan.exists()
     assert not ingest_orphan.exists()
+
+
+def test_sweep_orphans_without_a_config_is_unchanged_in_prod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``PERSONALSCRAPER_ENV`` unset: a sweep with no config and no marker removes the orphan, as before."""
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
+    media_orphan, _ = _orphans(tmp_path)
+    assert sweep_orphans([SweepRoot(tmp_path / "prod-media", RootKind.MEDIA_TREE)], dry_run=False) == 1
+    assert not media_orphan.exists()
 
 
 # --- ingest ---------------------------------------------------------------------------------------
@@ -181,7 +203,7 @@ def test_sorter_refuses_a_move_outside_preprod(
     _staging(monkeypatch)
     result = sorter.sort_item(source, dest_root)
     assert result.status == "error"
-    assert "preprod" in (result.message or "")
+    assert "sandbox root" in (result.message or "")
     assert source.exists()
     assert list(dest_root.iterdir()) == []
 
@@ -283,14 +305,24 @@ def test_run_enforce_is_unchanged_outside_staging(preprod: SimpleNamespace) -> N
 # --- verify ---------------------------------------------------------------------------------------
 
 
+@SANDBOX_ENVS
 def test_run_verify_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify (with its auto-fixes) touches nothing when staging is not a marked root."""
     from personalscraper.verify.run import run_verify
 
-    _staging(monkeypatch)
+    _staging(monkeypatch, preprod.env)
     with pytest.raises(SandboxGuardError):
         run_verify(MagicMock(), preprod.config, event_bus=EventBus())
     assert (preprod.media / JUNK_NAME).exists()
+
+
+def test_run_verify_is_unchanged_in_prod(preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``PERSONALSCRAPER_ENV`` unset: verify runs over the same unmarked staging tree without a refusal."""
+    from personalscraper.verify.run import run_verify
+
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    report, _ = run_verify(MagicMock(), preprod.config, event_bus=EventBus())
+    assert report.name == "verify"
 
 
 # --- dispatch (staging source purge) ----------------------------------------------------------------
@@ -303,7 +335,7 @@ def test_dispatch_refuses_a_source_outside_preprod(
     dispatcher: Any = SimpleNamespace(config=preprod.config)
     result = DispatchResult(source=tmp_path / "prod-staging" / "Film (2024)")
     _staging(monkeypatch)
-    assert _refused_by_preprod_guard(dispatcher, result, preprod.disk / "movies" / "Film (2024)") is True
+    assert _refused_by_sandbox_guard(dispatcher, result, preprod.disk / "movies" / "Film (2024)") is True
     assert result.action == "error"
 
 
