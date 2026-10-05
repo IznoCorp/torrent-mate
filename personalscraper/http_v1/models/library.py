@@ -11,12 +11,12 @@ URL, else ``readMediaPoster``'s URL when only the library folder holds one, else
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, WithJsonSchema
 
-from personalscraper.app.library.deletion import DeletionReport
-from personalscraper.app.library.identity import Provider
+from personalscraper.app.library.deletion import DeletionReport, KeptReason, MediaDeletion
+from personalscraper.app.library.identity import Provider, ref_key
 from personalscraper.app.library.service import CategoryCount, IncompleteEntry, LibraryEntry, LibraryPage, Membership
 from personalscraper.http_v1.contract import ContractModel
 from personalscraper.http_v1.models.media import ProviderIdValue, poster_route_url
@@ -34,6 +34,13 @@ LibraryIds = Annotated[
 ]
 
 
+#: The order a film's ids name it, as the interface's ``MOVIE_ORDER`` does: TMDB first.
+_MOVIE_ORDER: Final[tuple[Provider, ...]] = (Provider.TMDB, Provider.TVDB, Provider.IMDB)
+
+#: The order a show's ids name it: TVDB first.
+_SHOW_ORDER: Final[tuple[Provider, ...]] = (Provider.TVDB, Provider.TMDB, Provider.IMDB)
+
+
 def _poster(entry: LibraryEntry) -> str | None:
     """The poster an entry is shown with: the provider's, else the folder's through ``readMediaPoster``.
 
@@ -42,12 +49,13 @@ def _poster(entry: LibraryEntry) -> str | None:
 
     Returns:
         The provider URL; else, when only the folder holds a poster, ``readMediaPoster``'s
-        URL at the entry's first id (TVDB, then TMDB, then IMDb, as a sheet is addressed);
-        else ``None``.
+        URL at the entry's first id as the interface names the medium (a film TMDB first,
+        then TVDB; a show TVDB first, then TMDB; IMDb last); else ``None``.
     """
     if entry.poster_url is not None or not entry.local_poster:
         return entry.poster_url
-    provider = next(known for known in Provider if known.value in entry.ids)
+    order = _MOVIE_ORDER if entry.kind == "movie" else _SHOW_ORDER
+    provider = next(known for known in order if known.value in entry.ids)
     return poster_route_url(provider, str(entry.ids[provider.value]))
 
 
@@ -296,14 +304,62 @@ class DeleteLibraryItemsBody(ContractModel):
     media: list[MediaRefModel] = Field(min_length=1)
 
 
-class DeleteLibraryItemsResult(ContractModel):
-    """``deleteLibraryItems``'s answer: how many media went entirely.
+#: When a kept medium's seeding is met: epoch seconds, declared a ``number`` as the
+#: contract declares its epochs, served as the integer the authority computes.
+_EpochSeconds = Annotated[int | None, WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "null"}]})]
+
+
+#: Why a medium was kept, or null: written as the contract writes a nullable enum, null a member.
+_KeptReasonOrNone = Annotated[
+    KeptReason | None,
+    WithJsonSchema({"type": ["string", "null"], "enum": [*(reason.value for reason in KeptReason), None]}),
+]
+
+
+class LibraryDeletion(ContractModel):
+    """The contract's ``LibraryDeletion``: what the deletion did to one medium (operator ruling R2).
 
     Attributes:
-        deleted: The media deleted entirely.
+        ref: The medium, as the request named it.
+        outcome: ``deleted`` when it went, ``kept`` when it is still in the library.
+        reason: Why a kept medium was kept, ``None`` when it went.
+        owed_until: On ``seed_owed``, when the seeding is met, epoch seconds, ``None`` when
+            the authority does not know it; ``None`` for any other reason.
     """
 
-    deleted: int
+    ref: MediaRefModel
+    outcome: Literal["deleted", "kept"]
+    reason: _KeptReasonOrNone
+    owed_until: _EpochSeconds
+
+    @classmethod
+    def from_deletion(cls, deletion: MediaDeletion) -> LibraryDeletion:
+        """Map one medium's deletion.
+
+        Args:
+            deletion: The service's deletion of one medium.
+
+        Returns:
+            The body.
+        """
+        provider, provider_id = ref_key(deletion.ref)
+        reason = deletion.kept_reason
+        return cls(
+            ref=MediaRefModel(provider=provider, provider_id=provider_id),
+            outcome="kept" if reason is not None else "deleted",
+            reason=reason,
+            owed_until=deletion.owed_until if reason is KeptReason.SEED_OWED else None,
+        )
+
+
+class DeleteLibraryItemsResult(ContractModel):
+    """``deleteLibraryItems``'s answer: what the deletion did, per medium.
+
+    Attributes:
+        media: Each medium deleted or kept, in request order.
+    """
+
+    media: list[LibraryDeletion]
 
     @classmethod
     def from_report(cls, report: DeletionReport) -> DeleteLibraryItemsResult:
@@ -315,4 +371,4 @@ class DeleteLibraryItemsResult(ContractModel):
         Returns:
             The body.
         """
-        return cls(deleted=report.deleted)
+        return cls(media=[LibraryDeletion.from_deletion(deletion) for deletion in report.media])

@@ -42,7 +42,8 @@
     "unavailable": "A metadata provider did not answer; try again later."
   },
   "library": {
-    "locked": "The pipeline holds the library: try again when the run ends; nothing was deleted."
+    "locked": "The pipeline holds the library: try again when the run ends; nothing was deleted.",
+    "obligations_unreadable": "The seeding obligations cannot be read: nothing was deleted while what a tracker is still owed is unknown."
   },
   "role": {
     "unknown": "No role has this id.",

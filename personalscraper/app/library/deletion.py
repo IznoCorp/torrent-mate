@@ -50,6 +50,7 @@ __all__ = [
     "PLEX_SCAN_POLL_S",
     "PLEX_SCAN_WAIT_S",
     "DeletionReport",
+    "KeptReason",
     "MediaDeletion",
     "PlexOutcome",
     "PlexSteps",
@@ -91,6 +92,17 @@ class PlexOutcome(StrEnum):
     SKIPPED_PREPROD = "skipped_preprod"
     """Under ``staging`` (preprod), Plex is never told: its bundle clean is a server-wide
     purge no preprod guard bounds (operator ruling Q7 A)."""
+
+
+class KeptReason(StrEnum):
+    """Why a medium was kept (operator ruling R2): the first that holds, in this order."""
+
+    SEED_OWED = "seed_owed"
+    """The deletion authority kept one of its folders: a tracker is still owed its seeding."""
+    DISK_UNREACHABLE = "disk_unreachable"
+    """One of its folders is on a disk the index says is not mounted."""
+    FAILED = "failed"
+    """A folder's removal failed or was refused, or its index rows could not be removed."""
 
 
 class TrashKept(StrEnum):
@@ -159,6 +171,9 @@ class MediaDeletion:
         rows_removed: Its index rows removed (none unless every folder was deleted).
         plex: How Plex was told.
         plex_steps: Each Plex step's outcome, ``None`` when Plex was not asked.
+        owed_until: When the seeding its vetoed folders owe is met, epoch seconds — the
+            latest over them — or ``None`` when none was vetoed or the authority does not
+            know it.
     """
 
     ref: MediaRef
@@ -170,12 +185,24 @@ class MediaDeletion:
     rows_removed: int
     plex: PlexOutcome
     plex_steps: PlexSteps | None = None
+    owed_until: int | None = None
 
     @property
     def deleted(self) -> bool:
         """Whether the medium went entirely: no folder kept, its rows removed."""
         kept = self.folders_vetoed + self.folders_failed + self.folders_unreachable
         return kept == 0 and self.rows_removed > 0
+
+    @property
+    def kept_reason(self) -> KeptReason | None:
+        """Why the medium was kept, ``None`` when it went: the first of :class:`KeptReason` that holds."""
+        if self.deleted:
+            return None
+        if self.folders_vetoed:
+            return KeptReason.SEED_OWED
+        if self.folders_unreachable:
+            return KeptReason.DISK_UNREACHABLE
+        return KeptReason.FAILED
 
 
 @dataclass(frozen=True)

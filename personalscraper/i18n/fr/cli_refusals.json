@@ -42,7 +42,8 @@
     "unavailable": "Un fournisseur de métadonnées n'a pas répondu ; réessayez plus tard."
   },
   "library": {
-    "locked": "Le pipeline tient la médiathèque : réessayez à la fin de l'exécution ; rien n'a été supprimé."
+    "locked": "Le pipeline tient la médiathèque : réessayez à la fin de l'exécution ; rien n'a été supprimé.",
+    "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'a été supprimé tant qu'on ne sait pas ce qu'un tracker attend encore."
   },
   "role": {
     "unknown": "Aucun rôle n'a cet identifiant.",

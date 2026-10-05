@@ -6,7 +6,7 @@ import hashlib
 
 import pytest
 
-from personalscraper.acquire.delete_authority import DeleteAuthority
+from personalscraper.acquire.delete_authority import StrictDeletePermit
 from personalscraper.api.plex import PlexClient
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
 from personalscraper.app.accounts.repository import AccountRow
@@ -139,16 +139,15 @@ def test_every_suite_runs_with_no_plex_server_configured() -> None:
     assert settings.plex_url == Settings.model_fields["plex_url"].default
 
 
-def test_the_library_deletes_through_the_deletion_authority_over_the_configured_acquire_db(
+def test_the_library_deletes_through_the_strict_permit_over_the_configured_acquire_db(
     test_config: Config,
 ) -> None:
-    """The library's permit is a ``DeleteAuthority`` over ``acquire.db``, built inert; the configuration handed over."""
+    """The library's permit reads ``acquire.db`` read-only and refuses what it cannot read (R1); nothing created."""
     services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
     try:
         permit = services.library._delete_permit
-        assert isinstance(permit, DeleteAuthority)
-        assert permit._store is not None
-        assert permit._store._db_path == test_config.acquire.db_path
+        assert isinstance(permit, StrictDeletePermit)
+        assert permit._db_path == test_config.acquire.db_path
         assert test_config.acquire.db_path is not None
         assert not test_config.acquire.db_path.exists()
         assert services.library._config is test_config

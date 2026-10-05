@@ -7,19 +7,25 @@ use torrent-client content_path — those two trees never overlap after ingest
 
 Fail-open contract: store absent / unreadable / lock-timeout / no-obligation
 / any lookup error → ALLOW. VETO only on positively-known unmet obligation.
+:class:`StrictDeletePermit` makes the same decision for the library's deletion
+from the interface, and RAISES where this one allows (operator ruling R1).
 
 Logging: personalscraper.logger.get_logger (NOT structlog.get_logger).
 """
 
 from __future__ import annotations
 
+import sqlite3
 import time
+from contextlib import closing
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Final, Protocol
 
 from personalscraper.acquire.domain import SeedObligation
+from personalscraper.acquire.store import _SeedSubStore
 from personalscraper.core.delete_permit import (
     ALLOW,
+    ObligationsUnreadable,
     PermitDecision,
     veto,
 )
@@ -154,7 +160,7 @@ class DeleteAuthority:
 
         Extracted from :meth:`may_delete` so the fail-open ``try/except`` wraps
         BOTH the store lookup and the per-obligation loop (find_active_under +
-        seed-time + path-exists). The VETO/ALLOW logic is unchanged.
+        seed-time + path-exists). The VETO/ALLOW logic is :func:`_decide`'s.
 
         Args:
             path: Absolute path about to be deleted.
@@ -163,47 +169,7 @@ class DeleteAuthority:
             ALLOW if permitted, veto(reason) if a live unmet obligation exists.
         """
         assert self._store is not None  # noqa: S101 — guarded by the caller
-
-        obligations = self._store.seed.find_active_under(path)
-        if not obligations:
-            return ALLOW
-
-        now = int(time.time())
-
-        for obligation in obligations:
-            # Path-exists guard: a stale obligation (crash before move,
-            # dispatched_path for a file that was never created) is inert.
-            dp = obligation.dispatched_path
-            if dp is not None and not Path(dp).exists():
-                log.debug(
-                    "acquire.delete_authority.stale_obligation_inert",
-                    path=str(path),
-                    info_hash=obligation.info_hash,
-                )
-                continue
-
-            # Seed-time check (ratio deferred to C1).
-            seed_time_elapsed = now - obligation.added_at
-            if seed_time_elapsed >= obligation.min_seed_time_s:
-                continue
-
-            # Positively-known unmet obligation → VETO.
-            reason = (
-                f"seeding obligation not met: tracker={obligation.source_tracker} "
-                f"info_hash={obligation.info_hash[:8]}... "
-                f"elapsed={seed_time_elapsed}s < required={obligation.min_seed_time_s}s"
-            )
-            log.warning(
-                "acquire.delete_authority.veto",
-                path=str(path),
-                info_hash=obligation.info_hash,
-                source_tracker=obligation.source_tracker,
-                seed_time_elapsed=seed_time_elapsed,
-                min_seed_time_s=obligation.min_seed_time_s,
-            )
-            return veto(reason)
-
-        return ALLOW
+        return _decide(self._store.seed, path)
 
     def record_dispatch(
         self,
@@ -585,6 +551,124 @@ class DeleteAuthority:
         log.info("acquire.mark_breach.done", path=str(path), count=count)
 
 
+def _decide(seed: "_SeedSubStore", path: Path) -> PermitDecision:
+    """Decide whether *path* may go, from the active obligations under it (raises on any lookup error).
+
+    VETO only when a positively-known unmet obligation exists AND its
+    dispatched_path still exists on disk (the path-exists guard makes stale
+    obligations inert). Seed-time only; ratio is deferred to C1. The veto names
+    the first unmet obligation and carries, as ``owed_until``, the latest moment
+    any of them is met (``added_at + min_seed_time_s``).
+
+    Args:
+        seed: The ``seed_obligation`` sub-store to read.
+        path: Absolute path about to be deleted.
+
+    Returns:
+        ALLOW if permitted, veto(reason) if a live unmet obligation exists.
+    """
+    obligations = seed.find_active_under(path)
+    if not obligations:
+        return ALLOW
+
+    now = int(time.time())
+    unmet: list[SeedObligation] = []
+
+    for obligation in obligations:
+        # Path-exists guard: a stale obligation (crash before move,
+        # dispatched_path for a file that was never created) is inert.
+        dp = obligation.dispatched_path
+        if dp is not None and not Path(dp).exists():
+            log.debug(
+                "acquire.delete_authority.stale_obligation_inert",
+                path=str(path),
+                info_hash=obligation.info_hash,
+            )
+            continue
+
+        # Seed-time check (ratio deferred to C1).
+        if now - obligation.added_at >= obligation.min_seed_time_s:
+            continue
+        unmet.append(obligation)
+
+    if not unmet:
+        return ALLOW
+
+    # Positively-known unmet obligation → VETO.
+    first = unmet[0]
+    seed_time_elapsed = now - first.added_at
+    reason = (
+        f"seeding obligation not met: tracker={first.source_tracker} "
+        f"info_hash={first.info_hash[:8]}... "
+        f"elapsed={seed_time_elapsed}s < required={first.min_seed_time_s}s"
+    )
+    log.warning(
+        "acquire.delete_authority.veto",
+        path=str(path),
+        info_hash=first.info_hash,
+        source_tracker=first.source_tracker,
+        seed_time_elapsed=seed_time_elapsed,
+        min_seed_time_s=first.min_seed_time_s,
+    )
+    return veto(reason, owed_until=max(one.added_at + one.min_seed_time_s for one in unmet))
+
+
+#: How long a read of ``acquire.db`` waits for a writer's lock before it is unreadable.
+_READ_TIMEOUT_S: Final[float] = 5.0
+
+
+class StrictDeletePermit:
+    """The library deletion's permit: the seed obligations read, or the deletion refused (operator ruling R1).
+
+    The same decision as :class:`DeleteAuthority` (:func:`_decide`), with the opposite
+    answer to what cannot be read: where the pipeline's deleters ALLOW (DESIGN § 9,
+    fail-open), a deletion started from the interface is refused, since a medium still
+    owed to a tracker cannot be told apart. ``acquire.db`` is opened READ-ONLY for each
+    decision and closed after it: the web process never creates it, never migrates it,
+    never quarantines it, and holds no connection between two decisions.
+    """
+
+    def __init__(self, db_path: Path) -> None:
+        """Hold the path of ``acquire.db``; nothing is opened yet.
+
+        Args:
+            db_path: Path of ``acquire.db`` (resolved by the config layer).
+        """
+        self._db_path = db_path
+
+    def may_delete(self, path: Path) -> PermitDecision:
+        """Consult the persisted seed obligations, refusing to answer when they cannot be read.
+
+        Args:
+            path: Absolute path about to be deleted.
+
+        Returns:
+            ALLOW if permitted, veto(reason, owed_until=…) if a live unmet obligation exists.
+
+        Raises:
+            ObligationsUnreadable: ``acquire.db`` is absent, corrupt, locked past
+                :data:`_READ_TIMEOUT_S`, of a schema the read does not know, or any
+                lookup failed.
+        """
+        if not self._db_path.is_file():
+            log.warning("acquire.delete_authority.store_absent", path=str(path))
+            raise ObligationsUnreadable("acquire.db is absent")
+        try:
+            with closing(
+                sqlite3.connect(f"{self._db_path.as_uri()}?mode=ro", uri=True, timeout=_READ_TIMEOUT_S)
+            ) as conn:
+                conn.execute("PRAGMA query_only = ON")
+                return _decide(_SeedSubStore(conn), path)
+        except Exception as exc:
+            log.warning(
+                "acquire.delete_authority.store_unreadable",
+                path=str(path),
+                error=type(exc).__name__,
+                detail=str(exc),
+            )
+            raise ObligationsUnreadable(f"acquire.db cannot be read: {type(exc).__name__}") from exc
+
+
 def build_delete_authority(
     store: "ConcreteAcquireStore | None",
     torrent_client: "_ReadOnlyTorrentClient | None" = None,
@@ -604,4 +688,4 @@ def build_delete_authority(
     return DeleteAuthority(store=store, torrent_client=torrent_client, economy=economy)
 
 
-__all__ = ["DeleteAuthority", "build_delete_authority"]
+__all__ = ["DeleteAuthority", "StrictDeletePermit", "build_delete_authority"]

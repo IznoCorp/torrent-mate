@@ -66,6 +66,9 @@ def read_library_items(
 
     Returns:
         The page and its three counts.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming ``page`` for a negative page.
     """
     return LibraryItemsPage.from_page(
         app_services.library.read_items(
@@ -99,7 +102,16 @@ def delete_library_items(
         app_services: The application services.
 
     Returns:
-        How many media went entirely.
+        What the deletion did, per medium: deleted, or kept and why (operator ruling R2).
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or
+            ``providerId``), before anything is read.
+        AppNotFound: ``media.not_found`` when no library row holds an id; nothing deleted.
+        AppConflict: ``media.ambiguous`` when an id is held twice, ``library.locked`` while
+            the pipeline holds its lock; nothing deleted.
+        AppUnavailable: ``library.obligations_unreadable`` when the seed obligations cannot
+            be read (operator ruling R1); nothing deleted.
     """
     refs = [parse_media_ref(medium.provider.value, medium.provider_id) for medium in body.media]
     return DeleteLibraryItemsResult.from_report(app_services.library.delete_media(signed_in, refs))
@@ -162,14 +174,15 @@ def read_library_incomplete(
     signed_in: Annotated[Actor, Depends(actor)],
     app_services: Annotated[AppServices, Depends(services)],
 ) -> list[IncompleteShow]:
-    """The shows missing aired episodes, and how many.
+    """The shows missing aired episodes.
 
     Args:
         signed_in: The signed-in actor.
         app_services: The application services.
 
     Returns:
-        The incomplete shows, most missing first.
+        The incomplete shows, most missing first, each with its episodes owned and aired:
+        the client derives how many are missing.
     """
     return [IncompleteShow.from_incomplete(show) for show in app_services.library.read_incomplete(signed_in)]
 
@@ -197,6 +210,10 @@ def read_library_membership(
 
     Returns:
         The membership, read from the whole library.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming ``providerId`` for an id its provider
+            cannot hold, before anything is read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return LibraryMembership.from_membership(app_services.library.read_membership(signed_in, ref))
