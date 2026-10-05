@@ -45,6 +45,7 @@ import { postJson, sharedQueryClient } from "../lib/query-client";
 import { landSignedIn } from "./frame-verbs";
 import type { Schemas } from "../lib/contract-schemas";
 import { refusalWords } from "../lib/refusal";
+import { followTheSignedIn } from "../lib/account";
 import { actionButton, crossReferenceLink } from "../ui/variants";
 
 // The statuses the two doors answer with.
@@ -317,6 +318,8 @@ function stopPlex(): void {
 async function land(): Promise<void> {
   const client = sharedQueryClient;
   if (client === undefined) return ending();
+  // SOMEBODY IS SIGNED IN AGAIN: the interface follows the account this landing reads.
+  followTheSignedIn();
   await client.resetQueries();
   let account: Schemas["Account"];
   try {

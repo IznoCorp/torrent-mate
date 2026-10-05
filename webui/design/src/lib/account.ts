@@ -27,6 +27,10 @@ export const accountQuery = {
     read<Account>("/api/v1/auth/me"),
 };
 
+// NOBODY IS SIGNED IN between a session's end and the next sign-in's landing:
+// the follower then speaks no account's language, whatever the entry answers.
+let nobodySignedIn = false;
+
 /**
  * Makes the interface speak the signed-in account's language (FG-1 B), and the
  * browser's once nobody is signed in (OPEN-2 B).
@@ -34,9 +38,9 @@ export const accountQuery = {
  * FROM THE CACHE, ON EVERY MOVE OF THE ACCOUNT'S ENTRY, rather than from a
  * component: the account is read by the sign-in, by the frame and by Profil's
  * own write, and the language must follow whichever answered last — at once,
- * with no reload, and before the next paint. An entry emptied (a lost session,
- * the harness's reset) gives the sign-in page back its browser's language; a
- * sign-out says so itself, the entry left in place.
+ * with no reload, and before the next paint. Once the session is gone
+ * (`speakAsNobody`), the entry is not followed until the next sign-in lands
+ * (`followTheSignedIn`).
  *
  * @param client The boot's cache.
  */
@@ -46,15 +50,35 @@ export function followAccountLanguage(client: QueryClient): void {
   client.getQueryCache().subscribe((event) => {
     if (event.query.queryKey[0] !== key) return;
     // ONLY WHEN THE ANSWER MOVES, not on every event of its entry: a surface
-    // mounting over the same answer is no reason to speak again, and would undo
-    // the browser's language a sign-out gave the gate (`app/entry.ts`).
+    // mounting over the same answer is no reason to speak again.
     const account = client.getQueryData<Account>(accountQuery.queryKey);
     if (account === followed) return;
     followed = account;
-    // AN ACCOUNT READ WITHOUT ONE — the design host's real server, until it
-    // serves the field — speaks as nobody does: the browser's language.
+    // A `/auth/me` ASKED BEFORE THE SESSION ENDED and answered after it is the
+    // old account's: it must not put its language back over the gate.
+    if (nobodySignedIn) return;
+    // AN ENTRY EMPTIED (the sign-in's reset, the harness's) speaks as nobody
+    // does: the browser's language.
     speak(account?.language ?? browserLanguage());
   });
+}
+
+/**
+ * Gives the gate the browser's language once the session is gone — a sign-out,
+ * an expiry, an Admin's cut, a sign-out in another tab — and stops following the
+ * account's entry until the next sign-in lands.
+ */
+export function speakAsNobody(): void {
+  nobodySignedIn = true;
+  speak(browserLanguage());
+}
+
+/**
+ * Follows the account's entry again: a sign-in has succeeded and its landing
+ * reads the account it opened.
+ */
+export function followTheSignedIn(): void {
+  nobodySignedIn = false;
 }
 
 /** Who is signed in. */

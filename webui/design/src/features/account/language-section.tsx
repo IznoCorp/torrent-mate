@@ -17,7 +17,7 @@ import { useState, type ReactElement } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { browserLanguage, LANGUAGES, type Language } from "../../i18n";
+import { LANGUAGES, type Language } from "../../i18n";
 import { refusalWords } from "../../lib/refusal";
 import { factsPanel, keyValueRow, qualityHint, sectionHeading, settingRow, surfaceError, viewSwitch, viewSwitchButton } from "../../ui/variants";
 import { accountQuery, useAccount, type Account } from "./queries";
@@ -37,9 +37,7 @@ export function LanguageSection(): ReactElement | null {
   const { data: account } = useAccount();
   const [outcome, setOutcome] = useState<Outcome>({ kind: "rest" });
   if (!account) return null;
-  // AN ACCOUNT READ WITHOUT ITS LANGUAGE (the design host's server, until it serves the field) is
-  // spoken to in the browser's — the one the interface is showing.
-  const current: Language = account.language ?? browserLanguage();
+  const current: Language = account.language;
   const saving = outcome.kind === "saving";
   const words = "screens.accountPage.language";
 

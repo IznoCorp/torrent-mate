@@ -33,7 +33,7 @@ import { bridge, panel, toast } from "../lib/shell-doors";
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
 import { onSessionLost, onSessionLostBecause } from "../lib/query-client";
-import { browserLanguage, speak } from "../i18n";
+import { speakAsNobody } from "../lib/account";
 import {
   alreadyInstalled,
   captureInstallEvent,
@@ -239,7 +239,7 @@ export async function signOut(): Promise<void> {
   // page speaks the browser's (before sign-in, the browser's). The account's
   // entry is left as it is: emptied, the frame behind the gate would read it
   // again, and the server's 401 would put « session expired » on a sign-out.
-  speak(browserLanguage());
+  speakAsNobody();
   showSignIn(false);
   // A SIGN-OUT IS A LEAVE, not a lost session: whoever signs in next starts at
   // their own entry page, not at the place the previous person left.
@@ -334,6 +334,8 @@ function landOnGate(): void {
   const gate = node("#login");
   if (gate && !gate.hidden) return;
   panel?.close();
+  // NOBODY IS SIGNED IN: the gate speaks the browser's language, as after a sign-out.
+  speakAsNobody();
   showSignIn(false);
 }
 
