@@ -3,6 +3,7 @@
 // The shapes this feature's reads answer, declared where the subject lives.
 
 import type { Schemas } from "../../lib/contract-schemas";
+import type { WriteRefusal } from "../../lib/pending-edits-door";
 
 // One secret: what it is called, its key, and whether it is SET. Never its
 // value — a value shown once is a value read by everything looking at the
@@ -32,7 +33,7 @@ export type SettingsState = {
   conflict: boolean;
   /** Per setting, the failure its last write earned — its status and the layer's
    * words — kept until it is written again. */
-  refused: Map<string, { status: number; detail: string }>;
+  refused: Map<string, WriteRefusal>;
 };
 
 // One settings RUBRIC — the heading one navigates BY WHAT ONE WANTS TO CHANGE,

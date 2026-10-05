@@ -21,7 +21,8 @@ import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { Legend } from "../../ui/legend";
 import { Switch } from "../../ui/switch";
 import { useStoreContent } from "../../lib/store-access";
-import { pendingEdits } from "../../lib/pending-edits-door";
+import { pendingEdits, type WriteRefusal } from "../../lib/pending-edits-door";
+import { failureWords } from "../../lib/refusal";
 import {
   chip, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, surfaceError, type ChipTone,
 } from "../../ui/variants";
@@ -103,6 +104,28 @@ export function rosterMarks(tracker: Tracker, alert: Alert): RosterMark[] {
 }
 
 /**
+ * The line saying why a tracker's write failed.
+ *
+ * A REFUSAL (422) IS THE TRACKER'S OWN ANSWER — its message is data, drawn as it
+ * came. Any other failure left the edit pending and is worded by its code in the
+ * reader's language: the wire's `detail` is an English line for logs.
+ *
+ * @param props.refusal What the write earned.
+ * @returns The line.
+ */
+export function WriteRefusalLine({ refusal }: { refusal: WriteRefusal }): ReactElement {
+  const { t } = useTranslation();
+  const refused = refusal.status === REFUSED;
+  return (
+    <p className={surfaceError({ tone: "danger" })} role="status" data-part="trackers/refusal"
+      data-status={refusal.status}>
+      <b>{t(refused ? "screens.trackers.refusedLead" : "screens.trackers.writeFailedLead")}</b>
+      {refused ? refusal.detail : failureWords(refusal)}
+    </p>
+  );
+}
+
+/**
  * One tracker's row: its summary, which opens its panel, and its switch.
  *
  * @param props.tracker The tracker, as its own answer carries it.
@@ -163,14 +186,7 @@ function TrackerRow({ tracker, alert }: { tracker: Tracker; alert: Alert }): Rea
       {/* THE SWITCH IS A WRITE (`trackers.control`): the entry still says its state. */}
       {control ? <Switch checked={on} label={t("screens.trackers.switchLabel", { tracker: tracker.name })}
         data-part="trackers/switch" data-tracker-switch={tracker.name} /> : null}
-      {refusal === undefined ? null : (
-        // A REFUSAL (422) IS THE ENGINE'S ANSWER; any other failure left the edit pending.
-        <p className={surfaceError({ tone: "danger" })} role="status" data-part="trackers/refusal"
-          data-status={refusal.status}>
-          <b>{t(refusal.status === REFUSED ? "screens.trackers.refusedLead" : "screens.trackers.writeFailedLead")}</b>
-          {refusal.detail}
-        </p>
-      )}
+      {refusal === undefined ? null : <WriteRefusalLine refusal={refusal} />}
     </li>
   );
 }
