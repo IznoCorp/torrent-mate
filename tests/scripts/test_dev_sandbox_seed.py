@@ -243,7 +243,21 @@ def test_existing_target_is_not_overwritten(world: World) -> None:
     assert (world.target / "Inception.nfo").read_text(encoding="utf-8") == "<movie>edited in dev</movie>"
     assert (world.target / "Inception.mkv").read_bytes() == MOVIE_BYTES
     assert (world.source / "Inception.nfo").read_text(encoding="utf-8") == "<movie/>"
-    assert [cmd[-1] for cmd in world.children] == ["library-index", "library-catalogue-refresh"]
+    assert [cmd[3] for cmd in world.children] == ["library-index", "library-index", "library-catalogue-refresh"]
+
+
+def test_index_is_enriched_after_the_scan(world: World) -> None:
+    """The scan is followed by the enrich pass, which links each file to its release.
+
+    The full scan alone leaves every ``media_file`` without a ``media_release``, and the
+    library listing keeps only a medium a live file backs: the seeded library read empty.
+    """
+    assert world.run() == 0
+    assert [cmd[3:] for cmd in world.children] == [
+        ["library-index"],
+        ["library-index", "--mode", "enrich", "--no-budget"],
+        ["library-catalogue-refresh"],
+    ]
 
 
 def test_symlink_in_the_target_tree_is_refused(world: World, capsys: pytest.CaptureFixture[str]) -> None:

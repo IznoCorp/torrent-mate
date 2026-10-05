@@ -26,7 +26,7 @@ reported and nothing is copied. The tool refuses to run:
 
 The copy is ``rsync -a --ignore-existing``: a file already in the sandbox is never
 overwritten, prod's folders are only read, and nothing is ever deleted. A re-run restores
-what a dev operation removed. ``personalscraper library-index`` and
+what a dev operation removed. ``personalscraper library-index``, its enrich pass and
 ``personalscraper library-catalogue-refresh`` then run as children with the same
 environment.
 
@@ -82,6 +82,16 @@ PROD_MEDIA_FOLDER = "medias"
 FREE_SPACE_MARGIN = 0.10
 #: This checkout: the indexing children run its code, whatever the caller's cwd.
 REPO_ROOT = Path(__file__).resolve().parents[1]
+#: The indexing children, in order. The full scan records the files with no release; the
+#: enrich pass links each one to its release, without which the library listing, which keeps
+#: only a medium a live file backs, reads the seeded titles as absent. Unbudgeted: a seed is
+#: a one-shot, so the pass links every file it can, once; a file whose release link fails is
+#: still stamped ``enriched_at`` and no later enrich pass retries it.
+INDEX_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("library-index",),
+    ("library-index", "--mode", "enrich", "--no-budget"),
+    ("library-catalogue-refresh",),
+)
 
 #: Live files of an item matched by provider id, through a movie release or an episode release.
 #: ``{provider}`` is one of :data:`PROVIDERS`, never user text.
@@ -523,9 +533,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Copying {copy.title.label()}: {copy.source} -> {copy.target}", flush=True)
             copy_title(config, copy)
             done.append(copy.title.label())
-        for command in ("library-index", "library-catalogue-refresh"):
-            print(f"Running personalscraper {command}", flush=True)
-            _run_child([sys.executable, "-m", "personalscraper", command])
+        for command in INDEX_COMMANDS:
+            print(f"Running personalscraper {' '.join(command)}", flush=True)
+            _run_child([sys.executable, "-m", "personalscraper", *command])
     except SeedRefused as exc:
         copied = ", ".join(done) if done else "none"
         print(f"Refused: {exc}\nCopied so far: {copied}; nothing more copied, nothing indexed.", file=sys.stderr)
