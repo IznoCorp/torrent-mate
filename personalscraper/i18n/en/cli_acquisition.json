@@ -143,7 +143,6 @@
     "dry_run_no_store": "No acquire store — nothing to dry-run.",
     "dry_run_empty": "No pending wanted items.",
     "item_label": "Item:",
-    "item_line": "{{media_ref}} ({{kind}})",
     "circuit_open": "Tracker circuit open — skipped this item.",
     "attempt_search": "Search",
     "attempt_retry": "Retry (original title)",
@@ -227,8 +226,6 @@
     }
   },
   "confidence": {
-    "heading": "Matching: {{title}}",
-    "year_suffix": " ({{year}})",
-    "result_line": "  [{{index}}] {{title}}{{year}} — {{confidence}} [{{source}}]"
+    "heading": "Matching: {{title}}"
   }
 }

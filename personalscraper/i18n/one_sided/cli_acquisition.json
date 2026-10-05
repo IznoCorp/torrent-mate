@@ -126,7 +126,6 @@
   "grab.dry_run_no_store",
   "grab.dry_run_empty",
   "grab.item_label",
-  "grab.item_line",
   "grab.circuit_open",
   "grab.attempt_search",
   "grab.attempt_retry",
@@ -196,11 +195,8 @@
   "follow.backfill.nameless",
   "follow.backfill.gained",
   "follow.backfill.field_title",
-  "follow.backfill.resolved_suffix",
   "follow.backfill.done",
   "confidence.heading",
-  "confidence.year_suffix",
-  "confidence.result_line",
   "confidence.none_of_these",
   "confidence.choice_prompt"
 ]

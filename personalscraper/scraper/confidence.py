@@ -127,17 +127,9 @@ def prompt_user_choice(
     typer.echo("\n" + t("cli_acquisition.confidence.heading", title=local_title))
     typer.echo("-" * 50)
     for i, r in enumerate(results, 1):
-        year_str = t("cli_acquisition.confidence.year_suffix", year=r.api_year) if r.api_year else ""
-        typer.echo(
-            t(
-                "cli_acquisition.confidence.result_line",
-                index=i,
-                title=r.api_title,
-                year=year_str,
-                confidence=f"{r.confidence:.0%}",
-                source=r.source,
-            )
-        )
+        year_str = f" ({r.api_year})" if r.api_year else ""
+        score = format(r.confidence, ".0%")
+        typer.echo("  [" + str(i) + "] " + r.api_title + year_str + " — " + score + " [" + r.source + "]")
     typer.echo(t("cli_acquisition.confidence.none_of_these"))
 
     while True:

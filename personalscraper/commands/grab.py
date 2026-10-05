@@ -329,7 +329,7 @@ def _run_dry(
 
     registry = acquire.tracker_registry
     for item in pending:
-        item_line = t("cli_acquisition.grab.item_line", media_ref=str(item.media_ref), kind=item.kind)
+        item_line = f"{item.media_ref} ({item.kind})"
         console.print("\n[bold]" + t("cli_acquisition.grab.item_label") + "[/bold] " + item_line)
         # A `season` row is TV too — it was classified as MOVIE here while the
         # orchestrator (orchestrator.py) says `in ("episode", "season")`. The

@@ -17,8 +17,7 @@
     },
     "backfill": {
       "nameless": "#{{id}} (sans nom)",
-      "field_title": "titre",
-      "resolved_suffix": " → « {{title}} »"
+      "field_title": "titre"
     }
   },
   "confidence": {

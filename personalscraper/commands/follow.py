@@ -554,7 +554,7 @@ def follow_backfill_metadata(
                 )
                 suffix = ""
                 if existing.title is None and resolved.title:
-                    suffix = t("cli_acquisition.follow.backfill.resolved_suffix", title=resolved.title)
+                    suffix = f" → « {resolved.title} »"
                 console.print("[green]" + shown + "[/green]" + " ← " + marks + suffix)
                 if not dry_run:
                     # One short write transaction for THIS row, taken after its
