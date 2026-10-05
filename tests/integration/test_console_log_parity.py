@@ -210,6 +210,19 @@ def _extract_string_prefix(node: ast.expr) -> str | None:
     """
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        # ``"[bold]" + t(...)`` / ``_styled("bold", t(...)) + " " + ...``: the prefix is the left operand's.
+        return _extract_string_prefix(node.left)
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_styled"
+        and len(node.args) >= 1
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    ):
+        # ``_styled("bold", text)`` renders ``[bold]text[/bold]``.
+        return f"[{node.args[0].value}]"
     if isinstance(node, ast.JoinedStr):
         # f-string: reconstruct prefix from leading Constant parts.
         parts: list[str] = []
@@ -364,6 +377,40 @@ def test_ingest_command_has_telemetry_coverage() -> None:
         "ingest is expected to have a bold summary console.print call. "
         "The detection logic or the command body changed unexpectedly."
     )
+
+
+#: Bold summaries the i18n conversion rewrote as ``"[bold]" + t(...)`` / ``_styled("bold", t(...))``;
+#: the visitor must still see each one, or the parity guard silently loses it.
+_CONVERTED_BOLD_SUMMARIES: list[tuple[str, str]] = [
+    ("personalscraper/commands/library/analyze.py", "library_analyze"),
+    ("personalscraper/commands/library/analyze.py", "library_recommend"),
+    ("personalscraper/commands/library/analyze.py", "_rescrape"),
+    ("personalscraper/commands/library/audit.py", "_print_reconcile_rich"),
+    ("personalscraper/commands/library/maintenance.py", "library_clean"),
+    ("personalscraper/commands/library/maintenance.py", "library_validate"),
+]
+
+
+@pytest.mark.parametrize(("rel", "fn_name"), _CONVERTED_BOLD_SUMMARIES)
+def test_converted_bold_summary_is_still_detected(rel: str, fn_name: str) -> None:
+    """A bold summary built through the translation layer is still seen by the visitor."""
+    visitor = _scan_command_file(_REPO_ROOT / rel)
+    assert visitor.has_bold_summary.get(fn_name, False), f"{rel}:{fn_name} lost its detected bold summary"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'console.print("[bold]" + t("k") + "[/bold]")',
+        'console.print(_styled("bold", t("k")) + " " + str(n))',
+        'console.print(f"[bold]{x}[/bold]")',
+    ],
+)
+def test_extract_string_prefix_reads_every_bold_shape(source: str) -> None:
+    """Literal, f-string, concatenation and ``_styled("bold", ...)`` all read as ``[bold]``."""
+    call = ast.parse(source).body[0].value  # type: ignore[attr-defined]
+    prefix = _extract_string_prefix(call.args[0])
+    assert prefix is not None and prefix.startswith("[bold]")
 
 
 def test_command_files_are_parseable() -> None:
