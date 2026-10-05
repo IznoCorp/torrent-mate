@@ -78,6 +78,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the signed-in account's language
+         * @description The account chooses the language it is spoken to in, in Profil (the operator, 2026-10-03: FG-1 B — « la langue appartient à la personne »). Held by the server for the account, on all its devices, and read back in `Account.language`; its pushes follow it (FG-2 A). A session act like the password change and the notification switches: no right. The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right. A value outside `Language` is refused 400.
+         */
+        put: operations["setOwnLanguage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications/preferences": {
         parameters: {
             query?: never;
@@ -2108,6 +2128,8 @@ export interface components {
             id: string;
             role: components["schemas"]["Role"];
             signInKind: components["schemas"]["SignInKind"];
+            /** @description the account's language: the interface switches to it once the account is read, and its pushes are worded in it; `en` for an account that never chose (OPEN-2 B) */
+            language: components["schemas"]["Language"];
             /** @description THE INSTANCE'S forbidden writes (ruling 23): every write right on today's read-only instance, `library.delete` alone on the future preprod, empty on production. Read from the server, never guessed from an address. */
             forbiddenWrites: components["schemas"]["Right"][];
         };
@@ -3012,7 +3034,7 @@ export interface components {
             platform: "android" | "ios" | "desktop";
         };
         /**
-         * @description THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from `fr.json`'s `push` namespace. A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`.
+         * @description THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from the `push` namespace of the catalogue `webpush.data.language` names — the RECIPIENT ACCOUNT's `Language`, filled by the server per account (FG-2 A); absent or unknown, the worker words it in English (OPEN-2 B). A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`.
          * @enum {string}
          */
         PushCode: "obligation.met.seed_time" | "obligation.met.ratio" | "obligation.released.removed_here" | "obligation.released.gone_from_client" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down";
@@ -3033,6 +3055,11 @@ export interface components {
          * @enum {string}
          */
         SignInKind: "owner" | "plex" | "local";
+        /**
+         * @description THE LANGUAGE AN ACCOUNT IS SPOKEN TO IN — the interface's, on every device it signs in from, and its pushes' (the operator, 2026-10-03: FG-1 B, FG-2 A). An account's own setting, never a device's. When nothing names one, it is English (OPEN-2 B): a new account — created in « Comptes » or on its first Plex sign-in — starts at `en` until it chooses in Profil.
+         * @enum {string}
+         */
+        Language: "fr" | "en";
         /** @description A medium named by its provider identity — the library's one identity (operator ruling Q5 A, 2026-10-01: provider ids ARE the identity). A show is named TVDB first, a film TMDB first. */
         MediaRef: {
             /** @enum {string} */
@@ -3190,6 +3217,39 @@ export interface operations {
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             429: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    setOwnLanguage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the language chosen */
+                    language: components["schemas"]["Language"];
+                };
+            };
+        };
+        responses: {
+            /** @description the account, as now held — its `language` the one chosen */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

@@ -1,8 +1,9 @@
 // WHO IS SIGNED IN, and what the account may do — read by every surface that
 // draws by rights (§ 17). In `lib/` because every feature and the frame read it,
 // and invariant 7 forbids a feature importing another.
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import i18next from "i18next";
+import { browserLanguage, speak } from "../i18n";
 import { read, sharedQueryClient, useServerStateVersion } from "./query-client";
 import type { Schemas } from "./contract-schemas";
 import { bypassesRights, rightsOf, type Rights } from "./rights";
@@ -25,6 +26,29 @@ export const accountQuery = {
   queryFn: async () =>
     read<Account>("/api/v1/auth/me"),
 };
+
+/**
+ * Makes the interface speak the signed-in account's language (FG-1 B), and the
+ * browser's once nobody is signed in (OPEN-2 B).
+ *
+ * FROM THE CACHE, ON EVERY MOVE OF THE ACCOUNT'S ENTRY, rather than from a
+ * component: the account is read by the sign-in, by the frame and by Profil's
+ * own write, and the language must follow whichever answered last — at once,
+ * with no reload, and before the next paint. An entry emptied (a sign-out, a
+ * lost session, the harness's reset) gives the sign-in page back its browser's
+ * language.
+ *
+ * @param client The boot's cache.
+ */
+export function followAccountLanguage(client: QueryClient): void {
+  const [key] = accountQuery.queryKey;
+  client.getQueryCache().subscribe((event) => {
+    if (event.query.queryKey[0] !== key) return;
+    // AN ACCOUNT READ WITHOUT ONE — the design host's real server, until it
+    // serves the field — speaks as nobody does: the browser's language.
+    speak(client.getQueryData<Account>(accountQuery.queryKey)?.language ?? browserLanguage());
+  });
+}
 
 /** Who is signed in. */
 export function useAccount() {

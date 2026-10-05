@@ -5,16 +5,22 @@
 
 export const PLACEHOLDERS = ["__BUILD__", "__SHELL__", "__EXTRAS__", "__PUSH_TEXTS__"];
 
-// The `push` namespace of `fr.json`: a push is worded on the device from the
+// The `push` namespace of one catalogue: a push is worded on the device from the
 // same catalogue as every other string. Its GENERIC line is required — the worker
 // shows it for any code it cannot word, and a worker with nothing to show would
 // break iOS's rule that every push shows a notification.
-export function pushTexts(catalogue) {
+export function pushTexts(catalogue, name = "fr.json") {
   const push = catalogue?.push;
   if (!push || typeof push.generic?.title !== "string" || typeof push.generic?.body !== "string") {
-    throw new Error("build-worker: fr.json holds no push.generic title and body");
+    throw new Error(`build-worker: ${name} holds no push.generic title and body`);
   }
   return push;
+}
+
+// The `push` namespace of every catalogue, by language: a push is worded in the
+// RECIPIENT ACCOUNT's language, which the message names (FG-2 A).
+export function pushCatalogues({ fr, en }) {
+  return { fr: pushTexts(fr, "fr.json"), en: pushTexts(en, "en.json") };
 }
 
 // Each value is written through a replacer FUNCTION: a replacement STRING reads `$&`,

@@ -1198,6 +1198,17 @@
       "forbiddenHere": "interdit sur cette instance, pour tous les comptes",
       "held": "détenu",
       "noRight": "Aucun droit : ce rôle n'ouvre rien ici.",
+      "language": {
+        "heading": "Langue",
+        "label": "Langue de l'interface",
+        "line": "La même sur tous vos appareils ; vos notifications sont écrites dans cette langue.",
+        "saving": "Enregistrement de la langue…",
+        "refused": "La langue n'a pas pu être changée.",
+        "names": {
+          "fr": "Français",
+          "en": "English"
+        }
+      },
       "notifications": {
         "heading": "Notifications",
         "intro": "Vos choix valent pour tous vos appareils. Seuls les types que votre rôle vous permet de suivre sont proposés.",
@@ -1357,6 +1368,10 @@
       "body": " Son rôle ne lui donne aucun droit ici : l'administrateur peut lui en attribuer un autre dans « Comptes »."
     },
     "gate": {
+      "title": "Connexion",
+      "subtitle": "Accès à votre médiathèque et à vos acquisitions.",
+      "password": "Mot de passe",
+      "submit": "Se connecter",
       "reasonExpired": "Session expirée : reconnectez-vous.",
       "reasonDisabled": "Accès désactivé par un administrateur.",
       "plex": "Se connecter avec Plex",

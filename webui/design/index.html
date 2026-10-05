@@ -459,9 +459,13 @@
          a session exists there is nothing to navigate to, so showing a
          navigation bar would offer destinations that answer with a redirect.
          It carries no credentials of its own — the server decides, and a
-         password living in a page anyone can read is not a password. -->
+         password living in a page anyone can read is not a password.
+         Its words are French here, the fallback of a page without script;
+         each carries its key (`data-words`, `data-words-label`), and the boot
+         — or, on the design host, the server — words it in the reader's
+         language. -->
     <div class="loginscreen" data-part="login" id="login" role="region"
-      aria-label="Connexion" hidden>
+      data-words-label="screens.gate.title" aria-label="Connexion" hidden>
       <div class="brandbig" data-part="brand/large">
         <svg
           class="mk"
@@ -479,8 +483,8 @@
         <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
       </div>
       <form class="logincard" id="loginform" data-part="login/form" autocomplete="on">
-        <h1 class="logintitle">Connexion</h1>
-        <p class="loginsub">Accès à votre médiathèque et à vos acquisitions.</p>
+        <h1 class="logintitle" data-words="screens.gate.title">Connexion</h1>
+        <p class="loginsub" data-words="screens.gate.subtitle">Accès à votre médiathèque et à vos acquisitions.</p>
         <label class="loginfield" data-part="login/field">
           <span>Identifiant</span>
           <input
@@ -493,7 +497,7 @@
           />
         </label>
         <label class="loginfield" data-part="login/field">
-          <span>Mot de passe</span>
+          <span data-words="screens.gate.password">Mot de passe</span>
           <input
             type="password"
             name="password"
@@ -501,8 +505,8 @@
             required
           />
         </label>
-        <p class="loginerr" id="loginerr" hidden>Identifiants invalides</p>
-        <button class="loginsubmit" data-part="login/submit" type="submit">Se connecter</button>
+        <p class="loginerr" data-words="screens.gate.invalid" id="loginerr" hidden>Identifiants invalides</p>
+        <button class="loginsubmit" data-part="login/submit" data-words="screens.gate.submit" type="submit">Se connecter</button>
       </form>
     </div>
     <!-- login:markup:end -->

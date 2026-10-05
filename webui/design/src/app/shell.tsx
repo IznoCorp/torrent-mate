@@ -72,6 +72,7 @@ import { installArrival } from "./arrival";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient, installSharedQueryClient } from "../lib/query-client";
+import { followAccountLanguage } from "../lib/account";
 import { installDecisionLookup } from "../features/acquisition/decision-queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installLandingRedraw } from "./landing-redraw";
@@ -147,6 +148,8 @@ installStore(store);
 // the dependency is stated instead of resting on when a function is called.
 const queryClient = createQueryClient();
 installSharedQueryClient(queryClient);
+// The interface speaks the signed-in account's language from its first read on.
+followAccountLanguage(queryClient);
 installPanelHost(store, queryClient);
 
 // No address BASE is computed any more, and its disappearance is the

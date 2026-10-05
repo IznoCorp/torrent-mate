@@ -197,6 +197,8 @@ export function accountRoutes(): MockRoute[] {
         email,
         role: target.id,
         signInKind: linked ? "plex" : "local",
+        // NOTHING NAMES ITS LANGUAGE YET: English, until it chooses in Profil (OPEN-2 B).
+        language: "en",
       };
       roster.addAccount(created);
       return summary(created);

@@ -21,6 +21,7 @@ import { FactRows, type FactRow } from "../../ui/fact-rows";
 import { actionButton, factList, guidance, sectionHeading } from "../../ui/variants";
 import { NotificationsSection } from "./notifications-section";
 import { InstallSection } from "./install-section";
+import { LanguageSection } from "./language-section";
 
 export function AccountPage(): ReactElement | null {
   const { t } = useTranslation();
@@ -98,6 +99,8 @@ export function AccountPage(): ReactElement | null {
           })))}
         </>
       ) : null}
+
+      <LanguageSection />
 
       <NotificationsSection />
 

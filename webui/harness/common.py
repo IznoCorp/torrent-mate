@@ -468,8 +468,11 @@ def design_source():
 # an accident of its defaults. The rules measure the reference appearance —
 # dark — deterministically; a rule that wants to measure the light theme
 # passes color_scheme="light" itself.
+# A FRENCH BROWSER, the operator's: before sign-in the interface speaks the
+# browser's language (OPEN-2 B), and headless Chromium is en-US by default — the
+# suite reads the French it always read; `account_language.py` opens the others.
 PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
-         "is_mobile": True, "has_touch": True, "color_scheme": "dark"}
+         "is_mobile": True, "has_touch": True, "color_scheme": "dark", "locale": "fr-FR"}
 
 
 # THE WAITS, NAMED ONCE, EACH AGAINST THE DURATION IT HAS TO OUTLAST.

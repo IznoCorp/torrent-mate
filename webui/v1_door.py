@@ -323,6 +323,49 @@ def sign_in_script(return_to: str) -> str:
     )
 
 
+def worded(markup: str, catalogue: dict[str, object]) -> str:
+    """Words the extracted sign-in screen from one language's catalogue.
+
+    The shell's markup carries its French as the fallback of a page without
+    script, and the key of each word beside it: `data-words` for an element's
+    text, `data-words-label` for its accessible name. The prototype's boot reads
+    the same keys (`src/i18n/index.ts`'s `wordMarkup`); no script of the
+    application runs on this page, so the host words it here.
+
+    Args:
+        markup: The sign-in screen, as extracted from the shell document.
+        catalogue: The interface's resource for the visitor's language.
+
+    Returns:
+        The markup in that language.
+
+    Raises:
+        KeyError: When a key names no word of the catalogue — a page must not
+            be served with a hole where a word goes.
+    """
+
+    def word(key: str) -> str:
+        node: object = catalogue
+        for part in key.split("."):
+            if not isinstance(node, dict):
+                raise KeyError(key)
+            node = node[part]
+        if not isinstance(node, str):
+            raise KeyError(key)
+        return html.escape(node)
+
+    texts = re.sub(
+        r'(<(\w+)\b[^>]*\bdata-words="([^"]+)"[^>]*>)[^<]*(</\2>)',
+        lambda match: f"{match.group(1)}{word(match.group(3))}{match.group(4)}",
+        markup,
+    )
+    return re.sub(
+        r'(<[^>]*\bdata-words-label="([^"]+)"[^>]*?\baria-label=")[^"]*(")',
+        lambda match: f"{match.group(1)}{word(match.group(2))}{match.group(3)}",
+        texts,
+    )
+
+
 def with_reason(markup: str, reason: str) -> str:
     """Says why the session ended, under the sign-in form's subtitle.
 
@@ -339,7 +382,7 @@ def with_reason(markup: str, reason: str) -> str:
             says nothing about why they are there.
     """
     line = f'<p class="loginerr" data-part="login/reason" role="status">{html.escape(reason)}</p>'
-    said, found = re.subn(r'(<p class="loginsub">[^<]*</p>)', lambda match: match.group(1) + line, markup, count=1)
+    said, found = re.subn(r'(<p class="loginsub"[^>]*>[^<]*</p>)', lambda match: match.group(1) + line, markup, count=1)
     if found != 1:
         raise ValueError("the sign-in form carries no subtitle to say the reason under")
     return said
@@ -376,7 +419,7 @@ def email_label(resource: str) -> str:
     """The identifier's label when it is an e-mail, read from the interface's resource.
 
     Args:
-        resource: The text of `design/src/i18n/fr.json`.
+        resource: The text of one language's `design/src/i18n/<language>.json`.
 
     Returns:
         `screens.gate.email`.

@@ -4,5 +4,6 @@
   "email": "demo.user@example.org",
   "avatar": "assets/avatar.webp",
   "role": "admin",
-  "signInKind": "owner"
+  "signInKind": "owner",
+  "language": "fr"
 }

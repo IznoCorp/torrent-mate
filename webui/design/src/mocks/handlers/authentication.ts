@@ -16,7 +16,14 @@ import {
   signedInId,
   signInAllowed,
   passwordAccepted,
+  chooseLanguage,
 } from "../identity";
+import type { components } from "../../contract/types";
+
+type Language = components["schemas"]["Language"];
+
+// The languages `setOwnLanguage` accepts: the contract's `Language`.
+const LANGUAGES: ReadonlySet<string> = new Set<Language>(["fr", "en"]);
 
 const UNAVAILABLE = 503;
 const INVALID = 400;
@@ -121,6 +128,13 @@ export function authenticationRoutes(): MockRoute[] {
           "password.current_wrong",
         );
       return policyRefusal(text(request.body, "newPassword")) ?? { ok: true };
+    }),
+    // THE ACCOUNT'S OWN LANGUAGE (FG-1 B): any account, a value of `Language` only.
+    route("setOwnLanguage", PUT, "/auth/language", (request) => {
+      const language = text(request.body, "language");
+      if (!LANGUAGES.has(language))
+        return refused(INVALID, "not a language the interface speaks", "request.invalid");
+      return chooseLanguage(language as Language);
     }),
   ];
 }

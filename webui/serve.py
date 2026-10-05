@@ -123,20 +123,73 @@ BUILD_INPUTS = (
     DESIGN_ROOT / "worker-source.mjs",
 )
 
-# The shell's own translation resource. Everything this host SERVES in French —
-# the sign-in gate, the build failure's 503, the offline page, the manifest's description —
-# reads its words here, because the application has exactly one place where its
-# French lives and a second copy is a second thing to keep in step.
-TEXTS = DESIGN_ROOT / "src" / "i18n" / "fr.json"
+# The shell's own translation resources. Everything this host SERVES — the
+# sign-in gate, the build failure's 503, the offline page, the manifest's
+# description — reads its words here, because the application has exactly one
+# place where its words live and a second copy is a second thing to keep in step.
+# The sign-in gate is worded in the visitor's language; the other pages in French.
+LANGUAGES = ("fr", "en")
+# The language when the visitor's browser names none the interface speaks (OPEN-2 B).
+DEFAULT_LANGUAGE = "en"
 
 
-def served_texts() -> dict[str, dict[str, str]]:
-    """Returns the French copy of the pages this host serves itself.
+def texts_file(language: str = "fr") -> Path:
+    """The interface's resource for one language.
+
+    Args:
+        language: One of `LANGUAGES`.
+
+    Returns:
+        The path of its `<language>.json`.
+    """
+    return DESIGN_ROOT / "src" / "i18n" / f"{language}.json"
+
+
+TEXTS = texts_file()
+
+
+def request_language(header: str | None) -> str:
+    """The language a visitor's browser asks for, as the interface speaks it.
+
+    THE FIRST TAG THE INTERFACE SPEAKS, in the browser's order of preference —
+    its `q` weights, then its own order — the same reading the prototype gives
+    `navigator.languages` (`src/i18n/index.ts`), so the sign-in page served here
+    and the prototype's own say the same words to the same browser. A tag
+    weighted `q=0` is refused, never chosen.
+
+    Args:
+        header: The request's `Accept-Language`, or None.
+
+    Returns:
+        French or English; English when it names neither (OPEN-2 B).
+    """
+    ranked: list[tuple[float, int, str]] = []
+    for position, part in enumerate((header or "").split(",")):
+        tag, _, weight = part.strip().partition(";")
+        quality = 1.0
+        if weight.strip().startswith("q="):
+            try:
+                quality = float(weight.strip()[2:])
+            except ValueError:
+                quality = 0.0
+        if quality > 0:
+            ranked.append((-quality, position, tag.split("-")[0].strip().lower()))
+    for _, _, primary in sorted(ranked):
+        if primary in LANGUAGES:
+            return primary
+    return DEFAULT_LANGUAGE
+
+
+def served_texts(language: str = "fr") -> dict[str, dict[str, str]]:
+    """Returns one language's copy of the pages this host serves itself.
 
     Read on every request, exactly like the login screen's markup below and for
     the same reason: a copy loaded once at boot drifts away from the file it
     claims to quote, and the whole point of extracting instead of restating is
     that there is nothing left to drift.
+
+    Args:
+        language: One of `LANGUAGES`; French by default.
 
     Returns:
         The resource's `server` namespace: one entry per served page.
@@ -146,7 +199,7 @@ def served_texts() -> dict[str, dict[str, str]]:
             fail loudly rather than be served with holes where its words go.
         FileNotFoundError: When the resource file itself is absent.
     """
-    document = json.loads(TEXTS.read_text(encoding="utf-8"))
+    document = json.loads(texts_file(language).read_text(encoding="utf-8"))
     # Every layer is checked, not only the middle one. A document that is not an
     # object, or a page entry that is not an object, would otherwise raise an
     # AttributeError or a TypeError — neither of which the callers catch, so the
@@ -367,7 +420,7 @@ document.querySelector('#loginform').addEventListener('submit', function (e) {
 """
 
 
-def login_page(refused: bool, reason: str | None = None, return_to: str = "/") -> bytes:
+def login_page(refused: bool, reason: str | None = None, return_to: str = "/", language: str = "fr") -> bytes:
     """Builds the login page out of the prototype's own login screen.
 
     Args:
@@ -377,10 +430,13 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/") -
             session ended, or None for a plain visit.
         return_to: The same-origin path the page returns to once v1 opens the
             session.
+        language: The visitor's language (`request_language`): the page is
+            worded from its catalogue, as the prototype's boot words its own.
 
     Returns:
         A complete HTML document.
     """
+    resource = texts_file(language).read_text(encoding="utf-8")
     # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
     # gate clones — the sign-in card and the startup screen — is the
     # application shell, in `index.html`. The STYLE comes from two
@@ -412,9 +468,12 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/") -
     markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup,
                     count=1)
     # The form posts by script (`v1_door.sign_in_script`), to v1 itself.
-    markup = v1_door.as_v1_form(markup, v1_door.email_label(TEXTS.read_text(encoding="utf-8")))
+    # WORDED IN THE VISITOR'S LANGUAGE, from the keys the markup carries — the
+    # same the prototype's boot reads; the markup's French is only the fallback.
+    markup = v1_door.worded(markup, json.loads(resource))
+    markup = v1_door.as_v1_form(markup, v1_door.email_label(resource))
     if reason is not None:
-        markup = v1_door.with_reason(markup, served_texts()["login"][reason])
+        markup = v1_door.with_reason(markup, served_texts(language)["login"][reason])
     # A refusal v1 explained (`auth.access_disabled`) was not a typing mistake:
     # the reason line says why, and « bad credentials » under it would contradict it.
     if refused and reason is None:
@@ -461,9 +520,9 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/") -
   .splash { position: fixed; }
 """
     return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
-        f"<title>{served_texts()['login']['title']}</title>"
+        f"<title>{served_texts(language)['login']['title']}</title>"
         f"{pwa_head(DESIGN_ROOT)}"
         "<style>"
         f"{styles}{adjustments}</style></head><body>{markup}"
@@ -726,8 +785,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             params = urllib.parse.parse_qs(
                 urllib.parse.urlsplit(self.path).query)
             reason = v1_door.refusal_reason(code, (params.get("why") or [None])[0])
+            language = request_language(self.headers.get("Accept-Language"))
             self._send_page(401, lambda: login_page(
-                "refus" in params, reason, v1_door.return_target(self.path)))
+                "refus" in params, reason, v1_door.return_target(self.path), language))
             return
         try:
             body = self._document()
