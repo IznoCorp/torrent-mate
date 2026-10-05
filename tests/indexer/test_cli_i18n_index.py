@@ -1,4 +1,4 @@
-"""The indexer command functions word their messages through the translation layer, unchanged."""
+"""The indexer command functions word their messages through the translation layer, in French and in English."""
 
 from __future__ import annotations
 
@@ -62,4 +62,31 @@ def test_config_error_line_comes_from_the_catalogue(
         rc = run(EventBus())
     assert rc == 1
     # A logging handler left by an earlier test may add noise to stderr: search the line, do not compare whole.
-    assert t(f"cli_library.{stem}.config_error", error=_ERROR) + "\n" in capsys.readouterr().err
+    assert t(f"cli_library.{stem}.config_error", language=language, error=_ERROR) + "\n" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("stem", "run"),
+    [
+        ("indexer_query", _run_status),
+        ("indexer_diagnose", _run_migrate),
+        ("indexer_repair", _run_repair),
+        ("indexer_scan", _run_index),
+    ],
+)
+def test_config_error_line_differs_between_the_languages(
+    stem: str, run: Callable[[EventBus], Any], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same failing call prints a French line under FR and an English one under EN."""
+    printed = {}
+    for language in (Language.FR, Language.EN):
+        with (
+            use_language(language),
+            patch("personalscraper.conf.loader.load_config", side_effect=ConfigNotFoundError(_ERROR)),
+        ):
+            run(EventBus())
+        printed[language] = capsys.readouterr().err
+    fr = t(f"cli_library.{stem}.config_error", language=Language.FR, error=_ERROR)
+    en = t(f"cli_library.{stem}.config_error", language=Language.EN, error=_ERROR)
+    assert fr in printed[Language.FR] and en in printed[Language.EN]
+    assert fr != en
