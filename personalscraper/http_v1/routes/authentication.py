@@ -1,4 +1,4 @@
-"""The ``authentication`` tag's routes: the password and Plex doors, the signed-in account, its session, password and language."""
+"""The ``authentication`` tag's routes: the password and Plex doors, the signed-in account and its own acts."""
 
 from __future__ import annotations
 

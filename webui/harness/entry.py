@@ -100,8 +100,11 @@ async def main():
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args(resolve_deployed_host_locally(HOST)))
+        # FRENCH, PINNED: the host side is the LIVE tm-design, which serves `develop` and words its
+        # page in French until the account's language is merged there; the runner's own locale
+        # would otherwise decide the verdict.
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
-                                  device_scale_factor=2, is_mobile=True, has_touch=True)
+                                  device_scale_factor=2, is_mobile=True, has_touch=True, locale="fr-FR")
         errors = []
 
         pg = await ctx.new_page()

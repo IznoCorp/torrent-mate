@@ -1,4 +1,4 @@
-"""The ``authentication`` tag's session routes: ``readAccount``, ``signOut``, ``signIn``, ``changeOwnPassword``, ``setOwnLanguage``.
+"""The ``authentication`` tag's session routes: ``readAccount``, ``signOut``, ``signIn``, and the account's own writes.
 
 The session is v1's own (``tm_v1_session``); v0's ``tm_session`` never signs a v1 request
 in. ``readAccount`` answers the contract's ``Account``, its ``forbiddenWrites`` being the
@@ -30,10 +30,10 @@ from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import AppStore
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.web import WebConfig
-from personalscraper.i18n import Language
 from personalscraper.http_v1.models.accounts import ResetAccountPasswordBody
 from personalscraper.http_v1.models.authentication import ChangeOwnPasswordBody
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
+from personalscraper.i18n import Language
 from tests.conftest import LoggedEvents
 
 #: The Gravatar key of the seeded account's e-mail, ``account-1@example.org``.
