@@ -63,6 +63,14 @@ class OwnerAlreadySeeded(Exception):
     """
 
 
+class AmbiguousOwner(Exception):
+    """Several accounts hold the owner link, so no single owner can be named.
+
+    Raised by :meth:`AccountService.owner_account_id` alone, which only the CLI calls: no
+    route raises it, so it carries no refusal code and the CLI words it itself.
+    """
+
+
 @dataclass(frozen=True)
 class OwnerPlexIdentity:
     """The managed Plex server owner's plex.tv identity, as plex.tv answers it.
@@ -283,9 +291,15 @@ class AccountService:
 
         Returns:
             The account holding the owner link, or ``None`` when no account holds it.
+
+        Raises:
+            AmbiguousOwner: Several accounts hold an owner link (the schema does not forbid it):
+                picking one could open the session of a stale former owner.
         """
-        link = self._repo_factory().owner_link()
-        return link.account_id if link is not None else None
+        links = self._repo_factory().owner_links()
+        if len(links) > 1:
+            raise AmbiguousOwner("Several accounts are linked as the server's owner.")
+        return links[0].account_id if links else None
 
     def set_password(self, email: str, password: str) -> None:
         """Give an account a password — the server's door of last resort (the CLI's only).

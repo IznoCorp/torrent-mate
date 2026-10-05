@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 import typer
 
-from personalscraper.app.accounts.service import OwnerAlreadySeeded, OwnerPlexIdentity
+from personalscraper.app.accounts.service import AmbiguousOwner, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.token_vault import (
     MalformedTokenKey,
     NoKeptTokenOpens,
@@ -164,7 +164,7 @@ def open_session(
 
     Raises:
         typer.Exit: Code 2 without ``--owner``; code 1 outside ``dev``, when no account
-            is linked as the owner, or when the account service refuses (a cut owner).
+            is linked as the owner, when several are, or when the account service refuses (a cut owner).
     """
     config: Config = ctx.obj.config
     assert config is not None
@@ -187,6 +187,9 @@ def open_session(
             typer.echo(t("cli_accounts.open_session.no_owner"), err=True)
             raise typer.Exit(code=1)
         result = services.accounts.open_proven_session(owner_id, user_agent=_SMOKE_USER_AGENT)
+    except AmbiguousOwner:
+        typer.echo(t("cli_accounts.open_session.ambiguous_owner"), err=True)
+        raise typer.Exit(code=1) from None
     except AppRefusal as exc:
         _refuse(exc)
     finally:

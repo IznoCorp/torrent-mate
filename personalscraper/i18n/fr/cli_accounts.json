@@ -29,7 +29,8 @@
     "owner_required": "Indiquez la session à ouvrir : --owner est la seule possible. Rien n'a été ouvert.",
     "refused_prod": "Aucune session ne s'ouvre en ligne de commande en production : réglez PERSONALSCRAPER_ENV sur dev, avec un répertoire de données marqué pour lui. Rien n'a été ouvert.",
     "refused_not_dev": "Cette commande est réservée à dev : réglez PERSONALSCRAPER_ENV sur dev, avec un répertoire de données marqué pour lui. Rien n'a été ouvert.",
-    "no_owner": "Aucun compte n'est lié comme propriétaire du serveur Plex : créez-le avec accounts create-owner. Rien n'a été ouvert."
+    "no_owner": "Aucun compte n'est lié comme propriétaire du serveur Plex : créez-le avec accounts create-owner. Rien n'a été ouvert.",
+    "ambiguous_owner": "Plusieurs comptes sont liés comme propriétaire du serveur Plex, le propriétaire est donc ambigu. Rien n'a été ouvert."
   },
   "token_key": {
     "help": "Les clés qui scellent les jetons Plex conservés, lues dans PLEX_TOKEN_KEYS dans l'environnement.",

@@ -29,7 +29,8 @@
     "owner_required": "Name whose session to open: --owner is the only one. Nothing was opened.",
     "refused_prod": "A session is never opened from the command line on production: set PERSONALSCRAPER_ENV to dev, with a data directory marked for it. Nothing was opened.",
     "refused_not_dev": "This command is dev only: set PERSONALSCRAPER_ENV to dev, with a data directory marked for it. Nothing was opened.",
-    "no_owner": "No account is linked as the Plex server's owner: seed it with accounts create-owner. Nothing was opened."
+    "no_owner": "No account is linked as the Plex server's owner: seed it with accounts create-owner. Nothing was opened.",
+    "ambiguous_owner": "Several accounts are linked as the Plex server's owner, so the owner is ambiguous. Nothing was opened."
   },
   "token_key": {
     "help": "The keys sealing the kept Plex tokens, read from PLEX_TOKEN_KEYS in the environment.",

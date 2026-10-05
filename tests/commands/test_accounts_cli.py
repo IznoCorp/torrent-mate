@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
@@ -464,6 +465,22 @@ def _seed_owner(db: Path, *, allowed: bool = True, owner_link: bool = True) -> s
     return "account-owner"
 
 
+def _session_user_agents(db: Path) -> list[str]:
+    """The user agent of every session row a store file holds.
+
+    Args:
+        db: The store file.
+
+    Returns:
+        One user agent per session row, in creation order.
+    """
+    connection = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        return [row[0] for row in connection.execute("SELECT user_agent FROM session ORDER BY id")]
+    finally:
+        connection.close()
+
+
 _OPEN_SESSION_ARGS = ["accounts", "open-session", "--owner"]
 
 
@@ -627,6 +644,50 @@ class TestOpenSession:
         assert result.exit_code == 1
         assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "no_owner") in result.stderr.splitlines()
         assert result.stdout == ""
+
+    def test_several_owner_links_are_refused(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path
+    ) -> None:
+        """Two accounts linked as the owner: exit 1, the ambiguity line, nothing on stdout, no session opened."""
+        store_file = dev_data_dir / "app-dev.db"
+        _seed_owner(store_file)
+        app_store = AppStore(store_file)
+        try:
+            repo = app_store.accounts
+            repo.insert_account(
+                AccountRow(
+                    id="account-former-owner",
+                    name="Former owner",
+                    email="former@example.test",
+                    avatar="",
+                    role_id="admin",
+                    password_hash=None,
+                    created_at=1.0,
+                    updated_at=1.0,
+                )
+            )
+            repo.upsert_plex_link(
+                PlexLinkRow(
+                    account_id="account-former-owner",
+                    plex_id=4343,
+                    plex_uuid="1a2b3c4d5e6f7089",
+                    plex_username="former",
+                    server_access="owner",
+                    token_ciphertext=None,
+                    token_stored_at=None,
+                    linked_at=2.0,
+                    last_sign_in_at=None,
+                )
+            )
+        finally:
+            app_store.close()
+
+        result = _invoke(cli_runner, test_config, _OPEN_SESSION_ARGS)
+
+        assert result.exit_code == 1
+        assert _catalogue_line(Language.EN, "cli_accounts", "open_session", "ambiguous_owner") in result.stderr
+        assert result.stdout == ""
+        assert _session_user_agents(store_file) == []
 
     def test_the_owner_flag_is_required(self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path) -> None:
         """Without ``--owner``: exit 2, the command's line, no session opened."""
