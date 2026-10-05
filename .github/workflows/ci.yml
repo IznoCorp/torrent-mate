@@ -539,7 +539,12 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
+          # A run without the token (Dependabot's secret store is separate, and
+          # forks get none) is refused by Codecov on a protected branch; that
+          # refusal must not fail the job. Codecov's `fail_ci_if_error` input
+          # ("fail the CI build if Codecov runs into an error during upload")
+          # is therefore true only when the token is present.
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
       - name: Verify fail_under is monotonic against base ref
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success' && github.event_name == 'pull_request'
         env:
