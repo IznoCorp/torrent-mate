@@ -778,6 +778,36 @@ def test_a_run_within_its_class_is_left_to_its_end(tmp_path: Path) -> None:
     assert "STOPPED" not in errors, errors
 
 
+def test_a_reused_pids_children_are_not_the_runs(tmp_path: Path) -> None:
+    """B-700: the watcher took every RECORDED pid as the run's, alive or not.
+
+    A recorded pid that died and was handed to a stranger pulled the stranger's
+    children into the run: weighed, then reaped. Here the recorded pid is a live
+    `sleep` the run never started, recorded under a start time it does not have;
+    the fake table gives it nine burners, which are not the run's.
+    """
+    stranger = subprocess.Popen(["sleep", "60"])
+    run, child, table = watched_run(tmp_path, "test")
+    try:
+        tree = tmp_path / "home" / "tree" / str(run.pid)
+        assert wait_for(tree.exists), "the run's tree file was never made"
+        with tree.open("a", encoding="utf-8") as handle:
+            handle.write(f"{stranger.pid} Mon Jan 1 00:00:00 2024\n")
+        # The stranger leads its own group: only the recorded pid could pull it in.
+        rows = [f"{child} 1 {child} 0.0 sh", f"{stranger.pid} 1 {stranger.pid} 0.0 sleep"]
+        rows += [f"{FAKE_PID + index} {stranger.pid} {stranger.pid} 100.0 yes" for index in range(9)]
+        table.write_text("\n".join(rows) + "\n", encoding="utf-8")
+        time.sleep(4)
+        assert run.poll() is None, "a stranger's children were weighed as the run's"
+        assert alive(stranger.pid), "a stranger was reaped as the run's"
+    finally:
+        run.send_signal(signal.SIGTERM)
+        _, errors = run.communicate(timeout=30)
+        stranger.kill()
+        stranger.wait()
+    assert "beyond its class" not in errors, errors
+
+
 def test_every_line_also_goes_to_the_persistent_log(tmp_path: Path) -> None:
     """B-702: heavy.sh logged to its caller's stderr alone, so an audit read nothing."""
     result = subprocess.run(

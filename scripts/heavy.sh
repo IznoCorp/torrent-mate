@@ -537,10 +537,12 @@ recorded_pids() {
     cut -d' ' -f1 "$tree" 2>/dev/null | tr '\n' ' '
 }
 
-# Records every process of the run not yet recorded, with its start time.
+# Records every process of the run not yet recorded, with its start time. The
+# descendants are sought under the recorded processes still alive under their
+# start time only: a recorded pid now reused by a stranger brings no child in.
 record_run() {
     known=$(recorded_pids)
-    fresh=$(real_table | members_of "$child" "$(tagged_pids | tr '\n' ' ') $known" |
+    fresh=$(real_table | members_of "$child" "$(tagged_pids | tr '\n' ' ') $(recorded_alive | tr '\n' ' ')" |
         awk -v known=" $known " 'index(known, " " $1 " ") == 0 { print $1 }' | tr '\n' ',' | sed 's/,$//')
     [ -n "$fresh" ] && ps -o pid=,lstart= -p "$fresh" 2>/dev/null | awk '{ $1 = $1; print }' >> "$tree"
 }
@@ -608,7 +610,7 @@ guard_strikes=0
 # it for GUARD_STRIKES looks in a row is stopped, then killed (exit 75).
 watch_run() {
     record_run
-    weight=$(weighed_table | members_of "$child" "$(recorded_pids)" | weigh)
+    weight=$(weighed_table | members_of "$child" "$(recorded_alive | tr '\n' ' ')" | weigh)
     browsers=${weight% *}
     cpu=${weight#* }
     beyond=""
