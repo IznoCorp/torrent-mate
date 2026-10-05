@@ -229,3 +229,50 @@ def test_no_markup_in_the_words() -> None:
         for namespace in _namespaces(language):
             for key, text in _catalogue.flatten(_read(language, namespace)).items():
                 assert not any(marker in text for marker in _MARKUP), f"{language}/{namespace}.{key}: {text!r}"
+
+
+_CONVERTED_NAMESPACES = ("cli_core", "cli_trailers", "cli_web")
+
+
+def _orphan_keys(namespace: str, sources: list[str], coded: set[str]) -> list[str]:
+    """English keys of ``namespace`` that no literal ``t("…")`` in ``sources`` names and no code set words.
+
+    Args:
+        namespace: The catalogue namespace to audit.
+        sources: Python sources whose literal ``t()`` calls count as references.
+        coded: Full keys (``namespace.path``) worded by a declared code set.
+
+    Returns:
+        The orphan keys, sorted; a plural member counts as referenced through its base key.
+    """
+    referenced = {call.args[0].value for source in sources for call in _t_calls(ast.parse(source))}  # type: ignore[attr-defined]
+    orphans = []
+    for path in _catalogue.flatten(_read("en", namespace)):
+        full = f"{namespace}.{path}"
+        base = full.rsplit("_", 1)[0] if full.endswith(("_one", "_other")) else full
+        if full not in referenced and base not in referenced and full not in coded:
+            orphans.append(full)
+    return sorted(orphans)
+
+
+def _coded_keys() -> set[str]:
+    """Every full key a declared code set words (``cli_core.step`` over ``StepCode`` gives ``cli_core.step.<code>``)."""
+    return {f"{namespace}.{member.value}" for namespace, codes in CODE_SETS.items() for member in codes}
+
+
+def test_every_converted_key_is_referenced_by_a_literal_call_or_a_code_set() -> None:
+    """A site reverted to a literal leaves its key orphaned here, so the conversion cannot silently regress."""
+    sources = [p.read_text(encoding="utf-8") for p in sorted(_PACKAGE_ROOT.rglob("*.py"))]
+    coded = _coded_keys()
+    orphans = [key for namespace in _CONVERTED_NAMESPACES for key in _orphan_keys(namespace, sources, coded)]
+    assert not orphans, "keys no t(\"…\") call and no code set uses:\n" + "\n".join(orphans)
+
+
+def test_the_orphan_check_flags_a_key_nothing_references() -> None:
+    """Control: an unreferenced key is reported; a literal call, a plural base and a code-set member are not."""
+    # The fixture namespace is read from the real catalogue: any converted key, with its call removed.
+    sources = ['t("cli_core.main.invalid_format", value="x")']
+    orphans = _orphan_keys("cli_core", sources, set())
+    assert "cli_core.main.invalid_format" not in orphans
+    assert "cli_core.pipeline.label_ingest" in orphans
+    assert "cli_core.step.ingest" not in _orphan_keys("cli_core", sources, _coded_keys())
