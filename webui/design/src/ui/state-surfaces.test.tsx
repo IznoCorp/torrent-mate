@@ -59,6 +59,17 @@ describe("SurfaceError over a refused read", () => {
     expect(text).not.toContain(UNAVAILABLE.detail);
   });
 
+  // THE WORDS ARE PINNED LITERALLY: the cases above read the catalogue they assert, so a value
+  // replaced by « XX » stayed green. The text is what the operator reads.
+  it("says an unreadable library in these exact words, per language", () => {
+    expect(said("fr", UNAVAILABLE)).toContain(
+      "La médiathèque est indisponible : le serveur ne peut pas la lire pour le moment. Réessayez dans un instant.", // french-ok: the sentence the fr catalogue must carry
+    );
+    expect(said("en", UNAVAILABLE)).toContain(
+      "The library is unavailable: the server cannot read it right now. Try again in a moment.",
+    );
+  });
+
   it.each([["fr", fr], ["en", en]] as const)("says a code-less refusal as a server failure (%s)", (language, words) => {
     const text = said(language, CODELESS);
     expect(text).toContain(words.refusals.internal);
