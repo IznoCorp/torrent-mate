@@ -49,3 +49,10 @@ def test_an_index_without_the_item_table_is_unavailable(world: World, tmp_path: 
         )
 
     assert refused.value.code is RefusalCode.LIBRARY_UNAVAILABLE
+
+
+def test_an_unreadable_index_counts_as_an_unmounted_disk(world: World, tmp_path: Path) -> None:
+    """Plex's bundle clean is told a disk is gone when the index cannot say: the trash is kept."""
+    absent = tmp_path / "absent.db"
+
+    assert _service_over(world, absent)._disk_unmounted() is True  # noqa: SLF001 - the branch under test is private
