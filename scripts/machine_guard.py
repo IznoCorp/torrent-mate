@@ -9,10 +9,11 @@ and drove the one-minute load to 84 on 8 cores until the operator had it killed.
 WHAT IT DOES. Once a minute it reads the one-minute load. When the load has
 stayed above the machine's capacity (its core count) for SUSTAINED_MINUTES
 minutes in a row, it logs the heaviest process trees, then kills the trees that
-run from an agent's checkout or scratchpad (`~/dev/workspaces/*`,
-`/private/tmp/claude-*`, by working directory or by a path on the command line)
-and burn at least MIN_TREE_CPU % CPU — stopped first so nothing respawns,
-terminated, then killed. Each tree killed leaves a `GUARD KILLED` line in its
+run from an agent's checkout or scratchpad (`~/dev/workspaces/*` and those
+checkouts' `/private/tmp/claude-<uid>/-Users-<user>-dev-workspaces-*`, by working
+directory only — never the main checkout `~/dev/PersonalScraper`) and burn at
+least MIN_TREE_CPU % CPU — stopped first so nothing respawns, terminated, then
+killed. Each tree killed leaves a `GUARD KILLED` line in its
 log (`~/Library/Logs/machine-guard.log`, `MACHINE_GUARD_LOG`), which the
 orchestrator watches.
 
@@ -114,29 +115,39 @@ def overloaded_minutes(previous: int, load: float, capacity: float) -> int:
     return previous + 1 if load > capacity else 0
 
 
-def agent_places(home: str) -> tuple[str, ...]:
-    """Where an agent's checkouts and scratchpads live.
+def agent_places(home: str) -> re.Pattern[str]:
+    """Where an agent's checkouts and their scratchpads live.
+
+    A checkout is under `~/dev/workspaces/`; Claude Code names a session's
+    scratchpad after the session's cwd (`/private/tmp/claude-<uid>/-Users-<user>-dev-workspaces-…`).
+    The main checkout (`~/dev/PersonalScraper`) and the scratchpads of the
+    sessions working there — the orchestrator's, the auditor's — are no agent's place.
 
     Args:
         home: The operator's home directory.
 
     Returns:
-        The path prefixes.
+        The pattern a working directory under an agent's place matches from its start.
     """
-    return (f"{home}/dev/workspaces/", "/private/tmp/claude-", "/tmp/claude-")
+    scratchpad = home.replace("/", "-") + "-dev-workspaces-"
+    return re.compile(rf"{re.escape(home)}/dev/workspaces/|(?:/private)?/tmp/claude-\d+/{re.escape(scratchpad)}")
 
 
-def runs_from_agent(process: Process, places: tuple[str, ...]) -> bool:
+def runs_from_agent(process: Process, places: re.Pattern[str]) -> bool:
     """Whether a process runs from an agent's checkout or scratchpad.
+
+    Read on the working directory alone, never on the command line: every
+    Claude Code Bash wrapper names `/tmp/claude-XXXX-cwd` in its argv, and an
+    argument may name any path.
 
     Args:
         process: The process.
-        places: The agents' path prefixes.
+        places: The agents' places, from `agent_places`.
 
     Returns:
-        True when its working directory is under one, or its command names one.
+        True when its working directory is under one.
     """
-    return any(process.cwd.startswith(place) or place in process.command for place in places)
+    return places.match(process.cwd) is not None
 
 
 def _subtree(root: int, children: dict[int, list[int]], cut: Callable[[int], bool]) -> list[int]:

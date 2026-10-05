@@ -19,7 +19,27 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "machine_guard.py"
 HOME = "/Users/someone"
 CHECKOUT = f"{HOME}/dev/workspaces/PersonalScraper/some-lot"
-SCRATCHPAD = "/private/tmp/claude-501/some-session/scratchpad"
+# A checkout's scratchpad: Claude Code names it after the session's cwd.
+SCRATCHPAD = "/private/tmp/claude-501/-Users-someone-dev-workspaces-PersonalScraper-some-lot/0a1b2c/scratchpad"
+# The main checkout and its sessions (the orchestrator's, the auditor's): no agent's place.
+MAIN_CHECKOUT = f"{HOME}/dev/PersonalScraper"
+MAIN_SCRATCHPAD = "/private/tmp/claude-501/-Users-someone-dev-PersonalScraper/9f8e7d/scratchpad"
+
+
+def bash_wrapper(command: str) -> str:
+    """The command line Claude Code's Bash tool gives every command, in every session.
+
+    Args:
+        command: The command the session ran.
+
+    Returns:
+        The wrapper's argv, as `ps` shows it: it names `/tmp/claude-XXXX-cwd` whatever the cwd.
+    """
+    return (
+        "/bin/zsh -c source /Users/someone/.claude/shell-snapshots/snapshot-zsh-1791232073361-za4zfz.sh"
+        " 2>/dev/null || true && setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUAL 2>/dev/null || true"
+        f" && eval '{command}' < /dev/null && pwd -P >| /tmp/claude-78f6-cwd"
+    )
 
 
 def load_guard() -> ModuleType:
@@ -144,14 +164,46 @@ def test_the_guard_never_chooses_itself_nor_its_parents() -> None:
     assert killed(table, me=701) == set()
 
 
-def test_a_checkout_path_in_the_command_marks_the_tree() -> None:
-    """B-703: a process started by its checkout path is an agent's, whatever its cwd."""
+def test_a_checkout_path_in_the_command_does_not_mark_the_tree() -> None:
+    """B-703: a place is read on the cwd alone — an argument names anything, a prompt, a path."""
     table = [
         proc(1, 0, 0.0, "/sbin/launchd"),
-        proc(800, 1, 150.0, f"python {CHECKOUT}/burn.py", "/"),
+        proc(800, 1, 150.0, f"python {CHECKOUT}/burn.py --scratch {SCRATCHPAD}", "/"),
     ]
 
-    assert killed(table) == {800}
+    assert killed(table) == set()
+
+
+def test_the_orchestrators_bash_wrapper_in_the_main_checkout_is_never_chosen() -> None:
+    """B-703: every Bash wrapper's argv names `/tmp/claude-XXXX-cwd`, so every session's command was an agent's.
+
+    The orchestrator's `ci-watch.sh` runs from the main checkout, which is no
+    agent's place, nor is its session's scratchpad.
+    """
+    table = [
+        proc(1, 0, 0.0, "/sbin/launchd"),
+        proc(900, 1, 3.0, "/opt/homebrew/bin/claude", MAIN_CHECKOUT),
+        proc(901, 900, 0.0, bash_wrapper("bash ~/.claude/plugins/orchestrator/scripts/ci-watch.sh 815"), MAIN_CHECKOUT),
+        proc(902, 901, 120.0, "bash ~/.claude/plugins/orchestrator/scripts/ci-watch.sh 815", MAIN_CHECKOUT),
+        proc(903, 900, 0.0, bash_wrapper("python3 report.py"), MAIN_SCRATCHPAD),
+        proc(904, 903, 120.0, "python3 report.py", MAIN_SCRATCHPAD),
+    ]
+
+    assert killed(table) == set()
+
+
+def test_a_burner_under_a_bash_wrapper_in_a_workspace_is_chosen() -> None:
+    """B-703: an agent's command runs from its checkout or its scratchpad, and goes, wrapper included."""
+    table = [
+        proc(1, 0, 0.0, "/sbin/launchd"),
+        proc(910, 1, 3.0, "/opt/homebrew/bin/claude", CHECKOUT),
+        proc(911, 910, 0.0, bash_wrapper("python3 burn.py"), CHECKOUT),
+        proc(912, 911, 99.0, "python3 burn.py", CHECKOUT),
+        proc(913, 910, 0.0, bash_wrapper("python3 burn.py"), SCRATCHPAD),
+        proc(914, 913, 99.0, "python3 burn.py", SCRATCHPAD),
+    ]
+
+    assert killed(table) == {911, 912, 913, 914}
 
 
 @pytest.mark.parametrize(
