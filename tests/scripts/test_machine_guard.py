@@ -265,30 +265,52 @@ def test_the_guard_acts_after_three_minutes_above_capacity(loads: list[float], a
     assert (minutes >= guard.SUSTAINED_MINUTES) is acts
 
 
-def test_a_tick_logs_the_trees_and_a_guard_killed_line(tmp_path: Path) -> None:
-    """B-703: the action leaves the top trees and a `GUARD KILLED` line in the log."""
+# The incident, with a Claude session started INSIDE the agent's tree (a
+# `claude -p` the script ran) and that session's idle MCP server.
+TICK_TABLE = [
+    *INCIDENT,
+    proc(106, 102, 1.0, "/opt/homebrew/bin/claude -p summarise", CHECKOUT),
+    proc(107, 106, 0.0, "node /opt/homebrew/bin/some-mcp-server", CHECKOUT),
+]
+STOP, TERM, CONT, KILL = guard.signal.SIGSTOP, guard.signal.SIGTERM, guard.signal.SIGCONT, guard.signal.SIGKILL
+
+
+def test_a_tick_stops_terminates_then_kills_each_chosen_process_and_nothing_else(tmp_path: Path) -> None:
+    """B-703: the action stops, terminates, continues then KILLS each process of each tree chosen.
+
+    Nothing is read nor signalled at minutes 1 and 2; a `claude` inside an
+    agent's tree, and what it runs, are never signalled; the log keeps the top
+    trees and a `GUARD KILLED` line.
+    """
     log = tmp_path / "guard.log"
-    signalled: list[tuple[int, int]] = []
+    reads: list[int] = []
+    signalled: dict[int, list[int]] = {}
+
+    def table() -> list[object]:
+        reads.append(1)
+        return TICK_TABLE
+
     minutes = 0
-    for _ in range(guard.SUSTAINED_MINUTES):
+    for minute in range(1, guard.SUSTAINED_MINUTES + 1):
         minutes = guard.tick(
             minutes,
             load=40.0,
             capacity=8,
-            table=lambda: INCIDENT,
-            send=lambda pid, number: signalled.append((pid, number)),
+            table=table,
+            send=lambda pid, number: signalled.setdefault(pid, []).append(number),
             log=guard.Log(log),
             me=9999,
             home=HOME,
             grace_seconds=0,
         )
+        if minute < guard.SUSTAINED_MINUTES:
+            assert (reads, signalled) == ([], {}), f"the guard acted at minute {minute}"
 
     text = log.read_text(encoding="utf-8")
     assert minutes == 0, "the count did not restart after the action"
     assert "top trees" in text, text
     assert "GUARD KILLED" in text, text
-    assert {pid for pid, _ in signalled} >= {200, 201, 104}
-    assert 100 not in {pid for pid, _ in signalled}
+    assert signalled == {pid: [STOP, TERM, CONT, KILL] for pid in (101, 102, 103, 104, 105, 200, 201)}, signalled
 
 
 def test_the_guard_runs_from_a_stdlib_copy_declared_in_no_ecosystem() -> None:
