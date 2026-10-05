@@ -35,10 +35,14 @@
     "owner_admin": "Le compte du propriétaire du serveur ne quitte jamais le rôle Admin."
   },
   "media": {
-    "not_found": "Aucun média ne répond à cet identifiant de fournisseur."
+    "not_found": "Aucun média ne répond à cet identifiant de fournisseur.",
+    "ambiguous": "Plusieurs lignes ou dossiers de la médiathèque portent cet identifiant de fournisseur : réglez le doublon avant de supprimer ; rien n'a été supprimé."
   },
   "provider": {
     "unavailable": "Un fournisseur de métadonnées n'a pas répondu ; réessayez plus tard."
+  },
+  "library": {
+    "locked": "Le pipeline tient la médiathèque : réessayez à la fin de l'exécution ; rien n'a été supprimé."
   },
   "role": {
     "unknown": "Aucun rôle n'a cet identifiant.",

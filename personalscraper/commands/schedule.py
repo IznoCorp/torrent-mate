@@ -11,12 +11,17 @@ import typer
 
 from personalscraper import scheduler
 from personalscraper.cli_app import app
+from personalscraper.i18n import t
 
 
-@app.command("schedule", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+@app.command(
+    "schedule",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    help=t("cli_core.schedule.help"),
+)
 def schedule(
     ctx: typer.Context,
-    cron: str = typer.Option(..., "--cron", help="5-field cron expression, local time (e.g. '15 * * * *')."),
+    cron: str = typer.Option(..., "--cron", help=t("cli_core.schedule.cron_help")),
 ) -> None:
     """Run a personalscraper command at every boundary of a cron expression, forever.
 
@@ -32,10 +37,10 @@ def schedule(
     """
     job = list(ctx.args)
     if not job:
-        typer.echo("schedule: no job given after '--'", err=True)
+        typer.echo(t("cli_core.schedule.no_job"), err=True)
         raise typer.Exit(code=2)
     try:
         scheduler.serve(cron, job)
     except ValueError as exc:
-        typer.echo(f"schedule: {exc}", err=True)
+        typer.echo(t("cli_core.schedule.error", error=str(exc)), err=True)
         raise typer.Exit(code=2) from exc

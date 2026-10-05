@@ -62,4 +62,4 @@ def emit(
             typer.echo(payload)
         else:
             for key, value in payload.items():
-                typer.echo(f"{key}: {value}")
+                typer.echo(f"{key}: {value}")  # french-ok: layout only, a machine-readable key: value line

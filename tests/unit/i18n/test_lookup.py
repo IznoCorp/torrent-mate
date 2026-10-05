@@ -8,7 +8,6 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-import structlog.testing
 
 from personalscraper import i18n
 from personalscraper.i18n import (
@@ -22,6 +21,7 @@ from personalscraper.i18n import (
     t,
     use_language,
 )
+from tests.conftest import LoggedEvents
 
 
 def _write(root: Path, language: str, namespace: str, content: object) -> None:
@@ -58,9 +58,9 @@ def test_a_plain_string_language_is_read_like_the_enum() -> None:
     assert i18n.t_code("units", "yes", language="en") == "yes"  # type: ignore[arg-type]
 
 
-def test_an_unsupported_language_warns_once_and_falls_back(lenient: None) -> None:
+def test_an_unsupported_language_warns_once_and_falls_back(lenient: None, logged_events: LoggedEvents) -> None:
     """An unsupported ``language`` uses the current language, with one warning however often it repeats."""
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         assert t("units.yes", language="de") == "yes"  # type: ignore[arg-type]
         assert t("units.yes", language="de") == "yes"  # type: ignore[arg-type]
     assert [e["event"] for e in logs] == ["i18n_language_unsupported"]
@@ -100,9 +100,11 @@ def test_falls_back_to_the_other_language(fixture_root: Path) -> None:
     assert t("demo.only_english", language=Language.FR) == "English only"
 
 
-def test_missing_key_returns_the_key_and_warns_once(fixture_root: Path, lenient: None) -> None:
+def test_missing_key_returns_the_key_and_warns_once(
+    fixture_root: Path, lenient: None, logged_events: LoggedEvents
+) -> None:
     """A key in no catalogue is returned as is, with one warning per key and language."""
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         assert t("units.absent", language=Language.EN) == "units.absent"
         assert t("units.absent", language=Language.EN) == "units.absent"
     missing = [e for e in logs if e["event"] == "i18n_key_missing"]
@@ -117,10 +119,10 @@ def test_missing_key_raises_in_strict(monkeypatch: pytest.MonkeyPatch) -> None:
         t("units.absent")
 
 
-def test_unsupplied_placeholder_stays_and_warns(fixture_root: Path, lenient: None) -> None:
+def test_unsupplied_placeholder_stays_and_warns(fixture_root: Path, lenient: None, logged_events: LoggedEvents) -> None:
     """A placeholder the caller did not supply stays in the text, with one warning."""
     _write(fixture_root, "en", "demo", {"hello": "Hello {{name}}"})
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         assert t("demo.hello", language=Language.EN) == "Hello {{name}}"
         assert t("demo.hello", language=Language.EN) == "Hello {{name}}"
     assert len([e for e in logs if e["event"] == "i18n_param_missing"]) == 1
@@ -174,9 +176,9 @@ def test_english_when_no_language_is_named() -> None:
     assert resolve_language({"LANG": "de_DE.UTF-8"}) is Language.EN
 
 
-def test_unsupported_personalscraper_lang_warns() -> None:
+def test_unsupported_personalscraper_lang_warns(logged_events: LoggedEvents) -> None:
     """A PERSONALSCRAPER_LANG naming an unsupported language yields the default and one warning."""
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         assert resolve_language({LANGUAGE_VARIABLE: "de"}) is DEFAULT_LANGUAGE
     assert [e["event"] for e in logs] == ["i18n_language_unsupported"]
 
@@ -213,11 +215,11 @@ def test_use_language_is_isolated_per_thread() -> None:
     assert seen == {"fr": "oui", "en": "yes"}
 
 
-def test_unreadable_catalogue_degrades(fixture_root: Path, lenient: None) -> None:
+def test_unreadable_catalogue_degrades(fixture_root: Path, lenient: None, logged_events: LoggedEvents) -> None:
     """Invalid JSON: ``t`` returns the key, logs one error, never raises."""
     _write(fixture_root, "en", "broken", "{ not json")
     _write(fixture_root, "fr", "broken", "{ not json")
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         assert t("broken.x", language=Language.EN) == "broken.x"
         assert t("broken.y", language=Language.EN) == "broken.y"
     errors = [e for e in logs if e["event"] == "i18n_catalogue_unreadable"]

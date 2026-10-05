@@ -35,10 +35,14 @@
     "owner_admin": "The server owner's account never leaves the Admin role."
   },
   "media": {
-    "not_found": "No media answers this provider id."
+    "not_found": "No media answers this provider id.",
+    "ambiguous": "Several library rows or folders hold this provider id: settle the duplicate before deleting; nothing was deleted."
   },
   "provider": {
     "unavailable": "A metadata provider did not answer; try again later."
+  },
+  "library": {
+    "locked": "The pipeline holds the library: try again when the run ends; nothing was deleted."
   },
   "role": {
     "unknown": "No role has this id.",

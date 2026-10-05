@@ -17,7 +17,7 @@ from personalscraper.logger import get_logger
 log = get_logger("cli")
 
 
-@app.command(help=t("cli_library.analyze.analyze_help", disk_id="<disk_id>", not_persisted="**not persisted to disk**"))
+@app.command(help=t("cli_library.analyze.analyze_help", disk_id="<disk_id>", bold="**"))
 @handle_cli_errors
 @boundary(needs="config", staging=False)
 def library_analyze(
@@ -473,10 +473,11 @@ def _rescrape(
             # not-found. Soft-skips in the bulk path are intentional.
             if item_id is not None and result.candidate_count == 0:
                 console.print(
-                    "[yellow]"
-                    + t("cli_library.analyze.warning_label")
-                    + "[/yellow] "
-                    + t("cli_library.analyze.item_not_found", item_id=item_id)
+                    t(
+                        "cli_library.analyze.item_not_found",
+                        label="[yellow]" + t("cli_library.analyze.warning_label") + "[/yellow]",
+                        item_id=item_id,
+                    )
                 )
                 raise typer.Exit(1)
 
@@ -492,13 +493,15 @@ def _rescrape(
                 )
 
         total = result.fixed_count + result.skipped_count + result.error_count
-        summary = (
-            "[green]" + t("cli_library.analyze.fixed_label") + f"[/green] {result.fixed_count}  "
-            "[yellow]" + t("cli_library.analyze.skipped_label") + f"[/yellow] {result.skipped_count}  "
-            "[red]"
-            + t("cli_library.analyze.errors_label")
-            + f"[/red] {result.error_count}  "
-            + t("cli_library.analyze.total", total=total)
+        summary = t(
+            "cli_library.analyze.rescrape_summary",
+            fixed_label="[green]" + t("cli_library.analyze.fixed_label") + "[/green]",
+            fixed=result.fixed_count,
+            skipped_label="[yellow]" + t("cli_library.analyze.skipped_label") + "[/yellow]",
+            skipped=result.skipped_count,
+            errors_label="[red]" + t("cli_library.analyze.errors_label") + "[/red]",
+            errors=result.error_count,
+            total=t("cli_library.analyze.total", total=total),
         )
         if write_report:
             output_path = config.paths.data_dir / "library_rescrape.json"

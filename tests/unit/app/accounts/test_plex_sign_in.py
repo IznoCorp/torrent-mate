@@ -59,6 +59,7 @@ from personalscraper.app.errors import (
 from personalscraper.app.store.store import AppStore
 from personalscraper.conf.environment import Environment
 from personalscraper.core.event_bus import EventBus
+from tests.conftest import LoggedEvents
 
 SAMPLES = Path(__file__).resolve().parents[4] / "docs" / "reference" / "_samples" / "plex-account"
 
@@ -577,19 +578,36 @@ class TestStart:
         assert plextv.calls == []
 
     def test_no_server_is_logged_once_however_many_starts(
-        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, logged_events: LoggedEvents
     ) -> None:
         """Anyone may call the start: with no server, its warning is written once, not once a call."""
         door = _build(store, plextv, None, clock, bus, None)
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             for _ in range(3):
                 _refusal(door.start)
 
         assert [entry["event"] for entry in logs].count("plex_sign_in.no_server") == 1
 
-    def test_a_forged_pin_is_not_logged_at_info(self, door: PlexSignInService) -> None:
+    def test_the_door_log_is_read_after_logging_was_reconfigured(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, logged_events: LoggedEvents
+    ) -> None:
+        """A door logger cached before a reconfiguration (a CLI run in the same worker) is still read."""
+        door = _build(store, plextv, None, clock, bus, None)
+        _refusal(door.start)  # binds and caches the module logger on the current processor list
+        session_processors = structlog.get_config()["processors"]
+        # What every CLI run does through ``configure_logging``: a NEW processor list is configured.
+        structlog.configure(processors=list(session_processors))
+        try:
+            with logged_events() as logs:
+                _refusal(_build(store, plextv, None, clock, bus, None).start)
+        finally:
+            structlog.configure(processors=session_processors)
+
+        assert [entry["event"] for entry in logs] == ["plex_sign_in.no_server"]
+
+    def test_a_forged_pin_is_not_logged_at_info(self, door: PlexSignInService, logged_events: LoggedEvents) -> None:
         """Forged or stale PIN ids are anyone's to send: none writes an info record."""
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             for pin_id in (123, 124, 125):
                 _refusal(lambda pin_id=pin_id: door.finish(pin_id, nonce="anything", user_agent=None))
 
@@ -669,11 +687,17 @@ class TestFirstSignIn:
         assert len(store.accounts.accounts()) == 1
 
     def test_no_vault_signs_in_keeps_no_token_and_says_so_once(
-        self, store: AppStore, plextv: _PlexTv, server: _Server, clock: _Clock, bus: EventBus
+        self,
+        store: AppStore,
+        plextv: _PlexTv,
+        server: _Server,
+        clock: _Clock,
+        bus: EventBus,
+        logged_events: LoggedEvents,
     ) -> None:
         """Without ``PLEX_TOKEN_KEYS``: signed in, no ciphertext, one ``plex_token.not_kept``."""
         door = _build(store, plextv, server, clock, bus, None)
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             result = _sign_in(door, clock)
 
         link = store.accounts.plex_link(result.account.id)
@@ -707,10 +731,11 @@ class TestFirstSignIn:
         bus: EventBus,
         malformed: bool,
         level: str,
+        logged_events: LoggedEvents,
     ) -> None:
         """No key set is a choice (info); keys set but malformed are a fault the operator must see (warning)."""
         door = _build(store, plextv, server, clock, bus, None, vault_keys_malformed=malformed)
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             _sign_in(door, clock)
 
         assert [entry["log_level"] for entry in logs if entry["event"] == "plex_token.not_kept"] == [level]
@@ -1014,7 +1039,13 @@ class TestLinkByEmail:
         assert _revoked(store, old) == [False, False]
 
     def test_a_link_rolled_back_after_the_revocation_keeps_everything_and_logs_nothing(
-        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, monkeypatch: pytest.MonkeyPatch
+        self,
+        store: AppStore,
+        plextv: _PlexTv,
+        clock: _Clock,
+        bus: EventBus,
+        monkeypatch: pytest.MonkeyPatch,
+        logged_events: LoggedEvents,
     ) -> None:
         """A valid non-owner link whose PIN was used meanwhile: ``plex.pin_unknown``, the revocation rolled back."""
         store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
@@ -1025,7 +1056,7 @@ class TestLinkByEmail:
         clock.now += 2.0
         monkeypatch.setattr(store.accounts, "consume_pin", lambda pin_id, *, now: False)
 
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
 
         assert isinstance(refusal, AppBadRequest) and refusal.code is RefusalCode.PLEX_PIN_UNKNOWN
@@ -1035,14 +1066,14 @@ class TestLinkByEmail:
         assert [log["event"] for log in logs if "password_dropped" in log["event"]] == []
 
     def test_a_dropped_password_is_logged_once_the_link_is_committed(
-        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, logged_events: LoggedEvents
     ) -> None:
         """The event carries the account and the count of revoked sessions, and nothing else."""
         store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
         _open_sessions(store, "account-local")
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
 
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             _sign_in(door, clock)
 
         dropped = [log for log in logs if "password_dropped" in log["event"]]
@@ -1403,6 +1434,7 @@ class TestNoLeak:
         bus: EventBus,
         vault: TokenVault,
         published: list[AccountRightsChanged],
+        logged_events: LoggedEvents,
     ) -> None:
         """A link by e-mail, a refusal on plex.tv down, a refusal of no access: no planted value anywhere."""
         store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
@@ -1413,7 +1445,7 @@ class TestNoLeak:
         texts: list[str] = []
         email_free: list[str] = []
         try:
-            with structlog.testing.capture_logs() as logs:
+            with logged_events() as logs:
                 started = door.start()
                 email_free += [repr(started), str(started), repr(door), repr(store.accounts.pin(started.pin_id))]
                 clock.now += 2.0

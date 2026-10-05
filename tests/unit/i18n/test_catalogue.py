@@ -13,6 +13,7 @@ from _repo_paths import DESIGN_SRC
 from personalscraper.app.errors import RefusalCode
 from personalscraper.i18n import Language, _catalogue
 from personalscraper.insights.reporter import ScanIssue, ValidationFinding
+from personalscraper.pipeline_step_codes import StepCode
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PACKAGE_ROOT = _REPO_ROOT / "personalscraper"
@@ -22,6 +23,7 @@ _FRONTEND_FR = DESIGN_SRC / "i18n" / "fr.json"
 # a coded namespace declares the pair here and ships a key per member.
 CODE_SETS: dict[str, type[StrEnum]] = {
     "cli_refusals": RefusalCode,
+    "cli_core.step": StepCode,
     "cli_library.issue": ScanIssue,
     "cli_library.validation": ValidationFinding,
 }
@@ -191,22 +193,17 @@ def test_the_call_checker_catches_a_missing_key_and_a_missing_kwarg() -> None:
 
 
 def test_every_code_set_is_worded() -> None:
-    """Every member of every declared code set has a key in both languages (or, while one-sided, in the other).
-
-    A dotted namespace (``cli_library.issue``) is a nested group of its file's namespace (``cli_library``).
-    """
+    """Every member of every declared code set has a key, in both languages unless declared one-sided."""
     for namespace, codes in CODE_SETS.items():
-        file_namespace, _, group = namespace.partition(".")
-        prefix = f"{group}." if group else ""
-        declared = _one_sided(file_namespace)
-        flat = {language.value: set(_catalogue.flatten(_read(language.value, file_namespace))) for language in Language}
+        file_stem, _, prefix = namespace.partition(".")  # "cli_core.step" -> file cli_core, keys step.<code>
+        prefix = f"{prefix}." if prefix else ""
+        keys = {language: set(_catalogue.flatten(_read(language.value, file_stem))) for language in Language}
         for member in codes:
-            key = f"{prefix}{member.value}"
-            for language in Language:
-                other = next(lang for lang in Language if lang != language)
-                if key in declared and key in flat[other.value]:
-                    continue  # a declared one-sided key: its text is in the other language's file
-                assert key in flat[language.value], f"{namespace}.{member.value} missing in {language.value}"
+            full = f"{prefix}{member.value}"
+            assert any(full in found for found in keys.values()), f"{namespace}.{member.value} missing everywhere"
+            for language, found in keys.items():
+                if full not in found:
+                    assert full in _one_sided(file_stem), f"{namespace}.{member.value} missing in {language.value}"
 
 
 def test_every_t_code_namespace_is_declared() -> None:
@@ -238,3 +235,50 @@ def test_no_markup_in_the_words() -> None:
         for namespace in _namespaces(language):
             for key, text in _catalogue.flatten(_read(language, namespace)).items():
                 assert not any(marker in text for marker in _MARKUP), f"{language}/{namespace}.{key}: {text!r}"
+
+
+_CONVERTED_NAMESPACES = ("cli_core", "cli_trailers", "cli_web")
+
+
+def _orphan_keys(namespace: str, sources: list[str], coded: set[str]) -> list[str]:
+    """English keys of ``namespace`` that no literal ``t("…")`` in ``sources`` names and no code set words.
+
+    Args:
+        namespace: The catalogue namespace to audit.
+        sources: Python sources whose literal ``t()`` calls count as references.
+        coded: Full keys (``namespace.path``) worded by a declared code set.
+
+    Returns:
+        The orphan keys, sorted; a plural member counts as referenced through its base key.
+    """
+    referenced = {call.args[0].value for source in sources for call in _t_calls(ast.parse(source))}  # type: ignore[attr-defined]
+    orphans = []
+    for path in _catalogue.flatten(_read("en", namespace)):
+        full = f"{namespace}.{path}"
+        base = full.rsplit("_", 1)[0] if full.endswith(("_one", "_other")) else full
+        if full not in referenced and base not in referenced and full not in coded:
+            orphans.append(full)
+    return sorted(orphans)
+
+
+def _coded_keys() -> set[str]:
+    """Every full key a declared code set words (``cli_core.step`` over ``StepCode`` gives ``cli_core.step.<code>``)."""
+    return {f"{namespace}.{member.value}" for namespace, codes in CODE_SETS.items() for member in codes}
+
+
+def test_every_converted_key_is_referenced_by_a_literal_call_or_a_code_set() -> None:
+    """A site reverted to a literal leaves its key orphaned here, so the conversion cannot silently regress."""
+    sources = [p.read_text(encoding="utf-8") for p in sorted(_PACKAGE_ROOT.rglob("*.py"))]
+    coded = _coded_keys()
+    orphans = [key for namespace in _CONVERTED_NAMESPACES for key in _orphan_keys(namespace, sources, coded)]
+    assert not orphans, 'keys no t("…") call and no code set uses:\n' + "\n".join(orphans)
+
+
+def test_the_orphan_check_flags_a_key_nothing_references() -> None:
+    """Control: an unreferenced key is reported; a literal call, a plural base and a code-set member are not."""
+    # The fixture namespace is read from the real catalogue: any converted key, with its call removed.
+    sources = ['t("cli_core.main.invalid_format", value="x")']
+    orphans = _orphan_keys("cli_core", sources, set())
+    assert "cli_core.main.invalid_format" not in orphans
+    assert "cli_core.pipeline.label_ingest" in orphans
+    assert "cli_core.step.ingest" not in _orphan_keys("cli_core", sources, _coded_keys())
