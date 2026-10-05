@@ -14,9 +14,8 @@ from pydantic import Field
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.repository import StartKind
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.views import AccountView, RoleView, SignInKind
+from personalscraper.app.accounts.views import AccountView, Language, RoleView, SignInKind
 from personalscraper.http_v1.contract import ContractModel
-from personalscraper.i18n import Language
 
 
 class RoleModel(ContractModel):

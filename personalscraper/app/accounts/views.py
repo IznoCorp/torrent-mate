@@ -15,6 +15,10 @@ from personalscraper.app.accounts.repository import StartKind
 from personalscraper.app.accounts.rights import Right
 from personalscraper.i18n import Language
 
+# ``Language`` is part of what the services answer (``AccountView.language``): the v1
+# models take it from here, since ``http_v1`` reaches the engine only through ``app/``.
+__all__ = ["AccountSummaryView", "AccountView", "Language", "RoleView", "RosterView", "SignInKind"]
+
 
 class SignInKind(StrEnum):
     """How an account signs in — a fact of the account, never of its role (the contract's ``SignInKind``)."""
