@@ -1,7 +1,7 @@
 """Guard: every v1 use case taking an actor authorises it through ``@requires``.
 
 Every public method of an ``AppServices`` field's class whose first parameter after
-``self`` is annotated ``Actor`` carries :func:`~personalscraper.app.accounts.authorise.requires`,
+``self`` is named ``actor`` (whatever its annotation) carries :func:`~personalscraper.app.accounts.authorise.requires`,
 and the operation it names is a key of ``OPERATION_RIGHTS``. The services are found by
 introspecting ``AppServices``' fields, so a new service is covered without being named here.
 """
@@ -14,11 +14,11 @@ import inspect
 import types
 import typing
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from personalscraper.app import services as services_module
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.accounts.authorise import requires
+from personalscraper.app.accounts.authorise import _ACTOR_PARAMETER, requires
 from personalscraper.app.accounts.requirements import OPERATION_RIGHTS
 from personalscraper.app.services import AppServices
 
@@ -65,7 +65,10 @@ def _service_classes() -> list[type]:
 
 
 def _takes_actor(method: Any) -> bool:
-    """Whether a method's first parameter after ``self`` is annotated ``Actor``.
+    """Whether a method's first parameter after ``self`` is named ``actor``.
+
+    The name, not the annotation, is the rule :func:`requires` applies, so ``Actor | None``,
+    ``Optional[Actor]`` and no annotation at all are covered too.
 
     Args:
         method: The function, as the class holds it.
@@ -74,7 +77,7 @@ def _takes_actor(method: Any) -> bool:
         True when it takes an actor.
     """
     parameters = list(inspect.signature(method).parameters.values())
-    return len(parameters) > 1 and parameters[1].annotation in (Actor, "Actor")
+    return len(parameters) > 1 and parameters[1].name == _ACTOR_PARAMETER
 
 
 def _unauthorised(cls: type) -> list[str]:
@@ -127,3 +130,28 @@ def test_a_planted_undecorated_actor_method_is_flagged() -> None:
             """A helper: never a use case."""
 
     assert _unauthorised(Planted) == ["Planted.unguarded"]
+
+
+def test_a_planted_actor_parameter_is_flagged_whatever_its_annotation() -> None:
+    """POSITIVE control: an undecorated ``actor`` parameter is caught when it is not annotated ``Actor``."""
+
+    class Planted:
+        """A service whose use cases annotate their actor loosely, or not at all."""
+
+        def optional_union(self, actor: Actor | None) -> None:
+            """Takes ``Actor | None``."""
+
+        def optional_typing(self, actor: Optional[Actor]) -> None:
+            """Takes ``Optional[Actor]``."""
+
+        def unannotated(self, actor) -> None:  # type: ignore[no-untyped-def]
+            """Takes an unannotated actor."""
+
+        def other_first_parameter(self, name: str, actor: Actor) -> None:
+            """Takes its actor second: ``@requires`` would refuse it, so it is no use case."""
+
+    assert _unauthorised(Planted) == [
+        "Planted.optional_typing",
+        "Planted.optional_union",
+        "Planted.unannotated",
+    ]
