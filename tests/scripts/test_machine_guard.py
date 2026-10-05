@@ -21,6 +21,8 @@ HOME = "/Users/someone"
 CHECKOUT = f"{HOME}/dev/workspaces/PersonalScraper/some-lot"
 # A checkout's scratchpad: Claude Code names it after the session's cwd.
 SCRATCHPAD = "/private/tmp/claude-501/-Users-someone-dev-workspaces-PersonalScraper-some-lot/0a1b2c/scratchpad"
+# Every fake process's start time, as `ps -o lstart=` prints it.
+STARTED = "Mon Oct 5 21:00:00 2026"
 # The main checkout and its sessions (the orchestrator's, the auditor's): no agent's place.
 MAIN_CHECKOUT = f"{HOME}/dev/PersonalScraper"
 MAIN_SCRATCHPAD = "/private/tmp/claude-501/-Users-someone-dev-PersonalScraper/9f8e7d/scratchpad"
@@ -75,7 +77,7 @@ def proc(pid: int, ppid: int, cpu: float, command: str, cwd: str = "/", executab
     """
     if executable is None:
         executable = command.split(" ")[0]
-    return guard.Process(pid=pid, ppid=ppid, cpu=cpu, command=command, cwd=cwd, executable=executable)
+    return guard.Process(pid=pid, ppid=ppid, cpu=cpu, command=command, cwd=cwd, executable=executable, started=STARTED)
 
 
 def killed(table: list[object], me: int = 9999) -> set[int]:
@@ -297,6 +299,7 @@ def test_a_tick_stops_terminates_then_kills_each_chosen_process_and_nothing_else
             load=40.0,
             capacity=8,
             table=table,
+            started=lambda: {process.pid: process.started for process in TICK_TABLE},
             send=lambda pid, number: signalled.setdefault(pid, []).append(number),
             log=guard.Log(log),
             me=9999,
@@ -311,6 +314,42 @@ def test_a_tick_stops_terminates_then_kills_each_chosen_process_and_nothing_else
     assert "top trees" in text, text
     assert "GUARD KILLED" in text, text
     assert signalled == {pid: [STOP, TERM, CONT, KILL] for pid in (101, 102, 103, 104, 105, 200, 201)}, signalled
+
+
+def test_a_pid_reused_before_a_signal_is_never_signalled(tmp_path: Path) -> None:
+    """B-703: STOP and TERM went to the snapshot's pids unchecked, KILL was checked by command alone.
+
+    A pid reused between the snapshot and a signal — a burner gone and its pid
+    handed to another process running the same command — is a stranger.
+    """
+    later = "Mon Oct 5 22:30:00 2026"
+    reads = iter(
+        [
+            # Before the STOP: 200 is another `yes` already.
+            {**{process.pid: STARTED for process in TICK_TABLE}, 200: later},
+            # Before the TERM: 104, stopped, died and was reused by another Chromium.
+            {**{process.pid: STARTED for process in TICK_TABLE}, 200: later, 104: later},
+            {**{process.pid: STARTED for process in TICK_TABLE}, 200: later, 104: later},
+        ]
+    )
+    signalled: dict[int, list[int]] = {}
+
+    guard.tick(
+        guard.SUSTAINED_MINUTES - 1,
+        load=40.0,
+        capacity=8,
+        table=lambda: TICK_TABLE,
+        started=lambda: next(reads),
+        send=lambda pid, number: signalled.setdefault(pid, []).append(number),
+        log=guard.Log(tmp_path / "guard.log"),
+        me=9999,
+        home=HOME,
+        grace_seconds=0,
+    )
+
+    assert 200 not in signalled, signalled
+    assert signalled[104] == [STOP], signalled
+    assert signalled[201] == [STOP, TERM, CONT, KILL], signalled
 
 
 def test_the_guard_runs_from_a_stdlib_copy_declared_in_no_ecosystem() -> None:

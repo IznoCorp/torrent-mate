@@ -55,6 +55,8 @@ GRACE_SECONDS = 5
 TOP_TREES = 10
 LOG_MAX_BYTES = 1_048_576
 LOOK_SECONDS = 60
+# `ps` prints a start time in the C locale's words whatever the operator's locale.
+PS_ENV = {**os.environ, "LC_ALL": "C"}
 
 # Services, by their executable (never an argument: a prompt or a test path
 # names them all the time); their every descendant is theirs, never killed.
@@ -77,6 +79,7 @@ class Process:
         cwd: Its working directory, empty when unknown.
         executable: What `ps -o comm=` names: the executable, or the title a
             program gave itself (PM2's God Daemon); never its arguments.
+        started: When it started (`ps -o lstart=`): with the pid, its identity.
     """
 
     pid: int
@@ -85,6 +88,7 @@ class Process:
     command: str
     cwd: str = ""
     executable: str = ""
+    started: str = ""
 
 
 @dataclass(frozen=True)
@@ -322,6 +326,7 @@ def tick(
     load: float,
     capacity: float,
     table: Callable[[], list[Process]],
+    started: Callable[[], dict[int, str]],
     send: Callable[[int, int], None],
     log: Log,
     me: int,
@@ -335,6 +340,7 @@ def tick(
         load: The one-minute load now.
         capacity: The machine's capacity in cores.
         table: Reads the process table.
+        started: Reads each live pid's start time, the identity a signal is checked against.
         send: Sends a signal to a pid (a pid already gone is no error).
         log: The guard's log.
         me: The guard's own pid.
@@ -360,21 +366,26 @@ def tick(
         log.write("no agent tree to kill — the load is someone else's")
         return 0
 
-    for tree in victims:
-        for pid in tree.pids:
+    # A pid is signalled only while it is the process chosen: same pid, same
+    # start time, read again just before each signal — never a pid reused.
+    identities = {process.pid: process.started for process in snapshot}
+
+    def same() -> list[list[int]]:
+        """Each victim's pids still the processes the snapshot saw, read once."""
+        now = started()
+        return [[pid for pid in tree.pids if pid in now and now[pid] == identities.get(pid)] for tree in victims]
+
+    for pids in same():
+        for pid in pids:
             send(pid, signal.SIGSTOP)
-    for tree in victims:
-        for pid in tree.pids:
+    for pids in same():
+        for pid in pids:
             send(pid, signal.SIGTERM)
             send(pid, signal.SIGCONT)
     time.sleep(grace_seconds)
-    # Only a pid still running the command it ran is killed: never a pid reused.
-    commands = {process.pid: process.command for process in snapshot}
-    still = {process.pid: process.command for process in table()}
-    for tree in victims:
-        for pid in tree.pids:
-            if still.get(pid) == commands.get(pid):
-                send(pid, signal.SIGKILL)
+    for tree, pids in zip(victims, same(), strict=True):
+        for pid in pids:
+            send(pid, signal.SIGKILL)
         log.write(f"GUARD KILLED {_describe(tree)}")
     return 0
 
@@ -387,7 +398,7 @@ def read_table() -> list[Process]:
     """
     uid = str(os.getuid())
     listing = subprocess.run(
-        ["ps", "-Ao", "pid=,ppid=,uid=,pcpu=,command="], capture_output=True, text=True, check=False
+        ["ps", "-Ao", "pid=,ppid=,uid=,pcpu=,lstart=,command="], capture_output=True, text=True, check=False, env=PS_ENV
     ).stdout
     # `comm` may hold spaces: a listing of its own, the pid first, is unambiguous.
     names = subprocess.run(["ps", "-Ao", "pid=,comm="], capture_output=True, text=True, check=False).stdout
@@ -408,8 +419,9 @@ def read_table() -> list[Process]:
             cwds[current] = line[1:]
     table = []
     for line in listing.splitlines():
-        fields = line.split(None, 4)
-        if len(fields) < 5 or fields[2] != uid:
+        # pid, ppid, uid, % CPU, the start time's five words, the command.
+        fields = line.split(None, 9)
+        if len(fields) < 10 or fields[2] != uid:
             continue
         pid = int(fields[0])
         table.append(
@@ -417,12 +429,30 @@ def read_table() -> list[Process]:
                 pid=pid,
                 ppid=int(fields[1]),
                 cpu=float(fields[3].replace(",", ".")),
-                command=fields[4],
+                command=fields[9],
                 cwd=cwds.get(pid, ""),
                 executable=executables.get(pid, ""),
+                started=" ".join(fields[4:9]),
             )
         )
     return table
+
+
+def read_started() -> dict[int, str]:
+    """Each live pid's start time, as `read_table` reads it.
+
+    Returns:
+        The start times, by pid.
+    """
+    listing = subprocess.run(
+        ["ps", "-Ao", "pid=,lstart="], capture_output=True, text=True, check=False, env=PS_ENV
+    ).stdout
+    started: dict[int, str] = {}
+    for line in listing.splitlines():
+        fields = line.split()
+        if len(fields) == 6:
+            started[int(fields[0])] = " ".join(fields[1:])
+    return started
 
 
 def send_signal(pid: int, number: int) -> None:
@@ -465,6 +495,7 @@ def main(argv: list[str] | None = None) -> int:
             load=os.getloadavg()[0],
             capacity=capacity,
             table=read_table,
+            started=read_started,
             send=send_signal,
             log=log,
             me=os.getpid(),
