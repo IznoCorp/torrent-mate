@@ -69,6 +69,7 @@ def read_library_items(
 
     Raises:
         AppBadRequest: ``request.invalid`` naming ``page`` for a negative page.
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     return LibraryItemsPage.from_page(
         app_services.library.read_items(
@@ -111,7 +112,8 @@ def delete_library_items(
         AppConflict: ``media.ambiguous`` when an id is held twice, ``library.locked`` while
             the pipeline holds its lock; nothing deleted.
         AppUnavailable: ``library.obligations_unreadable`` when the seed obligations cannot
-            be read (operator ruling R1); nothing deleted.
+            be read (operator ruling R1), ``library.unavailable`` when ``library.db`` cannot
+            be read; nothing deleted.
     """
     refs = [parse_media_ref(medium.provider.value, medium.provider_id) for medium in body.media]
     return DeleteLibraryItemsResult.from_report(app_services.library.delete_media(signed_in, refs))
@@ -136,6 +138,9 @@ def read_library_categories(
 
     Returns:
         One count per leaf holding a medium.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     return [LibraryCategory.from_count(count) for count in app_services.library.read_categories(signed_in)]
 
@@ -159,6 +164,9 @@ def read_library_recent(
 
     Returns:
         The newest rows, newest first.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     return [LibraryRow.from_entry(entry) for entry in app_services.library.read_recent(signed_in)]
 
@@ -183,6 +191,9 @@ def read_library_incomplete(
     Returns:
         The incomplete shows, most missing first, each with its episodes owned and aired:
         the client derives how many are missing.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     return [IncompleteShow.from_incomplete(show) for show in app_services.library.read_incomplete(signed_in)]
 
@@ -214,6 +225,7 @@ def read_library_membership(
     Raises:
         AppBadRequest: ``request.invalid`` naming ``providerId`` for an id its provider
             cannot hold, before anything is read.
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return LibraryMembership.from_membership(app_services.library.read_membership(signed_in, ref))

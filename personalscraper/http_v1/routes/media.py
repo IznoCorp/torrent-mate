@@ -64,6 +64,9 @@ def read_media_sheet(
 
     Returns:
         The sheet; a film's carries no episodes, seasons or TMDB television id.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return MediaSheet.from_facts(
@@ -133,6 +136,9 @@ def read_media_seasons(
 
     Returns:
         The seasons, the held episodes and the aired counts.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return MediaSeasons.from_facts(app_services.library.read_seasons(signed_in, ref))
@@ -161,6 +167,9 @@ def rescrape_media(
 
     Returns:
         The acceptance: running now, or visibly in file.
+
+    Raises:
+        AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
     """
     ref = parse_media_ref(provider.value, provider_id)
     return RescrapeQueued.from_acceptance(app_services.library.request_rescrape(signed_in, ref))

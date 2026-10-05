@@ -825,6 +825,7 @@ class LibraryService:
 
         Raises:
             AppBadRequest: ``request.invalid`` on a negative page.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         if page < 0:
             raise AppBadRequest("The page is negative.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["page"]})
@@ -859,6 +860,9 @@ class LibraryService:
 
         Returns:
             One count per leaf holding at least one entry, by category id.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
@@ -875,6 +879,9 @@ class LibraryService:
 
         Returns:
             The :data:`RECENT_LIMIT` newest live entries, newest first.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
@@ -892,6 +899,9 @@ class LibraryService:
         Returns:
             The shows whose aired episodes outnumber the held ones, most missing first, then
             most recently added.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
@@ -914,6 +924,9 @@ class LibraryService:
         Returns:
             The membership. ``rows`` counts every holding row (a 0-file phantom included)
             plus the extra media folders of a row spread over several.
+
+        Raises:
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         with closing(self._connect()) as conn:
             holders, folders = self._held(conn, ref)
@@ -945,7 +958,8 @@ class LibraryService:
         Raises:
             AppNotFound: ``media.not_found`` for an id a held movie carries, for an IMDb id
                 the library does not hold, and when the provider does not know the id.
-            AppUnavailable: ``provider.unavailable`` when the provider is not configured or
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read;
+                ``provider.unavailable`` when the provider is not configured or
                 does not answer for an id the library does not hold.
         """
         with closing(self._connect()) as conn:
@@ -1003,7 +1017,8 @@ class LibraryService:
         Raises:
             AppNotFound: ``media.not_found`` when the provider does not know the id, or for
                 an IMDb id the library does not hold (no client reads a sheet by IMDb id).
-            AppUnavailable: ``provider.unavailable`` when the provider is not configured or
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read;
+                ``provider.unavailable`` when the provider is not configured or
                 does not answer.
         """
         with closing(self._connect()) as conn:
@@ -1070,6 +1085,7 @@ class LibraryService:
         Raises:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file, or
                 when none of its folders holds a poster that can be read inside it.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         provider, _ = ref_key(ref)
         with closing(self._connect()) as conn:
@@ -1106,6 +1122,7 @@ class LibraryService:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file.
             AppInternalError: When a runner cannot be spawned; the runs spawned before it
                 stay live.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.
         """
         provider, provider_id = ref_key(ref)
         with closing(self._connect()) as conn:
@@ -1196,7 +1213,8 @@ class LibraryService:
                 when no index row holds an id. Nothing is deleted.
             AppUnavailable: ``library.obligations_unreadable`` when the deletion authority
                 cannot read the seed obligations of a folder (operator ruling R1): every
-                folder's decision is read before any folder goes, so nothing is deleted.
+                folder's decision is read before any folder goes, so nothing is deleted;
+                ``library.unavailable`` when ``library.db`` cannot be read.
         """
         permit = self._delete_permit
         if permit is None:

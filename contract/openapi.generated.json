@@ -2692,7 +2692,7 @@
     },
     "/library/categories": {
       "get": {
-        "description": "The engine's leaf categories and their live media.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    One count per leaf holding a medium.",
+        "description": "The engine's leaf categories and their live media.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    One count per leaf holding a medium.\n\nRaises:\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "readLibraryCategories",
         "responses": {
           "200": {
@@ -2775,7 +2775,7 @@
     },
     "/library/incomplete": {
       "get": {
-        "description": "The shows missing aired episodes.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The incomplete shows, most missing first, each with its episodes owned and aired:\n    the client derives how many are missing.",
+        "description": "The shows missing aired episodes.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The incomplete shows, most missing first, each with its episodes owned and aired:\n    the client derives how many are missing.\n\nRaises:\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "readLibraryIncomplete",
         "responses": {
           "200": {
@@ -2858,7 +2858,7 @@
     },
     "/library/items": {
       "delete": {
-        "description": "Delete media from the disks, the index and Plex, each named by its provider identity.\n\nArgs:\n    body: The media to delete.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    What the deletion did, per medium: deleted, or kept and why (operator ruling R2).\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or\n        ``providerId``), before anything is read.\n    AppNotFound: ``media.not_found`` when no library row holds an id; nothing deleted.\n    AppConflict: ``media.ambiguous`` when an id is held twice, ``library.locked`` while\n        the pipeline holds its lock; nothing deleted.\n    AppUnavailable: ``library.obligations_unreadable`` when the seed obligations cannot\n        be read (operator ruling R1); nothing deleted.",
+        "description": "Delete media from the disks, the index and Plex, each named by its provider identity.\n\nArgs:\n    body: The media to delete.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    What the deletion did, per medium: deleted, or kept and why (operator ruling R2).\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or\n        ``providerId``), before anything is read.\n    AppNotFound: ``media.not_found`` when no library row holds an id; nothing deleted.\n    AppConflict: ``media.ambiguous`` when an id is held twice, ``library.locked`` while\n        the pipeline holds its lock; nothing deleted.\n    AppUnavailable: ``library.obligations_unreadable`` when the seed obligations cannot\n        be read (operator ruling R1), ``library.unavailable`` when ``library.db`` cannot\n        be read; nothing deleted.",
         "operationId": "deleteLibraryItems",
         "requestBody": {
           "content": {
@@ -2955,7 +2955,7 @@
         "summary": "Delete Library Items"
       },
       "get": {
-        "description": "One page of the library listing.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    category: The leaf categories to keep, repeated; absent, every one.\n    sort: ``az`` or ``missing``; absent, the most recently added first.\n    reversed_: ``\"1\"`` to run the order the other way.\n    query: The search text.\n    page: The page, zero based.\n\nReturns:\n    The page and its three counts.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``page`` for a negative page.",
+        "description": "One page of the library listing.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    category: The leaf categories to keep, repeated; absent, every one.\n    sort: ``az`` or ``missing``; absent, the most recently added first.\n    reversed_: ``\"1\"`` to run the order the other way.\n    query: The search text.\n    page: The page, zero based.\n\nReturns:\n    The page and its three counts.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``page`` for a negative page.\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "readLibraryItems",
         "parameters": [
           {
@@ -3128,7 +3128,7 @@
     },
     "/library/membership": {
       "get": {
-        "description": "What the library holds of one medium, named by its provider identity.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The membership, read from the whole library.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``providerId`` for an id its provider\n        cannot hold, before anything is read.",
+        "description": "What the library holds of one medium, named by its provider identity.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The membership, read from the whole library.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``providerId`` for an id its provider\n        cannot hold, before anything is read.\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "readLibraryMembership",
         "parameters": [
           {
@@ -3230,7 +3230,7 @@
     },
     "/library/recent": {
       "get": {
-        "description": "The most recently added media.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The newest rows, newest first.",
+        "description": "The most recently added media.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The newest rows, newest first.\n\nRaises:\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "readLibraryRecent",
         "responses": {
           "200": {
@@ -3313,7 +3313,7 @@
     },
     "/media/{provider}/{providerId}": {
       "get": {
-        "description": "One medium's sheet: the provider's facts crossed with the library's.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The sheet; a film's carries no episodes, seasons or TMDB television id.",
+        "description": "One medium's sheet: the provider's facts crossed with the library's.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The sheet; a film's carries no episodes, seasons or TMDB television id.\n\nRaises:\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "readMediaSheet",
         "parameters": [
           {
@@ -3534,7 +3534,7 @@
     },
     "/media/{provider}/{providerId}/rescrape": {
       "post": {
-        "description": "Ask the providers for one medium's metadata again.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acceptance: running now, or visibly in file.",
+        "description": "Ask the providers for one medium's metadata again.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acceptance: running now, or visibly in file.\n\nRaises:\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "rescrapeMedia",
         "parameters": [
           {
@@ -3636,7 +3636,7 @@
     },
     "/media/{provider}/{providerId}/seasons": {
       "get": {
-        "description": "A show's seasons and what the library holds of each.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The seasons, the held episodes and the aired counts.",
+        "description": "A show's seasons and what the library holds of each.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The seasons, the held episodes and the aired counts.\n\nRaises:\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
         "operationId": "readMediaSeasons",
         "parameters": [
           {
