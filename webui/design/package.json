@@ -29,7 +29,7 @@
     "@tanstack/store": "^0.11.1",
     "class-variance-authority": "^0.7.1",
     "firebase": "12.19.0",
-    "i18next": "^26.3.6",
+    "i18next": "^26.4.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-i18next": "^17.0.11"
