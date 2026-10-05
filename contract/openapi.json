@@ -596,7 +596,8 @@
           "LIBRARY",
           "LIB_TOTAL",
           "SYNOPSIS"
-        ]
+        ],
+        "description": "503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698)."
       },
       "delete": {
         "operationId": "deleteLibraryItems",
@@ -673,7 +674,7 @@
           }
         },
         "x-unseeded": "what the deletion did per medium. It is derived from the request and from the seeded library, never from a fixture of its own; a kept medium is a dial a named state turns.",
-        "description": "Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2)."
+        "description": "Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2). 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698)."
       }
     },
     "/library/categories": {
@@ -719,7 +720,8 @@
         },
         "x-seeded-from": [
           "CATS"
-        ]
+        ],
+        "description": "503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698)."
       }
     },
     "/library/recent": {
@@ -765,7 +767,8 @@
         },
         "x-seeded-from": [
           "RECENT"
-        ]
+        ],
+        "description": "503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698)."
       }
     },
     "/library/incomplete": {
@@ -811,7 +814,8 @@
         },
         "x-seeded-from": [
           "INCOMPLETE"
-        ]
+        ],
+        "description": "503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698)."
       }
     },
     "/library/membership": {
@@ -819,7 +823,7 @@
         "operationId": "readLibraryMembership",
         "x-rights": "library.read",
         "summary": "Whether the library holds one medium, asked by its provider identity",
-        "description": "An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate.",
+        "description": "An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).",
         "tags": [
           "library"
         ],
@@ -889,7 +893,7 @@
         "operationId": "readMediaSheet",
         "x-rights": "library.read",
         "summary": "One media sheet, by its provider identity",
-        "description": "For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer.",
+        "description": "For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).",
         "tags": [
           "media"
         ],
@@ -1068,7 +1072,7 @@
           "SEASONS",
           "OWNED"
         ],
-        "description": "Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer."
+        "description": "Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698)."
       }
     },
     "/media/{provider}/{providerId}/poster": {
@@ -1076,7 +1080,7 @@
         "operationId": "readMediaPoster",
         "x-rights": "library.read",
         "summary": "The poster file a medium's library folder holds",
-        "description": "The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster.",
+        "description": "The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698).",
         "tags": [
           "media"
         ],
@@ -1136,6 +1140,9 @@
             "$ref": "#/components/responses/Problem"
           },
           "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -1299,7 +1306,7 @@
           }
         ],
         "x-unseeded": "an acknowledgement. The interface offers « Re-scraper les métadonnées » on two surfaces — the follow panel and the media sheet — and the backend has no operation for it: this declaration IS the demand (D7). No fixture covers it, because until this wave nothing ever asked.",
-        "description": "Refused 404 `media.not_found` when no library row holds the id."
+        "description": "Refused 404 `media.not_found` when no library row holds the id. 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-696, B-697, B-698)."
       }
     },
     "/acquisition/followed": {
@@ -11141,7 +11148,8 @@
           "media.ambiguous",
           "provider.unavailable",
           "library.locked",
-          "library.obligations_unreadable"
+          "library.obligations_unreadable",
+          "library.unavailable"
         ],
         "description": "WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them."
       },

@@ -574,6 +574,19 @@ def _by_season(pairs: set[tuple[int, int]]) -> dict[int, tuple[int, ...]]:
     return {season: tuple(sorted(grouped[season])) for season in sorted(grouped)}
 
 
+def _library_unavailable(exc: sqlite3.Error) -> AppUnavailable:
+    """Log why ``library.db`` cannot be read, and build the refusal the wire answers.
+
+    Args:
+        exc: The SQLite failure opening or probing the index.
+
+    Returns:
+        The 503 ``library.unavailable`` refusal; it names no path and no SQLite text.
+    """
+    log.error("app.library.index_unavailable", error=type(exc).__name__, reason=str(exc))
+    return AppUnavailable("The library index cannot be read.", code=RefusalCode.LIBRARY_UNAVAILABLE)
+
+
 class LibraryService:
     """The library's reads, its rescrape and its deletion.
 
@@ -641,20 +654,31 @@ class LibraryService:
         """Open ``library.db`` read-only, with ``sqlite3.Row`` rows.
 
         Read-only at the file (``mode=ro``: an absent index is an error, never a new empty
-        file) and at the connection (``query_only``).
+        file) and at the connection (``query_only``). The schema is read once before the
+        connection is handed out, so a file that is not a database is refused here rather
+        than by the first query.
 
         Returns:
             A connection that can take no writer lock.
 
         Raises:
-            sqlite3.OperationalError: When ``library.db`` cannot be opened.
+            AppUnavailable: ``library.unavailable`` when ``library.db`` is absent, cannot be
+                opened or is not a database; the cause goes to the log, never to the wire.
         """
         uri = f"{self._index_db.resolve().as_uri()}?mode=ro"
-        conn = sqlite3.connect(uri, uri=True, isolation_level=None, check_same_thread=False)
-        # Not the canonical writer PRAGMA set: WAL ``journal_mode`` raises on a read-only
-        # connection (scripts/check-pragma-discipline.py allow-lists this reader).
-        conn.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
-        conn.execute("PRAGMA query_only=ON")
+        try:
+            conn = sqlite3.connect(uri, uri=True, isolation_level=None, check_same_thread=False)
+        except sqlite3.Error as exc:
+            raise _library_unavailable(exc) from exc
+        try:
+            # Not the canonical writer PRAGMA set: WAL ``journal_mode`` raises on a read-only
+            # connection (scripts/check-pragma-discipline.py allow-lists this reader).
+            conn.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
+            conn.execute("PRAGMA query_only=ON")
+            conn.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone()
+        except sqlite3.Error as exc:
+            conn.close()
+            raise _library_unavailable(exc) from exc
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -1364,7 +1388,7 @@ class LibraryService:
         try:
             with closing(self._connect()) as conn:
                 return conn.execute("SELECT 1 FROM disk WHERE is_mounted = 0 LIMIT 1").fetchone() is not None
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, AppUnavailable) as exc:
             log.warning("app.library.delete_disks_unreadable", error=type(exc).__name__)
             return True
 

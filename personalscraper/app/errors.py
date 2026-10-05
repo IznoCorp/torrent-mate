@@ -72,6 +72,7 @@ class RefusalCode(StrEnum):
     PROVIDER_UNAVAILABLE = "provider.unavailable"
     LIBRARY_LOCKED = "library.locked"
     LIBRARY_OBLIGATIONS_UNREADABLE = "library.obligations_unreadable"
+    LIBRARY_UNAVAILABLE = "library.unavailable"
 
 
 class AppRefusal(Exception):
@@ -166,6 +167,6 @@ class AppTooManyRequests(AppRefusal):
 
 
 class AppUnavailable(AppRefusal):
-    """A dependency the request needs is down (plex.tv, the torrent client)."""
+    """A dependency the request needs is down (plex.tv, the torrent client, the library index)."""
 
     status = 503

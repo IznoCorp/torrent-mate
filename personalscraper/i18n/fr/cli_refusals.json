@@ -43,7 +43,8 @@
   },
   "library": {
     "locked": "Le pipeline tient la médiathèque : réessayez à la fin de l'exécution ; rien n'a été supprimé.",
-    "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'a été supprimé tant qu'on ne sait pas ce qu'un tracker attend encore."
+    "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'a été supprimé tant qu'on ne sait pas ce qu'un tracker attend encore.",
+    "unavailable": "L'index de la médiathèque (library.db) est illisible ou absent ; rien n'a été lu ni changé."
   },
   "role": {
     "unknown": "Aucun rôle n'a cet identifiant.",

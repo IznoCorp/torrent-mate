@@ -86,3 +86,8 @@ def test_the_library_deletion_codes() -> None:
 def test_the_unreadable_seed_obligations_code() -> None:
     """A deletion whose seed obligations cannot be read is refused by code (operator ruling R1)."""
     assert errors.RefusalCode.LIBRARY_OBLIGATIONS_UNREADABLE.value == "library.obligations_unreadable"
+
+
+def test_the_unavailable_library_code() -> None:
+    """A read or a change whose ``library.db`` cannot be opened is refused by code, never a 500."""
+    assert errors.RefusalCode.LIBRARY_UNAVAILABLE.value == "library.unavailable"

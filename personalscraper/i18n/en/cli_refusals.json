@@ -43,7 +43,8 @@
   },
   "library": {
     "locked": "The pipeline holds the library: try again when the run ends; nothing was deleted.",
-    "obligations_unreadable": "The seeding obligations cannot be read: nothing was deleted while what a tracker is still owed is unknown."
+    "obligations_unreadable": "The seeding obligations cannot be read: nothing was deleted while what a tracker is still owed is unknown.",
+    "unavailable": "The library index (library.db) is unreadable or absent; nothing was read or changed."
   },
   "role": {
     "unknown": "No role has this id.",
