@@ -28,6 +28,7 @@ from personalscraper.app.errors import (
     RefusalCode,
 )
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import Language
 from personalscraper.logger import get_logger
 
 log = get_logger("app.accounts.service")
@@ -172,6 +173,7 @@ class AccountService:
             role=role_view(role),
             sign_in_kind=sign_in_kind(link),
             forbidden_writes=tuple(sorted(actor.ceiling.forbidden)),
+            language=account.language,
         )
 
     def read_account(self, actor: Actor) -> AccountView:
@@ -443,6 +445,33 @@ class AccountService:
             repo.set_password_hash(current.id, new_hash, now=now)
             revoked = repo.revoke_sessions_of(current.id, except_id=kept, now=now)
         log.info("account_password_changed", account_id=account.id, sessions_revoked=revoked)
+
+    def set_own_language(self, actor: Actor, language: Language) -> AccountView:
+        """Set the language the signed-in account is spoken to in — its own row, and no other.
+
+        A session act like the password change: no right to name; the read-only instance
+        refuses it at the perimeter (the rights table's ``SignedIn(write=True)``).
+
+        Args:
+            actor: The signed-in actor.
+            language: The language chosen.
+
+        Returns:
+            The account, as now held.
+
+        Raises:
+            AppUnauthenticated: ``auth.required`` — the account was deleted since the session
+                was resolved.
+        """
+        repo = self._repo_factory()
+        with repo.immediate():
+            account = repo.account(actor.account_id)
+            if account is None:
+                raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
+            repo.set_language(account.id, language, now=self._clock())
+            view = self._account_view(repo, replace(account, language=language), actor)
+        log.info("account_language_set", account_id=account.id, language=language.value)
+        return view
 
     def reset_account_password(self, actor: Actor, account_id: str, *, password: str) -> None:
         """Give a local account a provisional password — an Admin's act; its sessions keep running.

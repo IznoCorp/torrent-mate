@@ -1,10 +1,11 @@
-"""The ``authentication`` tag's session routes: ``readAccount``, ``signOut``, ``signIn``, ``changeOwnPassword``.
+"""The ``authentication`` tag's session routes: ``readAccount``, ``signOut``, ``signIn``, ``changeOwnPassword``, ``setOwnLanguage``.
 
 The session is v1's own (``tm_v1_session``); v0's ``tm_session`` never signs a v1 request
 in. ``readAccount`` answers the contract's ``Account``, its ``forbiddenWrites`` being the
 instance's ceiling; ``signOut`` revokes the session and clears its cookie; ``signIn`` opens
 a new session from an e-mail and a password, refusing every failure as ``auth.refused``;
-``changeOwnPassword`` replaces a local account's password and ends its other sessions.
+``changeOwnPassword`` replaces a local account's password and ends its other sessions;
+``setOwnLanguage`` sets the signed-in account's own language, and no other's.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import AppStore
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.web import WebConfig
+from personalscraper.i18n import Language
 from personalscraper.http_v1.models.accounts import ResetAccountPasswordBody
 from personalscraper.http_v1.models.authentication import ChangeOwnPasswordBody
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
@@ -126,6 +128,7 @@ class TestReadAccount:
             },
             "signInKind": "local",
             "forbiddenWrites": [],
+            "language": "en",
         }
 
     def test_a_session_whose_role_is_gone_is_auth_required(self, v1_client: Callable[..., TestClient]) -> None:
@@ -627,6 +630,80 @@ class TestChangeOwnPassword:
         assert response.status_code == 400
         assert response.json()["code"] == "request.invalid"
         assert self._NEW not in response.text
+
+
+class TestSetOwnLanguage:
+    """``PUT /auth/language`` — ``setOwnLanguage``, the signed-in account's own language (FG-1 B)."""
+
+    def test_sets_it_and_reads_it_back(self, v1_client: Callable[..., TestClient]) -> None:
+        """200 with the ``Account`` as now held; ``readAccount`` answers the language chosen."""
+        client = v1_client(role="household")
+
+        response = client.put("/auth/language", json={"language": "fr"})
+
+        assert response.status_code == 200
+        assert response.json()["language"] == "fr"
+        assert response.json()["id"] == "account-1"
+        assert client.get("/auth/me").json()["language"] == "fr"
+
+    def test_another_account_keeps_its_own(self, v1_client: Callable[..., TestClient]) -> None:
+        """Only the caller's row moves: another account of the same store keeps its language."""
+        client = v1_client(role="household")
+        repo = _services(client).app_store.accounts
+        repo.insert_account(
+            AccountRow(
+                id="account-other",
+                name="Other",
+                email="other@example.org",
+                avatar="",
+                role_id="household",
+                password_hash=None,
+                created_at=1.0,
+                updated_at=1.0,
+                language=Language.EN,
+            )
+        )
+
+        assert client.put("/auth/language", json={"language": "fr"}).status_code == 200
+
+        other = repo.account("account-other")
+        assert other is not None and other.language is Language.EN
+
+    @pytest.mark.parametrize("language", ["de", "", "EN", None])
+    def test_a_value_outside_language_is_request_invalid(
+        self, v1_client: Callable[..., TestClient], language: str | None
+    ) -> None:
+        """400 ``request.invalid``; the language held unchanged."""
+        client = v1_client(role="household")
+        response = client.put("/auth/language", json={"language": language})
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+        assert client.get("/auth/me").json()["language"] == "en"
+
+    def test_without_a_session_is_auth_required(self, v1_client: Callable[..., TestClient]) -> None:
+        """401 ``auth.required``."""
+        response = v1_client(role=None).put("/auth/language", json={"language": "fr"})
+        assert response.status_code == 401
+        assert response.json()["code"] == "auth.required"
+
+    def test_refused_on_the_read_only_instance(
+        self, v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A write on one's own account: 403 ``instance.read_only`` under ``WEB_ROLE=staging``, nothing written."""
+        client = v1_client(role="household")
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        response = client.put("/auth/language", json={"language": "fr"})
+        assert response.status_code == 403
+        assert response.json()["code"] == "instance.read_only"
+        assert client.get("/auth/me").json()["language"] == "en"
+
+    def test_a_cross_origin_put_is_request_cross_origin(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``request.cross_origin``; the language is not changed."""
+        client = v1_client(role="household")
+        response = client.put("/auth/language", json={"language": "fr"}, headers={"Origin": "https://evil.example"})
+        assert response.status_code == 403
+        assert response.json()["code"] == "request.cross_origin"
+        assert client.get("/auth/me").json()["language"] == "en"
 
 
 class TestCookie:

@@ -1,4 +1,4 @@
-"""The ``authentication`` tag's routes: the password and Plex doors, the signed-in account, its session and password."""
+"""The ``authentication`` tag's routes: the password and Plex doors, the signed-in account, its session, password and language."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from personalscraper.http_v1.models.authentication import (
     PasswordSet,
     PlexPendingModel,
     PlexSignInBody,
+    SetOwnLanguageBody,
     SignedOut,
     SignInBody,
     StartedPlexSignInModel,
@@ -256,3 +257,29 @@ def change_own_password(
         signed_in, token, current_password=body.current_password, new_password=body.new_password
     )
     return PasswordSet(ok=True)
+
+
+@router.put(
+    "/auth/language",
+    operation_id="setOwnLanguage",
+    response_model=AccountModel,
+    response_model_exclude_none=True,
+    status_code=200,
+    responses=PROBLEM_RESPONSES,
+)
+def set_own_language(
+    body: SetOwnLanguageBody,
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+) -> AccountModel:
+    """Set the language the signed-in account is spoken to in, on all its devices (FG-1 B).
+
+    Args:
+        body: The language chosen.
+        signed_in: The signed-in actor.
+        app_services: The application services.
+
+    Returns:
+        The account, as now held.
+    """
+    return AccountModel.from_view(app_services.accounts.set_own_language(signed_in, body.language))

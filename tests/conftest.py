@@ -219,6 +219,35 @@ def logged_events(caplog: pytest.LogCaptureFixture) -> LoggedEvents:
     return capture
 
 
+#: Sets the project's configured language for one test (``PERSONALSCRAPER_LANG``).
+ConfiguredLanguage = Callable[[str], None]
+
+
+@pytest.fixture
+def configured_language(monkeypatch: pytest.MonkeyPatch) -> Iterator[ConfiguredLanguage]:
+    """Configure the project's language for one test, as ``PERSONALSCRAPER_LANG`` names it.
+
+    The translation layer resolves the process language once and caches it; the cache is
+    cleared when the language is set and again after the test, so no other test inherits it.
+
+    Args:
+        monkeypatch: Pytest's monkeypatch fixture.
+
+    Yields:
+        A setter taking the variable's value (``fr``, ``en``, or ``""`` for none configured).
+    """
+    from personalscraper.i18n import LANGUAGE_VARIABLE, _process_language
+
+    def configure(value: str) -> None:
+        monkeypatch.setenv(LANGUAGE_VARIABLE, value)
+        for variable in ("LC_ALL", "LC_MESSAGES", "LANG"):
+            monkeypatch.delenv(variable, raising=False)
+        _process_language.cache_clear()
+
+    yield configure
+    _process_language.cache_clear()
+
+
 @pytest.fixture(autouse=True)
 def _no_environment_setting(monkeypatch: pytest.MonkeyPatch) -> None:
     """Start every test with ``PERSONALSCRAPER_ENV`` empty, i.e. the production store names.
