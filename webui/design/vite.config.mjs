@@ -166,4 +166,6 @@ export default defineConfig(({ mode }) => ({
   // Tailwind FIRST: it must have generated its sheet before the prototype
   // fragment is injected, and the injection deliberately runs `post`.
   plugins: [tailwindcss(), injectPrototype(), buildWorker()],
+  // The unit suite's browser language, pinned whatever the host's locale.
+  test: { setupFiles: ["./src/i18n/suite-language.ts"] },
 }));
