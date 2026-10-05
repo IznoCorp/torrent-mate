@@ -23,6 +23,13 @@
     "confirm": "Repeat the owner's password",
     "done": "Owner {{email}} created: Admin, signing in by password until Plex sign-in is served."
   },
+  "open_session": {
+    "help": "Open a session for the Plex server's owner with no password and print its token alone on stdout, for the design host's smoke check. Refused under production; the token is never logged.",
+    "owner_help": "Open the session of the Plex server's owner.",
+    "owner_required": "Name whose session to open: --owner is the only one. Nothing was opened.",
+    "refused_prod": "A session is never opened from the command line on production: set PERSONALSCRAPER_ENV to dev or staging, with a data directory marked for it. Nothing was opened.",
+    "no_owner": "No account is linked as the Plex server's owner: seed it with accounts create-owner. Nothing was opened."
+  },
   "token_key": {
     "help": "The keys sealing the kept Plex tokens, read from PLEX_TOKEN_KEYS in the environment.",
     "rotate": {

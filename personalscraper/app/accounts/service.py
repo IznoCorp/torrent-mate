@@ -278,6 +278,15 @@ class AccountService:
         log.info("v1_signed_in", account_id=account.id)
         return SignInResult(account=self._account_view(repo, account, actor), session_token=token)
 
+    def owner_account_id(self) -> str | None:
+        """The key of the account linked as the managed Plex server's owner.
+
+        Returns:
+            The account holding the owner link, or ``None`` when no account holds it.
+        """
+        link = self._repo_factory().owner_link()
+        return link.account_id if link is not None else None
+
     def set_password(self, email: str, password: str) -> None:
         """Give an account a password — the server's door of last resort (the CLI's only).
 

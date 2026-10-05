@@ -3,7 +3,9 @@
 The server's own hand on this environment's ``app.db``: what no web operation may do.
 ``set-password`` is the password door of last resort — the Plex server owner's fallback
 password is set here and nowhere else. A password is typed at a hidden prompt, twice, and
-is never an argument (a shell's history and ``ps`` would keep it). ``token-key rotate``,
+is never an argument (a shell's history and ``ps`` would keep it). ``open-session --owner``
+opens the server owner's session with no password, outside production only, for the design
+host's smoke check: the token is printed alone on stdout and never logged. ``token-key rotate``,
 ``token forget`` and ``token purge-undecryptable`` manage the Plex tokens a sign-in keeps,
 under the keys of ``PLEX_TOKEN_KEYS`` — read from the environment only, never from an
 argument. Every line goes through the translation layer; a refusal of the account service
@@ -32,9 +34,15 @@ from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.conf.environment import Environment, StoreName, current_environment, store_path
 from personalscraper.config import get_settings
 from personalscraper.i18n import t, t_code
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
+
+log = get_logger("commands.accounts")
+
+#: The user agent kept on a session this command opens, naming its one caller.
+_SMOKE_USER_AGENT = "design-host-smoke"
 
 accounts_app = typer.Typer(name="accounts", help=t("cli_accounts.help"), no_args_is_help=True)
 token_key_app = typer.Typer(name="token-key", help=t("cli_accounts.token_key.help"), no_args_is_help=True)
@@ -134,6 +142,53 @@ def create_owner(
     finally:
         services.close()
     typer.echo(t("cli_accounts.create_owner.done", email=email))
+
+
+@accounts_app.command("open-session", help=t("cli_accounts.open_session.help"))
+@handle_cli_errors
+def open_session(
+    ctx: typer.Context,
+    owner: bool = typer.Option(False, "--owner", help=t("cli_accounts.open_session.owner_help")),
+) -> None:
+    """Open a session for the Plex server's owner, with no password, and print its token alone on stdout.
+
+    Refused under production. The session is opened through the same proven-session step
+    every sign-in door ends in, so a cut owner is refused like anywhere else. The token is
+    printed once and never logged: the journal names the account only. Whoever runs this can
+    already read the environment's ``app.db``, so it opens nothing they could not reach.
+
+    Args:
+        ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
+        owner: Open the owner's session, the only one this command opens.
+
+    Raises:
+        typer.Exit: Code 2 without ``--owner``; code 1 under production, when no account
+            is linked as the owner, or when the account service refuses (a cut owner).
+    """
+    config: Config = ctx.obj.config
+    assert config is not None
+
+    # The flag names whose session opens, so a later account option never changes what a bare call does.
+    if not owner:
+        typer.echo(t("cli_accounts.open_session.owner_required"), err=True)
+        raise typer.Exit(code=2)
+    if current_environment() is Environment.PROD:
+        typer.echo(t("cli_accounts.open_session.refused_prod"), err=True)
+        raise typer.Exit(code=1)
+
+    services = build_app_services(config, get_settings())
+    try:
+        owner_id = services.accounts.owner_account_id()
+        if owner_id is None:
+            typer.echo(t("cli_accounts.open_session.no_owner"), err=True)
+            raise typer.Exit(code=1)
+        result = services.accounts.open_proven_session(owner_id, user_agent=_SMOKE_USER_AGENT)
+    except AppRefusal as exc:
+        _refuse(exc)
+    finally:
+        services.close()
+    log.info("v1_session_opened_by_cli", account_id=owner_id)
+    typer.echo(result.session_token)
 
 
 def _refuse(exc: AppRefusal) -> NoReturn:
