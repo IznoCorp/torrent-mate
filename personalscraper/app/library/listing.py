@@ -17,6 +17,7 @@ import unicodedata
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Final, Literal
 
 from personalscraper.core.identity import MediaRef
@@ -58,6 +59,17 @@ _LIVE_FOLDERS_SQL: Final[str] = (
     " SELECT s.item_id, f.path_id FROM media_file f JOIN media_release r ON r.id = f.release_id"
     " JOIN episode e ON e.id = r.episode_id JOIN season s ON s.id = e.season_id"
     " WHERE f.deleted_at IS NULL AND s.item_id IN ({ids})"
+)
+
+# Every item's live files, whatever the item: the rule of ``_LIVE_FOLDERS_SQL`` over the
+# whole index (a release of an episode holds no ``item_id`` of its own).
+_ALL_LIVE_FOLDERS_SQL: Final[str] = (
+    "SELECT r.item_id AS item_id, f.path_id AS path_id FROM media_file f"
+    " JOIN media_release r ON r.id = f.release_id WHERE f.deleted_at IS NULL AND r.item_id IS NOT NULL"
+    " UNION ALL"
+    " SELECT s.item_id, f.path_id FROM media_file f JOIN media_release r ON r.id = f.release_id"
+    " JOIN episode e ON e.id = r.episode_id JOIN season s ON s.id = e.season_id"
+    " WHERE f.deleted_at IS NULL"
 )
 
 # A disk holds ``<category folder>/<media folder>[/<sub folder>]``: the media folder
@@ -288,6 +300,37 @@ def live_folders(conn: sqlite3.Connection, item_ids: Sequence[int]) -> dict[int,
     return folders
 
 
+def folder_holders(conn: sqlite3.Connection, folders: Iterable[str]) -> dict[str, set[int]]:
+    """Name every item holding live files in some media folders, on the disks the index says are mounted.
+
+    Args:
+        conn: An open connection to ``library.db``.
+        folders: Media folders as :func:`live_folders` names them
+            (``"<disk id>:<category>/<media folder>"``, NFC).
+
+    Returns:
+        ``{folder: {item_id, …}}`` for the folders some item holds live files in (a file in
+        a sub folder counts for its media folder); a folder on an unmounted disk holds none.
+    """
+    wanted = set(folders)
+    disks = sorted({int(folder.split(":", 1)[0]) for folder in wanted})
+    if not disks:
+        return {}
+    marks = ", ".join("?" for _ in disks)
+    query = (
+        "SELECT DISTINCT x.item_id, p.disk_id, p.rel_path FROM (" + _ALL_LIVE_FOLDERS_SQL + ") x"
+        " JOIN path p ON p.id = x.path_id JOIN disk d ON d.id = p.disk_id"
+        f" WHERE d.is_mounted = 1 AND p.disk_id IN ({marks})"
+    )
+    holders: dict[str, set[int]] = {}
+    for item_id, disk_id, rel_path in conn.execute(query, disks):
+        parts = unicodedata.normalize("NFC", rel_path).strip("/").split("/")
+        folder = f"{disk_id}:{'/'.join(parts[:MEDIA_FOLDER_DEPTH])}"
+        if folder in wanted:
+            holders.setdefault(folder, set()).add(item_id)
+    return holders
+
+
 def mounted_media_folders(conn: sqlite3.Connection, item_id: int) -> list[tuple[str, str]]:
     """Name the media folders holding one item's live files on the disks the index says are mounted.
 
@@ -313,6 +356,34 @@ def mounted_media_folders(conn: sqlite3.Connection, item_id: int) -> list[tuple[
         if len(segments) == MEDIA_FOLDER_DEPTH and not any(part in _NOT_A_NAME for part in segments):
             folders.add((mount_path, "/".join(segments)))
     return sorted(folders)
+
+
+def resolve_media_folder(mount_path: str, folder: str) -> tuple[Path, Path] | None:
+    """Resolve one media folder inside its disk, never anything outside it.
+
+    The folder must resolve inside its disk's mount point, exactly ``MEDIA_FOLDER_DEPTH``
+    segments below it (a media folder, never a category nor the disk itself), and be a
+    directory: a symlink or a ``..`` leading elsewhere is refused, whatever it reaches.
+
+    Args:
+        mount_path: The disk's mount point, as the index names it.
+        folder: The media folder below it, as the index names it.
+
+    Returns:
+        ``(the mount point, the folder)``, both resolved; ``None`` when the disk or the
+        folder is not there, is not a directory, escapes, or when a symlink loops.
+    """
+    try:
+        root = Path(mount_path).resolve(strict=True)
+        directory = (root / folder).resolve(strict=True)
+        if not directory.is_relative_to(root) or not directory.is_dir():
+            return None
+    except (OSError, RuntimeError):
+        # Python 3.12's strict resolve raises RuntimeError, not OSError, on a symlink loop.
+        return None
+    if len(directory.relative_to(root).parts) != MEDIA_FOLDER_DEPTH:
+        return None
+    return root, directory
 
 
 def live_episode_pairs(conn: sqlite3.Connection) -> dict[int, set[tuple[int, int]]]:

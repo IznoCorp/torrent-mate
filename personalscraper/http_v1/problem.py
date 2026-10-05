@@ -71,7 +71,9 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.PASSWORD_RESET_ADMIN_ONLY: "Only an Admin resets a password.",
     RefusalCode.PASSWORD_RESET_OWN: "An Admin changes its own password with its current one.",
     RefusalCode.MEDIA_NOT_FOUND: "No medium answers this provider identity.",
+    RefusalCode.MEDIA_AMBIGUOUS: "Several library rows or folders hold this provider identity.",
     RefusalCode.PROVIDER_UNAVAILABLE: "A metadata provider did not answer.",
+    RefusalCode.LIBRARY_LOCKED: "The pipeline holds the library.",
 }
 
 _INTERNAL_DETAIL: Final[str] = "An unexpected error occurred."
