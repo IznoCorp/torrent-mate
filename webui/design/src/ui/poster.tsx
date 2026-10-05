@@ -39,7 +39,7 @@ export function PosterArtwork({ artwork }: { artwork: Artwork }): ReactElement {
  * @returns The picture, or the fallback, as a string.
  */
 export function posterArtworkMarkup(artwork: Artwork): string {
-  if (artwork.source) return `<img src="${artwork.source}" alt="" loading="lazy">`;
+  if (artwork.source) return `<img src="${escapeMarkup(artwork.source)}" alt="" loading="lazy">`;
   return (
     `<span class="${posterFallback()}" data-part="card/poster-fallback">` +
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${artwork.icon}</svg>` +
