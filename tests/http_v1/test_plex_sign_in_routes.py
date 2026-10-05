@@ -89,7 +89,7 @@ def _door(
     services = _services(client)
     plextv, clock = _PlexTv(), _Clock()
     door = PlexSignInService(
-        lambda: services.app_store.accounts,
+        services.app_store,
         services.credentials,
         vault=None,
         client_factory=lambda product, client_id: PlexAccountClient(
@@ -148,7 +148,7 @@ class TestStartPlexSignIn:
         assert int(cookie["max-age"]) == 1800
         assert bool(cookie["secure"]) is client.app.state.config.web.cookie_secure  # type: ignore[attr-defined]
         assert cookie.value not in response.text
-        row = _services(client).app_store.accounts.pin(body["pinId"])
+        row = _services(client).app_store.pins.pin(body["pinId"])
         assert row is not None and cookie.value not in row.nonce_hash
 
     def test_a_forged_host_never_moves_the_forward_address(self, v1_client: Callable[..., TestClient]) -> None:

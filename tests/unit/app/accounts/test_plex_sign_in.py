@@ -32,18 +32,20 @@ import structlog
 from cryptography.fernet import Fernet
 
 from personalscraper.api.plex_account import PlexAccountClient
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.passwords import hash_password
+from personalscraper.app.accounts.pin_repository import PlexPinRow
 from personalscraper.app.accounts.plex_sign_in import (
     CLIENT_IDENTIFIER_SETTING,
     PlexPending,
     PlexPinStarted,
     PlexSignInService,
 )
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, PlexPinRow, SessionRow
+from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.accounts.views import SignInKind
@@ -406,10 +408,10 @@ def _build(
     Returns:
         The service.
     """
-    sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
-    credentials = CredentialService(lambda: store.accounts, sessions)
+    sessions = SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
+    credentials = CredentialService(store, sessions)
     return PlexSignInService(
-        lambda: store.accounts,
+        store,
         credentials,
         vault=vault,
         client_factory=lambda product, client_id: PlexAccountClient(
@@ -500,13 +502,13 @@ class TestStart:
 
         assert isinstance(started, PlexPinStarted)
         assert started.pin_id == PIN_ID
-        row = store.accounts.pin(PIN_ID)
+        row = store.pins.pin(PIN_ID)
         assert row is not None and row.code == CODE and row.consumed_at is None
         assert row.nonce_hash != started.nonce and started.nonce not in row.nonce_hash
         query = parse_qs(urlsplit(started.sign_in_url).fragment.lstrip("?"))
         assert query["code"] == [CODE]
         assert query["context[device][product]"] == ["TorrentMate (dev)"]
-        assert query["clientID"] == [store.accounts.setting(CLIENT_IDENTIFIER_SETTING)]
+        assert query["clientID"] == [store.settings.setting(CLIENT_IDENTIFIER_SETTING)]
         assert "forwardUrl" not in query
         assert started.max_age_s == 1800  # the captured expiresAt, thirty minutes on
 
@@ -515,11 +517,11 @@ class TestStart:
     ) -> None:
         """Two starts, one identifier, the same on both sign-in pages."""
         first = door.start()
-        identifier = store.accounts.setting(CLIENT_IDENTIFIER_SETTING)
+        identifier = store.settings.setting(CLIENT_IDENTIFIER_SETTING)
         second = door.start()
 
         assert identifier
-        assert store.accounts.setting(CLIENT_IDENTIFIER_SETTING) == identifier
+        assert store.settings.setting(CLIENT_IDENTIFIER_SETTING) == identifier
         for started in (first, second):
             assert parse_qs(urlsplit(started.sign_in_url).fragment.lstrip("?"))["clientID"] == [identifier]
 
@@ -533,7 +535,7 @@ class TestStart:
         identifiers = [
             parse_qs(urlsplit(started.sign_in_url).fragment.lstrip("?"))["clientID"] for started in (first, second)
         ]
-        assert identifiers[0] == identifiers[1] == [store.accounts.setting(CLIENT_IDENTIFIER_SETTING)]
+        assert identifiers[0] == identifiers[1] == [store.settings.setting(CLIENT_IDENTIFIER_SETTING)]
 
     def test_the_forward_address_is_the_configured_one(
         self, store: AppStore, plextv: _PlexTv, server: _Server, clock: _Clock, bus: EventBus
@@ -548,14 +550,14 @@ class TestStart:
     ) -> None:
         """Every start deletes the PINs past their expiry or used; a live one stays."""
         now = clock.now
-        store.accounts.insert_pin(PlexPinRow(11, "A", "n", now - 4000.0, now - 2200.0, None, None))
-        store.accounts.insert_pin(PlexPinRow(12, "B", "n", now - 60.0, now + 1740.0, None, now - 30.0))
-        store.accounts.insert_pin(PlexPinRow(13, "C", "n", now - 60.0, now + 1740.0, None, None))
+        store.pins.insert_pin(PlexPinRow(11, "A", "n", now - 4000.0, now - 2200.0, None, None))
+        store.pins.insert_pin(PlexPinRow(12, "B", "n", now - 60.0, now + 1740.0, None, now - 30.0))
+        store.pins.insert_pin(PlexPinRow(13, "C", "n", now - 60.0, now + 1740.0, None, None))
 
         started = door.start()
 
-        assert store.accounts.pin(11) is None and store.accounts.pin(12) is None
-        assert store.accounts.pin(13) is not None and store.accounts.pin(started.pin_id) is not None
+        assert store.pins.pin(11) is None and store.pins.pin(12) is None
+        assert store.pins.pin(13) is not None and store.pins.pin(started.pin_id) is not None
 
     def test_plex_tv_down_is_unavailable_plex_unreachable(
         self, door: PlexSignInService, plextv: _PlexTv, store: AppStore
@@ -565,7 +567,7 @@ class TestStart:
         refusal = _refusal(door.start)
         assert isinstance(refusal, AppUnavailable)
         assert refusal.code is RefusalCode.PLEX_UNREACHABLE
-        assert store.accounts.pin(PIN_ID) is None
+        assert store.pins.pin(PIN_ID) is None
 
     def test_no_server_configured_is_server_unreachable_and_asks_nothing(
         self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
@@ -653,7 +655,7 @@ class TestFirstSignIn:
         plextv.resources[USER_TOKEN] = _sample("resources-home-derived")
         result = _sign_in(door, _clock_of(door))
 
-        home = store.accounts.role_for_start("plexHome")
+        home = store.roles.role_for_start("plexHome")
         assert home is not None and result.account.role.id == home.id
         assert result.account.sign_in_kind is SignInKind.PLEX
         link = store.accounts.plex_link(result.account.id)
@@ -666,7 +668,7 @@ class TestFirstSignIn:
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, vault)
         result = _sign_in(door, clock)
 
-        guest = store.accounts.role_for_start("plexGuest")
+        guest = store.roles.role_for_start("plexGuest")
         assert guest is not None and result.account.role.id == guest.id
         assert result.account.sign_in_kind is SignInKind.PLEX
 
@@ -831,7 +833,7 @@ def _open_sessions(store: AppStore, account_id: str, count: int = 2) -> list[int
         The sessions' keys.
     """
     return [
-        store.accounts.insert_session(
+        store.sessions.insert_session(
             SessionRow(
                 id=0,
                 account_id=account_id,
@@ -857,7 +859,7 @@ def _revoked(store: AppStore, session_ids: list[int]) -> list[bool]:
     Returns:
         One flag per session.
     """
-    rows = [store.accounts.session(session_id) for session_id in session_ids]
+    rows = [store.sessions.session(session_id) for session_id in session_ids]
     assert all(row is not None for row in rows)
     return [row.revoked_at is not None for row in rows if row is not None]
 
@@ -874,7 +876,7 @@ class TestLinkByEmail:
 
         result = _sign_in(door, clock)
 
-        guest = store.accounts.role_for_start("plexGuest")
+        guest = store.roles.role_for_start("plexGuest")
         assert guest is not None
         assert result.account.id == "account-local"
         assert (result.account.role.id, result.account.sign_in_kind) == (guest.id, SignInKind.PLEX)
@@ -896,7 +898,7 @@ class TestLinkByEmail:
 
         result = _sign_in(door, clock)
 
-        home = store.accounts.role_for_start("plexHome")
+        home = store.roles.role_for_start("plexHome")
         assert home is not None and result.account.role.id == home.id
         account = store.accounts.account("account-admin")
         assert account is not None and account.demoted_from == SYSTEM_ROLE_ID
@@ -994,8 +996,8 @@ class TestLinkByEmail:
         store.accounts.insert_account(_local("account-local", EMAIL, "requester", password="a local password 1!"))
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
         _sign_in(door, clock)
-        sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
-        accounts = CredentialService(lambda: store.accounts, sessions)
+        sessions = SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
+        accounts = CredentialService(store, sessions)
 
         refusal = _refusal(
             lambda: accounts.sign_in_with_password(EMAIL, "a local password 1!", client_key="k", user_agent=None)
@@ -1066,7 +1068,7 @@ class TestLinkByEmail:
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
         started = door.start()
         clock.now += 2.0
-        monkeypatch.setattr(store.accounts, "consume_pin", lambda pin_id, *, now: False)
+        monkeypatch.setattr(store.pins, "consume_pin", lambda pin_id, *, now: False)
 
         with logged_events() as logs:
             refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -1340,7 +1342,7 @@ class TestDefinitiveRefusal:
         clock.now += 2.0
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
         assert isinstance(refusal, AppUnavailable)
-        row = store.accounts.pin(started.pin_id)
+        row = store.pins.pin(started.pin_id)
         assert row is not None and row.consumed_at is None
         server.identifier = MACHINE
         clock.now += 2.0
@@ -1357,7 +1359,7 @@ class TestPin:
         started = door.start()
         clock.now += 2.0
         assert isinstance(door.finish(started.pin_id, nonce=started.nonce, user_agent=None), PlexPending)
-        row = store.accounts.pin(PIN_ID)
+        row = store.pins.pin(PIN_ID)
         assert row is not None and row.consumed_at is None
         clock.now += 2.0
         assert isinstance(door.finish(started.pin_id, nonce=started.nonce, user_agent=None), SignInResult)
@@ -1414,7 +1416,7 @@ class TestPin:
         """Past the expiry plex.tv gave: 409 ``plex.pin_expired``, plex.tv not asked."""
         clock = _clock_of(door)
         started = door.start()
-        row = door._repo_factory().pin(started.pin_id)
+        row = door._store.pins.pin(started.pin_id)
         assert row is not None and row.expires_at is not None
         clock.now = row.expires_at + 1.0
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -1459,7 +1461,7 @@ class TestNoLeak:
         try:
             with logged_events() as logs:
                 started = door.start()
-                email_free += [repr(started), str(started), repr(door), repr(store.accounts.pin(started.pin_id))]
+                email_free += [repr(started), str(started), repr(door), repr(store.pins.pin(started.pin_id))]
                 clock.now += 2.0
                 result = door.finish(started.pin_id, nonce=started.nonce, user_agent=None)
                 assert isinstance(result, SignInResult)

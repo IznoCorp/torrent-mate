@@ -12,17 +12,18 @@ from collections.abc import Callable, Sequence
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.repository import AccountRepository, RoleRow
+from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.rules import rights_named, role_view, within
 from personalscraper.app.accounts.views import RoleView
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, RefusalCode
+from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("app.accounts.roles")
 
 
-def _refuse_name_taken(repo: AccountRepository, name: str, *, except_id: str | None) -> None:
+def _refuse_name_taken(store: AppStore, name: str, *, except_id: str | None) -> None:
     """Refuse a role name another role carries, compared trimmed and regardless of case.
 
     Case is folded by ``str.lower`` — Unicode's default lowercase mapping, the very one
@@ -31,7 +32,7 @@ def _refuse_name_taken(repo: AccountRepository, name: str, *, except_id: str | N
     carries no name (its words are the interface's), so it takes none.
 
     Args:
-        repo: The account repository.
+        store: The ``app`` store.
         name: The name asked for, trimmed.
         except_id: The role being renamed, which may keep its own name; ``None`` at creation.
 
@@ -39,7 +40,7 @@ def _refuse_name_taken(repo: AccountRepository, name: str, *, except_id: str | N
         AppConflict: ``role.name_taken``.
     """
     wanted = name.lower()
-    for role in repo.roles():
+    for role in store.roles.roles():
         if role.id != except_id and role.name is not None and role.name.strip().lower() == wanted:
             raise AppConflict("Another role already carries this name.", code=RefusalCode.ROLE_NAME_TAKEN)
 
@@ -49,7 +50,7 @@ class RoleService:
 
     def __init__(
         self,
-        repo_factory: Callable[[], AccountRepository],
+        store: AppStore,
         bus: EventBus,
         *,
         clock: Callable[[], float] = time.time,
@@ -57,11 +58,11 @@ class RoleService:
         """Build the service; nothing is opened until the first call.
 
         Args:
-            repo_factory: Returns the account repository (opening ``app.db`` on first use).
+            store: The environment's ``app.db``, opened on first use.
             bus: The bus the service publishes its domain events on, after a write commits.
             clock: The epoch clock.
         """
-        self._repo_factory = repo_factory
+        self._store = store
         self._bus = bus
         self._clock = clock
 
@@ -94,14 +95,14 @@ class RoleService:
         if not typed:
             raise AppBadRequest("A role carries the name the manager typed.", code=RefusalCode.ROLE_NAME_REQUIRED)
         role = RoleRow(id=f"role-{uuid.uuid4().hex}", name=typed, kind=RoleKind.ORDINARY, rights=held)
-        repo = self._repo_factory()
-        with repo.immediate():
-            _refuse_name_taken(repo, typed, except_id=None)
+        store = self._store
+        with store.immediate():
+            _refuse_name_taken(store, typed, except_id=None)
             if not within(actor, held):
                 raise AppForbidden(
                     "The role would hold rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION
                 )
-            repo.insert_role(role, now=self._clock())
+            store.roles.insert_role(role, now=self._clock())
         log.info("role_created", role_id=role.id, by=actor.account_id)
         return role_view(role)
 
@@ -135,9 +136,9 @@ class RoleService:
         """
         held = rights_named(rights) if rights is not None else None
         new_name = name.strip() if name is not None and name.strip() else None
-        repo = self._repo_factory()
-        with repo.immediate():
-            role = repo.role(role_id)
+        store = self._store
+        with store.immediate():
+            role = store.roles.role(role_id)
             if role is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
             if role.kind is RoleKind.ADMIN:
@@ -154,18 +155,18 @@ class RoleService:
                         "A manager renames only a role within its own rights.", code=RefusalCode.ROLE_ESCALATION
                     )
             if new_name is not None:
-                _refuse_name_taken(repo, new_name, except_id=role.id)
+                _refuse_name_taken(store, new_name, except_id=role.id)
             rights_moved = held is not None and held != role.rights
             renamed = new_name is not None and new_name != role.name
             if rights_moved or renamed:
-                repo.update_role(
+                store.roles.update_role(
                     role.id,
                     name=new_name if renamed else None,
                     rights=held if rights_moved else None,
                     now=self._clock(),
                 )
-            holders = tuple(repo.accounts_on_role(role.id))
-            updated = repo.role(role.id)
+            holders = tuple(store.accounts.accounts_on_role(role.id))
+            updated = store.roles.role(role.id)
         assert updated is not None  # the transaction above read and kept it
         if rights_moved or renamed:
             log.info("role_updated", role_id=role.id, rights_moved=rights_moved, renamed=renamed, by=actor.account_id)
@@ -194,18 +195,18 @@ class RoleService:
                 newcomer starts on it; ``role.in_use`` — an account holds it.
             AppForbidden: ``role.escalation``.
         """
-        repo = self._repo_factory()
-        with repo.immediate():
-            role = repo.role(role_id)
+        store = self._store
+        with store.immediate():
+            role = store.roles.role(role_id)
             if role is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
             if role.kind is RoleKind.ADMIN:
                 raise AppConflict("The Admin role is never deleted.", code=RefusalCode.ROLE_SYSTEM_IMMUTABLE)
             if role.default_for:
                 raise AppConflict("A newcomer starts on this role.", code=RefusalCode.ROLE_DEFAULT)
-            if repo.accounts_on_role(role.id):
+            if store.accounts.accounts_on_role(role.id):
                 raise AppConflict("An account holds this role.", code=RefusalCode.ROLE_IN_USE)
             if not within(actor, role.rights):
                 raise AppForbidden("The role holds rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION)
-            repo.delete_role(role.id)
+            store.roles.delete_role(role.id)
         log.info("role_deleted", role_id=role_id, by=actor.account_id)

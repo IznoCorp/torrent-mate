@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 
+from personalscraper.app.accounts.account_repository import PlexLinkRow
 from personalscraper.app.accounts.avatar import GRAVATAR_SIZE, resolve_avatar
-from personalscraper.app.accounts.repository import PlexLinkRow
 
 
 def _link(plex_uuid: str = "4876c5a138575dce") -> PlexLinkRow:

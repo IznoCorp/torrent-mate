@@ -20,7 +20,7 @@ import hashlib
 from typing import Final
 from urllib.parse import quote
 
-from personalscraper.app.accounts.repository import PlexLinkRow
+from personalscraper.app.accounts.account_repository import PlexLinkRow
 
 #: The Gravatar edge asked for, in pixels: the account panel's 42 px avatar on a 3x screen.
 GRAVATAR_SIZE: Final[int] = 128

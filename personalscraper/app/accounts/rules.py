@@ -5,12 +5,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Final, get_args
 
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.avatar import resolve_avatar
-from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow, StartKind
 from personalscraper.app.accounts.rights import Right
+from personalscraper.app.accounts.role_repository import RoleRow, StartKind
 from personalscraper.app.accounts.views import AccountView, RoleView, SignInKind
 from personalscraper.app.errors import AppBadRequest, AppForbidden, AppUnauthenticated, RefusalCode
+from personalscraper.app.store.store import AppStore
 
 #: The contract's order of the start kinds (``Role.defaultFor``).
 _START_ORDER: Final[tuple[StartKind, ...]] = get_args(StartKind)
@@ -49,11 +51,11 @@ def sign_in_kind(link: PlexLinkRow | None) -> SignInKind:
     return SignInKind.OWNER if link.server_access == "owner" else SignInKind.PLEX
 
 
-def account_view(repo: AccountRepository, account: AccountRow, actor: Actor) -> AccountView:
+def account_view(store: AppStore, account: AccountRow, actor: Actor) -> AccountView:
     """Map an account and its actor to the account's view.
 
     Args:
-        repo: The account repository.
+        store: The ``app`` store.
         account: The account.
         actor: The actor it signs in as (its role and ceiling).
 
@@ -63,10 +65,10 @@ def account_view(repo: AccountRepository, account: AccountRow, actor: Actor) -> 
     Raises:
         AppUnauthenticated: ``auth.required`` — the account's role was deleted.
     """
-    role = repo.role(actor.role_id)
+    role = store.roles.role(actor.role_id)
     if role is None:
         raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
-    link = repo.plex_link(account.id)
+    link = store.accounts.plex_link(account.id)
     return AccountView(
         id=account.id,
         name=account.name,

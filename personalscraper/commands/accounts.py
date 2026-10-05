@@ -259,7 +259,7 @@ def rotate_token_key(ctx: typer.Context) -> None:
         raise typer.Exit(code=1)
     services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        result = rotate_kept_tokens(services.app_store.accounts, vault, now=time.time())
+        result = rotate_kept_tokens(services.app_store, vault, now=time.time())
     finally:
         services.close()
     typer.echo(t("cli_accounts.token_key.rotate.done", count=result.rotated))
@@ -294,15 +294,15 @@ def forget_token(
     # Forgetting reads no token, so it needs no key: it still works once a key is lost.
     services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        repo = services.app_store.accounts
+        store = services.app_store
         account_id: str | None = None
         if email is not None:
-            account = repo.account_by_email(email)
+            account = store.accounts.account_by_email(email)
             if account is None:
                 typer.echo(t_code("cli_refusals", RefusalCode.ACCOUNT_UNKNOWN), err=True)
                 raise typer.Exit(code=1)
             account_id = account.id
-        count = forget_kept_tokens(repo, account_id=account_id)
+        count = forget_kept_tokens(store, account_id=account_id)
     finally:
         services.close()
     typer.echo(t("cli_accounts.token.forget.done", count=count))
@@ -331,7 +331,7 @@ def purge_undecryptable_tokens(
     vault = _vault()
     services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        count = purge_undecryptable(services.app_store.accounts, vault, now=time.time(), force=force)
+        count = purge_undecryptable(services.app_store, vault, now=time.time(), force=force)
     except NoKeptTokenOpens:
         typer.echo(t("cli_accounts.token.purge.none_opens"), err=True)
         raise typer.Exit(code=1) from None

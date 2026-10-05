@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.store import store as store_module
 from personalscraper.app.store.store import AppStore, build_app_store
@@ -185,7 +185,7 @@ def test_concurrent_queries_share_the_one_connection_safely(tmp_path: Path) -> N
             updated_at=0.0,
         )
     )
-    sessions = SessionService(lambda: store.accounts, idle_days=1)
+    sessions = SessionService(store, idle_days=1)
     barrier = threading.Barrier(threads_count)
     errors: list[BaseException] = []
     results: list[bool] = []
@@ -200,7 +200,7 @@ def test_concurrent_queries_share_the_one_connection_safely(tmp_path: Path) -> N
         try:
             for _ in range(20):
                 if index % 2 == 0:
-                    role = store.accounts.role("admin")
+                    role = store.roles.role("admin")
                     results.append(role is not None and role.id == "admin")
                 else:
                     token = sessions.open("alice", user_agent=None)

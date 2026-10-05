@@ -16,9 +16,9 @@ from collections.abc import Callable
 import pytest
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.events import AccountRightsChanged
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import _MIGRATIONS_DIR
