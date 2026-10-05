@@ -392,10 +392,11 @@ WHO=${1:?who is asking}
 shift
 
 # Each class's cost in cores, measured: a harness run of two rules about 1.5,
-# `pytest -n 2` about 2, a build about 3.
-# The browsers a class may hold at once: `run.sh` runs half the processors'
-# rules side by side (4 here), and a rule may hold two engines (Chromium and
-# WebKit); a test run's workers may each hold one; a build none.
+# `pytest -n 2` about 2, a build about 3. And the browsers (main executables,
+# as `weigh` counts them) a class may hold at once before the watcher stops it:
+# 6 for a `browser` or a `rule` run (a harness run's rules side by side, a rule
+# may hold Chromium and WebKit), 4 for a `test` run (one per worker, with room),
+# 2 for a `build` (a build starts none; two is a margin, not a budget).
 case "$RUN_CLASS" in
     browser) CLASS_COST=1.5; CLASS_FLOOR_MB=4096; CLASS_MAX_BROWSERS=6 ;;
     rule)    CLASS_COST=1.5; CLASS_FLOOR_MB=2560; CLASS_MAX_BROWSERS=6 ;;
