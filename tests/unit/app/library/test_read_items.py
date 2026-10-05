@@ -5,7 +5,7 @@ from __future__ import annotations
 import unicodedata
 from datetime import date
 
-from personalscraper.app.library.service import LIBRARY_PAGE_SIZE, LibrarySort
+from personalscraper.app.library.reads import LIBRARY_PAGE_SIZE, LibrarySort
 from tests.unit.app.library.world import World, catalogued
 
 # Two French titles, the collation's own test data: an accented initial sorts with its letter.
@@ -31,7 +31,7 @@ def _titles(world: World, **kwargs: object) -> list[str]:
         "page": 0,
     }
     asked.update(kwargs)
-    page = world.service.read_items(world.actor, **asked)  # type: ignore[arg-type]
+    page = world.library.read_items(world.actor, **asked)  # type: ignore[arg-type]
     return [entry.title for entry in page.items]
 
 
@@ -57,13 +57,13 @@ def test_page_size_and_a_page_past_the_end(world: World) -> None:
     for n in range(30):
         _movie(world, f"Film {n:02d}", str(100 + n))
 
-    first = world.service.read_items(
+    first = world.library.read_items(
         world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=0
     )
-    second = world.service.read_items(
+    second = world.library.read_items(
         world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=1
     )
-    past = world.service.read_items(
+    past = world.library.read_items(
         world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=5
     )
 
@@ -196,10 +196,10 @@ def test_total_matching_and_loaded(world: World) -> None:
     _movie(world, "Avatar 2", "2")
     _movie(world, "Heat", "3")
 
-    unfiltered = world.service.read_items(
+    unfiltered = world.library.read_items(
         world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=0
     )
-    filtered = world.service.read_items(
+    filtered = world.library.read_items(
         world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query="avatar", page=0
     )
 
@@ -216,7 +216,7 @@ def test_only_live_identified_rows_are_served(world: World) -> None:
     unidentified = world.index.item("No Id")
     world.index.movie_file(unidentified, "films/No Id")
 
-    page = world.service.read_items(
+    page = world.library.read_items(
         world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=0
     )
 
@@ -238,7 +238,7 @@ def test_an_entry_carries_its_facts(world: World) -> None:
     )
     world.index.episodes(item, 1, [1])
 
-    (entry,) = world.service.read_items(
+    (entry,) = world.library.read_items(
         world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=0
     ).items
 
@@ -260,7 +260,7 @@ def test_a_show_with_no_nfo_poster_points_at_its_folder_poster(world: World) -> 
 
     entries = {
         entry.title: entry
-        for entry in world.service.read_items(
+        for entry in world.library.read_items(
             world.actor, category=None, sort=LibrarySort.RECENT, reversed_=False, query=None, page=0
         ).items
     }

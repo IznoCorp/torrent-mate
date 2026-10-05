@@ -34,7 +34,11 @@ if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.plex import PlexClient
     from personalscraper.api.transport._policy import CircuitPolicy
-    from personalscraper.app.library.service import LibraryService
+    from personalscraper.app.library.completeness import CatalogueView
+    from personalscraper.app.library.deleting import LibraryDeletion
+    from personalscraper.app.library.reads import LibraryReads
+    from personalscraper.app.library.rescrape import LibraryRescrape
+    from personalscraper.app.library.sheets import MediaSheets
     from personalscraper.app.store.store import AppStore
     from personalscraper.conf.models.config import Config
     from personalscraper.conf.models.providers import ProvidersConfig
@@ -411,6 +415,7 @@ def build_app_services(
         given = providers
         lookup = LazyProviders(lambda: given)
     plex = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
+    view, library, sheets, rescrape, deletion = _build_library_services(config, lookup, plex)
     app_store = build_app_store(config)
     sessions = SessionService(lambda: app_store.accounts, idle_days=config.web.session_idle_days)
     accounts = RosterService(lambda: app_store.accounts, event_bus)
@@ -419,7 +424,11 @@ def build_app_services(
     return AppServices(
         event_bus=event_bus,
         build_info=BUILD_INFO,
-        library=_build_library_service(config, lookup, plex),
+        library=library,
+        sheets=sheets,
+        rescrape=rescrape,
+        deletion=deletion,
+        catalogue_view=view,
         app_store=app_store,
         sessions=sessions,
         accounts=accounts,
@@ -480,10 +489,10 @@ def _build_plex_sign_in(
     )
 
 
-def _build_library_service(
+def _build_library_services(
     config: "Config", providers: "ProviderLookup", plex: "PlexClient | None"
-) -> "LibraryService":
-    """Build the library's service over the index, the aired catalogue, the providers, Plex and the deletion authority.
+) -> "tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]":
+    """Build the library's services over one catalogue view, one index, the providers and Plex.
 
     Inert: the catalogue store and the ownership checker open on first use, the deletion
     authority reads ``acquire.db`` on each deletion only, and the provider clients are
@@ -503,13 +512,19 @@ def _build_library_service(
         plex: The process's client of the Plex server; ``None`` without a ``PLEX_TOKEN``.
 
     Returns:
-        The service.
+        The catalogue view (which owns and closes the catalogue store and the ownership
+        checker), then the reads, the sheets, the rescrape and the deletion.
     """
     # Lazy imports: the indexer pulls heavy trees; building AppServices for a command
     # that never reads the library stays import-light.
     from personalscraper.acquire.catalogue import CatalogueStore  # noqa: PLC0415
     from personalscraper.acquire.delete_authority import StrictDeletePermit  # noqa: PLC0415
-    from personalscraper.app.library.service import LibraryService  # noqa: PLC0415
+    from personalscraper.app.library.completeness import CatalogueView  # noqa: PLC0415
+    from personalscraper.app.library.deleting import LibraryDeletion  # noqa: PLC0415
+    from personalscraper.app.library.reads import LibraryReads  # noqa: PLC0415
+    from personalscraper.app.library.rescrape import LibraryRescrape  # noqa: PLC0415
+    from personalscraper.app.library.sheets import MediaSheets  # noqa: PLC0415
+    from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415
     from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
 
     index_db = config.indexer.db_path
@@ -519,15 +534,22 @@ def _build_library_service(
     # R1): the web process never creates nor migrates acquire.db, and a deletion whose seed
     # obligations are unreadable is refused rather than allowed.
     delete_permit = StrictDeletePermit(acquire_db)
-    return LibraryService(
-        index_db=index_db,
-        data_dir=config.paths.data_dir,
-        catalogue=CatalogueStore(acquire_db),
-        ownership=IndexerOwnershipChecker(index_db),
-        providers=providers,
-        plex=plex,
-        delete_permit=delete_permit,
-        config=config,
+    index = LibraryIndex(index_db)
+    view = CatalogueView(catalogue=CatalogueStore(acquire_db), ownership=IndexerOwnershipChecker(index_db))
+    sheets = MediaSheets(index=index, view=view, providers=providers)
+    return (
+        view,
+        LibraryReads(index=index, view=view, sheets=sheets),
+        sheets,
+        LibraryRescrape(index=index, index_db=index_db, data_dir=config.paths.data_dir),
+        LibraryDeletion(
+            index=index,
+            index_db=index_db,
+            data_dir=config.paths.data_dir,
+            plex=plex,
+            delete_permit=delete_permit,
+            config=config,
+        ),
     )
 
 

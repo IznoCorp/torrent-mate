@@ -17,7 +17,7 @@ from pydantic import Field, WithJsonSchema
 
 from personalscraper.app.library.deletion import DeletionReport, KeptReason, MediaDeletion
 from personalscraper.app.library.identity import Provider, ref_key
-from personalscraper.app.library.service import CategoryCount, IncompleteEntry, LibraryEntry, LibraryPage, Membership
+from personalscraper.app.library.reads import CategoryCount, IncompleteEntry, LibraryEntry, LibraryPage, Membership
 from personalscraper.http_v1.contract import ContractModel
 from personalscraper.http_v1.models.media import ProviderIdValue, poster_route_url
 

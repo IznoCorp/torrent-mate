@@ -17,7 +17,7 @@ from personalscraper.app.errors import (
     RefusalCode,
 )
 from personalscraper.app.library.identity import Provider
-from personalscraper.app.library.service import RescrapeAccepted
+from personalscraper.app.library.rescrape import RescrapeAccepted
 from personalscraper.app.maintenance import service as maintenance_service
 from personalscraper.app.maintenance.registry import REGISTRY, canonical_options_json
 from personalscraper.core.identity import MediaRef
@@ -67,7 +67,7 @@ def test_a_held_movie_is_rescraped_without_a_dry_run(world: World, spawned: list
     movie = world.index.item("Heat", tmdb="949", imdb="tt0113277")
     world.index.movie_file(movie, "films/Heat")
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
     assert (accepted.provider, accepted.provider_id, accepted.queued) == (Provider.TMDB, "949", False)
     assert accepted.run_uid is not None
@@ -81,7 +81,7 @@ def test_a_show_is_rescraped_by_its_tvdb_id(world: World, spawned: list[tuple[st
     show = world.index.item("Holes", kind="show", tvdb="81189", tmdb="1396")
     world.index.episodes(show, 1, [1, 2])
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tvdb_id=81189))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=81189))
 
     assert (accepted.provider, accepted.provider_id) == (Provider.TVDB, "81189")
     assert [json.loads(call[2]) for call in spawned] == [{"item_id": show}]
@@ -92,7 +92,7 @@ def test_an_unknown_id_is_not_found_and_nothing_launches(
 ) -> None:
     """No row holds the id: 404 ``media.not_found``, no run reserved, no spawn."""
     with pytest.raises(AppNotFound) as refused:
-        world.service.request_rescrape(world.actor, MediaRef(tmdb_id=1))
+        world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=1))
 
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
     assert spawned == []
@@ -106,7 +106,7 @@ def test_holders_without_live_files_are_not_found(world: World, spawned: list[tu
     world.index.item("Gone", tmdb="7", year=2021)
 
     with pytest.raises(AppNotFound) as refused:
-        world.service.request_rescrape(world.actor, MediaRef(tmdb_id=7))
+        world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=7))
 
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
     assert spawned == []
@@ -118,7 +118,7 @@ def test_a_held_lock_queues_the_run(world: World, spawned: list[tuple[str, str, 
     world.index.movie_file(movie, "films/Heat")
     (world.data_dir / "pipeline.lock").write_text(str(os.getpid()))
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
     assert accepted.queued is True
     assert len(spawned) == 1
@@ -132,7 +132,7 @@ def test_of_two_rows_only_the_one_with_live_files_is_rescraped(
     held = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
     world.index.episodes(held, 1, [1])
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
     assert [json.loads(call[2]) for call in spawned] == [{"item_id": held}]
     assert accepted.run_uid == spawned[0][0]
@@ -145,7 +145,7 @@ def test_two_rows_with_live_files_are_both_rescraped(world: World, spawned: list
     second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
     world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
     assert [json.loads(call[2]) for call in spawned] == [{"item_id": first}, {"item_id": second}]
     assert accepted.run_uid == spawned[0][0]
@@ -161,7 +161,7 @@ def test_a_tmdb_id_held_by_a_film_and_a_show_rescrapes_the_film(
     show = world.index.item("Show", kind="show", tmdb="500")
     world.index.episodes(show, 1, [1])
 
-    world.service.request_rescrape(world.actor, MediaRef(tmdb_id=500))
+    world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=500))
 
     assert [json.loads(call[2]) for call in spawned] == [{"item_id": film}]
 
@@ -221,7 +221,7 @@ def test_a_failed_spawn_is_an_internal_refusal_and_finalises_the_row(
     monkeypatch.setattr(maintenance_service, "_spawn_runner", broken_spawn)
 
     with pytest.raises(AppInternalError):
-        world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+        world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
     with sqlite3.connect(world.index.path) as conn:
         assert conn.execute("SELECT outcome FROM pipeline_run").fetchall() == [("error",)]
@@ -253,7 +253,7 @@ def test_a_rescrape_already_running_is_accepted_with_its_run_and_nothing_spawns(
     world.index.movie_file(movie, "films/Heat")
     _seed_running(world.index.path, movie)
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
     assert accepted == RescrapeAccepted(
         provider=Provider.TMDB, provider_id="949", queued=False, run_uid=f"{movie:032d}"
@@ -272,7 +272,7 @@ def test_a_running_holder_is_skipped_and_the_other_launched(
     world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
     _seed_running(world.index.path, first)
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
     assert [json.loads(call[2]) for call in spawned] == [{"item_id": second}]
     assert accepted.run_uid == spawned[0][0]
@@ -289,7 +289,7 @@ def test_every_holder_already_running_is_accepted_on_the_lowest_run(
     _seed_running(world.index.path, first)
     _seed_running(world.index.path, second)
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
     assert accepted.queued is False
     assert accepted.run_uid == f"{min(first, second):032d}"
@@ -316,7 +316,7 @@ def test_a_second_spawn_failing_is_internal_and_the_first_run_stays(
     monkeypatch.setattr(maintenance_service, "_spawn_runner", second_fails)
 
     with pytest.raises(AppInternalError):
-        world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+        world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
     with sqlite3.connect(world.index.path) as conn:
         rows = conn.execute("SELECT options_json, outcome, pid FROM pipeline_run ORDER BY id").fetchall()
@@ -335,7 +335,7 @@ def test_a_rescrape_already_running_behind_the_pipeline_is_answered_queued(
     _seed_running(world.index.path, movie)
     (world.data_dir / "pipeline.lock").write_text(str(os.getppid()))
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
     assert (accepted.run_uid, accepted.queued) == (f"{movie:032d}", True)
     assert spawned == []
@@ -350,7 +350,7 @@ def test_a_rescrape_already_running_that_holds_the_lock_is_not_queued(
     _seed_running(world.index.path, movie)
     (world.data_dir / "pipeline.lock").write_text(str(os.getpid()))
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
     assert (accepted.run_uid, accepted.queued) == (f"{movie:032d}", False)
 
@@ -375,7 +375,7 @@ def test_a_run_that_ends_between_the_refusal_and_the_read_is_launched_again(
 
     monkeypatch.setattr(maintenance_service, "_reserve_run_row", refuse_then_end)
 
-    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
     assert len(spawned) == 1
     assert (accepted.run_uid, accepted.queued) == (spawned[0][0], False)

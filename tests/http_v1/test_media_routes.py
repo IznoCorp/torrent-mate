@@ -1,6 +1,6 @@
 """The media routes: a medium's sheet, its seasons and its rescrape, by provider identity.
 
-Each route parses the identity and makes ONE ``LibraryService`` call; these tests hold
+Each route parses the identity and makes ONE library service call; these tests hold
 the wire: the bodies' shapes (the film sheet without its show-only block), the statuses
 and ``Problem`` codes the contract declares, the rights each operation asks, and the
 read-only clone refusing the rescrape. The facts themselves are proved in
@@ -32,13 +32,9 @@ from personalscraper.app.library.facts import (
     refuse_not_found,
 )
 from personalscraper.app.library.identity import Provider
-from personalscraper.app.library.service import (
-    LibraryService,
-    LocalPoster,
-    RescrapeAccepted,
-    SeasonFacts,
-    SeasonsFacts,
-)
+from personalscraper.app.library.reads import LibraryReads, SeasonFacts, SeasonsFacts
+from personalscraper.app.library.rescrape import LibraryRescrape, RescrapeAccepted
+from personalscraper.app.library.sheets import LocalPoster, MediaSheets
 from personalscraper.conf.models.config import Config
 from personalscraper.core.identity import MediaRef
 from tests.http_v1.test_deprecations import _client as v0_client
@@ -149,27 +145,27 @@ def asked(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, MediaRef]]:
                 params={"provider": "tmdb"},
             )
 
-    def read_sheet(self: LibraryService, actor: object, ref: MediaRef) -> MediaSheetFacts:
+    def read_sheet(self: MediaSheets, actor: object, ref: MediaRef) -> MediaSheetFacts:
         """The film for a TMDB id, the show for a TVDB id."""
         calls.append(("read_sheet", ref))
         refuse(ref)
         return _SHOW if ref.tvdb_id is not None else _FILM
 
-    def read_seasons(self: LibraryService, actor: object, ref: MediaRef) -> SeasonsFacts:
+    def read_seasons(self: LibraryReads, actor: object, ref: MediaRef) -> SeasonsFacts:
         """The show's seasons."""
         calls.append(("read_seasons", ref))
         refuse(ref)
         return _SEASONS
 
-    def request_rescrape(self: LibraryService, actor: object, ref: MediaRef) -> RescrapeAccepted:
+    def request_rescrape(self: LibraryRescrape, actor: object, ref: MediaRef) -> RescrapeAccepted:
         """An accepted rescrape, queued."""
         calls.append(("request_rescrape", ref))
         refuse(ref)
         return RescrapeAccepted(provider=Provider.TMDB, provider_id="949", queued=True, run_uid="run-1")
 
-    monkeypatch.setattr(LibraryService, "read_sheet", read_sheet)
-    monkeypatch.setattr(LibraryService, "read_seasons", read_seasons)
-    monkeypatch.setattr(LibraryService, "request_rescrape", request_rescrape)
+    monkeypatch.setattr(MediaSheets, "read_sheet", read_sheet)
+    monkeypatch.setattr(LibraryReads, "read_seasons", read_seasons)
+    monkeypatch.setattr(LibraryRescrape, "request_rescrape", request_rescrape)
     return calls
 
 
@@ -239,7 +235,7 @@ class TestReadMediaSheet:
     ) -> None:
         """A key and a name without a language cannot fill the contract's ``Trailer``: null, the title stays."""
         unlanguaged = dataclasses.replace(_FILM, trailer_language=None)
-        monkeypatch.setattr(LibraryService, "read_sheet", lambda self, actor, ref: unlanguaged)
+        monkeypatch.setattr(MediaSheets, "read_sheet", lambda self, actor, ref: unlanguaged)
 
         body = v1_client(rights=_READ).get("/media/tmdb/949").json()
 
@@ -306,7 +302,7 @@ class TestReadMediaSheet:
     ) -> None:
         """No provider poster, one in the library folder: ``poster`` is the v1 poster route of that identity."""
         local = dataclasses.replace(_SHOW, owned=True, local_poster=True)
-        monkeypatch.setattr(LibraryService, "read_sheet", lambda self, actor, ref: local)
+        monkeypatch.setattr(MediaSheets, "read_sheet", lambda self, actor, ref: local)
 
         body = v1_client(rights=_READ).get("/media/tvdb/79168").json()
 
@@ -335,14 +331,14 @@ class TestReadMediaPoster:
         """
         calls: list[MediaRef] = []
 
-        def read_local_poster(self: LibraryService, actor: object, ref: MediaRef) -> LocalPoster:
+        def read_local_poster(self: MediaSheets, actor: object, ref: MediaRef) -> LocalPoster:
             """The folder's PNG for the held show, a refusal for anything else."""
             calls.append(ref)
             if ref.tvdb_id != 79168:
                 raise refuse_not_found("tvdb")
             return LocalPoster(content=b"\x89PNG\r\n\x1a\nposter", media_type="image/png")
 
-        monkeypatch.setattr(LibraryService, "read_local_poster", read_local_poster)
+        monkeypatch.setattr(MediaSheets, "read_local_poster", read_local_poster)
         return calls
 
     def test_the_folder_poster_is_answered_with_its_media_type(

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.errors import AppNotFound, RefusalCode
-from personalscraper.app.library.service import POSTER_MAX_BYTES, _folder_poster
+from personalscraper.app.library.sheets import POSTER_MAX_BYTES, _folder_poster
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.library_view import mounted_media_folders
 from tests.unit.app.library.world import World
@@ -45,7 +45,7 @@ def _refused(world: World, ref: MediaRef) -> AppNotFound:
         The ``media.not_found`` refusal.
     """
     with pytest.raises(AppNotFound) as refused:
-        world.service.read_local_poster(world.actor, ref)
+        world.sheets.read_local_poster(world.actor, ref)
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
     return refused.value
 
@@ -56,7 +56,7 @@ def test_the_folder_poster_is_served_with_its_media_type(world: World, tmp_path:
     (folder / "poster.jpg").write_bytes(_JPEG)
     (folder / "season01-poster.jpg").write_bytes(b"season")
 
-    poster = world.service.read_local_poster(world.actor, MediaRef(tvdb_id=391101))
+    poster = world.sheets.read_local_poster(world.actor, MediaRef(tvdb_id=391101))
 
     assert (poster.content, poster.media_type) == (_JPEG, "image/jpeg")
 
@@ -70,7 +70,7 @@ def test_a_prefixed_png_poster_is_the_inventory_spelling(world: World, tmp_path:
     folder.mkdir(parents=True)
     (folder / "Heat (1995)-poster.png").write_bytes(_PNG)
 
-    poster = world.service.read_local_poster(world.actor, MediaRef(tmdb_id=949))
+    poster = world.sheets.read_local_poster(world.actor, MediaRef(tmdb_id=949))
 
     assert (poster.content, poster.media_type) == (_PNG, "image/png")
 

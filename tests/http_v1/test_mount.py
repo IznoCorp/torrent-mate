@@ -266,7 +266,7 @@ def test_a_process_building_both_holds_one_bus_and_one_registry(test_config: Con
         services = app.state.v1_app.state.services
 
         assert services.event_bus is app_context.event_bus
-        assert services.library._providers.get("tmdb") is app_context.provider_registry.get("tmdb")
+        assert services.sheets._providers.get("tmdb") is app_context.provider_registry.get("tmdb")
         assert services.owned_providers is None
         services.close()
     finally:

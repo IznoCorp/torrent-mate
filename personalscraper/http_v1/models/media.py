@@ -24,7 +24,8 @@ from personalscraper.app.library.facts import (
     SeasonSummaryFact,
 )
 from personalscraper.app.library.identity import Provider
-from personalscraper.app.library.service import RescrapeAccepted, SeasonFacts, SeasonsFacts
+from personalscraper.app.library.reads import SeasonFacts, SeasonsFacts
+from personalscraper.app.library.rescrape import RescrapeAccepted
 from personalscraper.http_v1.contract import V1_PREFIX, ContractModel
 
 #: One provider id: an integer (TVDB, TMDB) or a string (IMDb). The contract's ``ProviderIds``

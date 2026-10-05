@@ -1,6 +1,6 @@
 """The library routes: the listing, its categories, the recents, the incomplete shows, a membership and a deletion.
 
-Each route makes ONE ``LibraryService`` call; these tests hold the wire: the bodies'
+Each route makes ONE library service call; these tests hold the wire: the bodies'
 shapes, the query parameters' spelling, the statuses and ``Problem`` codes the contract
 declares, the rights each operation asks, and the preprod ceiling refusing the deletion.
 The facts themselves are proved in ``tests/unit/app/library``; here the service answers
@@ -24,14 +24,15 @@ from personalscraper.acquire.store import build_acquire_store
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.errors import AppConflict, AppNotFound, AppUnavailable, RefusalCode
+from personalscraper.app.library.deleting import LibraryDeletion
 from personalscraper.app.library.deletion import DeletionReport, MediaDeletion, PlexOutcome
 from personalscraper.app.library.listing import LibrarySort
-from personalscraper.app.library.service import (
+from personalscraper.app.library.reads import (
     CategoryCount,
     IncompleteEntry,
     LibraryEntry,
     LibraryPage,
-    LibraryService,
+    LibraryReads,
     Membership,
 )
 from personalscraper.conf.models.config import Config
@@ -114,7 +115,7 @@ def asked(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
     calls: list[tuple[str, Any]] = []
 
     def read_items(
-        self: LibraryService,
+        self: LibraryReads,
         actor: object,
         *,
         category: Sequence[str] | None,
@@ -129,22 +130,22 @@ def asked(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
         )
         return LibraryPage(total=40, matching=2, loaded=38, items=(_FILM, _SHOW))
 
-    def read_categories(self: LibraryService, actor: object) -> list[CategoryCount]:
+    def read_categories(self: LibraryReads, actor: object) -> list[CategoryCount]:
         """Two leaves."""
         calls.append(("read_categories", None))
         return [CategoryCount("movies", 12), CategoryCount("tv_shows_animation", 3)]
 
-    def read_recent(self: LibraryService, actor: object) -> list[LibraryEntry]:
+    def read_recent(self: LibraryReads, actor: object) -> list[LibraryEntry]:
         """The show, then the film."""
         calls.append(("read_recent", None))
         return [_SHOW, _FILM]
 
-    def read_incomplete(self: LibraryService, actor: object) -> list[IncompleteEntry]:
+    def read_incomplete(self: LibraryReads, actor: object) -> list[IncompleteEntry]:
         """One show missing two episodes, one missing six with its provider poster."""
         calls.append(("read_incomplete", None))
         return [IncompleteEntry(entry=_BARE, owned=22, aired=24), IncompleteEntry(entry=_POSTERED, owned=4, aired=10)]
 
-    def read_membership(self: LibraryService, actor: object, ref: MediaRef) -> Membership:
+    def read_membership(self: LibraryReads, actor: object, ref: MediaRef) -> Membership:
         """The film held twice for TMDB 949, Silo held once and incomplete, nothing for any other id."""
         calls.append(("read_membership", ref))
         if ref.tmdb_id == 949:
@@ -153,7 +154,7 @@ def asked(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
             return Membership(in_library=True, rows=1, incomplete=True, ids=_POSTERED.ids, kind="show")
         return Membership(in_library=False, rows=0, incomplete=False, ids=None, kind=None)
 
-    def delete_media(self: LibraryService, actor: object, refs: Sequence[MediaRef]) -> DeletionReport:
+    def delete_media(self: LibraryDeletion, actor: object, refs: Sequence[MediaRef]) -> DeletionReport:
         """Every medium deleted, but the four refused ids and the three kept ones.
 
         ``tmdb/503`` is refused as unreadable seed obligations; ``tmdb/601`` is kept for a
@@ -194,9 +195,9 @@ def asked(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
         ("read_recent", read_recent),
         ("read_incomplete", read_incomplete),
         ("read_membership", read_membership),
-        ("delete_media", delete_media),
     ):
-        monkeypatch.setattr(LibraryService, name, fake)
+        monkeypatch.setattr(LibraryReads, name, fake)
+    monkeypatch.setattr(LibraryDeletion, "delete_media", delete_media)
     return calls
 
 
@@ -411,11 +412,11 @@ class TestReadLibraryIncomplete:
     ) -> None:
         """A year-less incomplete show answers ``year: null``, as the contract declares it (N1)."""
 
-        def read_incomplete(self: LibraryService, actor: object) -> list[IncompleteEntry]:
+        def read_incomplete(self: LibraryReads, actor: object) -> list[IncompleteEntry]:
             """The year-less show, missing aired episodes."""
             return [IncompleteEntry(entry=_SHOW, owned=3, aired=8)]
 
-        monkeypatch.setattr(LibraryService, "read_incomplete", read_incomplete)
+        monkeypatch.setattr(LibraryReads, "read_incomplete", read_incomplete)
 
         response = v1_client(rights=_READ).get("/library/incomplete")
 
