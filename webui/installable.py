@@ -150,7 +150,7 @@ def build_identity(design_root: Path) -> bytes:
     return (design_root / "dist" / "build.json").read_bytes()
 
 
-def manifest(texts: Callable[[], dict], language: str = "fr") -> bytes:
+def manifest(texts: Callable[[], dict], language: str) -> bytes:
     """Returns the web manifest, its one sentence read from the resource.
 
     Args:
@@ -164,7 +164,7 @@ def manifest(texts: Callable[[], dict], language: str = "fr") -> bytes:
     return MANIFEST.replace("DESCRIPTION", description, 1).replace("LANGUAGE", language, 1).encode()
 
 
-def offline_page(texts: Callable[[], dict], language: str = "fr") -> bytes:
+def offline_page(texts: Callable[[], dict], language: str) -> bytes:
     """Returns the one page that exists offline.
 
     It says what is true — the prototype lives on the server and is not

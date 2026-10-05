@@ -311,7 +311,7 @@ ASSET_FILE = {
 }
 
 
-def build_failure(error: str, language: str = "fr") -> bytes:
+def build_failure(error: str, language: str = DEFAULT_LANGUAGE) -> bytes:
     """Builds the 503 shown when the build fails.
 
     Serving the PREVIOUS build instead would be a stale reference wearing
@@ -321,7 +321,7 @@ def build_failure(error: str, language: str = "fr") -> bytes:
     Args:
         error: The error message from the failed build, typically stderr output.
         language: The visitor's language (`request_language`): the page is
-            worded and declared in it.
+            worded and declared in it; English when none is given.
 
     Returns:
         A complete HTML 503 error page as bytes, with the error escaped.
@@ -330,9 +330,9 @@ def build_failure(error: str, language: str = "fr") -> bytes:
         texts = served_texts(language)["buildFailure"]
     except (OSError, ValueError, KeyError) as unreadable:
         # This page is how every other failure here gets reported, so it is the
-        # one page that may not fail itself. Restating its French copy as a
+        # one page that may not fail itself. Restating its words here as a
         # fallback would reintroduce exactly the second copy this indirection
-        # removes, so the last resort speaks the developer's language and names
+        # removes, so the last resort is the English diagnostic page and names
         # the copy as what broke — alongside the error it was called for.
         return diagnostic_page(f"{error}\n\n{unreadable}")
     return (

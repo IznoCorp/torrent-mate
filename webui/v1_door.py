@@ -434,7 +434,7 @@ def email_label(resource: str) -> str:
     return str(json.loads(resource)["screens"]["gate"]["email"])
 
 
-def unreachable_page(error: str, texts: dict[str, str], language: str = "fr") -> bytes:
+def unreachable_page(error: str, texts: dict[str, str], language: str) -> bytes:
     """Returns the 503 served when the v1 door cannot ask v1.
 
     A visitor signing in meets it, so its words are the interface's

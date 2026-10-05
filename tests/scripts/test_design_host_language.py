@@ -365,6 +365,28 @@ def test_the_build_failure_follows_the_browser(header: str | None, language: str
     assert words["heading"] in page and words["body"] in page
 
 
+@pytest.mark.parametrize(
+    ("header", "language"),
+    [("en-US,en;q=0.9", "en"), ("fr-FR,fr;q=0.9,en;q=0.8", "fr")],
+)
+def test_the_failed_build_answers_in_the_browsers_language(
+    header: str, language: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ``_document`` that raises ``RuntimeError`` is the 503 of the visitor's language, not the default's."""
+
+    def broken(_: object) -> bytes:
+        raise RuntimeError("the build is gone")
+
+    monkeypatch.setattr(SERVE.Handler, "_document", broken)
+    monkeypatch.setattr(SERVE.v1_door, "check_session", lambda _: (True, 200))
+    answer = _answer("/", header)
+    words = CATALOGUES[language]["server"]["buildFailure"]
+    page = answer.body.decode()
+    assert answer.status == 503
+    assert f'<html lang="{language}">' in page
+    assert words["heading"] in page and words["body"] in page
+
+
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_the_manifest_follows_the_browser(language: str) -> None:
     """The manifest's ``lang`` and description are the visitor's language's."""
