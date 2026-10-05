@@ -313,6 +313,7 @@ _IDENTICAL_IN_BOTH_LANGUAGES: dict[str, frozenset[str]] = {
             "analyze.mode_live",
             "analyze.rescrape_summary",
             "audit.relink_applied",
+            "audit.relink_dry_run",
             "maintenance.mode_apply",
             "maintenance.mode_dry_run",
             "maintenance.validation_summary",
@@ -330,7 +331,7 @@ _IDENTICAL_IN_BOTH_LANGUAGES: dict[str, frozenset[str]] = {
 
 
 def test_cli_catalogues_are_translated_not_copied() -> None:
-    """The ``cli_*`` namespaces: every French value is non-empty and differs from its English one.
+    """The ``cli_*`` namespaces: no empty value, and every French one differs from its English one.
 
     A French value left equal to its English source is an untranslated key; only the named
     exceptions above may read the same in both languages, and each of them must still be identical
@@ -345,6 +346,7 @@ def test_cli_catalogues_are_translated_not_copied() -> None:
                 problems.append(f"{namespace}.{key}: empty French value")
             elif key in en and french == en[key] and key not in exceptions:
                 problems.append(f"{namespace}.{key}: French value equals the English one")
+        problems += [f"{namespace}.{key}: empty English value" for key, english in en.items() if not english.strip()]
         problems += [
             f"{namespace}.{key}: listed as identical but differs"
             for key in sorted(exceptions)
