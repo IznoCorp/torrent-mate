@@ -85,7 +85,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 #: The indexing children, in order. The full scan records the files with no release; the
 #: enrich pass links each one to its release, without which the library listing, which keeps
 #: only a medium a live file backs, reads the seeded titles as absent. Unbudgeted: a seed is
-#: a one-shot that must leave no file unlinked.
+#: a one-shot, so the pass links every file it can, once; a file whose release link fails is
+#: still stamped ``enriched_at`` and no later enrich pass retries it.
 INDEX_COMMANDS: tuple[tuple[str, ...], ...] = (
     ("library-index",),
     ("library-index", "--mode", "enrich", "--no-budget"),
