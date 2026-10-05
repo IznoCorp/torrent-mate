@@ -8,7 +8,7 @@ from dataclasses import asdict
 
 from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.preprod_guard import assert_all_within_preprod
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
@@ -85,7 +85,7 @@ def run_verify(
         Tuple of (StepReport, dispatchable VerifyResult list).
 
     Raises:
-        PreprodGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+        SandboxGuardError: Under ``staging``, the staging tree is outside preprod's marked,
             mounted roots. Nothing is touched.
     """
     # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
@@ -93,7 +93,7 @@ def run_verify(
     # nothing and raise nothing (a production config may have no entry for a category).
     staging = config.paths.staging_dir
     if current_environment() is Environment.STAGING:
-        assert_all_within_preprod(
+        assert_all_within_sandbox(
             config,
             staging,
             staging / folder_name(find_by_file_type(config, FileType.MOVIE)),

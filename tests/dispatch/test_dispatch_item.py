@@ -40,7 +40,7 @@ from typing import Any, Literal
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf import preprod_guard
+from personalscraper.conf import sandbox_guard
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.config import Settings
@@ -600,7 +600,7 @@ def test_existing_copy_outside_every_preprod_root_is_refused_under_staging(
 
     index = MediaIndex(char_db_path, event_bus=EventBus())
     dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     try:
         result = _dispatch_item(dispatcher, source, CID.MOVIES, spec)
@@ -642,7 +642,7 @@ def test_new_media_on_an_unmarked_disk_is_refused_under_staging(
         return True
 
     monkeypatch.setattr(dispatcher, "_move_new", _fake_move_new)
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     # The disk scanner's own marker check would hide the disks and end the item as
     # "no disk"; report them usable so the template's destination guard is what judges.
     monkeypatch.setattr(

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig  # noqa: F401
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_preprod_root
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_sandbox_root
 from personalscraper.core.sqlite._fs_probe import is_mounted as _volume_is_mounted
 from personalscraper.logger import get_logger
 
@@ -67,8 +67,8 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
         # Preprod: a root nobody marked as preprod's own reads as not mounted, so
         # nothing is dispatched to it (the same refusal path as a missing disk).
         try:
-            assert_preprod_root(config.path)
-        except PreprodGuardError as exc:
+            assert_sandbox_root(config.path)
+        except SandboxGuardError as exc:
             log.error("preprod_root_refused", disk=config.id, error=str(exc))
             is_mounted = False
 

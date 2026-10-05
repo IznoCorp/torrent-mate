@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.conf import resolver
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_all_within_preprod
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_all_within_sandbox
 from personalscraper.core.delete_permit import ALLOW
 from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
 from personalscraper.dispatch import _transfer
@@ -108,8 +108,8 @@ def _refused_by_preprod_guard(dispatcher: Dispatcher, result: DispatchResult, de
     """
     try:
         # The transfer purges the staging source on success: judge both ends.
-        assert_all_within_preprod(dispatcher.config, dest, result.source)
-    except PreprodGuardError as exc:
+        assert_all_within_sandbox(dispatcher.config, dest, result.source)
+    except SandboxGuardError as exc:
         log.error("preprod_destination_refused", destination=str(dest), error=str(exc))
         result.action = "error"
         result.reason = f"Preprod guard refused the destination: {exc}"

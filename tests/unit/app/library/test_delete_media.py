@@ -539,11 +539,11 @@ def test_an_index_write_failure_is_reported_and_the_request_goes_on(
 
 def test_under_staging_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> None:
     """Preprod deletes inside its roots, and never asks Plex (its bundle clean is server-wide): reported skipped."""
-    from personalscraper.conf import preprod_guard
+    from personalscraper.conf import sandbox_guard
 
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
-    (shelf.root / preprod_guard.PREPROD_ROOT_MARKER).write_bytes(b"")
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+    (shelf.root / sandbox_guard.PREPROD_ROOT_MARKER).write_bytes(b"")
     shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
         disks=[SimpleNamespace(path=shelf.root)],
         paths=SimpleNamespace(staging_dir=shelf.root),

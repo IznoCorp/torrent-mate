@@ -20,7 +20,7 @@ from personalscraper.api.torrent._errors import (
     TorrentUnreachableError,
 )
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.preprod_guard import assert_all_within_preprod
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import SeedObligationChecker
@@ -335,7 +335,7 @@ def run_ingest(
     resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else staging_path(config, find_ingest_dir(config))
     resolved_staging_dir: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
     # Preprod guard (``staging`` only): nothing is created, swept or moved outside its roots.
-    assert_all_within_preprod(config, resolved_ingest_dir, resolved_staging_dir)
+    assert_all_within_sandbox(config, resolved_ingest_dir, resolved_staging_dir)
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
     # Crash-recovery orphan sweep (single owner). Standalone ingest owns its
@@ -566,7 +566,7 @@ def run_ingest(
                     is_copy = force_copy or client.is_seeding(torrent) or owes_seed
                     action = "copied" if is_copy else "moved"
                     # A move purges the client's download root: judge both ends (``staging`` only).
-                    assert_all_within_preprod(config, source, dest)
+                    assert_all_within_sandbox(config, source, dest)
                     success = transfer_torrent(source, dest, copy=is_copy, dry_run=dry_run)
 
                     if success:

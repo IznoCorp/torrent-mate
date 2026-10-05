@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from personalscraper.api._contracts import CircuitOpenError, MediaType
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.indexer.db import open_db as _open_indexer_db
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
@@ -600,8 +600,8 @@ class TrailersOrchestrator:
 
         # Preprod guard (``staging`` only): a trailer is written inside preprod's own roots.
         try:
-            assert_within_preprod(self._config, expected_path)
-        except PreprodGuardError as exc:
+            assert_within_sandbox(self._config, expected_path)
+        except SandboxGuardError as exc:
             log.error("preprod_trailer_refused", key=key, path=str(expected_path), error=str(exc))
             counts["error"] += 1
             return

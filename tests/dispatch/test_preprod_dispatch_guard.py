@@ -8,10 +8,10 @@ from typing import Any
 
 import pytest
 
-from personalscraper.conf import preprod_guard
+from personalscraper.conf import sandbox_guard
 from personalscraper.dispatch._item import _refused_by_preprod_guard
 from personalscraper.dispatch._types import DispatchResult
-from tests.conf.test_preprod_guard import _config, _root
+from tests.conf.test_sandbox_guard import _config, _root
 
 
 def _dispatcher(tmp_path: Path) -> tuple[Any, Path]:
@@ -24,7 +24,7 @@ def test_destination_outside_the_roots_is_refused_under_staging(
 ) -> None:
     """Under staging a destination outside every root ends the result as an error."""
     dispatcher, _ = _dispatcher(tmp_path)
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     result = DispatchResult(source=tmp_path / "src")
     assert _refused_by_preprod_guard(dispatcher, result, tmp_path / "prod-media" / "Film (2024)") is True
@@ -35,7 +35,7 @@ def test_destination_outside_the_roots_is_refused_under_staging(
 def test_destination_inside_a_root_passes_under_staging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A destination and a staging source under marked, mounted roots are not refused."""
     dispatcher, disk = _dispatcher(tmp_path)
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     result = DispatchResult(source=tmp_path / "stage" / "001-MOVIES" / "Film (2024)")
     assert _refused_by_preprod_guard(dispatcher, result, disk / "movies" / "Film (2024)") is False

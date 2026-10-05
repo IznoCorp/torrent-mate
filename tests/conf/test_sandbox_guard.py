@@ -13,18 +13,18 @@ from pathlib import Path
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf import preprod_guard
+from personalscraper.conf import sandbox_guard
 from personalscraper.conf.environment import Environment
 from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig, TorrentScope
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
-from personalscraper.conf.preprod_guard import (
+from personalscraper.conf.sandbox_guard import (
     PREPROD_ROOT_MARKER,
-    PreprodGuardError,
-    assert_preprod_root,
-    assert_within_preprod,
-    preprod_roots,
+    SandboxGuardError,
+    assert_sandbox_root,
+    assert_within_sandbox,
+    sandbox_roots,
 )
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -57,7 +57,7 @@ def _config(tmp_path: Path, disk: Path, staging: Path, scope_root: Path | None =
 @pytest.fixture
 def mounted(monkeypatch: pytest.MonkeyPatch) -> None:
     """Every path reads as mounted."""
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
 
 
 @pytest.fixture
@@ -72,10 +72,10 @@ def test_path_under_a_marked_mounted_root_passes(tmp_path: Path, mounted: None, 
     stage = _root(tmp_path, "stage")
     config = _config(tmp_path, disk, stage)
     staging()
-    assert_within_preprod(config, disk / "movies" / "Film (2024)")
-    assert_within_preprod(config, stage / "x")
-    with pytest.raises(PreprodGuardError):
-        assert_within_preprod(config, tmp_path / "elsewhere" / "Film (2024)")
+    assert_within_sandbox(config, disk / "movies" / "Film (2024)")
+    assert_within_sandbox(config, stage / "x")
+    with pytest.raises(SandboxGuardError):
+        assert_within_sandbox(config, tmp_path / "elsewhere" / "Film (2024)")
 
 
 def test_unmarked_root_is_refused(tmp_path: Path, mounted: None, staging: Callable[[], None]) -> None:
@@ -83,10 +83,10 @@ def test_unmarked_root_is_refused(tmp_path: Path, mounted: None, staging: Callab
     disk = _root(tmp_path, "disk", marked=False)
     config = _config(tmp_path, disk, _root(tmp_path, "stage"))
     staging()
-    with pytest.raises(PreprodGuardError, match=PREPROD_ROOT_MARKER):
-        assert_within_preprod(config, disk / "Film")
-    with pytest.raises(PreprodGuardError):
-        assert_preprod_root(disk)
+    with pytest.raises(SandboxGuardError, match=PREPROD_ROOT_MARKER):
+        assert_within_sandbox(config, disk / "Film")
+    with pytest.raises(SandboxGuardError):
+        assert_sandbox_root(disk)
 
 
 def test_marker_that_is_a_symlink_is_refused(tmp_path: Path, mounted: None) -> None:
@@ -95,20 +95,20 @@ def test_marker_that_is_a_symlink_is_refused(tmp_path: Path, mounted: None) -> N
     real_file = tmp_path / "elsewhere.txt"
     real_file.write_text("", encoding="utf-8")
     (disk / PREPROD_ROOT_MARKER).symlink_to(real_file)
-    with pytest.raises(PreprodGuardError, match=PREPROD_ROOT_MARKER):
-        assert_preprod_root(disk)
+    with pytest.raises(SandboxGuardError, match=PREPROD_ROOT_MARKER):
+        assert_sandbox_root(disk)
 
 
 def test_unmounted_root_is_refused(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, staging: Callable[[], None]
 ) -> None:
     """A marked root on a volume that is not mounted is refused."""
-    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: False)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
     disk = _root(tmp_path, "disk")
     config = _config(tmp_path, disk, _root(tmp_path, "stage"))
     staging()
-    with pytest.raises(PreprodGuardError, match="mounted"):
-        assert_within_preprod(config, disk / "Film")
+    with pytest.raises(SandboxGuardError, match="mounted"):
+        assert_within_sandbox(config, disk / "Film")
 
 
 def test_symlink_out_of_the_root_is_refused(tmp_path: Path, mounted: None, staging: Callable[[], None]) -> None:
@@ -119,8 +119,8 @@ def test_symlink_out_of_the_root_is_refused(tmp_path: Path, mounted: None, stagi
     (disk / "link").symlink_to(outside)
     config = _config(tmp_path, disk, _root(tmp_path, "stage"))
     staging()
-    with pytest.raises(PreprodGuardError):
-        assert_within_preprod(config, disk / "link" / "Film")
+    with pytest.raises(SandboxGuardError):
+        assert_within_sandbox(config, disk / "link" / "Film")
 
 
 @pytest.mark.parametrize("env", [None, "dev", "prod"])
@@ -131,28 +131,28 @@ def test_outside_staging_the_guard_is_a_no_op(tmp_path: Path, monkeypatch: pytes
         monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
     else:
         monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
-    assert_within_preprod(config, tmp_path / "anywhere")
+    assert_within_sandbox(config, tmp_path / "anywhere")
 
 
 def test_explicit_env_overrides_the_process_environment(tmp_path: Path, mounted: None) -> None:
     """``env=`` decides, whatever the process says."""
     config = _config(tmp_path, tmp_path / "disk", tmp_path / "stage")
-    with pytest.raises(PreprodGuardError):
-        assert_within_preprod(config, tmp_path / "anywhere", Environment.STAGING)
-    assert_within_preprod(config, tmp_path / "anywhere", Environment.PROD)
+    with pytest.raises(SandboxGuardError):
+        assert_within_sandbox(config, tmp_path / "anywhere", Environment.STAGING)
+    assert_within_sandbox(config, tmp_path / "anywhere", Environment.PROD)
 
 
 def test_roots_are_disks_staging_and_the_client_download_root(tmp_path: Path) -> None:
     """The roots are every disk path, the staging dir and the client scope's download root."""
     disk, stage, downloads = tmp_path / "disk", tmp_path / "stage", tmp_path / "downloads"
     config = _config(tmp_path, disk, stage, scope_root=downloads)
-    assert preprod_roots(config) == (disk, stage, downloads)
+    assert sandbox_roots(config) == (disk, stage, downloads)
 
 
 def test_roots_without_a_client_scope(tmp_path: Path) -> None:
     """With no scope set, the download root is not a root."""
     disk, stage = tmp_path / "disk", tmp_path / "stage"
-    assert preprod_roots(_config(tmp_path, disk, stage)) == (disk, stage)
+    assert sandbox_roots(_config(tmp_path, disk, stage)) == (disk, stage)
 
 
 def test_download_root_is_guarded_like_any_root(tmp_path: Path, mounted: None, staging: Callable[[], None]) -> None:
@@ -160,4 +160,4 @@ def test_download_root_is_guarded_like_any_root(tmp_path: Path, mounted: None, s
     disk, stage, downloads = _root(tmp_path, "disk"), _root(tmp_path, "stage"), _root(tmp_path, "dl")
     config = _config(tmp_path, disk, stage, scope_root=downloads)
     staging()
-    assert_within_preprod(config, downloads / "Film.mkv")
+    assert_within_sandbox(config, downloads / "Film.mkv")

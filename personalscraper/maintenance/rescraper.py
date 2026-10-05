@@ -24,7 +24,7 @@ from personalscraper._fs_utils import is_apple_double
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.preprod_guard import assert_within_preprod
+from personalscraper.conf.sandbox_guard import assert_within_sandbox
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -911,7 +911,7 @@ def rescrape_library(
 
         try:
             # Preprod guard (``staging`` only): a refusal lands in this item's error branch.
-            assert_within_preprod(config, media_dir)
+            assert_within_sandbox(config, media_dir)
             action = _rescrape_item(
                 media_dir=media_dir,
                 media_type=media_type,

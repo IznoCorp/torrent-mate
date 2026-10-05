@@ -984,8 +984,8 @@ class TestPreprodGuard:
         The refusal is an error entry, never an exception, and the refused folder is
         neither deleted nor journaled.
         """
-        from personalscraper.conf import preprod_guard
-        from personalscraper.conf.preprod_guard import PREPROD_ROOT_MARKER
+        from personalscraper.conf import sandbox_guard
+        from personalscraper.conf.sandbox_guard import PREPROD_ROOT_MARKER
         from personalscraper.indexer.destructive_journal import list_recent
         from personalscraper.maintenance import disk_cleaner
 
@@ -1001,7 +1001,7 @@ class TestPreprodGuard:
         (disk / "films" / "Outside (2024)").symlink_to(outside, target_is_directory=True)
 
         config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-        monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+        monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
         monkeypatch.setattr(disk_cleaner, "is_mounted", lambda path: True)
         monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
 
@@ -1025,8 +1025,8 @@ class TestPreprodGuard:
         The refusal is an error entry, never an exception, and the refused file is
         neither unlinked, journaled nor published.
         """
-        from personalscraper.conf import preprod_guard
-        from personalscraper.conf.preprod_guard import PREPROD_ROOT_MARKER
+        from personalscraper.conf import sandbox_guard
+        from personalscraper.conf.sandbox_guard import PREPROD_ROOT_MARKER
         from personalscraper.indexer.destructive_journal import list_recent
         from personalscraper.maintenance import disk_cleaner
 
@@ -1043,7 +1043,7 @@ class TestPreprodGuard:
         config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
         published: list[Path] = []
         monkeypatch.setattr(disk_cleaner, "_publish_deleted", lambda path, label, db_path: published.append(path))
-        monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+        monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
         monkeypatch.setattr(disk_cleaner, "is_mounted", lambda path: True)
         monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
 

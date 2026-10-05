@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.conf.environment import Environment, current_environment
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
 from personalscraper.logger import get_logger
@@ -219,13 +219,13 @@ def delete_media_folder(
         otherwise ``DELETED`` with the folder's size.
 
     Raises:
-        PreprodGuardError: Under ``staging``, *path* is outside preprod's marked,
+        SandboxGuardError: Under ``staging``, *path* is outside preprod's marked,
             mounted roots, or no *config* was given. Nothing is deleted or journaled.
     """
     if current_environment() is Environment.STAGING:
         if config is None:
-            raise PreprodGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
-        assert_within_preprod(config, path)
+            raise SandboxGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+        assert_within_sandbox(config, path)
     try:
         decision: PermitDecision = permit.may_delete(path)
     except Exception as exc:
