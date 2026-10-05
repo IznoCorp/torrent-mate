@@ -428,7 +428,7 @@ export function acquisitionStates(): NamedState[] {
     ],
     [
       "sheet-more",
-      "Feuille « ⋮ » — veille et obligations",
+      "Feuille « ⋮ » — détection des nouveautés et obligations",
       () => {
         applyState({ page: "acq", phase: "ready" });
         window.__panel.produce("more");

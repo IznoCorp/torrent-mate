@@ -800,14 +800,14 @@
       "turnTriggerOff": "Turn off automatic processing",
       "automaticTriggerDown": "Stopped by a technical fault: it is not answering.",
       "automaticTriggerOff": "Finished downloads no longer open a pass by themselves.",
-      "watchIdle": "Watch: never run.",
-      "watchLast": "Last watch: {{when}} —",
+      "watchIdle": "New-release detection: never run.",
+      "watchLast": "Last check: {{when}} —",
       "detectedCount_one": "{{count}} detected",
       "detectedCount_other": "{{count}} detected",
       "watchRunning": "In progress…",
       "watchFigures": "{{detected}} new episodes detected, {{available}} available, {{grabbed}} grabbed.",
       "watchNothing": "Nothing new.",
-      "watchFailed": "The watch could not run.",
+      "watchFailed": "New-release detection could not run.",
       "boundOwed": "not adjustable here yet",
       "noRuns": "No pass recorded.",
       "runsDegraded": "This list may be incomplete — the passes database did not answer.",
@@ -829,7 +829,7 @@
       "trigger": {
         "completion": "a finished download",
         "safety_net": "the safety net",
-        "watcher": "the watch",
+        "watcher": "the download watch",
         "web": "from the interface",
         "cli": "on the command line",
         "cron": "the scheduler",
@@ -1008,7 +1008,7 @@
       "tabNow": "In progress",
       "tabFollows": "Follows",
       "tabTodo": "To handle",
-      "moreLabel": "More — watch",
+      "moreLabel": "More — new-release detection",
       "errorNow": "what is waiting for you",
       "errorTodo": "what is waiting for your hand",
       "errorFollows": "your follows",
@@ -1077,7 +1077,7 @@
       "searchesOne": "{{count}} search",
       "searchesMany": "{{count}} searches",
       "emptyFilter": "No follow contains “{{term}}”.",
-      "callsNoteBefore": " A background pass — like the watch — pages through TMDB at a civil pace, filters against your library, your ratings, your follows and your dismissed titles, then stores the survivors in a local reserve. Measured on your real data: ",
+      "callsNoteBefore": " A background pass — like new-release detection — pages through TMDB at a civil pace, filters against your library, your ratings, your follows and your dismissed titles, then stores the survivors in a local reserve. Measured on your real data: ",
       "callsNoteInner": "32 calls → 503 suggestions",
       "callsNoteAfter": ". The screen reads the reserve, so scrolling costs nothing any more — which is what makes batches of 30 possible without ever bursting (NE-DOIT-PAS-8).",
       "status": {
@@ -1872,11 +1872,11 @@
       "meta": "Where should “{{folder}}” be shelved? It leaves the acquisitions."
     },
     "standby": {
-      "title": "Watch",
-      "meta": "Second tier — consulted, not monitored.",
-      "lastPass": "Last pass",
-      "nextPass": "Next pass",
-      "runNow": "Run the watch now"
+      "title": "New-release detection",
+      "meta": "Checks whether your follows have something new — an aired episode, a released film — so that it gets searched for. Runs automatically at regular intervals.",
+      "lastPass": "Last check",
+      "nextPass": "Next check",
+      "runNow": "Check now"
     },
     "suggestion": {
       "metaRating": "{{year}} · {{kind}} · TMDB rating {{rating}}",
@@ -2096,7 +2096,7 @@
       "removeRefused": "The key could not be removed."
     },
     "system": {
-      "watchLaunched": "Watch launched — it is running, its result will appear in System."
+      "watchLaunched": "Check launched — it is running, its result will appear in System."
     },
     "maintenance": {
       "started": "Command launched — follow it in “System”.",
