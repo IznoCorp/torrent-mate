@@ -880,7 +880,7 @@ async def main():
         await acquisition_page.click("[data-more]")
         await acquisition_page.wait_for_timeout(400)
         # RE-AIMED: the panel's button said a sentence and asked for nothing
-        # (« Veille lancée — 12 suivis balayés… », figures nobody measured); it
+        # (« Vérification lancée — 12 suivis balayés… », figures nobody measured); it
         # emits `data-watch-now` now, the levers' own verb, so what is held is
         # that the tap ASKS the server for a veille.
         if check("the watch's panel offers its run",
