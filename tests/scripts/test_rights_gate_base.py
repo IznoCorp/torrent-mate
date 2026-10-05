@@ -9,6 +9,7 @@ Every test builds its own origin in `tmp_path`; nothing here reads the real one.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import types
@@ -163,3 +164,46 @@ def test_reads_a_base_cut_before_the_move(tmp_path: Path, monkeypatch: pytest.Mo
     maquette = _checkout(tmp_path, _origin(tmp_path, develop=True, index=OLD_INDEX), fetched=True)
     _isolate(monkeypatch, tmp_path)
     assert rights_gate.base_region(maquette) == _region("develop")
+
+
+def _checkout_region() -> str:
+    """The checkout's own `login:markup` region, markers included.
+
+    Returns:
+        The region.
+    """
+    document = (rights_gate.ROOT / "design/index.html").read_text(encoding="utf-8")
+    return rights_gate.REGION.search(document).group(0)
+
+
+def test_comparing_sets_aside_the_one_known_comment_and_the_keys() -> None:
+    """The region's own comment and its `data-words*` keys are the only things R-L18-q sets aside."""
+    region = _checkout_region()
+    comparable = rights_gate.comparable(region)
+    assert "The unauthenticated entry screen" not in comparable
+    assert "data-words" not in comparable
+    assert "<!-- login:markup:start -->" in comparable and "<!-- login:markup:end -->" in comparable
+
+
+def test_a_comment_planted_in_the_region_is_a_change() -> None:
+    """An abrupt-closing `<!-->` hides nothing: the live markup after it stays in what is compared.
+
+    The HTML parser closes `<!-->` at once, so the hidden input after it is LIVE in the sign-in
+    form; set aside as « a comment », it would enter the host's page unseen.
+    """
+    region = _checkout_region()
+    planted = region.replace(
+        'id="loginerr" hidden>',
+        'id="loginerr" hidden><!--> <input type=hidden name=next value=//elsewhere> -->',
+        1,
+    )
+    assert planted != region
+    assert rights_gate.comparable(planted) != rights_gate.comparable(region)
+
+
+def test_a_region_without_its_comment_is_refused() -> None:
+    """The one known comment is matched exactly once, or the comparison does not run."""
+    region = _checkout_region()
+    stripped = re.sub(r"<!-- The unauthenticated entry screen\..*?-->", "", region, count=1, flags=re.S)
+    with pytest.raises(ValueError, match="one comment"):
+        rights_gate.comparable(stripped)
