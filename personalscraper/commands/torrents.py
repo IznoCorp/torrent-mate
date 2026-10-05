@@ -17,6 +17,7 @@ from personalscraper.cli_helpers import (
     per_step_boundary,
 )
 from personalscraper.cli_state import state
+from personalscraper.i18n import t
 
 
 @command_with_telemetry("torrents-list")
@@ -47,26 +48,26 @@ def torrents_list(ctx: typer.Context) -> None:
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         client = app_context.torrent_client
         if client is None:
-            console.print("[yellow]No torrent client configured (set torrent.active in torrent.json5).[/yellow]")
+            console.print("[yellow]" + t("cli_core.torrents.no_client") + "[/yellow]")
             raise typer.Exit(2)
 
         try:
             torrents = client.get_completed()
             active_hashes = client.get_all_hashes()
         except TORRENT_LISTING_ERRORS as exc:
-            console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
+            console.print("[yellow]" + t("cli_core.torrents.listing_failed_label") + "[/yellow] " + str(exc))
             raise typer.Exit(2) from exc
 
         payload = {
             "torrents": [
                 {
-                    "name": t.name,
-                    "state": t.state,
-                    "progress": t.progress,
-                    "size_gb": t.size_bytes / (1024**3),
-                    "seeding": client.is_seeding(t),
+                    "name": torrent.name,
+                    "state": torrent.state,
+                    "progress": torrent.progress,
+                    "size_gb": torrent.size_bytes / (1024**3),
+                    "seeding": client.is_seeding(torrent),
                 }
-                for t in torrents
+                for torrent in torrents
             ],
             "completed": len(torrents),
             "tracked": len(active_hashes),
@@ -84,11 +85,21 @@ def _print_torrents_rich(payload: dict[str, object]) -> None:
 
     console = state["console"]
     torrents = cast("list[dict[str, object]]", payload.get("torrents", []))
-    for t in torrents:
-        seeding = "seeding" if t.get("seeding") else "idle"
-        t_progress = cast(float, t.get("progress", 0))
-        t_size_gb = cast(float, t.get("size_gb", 0))
-        t_name = cast(str, t.get("name", ""))
-        t_state = cast(str, t.get("state", ""))
-        console.print(f"  {t_state:<14} {t_progress * 100:5.1f}%  {t_size_gb:7.2f} GB  {seeding:8}  {t_name}")
-    console.print(f"[bold]Total:[/bold] {payload['completed']} completed (of {payload['tracked']} tracked torrents)")
+    for row in torrents:
+        seeding = t("cli_core.torrents.seeding") if row.get("seeding") else t("cli_core.torrents.idle")
+        row_progress = cast(float, row.get("progress", 0))
+        row_size_gb = cast(float, row.get("size_gb", 0))
+        row_name = cast(str, row.get("name", ""))
+        row_state = cast(str, row.get("state", ""))
+        console.print(
+            t(
+                "cli_core.torrents.row",
+                state=f"{row_state:<14}",
+                progress=f"{row_progress * 100:5.1f}",
+                size=f"{row_size_gb:7.2f}",
+                seeding=f"{seeding:8}",
+                name=row_name,
+            )
+        )
+    summary = t("cli_core.torrents.total", completed=str(payload["completed"]), tracked=str(payload["tracked"]))
+    console.print("[bold]" + t("cli_core.torrents.total_label") + "[/bold] " + summary)

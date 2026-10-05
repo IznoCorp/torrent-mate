@@ -8,14 +8,17 @@ from typing import Optional
 import typer
 
 from personalscraper.cli_app import app, config_app
+from personalscraper.i18n import t
 
 
-@config_app.command("migrate-category")
+@config_app.command("migrate-category", help=t("cli_core.config.migrate_category.help"))
 def config_migrate_category(
     ctx: typer.Context,
-    from_cat: str = typer.Option(..., "--from", help="Old category_id to replace"),
-    to_cat: str = typer.Option(..., "--to", help="New category_id to write (must be declared in config)"),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    from_cat: str = typer.Option(..., "--from", help=t("cli_core.config.migrate_category.from_help")),
+    to_cat: str = typer.Option(..., "--to", help=t("cli_core.config.migrate_category.to_help")),
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c", help=t("cli_core.config.migrate_category.config_help")
+    ),
 ) -> None:
     """Rewrite media_item.category_id for renamed categories.
 
@@ -53,40 +56,37 @@ def config_migrate_category(
         raise typer.Exit(rc)
 
 
-@app.command("init-config")
+@app.command("init-config", help=t("cli_core.config.init_config.help"))
 def init_config_cmd(
     ctx: typer.Context,
     example: Path = typer.Option(
         Path("config.example"),
-        help="Path to the example template directory to copy from.",
+        help=t("cli_core.config.init_config.example_help"),
     ),
     output: Optional[Path] = typer.Option(
         None,
         "--output",
-        help="Destination path for the new config directory.",
+        help=t("cli_core.config.init_config.output_help"),
     ),
     non_interactive: bool = typer.Option(
         False,
         "--yes",
-        help="Skip interactive prompts and accept all defaults.",
+        help=t("cli_core.config.init_config.yes_help"),
     ),
     force: bool = typer.Option(
         False,
         "--force",
-        help="Overwrite output directory if it already exists.",
+        help=t("cli_core.config.init_config.force_help"),
     ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help=(
-            "Preview mode: show what would be created without writing any files. "
-            "Checks that config.example/ exists and reports the target path."
-        ),
+        help=t("cli_core.config.init_config.dry_run_help"),
     ),
     sync: bool = typer.Option(
         False,
         "--sync",
-        help="Additive sync from config.example to canonical config (non-destructive).",
+        help=t("cli_core.config.init_config.sync_help"),
     ),
 ) -> None:
     """Create ./config/ from the config.example/ template directory.
@@ -117,7 +117,7 @@ def init_config_cmd(
 
     if sync:
         if force:
-            typer.echo("Error: --sync and --force are mutually exclusive.", err=True)
+            typer.echo(t("cli_core.config.init_config.sync_force_exclusive"), err=True)
             raise typer.Exit(code=2)
 
         # Guard: in --sync mode, if the resolved target does not exist AND the
@@ -127,27 +127,25 @@ def init_config_cmd(
             from personalscraper.conf.loader import ENV_CONFIG_PATH  # noqa: PLC0415
 
             typer.echo(
-                f"Error: canonical config directory not found: {output}\n"
-                f"Set ${ENV_CONFIG_PATH} to point to your config directory, "
-                f"or pass --output explicitly to target a different location.",
+                t("cli_core.config.init_config.canonical_not_found", output=str(output), env_var=ENV_CONFIG_PATH),
                 err=True,
             )
             raise typer.Exit(code=2)
 
         from personalscraper.commands.init_config import init_config_sync  # noqa: PLC0415
 
-        typer.echo(f"Target config: {output}")
+        typer.echo(t("cli_core.config.init_config.target", output=str(output)))
         init_config_sync(example=example.resolve(), target=output.resolve(), dry_run=dry_run)
         return
 
     if dry_run:
-        typer.echo(f"[DRY-RUN] Would copy {example} → {output}")
+        typer.echo(t("cli_core.config.init_config.dry_run_copy", example=str(example), output=str(output)))
         if not example.is_dir():
-            typer.echo(f"[DRY-RUN] WARNING: example directory not found: {example}", err=True)
+            typer.echo(t("cli_core.config.init_config.dry_run_example_missing", example=str(example)), err=True)
         elif output.exists() and not force:
-            typer.echo(f"[DRY-RUN] WARNING: {output} already exists; use --force to overwrite.", err=True)
+            typer.echo(t("cli_core.config.init_config.dry_run_exists", output=str(output)), err=True)
         else:
-            typer.echo("[DRY-RUN] No files written.")
+            typer.echo(t("cli_core.config.init_config.dry_run_none"))
         return
 
     init_config(example, output, interactive=not non_interactive, force=force)

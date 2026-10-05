@@ -1,0 +1,17 @@
+[
+  "app_help",
+  "disabled",
+  "host_help",
+  "port_help",
+  "set_password.aborted",
+  "set_password.add_lines",
+  "set_password.confirm_write",
+  "set_password.help",
+  "set_password.note",
+  "set_password.password_prompt",
+  "set_password.reminder",
+  "set_password.updated",
+  "set_password.username_prompt",
+  "set_password.write_help",
+  "spa_missing"
+]
