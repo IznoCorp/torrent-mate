@@ -91,5 +91,26 @@
     },
     "dry_run_tag": "dry-run",
     "requeue_no_provenance": "No provenance row for grab {{info_hash}}."
+  },
+  "scrape_resolve": {
+    "help": "Resolve a pending scrape decision by fetching metadata by provider ID.\n\nFetches movie or TV-show metadata directly from TMDB (movies) or\nTMDB/TVDB (TV shows) by a known provider ID, writes NFO + artwork into\nthe staging folder, and marks the matching ``scrape_decision`` row as\n``resolved``.\n\nAcquires the SCOPED per-staging-item scrape lock\n(:func:`~personalscraper.lock.acquire_scrape_resolve_lock`) for its lifetime —\nit does NOT self-acquire the global ``pipeline.lock`` (two-tier scoped locking,\nwebui-ux phase 4).  Distinct staging items resolve in PARALLEL (distinct\nper-item locks), the SAME item blocks (idempotent guard), and any global\n``pipeline.lock`` holder (full run / maintenance) makes the resolve back off —\nthe item lock is fail-closed against the global lock.  Safe as both a direct\nhuman invocation and a web-runner subprocess.\n\nNote: the ``\"scrape-resolve\"`` entry in\n``personalscraper.app.maintenance.runner._CLI_SELF_LOCKING`` is VESTIGIAL for\nthis command — the decisions runner\n(:mod:`personalscraper.app.decisions.runner`) that spawns this CLI consults no\nsuch set and never acquires the global lock on its behalf; the entry only\nmatters to the maintenance runner, which does not spawn scrape-resolve.\n\nExit codes:\n    0 — success (NFO written, artwork downloaded, decision resolved).\n    1 — scrape error (API failure, NFO write failure).\n    2 — misconfiguration (missing DB, unknown provider, no matching\n        pending decision row, invalid provider for media kind).\n    3 — lock busy (same item already resolving, or a global pipeline\n        holder is active). Distinct from 1 so the web decisions runner\n        can QUEUE (retry the spawn) on lock races without ever retrying\n        a real scrape failure (operator directive 2026-07-15: a resolve\n        must never surface a 409 while a pipeline run holds the lock).",
+    "staging_help": "Path to the staging directory for the media item.",
+    "provider_help": "Metadata provider: 'tmdb' or 'tvdb'.",
+    "id_help": "Numeric identifier assigned by the provider.",
+    "via_help": "Resolution provenance: 'pick' (candidate from the queue) or 'search_override'.",
+    "invalid_provider": "Invalid provider '{{provider}}'. Must be one of: {{valid}}.",
+    "invalid_via": "Invalid --via '{{via}}'. Must be one of: {{valid}}.",
+    "no_db": "Indexer DB not found at {{db_path}}; run `library-index` first.",
+    "no_decision": "No decision row found for staging path: {{staging_path}}",
+    "not_pending": "Decision {{decision_id}} is already '{{status}}', not 'pending'.",
+    "movie_provider": "Movies require provider 'tmdb', got '{{provider}}'.",
+    "lock_busy": "Lock busy (pipeline run or same-item resolve active). Exiting.",
+    "no_longer_pending": "Decision {{decision_id}} is no longer 'pending' (now '{{now_status}}'). Aborting.",
+    "resolving": "Scrape-resolving '{{name}}' via {{provider}}:{{provider_id}}...",
+    "scrape_failed": "Scrape failed for '{{name}}': {{detail}}",
+    "no_nfo": "No NFO on disk after scraping '{{name}}' — not marking decision {{decision_id}} resolved (it stays pending).",
+    "mark_failed": "NFO written but resolve-mark failed for decision {{decision_id}}: {{error}}",
+    "mark_lost": "NFO written but decision {{decision_id}} was no longer pending — not marked resolved.",
+    "resolved": "Successfully resolved decision {{decision_id}} via {{provider}}:{{provider_id}}."
   }
 }

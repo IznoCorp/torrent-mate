@@ -90,8 +90,10 @@ def cross_seed(
         acquire = app_context.acquire
         if acquire is None or acquire.cross_seed is None:
             console.print(
-                f"[red]{t('cli_acquisition.cross_seed.not_available')}[/red]"
-                f"  {t('cli_acquisition.cross_seed.not_available_detail')}"
+                "[red]"
+                + t("cli_acquisition.cross_seed.not_available")
+                + "[/red]  "
+                + t("cli_acquisition.cross_seed.not_available_detail")
             )
             raise typer.Exit(code=1)
 
@@ -100,15 +102,17 @@ def cross_seed(
         # Echo disabled state before calling the service so the operator knows
         # the reason for an immediate zero-result return.
         if not config.cross_seed.enabled:
-            console.print(f"[yellow]{t('cli_acquisition.cross_seed.disabled')}[/yellow]")
+            console.print("[yellow]" + t("cli_acquisition.cross_seed.disabled") + "[/yellow]")
 
         if sweep:
             sweep_result = cs.sweep()
 
             if sweep_result.lister_failed:
                 console.print(
-                    f"[red]{t('cli_acquisition.cross_seed.sweep_failed_label')}[/red] "
-                    f"{t('cli_acquisition.cross_seed.lister_failed')}"
+                    "[red]"
+                    + t("cli_acquisition.cross_seed.sweep_failed_label")
+                    + "[/red] "
+                    + t("cli_acquisition.cross_seed.lister_failed")
                 )
                 raise typer.Exit(code=1)
 
@@ -118,12 +122,16 @@ def cross_seed(
             # errored (checked == 0 and item_errors > 0 → total failure).
             if sweep_result.item_errors > 0:
                 console.print(
-                    f"[yellow]{t('cli_acquisition.cross_seed.item_errors', errors=sweep_result.item_errors)}[/yellow]"
+                    "[yellow]"
+                    + t("cli_acquisition.cross_seed.item_errors", errors=sweep_result.item_errors)
+                    + "[/yellow]"
                 )
                 if sweep_result.checked == 0:
                     console.print(
-                        f"[red]{t('cli_acquisition.cross_seed.sweep_failed_label')}[/red] "
-                        f"{t('cli_acquisition.cross_seed.all_items_failed')}"
+                        "[red]"
+                        + t("cli_acquisition.cross_seed.sweep_failed_label")
+                        + "[/red] "
+                        + t("cli_acquisition.cross_seed.all_items_failed")
                     )
                     raise typer.Exit(code=1)
 
@@ -132,13 +140,11 @@ def cross_seed(
                 checked=sweep_result.checked,
                 injected=sweep_result.injected,
             )
+            quota = ""
+            if sweep_result.quota_exhausted:
+                quota = " [yellow]" + t("cli_acquisition.cross_seed.quota_exhausted") + "[/yellow]"
             console.print(
-                f"[green]{t('cli_acquisition.cross_seed.sweep_complete_label')}[/green] {summary}"
-                + (
-                    f" [yellow]{t('cli_acquisition.cross_seed.quota_exhausted')}[/yellow]"
-                    if sweep_result.quota_exhausted
-                    else ""
-                )
+                "[green]" + t("cli_acquisition.cross_seed.sweep_complete_label") + "[/green] " + summary + quota
             )
             log.info(
                 "cross_seed_sweep_done",
@@ -154,17 +160,17 @@ def cross_seed(
 
             if check_result.skipped:
                 console.print(
-                    f"[dim]{t('cli_acquisition.cross_seed.skipped', reason=str(check_result.skip_reason))}[/dim]"
+                    "[dim]" + t("cli_acquisition.cross_seed.skipped", reason=str(check_result.skip_reason)) + "[/dim]"
                 )
             if check_result.injected:
                 for inj_hash in check_result.injected:
-                    console.print(f"[green]{t('cli_acquisition.cross_seed.injected', info_hash=inj_hash)}[/green]")
+                    console.print("[green]" + t("cli_acquisition.cross_seed.injected", info_hash=inj_hash) + "[/green]")
             if check_result.rejected:
                 for rej_hash, tracker, reason in check_result.rejected:
                     rejected = t(
                         "cli_acquisition.cross_seed.rejected", info_hash=rej_hash, tracker=tracker, reason=reason
                     )
-                    console.print(f"[yellow]{rejected}[/yellow]")
+                    console.print("[yellow]" + rejected + "[/yellow]")
 
             log.info(
                 "cross_seed_check_done",

@@ -67,13 +67,15 @@ def seed_mark(
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_mark_no_client", info_hash=info_hash)
-            console.print(f"[red]{t('cli_acquisition.seed.error_label')}[/red] {t('cli_acquisition.seed.no_client')}")
+            console.print(
+                "[red]" + t("cli_acquisition.seed.error_label") + "[/red] " + t("cli_acquisition.seed.no_client")
+            )
             raise typer.Exit(code=1)
         app_context.torrent_client.add_tags(info_hash, [SEED_PURE])
         log.info("seed_marked", info_hash=info_hash, tag=SEED_PURE)
-        tag = f"[bold]{SEED_PURE}[/bold]"
+        tag = "[bold]" + SEED_PURE + "[/bold]"
         done = t("cli_acquisition.seed.mark.done", info_hash=info_hash, tag=tag)
-        console.print(f"[green]{t('cli_acquisition.seed.mark.done_label')}[/green] {done}")
+        console.print("[green]" + t("cli_acquisition.seed.mark.done_label") + "[/green] " + str(done))
 
 
 @seed_app.command("unmark", help=t("cli_acquisition.seed.unmark.help"))
@@ -99,13 +101,15 @@ def seed_unmark(
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_unmark_no_client", info_hash=info_hash)
-            console.print(f"[red]{t('cli_acquisition.seed.error_label')}[/red] {t('cli_acquisition.seed.no_client')}")
+            console.print(
+                "[red]" + t("cli_acquisition.seed.error_label") + "[/red] " + t("cli_acquisition.seed.no_client")
+            )
             raise typer.Exit(code=1)
         app_context.torrent_client.remove_tags(info_hash, [SEED_PURE])
         log.info("seed_unmarked", info_hash=info_hash, tag=SEED_PURE)
-        tag = f"[bold]{SEED_PURE}[/bold]"
+        tag = "[bold]" + SEED_PURE + "[/bold]"
         done = t("cli_acquisition.seed.unmark.done", info_hash=info_hash, tag=tag)
-        console.print(f"[green]{t('cli_acquisition.seed.unmark.done_label')}[/green] {done}")
+        console.print("[green]" + t("cli_acquisition.seed.unmark.done_label") + "[/green] " + str(done))
 
 
 @seed_app.command("list", help=t("cli_acquisition.seed.list.help"))
@@ -128,13 +132,15 @@ def seed_list(ctx: typer.Context) -> None:
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_list_no_client")
-            console.print(f"[red]{t('cli_acquisition.seed.error_label')}[/red] {t('cli_acquisition.seed.no_client')}")
+            console.print(
+                "[red]" + t("cli_acquisition.seed.error_label") + "[/red] " + t("cli_acquisition.seed.no_client")
+            )
             raise typer.Exit(code=1)
         torrents = app_context.torrent_client.get_completed()
         seed_pure_torrents = [x for x in torrents if SEED_PURE in (getattr(x, "tags", None) or [])]
         log.info("seed_list", total=len(torrents), seed_pure=len(seed_pure_torrents))
         if not seed_pure_torrents:
-            console.print(t("cli_acquisition.seed.list.none", tag=f"[bold]{SEED_PURE}[/bold]"))
+            console.print(t("cli_acquisition.seed.list.none", tag="[bold]" + SEED_PURE + "[/bold]"))
             return
         table = Table(title=t("cli_acquisition.seed.list.title", tag=SEED_PURE), show_lines=True)
         table.add_column(t("cli_acquisition.seed.list.col_hash"), style="dim", no_wrap=True)
@@ -182,7 +188,10 @@ def seed_sweep(ctx: typer.Context) -> None:
                 has_store=store is not None,
             )
             console.print(
-                f"[red]{t('cli_acquisition.seed.error_label')}[/red] {t('cli_acquisition.seed.sweep.not_configured')}"
+                "[red]"
+                + t("cli_acquisition.seed.error_label")
+                + "[/red] "
+                + t("cli_acquisition.seed.sweep.not_configured")
             )
             raise typer.Exit(code=1)
         report = sweep_obligations(

@@ -178,13 +178,13 @@ def acquisition_rescrape(
         store.close()
 
     if not targets:
-        console.print(f"[yellow]{t('cli_acquisition.spine.rescrape.no_target')}[/yellow]")
+        console.print("[yellow]" + t("cli_acquisition.spine.rescrape.no_target") + "[/yellow]")
         return
     if dry_run:
         would = t("cli_acquisition.spine.rescrape.dry_run_would", items=len(targets))
-        console.print(f"[bold]\\[{t('cli_acquisition.spine.dry_run_tag')}] {would}[/bold]")
+        console.print("[bold]\\[" + t("cli_acquisition.spine.dry_run_tag") + "] " + str(would) + "[/bold]")
         for target in targets:
-            console.print(f"  - {target.current_path}")
+            console.print("  - " + str(target.current_path))
         return
 
     counts = {"rescraped": 0, "skipped": 0, "failed": 0}
@@ -196,7 +196,7 @@ def acquisition_rescrape(
         finally:
             # Record even a partial batch (an unexpected raise still persists what landed).
             run_rec.record_counts(counts)
-    console.print(f"[green]{t('cli_acquisition.spine.rescrape.done_label')}[/green] {counts}")
+    console.print("[green]" + t("cli_acquisition.spine.rescrape.done_label") + "[/green] " + str(counts))
 
 
 @app.command(name="acquisition-requeue", help=t("cli_acquisition.spine.requeue.help"))
@@ -214,16 +214,18 @@ def acquisition_requeue(
     try:
         row = store.provenance.by_hash(info_hash)
         if row is None:
-            console.print(f"[yellow]{t('cli_acquisition.spine.requeue_no_provenance', info_hash=info_hash)}[/yellow]")
+            console.print(
+                "[yellow]" + t("cli_acquisition.spine.requeue_no_provenance", info_hash=info_hash) + "[/yellow]"
+            )
             return
         # Trace info_hash → the OPEN grabbed wanted row(s) carrying that hash.
         targets = [w for w in store.wanted.list_grabbed() if (w.grabbed_hash or "").lower() == info_hash.lower()]
         if not targets:
-            console.print(f"[yellow]{t('cli_acquisition.spine.requeue.no_wanted', info_hash=info_hash)}[/yellow]")
+            console.print("[yellow]" + t("cli_acquisition.spine.requeue.no_wanted", info_hash=info_hash) + "[/yellow]")
             return
         if dry_run:
             dry_run_would = t("cli_acquisition.spine.requeue.dry_run_would", rows=len(targets))
-            console.print(f"[bold]\\[{t('cli_acquisition.spine.dry_run_tag')}] {dry_run_would}[/bold]")
+            console.print("[bold]\\[" + t("cli_acquisition.spine.dry_run_tag") + "] " + str(dry_run_would) + "[/bold]")
             return
         # requeue_for_reswitch (→ pending) ALSO remembers this hash as tried, so the next
         # search+grab picks a DIFFERENT release rather than re-grabbing the same stuck one
@@ -235,6 +237,6 @@ def acquisition_requeue(
                 1 for w in targets if w.id is not None and store.wanted.requeue_for_reswitch(w.id, info_hash, now)
             )
             run_rec.record_counts({"requeued": requeued})
-        console.print(f"[green]{t('cli_acquisition.spine.requeue.done', rows=requeued)}[/green]")
+        console.print("[green]" + t("cli_acquisition.spine.requeue.done", rows=requeued) + "[/green]")
     finally:
         store.close()

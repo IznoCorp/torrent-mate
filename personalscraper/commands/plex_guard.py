@@ -56,12 +56,12 @@ def plex_guard(
     console = state["console"]
 
     if bundle.indexer_conn is None:
-        console.print(f"[red]{t('cli_acquisition.plex_guard.no_indexer_db')}[/red]")
+        console.print("[red]" + t("cli_acquisition.plex_guard.no_indexer_db") + "[/red]")
         raise typer.Exit(1)
 
     settings = bundle.settings
     if not settings.plex_token:
-        console.print(f"[yellow]{t('cli_acquisition.plex_guard.no_token')}[/yellow]")
+        console.print("[yellow]" + t("cli_acquisition.plex_guard.no_token") + "[/yellow]")
         raise typer.Exit(1)
 
     client = PlexClient(settings.plex_url, settings.plex_token)
@@ -70,7 +70,7 @@ def plex_guard(
         if not repair
         else f"[bold green]{t('cli_acquisition.plex_guard.mode_repair')}[/bold green]"
     )
-    console.print(f"[bold]{t('cli_acquisition.plex_guard.heading', mode=mode)}[/bold]")
+    console.print("[bold]" + t("cli_acquisition.plex_guard.heading", mode=mode) + "[/bold]")
 
     result = run_plex_guard(
         client=client,
@@ -92,9 +92,18 @@ def plex_guard(
 
     errors_skipped = result.skipped_count - (0 if repair else action_count)
     console.print(
-        f"[green]{t('cli_acquisition.plex_guard.aligned_label')}[/green] {result.aligned_count}  "
-        f"{action_label} {action_count}  "
-        f"[red]{t('cli_acquisition.plex_guard.errors_label')}[/red] {errors_skipped}"
+        "[green]"
+        + t("cli_acquisition.plex_guard.aligned_label")
+        + "[/green] "
+        + str(result.aligned_count)
+        + "  "
+        + str(action_label)
+        + " "
+        + str(action_count)
+        + "  [red]"
+        + t("cli_acquisition.plex_guard.errors_label")
+        + "[/red] "
+        + str(errors_skipped)
     )
 
     # A repair run persists the result (dry-run writes nothing, report
