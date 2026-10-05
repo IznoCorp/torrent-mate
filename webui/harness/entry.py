@@ -120,7 +120,10 @@ async def main():
         await pg2.goto(PROTOTYPE, wait_until="load")
         await pg2.evaluate("()=>document.querySelector('#toastx').click()")
         await pg2.wait_for_timeout(250)
-        await pg2.evaluate("()=>window.__entry.signOut()")
+        # THE SIGN-OUT IS STARTED, NOT AWAITED THROUGH THE BRIDGE (as `account_language.py`): what
+        # is read is the gate once it is up, not a promise the page may let go of.
+        await pg2.evaluate("()=>{ void window.__entry.signOut(); }")
+        await pg2.wait_for_function("()=>document.querySelector('#login')?.hidden === false")
         await pg2.wait_for_timeout(700)
         await pg2.evaluate("()=>document.querySelector('[data-part=\"login/password-disclosure\"]')?.click()")
         await pg2.wait_for_timeout(250)
