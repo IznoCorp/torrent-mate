@@ -16,7 +16,6 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 
 import pytest
-import structlog
 from fastapi import Response
 from fastapi.testclient import TestClient
 
@@ -33,6 +32,7 @@ from personalscraper.conf.models.web import WebConfig
 from personalscraper.http_v1.models.accounts import ResetAccountPasswordBody
 from personalscraper.http_v1.models.authentication import ChangeOwnPasswordBody
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
+from tests.conftest import LoggedEvents
 
 #: The Gravatar key of the seeded account's e-mail, ``account-1@example.org``.
 _GRAVATAR_DIGEST = hashlib.sha256(b"account-1@example.org").hexdigest()
@@ -332,12 +332,14 @@ class TestSignIn:
         [("nobody@example.org", _PASSWORD), ("local@example.org", "wrong password")],
         ids=["unknown-email", "wrong-password"],
     )
-    def test_a_failure_is_auth_refused(self, v1_client: Callable[..., TestClient], email: str, password: str) -> None:
+    def test_a_failure_is_auth_refused(
+        self, v1_client: Callable[..., TestClient], email: str, password: str, logged_events: LoggedEvents
+    ) -> None:
         """401 ``auth.refused``, no cookie, and neither credential anywhere in the answer or the log."""
         client = v1_client(role=None)
         _seed_password_account(client)
 
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             response = client.post("/auth/login", json={"email": email, "password": password})
 
         assert response.status_code == 401
@@ -533,11 +535,13 @@ class TestChangeOwnPassword:
         assert response.status_code == 403
         assert response.json()["code"] == code
 
-    def test_a_wrong_current_password_is_400(self, v1_client: Callable[..., TestClient]) -> None:
+    def test_a_wrong_current_password_is_400(
+        self, v1_client: Callable[..., TestClient], logged_events: LoggedEvents
+    ) -> None:
         """400 ``password.current_wrong``; no password in the answer or the log."""
         client = v1_client(role="local-guest")
         _with_password(client)
-        with structlog.testing.capture_logs() as logs:
+        with logged_events() as logs:
             response = client.put("/auth/password", json={"currentPassword": "wrong one", "newPassword": self._NEW})
         assert response.status_code == 400
         assert response.json()["code"] == "password.current_wrong"
