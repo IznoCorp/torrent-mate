@@ -37,6 +37,8 @@ SESSION = {
     "POST /auth/login", "POST /auth/logout", "POST /auth/plex", "POST /auth/plex/start", "PUT /auth/password",
     "PUT /notifications/preferences/{type}", "POST /notifications/devices",
     "POST /acquisition/journeys/{infoHash}/closure/seen",
+    # The account's own language carries no right (the operator, 2026-10-03: FG-1 B).
+    "PUT /auth/language",
 }
 # The reads F30 gates: Système, Maintenance, the pipeline's record, Trackers, the
 # configuration's own files and secrets.
