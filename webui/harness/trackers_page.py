@@ -49,7 +49,7 @@ red while a bare address always opened « Trackers ». Holds 8 and 9 came with t
 wait and the failure DESIGN § 4.1 names and no phase drew, red while both tabs
 drew nothing at all. Holds 10–12 came with correction round C16, red while the
 strip stood at 34 px, a bare landing kept the last filter, and « ⋮ » still read
-« veille et obligations ».
+« détection des nouveautés et obligations ».
 """
 import asyncio
 import json

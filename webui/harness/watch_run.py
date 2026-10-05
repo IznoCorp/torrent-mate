@@ -1,6 +1,6 @@
 """R180 — DOIT-6: the veille says what it found, from either place it is asked.
 
-THE CLAUSE. « Relancer la veille » must give a SEQUENCE — asked, running, then
+THE CLAUSE. « Relancer la détection » must give a SEQUENCE — asked, running, then
 X detected, Y available, Z taken — and the button that asks for it must actually
 ask. The register carried a veille half for a whole wave because the button
 answered with a sentence and sent nothing: a verb is proved by what it MOVES,
