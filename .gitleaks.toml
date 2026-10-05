@@ -16,4 +16,6 @@ regexes = [
     '''^PLANTED[a-z0-9]+$''',
     # The token vault tests plant fake tokens and malformed keys: tok-PLANTED-<hex>, not-a-key-PLANTED-<hex>.
     '''^(tok|not-a-key|not-a-fernet-key)-PLANTED-[a-z0-9]+$''',
+    # The deletion test's former fake Plex token (PLEX-T0KEN-DELETION-<hex>) stays in the commit range gitleaks scans.
+    '''^PLEX-T0KEN-DELETION-[a-z0-9]+$''',
 ]
