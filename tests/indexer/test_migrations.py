@@ -648,18 +648,19 @@ class TestLibraryNewerThanCode:
     """A ``library.db`` whose ``user_version`` is past the last indexer migration is not migrated."""
 
     def test_refused_and_left_untouched(self, tmp_path: Path) -> None:
-        """``SqliteSchemaNewerError`` is raised and the store keeps its version, with no ``.bak``."""
+        """``SqliteSchemaNewerError`` is raised and the store keeps its version, with no new ``.bak``."""
         db_path = tmp_path / "library.db"
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         newer = max(int(path.name.split("_")[0]) for path in MIGRATIONS_DIR.glob("*.sql")) + 1
         conn.execute(f"PRAGMA user_version = {newer}")
         schema_before = dump_schema(conn)
+        baks_before = sorted(tmp_path.glob("*.bak"))
 
         with pytest.raises(SqliteSchemaNewerError):
             apply_migrations(conn, MIGRATIONS_DIR)
 
-        assert list(tmp_path.glob("*.bak")) == []
+        assert sorted(tmp_path.glob("*.bak")) == baks_before
         reopened = open_db(db_path, event_bus=EventBus())
         assert _user_version(reopened) == newer
         assert dump_schema(reopened) == schema_before
