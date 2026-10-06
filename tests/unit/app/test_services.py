@@ -335,6 +335,19 @@ def test_one_plex_client_serves_the_door_and_the_library(test_config: Config) ->
         services.close()
 
 
+def test_the_rescrape_and_the_services_share_one_run_service(test_config: Config) -> None:
+    """A rescrape ask lands in the queue ``services.runs`` reads: both hold the SAME ``RunService``.
+
+    The rescrape service's run service is private, so identity is read there: a second instance would
+    queue rescrapes the web never sees nor the supervisor starts.
+    """
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
+    try:
+        assert services.rescrape._runs is services.runs  # noqa: SLF001
+    finally:
+        services.close()
+
+
 def test_close_drains_the_sign_in_pushes(test_config: Config, monkeypatch: pytest.MonkeyPatch) -> None:
     """Shutdown closes the sign-in notifier, so a push still pending is sent, not lost on restart."""
     closed: list[bool] = []

@@ -1,82 +1,87 @@
-"""Rescrape by medium: one medium, named by a provider id, launched through the maintenance path."""
+"""Rescrape by medium: one medium, named by a provider id, asked through the run queue."""
 
 from __future__ import annotations
 
-import json
-import os
 import sqlite3
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from personalscraper.app.errors import (
-    AppConflict,
-    AppInternalError,
-    AppNotFound,
-    AppPreconditionRequired,
-    RefusalCode,
-)
+from personalscraper.app.errors import AppNotFound, AppPreconditionRequired, RefusalCode
 from personalscraper.app.library.identity import Provider
 from personalscraper.app.library.rescrape import RescrapeAccepted
 from personalscraper.app.maintenance import service as maintenance_service
 from personalscraper.app.maintenance.registry import REGISTRY, canonical_options_json
+from personalscraper.app.supervisor.model import RequestState, RunKind
 from personalscraper.core.identity import MediaRef
 from tests.unit.app.library.world import World
 
 _RUNNER_PID = 4242
 
 
-@pytest.fixture
-def spawned(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, str, bool]]:
-    """Replace the runner spawn: no process starts, every launch is recorded.
+@pytest.fixture(autouse=True)
+def no_process(monkeypatch: pytest.MonkeyPatch) -> list[tuple[object, ...]]:
+    """Forbid every process spawn: a rescrape is asked, never started by the asker.
 
     Args:
         monkeypatch: Pytest's monkeypatch.
 
     Returns:
-        The ``(run_uid, action_id, options_json, dry_run)`` of every spawn, in order.
+        The spawns attempted (the tests assert it stays empty).
     """
-    calls: list[tuple[str, str, str, bool]] = []
+    calls: list[tuple[object, ...]] = []
 
-    def fake_spawn(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
-        """Record the launch and answer a fixed pid."""
-        calls.append((run_uid, action_id, options_json, dry_run))
-        return _RUNNER_PID
+    def refuse(*args: object, **kwargs: object) -> None:
+        """Record the attempt and fail it."""
+        calls.append(args)
+        raise AssertionError("a rescrape request must not spawn a process")
 
-    monkeypatch.setattr(maintenance_service, "_spawn_runner", fake_spawn)
+    monkeypatch.setattr(subprocess, "Popen", refuse)
     return calls
 
 
-def _runs(index_path: Path) -> list[tuple[str, str, str, int, int]]:
-    """Read the reserved maintenance runs.
+def _asked(world: World) -> list[tuple[int, RequestState, str]]:
+    """Read the queue: every rescrape request, oldest first.
+
+    Args:
+        world: The test world.
+
+    Returns:
+        ``(item_id, state, uid)`` per request.
+    """
+    view = world.runs.queue_view()
+    requests = [*([view.running] if view.running else []), *view.queued]
+    return [(r.options.item_id, r.state, r.uid) for r in requests if r.kind is RunKind.RESCRAPE]
+
+
+def _runs(index_path: Path) -> list[tuple[str, str]]:
+    """Read the maintenance runs reserved in ``library.db``.
 
     Args:
         index_path: ``library.db``.
 
     Returns:
-        ``(run_uid, command, options_json, dry_run, pid)`` per row, by insertion.
+        ``(run_uid, command)`` per row.
     """
     with sqlite3.connect(index_path) as conn:
-        return conn.execute(
-            "SELECT run_uid, command, options_json, dry_run, pid FROM pipeline_run WHERE kind='maintenance' ORDER BY id"
-        ).fetchall()
+        return conn.execute("SELECT run_uid, command FROM pipeline_run WHERE kind='maintenance'").fetchall()
 
 
-def test_a_held_movie_is_rescraped_without_a_dry_run(world: World, spawned: list[tuple[str, str, str, bool]]) -> None:
-    """A live apply of the per-medium action needs no prior dry-run; the run row is reserved and claimed."""
+def test_a_held_movie_is_queued_for_rescrape(world: World, no_process: list[tuple[object, ...]]) -> None:
+    """One request is queued for the holding row; nothing is spawned nor reserved in ``library.db``."""
     movie = world.index.item("Heat", tmdb="949", imdb="tt0113277")
     world.index.movie_file(movie, "films/Heat")
 
     accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
-    assert (accepted.provider, accepted.provider_id, accepted.queued) == (Provider.TMDB, "949", False)
-    assert accepted.run_uid is not None
-    options = canonical_options_json({"item_id": movie})
-    assert spawned == [(accepted.run_uid, "library-rescrape-item", options, False)]
-    assert _runs(world.index.path) == [(accepted.run_uid, "library-rescrape-item", options, 0, _RUNNER_PID)]
+    assert (accepted.provider, accepted.provider_id, accepted.queued) == (Provider.TMDB, "949", True)
+    assert _asked(world) == [(movie, RequestState.QUEUED, accepted.run_uid)]
+    assert no_process == []
+    assert _runs(world.index.path) == []
 
 
-def test_a_show_is_rescraped_by_its_tvdb_id(world: World, spawned: list[tuple[str, str, str, bool]]) -> None:
+def test_a_show_is_rescraped_by_its_tvdb_id(world: World) -> None:
     """A show is addressed by its TVDB id and answered under it."""
     show = world.index.item("Holes", kind="show", tvdb="81189", tmdb="1396")
     world.index.episodes(show, 1, [1, 2])
@@ -84,23 +89,20 @@ def test_a_show_is_rescraped_by_its_tvdb_id(world: World, spawned: list[tuple[st
     accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=81189))
 
     assert (accepted.provider, accepted.provider_id) == (Provider.TVDB, "81189")
-    assert [json.loads(call[2]) for call in spawned] == [{"item_id": show}]
+    assert [item for item, _state, _uid in _asked(world)] == [show]
 
 
-def test_an_unknown_id_is_not_found_and_nothing_launches(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
-    """No row holds the id: 404 ``media.not_found``, no run reserved, no spawn."""
+def test_an_unknown_id_is_not_found_and_nothing_is_queued(world: World) -> None:
+    """No row holds the id: 404 ``media.not_found``, no request."""
     with pytest.raises(AppNotFound) as refused:
         world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=1))
 
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
-    assert spawned == []
-    assert _runs(world.index.path) == []
+    assert _asked(world) == []
 
 
-def test_holders_without_live_files_are_not_found(world: World, spawned: list[tuple[str, str, str, bool]]) -> None:
-    """Rows hold the id but none has a live file (a tombstone, a 0-file phantom): 404, no launch."""
+def test_holders_without_live_files_are_not_found(world: World) -> None:
+    """Rows hold the id but none has a live file (a tombstone, a 0-file phantom): 404, no request."""
     gone = world.index.item("Gone", tmdb="7")
     world.index.movie_file(gone, "films/Gone", deleted=True)
     world.index.item("Gone", tmdb="7", year=2021)
@@ -109,24 +111,10 @@ def test_holders_without_live_files_are_not_found(world: World, spawned: list[tu
         world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=7))
 
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
-    assert spawned == []
+    assert _asked(world) == []
 
 
-def test_a_held_lock_queues_the_run(world: World, spawned: list[tuple[str, str, str, bool]]) -> None:
-    """A live pipeline.lock never refuses: the run is launched and answered as queued."""
-    movie = world.index.item("Heat", tmdb="949")
-    world.index.movie_file(movie, "films/Heat")
-    (world.data_dir / "pipeline.lock").write_text(str(os.getpid()))
-
-    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
-
-    assert accepted.queued is True
-    assert len(spawned) == 1
-
-
-def test_of_two_rows_only_the_one_with_live_files_is_rescraped(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
+def test_of_two_rows_only_the_one_with_live_files_is_rescraped(world: World) -> None:
     """A duplicate whose second row is a 0-file phantom rescrapes the row holding the files."""
     world.index.item("Friends", kind="show", tvdb="79168", year=1994)
     held = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
@@ -134,12 +122,11 @@ def test_of_two_rows_only_the_one_with_live_files_is_rescraped(
 
     accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
-    assert [json.loads(call[2]) for call in spawned] == [{"item_id": held}]
-    assert accepted.run_uid == spawned[0][0]
+    assert _asked(world) == [(held, RequestState.QUEUED, accepted.run_uid)]
 
 
-def test_two_rows_with_live_files_are_both_rescraped(world: World, spawned: list[tuple[str, str, str, bool]]) -> None:
-    """Both rows hold files: one launch each; the answer names the lowest row's run."""
+def test_two_rows_with_live_files_are_both_queued(world: World) -> None:
+    """Both rows hold files: one request each; the answer names the lowest row's request."""
     first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
     world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
     second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
@@ -147,14 +134,12 @@ def test_two_rows_with_live_files_are_both_rescraped(world: World, spawned: list
 
     accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
-    assert [json.loads(call[2]) for call in spawned] == [{"item_id": first}, {"item_id": second}]
-    assert accepted.run_uid == spawned[0][0]
-    assert len({run[0] for run in _runs(world.index.path)}) == 2
+    asked = _asked(world)
+    assert sorted(item for item, _state, _uid in asked) == sorted([first, second])
+    assert accepted.run_uid == next(uid for item, _state, uid in asked if item == min(first, second))
 
 
-def test_a_tmdb_id_held_by_a_film_and_a_show_rescrapes_the_film(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
+def test_a_tmdb_id_held_by_a_film_and_a_show_rescrapes_the_film(world: World) -> None:
     """TMDB's movie and TV id spaces are distinct: a TMDB id names its movie holders first."""
     film = world.index.item("Film", tmdb="500")
     world.index.movie_file(film, "films/Film")
@@ -163,7 +148,37 @@ def test_a_tmdb_id_held_by_a_film_and_a_show_rescrapes_the_film(
 
     world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=500))
 
-    assert [json.loads(call[2]) for call in spawned] == [{"item_id": film}]
+    assert [item for item, _state, _uid in _asked(world)] == [film]
+
+
+def test_a_second_ask_joins_the_waiting_request(world: World) -> None:
+    """The same medium asked twice: the second is answered by the first's request, nothing more is queued."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+
+    first = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    second = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+
+    assert second == first
+    assert len(_asked(world)) == 1
+
+
+def test_a_rescrape_already_running_is_joined_and_not_queued(world: World) -> None:
+    """The row's rescrape already runs: the ask is accepted on that request, ``queued`` is false."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+    waiting = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    request = world.runs.request(waiting.run_uid)
+    assert request is not None
+    request.admit(_RUNNER_PID, 1_001.0)
+    assert world.app_store.runs.save(request)
+
+    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+
+    assert accepted == RescrapeAccepted(
+        provider=Provider.TMDB, provider_id="949", queued=False, run_uid=waiting.run_uid
+    )
+    assert len(_asked(world)) == 1
 
 
 def test_the_per_medium_action_is_a_write_without_dry_run() -> None:
@@ -205,177 +220,3 @@ def test_the_library_wide_rescrape_still_demands_a_dry_run(world: World) -> None
         )
 
     assert _runs(world.index.path) == []
-
-
-def test_a_failed_spawn_is_an_internal_refusal_and_finalises_the_row(
-    world: World, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The runner cannot start: 500, and the reserved row never stays ``running``."""
-    movie = world.index.item("Heat", tmdb="949")
-    world.index.movie_file(movie, "films/Heat")
-
-    def broken_spawn(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
-        """Fail as a missing interpreter would."""
-        raise OSError("no interpreter")
-
-    monkeypatch.setattr(maintenance_service, "_spawn_runner", broken_spawn)
-
-    with pytest.raises(AppInternalError):
-        world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
-
-    with sqlite3.connect(world.index.path) as conn:
-        assert conn.execute("SELECT outcome FROM pipeline_run").fetchall() == [("error",)]
-
-
-def _seed_running(index_path: Path, item_id: int) -> None:
-    """Reserve a live ``library-rescrape-item`` run for one row, as a runner already started would hold it.
-
-    Args:
-        index_path: ``library.db``.
-        item_id: The row the running rescrape holds.
-    """
-    (action,) = [a for a in REGISTRY if a.id == "library-rescrape-item"]
-    maintenance_service._reserve_run_row(
-        index_path,
-        run_uid=f"{item_id:032d}",
-        action=action,
-        command=action.id,
-        options_json=canonical_options_json({"item_id": item_id}),
-        dry_run=False,
-    )
-
-
-def test_a_rescrape_already_running_is_accepted_with_its_run_and_nothing_spawns(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
-    """The one holder's rescrape is already running: accepted on that run, no spawn, no second row."""
-    movie = world.index.item("Heat", tmdb="949")
-    world.index.movie_file(movie, "films/Heat")
-    _seed_running(world.index.path, movie)
-
-    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
-
-    assert accepted == RescrapeAccepted(
-        provider=Provider.TMDB, provider_id="949", queued=False, run_uid=f"{movie:032d}"
-    )
-    assert spawned == []
-    assert len(_runs(world.index.path)) == 1
-
-
-def test_a_running_holder_is_skipped_and_the_other_launched(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
-    """Two live holders, the first already running: the second is launched and its run answered."""
-    first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
-    world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
-    second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
-    world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
-    _seed_running(world.index.path, first)
-
-    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
-
-    assert [json.loads(call[2]) for call in spawned] == [{"item_id": second}]
-    assert accepted.run_uid == spawned[0][0]
-
-
-def test_every_holder_already_running_is_accepted_on_the_lowest_run(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
-    """Both live holders are already running: accepted on the lowest row's run, nothing spawns."""
-    first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
-    world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
-    second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
-    world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
-    _seed_running(world.index.path, first)
-    _seed_running(world.index.path, second)
-
-    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
-
-    assert accepted.queued is False
-    assert accepted.run_uid == f"{min(first, second):032d}"
-    assert spawned == []
-
-
-def test_a_second_spawn_failing_is_internal_and_the_first_run_stays(
-    world: World, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The second holder's runner cannot start: 500, the first holder's run stays recorded and live."""
-    first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
-    world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
-    second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
-    world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
-    spawns: list[str] = []
-
-    def second_fails(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
-        """Start the first runner, fail the second as a missing interpreter would."""
-        spawns.append(options_json)
-        if len(spawns) == 2:
-            raise OSError("no interpreter")
-        return _RUNNER_PID
-
-    monkeypatch.setattr(maintenance_service, "_spawn_runner", second_fails)
-
-    with pytest.raises(AppInternalError):
-        world.rescrape.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
-
-    with sqlite3.connect(world.index.path) as conn:
-        rows = conn.execute("SELECT options_json, outcome, pid FROM pipeline_run ORDER BY id").fetchall()
-    assert rows == [
-        (canonical_options_json({"item_id": first}), "running", _RUNNER_PID),
-        (canonical_options_json({"item_id": second}), "error", rows[1][2]),
-    ]
-
-
-def test_a_rescrape_already_running_behind_the_pipeline_is_answered_queued(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
-    """The joined run has not started: another live process holds ``pipeline.lock``, so it waits."""
-    movie = world.index.item("Heat", tmdb="949")
-    world.index.movie_file(movie, "films/Heat")
-    _seed_running(world.index.path, movie)
-    (world.data_dir / "pipeline.lock").write_text(str(os.getppid()))
-
-    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
-
-    assert (accepted.run_uid, accepted.queued) == (f"{movie:032d}", True)
-    assert spawned == []
-
-
-def test_a_rescrape_already_running_that_holds_the_lock_is_not_queued(
-    world: World, spawned: list[tuple[str, str, str, bool]]
-) -> None:
-    """The joined run holds ``pipeline.lock`` itself: it runs, it does not wait."""
-    movie = world.index.item("Heat", tmdb="949")
-    world.index.movie_file(movie, "films/Heat")
-    _seed_running(world.index.path, movie)
-    (world.data_dir / "pipeline.lock").write_text(str(os.getpid()))
-
-    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
-
-    assert (accepted.run_uid, accepted.queued) == (f"{movie:032d}", False)
-
-
-def test_a_run_that_ends_between_the_refusal_and_the_read_is_launched_again(
-    world: World, spawned: list[tuple[str, str, str, bool]], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The running rescrape ends after the duplicate guard refused: the launch is retried once, and answered."""
-    movie = world.index.item("Heat", tmdb="949")
-    world.index.movie_file(movie, "films/Heat")
-    _seed_running(world.index.path, movie)
-    reserve = maintenance_service._reserve_run_row
-
-    def refuse_then_end(db_path: Path, **kwargs: object) -> None:
-        """Refuse as the guard does while the run is live, then end that run before anything reads it."""
-        try:
-            reserve(db_path, **kwargs)  # type: ignore[arg-type]
-        except AppConflict:
-            with sqlite3.connect(db_path) as conn:
-                conn.execute("UPDATE pipeline_run SET outcome='success' WHERE run_uid=?", (f"{movie:032d}",))
-            raise
-
-    monkeypatch.setattr(maintenance_service, "_reserve_run_row", refuse_then_end)
-
-    accepted = world.rescrape.request_rescrape(world.actor, MediaRef(tmdb_id=949))
-
-    assert len(spawned) == 1
-    assert (accepted.run_uid, accepted.queued) == (spawned[0][0], False)

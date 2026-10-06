@@ -315,7 +315,7 @@ class RescrapeQueued(ContractModel):
         provider: The provider the medium was named at.
         provider_id: Its id there.
         queued: Whether the ask waits on the pipeline rather than running now.
-        run_uid: The run to follow, or ``None``.
+        run_uid: The uid of the request answering the ask (the run to follow once admitted); always set.
     """
 
     provider: str

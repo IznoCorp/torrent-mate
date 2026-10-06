@@ -20,6 +20,8 @@ from personalscraper.app.library.deleting import LibraryDeletion
 from personalscraper.app.library.reads import LibraryReads
 from personalscraper.app.library.rescrape import LibraryRescrape
 from personalscraper.app.library.sheets import MediaSheets
+from personalscraper.app.store.store import AppStore
+from personalscraper.app.supervisor.service import RunService
 from personalscraper.core._contracts import ApiError
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.library_view import LibraryIndex
@@ -264,6 +266,8 @@ class World:
     actor: Actor
     clock: list[float]
     data_dir: Path
+    app_store: AppStore
+    runs: RunService
 
 
 @pytest.fixture
@@ -290,10 +294,15 @@ def world(tmp_path: Path) -> Iterator[World]:
         clock=lambda: clock[0],
     )
     library = LibraryReads(index=library_index, view=view, sheets=sheets, clock=lambda: clock[0])
-    rescrape = LibraryRescrape(index=library_index, index_db=index.path, data_dir=tmp_path)
+    app_store = AppStore(tmp_path / "app.db")
+    runs = RunService(store=app_store, data_dir=tmp_path)
+    rescrape = LibraryRescrape(index=library_index, runs=runs)
     deletion = LibraryDeletion(index=library_index, index_db=index.path, data_dir=tmp_path)
     actor = Actor.system(InstanceCeiling(forbidden=frozenset(), read_only=False), account_id="owner", name="Owner")
-    yield World(index, store, tvdb, tmdb, view, library, sheets, rescrape, deletion, actor, clock, tmp_path)
+    yield World(
+        index, store, tvdb, tmdb, view, library, sheets, rescrape, deletion, actor, clock, tmp_path, app_store, runs
+    )
+    app_store.close()
     view.close()
     ownership.close()
     store.close()
