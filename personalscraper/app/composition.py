@@ -20,9 +20,11 @@ from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.build_info import BUILD_INFO
+from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
 from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import build_app_store
 from personalscraper.app.supervisor.service import RunService
+from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
@@ -442,6 +444,9 @@ def build_app_services(
         own_sessions=OwnSessionService(app_store, sessions),
         notices=NoticeService(app_store),
         runs=RunService(store=app_store, data_dir=config.paths.data_dir),
+        idempotency=IdempotencyService(
+            app_store, key_path=fingerprint_key_path(store_path(config.paths.data_dir, StoreName.APP))
+        ),
         owned_providers=owned,
         sign_in_notifier=sign_in_notifier,
     )

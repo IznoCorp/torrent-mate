@@ -1,7 +1,9 @@
 {
   "request": {
     "invalid": "La requête est invalide.",
-    "cross_origin": "La requête venait d'une autre origine et a été refusée."
+    "cross_origin": "La requête venait d'une autre origine et a été refusée.",
+    "key_reused": "La clé d'idempotence a déjà servi à une autre requête.",
+    "in_progress": "La requête portant cette clé d'idempotence est encore en cours."
   },
   "route": {
     "unknown": "Aucune opération ne répond à cette requête."

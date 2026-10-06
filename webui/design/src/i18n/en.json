@@ -1378,6 +1378,7 @@
       "reasonDisabled": "Access disabled by an administrator.",
       "plex": "Sign in with Plex",
       "plexUnreachable": "Plex is not answering: sign in with a password.",
+      "showPassword": "Show password",
       "usePassword": "Use a password",
       "invalid": "Invalid credentials",
       "email": "E-mail address",
@@ -2314,7 +2315,9 @@
   "refusals": {
     "request": {
       "invalid": "The request is malformed: nothing was changed.",
-      "cross_origin": "Request refused: it does not come from this interface."
+      "cross_origin": "Request refused: it does not come from this interface.",
+      "key_reused": "Request refused: its identifier was already used for another action.",
+      "in_progress": "This action is still running on the server: it will be sent again."
     },
     "route": {
       "unknown": "This action does not exist on this server."

@@ -90,7 +90,7 @@ def test_building_the_store_creates_no_file(test_config: Config, tmp_path: Path)
 
 
 def test_reopening_applies_nothing(test_config: Config, tmp_path: Path) -> None:
-    """A second open of a migrated file leaves ``user_version`` at 7 and keeps its rows."""
+    """A second open of a migrated file leaves ``user_version`` at 8 and keeps its rows."""
     cfg = _config(test_config, tmp_path / "data")
     first = build_app_store(cfg)
     try:

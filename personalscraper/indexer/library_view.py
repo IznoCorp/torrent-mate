@@ -720,6 +720,18 @@ class LibraryReader:
         """
         return self._conn.execute("SELECT 1 FROM disk WHERE is_mounted = 0 LIMIT 1").fetchone() is not None
 
+    def run_outcome(self, run_uid: str) -> str | None:
+        """The outcome of one run's ``pipeline_run`` row.
+
+        Args:
+            run_uid: The run's uid.
+
+        Returns:
+            Its ``outcome`` (``'running'`` while unfinished); ``None`` when no row has that uid.
+        """
+        row = self._conn.execute("SELECT outcome FROM pipeline_run WHERE run_uid = ?", (run_uid,)).fetchone()
+        return None if row is None else str(row["outcome"])
+
 
 class LibraryIndex:
     """``library.db``, opened read-only for each read (a WAL read takes no lock)."""
