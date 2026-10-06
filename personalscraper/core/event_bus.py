@@ -23,7 +23,8 @@ import typing
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field, fields
-from datetime import UTC, datetime
+from datetime import UTC as UTC  # re-exported: other modules import it from here
+from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 from typing import Any, TypeVar, get_args, get_origin
@@ -55,6 +56,60 @@ _PRODUCTION_MODULE_PREFIX = "personalscraper."
 _log = get_logger(__name__)
 
 
+def _decode_sequence(value: Any, origin: Any, annotation: Any) -> Any:
+    """Decode a ``list[...]`` / ``tuple[...]`` value against its annotation.
+
+    Args:
+    value: The JSON list to decode.
+    origin: ``list`` or ``tuple``, the annotation's origin.
+    annotation: The full generic annotation.
+
+    Returns:
+    A list for ``list[X]``, a tuple for every ``tuple[...]`` form.
+    """
+    args = get_args(annotation)
+    if origin is tuple and len(args) == 2 and args[1] is Ellipsis:
+        # Homogeneous variadic tuple ``tuple[X, ...]``: ``get_args`` yields
+        # ``(X, Ellipsis)``. Decode every element with the single item type
+        # ``X`` and drop the ``Ellipsis`` sentinel.
+        decoded = [_decode_field_value(item, args[0]) for item in value]
+        return tuple(decoded)
+    if origin is tuple and len(args) > 1:
+        # Heterogeneous fixed-length tuple ``tuple[X, Y, ...]``: decode each
+        # position with its own declared type (positional pairing).
+        # ``strict=True`` fails loud (``ValueError``) on a length mismatch
+        # between the decoded value and the declared positions, rather than
+        # silently truncating to the shorter sequence — a malformed envelope
+        # must surface, not be partially reconstructed.
+        return tuple(_decode_field_value(item, arg) for item, arg in zip(value, args, strict=True))
+    # ``list[X]`` or single-element ``tuple[X]`` — one item type for all.
+    (item_type,) = args or (Any,)
+    decoded = [_decode_field_value(item, item_type) for item in value]
+    return tuple(decoded) if origin is tuple else decoded
+
+
+def _decode_class_value(value: Any, annotation: type) -> Any:
+    """Decode ``value`` against a plain class annotation (path, enum or dataclass).
+
+    Args:
+        value: The JSON value to decode.
+        annotation: The annotation, already known to be a class.
+
+    Returns:
+        The reconstructed object, or ``value`` unchanged for any other class.
+    """
+    if issubclass(annotation, PurePath):
+        # Always reconstruct as Path (OS-aware) regardless of subclass.
+        return Path(value)
+    if issubclass(annotation, Enum):
+        return annotation(value)
+    if dataclasses.is_dataclass(annotation):
+        sub_hints = typing.get_type_hints(annotation)
+        kw = {f.name: _decode_field_value(value[f.name], sub_hints[f.name]) for f in fields(annotation)}
+        return annotation(**kw)
+    return value
+
+
 def _decode_field_value(value: Any, annotation: Any) -> Any:
     """Inverse of ``event_to_dict`` — walk ``annotation`` to coerce ``value``."""
     if value is None:
@@ -69,25 +124,7 @@ def _decode_field_value(value: Any, annotation: Any) -> Any:
             return _decode_field_value(value, non_none[0])
         return value
     if origin in (list, tuple):
-        args = get_args(annotation)
-        if origin is tuple and len(args) == 2 and args[1] is Ellipsis:
-            # Homogeneous variadic tuple ``tuple[X, ...]``: ``get_args`` yields
-            # ``(X, Ellipsis)``. Decode every element with the single item type
-            # ``X`` and drop the ``Ellipsis`` sentinel.
-            decoded = [_decode_field_value(item, args[0]) for item in value]
-            return tuple(decoded)
-        if origin is tuple and len(args) > 1:
-            # Heterogeneous fixed-length tuple ``tuple[X, Y, ...]``: decode each
-            # position with its own declared type (positional pairing).
-            # ``strict=True`` fails loud (``ValueError``) on a length mismatch
-            # between the decoded value and the declared positions, rather than
-            # silently truncating to the shorter sequence — a malformed envelope
-            # must surface, not be partially reconstructed.
-            return tuple(_decode_field_value(item, arg) for item, arg in zip(value, args, strict=True))
-        # ``list[X]`` or single-element ``tuple[X]`` — one item type for all.
-        (item_type,) = args or (Any,)
-        decoded = [_decode_field_value(item, item_type) for item in value]
-        return tuple(decoded) if origin is tuple else decoded
+        return _decode_sequence(value, origin, annotation)
     if origin is dict:
         args = get_args(annotation)
         val_type: Any = args[1] if len(args) == 2 else Any
@@ -97,15 +134,7 @@ def _decode_field_value(value: Any, annotation: Any) -> Any:
     if annotation is UUID:
         return UUID(value)
     if isinstance(annotation, type):
-        if issubclass(annotation, PurePath):
-            # Always reconstruct as Path (OS-aware) regardless of subclass.
-            return Path(value)
-        if issubclass(annotation, Enum):
-            return annotation(value)
-        if dataclasses.is_dataclass(annotation):
-            sub_hints = typing.get_type_hints(annotation)
-            kw = {f.name: _decode_field_value(value[f.name], sub_hints[f.name]) for f in fields(annotation)}
-            return annotation(**kw)
+        return _decode_class_value(value, annotation)
     return value  # primitives / Any pass through
 
 
@@ -166,9 +195,7 @@ def event_to_dict(value: Any) -> Any:
         return value
     if isinstance(value, datetime):
         return value.isoformat()
-    if isinstance(value, UUID):
-        return str(value)
-    if isinstance(value, PurePath):
+    if isinstance(value, (UUID, PurePath)):
         return str(value)
     if isinstance(value, Enum):
         return value.value
@@ -192,13 +219,6 @@ def event_to_dict(value: Any) -> Any:
         f"Cannot encode {type(value).__name__} for JSON serialization (value: {value!r})",
     )
 
-
-# Local alias matches the convention used elsewhere in the codebase
-# (e.g. ``personalscraper.trailers.state``, ``personalscraper.core.json_ttl_cache``).
-# We re-alias rather than ``from datetime import UTC`` so the module remains
-# import-clean on Python 3.10 (per ``pyproject.toml`` ``requires-python = ">=3.10"``);
-# the ``datetime.UTC`` alias only became importable in Python 3.11.
-UTC = UTC
 
 # ---------------------------------------------------------------------------
 # Correlation-id ContextVar

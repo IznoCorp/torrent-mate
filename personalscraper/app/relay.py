@@ -133,6 +133,41 @@ def _entry_to_message(entry_id: str, fields: dict[str, str]) -> dict[str, Any]:
     }
 
 
+async def _relay_entry(
+    registry: ConnectionRegistry,
+    projection: Any,
+    entry_id: str,
+    fields: dict[str, str],
+) -> None:
+    """Parse one stream entry, feed the health projection and broadcast it.
+
+    A malformed entry (bad JSON, missing data key) is skipped and logged once, in its OWN
+    guard, so it is never re-read forever.
+
+    Args:
+        registry: The connection registry for broadcasting.
+        projection: Optional health projection fed with the parsed event.
+        entry_id: The stream entry id.
+        fields: The stream entry field mapping.
+    """
+    try:
+        msg = _entry_to_message(entry_id, fields)
+    except (KeyError, ValueError, TypeError) as exc:
+        logger.warning("relay_entry_skipped", entry_id=entry_id, error=str(exc))
+        return
+    # Feed the server-side health projection (S6 reg-health).
+    if projection is not None:
+        try:
+            projection.apply(msg["type"], msg["data"])
+        except Exception:  # noqa: BLE001 — fail-soft: never wedge the relay
+            logger.warning(
+                "projection_apply_failed",
+                entry_id=entry_id,
+                event_type=msg.get("type"),
+            )
+    await registry.broadcast(msg)
+
+
 async def read_stream_loop(
     redis_pool: aioredis.Redis,
     registry: ConnectionRegistry,
@@ -173,27 +208,10 @@ async def read_stream_loop(
             if result:
                 for _stream_name, entries in result:
                     for entry_id, fields in entries:
-                        # Parse/broadcast each entry in its OWN guard so a single
-                        # malformed entry (bad JSON, missing data key) is skipped
-                        # and logged once — never re-read forever.  last_id ALWAYS
-                        # advances so the loop can never wedge on a poison entry.
-                        try:
-                            msg = _entry_to_message(entry_id, fields)
-                        except (KeyError, ValueError, TypeError) as exc:
-                            logger.warning("relay_entry_skipped", entry_id=entry_id, error=str(exc))
-                            last_id = entry_id
-                            continue
-                        # Feed the server-side health projection (S6 reg-health).
-                        if projection is not None:
-                            try:
-                                projection.apply(msg["type"], msg["data"])
-                            except Exception:  # noqa: BLE001 — fail-soft: never wedge the relay
-                                logger.warning(
-                                    "projection_apply_failed",
-                                    entry_id=entry_id,
-                                    event_type=msg.get("type"),
-                                )
-                        await registry.broadcast(msg)
+                        # last_id ALWAYS advances once an entry is handled — a malformed
+                        # one is skipped and logged once — so the loop can never wedge on
+                        # a poison entry.
+                        await _relay_entry(registry, projection, entry_id, fields)
                         last_id = entry_id
         except asyncio.CancelledError:
             raise

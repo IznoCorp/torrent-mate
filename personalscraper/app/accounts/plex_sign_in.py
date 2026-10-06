@@ -301,6 +301,38 @@ class PlexSignInService:
 
     # -- finish ---------------------------------------------------------------
 
+    def _live_pin(self, pin_id: int, nonce: str | None, now: float) -> PlexPinRow:
+        """Return the PIN row when it is bound to this browser, unused and not expired.
+
+        Args:
+            pin_id: The PIN ``start`` answered.
+            nonce: The pin cookie's value; ``None`` when the browser sent none.
+            now: The clock's reading.
+
+        Returns:
+            The PIN's row.
+
+        Raises:
+            AppBadRequest: ``plex.pin_unknown`` — unknown, used, or another browser's nonce.
+            AppConflict: ``plex.pin_expired`` — past its expiry.
+        """
+        row = self._store.pins.pin(pin_id)
+        bound = (
+            row is not None
+            and row.consumed_at is None
+            and nonce is not None
+            and hmac.compare_digest(row.nonce_hash, _nonce_hash(nonce))
+        )
+        if row is None or not bound:
+            # Anyone may send a forged or stale PIN id: debug only, so they cannot flood the log.
+            log.debug("plex_sign_in.pin_unknown", pin_id=pin_id)
+            raise AppBadRequest(
+                "No Plex sign-in started in this browser answers this PIN.", code=RefusalCode.PLEX_PIN_UNKNOWN
+            )
+        if row.expires_at is not None and now >= row.expires_at:
+            raise AppConflict("The Plex PIN expired.", code=RefusalCode.PLEX_PIN_EXPIRED)
+        return row
+
     def finish(self, pin_id: int, *, nonce: str | None, user_agent: str | None) -> SignInResult | PlexPending:
         """Ask whether the PIN is claimed and, once it is, sign in the identity it yields.
 
@@ -331,21 +363,7 @@ class PlexSignInService:
         """
         store = self._store
         now = self._clock()
-        row = store.pins.pin(pin_id)
-        bound = (
-            row is not None
-            and row.consumed_at is None
-            and nonce is not None
-            and hmac.compare_digest(row.nonce_hash, _nonce_hash(nonce))
-        )
-        if row is None or not bound:
-            # Anyone may send a forged or stale PIN id: debug only, so they cannot flood the log.
-            log.debug("plex_sign_in.pin_unknown", pin_id=pin_id)
-            raise AppBadRequest(
-                "No Plex sign-in started in this browser answers this PIN.", code=RefusalCode.PLEX_PIN_UNKNOWN
-            )
-        if row.expires_at is not None and now >= row.expires_at:
-            raise AppConflict("The Plex PIN expired.", code=RefusalCode.PLEX_PIN_EXPIRED)
+        row = self._live_pin(pin_id, nonce, now)
         if self._server is None:
             raise AppUnavailable("No Plex server is configured.", code=RefusalCode.PLEX_SERVER_UNREACHABLE)
         if not store.pins.claim_pin_check(pin_id, now=now, min_interval=PIN_CHECK_MIN_INTERVAL_S):

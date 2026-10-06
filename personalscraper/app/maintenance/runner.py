@@ -223,6 +223,59 @@ def _resolve_action(command: str) -> MaintenanceAction:
 # ---------------------------------------------------------------------------
 
 
+def _optional_flags(action: MaintenanceAction, options: dict[str, Any]) -> list[str]:
+    """Render the optional (non-required) options that were supplied as CLI flags.
+
+    Args:
+        action: The resolved maintenance action from the registry.
+        options: The decoded options.
+
+    Returns:
+        The ``--name`` / ``--name value`` tokens, in registry order.
+    """
+    flags: list[str] = []
+    for opt in action.options:
+        if opt.required:
+            continue
+        if opt.name not in options:
+            continue
+        value = options[opt.name]
+        if opt.type == "bool":
+            if value is True:
+                flags.append(f"--{opt.name}")
+            # bool False → omit
+        else:
+            # str / int / enum
+            flags.extend([f"--{opt.name}", str(value)])
+    return flags
+
+
+def _dry_run_flags(action: MaintenanceAction, dry_run: bool) -> list[str]:
+    """Render the dry-run (or apply) flags the action's dry-run style asks for.
+
+    Args:
+        action: The resolved maintenance action from the registry.
+        dry_run: ``True`` when ``PERSONALSCRAPER_MAINT_DRY_RUN`` is ``"1"``.
+
+    Returns:
+        The flag tokens; empty when the action does not support a dry run.
+    """
+    flags: list[str] = []
+    # ── Dry-run flag ─────────────────────────────────────────────────────
+    if action.dry_run == "supported":
+        style = _DRY_RUN_STYLE.get(action.id, "flag")
+        if style == "flag" and dry_run:
+            flags.append("--dry-run")
+        elif style == "apply" and not dry_run:
+            # library-validate enforces ``--apply requires --fix`` (Finding B):
+            # an apply run must emit BOTH flags, otherwise the CLI exits 1. The
+            # bare (dry-run) invocation stays the validation report.
+            if action.id == "library-validate":
+                flags.append("--fix")
+            flags.append("--apply")
+    return flags
+
+
 def _build_argv(
     action: MaintenanceAction,
     options_json: str,
@@ -272,33 +325,8 @@ def _build_argv(
             sys.exit(2)
         positionals.append(str(value))
 
-    # Optional flags.
-    for opt in action.options:
-        if opt.required:
-            continue
-        if opt.name not in options:
-            continue
-        value = options[opt.name]
-        if opt.type == "bool":
-            if value is True:
-                argv.append(f"--{opt.name}")
-            # bool False → omit
-        else:
-            # str / int / enum
-            argv.extend([f"--{opt.name}", str(value)])
-
-    # ── Dry-run flag ─────────────────────────────────────────────────────
-    if action.dry_run == "supported":
-        style = _DRY_RUN_STYLE.get(action.id, "flag")
-        if style == "flag" and dry_run:
-            argv.append("--dry-run")
-        elif style == "apply" and not dry_run:
-            # library-validate enforces ``--apply requires --fix`` (Finding B):
-            # an apply run must emit BOTH flags, otherwise the CLI exits 1. The
-            # bare (dry-run) invocation stays the validation report.
-            if action.id == "library-validate":
-                argv.append("--fix")
-            argv.append("--apply")
+    argv.extend(_optional_flags(action, options))
+    argv.extend(_dry_run_flags(action, dry_run))
 
     # ── Positional separator (Finding H) ─────────────────────────────────
     if positionals:

@@ -32,7 +32,8 @@ import shutil
 import tempfile
 import time
 import warnings
-from datetime import UTC, datetime
+from datetime import UTC as UTC  # re-exported: other modules import it from here
+from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -41,8 +42,6 @@ from personalscraper.logger import get_logger
 logger = get_logger(__name__)
 
 T = TypeVar("T")
-
-UTC = UTC
 
 # ---------------------------------------------------------------------------
 # fcntl import — optional, not available on Windows

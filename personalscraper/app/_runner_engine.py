@@ -37,6 +37,7 @@ succeeds or the deadline passes.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import random
@@ -616,6 +617,19 @@ class RunnerSpec:
             )
 
 
+def _lock_is_free(is_lock_held_fn: Callable[[Path], bool], lock_file: Path) -> bool:
+    """Tell whether ``lock_file`` is free, for the visible queue's ``try_proceed``.
+
+    Args:
+        is_lock_held_fn: The runner's ``is_lock_held``.
+        lock_file: The ``pipeline.lock`` path.
+
+    Returns:
+        ``True`` when nobody holds the lock.
+    """
+    return not is_lock_held_fn(lock_file)
+
+
 def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
     """Run one detached runner's spawn → stream → requeue → finalize lifecycle.
 
@@ -689,7 +703,7 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
                 is_lock_held_fn = spec.is_lock_held_fn
                 lock_file = spec.lock_file
                 if not wait_in_visible_queue(
-                    try_proceed=lambda held=is_lock_held_fn, lock=lock_file: not held(lock),
+                    try_proceed=functools.partial(_lock_is_free, is_lock_held_fn, lock_file),
                     writer=writer,
                     run_uid=run_uid,
                     deadline_monotonic=queue_deadline,
