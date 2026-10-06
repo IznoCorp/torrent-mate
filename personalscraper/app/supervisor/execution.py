@@ -45,6 +45,28 @@ class RunOptions:
     item_id: int | None = None
 
 
+class _RescrapeFailed(Exception):
+    """A rescrape that failed, raised inside the run-row context so the row is recorded as an error.
+
+    ``cli_run_row`` finalizes a self-owned ``pipeline_run`` row as ``error`` only when an exception
+    leaves its context; a plain ``return 1`` there would record ``success``. ``rescrape_item`` raises
+    this inside the context and turns it back into the return code outside it. The message is the
+    exit code, the text the row has always recorded.
+
+    Attributes:
+        exit_code: The code ``rescrape_item`` returns.
+    """
+
+    def __init__(self, exit_code: int) -> None:
+        """Store the exit code as the message.
+
+        Args:
+            exit_code: The code ``rescrape_item`` returns.
+        """
+        super().__init__(str(exit_code))
+        self.exit_code = exit_code
+
+
 class RunRecorder(Protocol):
     """The part of a run-row recorder a rescrape writes to."""
 
@@ -139,8 +161,8 @@ def execute_run(
     trigger_reason = trigger
     _run_log = get_logger("pipeline")
 
-    # The :class:`AppContext` is built once per invocation at the CLI
-    # boundary via :func:`build_app_context` (Sub-phase 2.4 — boundary-only
+    # The :class:`AppContext` is built once per invocation, here at the top of the run,
+    # via :func:`build_app_context` (Sub-phase 2.4 — boundary-only
     # rule from DESIGN §Architecture, enforced by the AST allowlist landed
     # in Sub-phase 2.6). Constructed early so the healthcheck and Telegram
     # transports built below can plumb ``app_context.event_bus`` into their
@@ -242,8 +264,8 @@ def execute_run(
             app_context.event_bus.emit(WatcherRunTriggered(reason=trigger_reason))
 
         # Build run-history writer (pipe-control sub-phase 1.3b).
-        # The writer is an injected dependency — the CLI owns the DB
-        # path resolution.  Fail-soft: if construction fails (missing
+        # The writer is an injected dependency — the DB path is
+        # the one the loaded ``Config`` resolved.  Fail-soft: if construction fails (missing
         # library.db, permission error, etc.) the pipeline runs without
         # history recording.
         history_writer: PipelineRunWriter | None = None
@@ -263,7 +285,7 @@ def execute_run(
 
         # Capture the log tail for the durable run journal (universal run
         # journal, 2026-07-08): every trigger path — cli, web-spawned,
-        # safety_net — routes through this command, so installing the
+        # safety_net — reaches this function through the ``run`` command, so installing the
         # handler here gives all of them an ``output_tail``.
         tail_handler = LogTailHandler()
         tail_handler.install()
@@ -318,7 +340,7 @@ def execute_run(
     finally:
         # Dead-man's-switch: ping_fail on any non-clean exit (TrailerStepFailed, unexpected
         # exception, a non-zero return due to report errors). HealthcheckClient is itself fail-soft
-        # so an unreachable hc-ping.com will not abort the lock release below.
+        # so an unreachable hc-ping.com will not abort the caller's lock release.
         if healthcheck is not None:
             if pipeline_outcome == "success":
                 healthcheck.ping_success()
@@ -368,84 +390,87 @@ def rescrape_item(
     # §1/§2 — the repair run is OBSERVABLE: a pipeline_run row (kind
     # maintenance) carries its numeric result, incl. how many items got
     # their artwork back (« Posters récupérés »).
-    with run_row(config, command) as run_rec, step_boundary(config, settings) as app_context:
-        # Open the indexer DB connection so that _collect_rescrape_candidates can look the
-        # item up by id.  The connection is closed in the finally block below to avoid leaks.
-        conn: sqlite3.Connection | None = None
-        db_path = config.indexer.db_path
-        assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
-        from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-        from personalscraper.indexer.db import (  # noqa: PLC0415
-            IndexerCorruptError,
-            IndexerDiskFullError,
-            IndexerInvalidPathError,
-            IndexerMigrationError,
-            apply_migrations,
-            open_db,
-        )
-
-        try:
-            conn = open_db(db_path, event_bus=app_context.event_bus)
-            apply_migrations(conn, Path(_migrations_pkg.__file__).parent)
-        except (
-            IndexerCorruptError,
-            IndexerInvalidPathError,
-            IndexerDiskFullError,
-            IndexerMigrationError,
-        ) as exc:
-            console.print("[red]" + t("cli_library.analyze.open_failed_label") + "[/red] " + str(exc))
-            if conn is not None:
-                conn.close()
-            return 1
-
-        try:
-            result = rescrape_library(
-                config,
-                conn=conn,
-                disk_filter=None,
-                category_filter=None,
-                item_id=item_id,
-                only=None,
-                interactive=False,
-                dry_run=False,
-                max_items=None,
-                event_bus=app_context.event_bus,
-                registry=app_context.provider_registry,
+    try:
+        with run_row(config, command) as run_rec, step_boundary(config, settings) as app_context:
+            # Open the indexer DB connection so that _collect_rescrape_candidates can look the
+            # item up by id.  The connection is closed in the finally block below to avoid leaks.
+            conn: sqlite3.Connection | None = None
+            db_path = config.indexer.db_path
+            assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
+            from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+            from personalscraper.indexer.db import (  # noqa: PLC0415
+                IndexerCorruptError,
+                IndexerDiskFullError,
+                IndexerInvalidPathError,
+                IndexerMigrationError,
+                apply_migrations,
+                open_db,
             )
-        except ValueError as exc:
-            # Mutual-exclusion error from _collect_rescrape_candidates
-            # (item_id combined with disk/category filter).
-            console.print("[red]" + t("cli_library.analyze.invalid_combination_label") + "[/red] " + str(exc))
-            return 1
-        finally:
-            if conn is not None:
-                conn.close()
 
-        # Warn clearly only when an explicit item RESOLVED no candidate
-        # (item not in DB, dispatch path missing, or directory gone). Gate on
-        # candidate_count, NOT on fixed+skipped+error: an item that is found
-        # but has nothing to do legitimately produces 0 work and must NOT be
-        # reported as not-found.
-        if result.candidate_count == 0:
-            console.print(
-                t(
-                    "cli_library.analyze.item_not_found",
-                    label="[yellow]" + t("cli_library.analyze.warning_label") + "[/yellow]",
+            try:
+                conn = open_db(db_path, event_bus=app_context.event_bus)
+                apply_migrations(conn, Path(_migrations_pkg.__file__).parent)
+            except (
+                IndexerCorruptError,
+                IndexerInvalidPathError,
+                IndexerDiskFullError,
+                IndexerMigrationError,
+            ) as exc:
+                console.print("[red]" + t("cli_library.analyze.open_failed_label") + "[/red] " + str(exc))
+                if conn is not None:
+                    conn.close()
+                raise _RescrapeFailed(1) from exc
+
+            try:
+                result = rescrape_library(
+                    config,
+                    conn=conn,
+                    disk_filter=None,
+                    category_filter=None,
                     item_id=item_id,
+                    only=None,
+                    interactive=False,
+                    dry_run=False,
+                    max_items=None,
+                    event_bus=app_context.event_bus,
+                    registry=app_context.provider_registry,
                 )
-            )
-            return 1
+            except ValueError as exc:
+                # Mutual-exclusion error from _collect_rescrape_candidates
+                # (item_id combined with disk/category filter).
+                console.print("[red]" + t("cli_library.analyze.invalid_combination_label") + "[/red] " + str(exc))
+                raise _RescrapeFailed(1) from exc
+            finally:
+                if conn is not None:
+                    conn.close()
 
-        if run_rec is not None:
-            artwork_recovered = sum(1 for action in result.items if "artwork_downloaded" in action.actions_taken)
-            run_rec.record_counts(
-                {
-                    "fixed": result.fixed_count,
-                    "skipped": result.skipped_count,
-                    "errors": result.error_count,
-                    "artwork_recovered": artwork_recovered,
-                }
-            )
+            # Warn clearly only when an explicit item RESOLVED no candidate
+            # (item not in DB, dispatch path missing, or directory gone). Gate on
+            # candidate_count, NOT on fixed+skipped+error: an item that is found
+            # but has nothing to do legitimately produces 0 work and must NOT be
+            # reported as not-found.
+            if result.candidate_count == 0:
+                console.print(
+                    t(
+                        "cli_library.analyze.item_not_found",
+                        label="[yellow]" + t("cli_library.analyze.warning_label") + "[/yellow]",
+                        item_id=item_id,
+                    )
+                )
+                raise _RescrapeFailed(1)
+
+            if run_rec is not None:
+                artwork_recovered = sum(1 for action in result.items if "artwork_downloaded" in action.actions_taken)
+                run_rec.record_counts(
+                    {
+                        "fixed": result.fixed_count,
+                        "skipped": result.skipped_count,
+                        "errors": result.error_count,
+                        "artwork_recovered": artwork_recovered,
+                    }
+                )
+    except _RescrapeFailed as failure:
+        return failure.exit_code
 
     total = result.fixed_count + result.skipped_count + result.error_count
     summary = t(

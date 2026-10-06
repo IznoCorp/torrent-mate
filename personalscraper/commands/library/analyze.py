@@ -314,6 +314,10 @@ def library_rescrape_item(
     the needs-rescrape predicate bypassed. It takes ``pipeline.lock`` itself (exit 3
     when held, the code the maintenance runner re-queues on).
 
+    Raises:
+        typer.Exit: With code 1 when the indexer DB is missing, unreachable or the item resolves
+            nothing, and with code 3 when ``pipeline.lock`` is held.
+
     Examples:
         personalscraper library-rescrape-item 1600
     """
