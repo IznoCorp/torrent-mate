@@ -204,6 +204,30 @@ class TestStartPlexSignInRateLimit:
         assert PLEX_PIN_COOKIE not in _cookies(response)
         assert len(plextv.calls) == asked
 
+    def test_each_client_has_its_own_budget(self, v1_client: Callable[..., TestClient]) -> None:
+        """A client that spent its starts is refused; another client's address still starts."""
+        client = v1_client(role=None)
+        _door(client)
+        spender = TestClient(client.app, client=("203.0.113.7", 50000))
+        bystander = TestClient(client.app, client=("203.0.113.8", 50000))
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            assert spender.post("/auth/plex/start").status_code == 200
+
+        assert spender.post("/auth/plex/start").status_code == 429
+        assert bystander.post("/auth/plex/start").status_code == 200
+
+    def test_behind_the_local_proxy_the_forwarded_client_is_the_key(self, v1_client: Callable[..., TestClient]) -> None:
+        """From the loopback proxy, the last forwarded address keys the budget, not the proxy's."""
+        client = v1_client(role=None)
+        _door(client)
+        proxy = TestClient(client.app, client=("127.0.0.1", 50000))
+        spent = {"x-forwarded-for": "198.51.100.1"}
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            assert proxy.post("/auth/plex/start", headers=spent).status_code == 200
+
+        assert proxy.post("/auth/plex/start", headers=spent).status_code == 429
+        assert proxy.post("/auth/plex/start", headers={"x-forwarded-for": "198.51.100.2"}).status_code == 200
+
 
 class TestSignInWithPlex:
     """``POST /auth/plex``."""
