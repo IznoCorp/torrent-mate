@@ -6,7 +6,7 @@
 // the source and nowhere else.
 import { describe, expect, it } from "vitest";
 import {
-  actionButton, cardStrip, disclosure, drawerEntryCount, iconButton, loadErrorAction, loadFooterAction, moreButton,
+  actionButton, cardStrip, passwordReveal, passwordRevealField, disclosure, drawerEntryCount, iconButton, loadErrorAction, loadFooterAction, moreButton,
   chip, segmentCount, segmentTab, statusDot, stripDot, stripStep, surfaceError, tabBarBadge, viewSwitchButton,
 } from "./variants";
 import { cardMarkup } from "./card-markup";
@@ -213,5 +213,22 @@ describe("tones the states carry", () => {
     for (const drawn of tones) expect(drawn).toContain("rounded-3 p-7");
     expect(new Set(tones).size).toBe(4);
     expect(surfaceError()).toBe(surfaceError({ tone: "danger" }));
+  });
+});
+
+describe("the password reveal", () => {
+  // TWO NAMED STATES, ONE CONTROL: the toggle at rest and the toggle pressed. The pressed one is
+  // read from `aria-pressed`, so the tone cannot disagree with what assistive technology is told.
+  it("draws its two states from the pressed attribute, with tokens only", () => {
+    const control = passwordReveal();
+    expect(control).toContain("text-muted-foreground");
+    expect(control).toContain("aria-pressed:text-foreground");
+    expect(control).toContain("w-[32px]");
+    expect(control).not.toMatch(/#[0-9a-f]{3,8}|rgb\(/i);
+  });
+
+  // THE FIELD MAKES ROOM FOR THE BUTTON, and `!` because the gate's own stylesheet is unlayered.
+  it("leaves the field's text clear of the button", () => {
+    expect(passwordRevealField()).toContain("pr-[calc(32px+var(--spacing-4))]!");
   });
 });
