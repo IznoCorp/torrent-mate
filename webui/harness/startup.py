@@ -226,10 +226,12 @@ async def main():
                     ' id="splash"', ' id="splash" hidden', 1))
                 check("extracted from the prototype, never retyped", expected and expected in normalize(gate))
                 # The STYLESHEET, not the document. This reads the CSS the gate
-                # inlines, so what proves the block landed is the RULE OPENER —
+                # links at `/login.css`, so what proves the block landed is the RULE OPENER —
                 # a source substring, never a selection, which is why it keeps
                 # the class name the stylesheet is still written in.
-                check("the gate carries the screen's style", ".splashbar {" in gate)
+                with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/login.css", timeout=2) as r:
+                    login_css = r.read().decode()
+                check("the gate's stylesheet carries the screen's style", ".splashbar {" in login_css)
 
                 page3 = await ctx.new_page()
                 # The cookie is `SameSite=Lax`: a session held reaches the door with

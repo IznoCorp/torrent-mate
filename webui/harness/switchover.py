@@ -192,14 +192,15 @@ def main():
                 page: A sign-in page.
 
             Returns:
-                The page with its `RETURN_TO` value removed.
+                The page with the `data-return-to` attribute of its sign-in script blanked.
             """
-            return re.sub(rb"var RETURN_TO = [^;]*;", b"var RETURN_TO;", page)
+            return re.sub(rb'data-return-to="[^"]*"', b'data-return-to=""', page)
         journal.check(
             "an unknown address with no session answers the sign-in screen, like «/»",
             response_without.status == 401 and response_root.status == 401
             and without_return(without_session) == without_return(login_page)
-            and b'var RETURN_TO = "/media/tvdb/403245";' in without_session,
+            and b'data-return-to="' in without_session
+            and b"/media/tvdb/403245" in without_session,
             f"{response_without.status} vs {response_root.status}")
 
         response_with, with_session = request_("/media/tvdb/403245", cookie)
