@@ -4,7 +4,7 @@
 #
 # Starts or restarts the preprod's apps of ecosystem.config.js, never one of prod's:
 #   - its web always (the staging UI must come back after a deploy);
-#   - its scheduled jobs only when the preprod is set up — they act on the torrent
+#   - its scheduled jobs and its watcher daemon only when the preprod is set up — they act on the torrent
 #     client prod shares and write into the preprod's roots. The preconditions are
 #     judged by scripts/preprod_preconditions.py with the staging venv's python (the
 #     code just installed): the overlay and secrets file exist, the overlay loads in
@@ -34,7 +34,7 @@ PREPROD_ENV_FILE="${TM_PREPROD_ENV_FILE:-$HOME/.torrentmate/.env-staging}"
 # The preprod's PM2 apps — exactly those of ecosystem.config.js whose env says
 # PERSONALSCRAPER_ENV=staging (tests/indexer/test_ecosystem.py holds them equal).
 PREPROD_WEB="torrentmate-web-staging"
-PREPROD_JOBS="personalscraper-preprod-follow-detect,personalscraper-preprod-search,personalscraper-preprod-grab,personalscraper-preprod-seed-sweep,personalscraper-preprod-health-check,personalscraper-preprod-index-full,personalscraper-preprod-purge"
+PREPROD_JOBS="personalscraper-preprod-follow-detect,personalscraper-preprod-search,personalscraper-preprod-grab,personalscraper-preprod-seed-sweep,personalscraper-preprod-health-check,personalscraper-preprod-index-full,personalscraper-preprod-purge,personalscraper-preprod-watch"
 
 # ── The retired read-only role: delete the web while its stored env carries it ──
 stored_role="$(pm2 jlist 2>/dev/null | "$PYTHON" -c '

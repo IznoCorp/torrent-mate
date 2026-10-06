@@ -2,7 +2,7 @@
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
 design: prod's apps (watch daemon + eight scheduled jobs + web + autodeploy) and the preprod's
-(its web + seven scheduled jobs, k2-prep DESIGN § 3.5),
+(its web + seven scheduled jobs + its watcher, k2-prep DESIGN § 3.5),
 correct ``interpreter`` / ``script`` / ``cwd``, scheduled jobs on the self-managed
 ``schedule`` loop (never PM2's ``cron_restart``, which fires twice at a boundary and kills
 the run it just started), valid cron expressions, and the ENV-SEP invariant that
@@ -108,9 +108,6 @@ _PREPROD_WATCH = "personalscraper-preprod-watch"
 #: Every app of the preprod: its web (the :8711 app, re-pointed), its scheduled jobs and its watcher.
 _PREPROD_APP_NAMES = frozenset({"torrentmate-web-staging", _PREPROD_WATCH, *_PREPROD_JOBS})
 
-#: The preprod apps ``scripts/start-preprod.sh`` starts on a staging deploy: all but the watcher,
-#: which the operator starts by hand (``pm2 start ... --only``).
-_PREPROD_DEPLOYED_APP_NAMES = _PREPROD_APP_NAMES - {_PREPROD_WATCH}
 
 #: What the preprod runs from and on: the staging clone and its venv, its own overlay and its
 #: own secrets file (never prod's canonical ``.env``, k2-prep DESIGN § 2.2).
@@ -988,5 +985,5 @@ def test_staging_deploy_starts_exactly_the_preprod_apps() -> None:
 
     web, jobs = assigned("PREPROD_WEB"), assigned("PREPROD_JOBS")
     assert web == {"torrentmate-web-staging"}
-    assert jobs == set(_PREPROD_JOBS)
-    assert web | jobs == _PREPROD_DEPLOYED_APP_NAMES
+    assert jobs == {*_PREPROD_JOBS, _PREPROD_WATCH}
+    assert web | jobs == _PREPROD_APP_NAMES
