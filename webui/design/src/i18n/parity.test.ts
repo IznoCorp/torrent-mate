@@ -50,6 +50,8 @@ const EN_LEAVES = new Map(leaves(EN, ""));
 // to its French is a French value copied into the English catalogue — an English reader would meet
 // it as French. A leaf that has since been translated must leave the list.
 const IDENTICAL_IN_BOTH_LANGUAGES: ReadonlySet<string> = new Set([
+  // A count of phases and a pull request's number read the same in both languages.
+  "screens.devLots.phases_one", "screens.devLots.phases_other", "screens.devLots.pr",
   // Names: brands, services, trackers, the genres as the providers name them, a file and an
   // address shown as they are, a cron expression, and each language's own name in itself.
   "settings.labels.cross_seed", "settings.labels.tmdb", "settings.labels.tvdb", "settings.labels.omdb",

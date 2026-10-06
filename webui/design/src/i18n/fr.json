@@ -1572,6 +1572,30 @@
         "heading": "Cross-seed, tracker par tracker",
         "origin": "{{name}} — l'original, sur {{tracker}}"
       }
+    },
+    "devLots": {
+      "title": "Avancement des lots",
+      "back": "Retour",
+      "updated": "Mis à jour {{moment}}",
+      "errorSubject": "l'avancement des lots",
+      "unavailable": "Aucun avancement n'est publié sur cet hôte.",
+      "noLots": "Aucun lot n'est défini.",
+      "blockedBy": "Bloqué : {{reason}}",
+      "phases_one": "{{count}} phase",
+      "phases_other": "{{count}} phases",
+      "pr": "PR #{{number}}",
+      "state": {
+        "planned": "Prévue",
+        "in-progress": "En cours",
+        "pr-open": "PR ouverte",
+        "merged": "Fusionnée"
+      },
+      "dispatch": {
+        "in-flight": "en cours d'écriture",
+        "in-review": "en relecture",
+        "ready-unarmed": "prête, non armée",
+        "armed": "armée"
+      }
     }
   },
   "surfaces": {
