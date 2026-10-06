@@ -56,6 +56,8 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "revokeOwnSession": SignedIn(write=True),
         # The account's own in-app notices (a new sign-in): a session act, no right.
         "readNotices": SignedIn(),
+        # Marking them read is the same session act, a write: refused on a read-only instance.
+        "markNoticesRead": SignedIn(write=True),
         "readNotificationPreferences": SignedIn(),
         "updateNotificationPreference": SignedIn(write=True),
         "registerPushDevice": SignedIn(write=True),

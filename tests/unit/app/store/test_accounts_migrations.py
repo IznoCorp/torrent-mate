@@ -106,9 +106,9 @@ def fresh(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 class TestFreshFile:
     """A file created today holds the whole schema and the five seeded roles."""
 
-    def test_reaches_version_nine(self, fresh: sqlite3.Connection) -> None:
+    def test_reaches_version_ten(self, fresh: sqlite3.Connection) -> None:
         """Every migration applied."""
-        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 9
+        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 10
 
     def test_seeds_the_five_roles_with_their_kinds_and_no_name(self, fresh: sqlite3.Connection) -> None:
         """The maquette's five roles; a seeded role carries no name (its id is translated by the interface)."""
@@ -300,7 +300,7 @@ class TestExistingFile:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 9
+        assert _user_version(db_path) == 10
         conn = _connect(db_path)
         try:
             rows = conn.execute(f"SELECT {_PUSH_COLUMNS} FROM push_subscription").fetchall()  # noqa: S608 — fixed names
@@ -365,7 +365,7 @@ class TestAccountAccessMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 9
+        assert _user_version(db_path) == 10
         assert account is not None
         assert account.sign_in_allowed is True
         assert (account.name, account.email, account.role_id, account.password_hash) == (
@@ -397,7 +397,7 @@ class TestAccountDemotionMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 9
+        assert _user_version(db_path) == 10
         assert account is not None
         assert account.demoted_from is None
         assert (account.role_id, account.password_hash, account.sign_in_allowed) == ("household", "h", False)
@@ -428,7 +428,7 @@ class TestAccountLanguageMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 9
+        assert _user_version(db_path) == 10
         assert account is not None
         assert account.language == "fr"
         assert (account.role_id, account.password_hash, account.sign_in_allowed, account.demoted_from) == (

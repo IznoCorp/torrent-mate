@@ -723,6 +723,81 @@
         }
       }
     },
+    "/notices/read": {
+      "post": {
+        "operationId": "markNoticesRead",
+        "x-rights": null,
+        "summary": "Mark the signed-in account's notices read, up to one",
+        "description": "Profil marks what it displayed: every unread notice of the account numbered `upTo` or lower is marked read; a notice raised after it (a higher id) stays unread. Repeating it is harmless: it answers how many notices it newly marked, zero when none. Only the caller's own notices, ever — another account's id marks nothing. A session act like reading them: no right. The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right.",
+        "tags": [
+          "notifications"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "upTo": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "the highest notice id marked read"
+                  }
+                },
+                "required": [
+                  "upTo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the notices are marked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "marked": {
+                      "type": "integer",
+                      "description": "how many notices it newly marked read"
+                    }
+                  },
+                  "required": [
+                    "marked"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/library/items": {
       "get": {
         "operationId": "readLibraryItems",
@@ -11612,6 +11687,10 @@
           "createdAt": {
             "type": "number",
             "description": "when it was raised, Unix-epoch seconds"
+          },
+          "readAt": {
+            "type": "number",
+            "description": "when the account marked it read, Unix-epoch seconds; ABSENT while it is unread"
           }
         },
         "required": [

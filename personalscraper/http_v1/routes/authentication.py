@@ -13,7 +13,7 @@ from personalscraper.app.accounts.plex_sign_in import PlexPending
 from personalscraper.app.accounts.ratelimit import rate_limit_key
 from personalscraper.app.errors import AppUnauthenticated, RefusalCode
 from personalscraper.app.services import AppServices
-from personalscraper.http_v1.contract import PROBLEM_RESPONSES
+from personalscraper.http_v1.contract import PROBLEM_RESPONSES, SQLITE_MAX_INTEGER
 from personalscraper.http_v1.deps import actor, services
 from personalscraper.http_v1.models.authentication import (
     AccountModel,
@@ -331,7 +331,7 @@ def read_own_sessions(
     responses=_REVOKE_OWN_SESSION_RESPONSES,
 )
 def revoke_own_session(
-    session_id: Annotated[int, Path(alias="sessionId", description="the session")],
+    session_id: Annotated[int, Path(alias="sessionId", le=SQLITE_MAX_INTEGER, description="the session")],
     signed_in: Annotated[Actor, Depends(actor)],
     app_services: Annotated[AppServices, Depends(services)],
     token: Annotated[str, Depends(signed_in_token)],

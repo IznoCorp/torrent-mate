@@ -218,6 +218,12 @@ class TestRevokeOwnSession:
         assert response.status_code == 404
         assert response.json()["code"] == "session.unknown"
 
+    def test_an_id_beyond_sqlite_integers_is_request_invalid(self, v1_client: Callable[..., TestClient]) -> None:
+        """400 ``request.invalid`` — an id SQLite cannot hold never reaches the base."""
+        response = v1_client(role="household").delete(f"/auth/sessions/{2**63}")
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+
     def test_an_ended_session_is_404(self, v1_client: Callable[..., TestClient]) -> None:
         """A session already signed out is no live session: 404 ``session.unknown``."""
         client = v1_client(role="household")

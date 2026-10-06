@@ -743,6 +743,23 @@
         "title": "LibraryRow",
         "type": "object"
       },
+      "MarkNoticesReadBody": {
+        "additionalProperties": false,
+        "description": "``markNoticesRead``'s body.\n\nAttributes:\n    up_to: The highest notice id marked read; the notices raised after it stay unread. Bounded\n        by SQLite's largest integer: a larger id is a refused request, not a driver error.",
+        "properties": {
+          "upTo": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Upto",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "upTo"
+        ],
+        "title": "MarkNoticesReadBody",
+        "type": "object"
+      },
       "MediaRefModel": {
         "additionalProperties": false,
         "description": "The contract's ``MediaRef``: a medium named by its provider identity.\n\nAttributes:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.",
@@ -1076,7 +1093,7 @@
       },
       "NoticeModel": {
         "additionalProperties": false,
-        "description": "The contract's ``Notice``: one in-app notice of the signed-in account.\n\nAttributes:\n    id: Its key.\n    code: What it tells, as a code the interface words (``NoticeCode``).\n    params: The code's parameters \u2014 facts, never words.\n    created_at: When it was raised (epoch seconds).",
+        "description": "The contract's ``Notice``: one in-app notice of the signed-in account.\n\nAttributes:\n    id: Its key.\n    code: What it tells, as a code the interface words (``NoticeCode``).\n    params: The code's parameters \u2014 facts, never words.\n    created_at: When it was raised (epoch seconds).\n    read_at: When the account marked it read (epoch seconds); absent while unread.",
         "properties": {
           "code": {
             "enum": [
@@ -1100,6 +1117,17 @@
             },
             "title": "Params",
             "type": "object"
+          },
+          "readAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readat"
           }
         },
         "required": [
@@ -1109,6 +1137,21 @@
           "createdAt"
         ],
         "title": "NoticeModel",
+        "type": "object"
+      },
+      "NoticesMarkedRead": {
+        "additionalProperties": false,
+        "description": "``markNoticesRead``'s answer.\n\nAttributes:\n    marked: How many notices it newly marked read (zero when it repeats itself).",
+        "properties": {
+          "marked": {
+            "title": "Marked",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "marked"
+        ],
+        "title": "NoticesMarkedRead",
         "type": "object"
       },
       "NoticesModel": {
@@ -3243,6 +3286,7 @@
             "required": true,
             "schema": {
               "description": "the session",
+              "maximum": 9223372036854775807,
               "title": "Sessionid",
               "type": "integer"
             }
@@ -4541,6 +4585,118 @@
           }
         },
         "summary": "Read Notices"
+      }
+    },
+    "/notices/read": {
+      "post": {
+        "description": "Mark the signed-in account's notices read, up to the one named.\n\nArgs:\n    body: The highest notice id marked.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    How many it newly marked.",
+        "operationId": "markNoticesRead",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkNoticesReadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticesMarkedRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Mark Notices Read"
       }
     },
     "/pipeline/run": {

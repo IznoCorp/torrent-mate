@@ -42,6 +42,8 @@ SESSION = {
     # Ending one of the account's own other sessions carries no right either: a session act, scoped to
     # the caller (another account's session is a 404). A write refused only on a read-only instance.
     "DELETE /auth/sessions/{sessionId}",
+    # Marking the account's own notices read: the same session act, scoped to the caller.
+    "POST /notices/read",
 }
 # The reads F30 gates: Système, Maintenance, the pipeline's record, Trackers, the
 # configuration's own files and secrets.
