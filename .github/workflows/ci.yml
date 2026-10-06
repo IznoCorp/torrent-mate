@@ -420,6 +420,7 @@ jobs:
           cache-dependency-path: |
             frontend/package-lock.json
             webui/design/package-lock.json
+            webui/design/tools/contract-types/package-lock.json
       # lint:tokens greps with ripgrep; without it the guard used to silently
       # no-op (`rg: command not found` swallowed by `|| true`, 2026-07-15).
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
@@ -449,6 +450,15 @@ jobs:
       - run: npm run check:app-bundle
         if: needs.changes.outputs.maquette == 'true'
         working-directory: webui/design
+      # The contract's types, regenerated and refused on any difference: the proof
+      # the size and vocabulary guards' exemption of `contract/types.d.ts` rests on.
+      # The generator is locked apart (`tools/contract-types`): it peers TypeScript 5,
+      # the maquette runs TypeScript 7.
+      - run: npm ci --prefix tools/contract-types
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      - run: make check-contract-types
+        if: needs.changes.outputs.maquette == 'true'
       - run: npm run lint
         if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
