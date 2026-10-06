@@ -10,7 +10,7 @@ import pytest
 from personalscraper.acquire.delete_authority import StrictDeletePermit
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.plex import PlexClient
-from personalscraper.app.accounts.account_repository import AccountRow
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
 from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
 from personalscraper.app.library.reads import LibraryReads
@@ -47,7 +47,7 @@ def test_the_configured_idle_lifetime_reaches_the_sessions(test_config: Config) 
     try:
         repo = services.app_store.accounts
         repo.insert_account(
-            AccountRow(
+            Account(
                 id="account-alice",
                 name="Alice",
                 email="alice@example.org",

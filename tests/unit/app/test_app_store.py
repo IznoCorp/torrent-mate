@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.accounts.account_repository import AccountRow
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.store import store as store_module
 from personalscraper.app.store.store import AppStore, build_app_store
@@ -95,7 +95,7 @@ def test_reopening_applies_nothing(test_config: Config, tmp_path: Path) -> None:
     first = build_app_store(cfg)
     try:
         first.accounts.insert_account(
-            AccountRow(
+            Account(
                 id="alice",
                 name="Alice",
                 email="alice@example.org",
@@ -174,7 +174,7 @@ def test_concurrent_queries_share_the_one_connection_safely(tmp_path: Path) -> N
     threads_count = 12
     store = AppStore(tmp_path / "app.db")
     store.accounts.insert_account(
-        AccountRow(
+        Account(
             id="alice",
             name="Alice",
             email="alice@example.org",

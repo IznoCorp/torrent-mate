@@ -1,9 +1,10 @@
 """The accounts' rows in ``app.db`` — an account, its Plex link and its kept token.
 
-Rows ↔ dataclasses, and nothing more: no rule lives here (when an account is demoted, whose
-access may be cut — those are the services'). The base keeps its own constraints (an e-mail
-unique whatever its case, one account per plex id) and this module lets them surface as
-``sqlite3.IntegrityError``.
+Rows ↔ :class:`~personalscraper.app.accounts.model.Account` (its Plex link read with it) and
+:class:`~personalscraper.app.accounts.model.PlexLink`, and nothing more: no rule lives here (when
+an account is demoted, whose access may be cut — those are the model's and the services'). The
+base keeps its own constraints (an e-mail unique whatever its case, one account per plex id) and
+this module lets them surface as ``sqlite3.IntegrityError``.
 
 The connection is in autocommit mode (``isolation_level=None``): a single statement commits on
 its own, and a service that needs several calls to be one act wraps them in
@@ -16,74 +17,13 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from dataclasses import dataclass, field, replace
-from typing import Literal
+from dataclasses import replace
 
 from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.ids import AccountId, RoleId
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.core.sqlite import serialised
-from personalscraper.i18n import Language, configured_language
-
-
-@dataclass(frozen=True)
-class AccountRow:
-    """One account.
-
-    Attributes:
-        id: Its key, ``account-<uuid4 hex>``.
-        name: Its display name.
-        email: Its e-mail, as given; unique whatever its case.
-        avatar: A stored picture address, ``""`` when none; never read — the picture is
-            resolved from the Plex link and the e-mail (``accounts.avatar``).
-        role_id: The role it holds.
-        password_hash: ``scrypt$N$r$p$salt$hash``; ``None`` when it holds no password.
-        created_at: Creation (epoch seconds).
-        updated_at: Last change (epoch seconds).
-        sign_in_allowed: Whether it may sign in; ``True`` until an Admin cuts it.
-        demoted_from: The role it held before its Plex link dropped it to its Plex kind's
-            starting role; ``None`` when not demoted, or once an Admin gave it a role.
-        language: The language it is spoken to in; a new row starts in the project's
-            configured language (the operator, 2026-10-05) until the account chooses.
-    """
-
-    id: str
-    name: str
-    email: str
-    avatar: str
-    role_id: str
-    password_hash: str | None = field(repr=False)
-    created_at: float
-    updated_at: float
-    sign_in_allowed: bool = True
-    demoted_from: str | None = None
-    language: Language = field(default_factory=configured_language)
-
-
-@dataclass(frozen=True)
-class PlexLinkRow:
-    """An account's link to its plex.tv identity.
-
-    Attributes:
-        account_id: The linked account.
-        plex_id: plex.tv's stable id — the identity, never the e-mail.
-        plex_uuid: plex.tv's uuid.
-        plex_username: plex.tv's username.
-        server_access: ``owner`` of the managed server, or ``shared`` with it.
-        token_ciphertext: The kept Plex token, encrypted; ``None`` when not kept.
-        token_stored_at: When it was stored; ``None`` when not kept.
-        linked_at: When the link was made.
-        last_sign_in_at: The last Plex sign-in; ``None`` before the first.
-    """
-
-    account_id: str
-    plex_id: int
-    plex_uuid: str
-    plex_username: str
-    server_access: Literal["owner", "shared"]
-    token_ciphertext: bytes | None = field(repr=False)
-    token_stored_at: float | None
-    linked_at: float
-    last_sign_in_at: float | None
-
+from personalscraper.i18n import Language
 
 _ACCOUNT_COLUMNS = (
     "id, name, email, avatar, role_id, password_hash, created_at, updated_at, sign_in_allowed, demoted_from, language"
@@ -94,24 +34,27 @@ _LINK_COLUMNS = (
 )
 
 
-def _account(row: tuple[object, ...]) -> AccountRow:
-    """Build an :class:`AccountRow` from a row in ``_ACCOUNT_COLUMNS`` order.
+def _account(row: tuple[object, ...], link: PlexLink | None) -> Account:
+    """Build an :class:`Account` from a row in ``_ACCOUNT_COLUMNS`` order and its Plex link.
 
     SQLite stores ``sign_in_allowed`` as an integer and ``language`` as text: they are read
     back as a bool and a :class:`Language`.
 
     Args:
         row: The row.
+        link: The account's Plex link, or ``None``.
 
     Returns:
         The dataclass.
     """
-    account = AccountRow(*row)  # type: ignore[arg-type]
-    return replace(account, sign_in_allowed=bool(account.sign_in_allowed), language=Language(account.language))
+    account = Account(*row)  # type: ignore[arg-type]
+    return replace(
+        account, sign_in_allowed=bool(account.sign_in_allowed), language=Language(account.language), plex_link=link
+    )
 
 
-def _link(row: tuple[object, ...]) -> PlexLinkRow:
-    """Build a :class:`PlexLinkRow` from a row in ``_LINK_COLUMNS`` order.
+def _link(row: tuple[object, ...]) -> PlexLink:
+    """Build a :class:`PlexLink` from a row in ``_LINK_COLUMNS`` order.
 
     Args:
         row: The row.
@@ -119,7 +62,7 @@ def _link(row: tuple[object, ...]) -> PlexLinkRow:
     Returns:
         The dataclass.
     """
-    return PlexLinkRow(*row)  # type: ignore[arg-type]
+    return PlexLink(*row)  # type: ignore[arg-type]
 
 
 class AccountRepository:
@@ -137,17 +80,28 @@ class AccountRepository:
         self._lock = lock if lock is not None else threading.RLock()
 
     @serialised
-    def accounts(self) -> list[AccountRow]:
+    def accounts(self) -> list[Account]:
         """Every account, in creation order.
 
         Returns:
             The accounts.
         """
         rows = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account ORDER BY created_at, rowid")  # noqa: S608
-        return [_account(row) for row in rows]
+        return [self._with_link(row) for row in rows.fetchall()]
+
+    def _with_link(self, row: tuple[object, ...]) -> Account:
+        """Build an account from its row, its Plex link read with it.
+
+        Args:
+            row: The row, in ``_ACCOUNT_COLUMNS`` order.
+
+        Returns:
+            The account.
+        """
+        return _account(row, self.plex_link(row[0]))  # type: ignore[arg-type]
 
     @serialised
-    def account(self, account_id: str) -> AccountRow | None:
+    def account(self, account_id: AccountId) -> Account | None:
         """One account by key.
 
         Args:
@@ -157,10 +111,10 @@ class AccountRepository:
             The account, or ``None``.
         """
         row = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE id = ?", (account_id,)).fetchone()  # noqa: S608
-        return _account(row) if row else None
+        return self._with_link(row) if row else None
 
     @serialised
-    def account_by_email(self, email: str) -> AccountRow | None:
+    def account_by_email(self, email: str) -> Account | None:
         """One account by e-mail, whatever its case.
 
         Args:
@@ -173,11 +127,11 @@ class AccountRepository:
             f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE lower(email) = lower(?)",  # noqa: S608
             (email,),
         ).fetchone()
-        return _account(row) if row else None
+        return self._with_link(row) if row else None
 
     @serialised
-    def insert_account(self, account: AccountRow) -> None:
-        """Insert an account.
+    def insert_account(self, account: Account) -> None:
+        """Insert an account; its Plex link is written by :meth:`upsert_plex_link`.
 
         Args:
             account: The account.
@@ -203,7 +157,9 @@ class AccountRepository:
         )
 
     @serialised
-    def set_role(self, account_id: str, role_id: str, *, now: float, demoted_from: str | None = None) -> None:
+    def set_role(
+        self, account_id: AccountId, role_id: RoleId, *, now: float, demoted_from: RoleId | None = None
+    ) -> None:
         """Put an account on a role, recording or clearing the role a Plex link demoted it from.
 
         Args:
@@ -222,7 +178,7 @@ class AccountRepository:
         )
 
     @serialised
-    def set_password_hash(self, account_id: str, password_hash: str | None, *, now: float) -> None:
+    def set_password_hash(self, account_id: AccountId, password_hash: str | None, *, now: float) -> None:
         """Store or clear an account's password hash.
 
         Args:
@@ -235,7 +191,7 @@ class AccountRepository:
         )
 
     @serialised
-    def set_sign_in_allowed(self, account_id: str, *, allowed: bool, now: float) -> None:
+    def set_sign_in_allowed(self, account_id: AccountId, *, allowed: bool, now: float) -> None:
         """Allow or cut an account's sign-in.
 
         Args:
@@ -248,7 +204,7 @@ class AccountRepository:
         )
 
     @serialised
-    def set_language(self, account_id: str, language: Language, *, now: float) -> None:
+    def set_language(self, account_id: AccountId, language: Language, *, now: float) -> None:
         """Set the language an account is spoken to in.
 
         Args:
@@ -276,7 +232,7 @@ class AccountRepository:
         return int(row[0])
 
     @serialised
-    def accounts_on_role(self, role_id: str) -> list[str]:
+    def accounts_on_role(self, role_id: RoleId) -> list[AccountId]:
         """The keys of the accounts holding one role, in creation order.
 
         Args:
@@ -293,7 +249,7 @@ class AccountRepository:
     # ── plex links ───────────────────────────────────────────────────────────
 
     @serialised
-    def plex_link(self, account_id: str) -> PlexLinkRow | None:
+    def plex_link(self, account_id: AccountId) -> PlexLink | None:
         """An account's Plex link.
 
         Args:
@@ -309,7 +265,7 @@ class AccountRepository:
         return _link(row) if row else None
 
     @serialised
-    def plex_link_by_plex_id(self, plex_id: int) -> PlexLinkRow | None:
+    def plex_link_by_plex_id(self, plex_id: int) -> PlexLink | None:
         """The link of one plex.tv identity.
 
         Args:
@@ -322,7 +278,7 @@ class AccountRepository:
         return _link(row) if row else None
 
     @serialised
-    def owner_link(self) -> PlexLinkRow | None:
+    def owner_link(self) -> PlexLink | None:
         """The link of the managed server's owner, whichever account holds it.
 
         Returns:
@@ -334,7 +290,7 @@ class AccountRepository:
         return _link(row) if row else None
 
     @serialised
-    def owner_links(self) -> list[PlexLinkRow]:
+    def owner_links(self) -> list[PlexLink]:
         """Every link whose ``server_access`` is ``owner``, oldest first.
 
         The schema holds no unique index on it, so a stale former owner can sit beside the
@@ -349,7 +305,7 @@ class AccountRepository:
         return [_link(row) for row in rows]
 
     @serialised
-    def upsert_plex_link(self, link: PlexLinkRow) -> None:
+    def upsert_plex_link(self, link: PlexLink) -> None:
         """Insert an account's Plex link, or replace the fields of the existing one.
 
         A link written with no ciphertext keeps the token sealed before, and its date: a
@@ -383,7 +339,7 @@ class AccountRepository:
         )
 
     @serialised
-    def plex_links_with_token(self) -> list[PlexLinkRow]:
+    def plex_links_with_token(self) -> list[PlexLink]:
         """Every link keeping a token.
 
         Returns:
@@ -395,7 +351,7 @@ class AccountRepository:
         return [_link(row) for row in rows]
 
     @serialised
-    def set_token_ciphertext(self, account_id: str, blob: bytes | None, *, now: float | None) -> None:
+    def set_token_ciphertext(self, account_id: AccountId, blob: bytes | None, *, now: float | None) -> None:
         """Store, replace or clear an account's kept token.
 
         Args:

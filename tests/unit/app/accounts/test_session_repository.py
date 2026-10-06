@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.accounts.account_repository import AccountRow
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.session_repository import SessionRepository, SessionRow
 from personalscraper.app.store.store import AppStore
 
@@ -48,7 +48,7 @@ def repo(store: AppStore) -> SessionRepository:
 
 def _account(
     account_id: str = "account-alice", email: str = "alice@example.org", role_id: str = "household"
-) -> AccountRow:
+) -> Account:
     """Build an account row.
 
     Args:
@@ -59,7 +59,7 @@ def _account(
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name="Alice",
         email=email,

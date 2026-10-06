@@ -18,7 +18,7 @@ import pytest
 from cryptography.fernet import Fernet
 from typer.testing import CliRunner
 
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.cli import app as cli_app
@@ -92,7 +92,7 @@ def store(test_config: Config, keys: list[bytes]) -> Iterator[AppStore]:
     old = TokenVault([keys[1]])
     for plex_id, account_id in enumerate((_ALICE, _BOB), start=1):
         app_store.accounts.insert_account(
-            AccountRow(
+            Account(
                 id=account_id,
                 name=account_id,
                 email=f"{account_id.removeprefix('account-')}@example.org",
@@ -104,7 +104,7 @@ def store(test_config: Config, keys: list[bytes]) -> Iterator[AppStore]:
             )
         )
         app_store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id=account_id,
                 plex_id=plex_id,
                 plex_uuid=f"uuid-{plex_id}",

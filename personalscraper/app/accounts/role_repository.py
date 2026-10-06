@@ -1,8 +1,9 @@
 """The roles' rows in ``app.db`` — a role, its rights and the start kinds it begins.
 
-Rows ↔ dataclasses, and nothing more: no rule lives here (who may rename a role, when it may
-be deleted — those are the services'). The base keeps its own constraints (one admin role, one
-role per start kind) and this module lets them surface as ``sqlite3.IntegrityError``.
+Rows ↔ :class:`~personalscraper.app.accounts.model.Role`, and nothing more: no rule lives here
+(who may rename a role, when it may be deleted — those are the model's, asked by the services).
+The base keeps its own constraints (one admin role, one role per start kind) and this module
+lets them surface as ``sqlite3.IntegrityError``.
 
 The connection is in autocommit mode (``isolation_level=None``): a single statement commits on
 its own, a method writing several statements runs them under a SAVEPOINT, and a service that
@@ -16,38 +17,14 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final
 
 from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.ids import RoleId
+from personalscraper.app.accounts.model import Role, StartKind
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.store.transaction import atomic
 from personalscraper.core.sqlite import serialised
-
-#: Who starts on a role at a first sign-in or a link: a Plex Home member, a Plex guest. A local
-#: account has none — its role is chosen at its creation.
-StartKind = Literal["plexHome", "plexGuest"]
-
-
-@dataclass(frozen=True)
-class RoleRow:
-    """One role.
-
-    Attributes:
-        id: Its key: a seed's id, or ``role-<uuid4 hex>``.
-        name: The text an Admin gave it; ``None`` while a seeded role was never renamed
-            (the interface then shows the translation of its id).
-        kind: ``admin`` (the one Admin role) or ``ordinary``.
-        rights: The rights it carries; empty for Admin, which bypasses the list.
-        default_for: The start kinds whose new accounts begin on it.
-    """
-
-    id: str
-    name: str | None
-    kind: RoleKind
-    rights: frozenset[Right]
-    default_for: frozenset[StartKind] = frozenset()
-
 
 #: The savepoint a multi-statement write runs under; its name predates the split by aggregate,
 #: and is kept so a failure's SQL and log are unchanged.
@@ -68,7 +45,7 @@ class RoleRepository:
         self._conn = conn
         self._lock = lock if lock is not None else threading.RLock()
 
-    def _role_rows(self, where: str = "", params: tuple[object, ...] = ()) -> list[RoleRow]:
+    def _role_rows(self, where: str = "", params: tuple[object, ...] = ()) -> list[Role]:
         """Read roles with their rights and start kinds, in creation order.
 
         Args:
@@ -82,14 +59,14 @@ class RoleRepository:
             f"SELECT id, name, kind FROM role {where} ORDER BY created_at, rowid",  # noqa: S608 — fixed clauses
             params,
         ).fetchall()
-        rights: dict[str, set[Right]] = {}
+        rights: dict[RoleId, set[Right]] = {}
         for role_id, right_name in self._conn.execute("SELECT role_id, right_name FROM role_right"):
             rights.setdefault(role_id, set()).add(Right(right_name))
-        starts: dict[str, set[StartKind]] = {}
+        starts: dict[RoleId, set[StartKind]] = {}
         for start, role_id in self._conn.execute("SELECT start, role_id FROM role_start"):
             starts.setdefault(role_id, set()).add(start)
         return [
-            RoleRow(
+            Role(
                 id=role_id,
                 name=name,
                 kind=RoleKind(kind),
@@ -100,7 +77,7 @@ class RoleRepository:
         ]
 
     @serialised
-    def roles(self) -> list[RoleRow]:
+    def roles(self) -> list[Role]:
         """Every role, in creation order (the seeds first, in seed order).
 
         Returns:
@@ -109,7 +86,7 @@ class RoleRepository:
         return self._role_rows()
 
     @serialised
-    def role(self, role_id: str) -> RoleRow | None:
+    def role(self, role_id: RoleId) -> Role | None:
         """One role by key.
 
         Args:
@@ -122,7 +99,7 @@ class RoleRepository:
         return rows[0] if rows else None
 
     @serialised
-    def insert_role(self, role: RoleRow, *, now: float) -> None:
+    def insert_role(self, role: Role, *, now: float) -> None:
         """Insert a role, its rights and its start kinds, as one unit.
 
         Args:
@@ -147,7 +124,7 @@ class RoleRepository:
             )
 
     @serialised
-    def update_role(self, role_id: str, *, name: str | None, rights: frozenset[Right] | None, now: float) -> None:
+    def update_role(self, role_id: RoleId, *, name: str | None, rights: frozenset[Right] | None, now: float) -> None:
         """Rename a role and/or replace its rights; ``None`` leaves a field as it was.
 
         Args:
@@ -168,7 +145,7 @@ class RoleRepository:
             self._conn.execute("UPDATE role SET updated_at = ? WHERE id = ?", (now, role_id))
 
     @serialised
-    def delete_role(self, role_id: str) -> None:
+    def delete_role(self, role_id: RoleId) -> None:
         """Delete a role; its rights go with it (``ON DELETE CASCADE``).
 
         Args:
@@ -180,7 +157,7 @@ class RoleRepository:
         self._conn.execute("DELETE FROM role WHERE id = ?", (role_id,))
 
     @serialised
-    def role_for_start(self, start: StartKind) -> RoleRow | None:
+    def role_for_start(self, start: StartKind) -> Role | None:
         """The role a new account of one start kind begins on.
 
         Args:
@@ -193,7 +170,7 @@ class RoleRepository:
         return self.role(row[0]) if row else None
 
     @serialised
-    def set_role_start(self, start: StartKind, role_id: str) -> None:
+    def set_role_start(self, start: StartKind, role_id: RoleId) -> None:
         """Name the role a start kind begins on, replacing the previous one.
 
         Args:

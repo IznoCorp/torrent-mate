@@ -16,8 +16,8 @@ from collections.abc import Callable
 import pytest
 from fastapi.testclient import TestClient
 
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.events import AccountRightsChanged
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.services import AppServices
@@ -64,7 +64,7 @@ def _add_account(client: TestClient, account_id: str, role_id: str) -> None:
         role_id: Its role.
     """
     _services(client).app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id=account_id,
             name=account_id,
             email=f"{account_id}@example.org",
@@ -480,7 +480,7 @@ def _link(client: TestClient, account_id: str, server_access: str) -> None:
         server_access: ``owner`` or ``shared``.
     """
     _services(client).app_store.accounts.upsert_plex_link(
-        PlexLinkRow(
+        PlexLink(
             account_id=account_id,
             plex_id=900,
             plex_uuid="uuid-900",

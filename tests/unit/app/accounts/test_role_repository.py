@@ -13,8 +13,9 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.model import Role
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.role_repository import RoleRepository, RoleRow
+from personalscraper.app.accounts.role_repository import RoleRepository
 from personalscraper.app.store.store import AppStore
 
 _OWN = frozenset(
@@ -65,19 +66,17 @@ class TestRoles:
     def test_reads_the_five_seeds(self, repo: RoleRepository) -> None:
         """The seeds, in seed order, with their kinds, rights and starts; no seed has a name."""
         assert repo.roles() == [
-            RoleRow(id="admin", name=None, kind=RoleKind.ADMIN, rights=frozenset(), default_for=frozenset()),
-            RoleRow(
-                id="household", name=None, kind=RoleKind.ORDINARY, rights=_OWN, default_for=frozenset({"plexHome"})
-            ),
-            RoleRow(
+            Role(id="admin", name=None, kind=RoleKind.ADMIN, rights=frozenset(), default_for=frozenset()),
+            Role(id="household", name=None, kind=RoleKind.ORDINARY, rights=_OWN, default_for=frozenset({"plexHome"})),
+            Role(
                 id="plex-guest",
                 name=None,
                 kind=RoleKind.ORDINARY,
                 rights=frozenset({Right.LIBRARY_READ}),
                 default_for=frozenset({"plexGuest"}),
             ),
-            RoleRow(id="requester", name=None, kind=RoleKind.ORDINARY, rights=_OWN, default_for=frozenset()),
-            RoleRow(
+            Role(id="requester", name=None, kind=RoleKind.ORDINARY, rights=_OWN, default_for=frozenset()),
+            Role(
                 id="local-guest",
                 name=None,
                 kind=RoleKind.ORDINARY,
@@ -94,7 +93,7 @@ class TestRoles:
 
     def test_insert_role_round_trips(self, repo: RoleRepository) -> None:
         """A new role reads back as written, starts included."""
-        role = RoleRow(
+        role = Role(
             id="role-1",
             name="Friends",
             kind=RoleKind.ORDINARY,
@@ -105,7 +104,7 @@ class TestRoles:
 
     def test_insert_role_with_a_held_start_is_refused_whole(self, repo: RoleRepository) -> None:
         """A start kind already held: IntegrityError, and no half-written role."""
-        role = RoleRow(
+        role = Role(
             id="role-1", name="X", kind=RoleKind.ORDINARY, rights=frozenset(), default_for=frozenset({"plexGuest"})
         )
         with pytest.raises(sqlite3.IntegrityError):
@@ -115,7 +114,7 @@ class TestRoles:
     def test_a_second_admin_role_is_refused(self, repo: RoleRepository) -> None:
         """The base holds one admin role."""
         with pytest.raises(sqlite3.IntegrityError):
-            repo.insert_role(RoleRow(id="role-1", name="X", kind=RoleKind.ADMIN, rights=frozenset()), now=5.0)
+            repo.insert_role(Role(id="role-1", name="X", kind=RoleKind.ADMIN, rights=frozenset()), now=5.0)
 
     def test_update_role_stores_a_name_and_replaces_the_rights(self, repo: RoleRepository) -> None:
         """A rename stores its text; the rights list is replaced whole."""

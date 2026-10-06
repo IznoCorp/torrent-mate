@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.api.notify.fcm import PushOutcome, PushResult
-from personalscraper.app.accounts.account_repository import AccountRow
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.conf.models.config import Config
 from personalscraper.push.store import STALE_AFTER_SECONDS, SqlitePushSubscriptionStore
@@ -27,7 +27,7 @@ def _seed_accounts(app_store: AppStore, *account_ids: str) -> None:
     """
     for account_id in account_ids:
         app_store.accounts.insert_account(
-            AccountRow(
+            Account(
                 id=account_id,
                 name=account_id,
                 email=f"{account_id}@example.org",

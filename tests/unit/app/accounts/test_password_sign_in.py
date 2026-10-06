@@ -16,9 +16,9 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.app.accounts import credentials as credentials_module
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, WINDOW_SECONDS, SlidingWindowRateLimiter
 from personalscraper.app.accounts.sessions import SessionService
@@ -52,7 +52,7 @@ class _Clock:
         return self.now
 
 
-def _account(account_id: str, email: str, role_id: str, password: str | None) -> AccountRow:
+def _account(account_id: str, email: str, role_id: str, password: str | None) -> Account:
     """An account row.
 
     Args:
@@ -64,7 +64,7 @@ def _account(account_id: str, email: str, role_id: str, password: str | None) ->
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name=account_id,
         email=email,
@@ -76,7 +76,7 @@ def _account(account_id: str, email: str, role_id: str, password: str | None) ->
     )
 
 
-def _link(account_id: str, plex_id: int, server_access: str) -> PlexLinkRow:
+def _link(account_id: str, plex_id: int, server_access: str) -> PlexLink:
     """A Plex link.
 
     Args:
@@ -87,7 +87,7 @@ def _link(account_id: str, plex_id: int, server_access: str) -> PlexLinkRow:
     Returns:
         The link.
     """
-    return PlexLinkRow(
+    return PlexLink(
         account_id=account_id,
         plex_id=plex_id,
         plex_uuid=f"uuid-{plex_id}",
@@ -222,6 +222,21 @@ class TestSignIn:
         assert first.session_token != second.session_token
         assert accounts._sessions.resolve(first.session_token) is not None  # noqa: SLF001
         assert accounts._sessions.resolve(second.session_token) is not None  # noqa: SLF001
+
+    def test_the_view_reads_the_plex_link_after_the_session_resolves(
+        self, accounts: CredentialService, store: AppStore
+    ) -> None:
+        """A link committed while the new session resolves shows in the answered view, as on the base."""
+        sessions = accounts._sessions  # noqa: SLF001 — the resolve the link races
+        resolve = sessions.resolve
+
+        def linked_then_resolved(token: str) -> object:
+            store.accounts.upsert_plex_link(_link("account-local", 3, "shared"))
+            return resolve(token)
+
+        with patch.object(sessions, "resolve", side_effect=linked_then_resolved):
+            result = _sign_in(accounts, "local@example.org", _PASSWORD)
+        assert result.account.sign_in_kind == "plex"
 
 
 class TestRefused:

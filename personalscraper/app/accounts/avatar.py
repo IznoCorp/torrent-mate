@@ -20,7 +20,7 @@ import hashlib
 from typing import Final
 from urllib.parse import quote
 
-from personalscraper.app.accounts.account_repository import PlexLinkRow
+from personalscraper.app.accounts.model import PlexLink
 
 #: The Gravatar edge asked for, in pixels: the account panel's 42 px avatar on a 3x screen.
 GRAVATAR_SIZE: Final[int] = 128
@@ -29,7 +29,7 @@ _PLEX_AVATAR: Final[str] = "https://plex.tv/users/{uuid}/avatar"
 _GRAVATAR: Final[str] = "https://www.gravatar.com/avatar/{digest}?d=404&s={size}"
 
 
-def resolve_avatar(link: PlexLinkRow | None, email: str) -> str | None:
+def resolve_avatar(link: PlexLink | None, email: str) -> str | None:
     """The address of an account's picture.
 
     Args:

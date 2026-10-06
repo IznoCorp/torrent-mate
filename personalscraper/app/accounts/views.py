@@ -8,24 +8,32 @@ an account's avatar is ``None`` when it has none.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from typing import TYPE_CHECKING, Final, get_args
 
-from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.actor import Actor, RoleKind
+from personalscraper.app.accounts.avatar import resolve_avatar
+from personalscraper.app.accounts.model import Account, Role, SignInKind, StartKind
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.role_repository import StartKind
+from personalscraper.app.errors import AppUnauthenticated, RefusalCode
 from personalscraper.i18n import Language
 
-# ``Language`` is part of what the services answer (``AccountView.language``): the v1
-# models take it from here, since ``http_v1`` reaches the engine only through ``app/``.
-__all__ = ["AccountSummaryView", "AccountView", "Language", "RoleView", "RosterView", "SignInKind"]
+if TYPE_CHECKING:
+    from personalscraper.app.store.store import AppStore
 
+# ``Language`` is part of what the services answer (``AccountView.language``): the v1 models take
+# it from here, since ``http_v1`` reaches the engine only through ``app/``.
+__all__ = [
+    "AccountSummaryView",
+    "AccountView",
+    "Language",
+    "RoleView",
+    "RosterView",
+    "account_view",
+    "role_view",
+]
 
-class SignInKind(StrEnum):
-    """How an account signs in — a fact of the account, never of its role (the contract's ``SignInKind``)."""
-
-    OWNER = "owner"
-    PLEX = "plex"
-    LOCAL = "local"
+#: The contract's order of the start kinds (``Role.defaultFor``).
+_START_ORDER: Final[tuple[StartKind, ...]] = get_args(StartKind)
 
 
 @dataclass(frozen=True)
@@ -108,3 +116,50 @@ class RosterView:
 
     accounts: tuple[AccountSummaryView, ...]
     roles: tuple[RoleView, ...]
+
+
+def role_view(role: Role) -> RoleView:
+    """Map a role to its view.
+
+    Args:
+        role: The role.
+
+    Returns:
+        The view, rights sorted, start kinds in the contract's order.
+    """
+    return RoleView(
+        id=role.id,
+        name=role.name,
+        kind=role.kind,
+        rights=tuple(sorted(role.rights)),
+        default_for=tuple(start for start in _START_ORDER if start in role.default_for),
+    )
+
+
+def account_view(store: AppStore, account: Account, actor: Actor) -> AccountView:
+    """Map an account and its actor to the account's view.
+
+    Args:
+        store: The ``app`` store.
+        account: The account.
+        actor: The actor it signs in as (its role and ceiling).
+
+    Returns:
+        The view.
+
+    Raises:
+        AppUnauthenticated: ``auth.required`` — the account's role was deleted.
+    """
+    role = store.roles.role(actor.role_id)
+    if role is None:
+        raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
+    return AccountView(
+        id=account.id,
+        name=account.name,
+        email=account.email,
+        avatar=resolve_avatar(account.plex_link, account.email),
+        role=role_view(role),
+        sign_in_kind=account.sign_in_kind,
+        forbidden_writes=tuple(sorted(actor.ceiling.forbidden)),
+        language=account.language,
+    )

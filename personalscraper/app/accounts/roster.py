@@ -10,21 +10,19 @@ import uuid
 from collections.abc import Callable
 from dataclasses import replace
 
-from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.ids import AccountId, RoleId
+from personalscraper.app.accounts.model import Account, Grantor, Role, is_email
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal
-from personalscraper.app.accounts.role_repository import RoleRow
-from personalscraper.app.accounts.rules import (
+from personalscraper.app.accounts.views import (
+    AccountSummaryView,
+    AccountView,
+    RosterView,
     account_view,
-    is_email,
-    refuse_escalation,
-    refuse_password_held_elsewhere,
     role_view,
-    sign_in_kind,
 )
-from personalscraper.app.accounts.views import AccountSummaryView, AccountView, RosterView, SignInKind
 from personalscraper.app.errors import (
     AppBadRequest,
     AppConflict,
@@ -56,18 +54,17 @@ def _provisional_refusal(password: str | None) -> AppBadRequest | None:
     return policy_refusal(password)
 
 
-def _refuse_admin_given_by_another(store: AppStore, actor: Actor) -> None:
-    """Refuse the Admin role given by anyone but the managed Plex server's owner (the operator, 2026-10-04).
+def _grantor(store: AppStore, actor: Actor) -> Grantor:
+    """The caller as the one who gives a role, read in the transaction.
 
     Args:
         store: The ``app`` store.
         actor: The caller.
 
-    Raises:
-        AppForbidden: ``account.admin_owner_only``.
+    Returns:
+        The grantor, owner of the managed Plex server or not.
     """
-    if sign_in_kind(store.accounts.plex_link(actor.account_id)) is not SignInKind.OWNER:
-        raise AppForbidden("Only the server's owner gives the Admin role.", code=RefusalCode.ACCOUNT_ADMIN_OWNER_ONLY)
+    return Grantor.of(actor, store.accounts.plex_link(actor.account_id))
 
 
 class RosterService:
@@ -172,10 +169,10 @@ class RosterService:
         password_hash = hash_password(password) if password_refusal is None else None
         store = self._store
         with store.immediate():
-            account = store.accounts.account(account_id)
+            account = store.accounts.account(AccountId(account_id))
             if account is None:
                 raise AppNotFound("No account answers this identity.", code=RefusalCode.ACCOUNT_UNKNOWN)
-            refuse_password_held_elsewhere(sign_in_kind(store.accounts.plex_link(account.id)))
+            account.check_password_held_here()
             if password_refusal is not None:
                 raise password_refusal
             store.accounts.set_password_hash(account.id, password_hash, now=self._clock())
@@ -212,13 +209,10 @@ class RosterService:
         store = self._store
         revoked = 0
         with store.immediate():
-            account = store.accounts.account(account_id)
+            account = store.accounts.account(AccountId(account_id))
             if account is None:
                 raise AppNotFound("No account answers this identity.", code=RefusalCode.ACCOUNT_UNKNOWN)
-            if sign_in_kind(store.accounts.plex_link(account.id)) is SignInKind.OWNER:
-                raise AppForbidden("The server owner's access is never cut.", code=RefusalCode.ACCOUNT_OWNER_ACCESS)
-            if account.id == actor.account_id:
-                raise AppForbidden("An Admin never cuts its own access.", code=RefusalCode.ACCOUNT_OWN_ACCESS)
+            account.check_access_cut(by=actor.account_id)
             role = store.roles.role(account.role_id)
             assert role is not None  # an account's role is a foreign key: it always exists
             moved = account.sign_in_allowed is not allowed
@@ -227,18 +221,18 @@ class RosterService:
                 store.accounts.set_sign_in_allowed(account.id, allowed=allowed, now=now)
                 if not allowed:
                     revoked = store.sessions.revoke_sessions_of(account.id, except_id=None, now=now)
-            summary = self._summary(store, replace(account, sign_in_allowed=allowed), role)
+            summary = self._summary(replace(account, sign_in_allowed=allowed), role)
         if moved and allowed:
             log.info("account_access_given_back", account_id=account.id, by=actor.account_id)
         elif moved:
             log.info("account_access_cut", account_id=account.id, sessions_revoked=revoked, by=actor.account_id)
         return summary
 
-    def _summary(self, store: AppStore, account: AccountRow, role: RoleRow) -> AccountSummaryView:
+    @staticmethod
+    def _summary(account: Account, role: Role) -> AccountSummaryView:
         """Map an account and its role to the roster's view.
 
         Args:
-            store: The ``app`` store.
             account: The account.
             role: Its role.
 
@@ -250,7 +244,7 @@ class RosterService:
             name=account.name,
             email=account.email,
             role=role_view(role),
-            sign_in_kind=sign_in_kind(store.accounts.plex_link(account.id)),
+            sign_in_kind=account.sign_in_kind,
             sign_in_allowed=account.sign_in_allowed,
             demoted_from=account.demoted_from,
         )
@@ -274,7 +268,7 @@ class RosterService:
         sees_admins = actor.role_kind is RoleKind.ADMIN
         return RosterView(
             accounts=tuple(
-                self._summary(store, account, by_id[account.role_id])
+                self._summary(account, by_id[account.role_id])
                 for account in store.accounts.accounts()
                 if sees_admins or by_id[account.role_id].kind is not RoleKind.ADMIN
             ),
@@ -322,19 +316,20 @@ class RosterService:
         password_hash = hash_password(password) if password_refusal is None and password is not None else None
         store = self._store
         now = self._clock()
-        account_id = f"account-{uuid.uuid4().hex}"
+        account_id = AccountId(f"account-{uuid.uuid4().hex}")
         with store.immediate():
-            role = store.roles.role(role_id)
+            role = store.roles.role(RoleId(role_id))
             if role is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
-            refuse_escalation(actor, role)
-            if role.kind is RoleKind.ADMIN:
-                _refuse_admin_given_by_another(store, actor)
+            grantor = _grantor(store, actor)
+            grantor.check_may_give(role)
+            if role.is_admin:
+                grantor.check_may_give_admin()
             if store.accounts.account_by_email(email) is not None:
                 raise AppConflict("An account already carries this e-mail.", code=RefusalCode.ACCOUNT_EMAIL_TAKEN)
             if password_refusal is not None:
                 raise password_refusal
-            account = AccountRow(
+            account = Account(
                 id=account_id,
                 name=name,
                 email=email,
@@ -345,7 +340,7 @@ class RosterService:
                 updated_at=now,
             )
             store.accounts.insert_account(account)
-            summary = self._summary(store, account, role)
+            summary = self._summary(account, role)
         log.info("account_created", account_id=account_id, role_id=role.id, by=actor.account_id)
         return summary
 
@@ -379,41 +374,29 @@ class RosterService:
         """
         store = self._store
         with store.immediate():
-            account = store.accounts.account(account_id)
+            account = store.accounts.account(AccountId(account_id))
             if account is None:
                 raise AppNotFound("No account answers this identity.", code=RefusalCode.ACCOUNT_UNKNOWN)
-            target = store.roles.role(role_id)
+            target = store.roles.role(RoleId(role_id))
             if target is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
             current = store.roles.role(account.role_id)
             if current is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
-            if actor.role_kind is not RoleKind.ADMIN:
-                if account.id == actor.account_id:
-                    raise AppForbidden("A manager never touches its own role.", code=RefusalCode.ROLE_OWN_ROLE)
-                if RoleKind.ADMIN in (current.kind, target.kind):
-                    raise AppForbidden(
-                        "A manager who is not Admin never touches Admin.", code=RefusalCode.ACCOUNT_ADMIN_UNTOUCHABLE
-                    )
-                refuse_escalation(actor, target)
-            if target.kind is RoleKind.ADMIN and current.kind is not RoleKind.ADMIN:
-                _refuse_admin_given_by_another(store, actor)
-            if (
-                target.kind is not RoleKind.ADMIN
-                and sign_in_kind(store.accounts.plex_link(account.id)) is SignInKind.OWNER
-            ):
-                raise AppForbidden(
-                    "The server owner's account never leaves the Admin role.", code=RefusalCode.ACCOUNT_OWNER_ADMIN
-                )
-            leaves_admin = current.kind is RoleKind.ADMIN and target.kind is not RoleKind.ADMIN
-            if leaves_admin and store.accounts.count_on_role_kind(RoleKind.ADMIN) <= 1:
-                raise AppConflict("No account would be left on the Admin role.", code=RefusalCode.ACCOUNT_LAST_ADMIN)
+            grantor = _grantor(store, actor)
+            grantor.check_may_touch(account, current, target)
+            grantor.check_may_give(target)
+            if target.is_admin and not current.is_admin:
+                grantor.check_may_give_admin()
+            account.check_leaves_admin(
+                current=current, target=target, admins=store.accounts.count_on_role_kind(RoleKind.ADMIN)
+            )
             moved = account.role_id != target.id
             # A role given is an Admin's decision: it clears the demotion a Plex link
             # recorded, even when it confirms the role the link dropped the account to.
             if moved or account.demoted_from is not None:
                 store.accounts.set_role(account.id, target.id, now=self._clock())
-            summary = self._summary(store, replace(account, demoted_from=None), target)
+            summary = self._summary(replace(account, demoted_from=None), target)
         if moved:
             log.info("account_role_assigned", account_id=account.id, role_id=target.id, by=actor.account_id)
             self._bus.emit(AccountRightsChanged(account_ids=(account.id,), cause=RightsChangeCause.ROLE_ASSIGNED))

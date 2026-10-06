@@ -10,17 +10,17 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Final
 
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
+from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.accounts.model import Account, PlexLink, SignInKind, is_email
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal, verify_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
-from personalscraper.app.accounts.rules import account_view, is_email, refuse_password_held_elsewhere, sign_in_kind
 from personalscraper.app.accounts.sessions import SessionService
-from personalscraper.app.accounts.views import AccountView, SignInKind
+from personalscraper.app.accounts.views import AccountView, account_view
 from personalscraper.app.errors import (
     AppBadRequest,
     AppConflict,
@@ -157,16 +157,14 @@ class CredentialService:
         account = store.accounts.account_by_email(email)
         stored = account.password_hash if account is not None else None
         matches = verify_password(password, stored if stored is not None else _DUMMY_HASH) and stored is not None
-        signs_in_with_plex = (
-            account is not None and sign_in_kind(store.accounts.plex_link(account.id)) is SignInKind.PLEX
-        )
+        signs_in_with_plex = account is not None and account.sign_in_kind is SignInKind.PLEX
         if account is None or not matches or signs_in_with_plex:
             self._limiter.record_failure(client_key)
             log.info("v1_sign_in_refused", client_key=client_key)
             raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
         return self.open_proven_session(account.id, user_agent=user_agent)
 
-    def open_proven_session(self, account_id: str, *, user_agent: str | None) -> SignInResult:
+    def open_proven_session(self, account_id: AccountId, *, user_agent: str | None) -> SignInResult:
         """Open a session for an account whose identity is proven, unless an Admin cut its access.
 
         Every sign-in door ends here once the credentials are proven, so the cut account's
@@ -201,9 +199,12 @@ class CredentialService:
         if actor is None:
             raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
         log.info("v1_signed_in", account_id=account.id)
+        # The view reads the Plex link once the session resolved, as the role is: not the one the
+        # access check read inside the transaction.
+        account = replace(account, plex_link=store.accounts.plex_link(account.id))
         return SignInResult(account=account_view(store, account, actor), session_token=token)
 
-    def owner_account_id(self) -> str | None:
+    def owner_account_id(self) -> AccountId | None:
         """The key of the account linked as the managed Plex server's owner.
 
         Returns:
@@ -240,7 +241,7 @@ class CredentialService:
         store.accounts.set_password_hash(account.id, hash_password(password), now=self._clock())
         log.info("account_password_set", account_id=account.id)
 
-    def create_owner(self, *, email: str, name: str, password: str, plex: OwnerPlexIdentity) -> str:
+    def create_owner(self, *, email: str, name: str, password: str, plex: OwnerPlexIdentity) -> AccountId:
         """Seed the managed server's owner: an Admin account linked to its plex.tv identity as ``owner``.
 
         The server's door of last resort, the CLI's only, on an environment with no owner
@@ -279,7 +280,7 @@ class CredentialService:
         password_hash = hash_password(password)
         store = self._store
         now = self._clock()
-        account_id = f"account-{uuid.uuid4().hex}"
+        account_id = AccountId(f"account-{uuid.uuid4().hex}")
         with store.immediate():
             owner_taken = (
                 store.accounts.count_on_role_kind(RoleKind.ADMIN) > 0
@@ -294,7 +295,7 @@ class CredentialService:
             if role is None or role.kind is not RoleKind.ADMIN:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
             store.accounts.insert_account(
-                AccountRow(
+                Account(
                     id=account_id,
                     name=name,
                     email=email,
@@ -306,7 +307,7 @@ class CredentialService:
                 )
             )
             store.accounts.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id=account_id,
                     plex_id=plex.plex_id,
                     plex_uuid=plex.plex_uuid,
@@ -356,7 +357,7 @@ class CredentialService:
         account = store.accounts.account(actor.account_id)
         if account is None:
             raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
-        refuse_password_held_elsewhere(sign_in_kind(store.accounts.plex_link(account.id)))
+        account.check_password_held_here()
         if not self._password_limiter.allow(account.id):
             log.warning("password_change_rate_limited", account_id=account.id)
             raise AppTooManyRequests(
@@ -379,7 +380,7 @@ class CredentialService:
             current = store.accounts.account(account.id)
             if current is None:
                 raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
-            refuse_password_held_elsewhere(sign_in_kind(store.accounts.plex_link(current.id)))
+            current.check_password_held_here()
             if current.password_hash != stored:
                 raise AppBadRequest(
                     "The password changed since it was checked.", code=RefusalCode.PASSWORD_CURRENT_WRONG

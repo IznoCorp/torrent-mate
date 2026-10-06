@@ -31,6 +31,7 @@ from typing import Final
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling, current_ceiling
+from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.store.store import AppStore
 
@@ -141,7 +142,7 @@ class SessionService:
         # one recorded.
         self._lock = threading.Lock()
 
-    def open(self, account_id: str, *, user_agent: str | None) -> str:
+    def open(self, account_id: AccountId, *, user_agent: str | None) -> str:
         """Open a session for an account.
 
         Args:

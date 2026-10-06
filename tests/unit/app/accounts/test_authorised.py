@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
@@ -78,7 +78,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     """
     app_store = AppStore(tmp_path / "app.db")
     app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id="account-household",
             name="Household",
             email="household@example.org",
