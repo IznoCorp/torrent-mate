@@ -1,0 +1,25 @@
+{
+  "dispatch": "dispatch.jsonl",
+  "lots": [
+    {
+      "id": "alpha",
+      "name": "Alpha, the sample lot",
+      "plan": "PLAN.md",
+      "blockedBy": "Waits for the sample decision",
+      "phases": [
+        { "id": "P1", "codename": "alpha-one", "dispatch": [1] },
+        { "id": "P2", "codename": "alpha-two", "dispatch": [2] },
+        { "id": "P3", "codename": "alpha-three", "dispatch": [3] },
+        { "id": "OP-1", "codename": "alpha-op", "dispatch": [], "blockedBy": "Owed by hand" }
+      ]
+    },
+    {
+      "id": "beta",
+      "name": "Beta, a lot whose plan is absent",
+      "plan": "MISSING.md",
+      "phases": [
+        { "id": "B1", "title": "The title the definition gives", "codename": "beta-one", "dispatch": [4] }
+      ]
+    }
+  ]
+}

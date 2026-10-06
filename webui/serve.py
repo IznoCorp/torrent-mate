@@ -280,6 +280,13 @@ ASSETS_DIR = DESIGN_ROOT / "assets"
 # kept out of `dist/assets` because a symlink owns that name).
 VITE_DIR = DESIGN_ROOT / "dist" / "vite"
 
+# THE LOTS PROGRESS the `/dev/lots` page draws: `scripts/dev_lots.py` writes it
+# OUTSIDE the repository, at the path this variable names, on this host's
+# schedule and after each redeploy. Unset — every host but the design host —
+# the address answers 404 and the page says there is nothing to show.
+DEV_LOTS_ADDRESS = "/dev/lots.json"
+DEV_LOTS_OUT = os.environ.get("TM_DEV_LOTS_OUT") or None
+
 # Brand assets and the manifest are served WITHOUT a session: they carry no
 # private data, and a `<link rel="manifest">` is fetched without credentials
 # unless asked otherwise — a 401 there costs the install prompt entirely.
@@ -767,6 +774,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 [("Cache-Control", "private, max-age=31536000, immutable")],
                 content_type=content_type,
             )
+            return
+        if path_ == DEV_LOTS_ADDRESS:
+            # Session-gated like the bundle: what the work stands at is the
+            # owner's to read, and a 401 here carries no page — the address is
+            # read by the page's script, never navigated to.
+            if not self._authenticated():
+                self._send(401, b"")
+                return
+            file_ = Path(DEV_LOTS_OUT).expanduser() if DEV_LOTS_OUT else None
+            if file_ is None or not file_.is_file():
+                self._send(404, b"")
+                return
+            self._send(200, file_.read_bytes(), content_type="application/json")
             return
         if path_ == "/login":
             # The form posts to v1, never here (do_POST below answers a stale
