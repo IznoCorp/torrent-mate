@@ -25,6 +25,7 @@ from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_passwo
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, WINDOW_SECONDS, SlidingWindowRateLimiter
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.roster import RosterService
+from personalscraper.app.accounts.session_repository import SessionRepository
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import (
     AppBadRequest,
@@ -472,6 +473,21 @@ class TestResetAccountPassword:
         assert stored is not None and verify_password(_NEW, stored)
         assert sessions.resolve(first) is None and sessions.resolve(second) is None
         assert sessions.resolve(bystander) is not None and sessions.resolve(admin_token) is not None
+
+    def test_the_new_hash_and_the_revocation_are_one_transaction(
+        self, roster: RosterService, sessions: SessionService, store: AppStore
+    ) -> None:
+        """When the revocation fails, the hash is rolled back: both commit or neither does."""
+        admin, _ = _signed_in(sessions, "admin")
+        _, running = _signed_in(sessions, "local")
+        before = _stored_hash(store, "local")
+        with (
+            patch.object(SessionRepository, "revoke_sessions_of", side_effect=RuntimeError("disk")),
+            pytest.raises(RuntimeError),
+        ):
+            roster.reset_account_password(admin, "local", password=_NEW)
+        assert _stored_hash(store, "local") == before
+        assert sessions.resolve(running) is not None
 
     def test_a_refused_reset_ends_no_session(self, roster: RosterService, sessions: SessionService) -> None:
         """A provisional password that is refused leaves the target's sessions running."""
