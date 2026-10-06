@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 import qbittorrentapi
 
-from personalscraper.api.torrent._base import category_refusal
+from personalscraper.api.torrent._base import category_refusal, is_under_download_root
 from personalscraper.api.torrent._contracts import CategoryReader
 from personalscraper.api.torrent._errors import TorrentUnreachableError
 from personalscraper.api.torrent.qbittorrent import QBitClient
@@ -88,6 +88,29 @@ def test_dot_dot_cannot_climb_out_of_the_root() -> None:
     client = _CategoryClient({"tm-dev": "/srv/torrents/tm-dev/../complete"})
 
     assert category_refusal(client, _SCOPE) == "category_save_path"
+
+
+def test_existence_only_check_ignores_the_category_save_path() -> None:
+    """With ``check_save_path=False`` only the category's existence is checked."""
+    client = _CategoryClient({"tm-dev": "/elsewhere/complete"})
+
+    assert category_refusal(client, _SCOPE, check_save_path=False) is None
+    assert category_refusal(_CategoryClient({}), _SCOPE, check_save_path=False) == "category_missing"
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("/srv/torrents/tm-dev", True),
+        ("/srv/torrents/tm-dev/Movie/", True),
+        ("/srv/torrents/tm-dev/../prod", False),
+        ("/data/torrents/Movie", False),
+        ("", False),
+    ],
+)
+def test_is_under_download_root(path: str, expected: bool) -> None:
+    """The scope's root test, with the normalisation of the category check."""
+    assert is_under_download_root(path, _SCOPE) is expected
 
 
 def test_without_a_scope_the_client_is_not_asked() -> None:

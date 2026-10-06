@@ -726,7 +726,7 @@ def _build_service(
 
 
 def _scoped_check_scenario(
-    tmp_path: Path, store: ConcreteAcquireStore, torrent_config: Any
+    tmp_path: Path, store: ConcreteAcquireStore, torrent_config: Any, source_save_path: str | None = None
 ) -> tuple[CrossSeedService, FakeTorrentClient, str]:
     """Build a service whose source torrent matches one tr4ker candidate, under a given torrent config.
 
@@ -734,12 +734,18 @@ def _scoped_check_scenario(
         tmp_path: Pytest temporary directory.
         store: Real acquire store.
         torrent_config: The ``config.torrent`` section the service reads its scope from.
+        source_save_path: The source torrent's save directory (default: under the scope's download root,
+            where the injection will write).
 
     Returns:
         The service, the fake client, and the info hash the candidate injects as.
     """
     source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
-    item = dataclasses.replace(_source_item(), category=SCOPE.category)
+    item = dataclasses.replace(
+        _source_item(),
+        category=SCOPE.category,
+        save_path=source_save_path or str(SCOPE.download_root / "Movie.2024.1080p.BluRay.x264-GROUP"),
+    )
     candidate_torrent = make_torrent_bytes(name=item.name, files=source_files, piece_length=262144)
     fake_client = FakeTorrentClient(completed=[item])
     fake_client.seed_files(_SOURCE_HASH, source_files)
@@ -884,10 +890,15 @@ class TestScopedInjectionNeedsItsCategory:
     """Under a scope the category must exist, filed under the scope's root, before an injection."""
 
     def _scenario(
-        self, tmp_path: Path, store: ConcreteAcquireStore, categories: dict[str, str], torrent_config: Any
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        categories: dict[str, str],
+        torrent_config: Any,
+        source_save_path: str | None = None,
     ) -> tuple[CrossSeedService, _CategoryAwareClient]:
         """Build the scoped scenario over a client defining *categories*."""
-        svc, plain, _ = _scoped_check_scenario(tmp_path, store, torrent_config)
+        svc, plain, _ = _scoped_check_scenario(tmp_path, store, torrent_config, source_save_path)
         client = _category_aware(plain, categories)
         svc._lister = client
         svc._injector = client
@@ -907,15 +918,51 @@ class TestScopedInjectionNeedsItsCategory:
         assert client.resumed == []
         assert client.deleted == []
 
-    def test_category_filed_outside_the_download_root_is_refused(
+    def test_category_save_path_is_not_what_decides_the_destination(
         self, tmp_path: Path, store: ConcreteAcquireStore
     ) -> None:
-        """The category exists but its save path is not under the scope's download root."""
+        """The injection sends an explicit save path, so the category's own save path says nothing."""
         svc, client = self._scenario(tmp_path, store, {SCOPE.category: "/elsewhere/complete"}, SCOPED_TORRENT_CONFIG)
 
         result = svc.check(_SOURCE_HASH)
 
-        assert [reason for _, _, reason in result.rejected] == ["category_save_path"]
+        assert len(result.injected) == 1
+
+    def test_source_save_path_outside_the_download_root_is_refused(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """The injection would write where the source lives: outside the scope's root, nothing is sent."""
+        svc, client = self._scenario(
+            tmp_path,
+            store,
+            {SCOPE.category: str(SCOPE.download_root / "complete")},
+            SCOPED_TORRENT_CONFIG,
+            source_save_path="/data/torrents/Movie.2024.1080p.BluRay.x264-GROUP",
+        )
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["save_path_outside_root"]
+        assert client.injected == []
+        assert client.resumed == []
+        assert client.deleted == []
+
+    def test_source_save_path_climbing_out_of_the_root_is_refused(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """The same normalisation as the grab check: ``..`` cannot climb out of the root."""
+        svc, client = self._scenario(
+            tmp_path,
+            store,
+            {SCOPE.category: str(SCOPE.download_root / "complete")},
+            SCOPED_TORRENT_CONFIG,
+            source_save_path=str(SCOPE.download_root / ".." / "prod"),
+        )
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert [reason for _, _, reason in result.rejected] == ["save_path_outside_root"]
         assert client.injected == []
 
     def test_category_under_the_download_root_is_injected(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:

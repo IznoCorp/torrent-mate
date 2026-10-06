@@ -270,7 +270,25 @@ def scoped_hashes(client: TorrentLister, scope: TorrentScope | None) -> set[str]
     return {item.hash for item in scoped(client.get_by_hashes(hashes), scope)}
 
 
-def category_refusal(client: object, scope: TorrentScope | None) -> str | None:
+def is_under_download_root(path: str, scope: TorrentScope) -> bool:
+    """Say whether *path* lies under the scope's ``download_root``.
+
+    Both sides are normalised (``..`` and a trailing slash cannot fool it). An empty
+    path is never under the root.
+
+    Args:
+        path: A save path, as a client reports it.
+        scope: The instance's scope.
+
+    Returns:
+        ``True`` when *path* is the root or below it.
+    """
+    return bool(path.strip()) and Path(os.path.normpath(path)).is_relative_to(
+        Path(os.path.normpath(scope.download_root))
+    )
+
+
+def category_refusal(client: object, scope: TorrentScope | None, *, check_save_path: bool = True) -> str | None:
     """Say why a scoped add must not be sent: its category is not what the scope assumes.
 
     The scope's category is never sent with a save path — the client's own category
@@ -286,6 +304,9 @@ def category_refusal(client: object, scope: TorrentScope | None) -> str | None:
     Args:
         client: The torrent client about to receive the add.
         scope: The instance's scope; ``None`` = the whole client (today).
+        check_save_path: ``False`` for an add that sends its own explicit save path
+            (the cross-seed injection): the category's save path then says nothing
+            about where the data lands, and only the category's existence is checked.
 
     Returns:
         ``None`` when the add may proceed, else the refusal reason:
@@ -304,9 +325,7 @@ def category_refusal(client: object, scope: TorrentScope | None) -> str | None:
         log.warning("torrent.scope.category_missing", category=scope.category)
         return "category_missing"
     save_path = categories[scope.category]
-    if not save_path.strip() or not Path(os.path.normpath(save_path)).is_relative_to(
-        Path(os.path.normpath(scope.download_root))
-    ):
+    if check_save_path and not is_under_download_root(save_path, scope):
         log.warning(
             "torrent.scope.category_save_path_outside_root",
             category=scope.category,

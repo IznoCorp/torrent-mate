@@ -24,6 +24,7 @@ from personalscraper.api.torrent._base import (
     TorrentItem,
     _bencode_info_hash,
     category_refusal,
+    is_under_download_root,
     parse_torrent_layout,
     scoped,
 )
@@ -835,6 +836,11 @@ class CrossSeedService:
         category. So the rule of a scoped grab applies (``_scope_refusal``): a hash the client holds
         outside the scope's category is never injected, rechecked nor deleted.
 
+        A scoped injection also needs the scope's category to exist (``category_refusal``; a client
+        without categories keeps today's path). The category's own save path is not checked: the
+        injection sends an explicit *save_path*, which is what decides where the data lands, so
+        that one must lie under the scope's ``download_root``.
+
         Args:
             torrent_bytes: Raw ``.torrent`` bytes of the candidate.
             save_path: The source torrent's save directory.
@@ -842,21 +848,25 @@ class CrossSeedService:
         Returns:
             The info-hash of the injected torrent.
 
-        A scoped injection also needs the scope's category to exist and file under the scope's
-        ``download_root`` (``category_refusal``; a client without categories keeps today's path).
-
         Raises:
-            _ScopeRefusal: Under a scope, the category is missing (``category_missing``) or filed
-                elsewhere (``category_save_path``), the candidate's hash cannot be derived
-                (``hash_underivable``) or is held outside the scope's category (``shared_hash``);
-                nothing was sent to the client.
+            _ScopeRefusal: Under a scope, the category is missing (``category_missing``), *save_path*
+                is outside the scope's ``download_root`` (``save_path_outside_root``), the candidate's
+                hash cannot be derived (``hash_underivable``) or is held outside the scope's category
+                (``shared_hash``); nothing was sent to the client.
         """
         scope = self._config.torrent.active_scope()
         if scope is None:
             return self._injector.inject(torrent_bytes, save_path=save_path, recheck=True, paused=True)
-        category_reason = category_refusal(self._injector, scope)
+        category_reason = category_refusal(self._injector, scope, check_save_path=False)
         if category_reason is not None:
             raise _ScopeRefusal(category_reason)
+        if not is_under_download_root(save_path, scope):
+            logger.warning(
+                "acquire.cross_seed.save_path_outside_root",
+                save_path=save_path,
+                download_root=str(scope.download_root),
+            )
+            raise _ScopeRefusal("save_path_outside_root")
         try:
             candidate_hash = _bencode_info_hash(torrent_bytes).lower()
         except ValueError:
