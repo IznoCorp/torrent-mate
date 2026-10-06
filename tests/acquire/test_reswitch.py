@@ -20,6 +20,7 @@ from personalscraper.acquire.events import GrabReswitched
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.conf.models.acquire import AcquireConfig
+from personalscraper.conf.models.api_config import TorrentScope
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 
@@ -99,7 +100,7 @@ def test_dead_swarm_reswitches_records_deletes_and_emits(store: ConcreteAcquireS
     client = _FakeClient([_torrent("deadbeef", swarm_seeds=0)])
     bus, seen = _bus_capturing()
 
-    summary = reswitch_stalled(store, client, _NOW, event_bus=bus)
+    summary = reswitch_stalled(store, client, _NOW, event_bus=bus, scope=None)
 
     assert summary == ReswitchSummary(checked=1, reswitched=1)
     row = store.wanted.get(rowid)
@@ -115,7 +116,7 @@ def test_healthy_download_is_left_untouched(store: ConcreteAcquireStore) -> None
     client = _FakeClient([_torrent("cafef00d", state="downloading", progress=0.3)])
     bus, seen = _bus_capturing()
 
-    summary = reswitch_stalled(store, client, _NOW, event_bus=bus)
+    summary = reswitch_stalled(store, client, _NOW, event_bus=bus, scope=None)
 
     assert summary == ReswitchSummary(checked=1, reswitched=0)
     row = store.wanted.get(rowid)
@@ -130,7 +131,7 @@ def test_vanished_torrent_is_left_to_reconciliation(store: ConcreteAcquireStore)
     client = _FakeClient([])  # client knows nothing about the hash
     bus, seen = _bus_capturing()
 
-    summary = reswitch_stalled(store, client, _NOW, event_bus=bus)
+    summary = reswitch_stalled(store, client, _NOW, event_bus=bus, scope=None)
 
     assert summary == ReswitchSummary(checked=0, reswitched=0)
     assert seen == []
@@ -148,7 +149,7 @@ def test_client_unavailable_is_a_fail_soft_no_op(store: ConcreteAcquireStore) ->
             raise AssertionError("must not be reached")
 
     bus, seen = _bus_capturing()
-    summary = reswitch_stalled(store, _Boom(), _NOW, event_bus=bus)
+    summary = reswitch_stalled(store, _Boom(), _NOW, event_bus=bus, scope=None)
 
     assert summary == ReswitchSummary(checked=0, reswitched=0)
     assert store.wanted.get(rowid).status == "grabbed"  # type: ignore[union-attr]
@@ -161,7 +162,7 @@ def test_delete_failure_still_requeues_and_emits(store: ConcreteAcquireStore) ->
     client = _FakeClient([_torrent("deadbeef", swarm_seeds=0)], delete_raises=True)
     bus, seen = _bus_capturing()
 
-    summary = reswitch_stalled(store, client, _NOW, event_bus=bus)
+    summary = reswitch_stalled(store, client, _NOW, event_bus=bus, scope=None)
 
     assert summary == ReswitchSummary(checked=1, reswitched=1)
     row = store.wanted.get(rowid)
@@ -176,6 +177,56 @@ def test_broken_torrent_reason_is_broken(store: ConcreteAcquireStore) -> None:
     client = _FakeClient([_torrent("deadbeef", state="error", error_reason="boom", swarm_seeds=5)])
     bus, seen = _bus_capturing()
 
-    reswitch_stalled(store, client, _NOW, event_bus=bus)
+    reswitch_stalled(store, client, _NOW, event_bus=bus, scope=None)
 
     assert len(seen) == 1 and seen[0].reason == "broken"
+
+
+# --- scoped client: a stored hash whose torrent sits in another category is never acted on ---
+
+_SCOPE = TorrentScope(category="tm-dev", download_root=Path("/srv/tm-dev"))
+
+
+def _filed(item: TorrentItem, category: str | None) -> TorrentItem:
+    """Return *item* filed under *category* in the shared client."""
+    item.category = category
+    return item
+
+
+def test_scoped_reswitch_never_deletes_a_torrent_of_another_category(store: ConcreteAcquireStore) -> None:
+    """A stored hash held in another instance's category is not deleted, requeued nor reported."""
+    rowid = _grab_row(store, "deadbeef")
+    client = _FakeClient([_filed(_torrent("deadbeef", swarm_seeds=0), "prod")])
+    bus, seen = _bus_capturing()
+
+    summary = reswitch_stalled(store, client, _NOW, event_bus=bus, scope=_SCOPE)
+
+    assert client.deleted == []
+    assert summary == ReswitchSummary(checked=0, reswitched=0)
+    row = store.wanted.get(rowid)
+    assert row is not None and row.status == "grabbed" and row.grabbed_hash == "deadbeef"
+    assert seen == []
+
+
+def test_scoped_reswitch_still_switches_an_in_scope_torrent(store: ConcreteAcquireStore) -> None:
+    """A stored hash in the scope's own category is switched as without a scope."""
+    _grab_row(store, "deadbeef")
+    client = _FakeClient([_filed(_torrent("deadbeef", swarm_seeds=0), "tm-dev")])
+    bus, seen = _bus_capturing()
+
+    summary = reswitch_stalled(store, client, _NOW, event_bus=bus, scope=_SCOPE)
+
+    assert summary == ReswitchSummary(checked=1, reswitched=1)
+    assert client.deleted == ["deadbeef"]
+
+
+def test_unscoped_reswitch_ignores_the_category(store: ConcreteAcquireStore) -> None:
+    """Without a scope the category of the torrent plays no part."""
+    _grab_row(store, "deadbeef")
+    client = _FakeClient([_filed(_torrent("deadbeef", swarm_seeds=0), "prod")])
+    bus, _ = _bus_capturing()
+
+    summary = reswitch_stalled(store, client, _NOW, event_bus=bus, scope=None)
+
+    assert summary == ReswitchSummary(checked=1, reswitched=1)
+    assert client.deleted == ["deadbeef"]

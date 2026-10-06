@@ -22,6 +22,7 @@ from personalscraper.acquire.events import SeedObligationReleased, SeedObligatio
 from personalscraper.acquire.obligations import DEFAULT_SEED_RULE, SeedRule, is_met, sweep_obligations
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
+from personalscraper.conf.models.api_config import TorrentScope
 from personalscraper.core.delete_permit import ALLOW
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.sqlite import apply_migrations
@@ -110,6 +111,7 @@ def _sweep(
         rule=rule,
         event_bus=bus or EventBus(),
         confirm_absent_after_s=_CONFIRM_S,
+        scope=None,
     )
 
 
@@ -276,6 +278,7 @@ def test_a_write_that_changed_nothing_emits_and_counts_nothing(store: ConcreteAc
         rule=_RULE,
         event_bus=bus,
         confirm_absent_after_s=_CONFIRM_S,  # type: ignore[arg-type]
+        scope=None,
     )
     last = sweep_obligations(
         fake_store,
@@ -284,6 +287,7 @@ def test_a_write_that_changed_nothing_emits_and_counts_nothing(store: ConcreteAc
         rule=_RULE,
         event_bus=bus,
         confirm_absent_after_s=_CONFIRM_S,  # type: ignore[arg-type]
+        scope=None,
     )
     assert (first.satisfied, last.released) == (0, 0)
     assert seen == []
@@ -410,3 +414,59 @@ def test_migration_025_adds_absent_since_and_keeps_rows(tmp_path: Path) -> None:
         assert conn.execute("SELECT info_hash, absent_since FROM seed_obligation").fetchall() == [("aaaa", None)]
     finally:
         conn.close()
+
+
+# -- scoped client: an obligation whose torrent sits in another category is not ours to judge ------
+
+_SCOPE = TorrentScope(category="tm-dev", download_root=Path("/srv/tm-dev"))
+
+
+def _filed_item(info_hash: str, category: str, *, seeding_time_s: int | None) -> SimpleNamespace:
+    """Build a TorrentItem-shaped object filed under *category*."""
+    item = _item(info_hash, seeding_time_s=seeding_time_s)
+    item.category = category
+    return item
+
+
+def _scoped_sweep(store: ConcreteAcquireStore, client: FakeClient, now: int = _NOW):
+    """Run one sweep under :data:`_SCOPE`."""
+    return sweep_obligations(
+        store,  # type: ignore[arg-type]
+        client,  # type: ignore[arg-type]
+        now=now,
+        rule=_RULE,
+        event_bus=EventBus(),
+        confirm_absent_after_s=_CONFIRM_S,
+        scope=_SCOPE,
+    )
+
+
+def test_scoped_sweep_leaves_an_obligation_held_in_another_category_alone(store: ConcreteAcquireStore) -> None:
+    """A foreign torrent past the floor is not satisfied, marked absent nor, later, released."""
+    oid = _add(store)
+    client = FakeClient([_filed_item("aaaa", "prod", seeding_time_s=_FLOOR_S)])
+
+    _scoped_sweep(store, client, now=_NOW)
+    _scoped_sweep(store, client, now=_NOW + _CONFIRM_S + 1)
+
+    row = _row(store, oid)
+    assert (row["satisfied_at"], row["absent_since"], row["released_at"]) == (None, None, None)
+
+
+def test_scoped_sweep_still_settles_an_obligation_in_its_own_category(store: ConcreteAcquireStore) -> None:
+    """A torrent of the scope's category past the floor is satisfied as without a scope."""
+    oid = _add(store)
+
+    report = _scoped_sweep(store, FakeClient([_filed_item("aaaa", "tm-dev", seeding_time_s=_FLOOR_S)]))
+
+    assert _row(store, oid)["satisfied_at"] == _NOW
+    assert report.satisfied == 1
+
+
+def test_unscoped_sweep_ignores_the_category(store: ConcreteAcquireStore) -> None:
+    """Without a scope a torrent of any category settles its obligation."""
+    oid = _add(store)
+
+    _sweep(store, FakeClient([_filed_item("aaaa", "prod", seeding_time_s=_FLOOR_S)]))
+
+    assert _row(store, oid)["satisfied_at"] == _NOW

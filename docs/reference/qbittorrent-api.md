@@ -216,6 +216,8 @@ Useful for incremental polling (feed `rid` from the last response to get only ch
 ## Categories (`/api/v2/torrents/categories`)
 
 `GET /api/v2/torrents/categories` → `200` — JSON object: `"name": {name, savePath}`.
+A scoped instance reads it (`QBitClient.get_categories`) before every add and inject, and refuses unless its category
+exists with a `savePath` under the scope's `download_root`; nothing is ever created by the instance.
 `POST /api/v2/torrents/createCategory` → `category` (string), `savePath` (optional).
 
 ## Tags (`/api/v2/torrents/tags`)

@@ -27,12 +27,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from personalscraper.acquire.events import SeedObligationReleased, SeedObligationSatisfied
+from personalscraper.api.torrent._base import lookup_scoped
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.domain import SeedObligation
     from personalscraper.api.torrent._base import TorrentItem
+    from personalscraper.conf.models.api_config import TorrentScope
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.obligations")
@@ -121,6 +123,7 @@ def sweep_obligations(
     now: int,
     rule: SeedRule,
     event_bus: EventBus,
+    scope: TorrentScope | None,
     confirm_absent_after_s: int = 1800,
 ) -> ObligationSweepReport:
     """Run one sweep pass over the unreleased obligations.
@@ -134,6 +137,11 @@ def sweep_obligations(
             events are emitted on, one per write that changed a row.
         confirm_absent_after_s: How long a torrent must stay absent before its
             obligation is released.
+        scope: REQUIRED — what this instance owns in a shared client, or ``None`` (the whole
+            client, as before); never defaulted, so a caller
+            cannot silently act unscoped. Under a scope an obligation whose torrent sits in
+            another category is left alone — neither settled, marked absent nor
+            released — because that torrent is not ours to judge.
 
     Returns:
         The :class:`ObligationSweepReport` of the pass.
@@ -143,7 +151,7 @@ def sweep_obligations(
         return ObligationSweepReport(0, 0, 0, 0, client_error=False)
 
     try:
-        items = client.get_by_hashes({o.info_hash.lower() for o in open_rows})
+        items, foreign = lookup_scoped(client, {o.info_hash.lower() for o in open_rows}, scope)
     except Exception:  # fail-soft: a client failure ends the pass with no write, the next tick retries
         log.warning("acquire.obligations.client_error", open=len(open_rows), exc_info=True)
         return ObligationSweepReport(len(open_rows), 0, 0, 0, client_error=True)
@@ -152,6 +160,8 @@ def sweep_obligations(
     satisfied = marked_absent = released = 0
     for obligation in open_rows:
         if obligation.id is None:  # a row read back from the store always has one
+            continue
+        if obligation.info_hash.lower() in foreign:
             continue
         item = by_hash.get(obligation.info_hash.lower())
         if item is not None:

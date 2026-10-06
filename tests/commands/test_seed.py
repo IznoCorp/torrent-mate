@@ -209,7 +209,7 @@ def test_seed_import_guard_still_refuses_other_indexer_and_pipeline_modules():
 # ---------------------------------------------------------------------------
 
 
-def _invoke_sweep(tmp_path, test_config, torrents, *, torrent_client="fake", client_error=None):
+def _invoke_sweep(tmp_path, test_config, torrents, *, torrent_client="fake", client_error=None, scoped=False):
     """Run ``seed sweep`` over a real tmp acquire.db and a fake torrent client.
 
     Args:
@@ -219,6 +219,7 @@ def _invoke_sweep(tmp_path, test_config, torrents, *, torrent_client="fake", cli
         torrents: The :class:`TorrentItem` list the fake client holds.
         torrent_client: ``"fake"`` to inject the fake client, ``None`` for « not configured ».
         client_error: When set, the fake client's ``get_by_hashes`` raises it.
+        scoped: ``True`` to run under the shared-client scope of ``tests.fixtures.torrent_scope``.
 
     Returns:
         ``(result, store, events, db_path)`` — the CLI result, the store, the events emitted on the
@@ -235,6 +236,10 @@ def _invoke_sweep(tmp_path, test_config, torrents, *, torrent_client="fake", cli
 
     db_path = make_synthetic_db(tmp_path)
     config = make_test_config_with_db(test_config, db_path)
+    if scoped:
+        from tests.fixtures.torrent_scope import SCOPED_TORRENT_CONFIG
+
+        config = config.model_copy(update={"torrent": SCOPED_TORRENT_CONFIG})
     store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
     bus = EventBus()
     events: list = []
@@ -284,6 +289,21 @@ def test_seed_sweep_writes_satisfied_at_and_prints_one_json_line(tmp_path, test_
         assert report == {"open": 1, "satisfied": 1, "marked_absent": 0, "released": 0, "client_error": False}
         assert store.seed.list_open() == []
         assert [type(e) for e in events] == [SeedObligationSatisfied]
+    finally:
+        store.close()
+
+
+def test_seed_sweep_under_a_scope_leaves_another_instances_torrent_alone(tmp_path, test_config):
+    """Under a scope an obligation whose torrent sits in another category is not settled by the sweep."""
+    _seed_one_obligation(tmp_path)
+    item = _make_torrent_item("Movie", "aaaa", [])
+    object.__setattr__(item, "seeding_time_s", 259_200)
+    object.__setattr__(item, "category", "prod")
+    result, store, events, _ = _invoke_sweep(tmp_path, test_config, [item], scoped=True)
+    try:
+        assert result.exit_code == 0, result.output
+        assert [o.info_hash for o in store.seed.list_open()] == ["aaaa"]
+        assert events == []
     finally:
         store.close()
 

@@ -278,6 +278,10 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         # O4/D5: re-assert global transfer caps at every run start — idempotent,
         # self-healing (a client restart that lost the limits gets them back here).
         self._orchestrator.apply_global_caps()
+        # A scoped instance whose category cannot receive adds skips the whole pass
+        # (one logged cause) rather than searching trackers for every item to refuse each.
+        if not self._orchestrator.scope_allows_grab():
+            return RunSummary(grabbed=0, retried=0, abandoned=0, skipped=0)
         now = int(time.time())
         queue = self._build_queue(
             self._store.wanted.list_available(),

@@ -11,6 +11,7 @@ Mocking note (Python 3.12): the runtime-protocol ``isinstance`` check uses
 
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -19,10 +20,13 @@ from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.orchestrator import GrabOrchestrator
+from personalscraper.acquire.service import AcquisitionService
+from personalscraper.acquire.store import build_acquire_store
+from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentLimits, TorrentSource
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
-from personalscraper.conf.models.acquire import BandwidthConfig
+from personalscraper.conf.models.acquire import AcquireConfig, BandwidthConfig
 from personalscraper.conf.models.api_config import TorrentScope
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
@@ -297,3 +301,135 @@ def test_scope_none_global_caps_still_applied() -> None:
     orch.apply_global_caps()
 
     assert client.global_calls == [{"down": 5_000_000, "up": 1_000_000}]
+
+
+# ── The scope's category must exist, filed under the scope's download root, before an add ──
+
+
+class _CategoryClient(_SharedClient):
+    """A shared client that also defines categories, counting the reads.
+
+    Attributes:
+        categories: Category name → save path.
+        category_reads: How many times the categories were read.
+    """
+
+    def __init__(self, categories: dict[str, str]) -> None:
+        """Hold the categories the client defines.
+
+        Args:
+            categories: Category name → save path.
+        """
+        super().__init__()
+        self.categories = categories
+        self.category_reads = 0
+
+    def get_categories(self) -> dict[str, str]:
+        """Count the read and return the categories."""
+        self.category_reads += 1
+        return dict(self.categories)
+
+
+def test_scope_set_missing_category_skips_the_pass_with_its_cause() -> None:
+    """The client defines no ``tm-preprod``: the pass is refused once, one event names the cause."""
+    client = _CategoryClient({"prod": "/downloads/complete"})
+
+    with patch("personalscraper.acquire.orchestrator.log") as mock_log:
+        allowed = _orchestrator(client, scope=SCOPE).scope_allows_grab()
+
+    assert allowed is False
+    assert client.add_calls == []
+    events = [c for c in mock_log.warning.call_args_list if c.args[0] == "acquire.grab_pass.scope_refused"]
+    assert len(events) == 1
+    assert events[0].kwargs["reason"] == "category_missing"
+
+
+def test_scope_set_category_filed_outside_the_download_root_skips_the_pass() -> None:
+    """The category exists but its save path is not under the scope's root: the pass is refused."""
+    client = _CategoryClient({"tm-preprod": "/downloads/complete"})
+
+    with patch("personalscraper.acquire.orchestrator.log") as mock_log:
+        allowed = _orchestrator(client, scope=SCOPE).scope_allows_grab()
+
+    assert allowed is False
+    events = [c for c in mock_log.warning.call_args_list if c.args[0] == "acquire.grab_pass.scope_refused"]
+    assert [c.kwargs["reason"] for c in events] == ["category_save_path"]
+
+
+def test_scope_set_a_category_read_error_skips_the_pass_and_is_logged() -> None:
+    """The client cannot list its categories: the pass is refused and the error text is logged."""
+
+    class _Failing(_CategoryClient):
+        """A client whose category read fails."""
+
+        def get_categories(self) -> dict[str, str]:
+            """Fail like a client that cannot be reached."""
+            raise ApiError("qbit unreachable", http_status=None)
+
+    with patch("personalscraper.acquire.orchestrator.log") as mock_log:
+        allowed = _orchestrator(_Failing({}), scope=SCOPE).scope_allows_grab()
+
+    assert allowed is False
+    events = [c for c in mock_log.warning.call_args_list if c.args[0] == "acquire.grab_pass.scope_refused"]
+    assert len(events) == 1
+    assert events[0].kwargs["reason"] == "category_check_failed"
+    assert "qbit unreachable" in events[0].kwargs["error"]
+
+
+def test_scope_set_a_valid_category_allows_the_pass() -> None:
+    """The category exists under the scope's root: the pass may run."""
+    client = _CategoryClient({"tm-preprod": "/downloads/preprod/complete"})
+
+    assert _orchestrator(client, scope=SCOPE).scope_allows_grab() is True
+
+
+def test_scope_none_allows_the_pass_without_reading_categories() -> None:
+    """No scope: the pass is allowed and the client is not asked for its categories."""
+    client = _CategoryClient({})
+
+    assert _orchestrator(client, scope=None).scope_allows_grab() is True
+    assert client.category_reads == 0
+
+
+def test_a_refused_category_costs_no_tracker_search(tmp_path: Path) -> None:
+    """Service level: a refused category skips the whole pass — zero tracker searches, rows untouched."""
+    store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    try:
+        for tvdb_id in (11111, 22222):
+            store.wanted.add(
+                WantedItem(
+                    media_ref=MediaRef(tvdb_id=tvdb_id), kind="movie", status="available", enqueued_at=int(time.time())
+                )
+            )
+        orch = _orchestrator(_CategoryClient({}), scope=SCOPE)
+        config = MagicMock()
+        config.acquire = AcquireConfig()
+        service = AcquisitionService(store=store, orchestrator=orch, event_bus=MagicMock(), config=config)
+
+        with patch("personalscraper.acquire.orchestrator.log") as mock_log:
+            summary = service.run()
+
+        orch._tracker_registry.search_candidates.assert_not_called()
+        assert summary.grabbed == summary.retried == 0
+        assert [row.status for row in store.wanted.list_available()] == ["available", "available"]
+        events = [c for c in mock_log.warning.call_args_list if c.args[0] == "acquire.grab_pass.scope_refused"]
+        assert len(events) == 1
+    finally:
+        store.close()
+
+
+def test_scope_set_category_under_the_download_root_is_added() -> None:
+    """The category exists and files under the scope's root: the add goes through."""
+    client = _CategoryClient({"tm-preprod": "/downloads/preprod/complete"})
+
+    outcome = _grab(_orchestrator(client, scope=SCOPE))
+
+    assert outcome.disposition == "success"
+    assert len(client.add_calls) == 1
+
+
+def test_scope_set_a_client_without_categories_keeps_todays_path() -> None:
+    """A client that does not define categories (no capability) is added to as before."""
+    client = _SharedClient()
+
+    assert _grab(_orchestrator(client, scope=SCOPE)).disposition == "success"

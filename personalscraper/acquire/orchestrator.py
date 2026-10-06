@@ -75,7 +75,7 @@ from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.torrent._base import TorrentLimits
+from personalscraper.api.torrent._base import TorrentLimits, category_refusal
 from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter, TorrentLister
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._ranking import rank
@@ -562,6 +562,40 @@ class GrabOrchestrator:
             )
         except ApiError as exc:
             log.warning("acquire.global_limits.failed", error=str(exc))
+
+    def scope_allows_grab(self) -> bool:
+        """Say whether a grab pass may run: the scope's category is fit to receive adds.
+
+        Checked ONCE per grab run, before any tracker search: under a scope the
+        category must exist and file its torrents under the scope's
+        ``download_root`` (an add under an unknown category lands in the client's
+        default save path, in the other instance's area). A refusal skips the whole
+        pass with one log event naming the cause — checking per item would cost a
+        tracker search and a ``GrabFailed`` per item per tick. Fail closed: a client
+        that cannot be read refuses too. Nothing is created.
+
+        Always ``True`` without a scope, without a client, or with a client that
+        defines no categories (see :func:`category_refusal`).
+
+        Returns:
+            ``True`` when the pass may proceed, ``False`` when it must be skipped.
+        """
+        if self._scope is None or self._torrent_client is None:
+            return True
+        try:
+            reason = category_refusal(self._torrent_client, self._scope)
+            error = None
+        except ApiError as exc:
+            reason, error = "category_check_failed", str(exc)
+        if reason is None:
+            return True
+        log.warning(
+            "acquire.grab_pass.scope_refused",
+            reason=reason,
+            category=self._scope.category,
+            error=error,
+        )
+        return False
 
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain

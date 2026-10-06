@@ -211,6 +211,7 @@ def seed_sweep(ctx: typer.Context) -> None:
             now=int(time.time()),
             rule=DEFAULT_SEED_RULE,
             event_bus=app_context.event_bus,
+            scope=config.torrent.active_scope(),
         )
         typer.echo(json.dumps(dataclasses.asdict(report)))
         if report.client_error:

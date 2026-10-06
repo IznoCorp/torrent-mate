@@ -7,19 +7,23 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from personalscraper.api.torrent._layout import TorrentLayout
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.api.torrent._contracts import TorrentLister
     from personalscraper.conf.models.api_config import TorrentScope
+
+log = get_logger("api.torrent.scope")
 
 # Maximum bencode nesting depth. A legitimate ``.torrent`` is shallow
 # (top-level dict → info dict → a few lists); anything deeper is adversarial
@@ -196,6 +200,45 @@ def scoped(items: Iterable[TorrentItem], scope: TorrentScope | None) -> list[Tor
     return [item for item in items if item.category == scope.category]
 
 
+class HashLookup(Protocol):
+    """The slice of a torrent client a by-hash reader needs."""
+
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        """Return the torrents matching *hashes* (any state)."""
+        ...
+
+
+def lookup_scoped(
+    client: HashLookup, hashes: set[str], scope: TorrentScope | None
+) -> tuple[list[TorrentItem], set[str]]:
+    """Look up torrents by hash, keeping to the ones an instance owns.
+
+    For the by-hash readers and writers fed from a store: a stored hash may name a
+    torrent that now sits in another instance's category, which this instance must
+    never pause, delete nor settle. Each such hash is logged and handed back apart,
+    so a caller can tell « held by another instance » from « absent from the client ».
+
+    Args:
+        client: A client answering ``get_by_hashes``.
+        hashes: The info hashes taken from a store.
+        scope: The instance's scope; ``None`` = the whole client (today).
+
+    Returns:
+        ``(own, foreign)``: the torrents to act on, and the lowercase hashes found
+        in the client outside the scope's category. With *scope* ``None`` it is
+        ``(client.get_by_hashes(hashes), set())`` and nothing is logged.
+    """
+    items = client.get_by_hashes(hashes)
+    if scope is None:
+        return list(items), set()
+    own = scoped(items, scope)
+    own_ids = {id(item) for item in own}
+    foreign = {item.hash.lower() for item in items if id(item) not in own_ids}
+    for info_hash in sorted(foreign):
+        log.warning("torrent.scope.foreign_hash_skipped", info_hash=info_hash, category=scope.category)
+    return own, foreign
+
+
 def scoped_hashes(client: TorrentLister, scope: TorrentScope | None) -> set[str]:
     """Return the info hashes an instance owns in a shared client.
 
@@ -225,6 +268,72 @@ def scoped_hashes(client: TorrentLister, scope: TorrentScope | None) -> set[str]
     if not hashes:
         return hashes
     return {item.hash for item in scoped(client.get_by_hashes(hashes), scope)}
+
+
+def is_under_download_root(path: str, scope: TorrentScope) -> bool:
+    """Say whether *path* lies under the scope's ``download_root``.
+
+    Both sides are normalised (``..`` and a trailing slash cannot fool it). An empty
+    path is never under the root.
+
+    Args:
+        path: A save path, as a client reports it.
+        scope: The instance's scope.
+
+    Returns:
+        ``True`` when *path* is the root or below it.
+    """
+    return bool(path.strip()) and Path(os.path.normpath(path)).is_relative_to(
+        Path(os.path.normpath(scope.download_root))
+    )
+
+
+def category_refusal(client: object, scope: TorrentScope | None, *, check_save_path: bool = True) -> str | None:
+    """Say why a scoped add must not be sent: its category is not what the scope assumes.
+
+    The scope's category is never sent with a save path — the client's own category
+    entry decides where the torrent lands. An add under a category the client does
+    not define would land in the client's default save path, in the other
+    instance's area. So before a scoped add the category must exist and file its
+    torrents under the scope's ``download_root``. Fail closed: anything that cannot
+    prove it refuses. Nothing is created.
+
+    A client without categories (Transmission) is not asked and keeps its earlier
+    path. Without a scope the client is not asked either.
+
+    Args:
+        client: The torrent client about to receive the add.
+        scope: The instance's scope; ``None`` = the whole client (today).
+        check_save_path: ``False`` for an add that sends its own explicit save path
+            (the cross-seed injection): the category's save path then says nothing
+            about where the data lands, and only the category's existence is checked.
+
+    Returns:
+        ``None`` when the add may proceed, else the refusal reason:
+        ``category_missing`` (the client defines no such category) or
+        ``category_save_path`` (its save path is not under ``download_root``).
+
+    Raises:
+        ApiError: The client could not be read; the add must not be sent either.
+    """
+    from personalscraper.api.torrent._contracts import CategoryReader  # noqa: PLC0415 — _contracts imports this module
+
+    if scope is None or not isinstance(client, CategoryReader):
+        return None
+    categories = client.get_categories()
+    if scope.category not in categories:
+        log.warning("torrent.scope.category_missing", category=scope.category)
+        return "category_missing"
+    save_path = categories[scope.category]
+    if check_save_path and not is_under_download_root(save_path, scope):
+        log.warning(
+            "torrent.scope.category_save_path_outside_root",
+            category=scope.category,
+            save_path=save_path,
+            download_root=str(scope.download_root),
+        )
+        return "category_save_path"
+    return None
 
 
 def _parse_magnet_hash(uri: str) -> str:
