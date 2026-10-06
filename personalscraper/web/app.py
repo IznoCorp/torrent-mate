@@ -28,6 +28,7 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
 from personalscraper.http_v1.deprecations import DeprecationHeaders
+from personalscraper.http_v1.security_headers import SecurityHeaders
 from personalscraper.indexer import migrations as _indexer_migrations
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.logger import get_logger
@@ -219,6 +220,10 @@ def create_app(
     # rather than the reverse proxy: the compression must survive a proxy
     # reconfiguration, and it is the app that knows what it serves.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # The application sets its own security headers on every response — API, v1 mount and SPA
+    # alike — so they survive a proxy reconfiguration, as the compression above does.
+    app.add_middleware(SecurityHeaders)
 
     # v0 answers the application layer's refusals as ``{"detail": ...}``.
     install_refusal_handler(app)

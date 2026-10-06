@@ -26,6 +26,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
+from personalscraper.http_v1.security_headers import SecurityHeaders
 
 #: The reverse proxy runs on the same machine: only loopback is trusted by default.
 DEFAULT_TRUSTED_PROXIES: Final = "127.0.0.1"
@@ -67,4 +68,6 @@ def build_standalone_v1_app(
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.mount(V1_PREFIX, v1_app)
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_proxies)
+    # Outside the mount: a path v1 does not own (the parent's 404) carries them too.
+    app.add_middleware(SecurityHeaders)
     return app

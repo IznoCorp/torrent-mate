@@ -22,6 +22,7 @@ from personalscraper.http_v1.contract import V1_PREFIX as V1_PREFIX  # re-export
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
 from personalscraper.http_v1.routes import accounts, authentication, library, media, system
+from personalscraper.http_v1.security_headers import SecurityHeaders
 from personalscraper.http_v1.session_cookie import SessionActorResolver, SessionRenewalCookie
 
 #: The OpenAPI document's ``info.version``, fixed as v0's is: the package version would
@@ -115,6 +116,7 @@ def create_v1_app(
     app.add_middleware(ProblemOnCrash)
     # Outermost: a renewed session's cookie rides even on the 500 ``ProblemOnCrash`` answers.
     app.add_middleware(SessionRenewalCookie, web=config.web)
+    app.add_middleware(SecurityHeaders)
     include_v1_router(app, authentication.router)
     include_v1_router(app, accounts.router)
     include_v1_router(app, system.router)
