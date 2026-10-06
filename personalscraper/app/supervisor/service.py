@@ -122,7 +122,7 @@ class RunService:
             The view.
         """
         store = self._store
-        with store.immediate():
+        with store.snapshot():
             running = store.runs.running()
             queued = store.runs.queued()
             lease = store.lease.read()

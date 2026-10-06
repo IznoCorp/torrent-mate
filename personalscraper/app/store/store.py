@@ -138,6 +138,28 @@ class AppStore:
                 safe_rollback(conn)
                 raise
 
+    @contextmanager
+    def snapshot(self) -> Iterator[None]:
+        """Run the reads inside as one consistent view, without the writer lock.
+
+        A deferred transaction: WAL fixes its snapshot at the first read, so every read inside sees
+        the base as of that instant, while a writer (the supervisor's every-2-seconds writes) is
+        neither waited for nor held up.
+
+        Yields:
+            Nothing; the transaction is ended on exit and nothing is written.
+
+        Raises:
+            BaseException: Whatever the block raised, after the transaction is ended.
+        """
+        conn = self._ensure_open()
+        with self._conn_lock:
+            conn.execute("BEGIN")
+            try:
+                yield
+            finally:
+                safe_rollback(conn)
+
     @property
     def push(self) -> SqlitePushSubscriptionStore:
         """The push subscriptions (opens, and migrates, the store on first access).

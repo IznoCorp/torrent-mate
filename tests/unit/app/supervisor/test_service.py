@@ -7,6 +7,7 @@ the waiting requests in order.
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -347,6 +348,21 @@ class TestReads:
         assert service.queue_view().lease_live is True
         clock.now += 61.0
         assert service.queue_view().lease_live is False
+
+    def test_the_queue_view_is_read_while_another_connection_holds_the_writer_lock(
+        self, service: RunService, store: AppStore, tmp_path: Path
+    ) -> None:
+        """A pure read never waits for the writer lock (the supervisor's writes): it reads the committed state."""
+        asked = service.ask_run(_admin(), trigger=RunTrigger.WEB, options=RunOptions())
+        writer = sqlite3.connect(tmp_path / "app.db", isolation_level=None)
+        try:
+            writer.execute("BEGIN IMMEDIATE")
+
+            view = service.queue_view()
+        finally:
+            writer.close()
+
+        assert [request.uid for request in view.queued] == [asked.uid]
 
     def test_request_reads_one_by_uid(self, service: RunService) -> None:
         """A known uid answers its request, an unknown one ``None``."""
