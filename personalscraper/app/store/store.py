@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 from personalscraper.app.accounts.account_repository import AccountRepository
+from personalscraper.app.accounts.notice_repository import NoticeRepository, PreferenceRepository
 from personalscraper.app.accounts.pin_repository import PlexPinRepository
 from personalscraper.app.accounts.role_repository import RoleRepository
 from personalscraper.app.accounts.session_repository import SessionRepository
@@ -71,6 +72,8 @@ class AppStore:
         self._settings: SettingRepository | None = None
         self._runs: QueueRepository | None = None
         self._lease: LeaseRepository | None = None
+        self._notices: NoticeRepository | None = None
+        self._preferences: PreferenceRepository | None = None
         self._closed = False
         # ``db_lock`` serialises open + migrate across processes only; this one serialises
         # the threads of one process, so concurrent first accesses open a single connection.
@@ -256,6 +259,30 @@ class AppStore:
             self._lease = LeaseRepository(conn, lock=self._conn_lock)
         return self._lease
 
+    @property
+    def notices(self) -> NoticeRepository:
+        """The accounts' in-app notices (opens, and migrates, the store on first access).
+
+        Returns:
+            The notice repository over this store's connection.
+        """
+        conn = self._ensure_open()
+        if self._notices is None:
+            self._notices = NoticeRepository(conn, lock=self._conn_lock)
+        return self._notices
+
+    @property
+    def preferences(self) -> PreferenceRepository:
+        """The accounts' push switches (opens, and migrates, the store on first access).
+
+        Returns:
+            The preference repository over this store's connection.
+        """
+        conn = self._ensure_open()
+        if self._preferences is None:
+            self._preferences = PreferenceRepository(conn, lock=self._conn_lock)
+        return self._preferences
+
     def close(self) -> None:
         """Close the connection if it was opened; idempotent and fail-soft."""
         # Under the open lock: a first access still opening finishes first, and its
@@ -270,6 +297,8 @@ class AppStore:
             self._settings = None
             self._runs = None
             self._lease = None
+            self._notices = None
+            self._preferences = None
             if self._conn is None:
                 return
             try:
