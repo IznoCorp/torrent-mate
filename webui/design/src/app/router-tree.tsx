@@ -28,6 +28,8 @@ import { roleCreateRoute } from "../routes/role-create";
 import { accountCreateRoute } from "../routes/account-create";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
+import { devLotsRoute } from "../routes/dev-lots";
+import { DEV_PAGES_BUILT_IN } from "../lib/dev-pages";
 
 declare global {
   interface Window {
@@ -90,6 +92,8 @@ export const router = createRouter({
     mediaRoute,
     releasesRoute,
     resolutionRoute,
+    // The development pages, in the builds that carry them (see the route).
+    ...(DEV_PAGES_BUILT_IN ? [devLotsRoute] : []),
   ]),
   history,
   // The document is also read under other paths than `/` — the rule harness

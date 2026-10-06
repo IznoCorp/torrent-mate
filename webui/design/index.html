@@ -70,6 +70,7 @@
          too: the mount node, then the stylesheet the fragment still carries,
          then this. -->
 <div class="stage">
+  <!-- harness:start -->
   <!-- THE WAY OUT OF THE PHONE FRAME, AND BACK. Harness chrome, so it sits
        OUTSIDE `#device`: the shell is a measured region and must carry nothing
        that does not exist in the app. It is drawn only where the frame is
@@ -88,7 +89,11 @@
        TWO WORDS, ONE CONTROL. The label carries both, and the stylesheet shows
        the one that names what the next press will do — so the accessible name
        is the visible text at all times rather than a second string nobody
-       reads. -->
+       reads.
+
+       BETWEEN THE `harness:` MARKERS, this note, the control and its script
+       are cut out of the app build (`vite.config.mjs`, `--mode app`): the
+       frame ships nowhere, and neither does its way out. -->
   <div class="desktop-switch" data-part="harness/desktop-switch">
     <input class="desktop-switch__control" id="desktop-switch" type="checkbox" />
     <label
@@ -101,6 +106,7 @@
     </label>
   </div>
   <script src="/boot/desktop-switch.js"></script>
+  <!-- harness:end -->
   <div class="device" id="device" data-part="shell/device">
     <!-- login:splash:start -->
     <!-- The startup screen, and it is FIRST on purpose.

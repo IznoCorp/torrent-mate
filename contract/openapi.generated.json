@@ -1074,6 +1074,121 @@
         "title": "MediaStatus",
         "type": "string"
       },
+      "NoticeModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Notice``: one in-app notice of the signed-in account.\n\nAttributes:\n    id: Its key.\n    code: What it tells, as a code the interface words (``NoticeCode``).\n    params: The code's parameters \u2014 facts, never words.\n    created_at: When it was raised (epoch seconds).",
+        "properties": {
+          "code": {
+            "enum": [
+              "account.sign_in.device",
+              "account.sign_in.unknown_device"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "createdAt": {
+            "title": "Createdat",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "params",
+          "createdAt"
+        ],
+        "title": "NoticeModel",
+        "type": "object"
+      },
+      "NoticesModel": {
+        "additionalProperties": false,
+        "description": "``readNotices``'s answer: the account's notices, the newest first.\n\nAttributes:\n    notices: The notices.",
+        "properties": {
+          "notices": {
+            "items": {
+              "$ref": "#/components/schemas/NoticeModel"
+            },
+            "title": "Notices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "notices"
+        ],
+        "title": "NoticesModel",
+        "type": "object"
+      },
+      "OwnSessionModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``OwnSession``: one live session of the signed-in account.\n\nAttributes:\n    id: Its key, the one ``revokeOwnSession`` takes.\n    device: The browser and system its user agent names; ``None`` when it names neither.\n    created_at: When it was opened (epoch seconds).\n    last_seen_at: Its last renewal (epoch seconds).\n    current: Whether it is the session the request was made with.",
+        "properties": {
+          "createdAt": {
+            "title": "Createdat",
+            "type": "number"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "lastSeenAt": {
+            "title": "Lastseenat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "device",
+          "createdAt",
+          "lastSeenAt",
+          "current"
+        ],
+        "title": "OwnSessionModel",
+        "type": "object"
+      },
+      "OwnSessionsModel": {
+        "additionalProperties": false,
+        "description": "``readOwnSessions``'s answer: the account's live sessions, the newest first.\n\nAttributes:\n    sessions: The sessions.",
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/OwnSessionModel"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions"
+        ],
+        "title": "OwnSessionsModel",
+        "type": "object"
+      },
       "PasswordSet": {
         "additionalProperties": false,
         "description": "The acknowledgement of a password write (``changeOwnPassword``, ``resetAccountPassword``).\n\nAttributes:\n    ok: Always true: the password is set.",
@@ -1175,6 +1290,8 @@
         "enum": [
           "request.invalid",
           "request.cross_origin",
+          "request.key_reused",
+          "request.in_progress",
           "route.unknown",
           "internal",
           "auth.required",
@@ -1204,6 +1321,8 @@
           "role.in_use",
           "role.default",
           "right.unknown",
+          "session.unknown",
+          "session.current",
           "password.required",
           "password.too_short",
           "password.too_weak",
@@ -1496,6 +1615,21 @@
         "title": "SeasonSummaryModel",
         "type": "object"
       },
+      "SessionRevoked": {
+        "additionalProperties": false,
+        "description": "``revokeOwnSession``'s acknowledgement.\n\nAttributes:\n    ok: Always true: the session is ended.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "SessionRevoked",
+        "type": "object"
+      },
       "SetAccountAccessBody": {
         "additionalProperties": false,
         "description": "``setAccountAccess``'s body.\n\nAttributes:\n    sign_in_allowed: True to allow the account's sign-in, False to cut it. Strict: a\n        string or a number is refused ``request.invalid``, never read as a boolean.",
@@ -1772,6 +1906,29 @@
       "post": {
         "description": "Create a local account with its provisional password.\n\nArgs:\n    body: Its name, e-mail, role and provisional password.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The account, on its initial role.",
         "operationId": "createAccount",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1881,6 +2038,27 @@
               "description": "the account",
               "title": "Accountid",
               "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -1994,6 +2172,27 @@
               "title": "Accountid",
               "type": "string"
             }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "requestBody": {
@@ -2057,6 +2256,16 @@
             },
             "description": "A refusal, answered as a Problem."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
           "500": {
             "content": {
               "application/json": {
@@ -2095,6 +2304,27 @@
               "description": "the account",
               "title": "Accountid",
               "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -2159,6 +2389,16 @@
             },
             "description": "A refusal, answered as a Problem."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
           "500": {
             "content": {
               "application/json": {
@@ -2187,6 +2427,29 @@
       "put": {
         "description": "Set the language the signed-in account is spoken to in, on all its devices (FG-1 B).\n\nArgs:\n    body: The language chosen.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The account, as now held.",
         "operationId": "setOwnLanguage",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2375,6 +2638,29 @@
       "post": {
         "description": "Close the session and clear its cookie.\n\nArgs:\n    request: The incoming request (the sub-application's web configuration).\n    response: The answer the cleared cookie is set on.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The session's value.\n\nReturns:\n    ``{\"ok\": true}``.",
         "operationId": "signOut",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2533,6 +2819,29 @@
       "put": {
         "description": "Replace the signed-in local account's password; its other sessions end, this one stays.\n\nArgs:\n    body: The current password and the new one.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The caller's session value, the one kept.\n\nReturns:\n    ``{\"ok\": true}``.",
         "operationId": "changeOwnPassword",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2816,6 +3125,208 @@
         "summary": "Start Plex Sign In"
       }
     },
+    "/auth/sessions": {
+      "get": {
+        "description": "The signed-in account's live sessions, the one this request carries flagged current.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The caller's session value.\n\nReturns:\n    Its sessions, the newest first.",
+        "operationId": "readOwnSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnSessionsModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Own Sessions"
+      }
+    },
+    "/auth/sessions/{sessionId}": {
+      "delete": {
+        "description": "End one of the signed-in account's other sessions: its next request is refused.\n\nArgs:\n    session_id: The session to end.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The caller's session value, never the one ended here.\n\nReturns:\n    ``{\"ok\": true}``.",
+        "operationId": "revokeOwnSession",
+        "parameters": [
+          {
+            "description": "the session",
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "description": "the session",
+              "title": "Sessionid",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionRevoked"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Revoke Own Session"
+      }
+    },
     "/library/categories": {
       "get": {
         "description": "The engine's leaf categories and their live media.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    One count per leaf holding a medium.\n\nRaises:\n    AppUnavailable: ``library.unavailable`` when ``library.db`` cannot be read.",
@@ -2986,6 +3497,29 @@
       "delete": {
         "description": "Delete media from the disks, the index and Plex, each named by its provider identity.\n\nArgs:\n    body: The media to delete.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    What the deletion did, per medium: deleted, or kept and why (operator ruling R2).\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or\n        ``providerId``), before anything is read.\n    AppNotFound: ``media.not_found`` when no library row holds an id; nothing deleted.\n    AppConflict: ``media.ambiguous`` when an id is held twice, ``library.locked`` while\n        the pipeline holds its lock; nothing deleted.\n    AppUnavailable: ``library.obligations_unreadable`` when the seed obligations cannot\n        be read (operator ruling R1), ``library.unavailable`` when ``library.db`` cannot\n        be read; nothing deleted.",
         "operationId": "deleteLibraryItems",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3683,6 +4217,27 @@
               "title": "Providerid",
               "type": "string"
             }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "responses": {
@@ -3727,6 +4282,16 @@
             "description": "A refusal, answered as a Problem."
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3872,10 +4437,112 @@
         "summary": "Read Media Seasons"
       }
     },
+    "/notices": {
+      "get": {
+        "description": "The signed-in account's in-app notices, the newest first.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    Its notices.",
+        "operationId": "readNotices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticesModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Notices"
+      }
+    },
     "/roles": {
       "post": {
         "description": "Create an ordinary role.\n\nArgs:\n    body: Its name and rights.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The role.",
         "operationId": "createRole",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3976,6 +4643,27 @@
               "title": "Roleid",
               "type": "string"
             }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "responses": {
@@ -4075,6 +4763,27 @@
               "description": "the role",
               "title": "Roleid",
               "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
             }
           }
         ],

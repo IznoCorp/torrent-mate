@@ -16,6 +16,7 @@ from personalscraper.cli_helpers import (
     handle_cli_errors,
 )
 from personalscraper.cli_state import state
+from personalscraper.commands import run_follow
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.i18n import t, t_code
 from personalscraper.logger import get_logger
@@ -726,8 +727,16 @@ def run(
         "--no-post-maintenance",
         help=t("cli_core.pipeline.opt.no_post_maintenance"),
     ),
+    detach: bool = typer.Option(
+        False,
+        "--detach",
+        help=t("cli_core.pipeline.opt.detach"),
+    ),
 ) -> None:
     """Execute all pipeline phases via ``Pipeline.run``.
+
+    While a supervisor's lease is live the run is asked through the queue and followed instead
+    (:mod:`personalscraper.commands.run_follow`); with no live lease it runs in this process.
 
     The step list displayed in ``--help`` is generated from
     :data:`~personalscraper.pipeline_steps.DEFAULT_STEPS` at import time via
@@ -736,6 +745,35 @@ def run(
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     verbose = state["verbose"]
+    options = RunOptions(
+        dry_run=dry_run,
+        skip_trailers=skip_trailers,
+        continue_on_trailer_error=continue_on_trailer_error,
+        no_post_maintenance=no_post_maintenance,
+    )
+
+    try:
+        supervised = run_follow.lease_live(config)
+    except run_follow.SupervisorStateUnreadable:
+        console.print("[red]" + t("cli_core.run.supervisor_state_unreadable") + "[/red]")
+        raise typer.Exit(1) from None
+    if supervised:
+        if interactive:
+            console.print("[red]" + t("cli_core.run.interactive_needs_direct") + "[/red]")
+            raise typer.Exit(1)
+        services = run_follow.open_services(config, cli_helpers.get_settings())
+        try:
+            code = run_follow.enqueue_and_follow(
+                services, config, console, options=options, trigger_reason=trigger_reason, detach=detach
+            )
+        finally:
+            services.close()
+        if code:
+            raise typer.Exit(code)
+        return
+
+    if detach:
+        console.print(t("cli_core.run.detach_needs_supervisor"), style="yellow", highlight=False)
 
     if not cli_helpers.acquire_pipeline_lock(
         config.paths.data_dir / "pipeline.lock",
@@ -750,12 +788,7 @@ def run(
         code = execute_run(
             config,
             settings,
-            RunOptions(
-                dry_run=dry_run,
-                skip_trailers=skip_trailers,
-                continue_on_trailer_error=continue_on_trailer_error,
-                no_post_maintenance=no_post_maintenance,
-            ),
+            options,
             trigger=trigger_reason,
             console=console,
             verbose=verbose,

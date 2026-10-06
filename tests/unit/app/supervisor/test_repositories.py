@@ -126,7 +126,7 @@ class TestMigration:
             assert migrated.lease.read() is None
             conn = sqlite3.connect(db_path)
             try:
-                assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
+                assert conn.execute("PRAGMA user_version").fetchone()[0] == 9
             finally:
                 conn.close()
         finally:

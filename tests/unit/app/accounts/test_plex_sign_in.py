@@ -21,6 +21,7 @@ import dataclasses
 import io
 import json
 import logging
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -35,7 +36,7 @@ from personalscraper.api.plex_account import PlexAccountClient
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
-from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.events import AccountRightsChanged, PlexSessionOpened, RightsChangeCause
 from personalscraper.app.accounts.model import Account, PlexLink, SignInKind
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.accounts.pin_repository import PlexPinRow
@@ -1503,3 +1504,90 @@ class TestNoLeak:
         for secret in (USER_TOKEN, SERVER_TOKEN, CODE):
             assert secret.lower() not in everything
         assert EMAIL.lower() not in "\n".join(email_free).lower() + printed
+
+
+#: A desktop Firefox on macOS, as the browser sends it.
+_FIREFOX_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:131.0) Gecko/20100101 Firefox/131.0"
+
+
+class TestSessionOpenedEvent:
+    """A session a Plex sign-in opens is published, so its holder is told (ruling Q4 A)."""
+
+    @pytest.fixture
+    def opened(self, bus: EventBus) -> list[PlexSessionOpened]:
+        """Every :class:`PlexSessionOpened` published.
+
+        Args:
+            bus: The bus.
+
+        Returns:
+            The list.
+        """
+        seen: list[PlexSessionOpened] = []
+        bus.subscribe(PlexSessionOpened, seen.append)
+        return seen
+
+    def test_a_sign_in_publishes_its_account_and_device(
+        self, door: PlexSignInService, opened: list[PlexSessionOpened]
+    ) -> None:
+        """One event per session opened: the account signed in, the device its user agent names."""
+        clock = _clock_of(door)
+        started = door.start()
+        clock.now += 2.0
+
+        result = door.finish(started.pin_id, nonce=started.nonce, user_agent=_FIREFOX_MAC)
+
+        assert isinstance(result, SignInResult)
+        assert [(event.account_id, event.device) for event in opened] == [(result.account.id, "Firefox · macOS")]
+
+    def test_each_sign_in_is_its_own_event(self, door: PlexSignInService, opened: list[PlexSessionOpened]) -> None:
+        """Two sign-ins of one account, two sessions: two events."""
+        clock = _clock_of(door)
+        _sign_in(door, clock)
+        clock.now += 10.0
+        _sign_in(door, clock)
+
+        assert len(opened) == 2
+
+    def test_a_pending_check_publishes_nothing(
+        self, door: PlexSignInService, plextv: _PlexTv, opened: list[PlexSessionOpened]
+    ) -> None:
+        """While the PIN is unclaimed no session is opened, and nothing is told."""
+        plextv.pending_then_claimed()
+        clock = _clock_of(door)
+        started = door.start()
+        clock.now += 2.0
+
+        assert isinstance(door.finish(started.pin_id, nonce=started.nonce, user_agent=None), PlexPending)
+        assert opened == []
+
+    def test_a_refused_identity_publishes_nothing(
+        self,
+        store: AppStore,
+        plextv: _PlexTv,
+        clock: _Clock,
+        bus: EventBus,
+        vault: TokenVault,
+        opened: list[PlexSessionOpened],
+    ) -> None:
+        """An identity with no access to this server opens no session: nothing is told."""
+        door = _build(store, plextv, _Server("REDACTED-machine-9"), clock, bus, vault)
+        started = door.start()
+        clock.now += 2.0
+
+        _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
+
+        assert opened == []
+
+    def test_a_renewal_publishes_nothing(
+        self, door: PlexSignInService, store: AppStore, bus: EventBus, opened: list[PlexSessionOpened]
+    ) -> None:
+        """A session renewed under a new value is the same session: no new sign-in is told."""
+        result = _sign_in(door, _clock_of(door))
+        renewing = SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING, clock=lambda: time.time() + 7200.0)
+        opened.clear()
+
+        used = renewing.use(result.session_token)
+
+        assert used is not None and used.renewed_token is not None
+        assert opened == []

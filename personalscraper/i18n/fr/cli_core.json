@@ -75,6 +75,12 @@
     "help": "Démarre le démon de surveillance (ordonnanceur à processus unique).\n\nInterroge le client torrent configuré à chaque cycle, consulte le moteur de décision\n:class:`~personalscraper.acquire.watcher.WatcherService`, et lance\n``personalscraper run --no-console`` (asynchrone, suivi) ou\n``personalscraper cross-seed --hash {{hash}}`` (synchrone, séquentiel) comme sous-processus.\nLe démon lui-même n'acquiert PAS ``pipeline.lock`` (W6) : seuls ses enfants le font.\n\nTourne jusqu'à SIGTERM, SIGINT ou une erreur fatale.",
     "now_help": "Écrit le fichier sentinelle que le démon de surveillance consomme au prochain cycle.\n\nPas d'IPC, aucune dépendance au démon : s'il est arrêté, la sentinelle est consommée au prochain\ndémarrage. Même canal que la future interface web (W4).\n\nLe démon ``personalscraper watch`` en cours d'exécution détecte ce fichier au prochain cycle\nd'interrogation et déclenche une exécution du pipeline avec ``reason=manual``."
   },
+  "supervise": {
+    "help": "Démarre le superviseur : le seul processus qui lance les exécutions du pipeline et les re-scrapes demandés.\n\nTient le bail de l'environnement, lance la tête de la file dans un worker détaché quand\nrien ne tourne et que pipeline.lock est libre, règle chaque worker d'après son code de sortie\nou son battement, et fait tourner le sondage du watcher, dont les exécutions automatiques\nrejoignent la même file.\n\nTourne jusqu'à SIGTERM ou SIGINT ; un arrêt propre libère le bail.",
+    "started": "Superviseur démarré (pid {{pid}}).",
+    "no_client": "Aucun client torrent actif : le watcher est au repos, les exécutions demandées sont toujours lancées.",
+    "stopped": "Superviseur arrêté ; bail libéré."
+  },
   "health_check": {
     "lookback_help": "Fenêtre des erreurs récentes.",
     "max_run_help": "Âge d'un verrou tenu au-delà duquel il est jugé bloqué.",
@@ -174,7 +180,8 @@
       "continue_on_trailer_error": "N'interrompt pas le dispatch quand l'étape des bandes-annonces échoue.",
       "headless": "S'exécute sans abonné (mode silencieux pour cron / CI). Désactive la sortie console Rich et les notifications Telegram.",
       "no_console": "Désactive la sortie console Rich (barres de progression, tableaux dynamiques). Les notifications Telegram restent actives. Utilisé par le démon de surveillance (``personalscraper watch``) quand il lance des exécutions du pipeline ; à opposer à ``--headless`` qui désactive Rich et Telegram. Si les deux sont passés, ``--headless`` l'emporte.",
-      "trigger_reason": "Défini par le démon de surveillance pour attribuer cette exécution."
+      "trigger_reason": "Défini par le démon de surveillance pour attribuer cette exécution.",
+      "detach": "Met le run en file et rend la main au lieu de le suivre (exige un superviseur actif)."
     },
     "ingest": {
       "help": "Ingère les torrents terminés de qBittorrent."
@@ -203,5 +210,18 @@
     "process": {
       "help": "Exécute seulement la phase de traitement (reclean + dedup + scrape + cleanup)."
     }
+  },
+  "run": {
+    "queued": "Run {{uid}} en file (position {{position}}).",
+    "joined": "Le run {{uid}} était déjà demandé.",
+    "following": "Suivi du run {{uid}} ; Ctrl-C le laisse au superviseur.",
+    "step_done": "  {{step}} : {{status}}",
+    "finished": "Run {{uid}} terminé : {{settlement}}.",
+    "detached": "Détaché du run {{uid}} ; il continue.",
+    "lease_lost_queued": "Le superviseur s'est arrêté : le run {{uid}} reste en file jusqu'au retour d'un superviseur.",
+    "lease_lost_running": "Le superviseur s'est arrêté pendant le run {{uid}} : le run a été interrompu.",
+    "interactive_needs_direct": "--interactive exige le chemin direct : un superviseur tourne, le run est mis en file. Utilisez `personalscraper scrape -i` pour un scrape interactif.",
+    "detach_needs_supervisor": "--detach exige un superviseur actif : aucun ne tourne, le run se poursuit ici.",
+    "supervisor_state_unreadable": "L'état du superviseur est illisible pour le moment : rien n'a été lancé. Réessayez dans un instant."
   }
 }

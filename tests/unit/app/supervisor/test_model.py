@@ -115,7 +115,13 @@ class TestAsk:
         assert {k.value for k in RunKind} == {"pipeline", "rescrape"}
         assert {s.value for s in RequestState} == {"queued", "running", "settled"}
         assert {s.value for s in Settlement} == {"success", "error", "killed", "interrupted", "abandoned"}
-        assert {w.value for w in WaitReason} == {"behind_run", "pipeline_lock_held", "paused", "supervisor_absent"}
+        assert {w.value for w in WaitReason} == {
+            "behind_run",
+            "pipeline_lock_held",
+            "paused",
+            "worker_start_failed",
+            "supervisor_absent",
+        }
 
 
 class TestCoalescing:
@@ -253,6 +259,35 @@ class TestTransitions:
             request.settle(Settlement.SUCCESS, NOW)
         assert request.state is RequestState.QUEUED
         assert (request.settlement, request.settled_at) == (None, None)
+
+    def test_abandon_settles_a_queued_request_that_never_ran(self) -> None:
+        """Abandon closes a queued request ``abandoned`` without ever passing it through running."""
+        request = _ask()
+        request.wait_reason = WaitReason.BEHIND_RUN
+        request.abandon(NOW + 3)
+        assert request.state is RequestState.SETTLED
+        assert (request.settlement, request.settled_at) == (Settlement.ABANDONED, NOW + 3)
+        assert (request.admitted_at, request.worker_pid, request.heartbeat_at) == (None, None, None)
+        assert request.wait_reason is None
+
+    def test_abandon_refuses_a_running_request(self) -> None:
+        """Abandon refuses a running request: its worker may be running."""
+        with pytest.raises(RunRequestStateError):
+            _running().abandon(NOW)
+
+    def test_admit_without_a_worker_yet_then_record_it(self) -> None:
+        """An admission saved before the worker starts names no process; its pid is recorded after."""
+        request = _ask()
+        request.admit(None, NOW + 5)
+        assert request.state is RequestState.RUNNING
+        assert (request.worker_pid, request.admitted_at, request.heartbeat_at) == (None, NOW + 5, NOW + 5)
+        request.record_worker(4242)
+        assert request.worker_pid == 4242
+
+    def test_record_worker_refuses_a_queued_request(self) -> None:
+        """Only a running request has a worker to record."""
+        with pytest.raises(RunRequestStateError):
+            _ask().record_worker(4242)
 
 
 class TestStale:

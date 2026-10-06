@@ -75,7 +75,7 @@ def scratch_root(tmp_path: Path, *, stale: bool) -> Path:
         shutil.copy2(DESIGN / "src" / "i18n" / f"{language}.json", root / "src" / "i18n" / f"{language}.json")
     for folder in ("boot", "fonts"):
         shutil.copytree(DESIGN / folder, root / folder)
-    for name in ("vite.config.mjs", "build-identity.mjs", "worker-source.mjs"):
+    for name in ("vite.config.mjs", "build-identity.mjs", "worker-source.mjs", "app-bundle.mjs"):
         (root / name).write_text("// scratch\n", encoding="utf-8")
     (root / "package.json").write_text(
         f'{{"name": "scratch", "private": true, "scripts": {{"build": "touch {MARK}"}}}}\n',

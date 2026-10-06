@@ -12,21 +12,26 @@
 //   prod    = ~/deploy/torrentmate   — tracks `prod` (autodeploy). Runs the web UI AND
 //             every daemon/cron below, via the prod clone's own venv binary. Decoupled
 //             from the dev checkout so the crons NEVER execute an in-flight feature branch.
-//   staging = ~/staging/torrentmate  — tracks `staging` (autodeploy). Web UI ONLY
-//             (read-only, PERSONALSCRAPER_WEB_ROLE=staging). NO crons/watcher: the
-//             library.db / .data / disks are shared with prod, so a second active
-//             watcher/grab/enrich would double-execute and race the single prod authority.
+//   staging = ~/staging/torrentmate  — tracks `staging` (autodeploy). The PREPROD: its web
+//             and its scheduled jobs (k2-prep DESIGN § 3.5), in the `staging` environment
+//             (PERSONALSCRAPER_ENV=staging) on its own overlay, secrets file, data_dir and
+//             disk roots — it shares nothing with prod but the torrent client, inside its
+//             own category (O-1 A). scripts/deploy-staging.sh restarts these apps alone.
 //
-// All processes share the single canonical config dir (PERSONALSCRAPER_CONFIG) and the
-// real library.db / .data / disks. What differs is the CODE (which branch) and process
-// ownership. The daemons/crons run from the prod clone binary + cwd, with the config dir
-// passed explicitly (the prod clone has no full config/ of its own).
+// Prod's processes share the single canonical config dir (PERSONALSCRAPER_CONFIG) and the
+// real library.db / .data / disks; they set no PERSONALSCRAPER_ENV (prod is the default).
+// The daemons/crons run from the prod clone binary + cwd, with the config dir passed
+// explicitly (the prod clone has no full config/ of its own).
 //
 // NOTE: paths are written as inline literals (not JS consts) so the regex drift-guard in
 // tests/indexer/test_ecosystem.py can parse them. Keep the three canonical strings in sync:
 //   prod clone : /Users/izno/deploy/torrentmate
 //   prod binary: /Users/izno/deploy/torrentmate-venv/bin/personalscraper
 //   config dir : /Users/izno/.torrentmate/config
+// and the preprod's three:
+//   staging clone : /Users/izno/staging/torrentmate
+//   staging binary: /Users/izno/staging/torrentmate-venv/bin/personalscraper
+//   preprod config: /Users/izno/.torrentmate/config-staging (secrets: /Users/izno/.torrentmate/.env-staging)
 
 module.exports = {
   apps: [
@@ -84,12 +89,11 @@ module.exports = {
       },
     },
 
-    // TorrentMate web UI — STAGING (tm-staging.iznogoudatall.xyz, port 8711).
-    // Runs from the staging clone (~/staging/torrentmate) with its OWN venv. Shares
-    // the SAME real config dir as prod (where web.port=8710), so the port is
-    // overridden on the CLI: `web --port 8711`. PERSONALSCRAPER_WEB_ROLE=staging →
-    // 403 on every mutating endpoint (config S4 + pipeline S2 + maintenance S3, via
-    // the shared require_not_staging guard). Web ONLY — no crons/watcher on staging.
+    // TorrentMate web UI — PREPROD (tm-staging.iznogoudatall.xyz, port 8711).
+    // Runs from the staging clone (~/staging/torrentmate) with its OWN venv, in the
+    // `staging` environment on the preprod's overlay and secrets file (never the
+    // canonical .env beside prod's overlay, k2-prep DESIGN § 2.2). The read-only role
+    // of the old staging clone is retired: the preprod writes inside its own roots.
     {
       name: "torrentmate-web-staging",
       script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
@@ -100,8 +104,9 @@ module.exports = {
       kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
-        PERSONALSCRAPER_WEB_ROLE: "staging",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
         PERSONALSCRAPER_LANG: "fr",
       },
     },
@@ -319,6 +324,137 @@ module.exports = {
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+
+    // ---- PREPROD scheduled jobs (k2-prep DESIGN § 3.5) ----
+    // The `staging` environment's engine, offset from prod's crons so the two never fire
+    // together. Same self-managed `schedule` loop as prod's jobs; run from the staging clone
+    // on the preprod's overlay and secrets file (see torrentmate-web-staging above).
+    // 03:30 daily (prod 03:00)
+    {
+      name: "personalscraper-preprod-follow-detect",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '30 3 * * *' -- follow detect",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+    // 03:40 / 15:40 (prod :10)
+    {
+      name: "personalscraper-preprod-search",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '40 3,15 * * *' -- search",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+    // 03:50 / 15:50 (prod :20)
+    {
+      name: "personalscraper-preprod-grab",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '50 3,15 * * *' -- grab",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+    // hourly at :50 (prod :45) — 01:50 feeds the 02:00 purge
+    {
+      name: "personalscraper-preprod-seed-sweep",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '50 * * * *' -- seed sweep",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+    // hourly at :20 (prod :15)
+    {
+      name: "personalscraper-preprod-health-check",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '20 * * * *' -- health-check",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+    // Wednesdays 01:00 (prod Mondays)
+    {
+      name: "personalscraper-preprod-index-full",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '0 1 * * 3' -- library-index --mode full --no-budget --wait-for-lock 600",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+    // 02:00 daily — deletes the preprod's torrents whose obligation is written met
+    {
+      name: "personalscraper-preprod-purge",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '0 2 * * *' -- seed purge",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
         PERSONALSCRAPER_LANG: "fr",
       },
     },
