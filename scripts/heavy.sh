@@ -388,7 +388,17 @@ if [ "${1:-}" = "--class" ]; then
     RUN_CLASS=${2:?--class needs a name: browser, rule, test or build}
     shift 2
 fi
-WHO=${1:?who is asking}
+# `env "$RUN_TAG" "$@"` below prints the WHOLE environment, secrets included, when it has no
+# command, and takes a leading option for its own. Refuse both before anything is admitted: an
+# option where the name should be (`--help`), no command, or a command that starts with a dash.
+usage() {
+    echo "usage: sh scripts/heavy.sh [--class browser|rule|test|build] \"<who>\" <command...>" >&2
+    exit 2
+}
+[ "$#" -ge 2 ] || usage
+case "$1" in -*) usage ;; esac
+case "$2" in -*) usage ;; esac
+WHO=$1
 shift
 
 # Each class's cost in cores, measured: a harness run of two rules about 1.5,

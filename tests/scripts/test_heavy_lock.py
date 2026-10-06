@@ -116,6 +116,62 @@ def test_the_start_says_when_and_how_long_it_waited(tmp_path: Path) -> None:
     assert re.search(r"after \d+ s waiting", start), start
 
 
+# A value no real environment holds, set only so a leak of the environment can be detected.
+ENVIRONMENT_SENTINEL = "heavy-env-sentinel-0d1c"
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        pytest.param(["tester"], id="no-command"),
+        pytest.param(["--class", "test", "tester"], id="no-command-with-class"),
+        pytest.param(["tester", "--help"], id="option-only-command"),
+        pytest.param(["--help"], id="option-as-who"),
+        pytest.param([], id="no-arguments"),
+    ],
+)
+def test_an_empty_or_option_only_command_is_refused_and_never_prints_the_environment(
+    tmp_path: Path, arguments: list[str]
+) -> None:
+    """B-158: `env "$RUN_TAG" "$@"` with nothing to run printed the whole environment, secrets included.
+
+    The run is refused with a one-line usage on stderr and a non-zero exit. The test runs the script
+    with a minimal environment holding only a sentinel, and asserts on booleans, so a failure never
+    echoes the environment either.
+    """
+    env = {key: value for key, value in environment(tmp_path / "home").items() if key.startswith("HEAVY_")}
+    env.update({"PATH": os.environ["PATH"], "HEAVY_ENV_SENTINEL": ENVIRONMENT_SENTINEL})
+
+    result = subprocess.run(
+        ["sh", str(SCRIPT), *arguments],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    leaked = ENVIRONMENT_SENTINEL in result.stdout or ENVIRONMENT_SENTINEL in result.stderr
+    assert not leaked, "the script printed the environment"
+    assert result.returncode != 0, "the script ran an empty command"
+    usage = [line for line in result.stderr.splitlines() if "usage" in line.lower()]
+    assert len(usage) == 1, "expected exactly one usage line on stderr"
+
+
+def test_a_command_that_runs_is_not_taken_for_an_option(tmp_path: Path) -> None:
+    """A real command still runs: the refusal reads only the first word of the command."""
+    result = subprocess.run(
+        ["sh", str(SCRIPT), "tester", "true"],
+        env=environment(tmp_path / "home"),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_two_runs_that_fit_the_budget_run_together(tmp_path: Path) -> None:
     """One lock ran one heavy run at a time, whatever the machine had left.
 
