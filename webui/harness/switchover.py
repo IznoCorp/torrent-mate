@@ -56,7 +56,7 @@ def prepare_scratch() -> None:
     # one means every place that assembles a build tree learns about it in the
     # same move.
     for name in ("index.html", "vite.config.mjs", "build-identity.mjs",
-                 "worker-source.mjs", "package.json", "sw.js"):
+                 "worker-source.mjs", "app-bundle.mjs", "package.json", "sw.js"):
         shutil.copy(design / name, SCRATCH / name)
     # The envelope names a module entry: without its source the scratch build
     # cannot resolve it, and the rule would report a broken host where there is

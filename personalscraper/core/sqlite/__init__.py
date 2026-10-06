@@ -4,7 +4,7 @@
 Public API:
   apply_pragmas(conn)          — canonical 8-PRAGMA set
   open_db(path, ...)           — event-free open + corruption-quarantine
-  db_lock(path, *, timeout=0)  — FileLock + sidecar + stale-PID recovery
+  db_lock(path, *, timeout=0)  — flock + PID sidecar + stale-sidecar recovery
   apply_migrations(conn, dir_) — apply *.sql migration scripts
   safe_rollback(conn)          — best-effort ROLLBACK, no error when no transaction
   probe_mount(path)            — filesystem-type probe
