@@ -439,6 +439,16 @@ jobs:
       - run: npm test -- --run
         if: needs.changes.outputs.maquette == 'true'
         working-directory: webui/design
+      # THE BUILD THAT SHIPS (`--mode app`): no mock layer, no harness, no phone frame.
+      # Built on every change to what it is built from, and read by the check that
+      # refuses any of the three in the bundle — the switchover's subtraction, proven
+      # on each pull request instead of on the day.
+      - run: npm run build:app
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      - run: npm run check:app-bundle
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
       - run: npm run lint
         if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
@@ -480,6 +490,40 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
+
+  # The built client against a seeded v1 server, in a browser: every operation the
+  # client asks of v1 is answered by v1 itself (tests/app_e2e, one file per surface).
+  # It reads both ends, so a change to either runs it.
+  app-e2e:
+    name: app-e2e
+    runs-on: ubuntu-latest
+    needs: [changes, lint, typecheck]
+    if: >-
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
+    steps:
+      - uses: actions/checkout@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - uses: actions/setup-node@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: webui/design/package-lock.json
+      - run: npm ci
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        working-directory: webui/design
+      - run: npm run build:app
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        working-directory: webui/design
+      - uses: actions/setup-python@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" && pip install playwright && python -m playwright install --with-deps chromium
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - run: python -m pytest -m app_e2e tests/app_e2e -q --no-header
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
 
   # ── Stage 3: Coverage gate + upload ───────────────────
   coverage-merge:
