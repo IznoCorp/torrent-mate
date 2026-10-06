@@ -104,6 +104,7 @@ def build_app_context(
             resolve + validate it at boot (D3 fail-fast). When False
             (default), ``torrent_client`` stays None and no torrent daemon is
             contacted — used by commands that never touch the torrent client.
+            ``torrent_client`` is also None when the active client is disabled.
         provider_retry: Optional ``RetryPolicy`` override forwarded to the
             metadata providers (TMDB / TVDB). ``None`` — every CLI/pipeline
             path — keeps each provider's own policy. A caller building this
@@ -124,9 +125,11 @@ def build_app_context(
     # incapable. Gated on ``build_torrent_client`` so only commands that
     # consume the client (run/ingest/torrents_list) pay the connect+login —
     # read-only commands stay decoupled from the daemon (review #1/#2/#5).
-    # No client configured (torrent.active="") → None, no error.
+    # No client configured (torrent.active="") → None, no error. A DISABLED active client is no
+    # client either: the supervisor boot and the pipeline worker both come through here, so the
+    # decision is made once; the factory keeps refusing a disabled client for a direct caller.
     torrent_client = None
-    if build_torrent_client and config.torrent.active:
+    if build_torrent_client and config.torrent.active and not config.torrent.active_client_disabled():
         from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — pulls the provider tree, built only when a torrent client is configured
             ConfigIssue,
             RegistryConfigError,

@@ -166,6 +166,10 @@ def supervise(ctx: typer.Context) -> None:
     watcher = None
     if config.watch.enabled:
         if app_context.torrent_client is None:
+            if config.torrent.active_client_disabled():
+                log.info(
+                    "supervisor_watcher_off", reason="active_torrent_client_disabled", client=config.torrent.active
+                )
             typer.echo(t("cli_core.supervise.no_client"), err=True)
         else:
             watcher = WatchHelpers(config, app_context.torrent_client, acquire.store if acquire is not None else None)

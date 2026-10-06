@@ -202,3 +202,54 @@ class TestCatalogue:
 
         assert english != french
         assert f"cli_core.supervise.{key}" not in (english, french)
+
+
+class TestDisabledActiveClient:
+    """A disabled active client: the supervisor boots, takes the lease and runs without its watcher."""
+
+    def test_the_supervisor_takes_the_lease_without_a_watcher(
+        self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The boot does not die on the disabled client, holds the lease and builds no watcher half."""
+        from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig
+
+        config = _staging(test_config, monkeypatch, "staging")
+        config = config.model_copy(
+            update={
+                "watch": config.watch.model_copy(update={"enabled": True}),
+                "torrent": TorrentConfig(
+                    active="qbittorrent",
+                    clients={"qbittorrent": TorrentClientEntry(enabled=False)},
+                ),
+            }
+        )
+        leases: list[Lease | None] = []
+        watchers: list[object] = []
+        real_from_services = Supervisor.from_services.__func__  # type: ignore[attr-defined]
+
+        def spy(
+            cls: type[Supervisor], services: object, cfg: Config, launcher: object, *, watcher: object
+        ) -> Supervisor:
+            watchers.append(watcher)
+            return real_from_services(cls, services, cfg, launcher, watcher=watcher)
+
+        def one_tick(self: Supervisor, should_stop: object, sleep: object = None) -> None:
+            self.tick_admission()
+            leases.append(self._store.lease.read())
+            self.stop()
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=config),
+            patch("personalscraper.cli.configure_logging"),
+            patch("personalscraper.api.metadata.registry.ProviderRegistry"),
+            patch("personalscraper.commands.supervise.build_redis_publisher", return_value=None),
+            patch("personalscraper.commands.supervise.signal.signal"),
+            patch.object(Supervisor, "from_services", classmethod(spy)),
+            patch.object(Supervisor, "run", one_tick),
+        ):
+            result = cli_runner.invoke(cli_app, ["supervise"])
+
+        assert result.exit_code == 0, result.output
+        assert watchers == [None]
+        assert leases and leases[0] is not None

@@ -238,3 +238,27 @@ def test_a_run_that_raises_still_uninstalls_the_tail_and_closes_the_subscribers(
     assert len(harness.root_handlers_during_run) == len(handlers_before) + 1
     assert logging.root.handlers == handlers_before
     assert sorted(harness.closed) == ["acquire_telegram", "redis", "rich", "telegram"]
+
+
+def test_a_run_starts_when_the_active_torrent_client_is_disabled(
+    harness: _Harness, test_config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A disabled active client is no client: the worker starts and the pipeline gets none."""
+    from personalscraper.app.composition import build_app_context
+    from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig
+
+    seen: list[object] = []
+    monkeypatch.setattr(execution, "build_app_context", build_app_context)
+    monkeypatch.setattr("personalscraper.api.metadata.registry.ProviderRegistry", MagicMock())
+    monkeypatch.setattr(
+        "personalscraper.pipeline.Pipeline",
+        lambda app: (seen.append(app.torrent_client), MagicMock(run=lambda **kw: _report()))[1],
+    )
+    config = test_config.model_copy(
+        update={
+            "torrent": TorrentConfig(active="qbittorrent", clients={"qbittorrent": TorrentClientEntry(enabled=False)})
+        }
+    )
+
+    assert _run(config) == 0
+    assert seen == [None]
