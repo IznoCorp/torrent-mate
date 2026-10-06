@@ -9,9 +9,11 @@ from __future__ import annotations
 import dataclasses
 import errno
 import os
-from collections.abc import Iterator
+import sqlite3
+import threading
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -19,14 +21,18 @@ from personalscraper.acquire.watcher import WatcherDecision, WatcherInput, Watch
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.errors import AppForbidden
 from personalscraper.app.store.store import AppStore
+from personalscraper.app.supervisor import supervisor as supervisor_module
 from personalscraper.app.supervisor.events import RunAdmitted, RunQueued, RunSettled
 from personalscraper.app.supervisor.ids import RunUid
+from personalscraper.app.supervisor.launcher import ProcessWorkerLauncher, WorkerLauncher
 from personalscraper.app.supervisor.model import (
     LEASE_TTL_S,
     STALE_AFTER_S,
     RequestState,
     RunOptions,
+    RunRequest,
     RunTrigger,
     Settlement,
     WaitReason,
@@ -197,6 +203,8 @@ def _supervisor(
     watcher_service: _ScriptedWatcherService | None = None,
     bus: EventBus | None = None,
     alive: bool = True,
+    pid_alive: Callable[[int], bool] | None = None,
+    worker_launcher: WorkerLauncher | None = None,
 ) -> Supervisor:
     """Build a supervisor over the test's store, fakes and clock.
 
@@ -210,6 +218,8 @@ def _supervisor(
         watcher_service: The decision engine, or ``None`` for the real one.
         bus: The event bus.
         alive: What the liveness probe answers for any process id.
+        pid_alive: The liveness probe, when it must answer per process id (wins over *alive*).
+        worker_launcher: A launcher to use instead of *launcher* (a real one over planted children).
 
     Returns:
         The supervisor.
@@ -220,13 +230,13 @@ def _supervisor(
         system_actor=lambda: _ADMIN,
         event_bus=bus if bus is not None else EventBus(),
         config=config,
-        launcher=launcher,
+        launcher=worker_launcher if worker_launcher is not None else launcher,
         watcher=watcher,
         watcher_service=watcher_service,
         clock=clock,
         pid=pid,
         host=_HOST,
-        pid_alive=lambda _pid: alive,
+        pid_alive=pid_alive if pid_alive is not None else (lambda _pid: alive),
     )
 
 
@@ -468,9 +478,9 @@ class TestAdmission:
         clock: _Clock,
         logged_events: LoggedEvents,
     ) -> None:
-        """No worker ever ran: the request is settled ``abandoned``, logged, and the next one may start."""
+        """No worker can ever run (ENOENT): the request is settled ``abandoned``, logged, and the next one may start."""
         uid = _ask(store, test_config, clock)
-        launcher.fail_with = OSError(errno.EAGAIN, "no fork")
+        launcher.fail_with = OSError(errno.ENOENT, "no interpreter")
         supervisor = _supervisor(store, test_config, launcher, clock)
 
         with logged_events() as events:
@@ -823,3 +833,433 @@ class TestWatcherHalf:
         supervisor = _supervisor(store, watching, launcher, clock, watcher=FakeWatcherHalf(restored_at=42.0))
 
         assert supervisor.watcher_state.last_successful_run_at == 42.0
+
+
+class _Crash(BaseException):
+    """The supervisor process dying mid-tick (SIGKILL): nothing after the raise runs."""
+
+
+def _admitted_by_first_supervisor(
+    store: AppStore, config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+) -> RunUid:
+    """Ask a run and have a first supervisor (pid 100) admit it under worker pid 4000.
+
+    Args:
+        store: The store.
+        config: The configuration.
+        launcher: The first supervisor's launcher.
+        clock: The clock.
+
+    Returns:
+        The running request's uid.
+    """
+    uid = _ask(store, config, clock)
+    _supervisor(store, config, launcher, clock, pid=100).tick_admission()
+    assert launcher.pid_of(uid) == 4000
+    return uid
+
+
+class TestAdmissionOrder:
+    """The admission is durable before the worker exists, so a crash never leaves a worker on a queued request."""
+
+    def test_the_request_is_saved_running_before_its_worker_starts(
+        self, store: AppStore, test_config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """At the moment of ``Popen`` the stored request is already ``running``; its pid is recorded after."""
+        uid = _ask(store, test_config, clock)
+        seen: list[RequestState] = []
+        launcher.on_start = lambda started: seen.append(_state(store, started)[0])
+
+        _supervisor(store, test_config, launcher, clock).tick_admission()
+
+        assert seen == [RequestState.RUNNING]
+        request = store.runs.get(uid)
+        assert request is not None and request.worker_pid == launcher.pid_of(uid)
+
+    def test_a_crash_between_the_admission_and_the_pid_record_never_starts_the_request_twice(
+        self, store: AppStore, test_config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """The supervisor dies after ``Popen``, before the pid is saved: the restart adopts it, then ``interrupted``."""
+        uid = _ask(store, test_config, clock)
+        real_save = store.runs.save
+
+        def crash_on_pid_record(request: RunRequest) -> bool:
+            if request.state is RequestState.RUNNING and request.worker_pid is not None:
+                raise _Crash
+            return real_save(request)
+
+        with patch.object(store.runs, "save", side_effect=crash_on_pid_record), pytest.raises(_Crash):
+            _supervisor(store, test_config, launcher, clock, pid=100).tick_admission()
+
+        assert launcher.started == [uid]
+        assert _state(store, uid)[0] is RequestState.RUNNING
+
+        fresh = FakeWorkerLauncher(first_pid=9000)
+        clock.now += LEASE_TTL_S + 1
+        restarted = _supervisor(store, test_config, fresh, clock, pid=300)
+        restarted.tick_admission()
+        assert fresh.started == [], "the admitted request was started a second time"
+        assert _state(store, uid)[0] is RequestState.RUNNING
+
+        clock.now += STALE_AFTER_S
+        restarted.tick_admission()
+        assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.INTERRUPTED)
+        assert fresh.started == []
+
+    def test_an_admission_lost_to_another_writer_starts_nothing(
+        self,
+        store: AppStore,
+        test_config: Config,
+        launcher: FakeWorkerLauncher,
+        clock: _Clock,
+        logged_events: LoggedEvents,
+    ) -> None:
+        """The compare-and-set of the admission writes nothing: no worker is started, it is logged."""
+        _ask(store, test_config, clock)
+        real_save = store.runs.save
+
+        def lose_the_admission(request: RunRequest) -> bool:
+            if request.state is RequestState.RUNNING:
+                return False
+            return real_save(request)
+
+        with patch.object(store.runs, "save", side_effect=lose_the_admission), logged_events() as events:
+            _supervisor(store, test_config, launcher, clock).tick_admission()
+
+        assert launcher.started == []
+        assert "supervisor.admit_lost" in [event["event"] for event in events]
+
+
+class TestStartFailures:
+    """A start that fails abandons the request at once on a permanent cause, retries a transient one."""
+
+    def test_a_failure_that_is_not_an_os_error_abandons_at_once(
+        self, store: AppStore, test_config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """Any exception from the launcher settles the head ``abandoned``; the queue is not blocked behind it."""
+        uid = _ask(store, test_config, clock)
+        launcher.fail_with = RuntimeError("bad argv")
+
+        _supervisor(store, test_config, launcher, clock).tick_admission()
+
+        assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.ABANDONED)
+        request = store.runs.get(uid)
+        assert request is not None and (request.worker_pid, request.admitted_at) == (None, None)
+
+    def test_a_transient_errno_keeps_the_head_queued_and_retries(
+        self, store: AppStore, test_config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """EMFILE twice, then the system recovers: the head waited ``worker_start_failed``, then it starts."""
+        uid = _ask(store, test_config, clock)
+        launcher.fail_with = OSError(errno.EMFILE, "too many open files")
+        launcher.fail_times = 2
+        supervisor = _supervisor(store, test_config, launcher, clock)
+
+        supervisor.tick_admission()
+        state, settlement, reason = _state(store, uid)
+        assert (state, settlement) == (RequestState.QUEUED, None)
+        assert reason is WaitReason("worker_start_failed")
+        supervisor.tick_admission()
+        supervisor.tick_admission()
+
+        assert launcher.started == [uid]
+        assert _state(store, uid)[0] is RequestState.RUNNING
+
+    def test_a_transient_errno_that_never_recovers_abandons_after_a_bounded_count(
+        self, store: AppStore, test_config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """EAGAIN at every attempt: queued until the last allowed attempt, then ``abandoned``; the next may start."""
+        uid = _ask(store, test_config, clock)
+        launcher.fail_with = OSError(errno.EAGAIN, "no fork")
+        supervisor = _supervisor(store, test_config, launcher, clock)
+        attempts = supervisor_module.MAX_WORKER_START_ATTEMPTS
+
+        for _ in range(attempts - 1):
+            supervisor.tick_admission()
+            assert _state(store, uid)[0] is RequestState.QUEUED
+        supervisor.tick_admission()
+
+        assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.ABANDONED)
+        launcher.fail_with = None
+        clock.now += 1
+        nxt = _ask(store, test_config, clock)
+        supervisor.tick_admission()
+        assert launcher.started == [nxt]
+
+
+class TestAdoptedWorker:
+    """A worker of a previous supervisor is judged by its pid as soon as it is gone, not only by its heartbeat."""
+
+    def test_an_adopted_worker_that_lost_the_lock_is_put_back_in_the_queue(
+        self,
+        store: AppStore,
+        test_config: Config,
+        launcher: FakeWorkerLauncher,
+        clock: _Clock,
+        logged_events: LoggedEvents,
+    ) -> None:
+        """Gone, no ``pipeline_run`` row, heartbeat never beaten: it exited 3, so its request is queued again."""
+        _library(test_config)
+        uid = _admitted_by_first_supervisor(store, test_config, launcher, clock)
+        lock = test_config.paths.data_dir / "pipeline.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text(str(os.getpid()))
+        fresh = FakeWorkerLauncher(first_pid=9000)
+        clock.now += LEASE_TTL_S + 1
+
+        with logged_events() as events:
+            _supervisor(store, test_config, fresh, clock, pid=300, pid_alive=lambda pid: pid != 4000).tick_admission()
+
+        assert _state(store, uid) == (RequestState.QUEUED, None, WaitReason.PIPELINE_LOCK_HELD)
+        assert "supervisor.worker_lost_lock" in [event["event"] for event in events]
+        assert fresh.started == []
+
+    def test_a_dead_adopted_worker_is_settled_from_its_row_at_once(
+        self, store: AppStore, test_config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """Gone with a fresh heartbeat: settled from its row on the first tick, without the stale wait."""
+        library = _library(test_config)
+        uid = _admitted_by_first_supervisor(store, test_config, launcher, clock)
+        writer = PipelineRunWriter(library)
+        writer.insert(uid, trigger="web", dry_run=False, pid=4000)
+        writer.finalize(uid, "success")
+        clock.now += LEASE_TTL_S + 1
+        store.runs.touch_heartbeat(uid, clock.now)
+
+        restarted = _supervisor(store, test_config, FakeWorkerLauncher(first_pid=9000), clock, pid=300, alive=False)
+        restarted.tick_admission()
+
+        assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.SUCCESS)
+
+    def test_a_dead_adopted_worker_that_had_beaten_and_left_no_row_is_interrupted(
+        self, store: AppStore, test_config: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """Its heartbeat moved, so it held the lock and ran: no requeue, ``interrupted``."""
+        _library(test_config)
+        uid = _admitted_by_first_supervisor(store, test_config, launcher, clock)
+        clock.now += LEASE_TTL_S + 1
+        store.runs.touch_heartbeat(uid, clock.now)
+        fresh = FakeWorkerLauncher(first_pid=9000)
+
+        _supervisor(store, test_config, fresh, clock, pid=300, alive=False).tick_admission()
+
+        assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.INTERRUPTED)
+        assert fresh.started == []
+
+    def test_an_unreadable_run_row_is_retried_next_tick(
+        self,
+        store: AppStore,
+        test_config: Config,
+        launcher: FakeWorkerLauncher,
+        clock: _Clock,
+        logged_events: LoggedEvents,
+    ) -> None:
+        """A locked ``library.db`` answers « unknown »: the request stays running, and settles once readable."""
+        library = _library(test_config)
+        uid = _admitted_by_first_supervisor(store, test_config, launcher, clock)
+        writer = PipelineRunWriter(library)
+        writer.insert(uid, trigger="web", dry_run=False, pid=4000)
+        writer.finalize(uid, "success")
+        clock.now += LEASE_TTL_S + STALE_AFTER_S + 1
+        restarted = _supervisor(store, test_config, FakeWorkerLauncher(first_pid=9000), clock, pid=300)
+
+        locked = sqlite3.OperationalError("database is locked")
+        with (
+            patch.object(PipelineRunWriter, "outcome", side_effect=locked, create=True),
+            logged_events() as events,
+        ):
+            restarted.tick_admission()
+
+        assert _state(store, uid)[0] is RequestState.RUNNING
+        assert "supervisor.run_row_unreadable" in [event["event"] for event in events]
+        restarted.tick_admission()
+        assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.SUCCESS)
+
+
+class TestExitCodeKept:
+    """A child's exit code survives a failed save: it is forgotten only once its request left ``running``."""
+
+    def test_a_save_that_raises_keeps_the_exit_code_for_the_next_tick(
+        self, store: AppStore, test_config: Config, clock: _Clock
+    ) -> None:
+        """Exit 3, the requeue's save raises: the next tick still reads 3 and requeues; then the child is reaped."""
+        uid = _ask(store, test_config, clock)
+        request = store.runs.get(uid)
+        assert request is not None
+        request.admit(4000, clock.now)
+        assert store.runs.save(request)
+        real = ProcessWorkerLauncher()
+        child = MagicMock(pid=4000)
+        child.poll.return_value = 3
+        real._children[4000] = child
+        lock = test_config.paths.data_dir / "pipeline.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text(str(os.getpid()))
+        supervisor = _supervisor(store, test_config, FakeWorkerLauncher(), clock, worker_launcher=real)
+        real_save = store.runs.save
+        failed: list[RunUid] = []
+
+        def fail_once(saved: RunRequest) -> bool:
+            if not failed:
+                failed.append(saved.uid)
+                raise sqlite3.OperationalError("database is locked")
+            return real_save(saved)
+
+        with patch.object(store.runs, "save", side_effect=fail_once), pytest.raises(sqlite3.OperationalError):
+            supervisor.tick_admission()
+        supervisor.tick_admission()
+
+        assert _state(store, uid) == (RequestState.QUEUED, None, WaitReason.PIPELINE_LOCK_HELD)
+        assert 4000 not in real._children
+
+
+class TestWatcherAskLost:
+    """A FIRE_RUN that was not taken leaves the watcher's state as it was before the decision."""
+
+    def test_a_refused_fire_run_leaves_the_state_unchanged(
+        self, store: AppStore, watching: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """The ask is refused (a read-only instance): the debounce window and backoff are not advanced."""
+        watcher = FakeWatcherHalf()
+        watcher.inputs = [_input()]
+        supervisor = _supervisor(
+            store, watching, launcher, clock, watcher=watcher, watcher_service=_ScriptedWatcherService(_fire())
+        )
+        supervisor.tick_admission()
+        before = WatcherState(debounce_until=5.0, backoff_multiplier=2, debounce_origin="completion")
+        supervisor.watcher_state = dataclasses.replace(before)
+
+        with patch.object(RunService, "ask_run", side_effect=AppForbidden("read-only instance")):
+            supervisor.tick_watcher()
+
+        assert supervisor.watcher_state == before
+        assert store.runs.queued() == ()
+
+    def test_a_raising_ask_leaves_the_state_unchanged(
+        self, store: AppStore, watching: Config, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """Any exception from the ask restores the state too, and still reaches the loop's guard."""
+        watcher = FakeWatcherHalf()
+        watcher.inputs = [_input()]
+        supervisor = _supervisor(
+            store, watching, launcher, clock, watcher=watcher, watcher_service=_ScriptedWatcherService(_fire())
+        )
+        supervisor.tick_admission()
+        before = WatcherState(debounce_until=5.0, backoff_multiplier=2, debounce_origin="completion")
+        supervisor.watcher_state = dataclasses.replace(before)
+
+        with patch.object(RunService, "ask_run", side_effect=RuntimeError("store down")), pytest.raises(RuntimeError):
+            supervisor.tick_watcher()
+
+        assert supervisor.watcher_state == before
+
+
+class _SlowPollWatcher(FakeWatcherHalf):
+    """A watcher half whose poll outlasts the lease's TTL (a slow torrent client), then polls nothing."""
+
+    def __init__(self, store: AppStore, clock: _Clock) -> None:
+        """Bind the poll to the store and clock it reads.
+
+        Args:
+            store: The store holding the lease.
+            clock: The clock the poll moves.
+        """
+        super().__init__()
+        self._store = store
+        self._clock = clock
+
+    def poll(self) -> WatcherInput | None:
+        """Move the clock past the TTL, then wait (bounded, real time) for the lease to be renewed meanwhile.
+
+        Returns:
+            ``None``: the cycle is skipped.
+        """
+        self.polls += 1
+        self._clock.now += LEASE_TTL_S + 10
+        renewed = threading.Event()
+        for _ in range(200):
+            lease = self._store.lease.read()
+            if lease is not None and lease.expires_at > self._clock.now:
+                renewed.set()
+                break
+            renewed.wait(0.01)
+        return None
+
+
+class TestLeaseDuringTheWatcher:
+    """The lease is kept while a watcher tick runs longer than its TTL."""
+
+    def test_a_poll_longer_than_the_ttl_keeps_the_lease(
+        self,
+        store: AppStore,
+        watching: Config,
+        launcher: FakeWorkerLauncher,
+        clock: _Clock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """While the poll runs past the TTL, the lease is renewed: a second supervisor cannot claim it."""
+        monkeypatch.setattr(supervisor_module, "LEASE_KEEP_INTERVAL_S", 0.01, raising=False)
+        supervisor = _supervisor(
+            store,
+            watching,
+            launcher,
+            clock,
+            pid=100,
+            watcher=_SlowPollWatcher(store, clock),
+            watcher_service=_ScriptedWatcherService(),
+        )
+        supervisor.tick_admission()
+
+        supervisor.tick_watcher()
+
+        second = _supervisor(store, watching, launcher, clock, pid=200)
+        second.tick_admission()
+        assert not second.holds_lease
+        lease = store.lease.read()
+        assert lease is not None and lease.holder_pid == 100
+        assert not [thread for thread in threading.enumerate() if thread.name == "supervisor-lease-keeper"]
+
+
+class TestFailingTicks:
+    """A tick that keeps failing stops the loop, so PM2 restarts the process instead of a silent wedge."""
+
+    def test_consecutive_failures_stop_the_loop_non_zero(
+        self,
+        store: AppStore,
+        test_config: Config,
+        launcher: FakeWorkerLauncher,
+        clock: _Clock,
+        logged_events: LoggedEvents,
+    ) -> None:
+        """N admission ticks failing in a row: an error event, and ``run`` raises (the command exits 1)."""
+        supervisor = _supervisor(store, test_config, launcher, clock)
+        limit = getattr(supervisor_module, "MAX_CONSECUTIVE_TICK_FAILURES", 30)
+        calls = iter(range(3 * limit))
+
+        def wedged() -> None:
+            raise ValueError("unparsable run_request row")
+
+        supervisor.tick_admission = wedged  # type: ignore[method-assign]
+        with logged_events() as events, pytest.raises(RuntimeError) as raised:
+            supervisor.run(lambda: next(calls, None) is None, sleep=lambda _s: None)
+
+        assert type(raised.value).__name__ == "SupervisorWedged"
+        assert "supervisor.ticks_failing" in [event["event"] for event in events]
+
+    def test_a_success_resets_the_count(self, store: AppStore, test_config: Config, clock: _Clock) -> None:
+        """N−1 failures, a success, N−1 failures: the loop goes on until it is asked to stop."""
+        supervisor = _supervisor(store, test_config, FakeWorkerLauncher(), clock)
+        limit = getattr(supervisor_module, "MAX_CONSECUTIVE_TICK_FAILURES", 30)
+        outcomes = [False] * (limit - 1) + [True] + [False] * (limit - 1)
+        ran: list[bool] = []
+
+        def flaky() -> None:
+            ok = outcomes[len(ran)]
+            ran.append(ok)
+            if not ok:
+                raise ValueError("transient")
+
+        supervisor.tick_admission = flaky  # type: ignore[method-assign]
+        supervisor.run(lambda: len(ran) == len(outcomes), sleep=lambda _s: None)
+
+        assert len(ran) == len(outcomes)

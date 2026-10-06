@@ -15,7 +15,7 @@ from typer.testing import CliRunner
 from personalscraper.acquire.watcher import WatcherDecision, WatcherOutput, WatcherState
 from personalscraper.app.store.store import AppStore
 from personalscraper.app.supervisor.model import Lease
-from personalscraper.app.supervisor.supervisor import Supervisor
+from personalscraper.app.supervisor.supervisor import Supervisor, SupervisorWedged
 from personalscraper.cli import app as cli_app
 from personalscraper.commands import supervise as supervise_command
 from personalscraper.conf.isolation import ENVIRONMENT_MARKER
@@ -59,13 +59,14 @@ def _staging(test_config: Config, monkeypatch: pytest.MonkeyPatch, marker: str) 
     )
 
 
-def _invoke(cli_runner: CliRunner, config: Config, leases: list[Lease | None]) -> Any:  # noqa: ANN401 — typer's Result
+def _invoke(cli_runner: CliRunner, config: Config, leases: list[Lease | None], *, wedged: bool = False) -> Any:  # noqa: ANN401 — typer's Result
     """Run ``supervise`` for one admission tick over *config*, recording the lease it held.
 
     Args:
         cli_runner: The runner.
         config: The configuration the CLI loads.
         leases: Receives the lease read from the store during the tick.
+        wedged: Whether the loop then gives up, as after too many failing ticks.
 
     Returns:
         The run's result.
@@ -76,6 +77,8 @@ def _invoke(cli_runner: CliRunner, config: Config, leases: list[Lease | None]) -
         self.tick_admission()
         leases.append(self._store.lease.read())
         self.stop()
+        if wedged:
+            raise SupervisorWedged("tick_admission failed 30 times in a row")
 
     with (
         patch(_PATCH_RESOLVE_PATH, return_value=config.paths.data_dir / "fake.json5"),
@@ -124,6 +127,17 @@ class TestEnvironment:
         assert result.exit_code != 0
         assert leases == []
         assert not list(config.paths.data_dir.glob("app*.db"))
+
+
+class TestWedged:
+    """A loop that gave up ends the process non-zero, so PM2 restarts it."""
+
+    def test_a_wedged_loop_exits_1(self, cli_runner: CliRunner, test_config: Config) -> None:
+        """``SupervisorWedged`` from the loop: exit code 1, a clean exit rather than a traceback."""
+        result = _invoke(cli_runner, test_config, [], wedged=True)
+
+        assert result.exit_code == 1
+        assert not isinstance(result.exception, SupervisorWedged)
 
 
 class TestWatchHelpers:

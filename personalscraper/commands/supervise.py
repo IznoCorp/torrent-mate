@@ -21,7 +21,7 @@ import typer
 from personalscraper import cli_helpers
 from personalscraper.app.composition import build_app_context, build_app_services
 from personalscraper.app.supervisor.launcher import ProcessWorkerLauncher
-from personalscraper.app.supervisor.supervisor import Supervisor
+from personalscraper.app.supervisor.supervisor import Supervisor, SupervisorWedged
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.commands import watch as watch_command
@@ -174,6 +174,9 @@ def supervise(ctx: typer.Context) -> None:
     typer.echo(t("cli_core.supervise.started", pid=os.getpid()))
     try:
         supervisor.run(lambda: _stop_requested)
+    except SupervisorWedged:
+        # Logged by the loop (``supervisor.ticks_failing``); a non-zero exit makes PM2 restart it.
+        raise typer.Exit(1) from None
     finally:
         if redis_publisher is not None:
             redis_publisher.close()
