@@ -286,7 +286,7 @@ SECURITY_HEADERS = (
         "Content-Security-Policy",
         "default-src 'self'; "
         "img-src 'self' https://image.tmdb.org https://artworks.thetvdb.com https://plex.tv "
-        "https://www.gravatar.com; "
+        "https://assets.plex.tv https://www.gravatar.com; "
         "frame-src https://www.youtube.com; "
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     ),

@@ -119,7 +119,7 @@ def test_the_policy_is_exactly_the_one_the_operator_ruled() -> None:
     assert CONTENT_SECURITY_POLICY == (
         "default-src 'self'; "
         "img-src 'self' https://image.tmdb.org https://artworks.thetvdb.com https://plex.tv "
-        "https://www.gravatar.com; "
+        "https://assets.plex.tv https://www.gravatar.com; "
         "frame-src https://www.youtube.com; "
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     )
@@ -132,6 +132,7 @@ def test_the_policy_is_exactly_the_one_the_operator_ruled() -> None:
         "https://image.tmdb.org/t/p/w500/poster.jpg",
         "https://artworks.thetvdb.com/banners/poster.jpg",
         "https://plex.tv/users/0123456789abcdef/avatar?c=1",
+        "https://assets.plex.tv/avatars/0123456789abcdef.jpg?1655775273",
         "https://www.gravatar.com/avatar/00000000000000000000000000000000",
         "https://tm.example.org/assets/poster.webp",
     ],
