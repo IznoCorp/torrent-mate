@@ -306,3 +306,35 @@ class TestSetPassword:
         match = re.search(r"WEB_PASSWORD_HASH=(scrypt\$[^\s]+)", content)
         assert match is not None, f"No WEB_PASSWORD_HASH line found in: {content}"
         assert verify_password("test-password", match.group(1)) is True
+
+    def test_write_flag_targets_explicit_env_file(
+        self,
+        cli_runner: CliRunner,
+        test_config,
+        tmp_path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With PERSONALSCRAPER_ENV_FILE set, --write fills that file and not the clone's ``.env``."""
+        monkeypatch.delenv("WEB_JWT_SECRET", raising=False)
+        clone_env = tmp_path / ".env"
+        explicit = tmp_path / "explicit.env"
+        monkeypatch.setenv("PERSONALSCRAPER_ENV_FILE", str(explicit))
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.web.get_settings",
+                return_value=Settings(_env_file=None),  # type: ignore[call-arg]
+            ),
+            patch("personalscraper.commands.web._ENV_PATH", clone_env),
+        ):
+            result = cli_runner.invoke(
+                cli_app,
+                ["web", "set-password", "--write"],
+                input="testuser\ntest-password\ntest-password\ny\n",
+            )
+
+        assert result.exit_code == 0, f"stderr: {result.stderr}"
+        assert "WEB_PASSWORD_HASH=scrypt$" in explicit.read_text()
+        assert not clone_env.exists()

@@ -17,6 +17,7 @@ from types import ModuleType
 
 import pytest
 
+from personalscraper import config as settings_config
 from personalscraper.conf import ids as CID
 from personalscraper.conf import sandbox_guard
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
@@ -56,6 +57,8 @@ def preprod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
     """
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda _path: True)
+    # The clone running the script has no own .env unless a test gives it one.
+    monkeypatch.setattr(settings_config, "_local_env_path", lambda: tmp_path / "clone" / ".env")
     config_dir = tmp_path / "config-staging"
     config_dir.mkdir()
     data_dir = tmp_path / "data-staging"
@@ -117,6 +120,17 @@ def test_a_data_dir_marked_for_another_environment_is_named(preprod: dict[str, P
     missing = _load().missing_preconditions(preprod["config"], preprod["env_file"])
     assert len(missing) == 1
     assert ".tm-environment" in missing[0]
+
+
+def test_a_clone_with_its_own_env_file_is_named(preprod: dict[str, Path], tmp_path: Path) -> None:
+    """The clone the script runs from holds its own ``.env``: named, the preprod must not hold it."""
+    clone_env = tmp_path / "clone" / ".env"
+    clone_env.parent.mkdir()
+    clone_env.write_text("QBIT_USERNAME=from-local\n", encoding="utf-8")
+    missing = _load().missing_preconditions(preprod["config"], preprod["env_file"])
+    assert len(missing) == 1
+    assert str(clone_env) in missing[0]
+    assert "its own" in missing[0]
 
 
 @pytest.mark.parametrize("root", ["disk", "staging"])

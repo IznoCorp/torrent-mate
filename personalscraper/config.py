@@ -57,6 +57,30 @@ def _local_env_path() -> Path:
     return Path(__file__).resolve().parent.parent / ".env"
 
 
+def env_file_path(local: Path | None = None) -> Path:
+    """The ``.env`` file this process reads its secrets from and writes them to.
+
+    ``PERSONALSCRAPER_ENV_FILE`` when set (the preprod's whole secret set,
+    loaded alone by the package import and by :class:`Settings`), else the
+    checkout's own ``.env``. Resolved at call time, so a variable set after
+    import is honoured. The secrets surfaces (``/api/config/secrets``,
+    ``web set-password --write``) go through it: a secret written elsewhere
+    would never be loaded, and would recreate a clone ``.env`` the preprod
+    refuses to hold.
+
+    Args:
+        local: The checkout ``.env`` to fall back on; defaults to
+            :func:`_local_env_path`.
+
+    Returns:
+        The path of the env file to read and write (it may not exist).
+    """
+    override = os.environ.get("PERSONALSCRAPER_ENV_FILE")
+    if override:
+        return Path(override)
+    return local if local is not None else _local_env_path()
+
+
 def _resolve_env_files() -> tuple[str, ...]:
     """Resolve the ordered ``.env`` files pydantic-settings loads.
 

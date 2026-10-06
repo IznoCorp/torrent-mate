@@ -24,6 +24,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from personalscraper import config as settings_config
 from personalscraper.conf.environment import ENV_VAR, Environment
 from personalscraper.conf.loader import load_config_dir
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_sandbox_root, sandbox_roots
@@ -58,6 +59,9 @@ def missing_preconditions(config_dir: Path, env_file: Path) -> list[str]:
         # Nothing else can be judged without the overlay.
         return [f"the preprod overlay {config_dir} does not exist"]
     missing: list[str] = []
+    local_env = settings_config._local_env_path()
+    if local_env.is_file():
+        missing.append(f"the staging clone carries its own {local_env}, which the preprod must not hold: move it out")
     if not env_file.is_file():
         missing.append(f"the preprod secrets file {env_file} does not exist")
     try:
