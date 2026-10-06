@@ -13,9 +13,9 @@ import hashlib
 from pathlib import Path
 
 from personalscraper.conf.loader import (
-    _LOCAL_FILENAME,
-    _MASTER_FILENAME,
-    _load_json5_file,
+    LOCAL_FILENAME,
+    MASTER_FILENAME,
+    load_json5_file,
 )
 from personalscraper.logger import get_logger
 
@@ -52,7 +52,7 @@ def _compute_ownership(config_dir: Path) -> dict[str, str]:
         Dict mapping top-level key names to filenames (e.g.
         ``{"paths": "paths.json5"}``).
     """
-    master = _load_json5_file(config_dir / _MASTER_FILENAME)
+    master = load_json5_file(config_dir / MASTER_FILENAME)
     overlay_names: list[str] = master.get("overlays", [])
 
     ownership: dict[str, str] = {}
@@ -60,13 +60,13 @@ def _compute_ownership(config_dir: Path) -> dict[str, str]:
     # Master-owned keys (everything except "overlays").
     for key in master:
         if key != "overlays":
-            ownership[key] = _MASTER_FILENAME
+            ownership[key] = MASTER_FILENAME
 
     # Overlay-owned keys.
     for name in overlay_names:
         overlay_path = config_dir / name
         if overlay_path.is_file():
-            overlay = _load_json5_file(overlay_path)
+            overlay = load_json5_file(overlay_path)
             for key in overlay:
                 if key != "__source__":
                     ownership[key] = name
@@ -86,11 +86,11 @@ def _local_keys(config_dir: Path) -> set[str]:
         Set of top-level key names from local.json5, or empty set if the file
         does not exist.
     """
-    local_path = config_dir / _LOCAL_FILENAME
+    local_path = config_dir / LOCAL_FILENAME
     if not local_path.is_file():
         return set()
     try:
-        local = _load_json5_file(local_path)
+        local = load_json5_file(local_path)
     except Exception:
         logger.warning("local_json5_unreadable", path=str(local_path))
         return set()

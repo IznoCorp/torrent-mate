@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from personalscraper.app.accounts import events as _accounts_events  # noqa: F401 — registers E8 (AccountRightsChanged)
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.roles import RoleService

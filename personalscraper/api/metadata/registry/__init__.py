@@ -35,8 +35,12 @@ from personalscraper.api.metadata._contracts import (
     VideoProvider,
 )
 from personalscraper.api.metadata.registry._errors import (
-    RegistryConfigError,
-    UnknownProviderError,
+    RegistryConfigError as RegistryConfigError,
+)
+from personalscraper.api.metadata.registry._errors import (
+    UnknownProviderError as UnknownProviderError,
+)
+from personalscraper.api.metadata.registry._errors import (
     WrongSemanticBug,
 )
 from personalscraper.api.metadata.registry._events import (

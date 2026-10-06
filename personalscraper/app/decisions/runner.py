@@ -64,7 +64,7 @@ from personalscraper.app._runner_engine import (
     redis_publish_line as _redis_publish_line,  # noqa: F401 — re-export for test/seam parity
 )
 from personalscraper.conf.loader import load_config
-from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.core.sqlite import apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter

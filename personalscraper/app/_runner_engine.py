@@ -54,7 +54,7 @@ from typing import Any, NoReturn
 
 from personalscraper.app.errors import AppConflict, AppRefusal
 from personalscraper.app.run_queue import wait_in_visible_queue
-from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.core.sqlite import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 
