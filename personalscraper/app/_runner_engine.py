@@ -630,6 +630,191 @@ def _lock_is_free(is_lock_held_fn: Callable[[Path], bool], lock_file: Path) -> b
     return not is_lock_held_fn(lock_file)
 
 
+def _run_step(spec: RunnerSpec, step_argv: list[str], label: str, attempt: int, seq: int) -> tuple[int, int]:
+    """Spawn one step's child, stream its output and record the step on the run row.
+
+    Every failure that ends the run (spawn failure, stream failure, step timeout) finalizes
+    the row and exits the process here, exactly as the lifecycle does.
+
+    Args:
+        spec: The fully-resolved :class:`RunnerSpec`.
+        step_argv: The step's command line.
+        label: The step's label, for the step record and the logs.
+        attempt: The 1-based attempt number, for the logs.
+        seq: The next output line's sequence number on the Redis stream.
+
+    Returns:
+        ``(rc, seq)``: the child's exit code and the advanced sequence number.
+
+    Raises:
+        SystemExit: ``2`` on a spawn failure, ``1`` on a stream failure or a step timeout.
+    """
+    writer = spec.writer
+    run_uid = spec.run_uid
+    log.info(
+        spec.event_prefix + "_starting",
+        run_uid=run_uid,
+        argv=step_argv,
+        attempt=attempt,
+        **spec.log_context,
+    )
+
+    step_started = time.time()
+    try:
+        proc = subprocess.Popen(
+            step_argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            errors="replace",
+            bufsize=1,
+            start_new_session=True,
+        )
+    except (OSError, ValueError) as exc:
+        # OSError → exec failure; ValueError → embedded null byte in an arg.
+        log.error(spec.event_prefix + "_spawn_failed", run_uid=run_uid, error=str(exc), **spec.log_context)
+        record_step(spec, label, step_started, OUTCOME_ERROR)
+        # ``or None`` writes NULL only when the ring is genuinely
+        # empty — nothing ran, so there is nothing to show.
+        #
+        # It is NOT a byte-identity device: whenever the ring already
+        # holds output the tail is now persisted where the pre-chain
+        # engine wrote NULL. That happens on a chain whose earlier
+        # steps ran, and on any re-queued runner failing to spawn at
+        # attempt ≥ 2 with attempt 1's output still buffered. Both are
+        # deliberate improvements: a spawn failure that discards the
+        # output preceding it says nothing about where the run got to.
+        writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc), output_tail=spec.ring.to_str() or None)
+        sys.exit(2)
+
+    spec.child["proc"] = proc
+
+    # Per-step wall-clock ceiling (opt-in). The watchdog kills the
+    # child's process GROUP, which closes its stdout and unblocks the
+    # streaming loop below — the same path a SIGTERM takes.
+    timed_out = _Flag()
+    watchdog = _start_step_watchdog(proc, spec.step_timeout_s, timed_out)
+
+    # Stream output — ring buffer + Redis. Any failure finalizes 'error'
+    # so the row is never left 'running'.
+    try:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            spec.ring.append(line)
+            redis_publish_line(spec.redis, line, run_uid, seq, spec.stream_key, spec.stream_maxlen)
+            seq += 1
+        rc = proc.wait()
+    except Exception as exc:
+        kill_child_group(proc)
+        output_tail = spec.ring.to_str()
+        record_step(spec, label, step_started, OUTCOME_ERROR)
+        writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc) or type(exc).__name__, output_tail=output_tail)
+        log.error(spec.event_prefix + "_stream_failed", run_uid=run_uid, exc_info=True, **spec.log_context)
+        sys.exit(1)
+    finally:
+        if watchdog is not None:
+            watchdog.cancel()
+
+    if timed_out.set:
+        # The step overran its ceiling and was killed. Say so in the
+        # tail AND in the error column, in the operator's language —
+        # « le runner s'est arrêté » with no reason is the silent
+        # failure the constitution forbids.
+        marker = f"--- étape {label} interrompue après {int(spec.step_timeout_s or 0)}s ---\n"
+        spec.ring.append(marker)
+        redis_publish_line(spec.redis, marker, run_uid, seq, spec.stream_key, spec.stream_maxlen)
+        seq += 1
+        record_step(spec, label, step_started, OUTCOME_ERROR)
+        writer.finalize(run_uid, OUTCOME_ERROR, error=marker.strip(), output_tail=spec.ring.to_str())
+        log.error(
+            spec.event_prefix + "_step_timeout",
+            run_uid=run_uid,
+            step=label,
+            timeout_s=spec.step_timeout_s,
+            **spec.log_context,
+        )
+        sys.exit(1)
+
+    # Per-step timing/rc on the run row (steps_json). Without this a
+    # chain reported one opaque outcome and the failing step was only
+    # identifiable from the output tail — which the 2000-char slice
+    # below can truncate away entirely.
+    record_step(spec, label, step_started, OUTCOME_SUCCESS if rc == 0 else OUTCOME_ERROR, rc=rc)
+    return rc, seq
+
+
+def _finalize_outcome(spec: RunnerSpec, rc: int, failed_label: str, seq: int) -> None:
+    """Finalize the run row from the last exit code: success, or error with its tail.
+
+    Args:
+        spec: The fully-resolved :class:`RunnerSpec`.
+        rc: The last step's exit code.
+        failed_label: The label of the step that failed, empty when none did.
+        seq: The number of output lines streamed, for the log.
+    """
+    writer = spec.writer
+    run_uid = spec.run_uid
+    output_tail = spec.ring.to_str()
+    if rc == 0:
+        writer.finalize(run_uid, OUTCOME_SUCCESS, output_tail=output_tail)
+        log.info(spec.event_prefix + "_completed", run_uid=run_uid, rc=rc, lines=seq, **spec.log_context)
+        if spec.on_success is not None:
+            spec.on_success()
+    else:
+        # On failure, capture the last portion of output as the error context,
+        # PREFIXED with which step failed and with what code. The prefix comes
+        # first on purpose: the tail is sliced to its last 2000 characters, so
+        # attribution placed after it is exactly what a chatty step truncates
+        # away — and « the run failed » without naming the step is unusable.
+        error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail
+        if failed_label:
+            error_tail = f"step {failed_label} rc={rc}: {error_tail}"
+        writer.finalize(run_uid, OUTCOME_ERROR, error=error_tail, output_tail=output_tail)
+        log.error(
+            spec.event_prefix + "_failed",
+            run_uid=run_uid,
+            rc=rc,
+            step=failed_label,
+            lines=seq,
+            **spec.log_context,
+        )
+
+
+def _acquire_run_lock(spec: RunnerSpec, queue_deadline: float) -> None:
+    """Acquire ``pipeline.lock`` once, waiting in the visible queue, when the run owns it.
+
+    Args:
+        spec: The fully-resolved :class:`RunnerSpec`.
+        queue_deadline: The ``time.monotonic()`` instant the wait gives up at.
+
+    Raises:
+        SystemExit: ``1`` when the queue wait times out.
+    """
+    writer = spec.writer
+    run_uid = spec.run_uid
+
+    # Pipeline-lock ownership (R11): acquire once and hold for the child's whole
+    # lifetime. A held lock is not a refusal (§6) — wait in the visible queue.
+    if spec.hold_lock:
+        assert spec.acquire_fn is not None and spec.lock_file is not None
+        acquire_fn = spec.acquire_fn
+        lock_file = spec.lock_file
+        scrape_locks_dir = spec.scrape_locks_dir
+        if not wait_in_visible_queue(
+            try_proceed=lambda: bool(acquire_fn(lock_file, scrape_locks_dir)),
+            writer=writer,
+            run_uid=run_uid,
+            deadline_monotonic=queue_deadline,
+            timeout_s=spec.queue_timeout_s,
+            timeout_error=spec.queue_timeout_error,
+            log_event_prefix=spec.event_prefix,
+            log_context=spec.log_context,
+            output_tail=spec.ring.to_str,
+        ):
+            sys.exit(1)
+        spec.lock_state["acquired"] = True
+
+
 def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
     """Run one detached runner's spawn → stream → requeue → finalize lifecycle.
 
@@ -669,26 +854,7 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
 
     queue_deadline = time.monotonic() + spec.queue_timeout_s
 
-    # Pipeline-lock ownership (R11): acquire once and hold for the child's whole
-    # lifetime. A held lock is not a refusal (§6) — wait in the visible queue.
-    if spec.hold_lock:
-        assert spec.acquire_fn is not None and spec.lock_file is not None
-        acquire_fn = spec.acquire_fn
-        lock_file = spec.lock_file
-        scrape_locks_dir = spec.scrape_locks_dir
-        if not wait_in_visible_queue(
-            try_proceed=lambda: bool(acquire_fn(lock_file, scrape_locks_dir)),
-            writer=writer,
-            run_uid=run_uid,
-            deadline_monotonic=queue_deadline,
-            timeout_s=spec.queue_timeout_s,
-            timeout_error=spec.queue_timeout_error,
-            log_event_prefix=spec.event_prefix,
-            log_context=spec.log_context,
-            output_tail=spec.ring.to_str,
-        ):
-            sys.exit(1)
-        spec.lock_state["acquired"] = True
+    _acquire_run_lock(spec, queue_deadline)
 
     try:
         seq = 0
@@ -734,97 +900,7 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
                     redis_publish_line(spec.redis, separator, run_uid, seq, spec.stream_key, spec.stream_maxlen)
                     seq += 1
 
-                log.info(
-                    spec.event_prefix + "_starting",
-                    run_uid=run_uid,
-                    argv=step_argv,
-                    attempt=attempt,
-                    **spec.log_context,
-                )
-
-                step_started = time.time()
-                try:
-                    proc = subprocess.Popen(
-                        step_argv,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        text=True,
-                        errors="replace",
-                        bufsize=1,
-                        start_new_session=True,
-                    )
-                except (OSError, ValueError) as exc:
-                    # OSError → exec failure; ValueError → embedded null byte in an arg.
-                    log.error(spec.event_prefix + "_spawn_failed", run_uid=run_uid, error=str(exc), **spec.log_context)
-                    record_step(spec, label, step_started, OUTCOME_ERROR)
-                    # ``or None`` writes NULL only when the ring is genuinely
-                    # empty — nothing ran, so there is nothing to show.
-                    #
-                    # It is NOT a byte-identity device: whenever the ring already
-                    # holds output the tail is now persisted where the pre-chain
-                    # engine wrote NULL. That happens on a chain whose earlier
-                    # steps ran, and on any re-queued runner failing to spawn at
-                    # attempt ≥ 2 with attempt 1's output still buffered. Both are
-                    # deliberate improvements: a spawn failure that discards the
-                    # output preceding it says nothing about where the run got to.
-                    writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc), output_tail=spec.ring.to_str() or None)
-                    sys.exit(2)
-
-                spec.child["proc"] = proc
-
-                # Per-step wall-clock ceiling (opt-in). The watchdog kills the
-                # child's process GROUP, which closes its stdout and unblocks the
-                # streaming loop below — the same path a SIGTERM takes.
-                timed_out = _Flag()
-                watchdog = _start_step_watchdog(proc, spec.step_timeout_s, timed_out)
-
-                # Stream output — ring buffer + Redis. Any failure finalizes 'error'
-                # so the row is never left 'running'.
-                try:
-                    assert proc.stdout is not None
-                    for line in proc.stdout:
-                        spec.ring.append(line)
-                        redis_publish_line(spec.redis, line, run_uid, seq, spec.stream_key, spec.stream_maxlen)
-                        seq += 1
-                    rc = proc.wait()
-                except Exception as exc:
-                    kill_child_group(proc)
-                    output_tail = spec.ring.to_str()
-                    record_step(spec, label, step_started, OUTCOME_ERROR)
-                    writer.finalize(
-                        run_uid, OUTCOME_ERROR, error=str(exc) or type(exc).__name__, output_tail=output_tail
-                    )
-                    log.error(spec.event_prefix + "_stream_failed", run_uid=run_uid, exc_info=True, **spec.log_context)
-                    sys.exit(1)
-                finally:
-                    if watchdog is not None:
-                        watchdog.cancel()
-
-                if timed_out.set:
-                    # The step overran its ceiling and was killed. Say so in the
-                    # tail AND in the error column, in the operator's language —
-                    # « le runner s'est arrêté » with no reason is the silent
-                    # failure the constitution forbids.
-                    marker = f"--- étape {label} interrompue après {int(spec.step_timeout_s or 0)}s ---\n"
-                    spec.ring.append(marker)
-                    redis_publish_line(spec.redis, marker, run_uid, seq, spec.stream_key, spec.stream_maxlen)
-                    seq += 1
-                    record_step(spec, label, step_started, OUTCOME_ERROR)
-                    writer.finalize(run_uid, OUTCOME_ERROR, error=marker.strip(), output_tail=spec.ring.to_str())
-                    log.error(
-                        spec.event_prefix + "_step_timeout",
-                        run_uid=run_uid,
-                        step=label,
-                        timeout_s=spec.step_timeout_s,
-                        **spec.log_context,
-                    )
-                    sys.exit(1)
-
-                # Per-step timing/rc on the run row (steps_json). Without this a
-                # chain reported one opaque outcome and the failing step was only
-                # identifiable from the output tail — which the 2000-char slice
-                # below can truncate away entirely.
-                record_step(spec, label, step_started, OUTCOME_SUCCESS if rc == 0 else OUTCOME_ERROR, rc=rc)
+                rc, seq = _run_step(spec, step_argv, label, attempt, seq)
 
                 if rc != 0:
                     failed_label = label
@@ -849,32 +925,7 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
                 continue
             break
 
-        # Finalize.
-        output_tail = spec.ring.to_str()
-        if rc == 0:
-            writer.finalize(run_uid, OUTCOME_SUCCESS, output_tail=output_tail)
-            log.info(spec.event_prefix + "_completed", run_uid=run_uid, rc=rc, lines=seq, **spec.log_context)
-            if spec.on_success is not None:
-                spec.on_success()
-        else:
-            # On failure, capture the last portion of output as the error context,
-            # PREFIXED with which step failed and with what code. The prefix comes
-            # first on purpose: the tail is sliced to its last 2000 characters, so
-            # attribution placed after it is exactly what a chatty step truncates
-            # away — and « the run failed » without naming the step is unusable.
-            error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail
-            if failed_label:
-                error_tail = f"step {failed_label} rc={rc}: {error_tail}"
-            writer.finalize(run_uid, OUTCOME_ERROR, error=error_tail, output_tail=output_tail)
-            log.error(
-                spec.event_prefix + "_failed",
-                run_uid=run_uid,
-                rc=rc,
-                step=failed_label,
-                lines=seq,
-                **spec.log_context,
-            )
-
+        _finalize_outcome(spec, rc, failed_label, seq)
         sys.exit(rc)
     finally:
         if spec.lock_state.get("acquired") and spec.release_fn is not None and spec.lock_file is not None:

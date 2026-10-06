@@ -25,7 +25,7 @@ from pathlib import Path
 
 from personalscraper.app._runner_engine import reserve_run_row
 from personalscraper.app.errors import AppConflict, AppInternalError, AppPreconditionRequired, AppValidationError
-from personalscraper.app.maintenance.registry import MaintenanceAction, canonical_options_json
+from personalscraper.app.maintenance.registry import ActionOption, MaintenanceAction, canonical_options_json
 from personalscraper.app.run_queue import QUEUE_STEP_NAME, QUEUE_WAITING_STATUS
 from personalscraper.core.sqlite import apply_pragmas
 from personalscraper.lock import is_lock_held
@@ -42,6 +42,36 @@ _DRY_RUN_FIRST_DETAIL = (
 #: French duplicate-refusal detail — the ONLY 409 left on this surface (§6:
 #: the sole permitted refusal is idempotence — the same action already running).
 _DUPLICATE_ACTION_DETAIL = "Cette action est déjà en cours avec les mêmes options (doublon)."
+
+
+def _validate_option_value(opt: ActionOption, key: str, value: object) -> None:
+    """Check one provided option value against its declared type (and enum set).
+
+    Args:
+        opt: The registered option the key names.
+        key: The option name, as the caller sent it.
+        value: The value the caller sent.
+
+    Raises:
+        AppValidationError: 422 when the value does not match the declared type.
+    """
+    if opt.type == "bool":
+        if not isinstance(value, bool):
+            raise AppValidationError(f"Option {key!r} must be a boolean")
+    elif opt.type == "int":
+        # bool is a subclass of int — reject it explicitly.
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise AppValidationError(f"Option {key!r} must be an integer")
+    elif opt.type == "str":
+        if not isinstance(value, str):
+            raise AppValidationError(f"Option {key!r} must be a string")
+    elif opt.type == "enum":
+        if not isinstance(value, str):
+            raise AppValidationError(f"Option {key!r} must be a string")
+        if opt.enum_values and value not in opt.enum_values:
+            raise AppValidationError(
+                f"Option {key!r}: {value!r} is not a valid value. Allowed: {', '.join(opt.enum_values)}"
+            )
 
 
 def _validate_options(action: MaintenanceAction, body_options: dict[str, object]) -> None:
@@ -72,25 +102,7 @@ def _validate_options(action: MaintenanceAction, body_options: dict[str, object]
 
     # Type / enum validation for each provided key.
     for key, value in body_options.items():
-        opt = registered[key]
-
-        if opt.type == "bool":
-            if not isinstance(value, bool):
-                raise AppValidationError(f"Option {key!r} must be a boolean")
-        elif opt.type == "int":
-            # bool is a subclass of int — reject it explicitly.
-            if not isinstance(value, int) or isinstance(value, bool):
-                raise AppValidationError(f"Option {key!r} must be an integer")
-        elif opt.type == "str":
-            if not isinstance(value, str):
-                raise AppValidationError(f"Option {key!r} must be a string")
-        elif opt.type == "enum":
-            if not isinstance(value, str):
-                raise AppValidationError(f"Option {key!r} must be a string")
-            if opt.enum_values and value not in opt.enum_values:
-                raise AppValidationError(
-                    f"Option {key!r}: {value!r} is not a valid value. Allowed: {', '.join(opt.enum_values)}"
-                )
+        _validate_option_value(registered[key], key, value)
 
 
 def _live_duplicate(conn: sqlite3.Connection, command: str, options_json: str, dry_run: bool) -> str | None:
