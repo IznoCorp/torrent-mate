@@ -13,7 +13,9 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.indexer.events import LibraryScanSkipped, ScanSkipReason
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -103,6 +105,7 @@ def _invalidate_dispatched_subtrees(config: Config, destinations: dict[str, set[
     invalidated = 0
     try:
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     except sqlite3.Error as exc:
         _log.warning("post_maintenance_invalidate_open_failed", error=str(exc))
         return 0
@@ -227,6 +230,7 @@ def _run_relink(config: Config) -> dict[str, int]:
     assert db_path is not None, "indexer.db_path must be resolved"
 
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     linked = unmatched = errors = 0
     try:
@@ -300,6 +304,7 @@ def _run_fix_season_counts(config: Config) -> int:
     assert db_path is not None, "indexer.db_path must be resolved"
 
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -345,6 +350,7 @@ def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0) -> int:
     assert db_path is not None, "indexer.db_path must be resolved"
 
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor)

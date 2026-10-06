@@ -65,6 +65,42 @@ def _db_path_from_conn(conn: sqlite3.Connection) -> Path | None:
     return None
 
 
+def refuse_newer_schema(conn: sqlite3.Connection, dir_: Path) -> None:
+    """Refuse a store whose schema is newer than the code's highest migration.
+
+    The checkouts of this host share their stores, so a store may have been
+    migrated by a newer checkout: code that does not know its tables must
+    neither migrate nor write it. :func:`apply_migrations` runs this check
+    first; a writer that opens a store with a raw ``sqlite3.connect`` runs it
+    right after the connect, before its first write.
+
+    Args:
+        conn: Open :class:`sqlite3.Connection` to the store.
+        dir_: Directory that holds the store's ``*.sql`` migration scripts.
+
+    Raises:
+        SqliteSchemaNewerError: The store's ``PRAGMA user_version`` is higher
+            than the highest script number in *dir_*; ``store.schema_newer_than_code``
+            is logged (path, found, known) and *conn* is closed first.
+    """
+    current_version: int = conn.execute("PRAGMA user_version").fetchone()[0]
+    known_version = max((_migration_version(p) for p in dir_.glob("*.sql") if p.is_file()), default=0)
+    if current_version <= known_version:
+        return
+    db_path = _db_path_from_conn(conn)
+    log.error(
+        "store.schema_newer_than_code",
+        path=str(db_path) if db_path is not None else ":memory:",
+        found=current_version,
+        known=known_version,
+    )
+    conn.close()
+    raise SqliteSchemaNewerError(
+        f"{db_path or ':memory:'} is at schema version {current_version}, newer than the "
+        f"highest migration this code knows ({known_version}); refusing to open it"
+    )
+
+
 def apply_migrations(
     conn: sqlite3.Connection,
     dir_: Path,
@@ -141,19 +177,7 @@ def apply_migrations(
 
     db_path: Path | None = _db_path_from_conn(conn)
 
-    known_version = max(map(_migration_version, scripts), default=0)
-    if current_version > known_version:
-        log.error(
-            "store.schema_newer_than_code",
-            path=str(db_path) if db_path is not None else ":memory:",
-            found=current_version,
-            known=known_version,
-        )
-        conn.close()
-        raise SqliteSchemaNewerError(
-            f"{db_path or ':memory:'} is at schema version {current_version}, newer than the "
-            f"highest migration this code knows ({known_version}); refusing to open it"
-        )
+    refuse_newer_schema(conn, dir_)
 
     for script in scripts:
         try:

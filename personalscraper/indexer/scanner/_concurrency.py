@@ -20,8 +20,10 @@ from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import NamedTuple
 
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.indexer.db import _apply_pragmas
 from personalscraper.indexer.merkle import DiskBulkChangeDetected
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
@@ -65,6 +67,7 @@ def _open_worker_conn(db_path: Path) -> sqlite3.Connection:
         and ``busy_timeout`` overridden to 30 000 ms.
     """
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     # Override busy_timeout: worker threads compete for the write lock and need
     # a wider retry window than the canonical 5 s used by single-writer paths.

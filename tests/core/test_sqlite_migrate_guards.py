@@ -17,7 +17,13 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.core.sqlite import SqliteMigrationError, SqliteSchemaNewerError, apply_migrations, open_db
+from personalscraper.core.sqlite import (
+    SqliteMigrationError,
+    SqliteSchemaNewerError,
+    apply_migrations,
+    open_db,
+    refuse_newer_schema,
+)
 
 _PACKAGE_DIR = Path(__file__).parent.parent.parent / "personalscraper"
 
@@ -203,6 +209,40 @@ class TestSchemaNewerThanCode:
         apply_migrations(conn, migrations)
 
         assert _user_version(conn) == 5
+        conn.close()
+
+
+class TestRefuseNewerSchema:
+    """The check a raw writer connection runs before it writes, shared with the migration runner."""
+
+    def test_a_newer_store_is_refused_closed_and_logged(self, tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
+        """A store at 5 under a code that knows 3: typed error, connection closed, one event."""
+        db_path, migrations = TestSchemaNewerThanCode()._newer_store(tmp_path)
+        conn = sqlite3.connect(db_path, isolation_level=None)
+
+        with logged_events() as events, pytest.raises(SqliteSchemaNewerError):
+            refuse_newer_schema(conn, migrations)
+
+        with pytest.raises(sqlite3.ProgrammingError):
+            conn.execute("SELECT 1")
+        refusals = [event for event in events if event["event"] == "store.schema_newer_than_code"]
+        assert [(r["path"], r["found"], r["known"]) for r in refusals] == [(str(db_path.resolve()), 5, 3)]
+
+    @pytest.mark.parametrize("version", [0, 3])
+    def test_a_store_the_code_knows_is_left_open(self, tmp_path: Path, version: int) -> None:
+        """A store at or below the code's highest migration passes and stays usable.
+
+        Args:
+            tmp_path: The test's temporary directory.
+            version: The store's ``user_version``.
+        """
+        db_path, migrations = TestSchemaNewerThanCode()._newer_store(tmp_path)
+        conn = sqlite3.connect(db_path, isolation_level=None)
+        conn.execute(f"PRAGMA user_version = {version}")
+
+        refuse_newer_schema(conn, migrations)
+
+        assert _user_version(conn) == version
         conn.close()
 
 

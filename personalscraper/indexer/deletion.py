@@ -25,8 +25,10 @@ from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.core.identity import ItemId
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.indexer.phantom_rows import tombstone_item
 from personalscraper.logger import get_logger
 
@@ -317,6 +319,7 @@ def remove_items(db_path: Path, item_ids: Sequence[ItemId], *, actor: str, reaso
     now = int(time.time())
     removed: list[ItemId] = []
     with closing(sqlite3.connect(str(db_path), isolation_level=None)) as conn:
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
         apply_pragmas(conn)
         conn.execute("BEGIN IMMEDIATE")
         try:

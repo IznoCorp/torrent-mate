@@ -15,6 +15,7 @@ import sqlite3
 from pathlib import Path
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.pipeline_history import PipelineRunWriter
 
 # ---------------------------------------------------------------------------
@@ -416,3 +417,23 @@ class TestPipelineRunWriterFailSoft:
         writer = PipelineRunWriter(not_a_db)
         # Must not raise (sqlite3 will complain but we catch it).
         writer.insert("uid-fs6", trigger="cli", dry_run=False, pid=1)
+
+
+class TestPipelineRunWriterNewerStore:
+    """A ``library.db`` migrated past the code is never written by the run writer."""
+
+    def test_insert_writes_nothing_on_a_newer_store(self, tmp_path: Path) -> None:
+        """``insert()`` on a store past the last library migration adds no row and keeps the version."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        newer = max(int(p.name.split("_")[0]) for p in LIBRARY_MIGRATIONS_DIR.glob("*.sql")) + 1
+        with sqlite3.connect(str(db_path)) as conn:
+            conn.execute(f"PRAGMA user_version = {newer}")
+        conn.close()
+
+        PipelineRunWriter(db_path).insert("uid-newer", trigger="cli", dry_run=False, pid=1234)
+
+        assert _select_row(db_path, "uid-newer") is None
+        with sqlite3.connect(str(db_path)) as check:
+            assert check.execute("PRAGMA user_version").fetchone()[0] == newer
+        check.close()

@@ -38,7 +38,9 @@ import time
 import unicodedata
 from pathlib import Path
 
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger("decision_writer")
@@ -133,6 +135,7 @@ class DecisionWriter:
         decision_id: int | None = None
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             # Common SET list for the ON CONFLICT UPDATE: refresh the candidates /
             # trigger / run_uid, bump updated_at, and re-open to 'pending'.
@@ -224,6 +227,7 @@ class DecisionWriter:
         """
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             rows = conn.execute("SELECT id, staging_path FROM scrape_decision WHERE status = 'pending'").fetchall()
             now = time.time()
@@ -285,6 +289,7 @@ class DecisionWriter:
         conn: sqlite3.Connection | None = None
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             cur = conn.execute(
                 "UPDATE scrape_decision "
@@ -333,6 +338,7 @@ class DecisionWriter:
         conn: sqlite3.Connection | None = None
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             cur = conn.execute(
                 "UPDATE scrape_decision SET status = 'dismissed', updated_at = ? WHERE id = ? AND status = 'pending'",

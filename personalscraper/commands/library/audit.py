@@ -10,8 +10,10 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
 from personalscraper.cli_state import state
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.i18n import t
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -387,6 +389,7 @@ def library_relink(
     db_path = cfg.indexer.db_path
 
     conn = _sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         conn.execute("BEGIN IMMEDIATE")
