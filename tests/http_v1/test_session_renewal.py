@@ -17,8 +17,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.accounts.sessions import (
     SESSION_RENEWAL_INTERVAL_S,
@@ -110,7 +110,7 @@ def wire(test_config: Config, make_v1_services: Callable[[], AppServices]) -> _W
     credentials = CredentialService(store, sessions)
     services = dataclasses.replace(built, sessions=sessions, credentials=credentials)
     store.accounts.insert_account(
-        AccountRow(
+        Account(
             id="account-sliding",
             name="Sliding",
             email="sliding@example.org",

@@ -10,12 +10,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.model import Account, PlexLink, Role
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
@@ -149,12 +148,12 @@ def v1_client(test_config: Config, make_v1_services: Callable[[], AppServices]) 
         if rights is not None:
             role_id = LISTED_ROLE_ID
             services.app_store.roles.insert_role(
-                RoleRow(id=role_id, name="Listed", kind=RoleKind.ORDINARY, rights=rights), now=1.0
+                Role(id=role_id, name="Listed", kind=RoleKind.ORDINARY, rights=rights), now=1.0
             )
         number = next(numbers)
         account_id = f"account-{number}"
         repo.insert_account(
-            AccountRow(
+            Account(
                 id=account_id,
                 name=f"Account {number}",
                 email=f"account-{number}@example.org",
@@ -167,7 +166,7 @@ def v1_client(test_config: Config, make_v1_services: Callable[[], AppServices]) 
         )
         if server_access is not None:
             repo.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id=account_id,
                     plex_id=number,
                     plex_uuid=f"uuid-{number}",

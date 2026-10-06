@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from personalscraper.app.accounts.account_repository import AccountRow
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
@@ -47,7 +47,7 @@ def _seed_password_account(config: Config) -> None:
     store = build_app_store(config)
     try:
         store.accounts.insert_account(
-            AccountRow(
+            Account(
                 id="account-local",
                 name="Local",
                 email=_EMAIL,

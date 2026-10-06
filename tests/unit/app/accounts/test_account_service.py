@@ -17,14 +17,14 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.accounts.account_repository import AccountRepository, AccountRow, PlexLinkRow
+from personalscraper.app.accounts.account_repository import AccountRepository
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.model import Account, PlexLink, Role
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, verify_password
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
@@ -41,7 +41,7 @@ _PASSWORD = "A provisional one 1!"
 _MANAGER_RIGHTS = frozenset({Right.ACCOUNTS_MANAGE, Right.LIBRARY_READ, Right.ACQUISITION_REQUEST})
 
 
-def _account(account_id: str, role_id: str, created_at: float) -> AccountRow:
+def _account(account_id: str, role_id: str, created_at: float) -> Account:
     """An account row with no password.
 
     Args:
@@ -52,7 +52,7 @@ def _account(account_id: str, role_id: str, created_at: float) -> AccountRow:
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name=account_id,
         email=f"{account_id}@example.org",
@@ -77,7 +77,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     app_store = AppStore(tmp_path / "app.db")
     repo = app_store.accounts
     app_store.roles.insert_role(
-        RoleRow(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=_MANAGER_RIGHTS), now=1.0
+        Role(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=_MANAGER_RIGHTS), now=1.0
     )
     repo.insert_account(_account("account-admin", "admin", 1.0))
     repo.insert_account(_account("account-manager", "manager", 2.0))
@@ -239,7 +239,7 @@ def _make_owner(store: AppStore, account_id: str) -> None:
         account_id: The account.
     """
     store.accounts.upsert_plex_link(
-        PlexLinkRow(
+        PlexLink(
             account_id=account_id,
             plex_id=4242,
             plex_uuid="uuid-owner",
@@ -282,7 +282,7 @@ def non_owner_admin(request: pytest.FixtureRequest, store: AppStore) -> Actor:
     """
     if request.param == "plex-shared":
         store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-admin",
                 plex_id=4343,
                 plex_uuid="uuid-shared",
@@ -347,7 +347,7 @@ class TestReadRoster:
     ) -> None:
         """The role view, ``signInKind`` from the Plex link, no ``demotedFrom`` yet."""
         store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-household",
                 plex_id=7,
                 plex_uuid="uuid-7",
@@ -1217,7 +1217,7 @@ class TestCreateOwner:
         repo = empty_store.accounts
         repo.insert_account(_account("account-member", "household", 1.0))
         repo.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-member",
                 plex_id=7,
                 plex_uuid="u7",
@@ -1242,7 +1242,7 @@ class TestCreateOwner:
         repo = empty_store.accounts
         repo.insert_account(_account("account-member", "household", 1.0))
         repo.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-member",
                 plex_id=_OWNER_PLEX.plex_id,
                 plex_uuid="u",

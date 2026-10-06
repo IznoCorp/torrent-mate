@@ -11,10 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.model import Account, Role
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.store.store import AppStore
 
@@ -38,7 +37,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
 
 def _account(
     account_id: str = "account-alice", email: str = "alice@example.org", role_id: str = "household"
-) -> AccountRow:
+) -> Account:
     """Build an account row.
 
     Args:
@@ -49,7 +48,7 @@ def _account(
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name="Alice",
         email=email,
@@ -112,7 +111,7 @@ class TestImmediate:
         with pytest.raises(RuntimeError), store.immediate():
             store.accounts.insert_account(_account())
             store.roles.insert_role(
-                RoleRow(id="role-1", name="X", kind=RoleKind.ORDINARY, rights=frozenset({Right.LIBRARY_READ})), now=1.0
+                Role(id="role-1", name="X", kind=RoleKind.ORDINARY, rights=frozenset({Right.LIBRARY_READ})), now=1.0
             )
             raise RuntimeError("boom")
         assert store.accounts.account("account-alice") is None

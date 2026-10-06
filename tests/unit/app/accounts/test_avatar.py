@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import hashlib
 
-from personalscraper.app.accounts.account_repository import PlexLinkRow
 from personalscraper.app.accounts.avatar import GRAVATAR_SIZE, resolve_avatar
+from personalscraper.app.accounts.model import PlexLink
 
 
-def _link(plex_uuid: str = "4876c5a138575dce") -> PlexLinkRow:
+def _link(plex_uuid: str = "4876c5a138575dce") -> PlexLink:
     """A Plex link with no kept token, as the owner's is today.
 
     Args:
@@ -17,7 +17,7 @@ def _link(plex_uuid: str = "4876c5a138575dce") -> PlexLinkRow:
     Returns:
         The link.
     """
-    return PlexLinkRow(
+    return PlexLink(
         account_id="account-1",
         plex_id=1,
         plex_uuid=plex_uuid,

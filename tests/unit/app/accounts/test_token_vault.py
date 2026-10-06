@@ -16,7 +16,8 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
-from personalscraper.app.accounts.account_repository import AccountRepository, AccountRow, PlexLinkRow
+from personalscraper.app.accounts.account_repository import AccountRepository
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.token_vault import (
     NoKeptTokenOpens,
     RotationResult,
@@ -47,7 +48,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     app_store = AppStore(tmp_path / "app.db")
     for plex_id, account_id in enumerate((_ALICE, _BOB), start=1):
         app_store.accounts.insert_account(
-            AccountRow(
+            Account(
                 id=account_id,
                 name=account_id,
                 email=f"{account_id}@example.org",
@@ -59,7 +60,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
             )
         )
         app_store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id=account_id,
                 plex_id=plex_id,
                 plex_uuid=f"uuid-{plex_id}",

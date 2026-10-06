@@ -18,7 +18,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import verify_password
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.store.store import AppStore, build_app_store
@@ -59,7 +59,7 @@ def store(test_config: Config) -> Iterator[AppStore]:
     """
     app_store = build_app_store(test_config)
     app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id="account-owner",
             name="Owner",
             email=_EMAIL,
@@ -248,7 +248,7 @@ def dev_data_dir(test_config: Config, monkeypatch: pytest.MonkeyPatch) -> Path:
     return data_dir
 
 
-def _accounts_in(db: Path) -> list[AccountRow]:
+def _accounts_in(db: Path) -> list[Account]:
     """The accounts a store file holds.
 
     Args:
@@ -433,7 +433,7 @@ def _seed_owner(db: Path, *, allowed: bool = True, owner_link: bool = True) -> s
     try:
         repo = app_store.accounts
         repo.insert_account(
-            AccountRow(
+            Account(
                 id="account-owner",
                 name="Owner",
                 email=_EMAIL,
@@ -446,7 +446,7 @@ def _seed_owner(db: Path, *, allowed: bool = True, owner_link: bool = True) -> s
         )
         if owner_link:
             repo.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id="account-owner",
                     plex_id=4242,
                     plex_uuid="0f1e2d3c4b5a6978",
@@ -644,7 +644,7 @@ class TestOpenSession:
         try:
             repo = app_store.accounts
             repo.insert_account(
-                AccountRow(
+                Account(
                     id="account-former-owner",
                     name="Former owner",
                     email="former@example.test",
@@ -656,7 +656,7 @@ class TestOpenSession:
                 )
             )
             repo.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id="account-former-owner",
                     plex_id=4343,
                     plex_uuid="1a2b3c4d5e6f7089",

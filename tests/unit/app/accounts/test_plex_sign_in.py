@@ -32,11 +32,11 @@ import structlog
 from cryptography.fernet import Fernet
 
 from personalscraper.api.plex_account import PlexAccountClient
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.accounts.pin_repository import PlexPinRow
 from personalscraper.app.accounts.plex_sign_in import (
@@ -250,7 +250,7 @@ class _Clock:
         return self.now
 
 
-def _local(account_id: str, email: str, role_id: str, password: str | None = "a local password 1!") -> AccountRow:
+def _local(account_id: str, email: str, role_id: str, password: str | None = "a local password 1!") -> Account:
     """A local account row.
 
     Args:
@@ -262,7 +262,7 @@ def _local(account_id: str, email: str, role_id: str, password: str | None = "a 
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name=account_id,
         email=email,
@@ -274,7 +274,7 @@ def _local(account_id: str, email: str, role_id: str, password: str | None = "a 
     )
 
 
-def _link(account_id: str, plex_id: int, server_access: str) -> PlexLinkRow:
+def _link(account_id: str, plex_id: int, server_access: str) -> PlexLink:
     """A Plex link with no token kept.
 
     Args:
@@ -285,7 +285,7 @@ def _link(account_id: str, plex_id: int, server_access: str) -> PlexLinkRow:
     Returns:
         The link.
     """
-    return PlexLinkRow(
+    return PlexLink(
         account_id=account_id,
         plex_id=plex_id,
         plex_uuid=f"uuid-{plex_id}",

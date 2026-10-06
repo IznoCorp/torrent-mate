@@ -10,13 +10,17 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final
+from typing import TYPE_CHECKING, Final, cast
 
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import Right
 
+if TYPE_CHECKING:
+    # ``model`` imports ``RoleKind`` from here: the ids are named for the type checker only.
+    from personalscraper.app.accounts.model import AccountId, RoleId
+
 #: The role id the system actor carries: the indelible Admin role's key.
-SYSTEM_ROLE_ID: Final[str] = "admin"
+SYSTEM_ROLE_ID: Final = cast("RoleId", "admin")
 
 
 class RoleKind(StrEnum):
@@ -39,9 +43,9 @@ class Actor:
         ceiling: The instance's ceiling, subtracted before the role adds.
     """
 
-    account_id: str
+    account_id: AccountId
     name: str
-    role_id: str
+    role_id: RoleId
     role_kind: RoleKind
     role_rights: frozenset[Right]
     ceiling: InstanceCeiling
@@ -84,7 +88,7 @@ class Actor:
         return self.account_id in requester_ids
 
     @classmethod
-    def system(cls, ceiling: InstanceCeiling, *, account_id: str, name: str) -> Actor:
+    def system(cls, ceiling: InstanceCeiling, *, account_id: AccountId, name: str) -> Actor:
         """The actor of an in-process client with no session: the CLI, the schedulers.
 
         What the engine does unattended is attributed to an account (ruling 9: the

@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.accounts.account_repository import AccountRepository, AccountRow, PlexLinkRow
+from personalscraper.app.accounts.account_repository import AccountRepository
 from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.model import Account, PlexLink, Role
 from personalscraper.app.accounts.pin_repository import PlexPinRow
-from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.store.store import AppStore
 
@@ -52,7 +52,7 @@ def repo(store: AppStore) -> AccountRepository:
 
 def _account(
     account_id: str = "account-alice", email: str = "alice@example.org", role_id: str = "household"
-) -> AccountRow:
+) -> Account:
     """Build an account row.
 
     Args:
@@ -63,7 +63,7 @@ def _account(
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name="Alice",
         email=email,
@@ -75,7 +75,7 @@ def _account(
     )
 
 
-def _link(account_id: str = "account-alice", plex_id: int = 42) -> PlexLinkRow:
+def _link(account_id: str = "account-alice", plex_id: int = 42) -> PlexLink:
     """Build a Plex link row.
 
     Args:
@@ -85,7 +85,7 @@ def _link(account_id: str = "account-alice", plex_id: int = 42) -> PlexLinkRow:
     Returns:
         The row.
     """
-    return PlexLinkRow(
+    return PlexLink(
         account_id=account_id,
         plex_id=plex_id,
         plex_uuid="uuid-42",
@@ -157,9 +157,7 @@ class TestAccounts:
 
     def test_a_deleted_role_leaves_no_dangling_demotion(self, store: AppStore, repo: AccountRepository) -> None:
         """``demoted_from`` names a role by foreign key: deleting that role clears it."""
-        store.roles.insert_role(
-            RoleRow(id="role-gone", name="Gone", kind=RoleKind.ORDINARY, rights=frozenset()), now=1.0
-        )
+        store.roles.insert_role(Role(id="role-gone", name="Gone", kind=RoleKind.ORDINARY, rights=frozenset()), now=1.0)
         repo.insert_account(_account())
         repo.set_role("account-alice", "household", now=11.0, demoted_from="role-gone")
         store.roles.delete_role("role-gone")
@@ -186,7 +184,7 @@ class TestPlexLinks:
         repo.upsert_plex_link(_link())
         assert repo.plex_link("account-alice") == _link()
         assert repo.plex_link_by_plex_id(42) == _link()
-        updated = PlexLinkRow(**{**_link().__dict__, "server_access": "owner", "last_sign_in_at": 25.0})
+        updated = PlexLink(**{**_link().__dict__, "server_access": "owner", "last_sign_in_at": 25.0})
         repo.upsert_plex_link(updated)
         assert repo.plex_link("account-alice") == updated
         assert repo.plex_link("account-missing") is None
@@ -216,16 +214,14 @@ class TestPlexLinks:
     def test_an_upsert_without_a_token_keeps_the_sealed_one(self, repo: AccountRepository) -> None:
         """A link written with no ciphertext (no vault) keeps the token sealed before; a new one replaces it."""
         repo.insert_account(_account())
-        repo.upsert_plex_link(
-            PlexLinkRow(**{**_link().__dict__, "token_ciphertext": b"cipher", "token_stored_at": 21.0})
-        )
+        repo.upsert_plex_link(PlexLink(**{**_link().__dict__, "token_ciphertext": b"cipher", "token_stored_at": 21.0}))
 
-        repo.upsert_plex_link(PlexLinkRow(**{**_link().__dict__, "last_sign_in_at": 30.0}))
+        repo.upsert_plex_link(PlexLink(**{**_link().__dict__, "last_sign_in_at": 30.0}))
 
         link = repo.plex_link("account-alice")
         assert link is not None
         assert (link.token_ciphertext, link.token_stored_at, link.last_sign_in_at) == (b"cipher", 21.0, 30.0)
-        repo.upsert_plex_link(PlexLinkRow(**{**_link().__dict__, "token_ciphertext": b"new", "token_stored_at": 31.0}))
+        repo.upsert_plex_link(PlexLink(**{**_link().__dict__, "token_ciphertext": b"new", "token_stored_at": 31.0}))
         link = repo.plex_link("account-alice")
         assert link is not None and (link.token_ciphertext, link.token_stored_at) == (b"new", 31.0)
 
@@ -236,8 +232,8 @@ class TestSecretsStayOutOfRepr:
     def test_sentinels_do_not_print(self) -> None:
         """Hash, ciphertext, token hash, PIN code and nonce hash are absent from both renderings."""
         rows = [
-            AccountRow("a", "n", "e@x.org", "", "r", "SENTINEL-PASSWORD-HASH", 1.0, 1.0),
-            PlexLinkRow("a", 1, "u", "p", "owner", b"SENTINEL-CIPHERTEXT", 1.0, 1.0, None),
+            Account("a", "n", "e@x.org", "", "r", "SENTINEL-PASSWORD-HASH", 1.0, 1.0),
+            PlexLink("a", 1, "u", "p", "owner", b"SENTINEL-CIPHERTEXT", 1.0, 1.0, None),
             SessionRow(1, "a", "SENTINEL-TOKEN-HASH", 1.0, 2.0, 1.0, None, None),
             PlexPinRow(1, "SENTINEL-PIN-CODE", "SENTINEL-NONCE-HASH", 1.0, None, None, None),
         ]

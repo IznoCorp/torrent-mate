@@ -20,8 +20,8 @@ import pytest
 from fastapi import Response
 from fastapi.testclient import TestClient
 
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.avatar import GRAVATAR_SIZE
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
@@ -275,7 +275,7 @@ def _seed_password_account(client: TestClient, email: str = "local@example.org")
     """
     account_id = f"account-{email.split('@')[0]}"
     _services(client).app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id=account_id,
             name="Local",
             email=email,
@@ -394,7 +394,7 @@ class TestSignIn:
         client = v1_client(role=None)
         account_id = _seed_password_account(client)
         _services(client).app_store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id=account_id,
                 plex_id=7,
                 plex_uuid="uuid-7",
@@ -669,7 +669,7 @@ class TestSetOwnLanguage:
         client = v1_client(role="household")
         repo = _services(client).app_store.accounts
         repo.insert_account(
-            AccountRow(
+            Account(
                 id="account-other",
                 name="Other",
                 email="other@example.org",
@@ -748,7 +748,7 @@ class TestCookie:
         store = AppStore(tmp_path / "app.db")
         try:
             store.accounts.insert_account(
-                AccountRow(
+                Account(
                     id="account-ttl",
                     name="TTL",
                     email="ttl@example.org",

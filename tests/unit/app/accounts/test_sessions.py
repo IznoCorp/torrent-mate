@@ -19,9 +19,9 @@ import json5
 import pytest
 from pydantic import ValidationError
 
-from personalscraper.app.accounts.account_repository import AccountRow
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import (
@@ -78,7 +78,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     """
     app_store = AppStore(tmp_path / "app.db")
     app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id=_ACCOUNT_ID,
             name="Alice",
             email="alice@example.org",

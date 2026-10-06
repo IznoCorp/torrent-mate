@@ -17,14 +17,13 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.app.accounts import credentials as credentials_module
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.model import Account, PlexLink, Role
 from personalscraper.app.accounts.passwords import hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, SlidingWindowRateLimiter
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.role_repository import RoleRow
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.session_repository import SessionRepository
 from personalscraper.app.accounts.sessions import SessionService
@@ -60,7 +59,7 @@ def _service_events(caplog: pytest.LogCaptureFixture) -> list[dict[str, object]]
     ]
 
 
-def _account(account_id: str, role_id: str) -> AccountRow:
+def _account(account_id: str, role_id: str) -> Account:
     """An account row, its e-mail ``<key>@example.org``, its password :data:`_PASSWORD`.
 
     Args:
@@ -70,7 +69,7 @@ def _account(account_id: str, role_id: str) -> AccountRow:
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name=account_id,
         email=f"{account_id}@example.org",
@@ -82,7 +81,7 @@ def _account(account_id: str, role_id: str) -> AccountRow:
     )
 
 
-def _link(account_id: str, plex_id: int, server_access: str) -> PlexLinkRow:
+def _link(account_id: str, plex_id: int, server_access: str) -> PlexLink:
     """A Plex link.
 
     Args:
@@ -93,7 +92,7 @@ def _link(account_id: str, plex_id: int, server_access: str) -> PlexLinkRow:
     Returns:
         The link.
     """
-    return PlexLinkRow(
+    return PlexLink(
         account_id=account_id,
         plex_id=plex_id,
         plex_uuid=f"uuid-{plex_id}",
@@ -123,7 +122,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     app_store = AppStore(tmp_path / "app.db")
     repo = app_store.accounts
     app_store.roles.insert_role(
-        RoleRow(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=frozenset({Right.ACCOUNTS_MANAGE})),
+        Role(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=frozenset({Right.ACCOUNTS_MANAGE})),
         now=1.0,
     )
     for account_id, role_id in (
@@ -221,7 +220,7 @@ def _signed_in(sessions: SessionService, account_id: str) -> tuple[Actor, str]:
     return actor, token
 
 
-def _row(store: AppStore, account_id: str) -> AccountRow:
+def _row(store: AppStore, account_id: str) -> Account:
     """An account's stored row.
 
     Args:

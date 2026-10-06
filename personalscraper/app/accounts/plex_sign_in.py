@@ -51,12 +51,11 @@ from personalscraper.api.plex_account import (
     PlexServerAccess,
     PlexTokenRefused,
 )
-from personalscraper.app.accounts.account_repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.model import Account, AccountId, PlexLink, Role, StartKind
 from personalscraper.app.accounts.pin_repository import PlexPinRow
-from personalscraper.app.accounts.role_repository import RoleRow, StartKind
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.errors import (
     AppBadRequest,
@@ -425,7 +424,7 @@ class PlexSignInService:
 
     def _admit(
         self, store: AppStore, pin_id: int, plex: PlexAccount, access: PlexServerAccess, token: str
-    ) -> tuple[str, bool]:
+    ) -> tuple[AccountId, bool]:
         """Find, link or create the identity's account, use the PIN and keep the token — one transaction.
 
         Args:
@@ -467,7 +466,7 @@ class PlexSignInService:
                     if not plex.confirmed:
                         log.info("plex_sign_in.refused", reason="email_unconfirmed", plex_id=plex.plex_id)
                         raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
-                    if store.accounts.plex_link(found.id) is not None:
+                    if found.plex_link is not None:
                         log.info("plex_sign_in.refused", reason="email_linked_elsewhere", plex_id=plex.plex_id)
                         raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
                     _refuse_cut(found)
@@ -479,7 +478,7 @@ class PlexSignInService:
                 )
             sealed = self._vault.seal(account.id, token) if self._vault is not None else None
             store.accounts.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id=account.id,
                     plex_id=plex.plex_id,
                     plex_uuid=plex.uuid,
@@ -502,7 +501,7 @@ class PlexSignInService:
         return account.id, moved
 
     @staticmethod
-    def _create(store: AppStore, plex: PlexAccount, role: RoleRow, now: float) -> AccountRow:
+    def _create(store: AppStore, plex: PlexAccount, role: Role, now: float) -> Account:
         """Create the account of an identity met for the first time, on its Plex kind's role, with no password.
 
         Args:
@@ -514,8 +513,8 @@ class PlexSignInService:
         Returns:
             The new account.
         """
-        account = AccountRow(
-            id=f"account-{uuid.uuid4().hex}",
+        account = Account(
+            id=AccountId(f"account-{uuid.uuid4().hex}"),
             name=plex.title or plex.username or plex.email.partition("@")[0],
             email=plex.email,
             avatar="",
@@ -529,7 +528,7 @@ class PlexSignInService:
 
     @staticmethod
     def _link_by_email(
-        store: AppStore, account: AccountRow, role: RoleRow, *, owner: bool, now: float
+        store: AppStore, account: Account, role: Role, *, owner: bool, now: float
     ) -> tuple[bool, int | None]:
         """Link a local account whose e-mail is the identity's: its role and password as the rulings say.
 
@@ -561,7 +560,7 @@ class PlexSignInService:
         return moved, revoked
 
 
-def _first_role(store: AppStore, access: PlexServerAccess) -> RoleRow:
+def _first_role(store: AppStore, access: PlexServerAccess) -> Role:
     """The role an identity starts on: Admin for the owner, else its Plex kind's (``Role.defaultFor``).
 
     Args:
@@ -585,7 +584,7 @@ def _first_role(store: AppStore, access: PlexServerAccess) -> RoleRow:
     return role
 
 
-def _refuse_cut(account: AccountRow) -> None:
+def _refuse_cut(account: Account) -> None:
     """Refuse an account an Admin cut, before anything is written for it.
 
     Args:

@@ -16,6 +16,7 @@ import sqlite3
 import threading
 from dataclasses import dataclass, field
 
+from personalscraper.app.accounts.model import AccountId
 from personalscraper.core.sqlite import serialised
 
 
@@ -35,7 +36,7 @@ class SessionRow:
     """
 
     id: int
-    account_id: str
+    account_id: AccountId
     token_hash: str = field(repr=False)
     created_at: float
     expires_at: float
@@ -157,7 +158,7 @@ class SessionRepository:
         self._conn.execute("UPDATE session SET revoked_at = ? WHERE id = ?", (now, session_id))
 
     @serialised
-    def revoke_sessions_of(self, account_id: str, *, except_id: int | None, now: float) -> int:
+    def revoke_sessions_of(self, account_id: AccountId, *, except_id: int | None, now: float) -> int:
         """Mark every live session of an account revoked, but one.
 
         Args:

@@ -12,10 +12,9 @@ from collections.abc import Callable, Sequence
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.role_repository import RoleRow
-from personalscraper.app.accounts.rules import rights_named, role_view, within
-from personalscraper.app.accounts.views import RoleView
-from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, RefusalCode
+from personalscraper.app.accounts.model import Grantor, Role, RoleId, rights_named
+from personalscraper.app.accounts.views import RoleView, role_view
+from personalscraper.app.errors import AppBadRequest, AppConflict, AppNotFound, RefusalCode
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
@@ -23,7 +22,7 @@ from personalscraper.logger import get_logger
 log = get_logger("app.accounts.roles")
 
 
-def _refuse_name_taken(store: AppStore, name: str, *, except_id: str | None) -> None:
+def _refuse_name_taken(store: AppStore, name: str, *, except_id: RoleId | None) -> None:
     """Refuse a role name another role carries, compared trimmed and regardless of case.
 
     Case is folded by ``str.lower`` — Unicode's default lowercase mapping, the very one
@@ -43,6 +42,19 @@ def _refuse_name_taken(store: AppStore, name: str, *, except_id: str | None) -> 
     for role in store.roles.roles():
         if role.id != except_id and role.name is not None and role.name.strip().lower() == wanted:
             raise AppConflict("Another role already carries this name.", code=RefusalCode.ROLE_NAME_TAKEN)
+
+
+def _grantor(store: AppStore, actor: Actor) -> Grantor:
+    """The caller as the one who gives rights, read in the transaction.
+
+    Args:
+        store: The ``app`` store.
+        actor: The caller.
+
+    Returns:
+        The grantor, owner of the managed Plex server or not.
+    """
+    return Grantor.of(actor, store.accounts.plex_link(actor.account_id))
 
 
 class RoleService:
@@ -94,14 +106,11 @@ class RoleService:
         typed = name.strip()
         if not typed:
             raise AppBadRequest("A role carries the name the manager typed.", code=RefusalCode.ROLE_NAME_REQUIRED)
-        role = RoleRow(id=f"role-{uuid.uuid4().hex}", name=typed, kind=RoleKind.ORDINARY, rights=held)
+        role = Role(id=RoleId(f"role-{uuid.uuid4().hex}"), name=typed, kind=RoleKind.ORDINARY, rights=held)
         store = self._store
         with store.immediate():
             _refuse_name_taken(store, typed, except_id=None)
-            if not within(actor, held):
-                raise AppForbidden(
-                    "The role would hold rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION
-                )
+            _grantor(store, actor).check_may_give_rights(held)
             store.roles.insert_role(role, now=self._clock())
         log.info("role_created", role_id=role.id, by=actor.account_id)
         return role_view(role)
@@ -138,22 +147,16 @@ class RoleService:
         new_name = name.strip() if name is not None and name.strip() else None
         store = self._store
         with store.immediate():
-            role = store.roles.role(role_id)
+            role = store.roles.role(RoleId(role_id))
             if role is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
-            if role.kind is RoleKind.ADMIN:
-                raise AppConflict("The Admin role is not modified.", code=RefusalCode.ROLE_SYSTEM_IMMUTABLE)
-            if actor.role_kind is not RoleKind.ADMIN:
-                if role.id == actor.role_id:
-                    raise AppForbidden("A manager never touches its own role.", code=RefusalCode.ROLE_OWN_ROLE)
-                if held is not None and not within(actor, held):
-                    raise AppForbidden(
-                        "The role would hold rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION
-                    )
-                if name is not None and not within(actor, role.rights):
-                    raise AppForbidden(
-                        "A manager renames only a role within its own rights.", code=RefusalCode.ROLE_ESCALATION
-                    )
+            role.check_mutable()
+            grantor = _grantor(store, actor)
+            grantor.check_may_change_role(role)
+            if held is not None:
+                grantor.check_may_give_rights(held)
+            if name is not None:
+                grantor.check_may_rename(role)
             if new_name is not None:
                 _refuse_name_taken(store, new_name, except_id=role.id)
             rights_moved = held is not None and held != role.rights
@@ -197,16 +200,10 @@ class RoleService:
         """
         store = self._store
         with store.immediate():
-            role = store.roles.role(role_id)
+            role = store.roles.role(RoleId(role_id))
             if role is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
-            if role.kind is RoleKind.ADMIN:
-                raise AppConflict("The Admin role is never deleted.", code=RefusalCode.ROLE_SYSTEM_IMMUTABLE)
-            if role.default_for:
-                raise AppConflict("A newcomer starts on this role.", code=RefusalCode.ROLE_DEFAULT)
-            if store.accounts.accounts_on_role(role.id):
-                raise AppConflict("An account holds this role.", code=RefusalCode.ROLE_IN_USE)
-            if not within(actor, role.rights):
-                raise AppForbidden("The role holds rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION)
+            role.check_deletable(holders=len(store.accounts.accounts_on_role(role.id)))
+            _grantor(store, actor).check_may_give(role)
             store.roles.delete_role(role.id)
         log.info("role_deleted", role_id=role_id, by=actor.account_id)
