@@ -881,9 +881,20 @@ class TestBothDispatchRootsWireIt:
         from personalscraper.app.supervisor import execution
         from personalscraper.commands import pipeline
 
-        # ``run``'s body moved to ``execute_run``; ``dispatch`` still lives in the command module.
-        target = execution.execute_run if command == "run" else getattr(pipeline, command)
-        source = inspect.getsource(target)
+        if command == "run":
+            # ``run``'s body moved to ``execute_run``, which builds its subscribers in ``_build_subscribers``
+            # and closes them through ``_RunSubscribers.close``: the wiring is asserted where it lives, and
+            # ``execute_run`` must still call both ends.
+            run_source = inspect.getsource(execution.execute_run)
+            assert "_build_subscribers(" in run_source, "run() must build its subscribers"
+            assert "subscribers.close()" in run_source, "run() must close its subscribers"
+            build_source = inspect.getsource(execution._build_subscribers)
+            close_source = inspect.getsource(execution._RunSubscribers.close)
+            assert "build_plex_subscriber(" in build_source, "run() must wire the Plex refresh"
+            assert "self.plex.close()" in close_source, "run() must close the Plex subscriber"
+            return
+
+        source = inspect.getsource(getattr(pipeline, command))
 
         assert "build_plex_subscriber(" in source, f"{command}() must wire the Plex refresh"
         assert "plex_subscriber.close()" in source, f"{command}() must close the Plex subscriber"
