@@ -89,7 +89,7 @@ class ProcessWorkerLauncher:
         Raises:
             OSError: If the process could not be started.
         """
-        child = subprocess.Popen(  # noqa: S603 — fixed argv: this interpreter and the worker module
+        child = subprocess.Popen(
             [sys.executable, "-m", WORKER_MODULE],
             start_new_session=True,
             stdin=subprocess.DEVNULL,

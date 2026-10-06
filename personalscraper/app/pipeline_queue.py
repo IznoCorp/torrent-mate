@@ -129,7 +129,7 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
         "PERSONALSCRAPER_PQ_DRY_RUN": "1" if dry_run else "0",
     }
     try:
-        proc = subprocess.Popen(  # noqa: S603 — fixed argv, no shell, first-party module.
+        proc = subprocess.Popen(
             [sys.executable, "-m", "personalscraper.app.pipeline_queue"],
             start_new_session=True,
             env=env,

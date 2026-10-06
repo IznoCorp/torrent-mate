@@ -54,11 +54,11 @@ if TYPE_CHECKING:
 
 
 def build_app_context(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
     build_torrent_client: bool = False,
-    provider_retry: "RetryPolicy | None" = None,
+    provider_retry: RetryPolicy | None = None,
 ) -> AppContext:
     """Build the process-scoped :class:`AppContext`, once per process.
 
@@ -204,7 +204,7 @@ def build_app_context(
     )
 
 
-def _circuit_policy(config: "Config") -> "CircuitPolicy":
+def _circuit_policy(config: Config) -> CircuitPolicy:
     """The circuit breaker policy of the provider transports, from ``config.thresholds``.
 
     A value: each caller builds its own, all equal (the acquire context's and the
@@ -225,13 +225,13 @@ def _circuit_policy(config: "Config") -> "CircuitPolicy":
 
 
 def build_provider_registry(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
     event_bus: EventBus,
     retry: RetryPolicy | None = None,
-    providers_config: "ProvidersConfig | None" = None,
-) -> "ProviderRegistry":
+    providers_config: ProvidersConfig | None = None,
+) -> ProviderRegistry:
     """Build the process's metadata provider registry, in the configured language.
 
     Args:
@@ -269,7 +269,7 @@ def build_provider_registry(
 _LIBRARY_PROVIDER_KEYS: Final[dict[str, str]] = {"tmdb": "tmdb_api_key", "tvdb": "tvdb_api_key"}
 
 
-def _build_library_registry(config: "Config", settings: "Settings", *, event_bus: EventBus) -> "ProviderRegistry":
+def _build_library_registry(config: Config, settings: Settings, *, event_bus: EventBus) -> ProviderRegistry:
     """Build v1's registry, with :data:`ONE_ATTEMPT`, over the providers the library reads.
 
     The providers section is pruned to TMDB and TVDB, and to those of the two whose key
@@ -317,7 +317,7 @@ class LazyProviders:
     from a pool.
     """
 
-    def __init__(self, build: Callable[[], "ProviderRegistry"]) -> None:
+    def __init__(self, build: Callable[[], ProviderRegistry]) -> None:
         """Hold the builder; nothing is built yet.
 
         Args:
@@ -329,7 +329,7 @@ class LazyProviders:
         self._closed = False
         self._lock = threading.Lock()
 
-    def get(self, provider: str) -> "TvCatalogueClient | None":
+    def get(self, provider: str) -> TvCatalogueClient | None:
         """Return the client of ``provider``, building the registry on the first call.
 
         Args:
@@ -358,7 +358,7 @@ class LazyProviders:
             if self._registry is not None:
                 self._registry.close()
 
-    def _resolve(self) -> "ProviderRegistry | None":
+    def _resolve(self) -> ProviderRegistry | None:
         """Return the registry, building it once; ``None`` once it failed to build or is closed.
 
         Returns:
@@ -382,11 +382,11 @@ class LazyProviders:
 
 
 def build_app_services(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
     event_bus: EventBus,
-    providers: "ProviderRegistry | None" = None,
+    providers: ProviderRegistry | None = None,
 ) -> AppServices:
     """Build the process's :class:`AppServices`.
 
@@ -454,12 +454,12 @@ def build_app_services(
 
 
 def _build_plex_sign_in(
-    config: "Config",
-    settings: "Settings",
-    app_store: "AppStore",
+    config: Config,
+    settings: Settings,
+    app_store: AppStore,
     credentials: CredentialService,
     event_bus: EventBus,
-    server: "PlexClient | None",
+    server: PlexClient | None,
 ) -> PlexSignInService:
     """Build the Plex door: the vault, the managed server and plex.tv's account client.
 
@@ -504,8 +504,8 @@ def _build_plex_sign_in(
 
 
 def _build_library_services(
-    config: "Config", providers: "ProviderLookup", plex: "PlexClient | None", runs: RunService
-) -> "tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]":
+    config: Config, providers: ProviderLookup, plex: PlexClient | None, runs: RunService
+) -> tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]:
     """Build the library's services over one catalogue view, one index, the providers and Plex.
 
     Inert: the catalogue store and the ownership checker open on first use, the deletion
@@ -544,7 +544,7 @@ def _build_library_services(
 
     index_db = config.indexer.db_path
     acquire_db = config.acquire.db_path
-    assert index_db is not None and acquire_db is not None  # noqa: S101 — resolved by the config loader
+    assert index_db is not None and acquire_db is not None
     # The pipeline's decision, read-only and refusing what it cannot read (operator ruling
     # R1): the web process never creates nor migrates acquire.db, and a deletion whose seed
     # obligations are unreadable is refused rather than allowed.
@@ -568,7 +568,7 @@ def _build_library_services(
     )
 
 
-def build_ownership_checker(config: "Config") -> "OwnershipChecker":
+def build_ownership_checker(config: Config) -> OwnershipChecker:
     """Build the RP6 ownership checker from the configured ``library.db`` path.
 
     Returns an :class:`~personalscraper.indexer.ownership.IndexerOwnershipChecker`

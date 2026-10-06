@@ -23,7 +23,7 @@ import typing
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field, fields
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path, PurePath
 from typing import Any, TypeVar, get_args, get_origin
@@ -198,7 +198,7 @@ def event_to_dict(value: Any) -> Any:
 # We re-alias rather than ``from datetime import UTC`` so the module remains
 # import-clean on Python 3.10 (per ``pyproject.toml`` ``requires-python = ">=3.10"``);
 # the ``datetime.UTC`` alias only became importable in Python 3.11.
-UTC = timezone.utc
+UTC = UTC
 
 # ---------------------------------------------------------------------------
 # Correlation-id ContextVar
@@ -416,7 +416,7 @@ class EventBus:
         filtered = tuple(
             entry
             for entry in existing
-            if entry[0]._id != token._id  # noqa: SLF001
+            if entry[0]._id != token._id
         )
         if len(filtered) == len(existing):
             # Token not found in the current tuple — already-unsubscribed or

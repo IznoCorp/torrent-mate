@@ -219,7 +219,7 @@ class _Heartbeat:
         while not self._stopped.wait(self._interval_s):
             try:
                 self._store.runs.touch_heartbeat(self._uid, self._clock())
-            except Exception:  # noqa: BLE001 — a missed beat must never stop the run it reports on
+            except Exception:
                 log.warning("worker.heartbeat_failed", uid=self._uid, exc_info=True)
 
     def __enter__(self) -> None:

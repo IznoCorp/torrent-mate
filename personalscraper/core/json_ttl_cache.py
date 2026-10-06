@@ -32,7 +32,7 @@ import shutil
 import tempfile
 import time
 import warnings
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -42,7 +42,7 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
-UTC = timezone.utc
+UTC = UTC
 
 # ---------------------------------------------------------------------------
 # fcntl import — optional, not available on Windows

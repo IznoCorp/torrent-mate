@@ -74,7 +74,7 @@ def spawn_pipeline_run(
         trigger_reason=trigger_reason,
         dry_run=dry_run,
     )
-    subprocess.Popen(  # noqa: S603 — fixed argv, no shell, first-party module invocation.
+    subprocess.Popen(
         cmd,
         start_new_session=True,
         env={**os.environ, "PERSONALSCRAPER_RUN_UID": run_uid},

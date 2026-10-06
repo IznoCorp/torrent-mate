@@ -132,7 +132,7 @@ class SignInNotifier:
             try:
                 message = PushMessage(code=code, params=params, link=_PROFILE_LINK, language=language)
                 self._push.notify_account(account_id, message)
-            except Exception as exc:  # noqa: BLE001 — a broken channel must not lose the notice already written
+            except Exception as exc:
                 log.warning(
                     "sign_in_notice.push_failed", account_id=account_id, error=type(exc).__name__, exc_info=True
                 )

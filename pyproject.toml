@@ -131,11 +131,11 @@ markers = [
 addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network and not app_e2e'"
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "D"]
+select = ["E", "F", "I", "W", "D", "BLE", "S608", "PLC0415", "B", "C901", "RUF100", "UP"]
 ignore = ["D104"]  # D104=__init__ docstring
 # D100 was ignored with the note « enforced manually », which is the definition
 # of no arm — CLAUDE.md says docstrings are mandatory on all MODULES too. Three

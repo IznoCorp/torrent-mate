@@ -328,7 +328,7 @@ def _start_step_watchdog(
     return timer
 
 
-def record_step(spec: "RunnerSpec", label: str, started_at: float, status: str, *, rc: int | None = None) -> None:
+def record_step(spec: RunnerSpec, label: str, started_at: float, status: str, *, rc: int | None = None) -> None:
     """Append ONE step's timing + outcome to the run row's ``steps_json``.
 
     Fail-soft by design: the run row's terminal ``outcome`` is the contract, and
@@ -354,7 +354,7 @@ def record_step(spec: "RunnerSpec", label: str, started_at: float, status: str, 
             status,
             counts={"rc": rc} if rc is not None else None,
         )
-    except Exception:  # noqa: BLE001 — bookkeeping must never sink the run
+    except Exception:
         log.warning(
             spec.event_prefix + "_step_record_failed",
             run_uid=spec.run_uid,

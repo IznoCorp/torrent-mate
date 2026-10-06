@@ -45,7 +45,7 @@ class MediaType(str, Enum):
         return str(self.value)
 
     @classmethod
-    def from_legacy(cls, value: str) -> "MediaType":
+    def from_legacy(cls, value: str) -> MediaType:
         """Coerce any historical media-type string into a :class:`MediaType`.
 
         Accepts the api/ vocabulary (``"movie"``, ``"tv"``) and the legacy
