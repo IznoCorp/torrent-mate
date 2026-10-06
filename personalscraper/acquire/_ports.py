@@ -13,7 +13,7 @@ exposed as attribute namespaces:
 
 All five sub-stores share a single ``acquire.db`` connection.  Cross-process
 single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
-no ``FileLock`` is held for the store's lifetime, and reads are lock-free.  The
+no flock is held for the store's lifetime, and reads are lock-free.  The
 concrete store opens lazily (on first sub-store access).  See
 :mod:`personalscraper.acquire.store` for the concrete implementation.
 

@@ -11,9 +11,9 @@ Concurrency model (CORRECTED — see DESIGN §6.3):
     an explicit ``BEGIN IMMEDIATE`` on every write (:func:`_write_tx`) +
     ``busy_timeout=5000`` (in the canonical PRAGMA set).  This is exactly the
     model used by the indexer outbox publisher and the Phase-5 lock-free seed-
-    obligation writer.  The store does **NOT** hold a lifetime ``FileLock``.
+    obligation writer.  The store does **NOT** hold a lifetime flock.
 
-    The core ``db_lock`` (FileLock) is taken **only briefly** around
+    The core ``db_lock`` (flock) is taken **only briefly** around
     open + migrate (idempotent ``apply_migrations`` — a no-op once the schema is
     current), then released immediately.  It is a **strict leaf**: never held
     across an FS operation or a qBit/Transmission HTTP call, never acquired with
@@ -937,7 +937,7 @@ class ConcreteAcquireStore:
     Lazy + lock-free-on-the-read-path.  Construction opens nothing: the
     connection is opened (and migrations applied under a brief leaf lock) on the
     first sub-store access.  Cross-process single-writer is SQLite-native (WAL +
-    ``BEGIN IMMEDIATE`` + ``busy_timeout``); no ``FileLock`` is held for the
+    ``BEGIN IMMEDIATE`` + ``busy_timeout``); no flock is held for the
     store's lifetime.
 
     The six sub-stores are exposed as properties (``follow`` / ``wanted`` /
@@ -979,7 +979,7 @@ class ConcreteAcquireStore:
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
 
-        Takes the core ``db_lock`` (FileLock) with a generous timeout ONLY
+        Takes the core ``db_lock`` (flock) with a generous timeout ONLY
         around ``open_db`` + ``apply_migrations`` and releases it immediately —
         the lock spans a single ``with`` block, never the store's lifetime.
         ``apply_migrations`` is idempotent, so the steady-state path holds the
