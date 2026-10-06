@@ -193,6 +193,16 @@ const FINAL_STATUSES = new Set([
   422, // understood, and refused on its content
 ]);
 
+/**
+ * The refusals under a final status that say nothing about the request yet.
+ *
+ * `request.in_progress` is a 409 the server answers when the SAME write, under
+ * the same idempotency key, is still running there: the first send's answer was
+ * lost, not refused. Its outcome is decided by that first send, and a re-send
+ * once it has finished reads it back — so the envelope stays.
+ */
+const NOT_YET_DECIDED: ReadonlySet<string> = new Set(["request.in_progress"]);
+
 // A NUMBER THAT ONLY RISES, so two envelopes accepted inside one millisecond
 // still replay in the order the operator made them.
 let accepted = 0;
@@ -245,6 +255,7 @@ function isFinalAnswer(failure: unknown): boolean {
   // A body this layer could not read is not a decision it can act on: the
   // status may be a proxy's, not the application's.
   if (failure.title === UNREADABLE) return false;
+  if (failure.code !== undefined && NOT_YET_DECIDED.has(failure.code)) return false;
   return FINAL_STATUSES.has(failure.status);
 }
 
