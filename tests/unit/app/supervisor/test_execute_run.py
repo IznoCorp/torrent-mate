@@ -9,6 +9,7 @@ the event bus, the migrated indexer DB and the log root are real, every client i
 
 from __future__ import annotations
 
+import inspect
 import logging
 import sqlite3
 from datetime import datetime, timedelta
@@ -27,9 +28,12 @@ from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.indexer import migrations
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.models import PipelineReport, StepReport
+from personalscraper.pipeline import Pipeline
 from personalscraper.pipeline_events import PipelineStarted
 
 _TAIL_MARKER = "a line the run logged while it ran"
+# The real signature, read before the fixture swaps ``Pipeline`` out: the fake binds to it.
+_REAL_RUN_SIGNATURE = inspect.signature(Pipeline.run)
 
 
 class _Harness:
@@ -42,6 +46,7 @@ class _Harness:
         root_handlers_during_run: The root logger's handlers when ``Pipeline.run`` was called.
         events: Every event the bus carried.
         closed: Names of the closeable subscribers that were closed, in order.
+        run_raises: When set, the fake ``Pipeline.run`` raises it after the handlers are read.
     """
 
     def __init__(self, db_path: Path) -> None:
@@ -56,6 +61,7 @@ class _Harness:
         self.root_handlers_during_run: list[logging.Handler] = []
         self.events: list[object] = []
         self.closed: list[str] = []
+        self.run_raises: Exception | None = None
 
     def rows(self) -> list[tuple[str, str, str | None]]:
         """The ``(trigger, outcome, output_tail)`` of every ``pipeline_run`` row."""
@@ -102,8 +108,12 @@ def harness(test_config, monkeypatch: pytest.MonkeyPatch) -> _Harness:
             self._app = app
 
         def run(self, **kwargs: object) -> PipelineReport:
+            # An argument the real ``Pipeline.run`` would refuse fails here, as it would in production.
+            _REAL_RUN_SIGNATURE.bind(self, **kwargs)
             h.run_kwargs = kwargs
             h.root_handlers_during_run = list(logging.root.handlers)
+            if h.run_raises is not None:
+                raise h.run_raises
             report = _report()
             self._app.event_bus.emit(PipelineStarted(report=report))
             logging.getLogger("tests.execute_run").warning(_TAIL_MARKER)
@@ -180,10 +190,8 @@ def test_the_log_tail_is_captured_for_the_run_row_and_the_handler_is_removed(har
     assert output_tail is not None and _TAIL_MARKER in output_tail
 
 
-def test_the_publisher_and_the_subscribers_are_closed_when_the_run_ends(
-    harness: _Harness, test_config, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The redis publisher, the rich and the telegram subscribers are closed, so a long-lived caller leaks none."""
+def _install_closeable_subscribers(harness: _Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Wire the redis publisher and the rich, telegram and acquire subscribers as doubles recording their ``close``."""
     monkeypatch.setattr(
         "personalscraper.subscribers.redis_stream.build_redis_publisher",
         lambda bus, web: _closeable(harness, "redis"),
@@ -204,6 +212,29 @@ def test_the_publisher_and_the_subscribers_are_closed_when_the_run_ends(
         lambda *a, **kw: _closeable(harness, "acquire_telegram"),
     )
 
+
+def test_the_publisher_and_the_subscribers_are_closed_when_the_run_ends(
+    harness: _Harness, test_config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The redis publisher, the rich and the telegram subscribers are closed, so a long-lived caller leaks none."""
+    _install_closeable_subscribers(harness, monkeypatch)
+
     assert _run(test_config, console=Console(file=StringIO())) == 0
 
+    assert sorted(harness.closed) == ["acquire_telegram", "redis", "rich", "telegram"]
+
+
+def test_a_run_that_raises_still_uninstalls_the_tail_and_closes_the_subscribers(
+    harness: _Harness, test_config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An exception out of ``Pipeline.run`` propagates, and neither the tail handler nor a subscriber leaks."""
+    _install_closeable_subscribers(harness, monkeypatch)
+    harness.run_raises = RuntimeError("the pipeline blew up")
+    handlers_before = list(logging.root.handlers)
+
+    with pytest.raises(RuntimeError, match="the pipeline blew up"):
+        _run(test_config, console=Console(file=StringIO()))
+
+    assert len(harness.root_handlers_during_run) == len(handlers_before) + 1
+    assert logging.root.handlers == handlers_before
     assert sorted(harness.closed) == ["acquire_telegram", "redis", "rich", "telegram"]
