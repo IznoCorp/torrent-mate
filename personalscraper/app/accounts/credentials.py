@@ -15,6 +15,7 @@ from typing import Final
 
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
+from personalscraper.app.accounts.ceiling import InstanceCeiling, current_ceiling
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.accounts.model import Account, PlexLink, SignInKind, is_email
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal, verify_password
@@ -39,6 +40,10 @@ log = get_logger("app.accounts.credentials")
 # unknown e-mail, an account without a password), so every refusal takes the time of a
 # real check and the delay never tells which e-mails exist. Random, so it never matches.
 _DUMMY_HASH: Final[str] = hash_password(secrets.token_urlsafe(32))
+
+
+#: The account an unattended act is attributed to when the instance has neither an owner nor an Admin.
+_SYSTEM_ACCOUNT_ID: Final = AccountId("system")
 
 
 @dataclass(frozen=True)
@@ -99,6 +104,7 @@ class CredentialService:
         clock: Callable[[], float] = time.time,
         limiter: SlidingWindowRateLimiter | None = None,
         password_limiter: SlidingWindowRateLimiter | None = None,
+        ceiling: Callable[[], InstanceCeiling] = current_ceiling,
     ) -> None:
         """Build the service; nothing is opened until the first call.
 
@@ -111,7 +117,9 @@ class CredentialService:
             password_limiter: The limiter of wrong current passwords on a password
                 change, keyed by account; ``None`` builds this service's own, apart from
                 the door's so neither spends the other's budget.
+            ceiling: Reads the instance ceiling, at each call of :meth:`system_actor`.
         """
+        self._ceiling = ceiling
         self._store = store
         self._sessions = sessions
         self._clock = clock
@@ -218,6 +226,41 @@ class CredentialService:
         if len(links) > 1:
             raise AmbiguousOwner("Several accounts are linked as the server's owner.")
         return links[0].account_id if links else None
+
+    def system_actor(self) -> Actor:
+        """The actor of an in-process client with no session: the CLI, the supervisor.
+
+        What the engine does unattended is attributed to the Plex server's owner, else the first
+        Admin account (ruling 9); with neither (prod has no seeded owner while v1 is off) to the
+        reserved ``system`` account, logged ``app.system_actor_unattributed``. The instance ceiling
+        binds it, so a read-only instance refuses its writes.
+
+        An owner that cannot be named never stops the runs, attribution being no authority question
+        (the actor is Admin whoever it is attributed to): several owner links are logged at ERROR
+        (``app.system_actor_ambiguous_owner``) and an owner link whose account is gone
+        (``app.system_actor_owner_account_missing``), and both fall back to the first Admin, else
+        ``system``.
+
+        Returns:
+            An Admin actor under the current ceiling.
+        """
+        ceiling = self._ceiling()
+        accounts = self._store.accounts
+        try:
+            owner_id = self.owner_account_id()
+        except AmbiguousOwner:
+            log.error("app.system_actor_ambiguous_owner")
+            owner_id = None
+        attributed = accounts.account(owner_id) if owner_id is not None else None
+        if owner_id is not None and attributed is None:
+            log.error("app.system_actor_owner_account_missing", account_id=owner_id)
+        if attributed is None:
+            admins = accounts.accounts_on_role(SYSTEM_ROLE_ID)
+            attributed = accounts.account(admins[0]) if admins else None
+        if attributed is None:
+            log.warning("app.system_actor_unattributed")
+            return Actor.system(ceiling, account_id=_SYSTEM_ACCOUNT_ID, name=_SYSTEM_ACCOUNT_ID)
+        return Actor.system(ceiling, account_id=attributed.id, name=attributed.name)
 
     def set_password(self, email: str, password: str) -> None:
         """Give an account a password — the server's door of last resort (the CLI's only).
