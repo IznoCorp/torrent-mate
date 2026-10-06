@@ -219,7 +219,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "an acknowledgement. The engine's one real network call is this logout, and it answers a redirect rather than a payload."
+        "x-unseeded": "an acknowledgement. The engine's one real network call is this logout, and it answers a redirect rather than a payload.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/auth/password": {
@@ -295,7 +300,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "an acknowledgement. The prototype holds no credentials, so the layer judges the shape of the request and the account's kind, never a stored password"
+        "x-unseeded": "an acknowledgement. The prototype holds no credentials, so the layer judges the shape of the request and the account's kind, never a stored password",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/auth/language": {
@@ -356,7 +366,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "invented (the operator, 2026-10-03: FG-1 B). The layer holds each account's choice beside the seeded one, for the life of its state — and across a reload of the page, as the server's store outlives a page."
+        "x-unseeded": "invented (the operator, 2026-10-03: FG-1 B). The layer holds each account's choice beside the seeded one, for the life of its state — and across a reload of the page, as the server's store outlives a page.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/notifications/preferences": {
@@ -417,6 +432,9 @@
               "$ref": "#/components/schemas/NotificationType"
             },
             "description": "the type switched"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -527,7 +545,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "invented, K5: the FCM registration token `lib/push-registration.ts` obtains through the application's own worker once the permission is granted (fcm-api.md, fcm-push DESIGN § 3.6). Posted from Profil's « Activer sur cet appareil », and again at each start while the device is subscribed (Firebase's monthly refresh). One account, several devices: the same token posted twice is one device. Asks no right: the account's own settings, a session act like signing out (the operator, 2026-10-03). The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right."
+        "x-unseeded": "invented, K5: the FCM registration token `lib/push-registration.ts` obtains through the application's own worker once the permission is granted (fcm-api.md, fcm-push DESIGN § 3.6). Posted from Profil's « Activer sur cet appareil », and again at each start while the device is subscribed (Firebase's monthly refresh). One account, several devices: the same token posted twice is one device. Asks no right: the account's own settings, a session act like signing out (the operator, 2026-10-03). The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/library/items": {
@@ -735,7 +758,12 @@
           }
         },
         "x-unseeded": "what the deletion did per medium. It is derived from the request and from the seeded library, never from a fixture of its own; a kept medium is a dial a named state turns.",
-        "description": "Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2). 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699)."
+        "description": "Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock. 503 `library.obligations_unreadable` when the seed obligations cannot be read (the acquisition store absent, corrupt, locked, or any lookup error): a medium still owed to a tracker cannot be told apart, so nothing is deleted (operator ruling R1, « Refuser si illisible », 2026-10-05). Past these refusals the deletion goes medium by medium, and the answer says, per medium, whether it went or was kept and why (operator ruling R2). 503 `library.unavailable` when the library index (`library.db`) is absent or cannot be read: a typed refusal the interface words, never a 500 (B-697, B-698, B-699).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/library/categories": {
@@ -1364,6 +1392,9 @@
               "type": "string"
             },
             "description": "the identifier at that provider"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "an acknowledgement. The interface offers « Re-scraper les métadonnées » on two surfaces — the follow panel and the media sheet — and the backend has no operation for it: this declaration IS the demand (D7). No fixture covers it, because until this wave nothing ever asked.",
@@ -1498,7 +1529,12 @@
             }
           }
         },
-        "x-unseeded": "the follow as it now stands, built from the request over the seeded follows."
+        "x-unseeded": "the follow as it now stands, built from the request over the seeded follows.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/acquisition/followed/{followedId}": {
@@ -1548,6 +1584,9 @@
               "type": "string"
             },
             "description": "the follow"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -1624,6 +1663,9 @@
               "type": "string"
             },
             "description": "the follow"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "an acknowledgement."
@@ -1687,6 +1729,9 @@
               "type": "string"
             },
             "description": "the follow"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "the follow the removal set aside, read back whole. It originates in the seeded follows and is not served from them: what comes back is the record as it stood when it was removed, which is the whole point of the operation."
@@ -1751,6 +1796,9 @@
               "type": "string"
             },
             "description": "the follow"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "how many conforming releases were found. The engine has no fixture for a search RESULT COUNT; the figure is derived from the seeded releases."
@@ -1889,6 +1937,9 @@
               "type": "integer"
             },
             "description": "the season, 1-based"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. A season of a series nobody follows begins no follow (round 10 Q2): the layer queues a one-off acquisition of that season, built from the incomplete show the library already holds."
@@ -1956,6 +2007,9 @@
               "type": "string"
             },
             "description": "the follow"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -2272,7 +2326,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "an acknowledgement naming the run it launched. The run is appended to the history `running` and ends, on the layer's own clock, with the three figures DOIT-6 requires — derived from the seeded acquisition queue, never from a fixture of its own."
+        "x-unseeded": "an acknowledgement naming the run it launched. The run is appended to the history `running` and ends, on the layer's own clock, with the three figures DOIT-6 requires — derived from the seeded acquisition queue, never from a fixture of its own.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/acquisition/to-handle": {
@@ -2467,6 +2526,9 @@
               "type": "string"
             },
             "description": "the journey. The interface knows it by the medium's TITLE"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "an acknowledgement. §20: a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur ». No fixture covers it: the journey's own fixture holds STAGES and no record of a verb ever having been asked for, because until this lot no verb existed to ask."
@@ -2539,6 +2601,9 @@
               "type": "string"
             },
             "description": "the journey. The interface knows it by the medium's TITLE"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "an acknowledgement. The tunnel's scrape, re-run for one tracked staging item — NOT the media sheet's metadata re-scrape, which is another subject. No fixture covers it: the journey's own fixture holds STAGES and no record of a verb ever having been asked for, because until this lot no verb existed to ask."
@@ -2730,6 +2795,9 @@
               "type": "string"
             },
             "description": "the staged item"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "responses": {
@@ -2899,6 +2967,9 @@
               "type": "string"
             },
             "description": "the staged item"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "an acknowledgement.",
@@ -2993,6 +3064,9 @@
               "type": "string"
             },
             "description": "the staged item"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "an acknowledgement, and the quarantine place composed from the request's folder the way the backend composes it.",
@@ -3096,7 +3170,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "the state the request left the pipeline in. The token comes from this contract's own enum — the engine's `pipe` field is STORE state and is not a fixture family at all — so there is nothing to seed from."
+        "x-unseeded": "the state the request left the pipeline in. The token comes from this contract's own enum — the engine's `pipe` field is STORE state and is not a fixture family at all — so there is nothing to seed from.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/pipeline/pause": {
@@ -3145,7 +3224,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/pipeline/resume": {
@@ -3194,7 +3278,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/pipeline/kill": {
@@ -3243,7 +3332,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
+        "x-unseeded": "the state the request left the pipeline in, from this contract's own enum.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/pipeline/history": {
@@ -3457,6 +3551,9 @@
               "type": "string"
             },
             "description": "the decision"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -3539,6 +3636,9 @@
               "type": "string"
             },
             "description": "the decision"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "the decision's new state, from the seeded decision moved between the two lists."
@@ -3594,6 +3694,9 @@
               "type": "string"
             },
             "description": "the decision"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -3999,6 +4102,9 @@
               "type": "string"
             },
             "description": "the action"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -4218,7 +4324,12 @@
             }
           }
         },
-        "x-unseeded": "whether a restart is owed. Derived from the request; a secret's VALUE is never read back, by design."
+        "x-unseeded": "whether a restart is owed. Derived from the request; a secret's VALUE is never read back, by design.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/config/files": {
@@ -4395,6 +4506,9 @@
               "type": "boolean"
             },
             "description": "L17 (round 9 Q5): when this write turns a tracker's `cross_seed` OFF, ALSO stop every pair running on it — each reads `stopped`, `stopCause: switch`, dated — in this SAME call. Absent or false, the switch cuts NEW cross-seeds only and every running pair keeps seeding (M6). Invented: no fixture exists for the cross-seed."
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -4459,7 +4573,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "an acknowledgement."
+        "x-unseeded": "an acknowledgement.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/config/status": {
@@ -4688,7 +4807,12 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "the trigger's state is STORE state, not a fixture family: the layer holds one field and answers what the request left it at."
+        "x-unseeded": "the trigger's state is STORE state, not a fixture family: the layer holds one field and answers what the request left it at.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/maintenance/locks": {
@@ -4753,6 +4877,9 @@
               "type": "string"
             },
             "description": "the staged item"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -4836,6 +4963,9 @@
               "type": "string"
             },
             "description": "the staged item"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "responses": {
@@ -4946,6 +5076,9 @@
               "type": "string"
             },
             "description": "the medium"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -5042,6 +5175,9 @@
               "type": "string"
             },
             "description": "the closed acquisition. The interface knows it by its key — the title, then the season or the episode it is of"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "responses": {
@@ -5188,6 +5324,9 @@
               "type": "string"
             },
             "description": "the entry's own hash"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -5332,6 +5471,9 @@
               "type": "string"
             },
             "description": "the torrent the obligation was owed on"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "responses": {
@@ -5411,7 +5553,12 @@
           "500": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/acquisition/followed/{followedId}/completeness": {
@@ -5563,6 +5710,9 @@
               "type": "string"
             },
             "description": "the staged medium"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -5659,6 +5809,9 @@
               "type": "string"
             },
             "description": "the settled decision"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "x-unseeded": "the settled decision moved back to the pending list, with the candidates the seeds offer for its title."
@@ -5874,7 +6027,12 @@
             }
           }
         },
-        "x-unseeded": "invented: no account but the Plex owner exists yet (demand I)"
+        "x-unseeded": "invented: no account but the Plex owner exists yet (demand I)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/acquisition/followed/{followedId}/quality": {
@@ -5924,6 +6082,9 @@
               "type": "string"
             },
             "description": "the follow"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -5998,6 +6159,9 @@
               "type": "string"
             },
             "description": "the follow"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -6136,7 +6300,12 @@
             }
           }
         },
-        "x-unseeded": "invented: no account store exists yet (demand G). refused 409 when it would leave no account on the Admin role; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)"
+        "x-unseeded": "invented: no account store exists yet (demand G). refused 409 when it would leave no account on the Admin role; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/accounts/{accountId}": {
@@ -6209,6 +6378,9 @@
               "type": "string"
             },
             "description": "the account"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -6278,7 +6450,12 @@
           }
         },
         "x-unseeded": "invented (demand H): an ordinary role, never a system one. refused 409 when it would leave no account on the Admin role; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)",
-        "description": "A ROLE IS CREATED FROM ITS OWN PAGE, under the name the manager TYPED — never a name made up for it (the operator, 2026-10-04: « Pas de nom par défaut, saisie avec champs obligatoires »): a blank name is refused 400 `role.name_required`, and a name another role already carries — compared trimmed and regardless of case — 409 `role.name_taken`."
+        "description": "A ROLE IS CREATED FROM ITS OWN PAGE, under the name the manager TYPED — never a name made up for it (the operator, 2026-10-04: « Pas de nom par défaut, saisie avec champs obligatoires »): a blank name is refused 400 `role.name_required`, and a name another role already carries — compared trimmed and regardless of case — 409 `role.name_taken`.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/roles/{roleId}": {
@@ -6356,6 +6533,9 @@
               "type": "string"
             },
             "description": "the role"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       },
@@ -6376,6 +6556,9 @@
               "type": "string"
             },
             "description": "the role"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "responses": {
@@ -6449,6 +6632,9 @@
               "type": "string"
             },
             "description": "the other tracker the pair names"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "responses": {
@@ -6525,6 +6711,9 @@
               "type": "string"
             },
             "description": "the ORIGIN entry's hash"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -6628,6 +6817,9 @@
               "type": "string"
             },
             "description": "the ORIGIN entry's hash"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -6726,6 +6918,9 @@
               "type": "string"
             },
             "description": "the ORIGIN entry's hash"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -6835,6 +7030,9 @@
               "type": "string"
             },
             "description": "the tracker the torrent is published on — one of the pair's"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "responses": {
@@ -6905,6 +7103,9 @@
               "type": "string"
             },
             "description": "the account"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -6985,6 +7186,9 @@
               "type": "string"
             },
             "description": "the account"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -11168,6 +11372,8 @@
         "enum": [
           "request.invalid",
           "request.cross_origin",
+          "request.key_reused",
+          "request.in_progress",
           "route.unknown",
           "internal",
           "auth.required",
@@ -11371,6 +11577,20 @@
               "$ref": "#/components/schemas/Problem"
             }
           }
+        }
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "description": "Names this write, so that sending it again never applies it twice (the offline outbox re-sends a held write with the key it first carried). Sent again with the same request, the first answer is answered again — its status and its body — and nothing is applied; sent with another request (another body or query on the same method and path), it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`, which the client retries. A key is scoped to the signed-in account and to the method and path, and kept 24 hours. A server failure (5xx) keeps nothing: the retry applies. Without it, every send applies. The public sign-in doors take none: they sign no account in to scope it to.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
         }
       }
     }

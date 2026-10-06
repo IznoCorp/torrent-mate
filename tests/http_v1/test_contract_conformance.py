@@ -326,19 +326,21 @@ def _json_schema(document: dict[str, Any], carrier: Any) -> Any:
     return carrier.get("content", {}).get("application/json", {}).get("schema")
 
 
-def _parameters(operation: dict[str, Any]) -> set[tuple[str, str, bool]]:
-    """An operation's parameters as ``(in, name, required)``.
+def _parameters(document: dict[str, Any], operation: dict[str, Any]) -> set[tuple[str, str, bool]]:
+    """An operation's parameters as ``(in, name, required)``, a shared one read through its ``$ref``.
 
     Args:
+        document: The document the operation belongs to.
         operation: One operation.
 
     Returns:
         Its parameters.
     """
-    return {
-        (parameter["in"], parameter["name"], bool(parameter.get("required", False)))
-        for parameter in operation.get("parameters", [])
-    }
+    found: set[tuple[str, str, bool]] = set()
+    for declared in operation.get("parameters", []):
+        parameter, _ = _SchemaDiff._resolve(document, declared)
+        found.add((parameter["in"], parameter["name"], bool(parameter.get("required", False))))
+    return found
 
 
 def _parameter_schemas(document: dict[str, Any], operation: dict[str, Any]) -> dict[tuple[str, str], Any]:
@@ -407,10 +409,9 @@ def check_operation(
 
     if (wanted.method, wanted.path) != (have.method, have.path):
         record("address", f"{wanted.method} {wanted.path} in the contract, {have.method} {have.path} in v1")
-    if _parameters(wanted.body) != _parameters(have.body):
-        record(
-            "parameter", f"{sorted(_parameters(wanted.body))} in the contract, {sorted(_parameters(have.body))} in v1"
-        )
+    wanted_parameters, have_parameters = _parameters(contract, wanted.body), _parameters(served, have.body)
+    if wanted_parameters != have_parameters:
+        record("parameter", f"{sorted(wanted_parameters)} in the contract, {sorted(have_parameters)} in v1")
     wanted_schemas, have_schemas = _parameter_schemas(contract, wanted.body), _parameter_schemas(served, have.body)
     for location in sorted(wanted_schemas.keys() & have_schemas.keys()):
         schema_diff.compare(wanted_schemas[location], have_schemas[location], " ".join(location), "parameter")

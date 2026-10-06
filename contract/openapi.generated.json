@@ -1175,6 +1175,8 @@
         "enum": [
           "request.invalid",
           "request.cross_origin",
+          "request.key_reused",
+          "request.in_progress",
           "route.unknown",
           "internal",
           "auth.required",
@@ -1772,6 +1774,29 @@
       "post": {
         "description": "Create a local account with its provisional password.\n\nArgs:\n    body: Its name, e-mail, role and provisional password.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The account, on its initial role.",
         "operationId": "createAccount",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1881,6 +1906,27 @@
               "description": "the account",
               "title": "Accountid",
               "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -1994,6 +2040,27 @@
               "title": "Accountid",
               "type": "string"
             }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "requestBody": {
@@ -2096,6 +2163,27 @@
               "title": "Accountid",
               "type": "string"
             }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "requestBody": {
@@ -2187,6 +2275,29 @@
       "put": {
         "description": "Set the language the signed-in account is spoken to in, on all its devices (FG-1 B).\n\nArgs:\n    body: The language chosen.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The account, as now held.",
         "operationId": "setOwnLanguage",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2375,6 +2486,29 @@
       "post": {
         "description": "Close the session and clear its cookie.\n\nArgs:\n    request: The incoming request (the sub-application's web configuration).\n    response: The answer the cleared cookie is set on.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The session's value.\n\nReturns:\n    ``{\"ok\": true}``.",
         "operationId": "signOut",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2533,6 +2667,29 @@
       "put": {
         "description": "Replace the signed-in local account's password; its other sessions end, this one stays.\n\nArgs:\n    body: The current password and the new one.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The caller's session value, the one kept.\n\nReturns:\n    ``{\"ok\": true}``.",
         "operationId": "changeOwnPassword",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2976,6 +3133,29 @@
       "delete": {
         "description": "Delete media from the disks, the index and Plex, each named by its provider identity.\n\nArgs:\n    body: The media to delete.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    What the deletion did, per medium: deleted, or kept and why (operator ruling R2).\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or\n        ``providerId``), before anything is read.\n    AppNotFound: ``media.not_found`` when no library row holds an id; nothing deleted.\n    AppConflict: ``media.ambiguous`` when an id is held twice, ``library.locked`` while\n        the pipeline holds its lock; nothing deleted.\n    AppUnavailable: ``library.obligations_unreadable`` when the seed obligations cannot\n        be read (operator ruling R1), ``library.unavailable`` when ``library.db`` cannot\n        be read; nothing deleted.",
         "operationId": "deleteLibraryItems",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3673,6 +3853,27 @@
               "title": "Providerid",
               "type": "string"
             }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "responses": {
@@ -3866,6 +4067,29 @@
       "post": {
         "description": "Create an ordinary role.\n\nArgs:\n    body: Its name and rights.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The role.",
         "operationId": "createRole",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3966,6 +4190,27 @@
               "title": "Roleid",
               "type": "string"
             }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "responses": {
@@ -4065,6 +4310,27 @@
               "description": "the role",
               "title": "Roleid",
               "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "title": "Idempotency-Key"
             }
           }
         ],
