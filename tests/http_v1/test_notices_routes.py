@@ -183,6 +183,18 @@ class TestMarkNoticesRead:
         assert response.status_code == 400
         assert response.json()["code"] == "request.invalid"
 
+    def test_an_up_to_beyond_sqlite_integers_is_request_invalid(self, v1_client: Callable[..., TestClient]) -> None:
+        """400 ``request.invalid`` — a notice id SQLite cannot hold never reaches the base."""
+        response = v1_client(role="household").post("/notices/read", json={"upTo": 2**63})
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+
+    def test_the_highest_sqlite_integer_is_accepted(self, v1_client: Callable[..., TestClient]) -> None:
+        """The bound is inclusive: ``2**63 - 1`` marks what is there and answers 200."""
+        response = v1_client(role="household").post("/notices/read", json={"upTo": 2**63 - 1})
+        assert response.status_code == 200
+        assert response.json() == {"marked": 0}
+
     def test_without_a_session_is_auth_required(self, v1_client: Callable[..., TestClient]) -> None:
         """401 ``auth.required``."""
         response = v1_client(role=None).post("/notices/read", json={"upTo": 1})

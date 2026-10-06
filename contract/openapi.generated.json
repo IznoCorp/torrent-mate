@@ -745,9 +745,10 @@
       },
       "MarkNoticesReadBody": {
         "additionalProperties": false,
-        "description": "``markNoticesRead``'s body.\n\nAttributes:\n    up_to: The highest notice id marked read; the notices raised after it stay unread.",
+        "description": "``markNoticesRead``'s body.\n\nAttributes:\n    up_to: The highest notice id marked read; the notices raised after it stay unread. Bounded\n        by SQLite's largest integer: a larger id is a refused request, not a driver error.",
         "properties": {
           "upTo": {
+            "maximum": 9.223372036854776e+18,
             "minimum": 0.0,
             "title": "Upto",
             "type": "integer"
@@ -3275,6 +3276,7 @@
             "required": true,
             "schema": {
               "description": "the session",
+              "maximum": 9223372036854775807,
               "title": "Sessionid",
               "type": "integer"
             }

@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from personalscraper.app.accounts.notices import NoticeView
-from personalscraper.http_v1.contract import ContractModel
+from personalscraper.http_v1.contract import SQLITE_MAX_INTEGER, ContractModel
 
 
 class NoticeModel(ContractModel):
@@ -55,10 +55,11 @@ class MarkNoticesReadBody(ContractModel):
     """``markNoticesRead``'s body.
 
     Attributes:
-        up_to: The highest notice id marked read; the notices raised after it stay unread.
+        up_to: The highest notice id marked read; the notices raised after it stay unread. Bounded
+            by SQLite's largest integer: a larger id is a refused request, not a driver error.
     """
 
-    up_to: int = Field(ge=0)
+    up_to: int = Field(ge=0, le=SQLITE_MAX_INTEGER)
 
 
 class NoticesMarkedRead(ContractModel):
