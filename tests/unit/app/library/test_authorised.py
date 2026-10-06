@@ -6,7 +6,6 @@ requirement, the same refusal, and nothing opened, locked or reserved before it.
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import pytest
@@ -18,7 +17,6 @@ from personalscraper.app.errors import AppForbidden, RefusalCode
 from personalscraper.app.library import deleting as library_service
 from personalscraper.app.library.listing import LibrarySort
 from personalscraper.app.library.reads import LibraryReads
-from personalscraper.app.maintenance import service as maintenance_service
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.library_view import LibraryIndex
 from tests.unit.app.library.test_delete_media import Shelf, shelf
@@ -96,16 +94,8 @@ def test_the_system_under_the_preprod_ceiling_never_deletes(shelf: Shelf, monkey
     assert shelf.journal() == []
 
 
-def test_an_asker_without_library_rescrape_reserves_no_run(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``right.missing``: no maintenance run is reserved and no runner is spawned."""
-    spawned: list[str] = []
-
-    def fake_spawn(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
-        """Record the launch; no process starts."""
-        spawned.append(run_uid)
-        return 4242
-
-    monkeypatch.setattr(maintenance_service, "_spawn_runner", fake_spawn)
+def test_an_asker_without_library_rescrape_queues_no_request(world: World) -> None:
+    """``right.missing``: nothing is queued."""
     movie = world.index.item("Heat", tmdb="949")
     world.index.movie_file(movie, "films/Heat")
 
@@ -113,7 +103,5 @@ def test_an_asker_without_library_rescrape_reserves_no_run(world: World, monkeyp
         world.rescrape.request_rescrape(_ordinary(Right.LIBRARY_READ), MediaRef(tmdb_id=949))
 
     assert refused.value.code is RefusalCode.RIGHT_MISSING
-    assert spawned == []
-    with sqlite3.connect(world.index.path) as conn:
-        runs = conn.execute("SELECT COUNT(*) FROM pipeline_run WHERE kind='maintenance'").fetchone()[0]
-    assert runs == 0
+    view = world.runs.queue_view()
+    assert (view.running, view.queued) == (None, ())
