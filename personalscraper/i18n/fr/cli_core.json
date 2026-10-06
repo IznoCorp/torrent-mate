@@ -174,7 +174,8 @@
       "continue_on_trailer_error": "N'interrompt pas le dispatch quand l'étape des bandes-annonces échoue.",
       "headless": "S'exécute sans abonné (mode silencieux pour cron / CI). Désactive la sortie console Rich et les notifications Telegram.",
       "no_console": "Désactive la sortie console Rich (barres de progression, tableaux dynamiques). Les notifications Telegram restent actives. Utilisé par le démon de surveillance (``personalscraper watch``) quand il lance des exécutions du pipeline ; à opposer à ``--headless`` qui désactive Rich et Telegram. Si les deux sont passés, ``--headless`` l'emporte.",
-      "trigger_reason": "Défini par le démon de surveillance pour attribuer cette exécution."
+      "trigger_reason": "Défini par le démon de surveillance pour attribuer cette exécution.",
+      "detach": "Met le run en file et rend la main au lieu de le suivre (exige un superviseur actif)."
     },
     "ingest": {
       "help": "Ingère les torrents terminés de qBittorrent."
@@ -203,5 +204,13 @@
     "process": {
       "help": "Exécute seulement la phase de traitement (reclean + dedup + scrape + cleanup)."
     }
+  },
+  "run": {
+    "queued": "Run {{uid}} en file (position {{position}}) ; suivi en cours. Ctrl-C le laisse en file.",
+    "joined": "Le run {{uid}} était déjà demandé ; suivi en cours.",
+    "step_done": "  {{step}} : {{status}}",
+    "finished": "Run {{uid}} terminé : {{settlement}}.",
+    "detached": "Détaché du run {{uid}} ; il continue.",
+    "interactive_needs_direct": "--interactive exige le chemin direct : un superviseur tourne, le run est mis en file. Utilisez `personalscraper scrape -i` pour un scrape interactif."
   }
 }
