@@ -27,6 +27,8 @@ _READERS: dict[str, str] = {
     "app/maintenance/service.py::running_run_uid": "SELECT of the live duplicate run",
     "commands/follow.py::follow_backfill_metadata": "SELECTs; writes go through the acquire store, which migrates",
     "commands/library/audit.py::_count_nfo_missing": "one COUNT on item_issue",
+    "commands/run_follow.py::_read_only": "mode=ro URI built by _read_only_uri, SELECTs on pipeline_run",
+    "commands/run_follow.py::lease_live": "mode=ro URI built by _read_only_uri, one SELECT on run_lease",
     "commands/scrape_resolve.py::_lookup_decision": "SELECT on scrape_decision",
     "conf/loader.py::_check_category_orphans": "SELECT DISTINCT category_id",
     "core/sqlite/_open.py::_quarantine_if_corrupt": "integrity_check probe; open_db's callers then migrate",
