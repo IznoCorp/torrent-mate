@@ -7,7 +7,7 @@
 // cross-seed subject's own discipline. Revoking one ends it at once; the current one is refused
 // `session.current`, an id the account does not hold `session.unknown` — the server's answers.
 import SEED from "../seeds/own-sessions.json";
-import { DELETE, GET, route } from "./shared";
+import { DELETE, GET, POST, field, route } from "./shared";
 import { refused, type MockRoute } from "../router";
 import { mockState } from "../state";
 import type { components } from "../../contract/types";
@@ -16,6 +16,7 @@ type Schemas = components["schemas"];
 
 const NOT_FOUND = 404;
 const CONFLICT = 409;
+const MILLISECONDS = 1000;
 
 /** What the layer holds of the subject: the live sessions and the notices. */
 type Held = { sessions: Schemas["OwnSession"][]; notices: Schemas["Notice"][] };
@@ -49,5 +50,13 @@ export function ownSessionRoutes(): MockRoute[] {
       return { ok: true };
     }),
     route("readNotices", GET, "/notices", () => ({ notices: subject().notices })),
+    // Marks what the account saw: every notice numbered `upTo` or lower, none after it. A second
+    // call marks nothing and keeps the first read time, the server's own answer.
+    route("markNoticesRead", POST, "/notices/read", (request) => {
+      const upTo = Number(field(request.body, "upTo"));
+      const unread = subject().notices.filter((one) => one.id <= upTo && one.readAt === undefined);
+      for (const notice of unread) notice.readAt = Math.floor(Date.now() / MILLISECONDS);
+      return { marked: unread.length };
+    }),
   ];
 }

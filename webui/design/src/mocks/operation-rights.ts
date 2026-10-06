@@ -59,6 +59,7 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   registerPushDevice: null,
   // The account's own in-app notices (a new sign-in): a session act, no right.
   readNotices: null,
+  markNoticesRead: null,
   // The roster: « Comptes » manages it; the reassign chooser reads it narrowly (F46).
   readAccounts: ["accounts.manage", "acquisition.reassign"],
   createAccount: "accounts.manage",

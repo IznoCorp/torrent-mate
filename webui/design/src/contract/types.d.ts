@@ -209,6 +209,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notices/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark the signed-in account's notices read, up to one
+         * @description Profil marks what it displayed: every unread notice of the account numbered `upTo` or lower is marked read; a notice raised after it (a higher id) stays unread. Repeating it is harmless: it answers how many notices it newly marked, zero when none. Only the caller's own notices, ever — another account's id marks nothing. A session act like reading them: no right. The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right.
+         */
+        post: operations["markNoticesRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/library/items": {
         parameters: {
             query?: never;
@@ -3136,6 +3156,8 @@ export interface components {
             };
             /** @description when it was raised, Unix-epoch seconds */
             createdAt: number;
+            /** @description when the account marked it read, Unix-epoch seconds; ABSENT while it is unread */
+            readAt?: number;
         };
         /**
          * @description THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from the `push` namespace of the catalogue `webpush.data.language` names — the RECIPIENT ACCOUNT's `Language`, filled by the server per account (FG-2 A); absent or unknown, the worker words it in English (OPEN-2 B). A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`; `device` for `account.sign_in.device` (the browser and system the session's user agent names, « Firefox · macOS »), none for `account.sign_in.unknown_device`.
@@ -3567,6 +3589,45 @@ export interface operations {
                 content: {
                     "application/json": {
                         notices: components["schemas"]["Notice"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    markNoticesRead: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Names this write, so that sending it again never applies it twice (the offline outbox re-sends a held write with the key it first carried). Sent again with the same request, the first answer is answered again — its status and its body — and nothing is applied; sent with another request (another body or query on the same method and path), it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`, which the client retries. A key is scoped to the signed-in account and to the method and path, and kept 24 hours. Only an answer that will not change is kept: a success, or a final refusal (400, 404, 405, 409, 410, 415, 422); any other answer (401, 403, 408, 423, 429, a 5xx) keeps nothing, and the retry with the same key applies. Without it, every send applies. The public sign-in doors (signIn, signInWithPlex, startPlexSignIn) take none: they sign no account in to scope it to, and the client never holds one offline. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the highest notice id marked read */
+                    upTo: number;
+                };
+            };
+        };
+        responses: {
+            /** @description the notices are marked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description how many notices it newly marked read */
+                        marked: number;
                     };
                 };
             };

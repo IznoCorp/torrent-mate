@@ -24,12 +24,27 @@
   ],
   "notices": [
     {
+      "id": 12,
+      "code": "account.sign_in.unknown_device",
+      "params": {},
+      "createdAt": 1791270000
+    },
+    {
+      "id": 11,
+      "code": "account.sign_in.device",
+      "params": {
+        "device": "Firefox · macOS"
+      },
+      "createdAt": 1791100000
+    },
+    {
       "id": 9,
       "code": "account.sign_in.device",
       "params": {
         "device": "Safari · iOS"
       },
-      "createdAt": 1790900000
+      "createdAt": 1790900000,
+      "readAt": 1790950000
     }
   ]
 }
