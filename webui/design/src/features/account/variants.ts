@@ -75,7 +75,7 @@ export const noticeRow = cva("notice-row", {
  *
  * `notices-block` is its identity and carries no style.
  */
-export const noticesBlock = cva("notices-block", {
+export const noticesSection = cva("notices-block", {
   variants: {
     state: {
       loading: "",

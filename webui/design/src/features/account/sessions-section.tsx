@@ -28,7 +28,7 @@ import { HELD, read, send } from "../../lib/query-client";
 import { Chip } from "../../ui/chip";
 import { actionButton, factsPanel, guidance, keyValueRow, loadError, loadErrorAction, qualityHint, sectionHeading, settingRow, surfaceError } from "../../ui/variants";
 import { forgetEndings, SESSIONS_KEY, useEndings, WORDS } from "./session-end";
-import { noticeRow, noticesBlock, sessionRow } from "./variants";
+import { noticeRow, noticesSection, sessionRow } from "./variants";
 import type { components } from "../../contract/types";
 
 type OwnSession = components["schemas"]["OwnSession"];
@@ -171,7 +171,7 @@ function NoticesList(): ReactElement {
   }
 
   return (
-    <div className={noticesBlock({ state })} data-part="profile/notices" data-state={state} data-unread={unread.length}>
+    <div className={noticesSection({ state })} data-part="profile/notices" data-state={state} data-unread={unread.length}>
       <h3 className={sectionHeading()} data-part="heading">{t(`${WORDS}.notices.heading`)}</h3>
       {state === "loading" ? (
         <p className={qualityHint()} role="status" data-part="profile/notices-loading">{t(`${WORDS}.notices.loading`)}</p>
