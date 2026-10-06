@@ -1378,6 +1378,7 @@
       "reasonDisabled": "Access disabled by an administrator.",
       "plex": "Sign in with Plex",
       "plexUnreachable": "Plex is not answering: sign in with a password.",
+      "showPassword": "Show password",
       "usePassword": "Use a password",
       "invalid": "Invalid credentials",
       "email": "E-mail address",

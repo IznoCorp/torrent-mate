@@ -692,8 +692,9 @@ pm2 save
 
 From this change on, an unset or empty `PERSONALSCRAPER_ENV` is refused: no command reads it
 as prod any more. `ecosystem.config.js` sets `PERSONALSCRAPER_ENV: "prod"` on every app that
-runs the `personalscraper` binary (watch, `torrentmate-web`, `torrentmate-web-staging`, the
-eight scheduled jobs). Also, a store whose `PRAGMA user_version` is higher than the code's
+runs the `personalscraper` binary of prod (watch, `torrentmate-web`, the eight scheduled
+jobs); the preprod's apps (`torrentmate-web-staging` and the `personalscraper-preprod-*` jobs)
+name `staging`. Also, a store whose `PRAGMA user_version` is higher than the code's
 highest migration is refused at open (`store.schema_newer_than_code` in the log, with
 `path`, `found`, `known`): nothing is migrated or written, and the web app's boot fails
 (PM2 shows it errored) instead of serving it.
@@ -735,7 +736,7 @@ done
 ### Step 2 — Reload the online engine apps (second layer)
 
 After the promotion, check that the prod clone's `ecosystem.config.js` carries the line on
-its eleven engine apps, then restart ONLY the engine apps that are online, with the file's
+its ten prod engine apps, then restart ONLY the engine apps that are online, with the file's
 environment. Never a bare `pm2 startOrRestart ecosystem.config.js`: it would also start every
 app of the file that is stopped (grab, search, follow-detect, enrich, …), which must stay as
 the operator left them. A stopped app reads the file when the operator starts it.
@@ -743,7 +744,7 @@ the operator left them. A stopped app reads the file when the operator starts it
 ```bash
 cd /Users/izno/deploy/torrentmate
 grep -cE '^ *PERSONALSCRAPER_ENV: "prod",' ecosystem.config.js
-# Expected: 11
+# Expected: 10
 pm2 restart personalscraper-watch torrentmate-web torrentmate-web-staging --update-env
 pm2 save
 ```

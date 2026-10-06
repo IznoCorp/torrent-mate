@@ -3,6 +3,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
+import { isLeftOut, keptBlocks, leftOutModules } from "./app-bundle.mjs";
 import { buildIdentity } from "./build-identity.mjs";
 import { pushCatalogues, substituteWorker } from "./worker-source.mjs";
 // Tailwind v4 as a Vite plugin. WHAT CONFINES ITS SCAN IS `source(none)` on
@@ -114,6 +115,67 @@ function buildWorker() {
   };
 }
 
+// The frame stylesheet's id in the app build: what the app keeps of it, under a
+// name of its own so the module guard below can refuse the file itself.
+const SHELL_ROOT_ID = "\0tm-shell-root.css";
+
+// The harness chrome the document carries between its two markers.
+const HARNESS_MARKUP = /<!-- harness:start -->[\s\S]*?<!-- harness:end -->/g;
+
+function leaveOutTheMaquette() {
+  return {
+    name: "leave-out-the-maquette",
+    enforce: "pre",
+    // THE FRAME STYLESHEET, REPLACED BY WHAT THE APP KEEPS OF IT. `app/shell.tsx`
+    // imports `harness.css` unconditionally, and must: an import behind a
+    // constant would be a lazy chunk and reorder the maquette's cascade. So the
+    // app build answers that one import with the shell's root and the notes'
+    // hidden default (`app-bundle.mjs`, `keptBlocks`) and drops the rest.
+    resolveId(source) {
+      if (source.endsWith("/styles/harness.css")) return SHELL_ROOT_ID;
+      return null;
+    },
+    load(id) {
+      if (id !== SHELL_ROOT_ID) return null;
+      return keptBlocks(readFileSync(resolve(ROOT, "src/styles/harness.css"), "utf8"));
+    },
+    // The frame's way out, cut from the document: exactly one marked region, or
+    // the build stops — a marker lost in an edit would otherwise ship the control.
+    transformIndexHtml: {
+      order: "pre",
+      handler(html) {
+        const regions = html.match(HARNESS_MARKUP) ?? [];
+        if (regions.length !== 1) {
+          throw new Error(`app build: index.html holds ${regions.length} harness regions, expected 1`);
+        }
+        return html.replace(HARNESS_MARKUP, "");
+      },
+    },
+    // NO EFFECT AT EVALUATION, declared for the two left-out directories.
+    // `__MOCKS_BUILT_IN__` false makes the boot's mock and harness branches
+    // dead, but a dead import is dropped only when the module has no side
+    // effect, and these have plenty — a contract walk into a map, seed
+    // spreads, a table built at load: 216 kB of them survived the constant
+    // alone. Their one way in is the dead branch, so nothing of the app loses
+    // an effect it relies on.
+    transform(code, id) {
+      if (!isLeftOut(id)) return null;
+      return { code, moduleSideEffects: false };
+    },
+    // THE MODULE GUARD, after the fact: the build stops if a module of either
+    // directory, or the frame stylesheet, still renders a byte.
+    generateBundle(_options, bundle) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type !== "chunk") continue;
+        const kept = leftOutModules(chunk.modules);
+        if (kept.length > 0) {
+          throw new Error(`app build: ${chunk.fileName} keeps ${kept.join(", ")}`);
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   root: ROOT,
   define: {
@@ -135,7 +197,11 @@ export default defineConfig(({ mode }) => ({
     // On SWITCHOVER DAY the flag goes false and then the directory goes. A mock
     // layer that could not be taken out would be a mock layer shipped to the
     // operator.
-    __MOCKS_BUILT_IN__: JSON.stringify(true),
+    //
+    // FALSE IN THE APP BUILD (`--mode app`), the one that ships, which every
+    // pull request builds and checks (`app-bundle.mjs`): the switchover's
+    // subtraction, proven on each change instead of on the day.
+    __MOCKS_BUILT_IN__: JSON.stringify(mode !== "app"),
     // WHAT THIS BUNDLE IS. The update discipline compares it against what
     // `/build.json` serves; the worker names its cache after the same value, so
     // the three cannot drift apart.
@@ -165,7 +231,14 @@ export default defineConfig(({ mode }) => ({
   },
   // Tailwind FIRST: it must have generated its sheet before the prototype
   // fragment is injected, and the injection deliberately runs `post`.
-  plugins: [tailwindcss(), injectPrototype(), buildWorker()],
+  // The app build's subtractions ahead of everything, so Tailwind never sees
+  // the frame stylesheet it replaces.
+  plugins: [
+    ...(mode === "app" ? [leaveOutTheMaquette()] : []),
+    tailwindcss(),
+    injectPrototype(),
+    buildWorker(),
+  ],
   // The unit suite's browser language, pinned whatever the host's locale.
   test: { setupFiles: ["./src/i18n/suite-language.ts"] },
 }));

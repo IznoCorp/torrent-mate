@@ -1,8 +1,10 @@
-"""The library service is HTTP-free and SQL-free.
+"""The library service is HTTP-free and SQL-free; the supervisor reaches ``library.db`` only through the indexer.
 
 ``app/library`` imports no ``fastapi``, no ``web``, no ``http_v1``; and it reads and writes
 ``library.db`` only through the indexer: no ``sqlite3`` but its ``Error`` type, no SQL
-naming a table of the indexer's schema.
+naming a table of the indexer's schema. ``app/supervisor`` holds the same SQL rule: its own
+``app.db`` repositories take a ``sqlite3.Connection``, nothing else of the module is used,
+and no SQL of it names a table of the indexer (``pipeline_run`` is read through its owner).
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
 _LIBRARY_DIR = _ROOT / "personalscraper" / "app" / "library"
+_SUPERVISOR_DIR = _ROOT / "personalscraper" / "app" / "supervisor"
 _PACKAGE = "personalscraper.app.library"
 _FORBIDDEN = ("fastapi", "starlette", "personalscraper.web", "personalscraper.http_v1")
 
@@ -230,3 +233,40 @@ def test_the_sql_guard_sees_through_spelling() -> None:
     for table in ("deleted_item", "item_attribute", "item_issue"):
         assert _sql_violations(f'q = "DELETE FROM {table}"\n') == [f"DELETE FROM {table}"]
     assert _sql_violations("from sqlite3 import Error\n") == []
+
+
+# What of ``sqlite3`` a module of ``app/supervisor`` may name, beyond ``Error``: the ``app.db``
+# repositories are handed the store's connection; ``execution.py``'s rescrape body was moved
+# verbatim from ``commands/library/analyze.py`` and annotates the indexer's ``open_db`` connection.
+_SUPERVISOR_SQLITE_TYPES = {
+    "execution.py": {"sqlite3.Connection"},
+    "lease_repository.py": {"sqlite3.Connection"},
+    "queue_repository.py": {"sqlite3.Connection"},
+}
+
+
+def test_app_supervisor_reaches_library_db_only_through_the_indexer() -> None:
+    """No module of ``app/supervisor`` opens a connection, nor names an indexer table in SQL."""
+    modules = sorted(_SUPERVISOR_DIR.rglob("*.py"))
+    assert modules, "personalscraper/app/supervisor/ is missing (the guard would scan nothing)"
+
+    found: dict[str, list[str]] = {}
+    for path in modules:
+        allowed = _SUPERVISOR_SQLITE_TYPES.get(path.name, set())
+        bad = [line for line in _sql_violations(path.read_text(encoding="utf-8")) if line not in allowed]
+        if bad:
+            found[str(path.relative_to(_SUPERVISOR_DIR))] = bad
+
+    assert found == {}
+
+
+def test_the_supervisor_guard_still_sees_a_connection_in_an_allowed_module() -> None:
+    """POSITIVE control: the allowance names a type, never ``connect`` nor an indexer table."""
+    source = 'import sqlite3\nc: sqlite3.Connection = sqlite3.connect("x")\nc.execute("SELECT 1 FROM pipeline_run")\n'
+
+    allowed = _SUPERVISOR_SQLITE_TYPES["execution.py"]
+
+    assert sorted(bad for bad in _sql_violations(source) if bad not in allowed) == [
+        "SELECT 1 FROM pipeline_run",
+        "sqlite3.connect",
+    ]

@@ -1,7 +1,8 @@
 """Static drift guards for PM2 ecosystem.config.js (Phase 8 cutover).
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
-design: the eleven apps (watch daemon + seven scheduled jobs + prod/staging web + autodeploy),
+design: prod's apps (watch daemon + eight scheduled jobs + web + autodeploy) and the preprod's
+(its web + seven scheduled jobs, k2-prep DESIGN § 3.5),
 correct ``interpreter`` / ``script`` / ``cwd``, scheduled jobs on the self-managed
 ``schedule`` loop (never PM2's ``cron_restart``, which fires twice at a boundary and kills
 the run it just started), valid cron expressions, and the ENV-SEP invariant that
@@ -24,6 +25,8 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.scheduler import _parse as scheduler_parse
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -44,6 +47,15 @@ _EXPECTED_APP_NAMES = frozenset(
         "torrentmate-web",
         "torrentmate-web-staging",
         "torrentmate-autodeploy",
+    }
+    | {
+        "personalscraper-preprod-follow-detect",
+        "personalscraper-preprod-search",
+        "personalscraper-preprod-grab",
+        "personalscraper-preprod-seed-sweep",
+        "personalscraper-preprod-health-check",
+        "personalscraper-preprod-index-full",
+        "personalscraper-preprod-purge",
     }
 )
 
@@ -72,6 +84,34 @@ _SCHEDULED_JOB_NAMES = frozenset(
         "personalscraper-seed-sweep",
     }
 )
+
+#: The preprod (the ``staging`` environment, k2-prep DESIGN § 3.5): its scheduled jobs, each
+#: mapped to its cron and its job — offset from prod's so the two never fire together, and the
+#: purge at 02:00 fed by the sweep of 01:50.
+_PREPROD_JOBS: dict[str, tuple[str, list[str]]] = {
+    "personalscraper-preprod-follow-detect": ("30 3 * * *", ["follow", "detect"]),
+    "personalscraper-preprod-search": ("40 3,15 * * *", ["search"]),
+    "personalscraper-preprod-grab": ("50 3,15 * * *", ["grab"]),
+    "personalscraper-preprod-seed-sweep": ("50 * * * *", ["seed", "sweep"]),
+    "personalscraper-preprod-health-check": ("20 * * * *", ["health-check"]),
+    "personalscraper-preprod-index-full": (
+        "0 1 * * 3",
+        ["library-index", "--mode", "full", "--no-budget", "--wait-for-lock", "600"],
+    ),
+    "personalscraper-preprod-purge": ("0 2 * * *", ["seed", "purge"]),
+}
+
+#: Every app of the preprod: its web (the :8711 app, re-pointed) and its scheduled jobs.
+_PREPROD_APP_NAMES = frozenset({"torrentmate-web-staging", *_PREPROD_JOBS})
+
+#: What the preprod runs from and on: the staging clone and its venv, its own overlay and its
+#: own secrets file (never prod's canonical ``.env``, k2-prep DESIGN § 2.2).
+_STAGING_CLONE = "/Users/izno/staging/torrentmate"
+_STAGING_BIN = "/Users/izno/staging/torrentmate-venv/bin/personalscraper"
+_PREPROD_CONFIG = "/Users/izno/.torrentmate/config-staging"
+_PREPROD_ENV_FILE = "/Users/izno/.torrentmate/.env-staging"
+
+_REPO_ROOT = Path(__file__).parent.parent.parent
 
 _PROD_PYTHON_APP_NAMES = frozenset(
     {
@@ -350,13 +390,17 @@ def test_no_app_config_points_inside_a_git_worktree() -> None:
 
 
 def test_every_engine_app_names_prod_explicitly() -> None:
-    """Invariant: every app that runs the ``personalscraper`` binary sets ``PERSONALSCRAPER_ENV=prod``.
+    """Invariant: every prod app that runs the ``personalscraper`` binary sets ``PERSONALSCRAPER_ENV=prod``.
 
     An unset variable is refused (never read as prod), so an app that forgot it would fail
-    closed at its next start. The staging web app reads prod's stores too (read-only role).
+    closed at its next start. The preprod's apps name ``staging`` instead.
     """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    engine_apps = [app for app in apps if str(app.get("script", "")).endswith("/bin/personalscraper")]
+    engine_apps = [
+        app
+        for app in apps
+        if str(app.get("script", "")).endswith("/bin/personalscraper") and str(app["name"]) not in _PREPROD_APP_NAMES
+    ]
     assert engine_apps, "no app runs the personalscraper binary: the parser drifted"
     missing = [str(app["name"]) for app in engine_apps if app.get("PERSONALSCRAPER_ENV") != "prod"]
     assert missing == [], f"app(s) that do not set PERSONALSCRAPER_ENV=prod: {missing}"
@@ -413,7 +457,7 @@ def test_watch_app_has_kill_timeout_30000() -> None:
 # pinned because losing it silently un-does the schedule.
 
 
-@pytest.mark.parametrize("app_name", sorted(_SCHEDULED_JOB_NAMES))
+@pytest.mark.parametrize("app_name", sorted(_SCHEDULED_JOB_NAMES | set(_PREPROD_JOBS)))
 def test_scheduled_job_runs_on_the_self_managed_loop(app_name: str) -> None:
     """A scheduled job never uses PM2's ``cron_restart``: it is one long-lived ``schedule`` loop.
 
@@ -621,14 +665,14 @@ def test_autodeploy_app_runs_poller_via_bash() -> None:
 
 
 def test_web_apps_run_from_their_deploy_clones() -> None:
-    """Prod/staging web apps run from their own clone venv + cwd, sharing the real config.
+    """Prod/staging web apps run from their own clone venv + cwd.
 
-    Prod (``torrentmate-web``) serves 8710 from ``~/deploy/torrentmate``; staging
-    (``torrentmate-web-staging``) serves 8711 (``web --port 8711``) from
-    ``~/staging/torrentmate``. Both point PERSONALSCRAPER_CONFIG at the single
-    canonical config dir (DESIGN §6). Each uses its OWN venv's ``personalscraper``
-    binary (per-clone isolation) and a 30 s ``kill_timeout`` for graceful uvicorn
-    shutdown.
+    Prod (``torrentmate-web``) serves 8710 from ``~/deploy/torrentmate`` on the canonical
+    config dir (DESIGN §6); staging (``torrentmate-web-staging``) serves 8711
+    (``web --port 8711``) from ``~/staging/torrentmate`` — the preprod's web, on the
+    preprod's own config (:func:`test_preprod_apps_run_in_the_staging_environment`). Each
+    uses its OWN venv's ``personalscraper`` binary (per-clone isolation) and a 30 s
+    ``kill_timeout`` for graceful uvicorn shutdown.
     """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
 
@@ -658,13 +702,12 @@ def test_web_apps_run_from_their_deploy_clones() -> None:
         f"staging kill_timeout must be 30000, got {staging.get('kill_timeout')!r}"
     )
 
-    # Both clones share the single canonical config dir (parser flattens nested
-    # env keys, so PERSONALSCRAPER_CONFIG surfaces as a top-level app key).
-    for app in (prod, staging):
-        assert app.get("PERSONALSCRAPER_CONFIG") == _CANONICAL_CONFIG, (
-            f"{app.get('name')}: PERSONALSCRAPER_CONFIG must point at the canonical config dir, "
-            f"got {app.get('PERSONALSCRAPER_CONFIG')!r}"
-        )
+    # The parser flattens nested env keys, so PERSONALSCRAPER_CONFIG surfaces as a
+    # top-level app key.
+    assert prod.get("PERSONALSCRAPER_CONFIG") == _CANONICAL_CONFIG, (
+        f"torrentmate-web: PERSONALSCRAPER_CONFIG must point at the canonical config dir, "
+        f"got {prod.get('PERSONALSCRAPER_CONFIG')!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -725,7 +768,8 @@ def test_scheduled_jobs_are_exactly_the_schedule_apps() -> None:
     """Every app running ``schedule`` is a known job and every known job runs ``schedule``."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     scheduled = {str(a["name"]) for a in apps if str(a.get("args", "")).startswith("schedule ")}
-    assert scheduled == _SCHEDULED_JOB_NAMES, f"scheduled apps drifted: {sorted(scheduled ^ _SCHEDULED_JOB_NAMES)}"
+    expected = _SCHEDULED_JOB_NAMES | set(_PREPROD_JOBS)
+    assert scheduled == expected, f"scheduled apps drifted: {sorted(scheduled ^ expected)}"
 
 
 def test_daemon_apps_do_not_have_cron_restart() -> None:
@@ -735,3 +779,186 @@ def test_daemon_apps_do_not_have_cron_restart() -> None:
         if app.get("autorestart") is True:
             name = app["name"]
             assert "cron_restart" not in app, f"{name}: daemon must not have cron_restart"
+
+
+# ---------------------------------------------------------------------------
+# Tests — the preprod (the ``staging`` environment, k2-prep DESIGN § 3.5)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("app_name", sorted(_PREPROD_APP_NAMES))
+def test_preprod_apps_run_in_the_staging_environment(app_name: str) -> None:
+    """Every preprod app runs the staging clone in ``staging``, on its own overlay and secrets.
+
+    ``PERSONALSCRAPER_ENV=staging`` picks the ``-staging`` stores and arms the isolation
+    guard; ``PERSONALSCRAPER_CONFIG`` names the preprod's overlay; ``PERSONALSCRAPER_ENV_FILE``
+    keeps the canonical ``.env`` beside prod's overlay — prod's Telegram, Healthchecks and
+    web secret — out of reach (k2-prep DESIGN § 2.2). The read-only role of the retired
+    :8711 clone is gone: the preprod writes, inside its own roots.
+
+    Args:
+        app_name: Name of the preprod app under test.
+    """
+    app = _get_app_by_name(_parse_ecosystem_apps(_ECOSYSTEM_PATH), app_name)
+    assert app.get("script") == _STAGING_BIN, f"{app_name}: script must be the staging venv binary"
+    assert app.get("cwd") == _STAGING_CLONE, f"{app_name}: cwd must be the staging clone"
+    assert app.get("PERSONALSCRAPER_ENV") == "staging", f"{app_name}: must run in the staging environment"
+    assert app.get("PERSONALSCRAPER_CONFIG") == _PREPROD_CONFIG, f"{app_name}: must read the preprod overlay"
+    assert app.get("PERSONALSCRAPER_ENV_FILE") == _PREPROD_ENV_FILE, f"{app_name}: must read the preprod secrets"
+    assert "PERSONALSCRAPER_WEB_ROLE" not in app, f"{app_name}: the read-only staging role is retired"
+    assert app.get("PERSONALSCRAPER_LANG") == "fr", f"{app_name}: the operator's language is pinned"
+
+
+@pytest.mark.parametrize("app_name", sorted(_PREPROD_JOBS))
+def test_preprod_job_runs_its_job_at_its_offset(app_name: str) -> None:
+    """Each preprod job runs its CLI job at the offset § 3.5 gives it.
+
+    Args:
+        app_name: Name of the preprod job under test.
+    """
+    cron, job = _job_schedule(_get_app_by_name(_parse_ecosystem_apps(_ECOSYSTEM_PATH), app_name))
+    assert (cron, job) == _PREPROD_JOBS[app_name]
+
+
+def _week_minutes(cron: str) -> set[tuple[int, int, int]]:
+    """List the minutes of a week a cron fires at, expanded by the scheduler's own parser.
+
+    Wildcards, ranges and steps are expanded, so ``15 * * * *`` and ``15 3 * * *`` share
+    03:15. Day of month and month are not judged: every job of the file leaves them ``*``
+    (asserted), so a clash is a weekday, an hour and a minute in common.
+
+    Args:
+        cron: A five-field cron expression.
+
+    Returns:
+        Its ``(weekday, hour, minute)`` firings, Sunday = 0.
+    """
+    minutes, hours, days, months, weekdays = scheduler_parse(cron)
+    assert (days, months) == scheduler_parse("* * * * *")[2:4], f"{cron!r}: a day of month or month is set"
+    return {(w, h, m) for w in weekdays for h in hours for m in minutes}
+
+
+@pytest.mark.parametrize(
+    ("prod", "preprod"),
+    [("15 * * * *", "15 3 * * *"), ("0 1 * * 1", "0 1 * * *"), ("*/15 * * * *", "45 2 * * 3")],
+)
+def test_a_wildcard_clash_is_seen(prod: str, preprod: str) -> None:
+    """Two crons that fire in the same minute clash, whatever wildcard or step either writes.
+
+    Args:
+        prod: A prod job's cron.
+        preprod: A preprod job's cron firing at one of its minutes.
+    """
+    assert _week_minutes(prod) & _week_minutes(preprod)
+
+
+# The one preprod/prod coincidence the preprod's schedule (k2-prep DESIGN § 3.5) gives:
+# its health check at :20 meets prod's grab at 03:20 and 15:20. A light read-only job,
+# accepted as written; any other clash is refused.
+_ACCEPTED_CLASHES = {("personalscraper-preprod-health-check", "personalscraper-grab")}
+
+
+def test_no_preprod_cron_fires_with_a_prod_cron() -> None:
+    """No preprod job shares a firing minute with a prod job — the offsets are the load bound.
+
+    Save the clashes ``_ACCEPTED_CLASHES`` names, which must still occur: an allowance
+    that no longer matches the file is stale and fails too.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+
+    def fires(name: str) -> set[tuple[int, int, int]]:
+        """List the minutes of a week an app's job fires at.
+
+        Args:
+            name: The app's name.
+
+        Returns:
+            Its ``(weekday, hour, minute)`` firings.
+        """
+        cron, _ = _job_schedule(_get_app_by_name(apps, name))
+        return _week_minutes(cron)
+
+    clashes = {
+        (preprod, prod): sorted(fires(preprod) & fires(prod))
+        for preprod in _PREPROD_JOBS
+        for prod in _SCHEDULED_JOB_NAMES
+        if fires(preprod) & fires(prod)
+    }
+    unaccepted = {pair: minutes for pair, minutes in clashes.items() if pair not in _ACCEPTED_CLASHES}
+    assert unaccepted == {}, f"preprod jobs firing with a prod job: {unaccepted}"
+    stale = _ACCEPTED_CLASHES - set(clashes)
+    assert stale == set(), f"accepted clashes that no longer occur: {stale}"
+
+
+def test_only_preprod_apps_name_the_staging_environment() -> None:
+    """Prod's apps name ``prod``; only the preprod's say ``staging``."""
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    staging = {str(a["name"]) for a in apps if a.get("PERSONALSCRAPER_ENV") == "staging"}
+    others = {
+        str(a["name"]): a["PERSONALSCRAPER_ENV"]
+        for a in apps
+        if a.get("PERSONALSCRAPER_ENV") not in (None, "prod", "staging")
+    }
+    assert staging == _PREPROD_APP_NAMES
+    assert others == {}, f"apps naming another environment: {others}"
+
+
+def _deploy_only_list(script: str) -> set[str]:
+    """Read the app names a deploy script passes to ``pm2 startOrRestart ... --only``.
+
+    The list is either written on the pm2 line or held in a shell variable the line expands.
+
+    Args:
+        script: The script's path, relative to the repository root.
+
+    Returns:
+        The app names the script starts or restarts.
+
+    Raises:
+        AssertionError: The script has not exactly one such pm2 line, or its variable is unset.
+    """
+    text = (_REPO_ROOT / script).read_text()
+    lines = re.findall(r"pm2 startOrRestart ecosystem\.config\.js --only (\S+)", text)
+    assert len(lines) == 1, f"{script}: expected one 'pm2 startOrRestart ... --only' line, got {lines}"
+    only = lines[0].strip('"')
+    variable = re.fullmatch(r"\$\{?(\w+)\}?", only)
+    if variable is not None:
+        assignment = re.search(rf'^{variable.group(1)}="([^"]*)"', text, re.MULTILINE)
+        assert assignment is not None, f"{script}: {only} is never assigned"
+        only = assignment.group(1)
+    return {name for name in re.split(r"[,\s]+", only) if name}
+
+
+def test_prod_deploy_never_starts_a_preprod_app() -> None:
+    """``deploy.sh`` (prod) restarts prod's web alone — never an app of the preprod."""
+    names = _deploy_only_list("scripts/deploy.sh")
+    assert names == {"torrentmate-web"}
+    assert not names & _PREPROD_APP_NAMES
+
+
+def test_staging_deploy_starts_exactly_the_preprod_apps() -> None:
+    """``start-preprod.sh`` (the staging deploy's PM2 step) names every preprod app, and never one of prod's.
+
+    A staging deploy installs new code: the preprod's scheduled loops must pick it up with its
+    web, and nothing of prod may move. Which of them a deploy starts is
+    ``tests/scripts/test_start_preprod.py``'s.
+    """
+    text = (_REPO_ROOT / "scripts" / "start-preprod.sh").read_text()
+
+    def assigned(variable: str) -> set[str]:
+        """Read the app names a shell variable of the script holds.
+
+        Args:
+            variable: The variable's name.
+
+        Returns:
+            The comma-separated names it is assigned.
+        """
+        assignment = re.search(rf'^{variable}="([^"]*)"', text, re.MULTILINE)
+        assert assignment is not None, f"start-preprod.sh: {variable} is never assigned"
+        return set(assignment.group(1).split(","))
+
+    web, jobs = assigned("PREPROD_WEB"), assigned("PREPROD_JOBS")
+    assert web == {"torrentmate-web-staging"}
+    assert jobs == set(_PREPROD_JOBS)
+    assert web | jobs == _PREPROD_APP_NAMES

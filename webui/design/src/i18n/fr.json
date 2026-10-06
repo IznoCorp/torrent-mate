@@ -1378,6 +1378,7 @@
       "reasonDisabled": "Accès désactivé par un administrateur.",
       "plex": "Se connecter avec Plex",
       "plexUnreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",
+      "showPassword": "Afficher le mot de passe",
       "usePassword": "Utiliser un mot de passe",
       "invalid": "Identifiants invalides",
       "email": "Adresse e-mail",
