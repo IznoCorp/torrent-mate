@@ -19,6 +19,7 @@ there is one — and with it off, nothing is spawned.
 
 from __future__ import annotations
 
+import html
 import http.client
 import http.server
 import json
@@ -36,6 +37,8 @@ from pathlib import Path
 
 import pytest
 from _repo_paths import MAQUETTE
+
+from personalscraper.http_v1.security_headers import CONTENT_SECURITY_POLICY, SECURITY_HEADERS
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGN = MAQUETTE / "design"
@@ -70,6 +73,8 @@ def scratch_root(tmp_path: Path, *, stale: bool) -> Path:
     # BOTH catalogues: the sign-in page is worded in the visitor's language.
     for language in ("fr", "en"):
         shutil.copy2(DESIGN / "src" / "i18n" / f"{language}.json", root / "src" / "i18n" / f"{language}.json")
+    for folder in ("boot", "fonts"):
+        shutil.copytree(DESIGN / folder, root / folder)
     for name in ("vite.config.mjs", "build-identity.mjs", "worker-source.mjs", "app-bundle.mjs"):
         (root / name).write_text("// scratch\n", encoding="utf-8")
     (root / "package.json").write_text(
@@ -222,7 +227,7 @@ def test_the_host_has_no_door_of_its_own_and_ignores_the_old_switch(tmp_path: Pa
     ):
         status, _, body = ask(port, "/", cookie="tm_design=any-value-at-all")
         assert status == 401
-        assert b"/api/v1/auth/login" in body and b'action="/login"' not in body
+        assert b"/boot/sign-in.js" in body and b'action="/login"' not in body
         assert b"the built document" not in body
         assert ask(port, "/vite/entry.js", cookie="tm_design=any-value-at-all")[0] == 401
         assert ask(port, "/logout")[0] == 401  # no such route any more: the sign-in page answers
@@ -237,7 +242,7 @@ def test_the_v1_door_shows_its_sign_in_page_to_no_session(tmp_path: Path) -> Non
     ):
         status, headers, body = ask(port, "/")
         assert status == 401
-        assert b"/api/v1/auth/login" in body
+        assert b"/boot/sign-in.js" in body
         assert b'type="email"' in body
         assert b'action="/login"' not in body
         assert b"the built document" not in body
@@ -340,7 +345,10 @@ const status = Number(process.argv[2]);
 const loads = Number(process.argv[3]);
 const seen = { asked: 0, replaced: 0 };
 globalThis.location = { pathname: '/', search: '', replace: () => { seen.replaced += 1; } };
-globalThis.document = { querySelector: () => ({ addEventListener: () => {} }) };
+globalThis.document = {
+  querySelector: () => ({ addEventListener: () => {} }),
+  currentScript: { dataset: JSON.parse(process.argv[4]) },
+};
 globalThis.fetch = () => {
   seen.asked += 1;
   return Promise.resolve({ ok: status === 200, status });
@@ -353,6 +361,23 @@ globalThis.fetch = () => {
   console.log(JSON.stringify(seen));
 })();
 """
+
+
+def sign_in_script_of(v1_door: object, return_to: str) -> tuple[str, str]:
+    """The sign-in script as the browser runs it: the file, and the dataset its tag carries.
+
+    Args:
+        v1_door: The door's module.
+        return_to: The place the page was built to return to.
+
+    Returns:
+        The script file's text, and the tag's `data-*` attributes as the JSON of its `dataset`.
+    """
+    tag = v1_door.sign_in_script(return_to)  # type: ignore[attr-defined]
+    assert tag.startswith('<script src="/boot/sign-in.js"') and tag.endswith("></script>")
+    attributes = {name: html.unescape(value) for name, value in re.findall(r'data-([a-z-]+)="([^"]*)"', tag)}
+    dataset = {re.sub(r"-(\w)", lambda m: m.group(1).upper(), name): value for name, value in attributes.items()}
+    return (DESIGN / "boot" / "sign-in.js").read_text(encoding="utf-8"), json.dumps(dataset)
 
 
 def load(status: int, loads: int) -> dict[str, int]:
@@ -374,9 +399,9 @@ def load(status: int, loads: int) -> dict[str, int]:
         import v1_door
     finally:
         sys.path.remove(str(MAQUETTE))
-    script = v1_door.sign_in_script("/").strip().removeprefix("<script>").removesuffix("</script>")
+    script, dataset = sign_in_script_of(v1_door, "/")
     run = subprocess.run(
-        [node, "-e", LOAD_DRIVER, script, str(status), str(loads)],
+        [node, "-e", LOAD_DRIVER, script, str(status), str(loads), dataset],
         capture_output=True,
         text=True,
         timeout=30,
@@ -543,12 +568,12 @@ def test_the_sign_in_page_carries_the_address_that_was_asked_and_never_a_foreign
         after_refusal = ask(port, "/?refus=1&next=%2Fmediasheet%2F12")[2]
         foreign = ask(port, "/?refus=1&next=https%3A%2F%2Fevil.example%2F")[2]
         slashes = ask(port, "//evil.example/x")[2]
-    assert b'"/mediasheet/12?tab=files"' in deep
-    assert b'"/mediasheet/12"' in after_refusal
+    assert b"&quot;/mediasheet/12?tab=files&quot;" in deep
+    assert b"&quot;/mediasheet/12&quot;" in after_refusal
     assert b"evil.example" not in foreign
     # Python's own server already folds a leading `//` of the request line into one `/`: whatever
     # reaches the page is a path, and never a scheme-relative address.
-    assert b'"//' not in slashes
+    assert b"&quot;//" not in slashes
 
 
 # Drives the page's submit under node: `status` and `code` are what v1's login answers.
@@ -566,7 +591,7 @@ const form = {
   addEventListener: (name, handler) => { if (name === 'submit') submit = handler; },
   checkValidity: () => true,
 };
-globalThis.document = { querySelector: () => form };
+globalThis.document = { querySelector: () => form, currentScript: { dataset: JSON.parse(process.argv[4]) } };
 globalThis.fetch = (path) => {
   if (path === '/api/v1/auth/login') {
     return Promise.resolve({
@@ -604,9 +629,9 @@ def submit(return_to: str, status: int, code: str = "") -> dict[str, object]:
         import v1_door
     finally:
         sys.path.remove(str(MAQUETTE))
-    script = v1_door.sign_in_script(return_to).strip().removeprefix("<script>").removesuffix("</script>")
+    script, dataset = sign_in_script_of(v1_door, return_to)
     run = subprocess.run(
-        [node, "-e", SUBMIT_DRIVER, script, str(status), code],
+        [node, "-e", SUBMIT_DRIVER, script, str(status), code, dataset],
         capture_output=True,
         text=True,
         timeout=30,
@@ -633,3 +658,113 @@ def test_the_page_leaves_the_mark_the_first_boot_reads_only_for_a_sign_in_that_w
     """The install proposal comes right after a sign-in: the page leaves its mark on success, never on a refusal."""
     assert submit("/", 200)["stored"] == {"tm-signed-in": "1"}
     assert submit("/", 401, "auth.refused")["stored"] == {}
+
+
+# ── A Content-Security-Policy without 'unsafe-inline' must be able to run these pages ──
+
+# An executable script with no `src`, a `<style>` element, a `style=` attribute: what such a policy blocks.
+INLINE_SCRIPT = re.compile(rb"<script(?![^>]*\bsrc=)(?![^>]*type=\"application/json\")[^>]*>")
+INLINE_STYLE = re.compile(rb"<style\b| style=")
+
+
+def assert_no_inline_code(page: bytes) -> None:
+    """Assert a page carries no inline script, style element or style attribute.
+
+    Args:
+        page: The page's bytes.
+    """
+    assert INLINE_SCRIPT.search(page) is None
+    assert INLINE_STYLE.search(page) is None
+
+
+def test_the_sign_in_page_carries_no_inline_script_or_style(tmp_path: Path) -> None:
+    """The gate names its scripts and its stylesheet as files; the data they need rides on the tag."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        _, _, page = ask(port, "/?next=%2Fmediasheet%2F12")
+    assert_no_inline_code(page)
+    assert b'<link rel="stylesheet" href="/login.css">' in page
+    for script in ("service-worker-register", "appearance", "login-startup", "sign-in"):
+        assert f'<script src="/boot/{script}.js"'.encode() in page, script
+    assert b'data-return-to="&quot;/mediasheet/12&quot;"' in page
+
+
+def test_the_boot_files_the_pages_name_are_served_without_a_session(tmp_path: Path) -> None:
+    """Each script, the sign-in stylesheet and the typeface answer a visitor with no session."""
+    with (
+        stub_v1() as (v1, asked),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        for name in ("service-worker-register", "appearance", "desktop-switch", "login-startup", "sign-in"):
+            status, headers, body = ask(port, f"/boot/{name}.js")
+            assert status == 200 and headers["content-type"] == "text/javascript", name
+            assert body == (DESIGN / "boot" / f"{name}.js").read_bytes()
+        status, headers, css = ask(port, "/login.css")
+        assert status == 200 and headers["content-type"] == "text/css"
+        assert b"@font-face" in css and b"/fonts/geist-variable.woff2" in css and b"data:" not in css
+        status, headers, font = ask(port, "/fonts/geist-variable.woff2")
+        assert status == 200 and headers["content-type"] == "font/woff2" and font[:4] == b"wOF2"
+        status, headers, host_css = ask(port, "/host.css")
+        assert status == 200 and headers["content-type"] == "text/css" and b"body.offline" in host_css
+        assert asked == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/boot/nothing.js",
+        "/boot/sign-in.txt",
+        "/boot/",
+        "/fonts/geist-variable.woff",
+        "/boot/..%2findex.html",
+        "/boot/../index.html",
+    ],
+)
+def test_the_public_folders_serve_only_their_own_known_files(tmp_path: Path, path: str) -> None:
+    """An unknown name or extension and a traversal are 404, never another file of the design root."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        status, _, body = ask(port, path)
+    assert status == 404
+    assert body == b""
+
+
+def test_the_pages_the_host_writes_itself_carry_no_inline_style(tmp_path: Path) -> None:
+    """The offline notice and a failure page link `/host.css`; neither carries `<style>` nor `style=`."""
+    root = scratch_root(tmp_path, stale=True)
+    with stub_v1() as (v1, _), serving(root, TM_DESIGN_V1_URL=v1, TM_DESIGN_REBUILD="off") as port:
+        _, _, offline = ask(port, "/offline.html")
+        status, _, failure = ask(port, "/", cookie=f"tm_v1_session={ACCEPTED}")
+    assert status == 503
+    for page in (offline, failure):
+        assert_no_inline_code(page)
+        assert b'<link rel="stylesheet" href="/host.css">' in page
+
+
+def test_the_shell_document_and_the_base_layer_need_no_inline_allowance() -> None:
+    """The source document names every script as a file, and no stylesheet inlines a typeface as `data:`."""
+    document = (DESIGN / "index.html").read_bytes()
+    assert INLINE_SCRIPT.search(re.sub(rb"<!--.*?-->", b"", document, flags=re.S)) is None
+    assert b"data:" not in (DESIGN / "src" / "styles" / "base.css").read_bytes()
+
+
+def test_every_response_carries_the_security_headers(tmp_path: Path) -> None:
+    """The sign-in page, a 401, a 404, a boot file and the document all answer nosniff, HSTS and the policy."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        answers = [
+            ask(port, "/"),
+            ask(port, "/vite/entry.js"),
+            ask(port, "/boot/nothing.js"),
+            ask(port, "/boot/appearance.js"),
+            ask(port, "/", cookie=f"tm_v1_session={ACCEPTED}"),
+        ]
+    for status, headers, _ in answers:
+        for name, value in {**SECURITY_HEADERS, "Content-Security-Policy": CONTENT_SECURITY_POLICY}.items():
+            assert headers.get(name.lower()) == value, (status, name)

@@ -2319,7 +2319,7 @@
     },
     "/accounts/{accountId}/password": {
       "post": {
-        "description": "Give a local account a provisional password; its sessions keep running.\n\nArgs:\n    account_id: The account.\n    body: The provisional password.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    ``{\"ok\": true}``.",
+        "description": "Give a local account a provisional password; its sessions end.\n\nArgs:\n    account_id: The account.\n    body: The provisional password.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    ``{\"ok\": true}``.",
         "operationId": "resetAccountPassword",
         "parameters": [
           {
@@ -3065,7 +3065,7 @@
     },
     "/auth/plex/start": {
       "post": {
-        "description": "Create a Plex PIN, bind it to this browser by the pin cookie, and answer plex.tv's page.\n\nArgs:\n    request: The incoming request (the web configuration).\n    response: The answer the pin cookie is set on.\n    app_services: The application services.\n\nReturns:\n    The PIN and plex.tv's page where the person confirms it.",
+        "description": "Create a Plex PIN, bind it to this browser by the pin cookie, and answer plex.tv's page.\n\nArgs:\n    request: The incoming request (the client's key, the web configuration).\n    response: The answer the pin cookie is set on.\n    app_services: The application services.\n\nReturns:\n    The PIN and plex.tv's page where the person confirms it.",
         "operationId": "startPlexSignIn",
         "responses": {
           "200": {
@@ -3109,6 +3109,16 @@
             "description": "A refusal, answered as a Problem."
           },
           "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "429": {
             "content": {
               "application/json": {
                 "schema": {

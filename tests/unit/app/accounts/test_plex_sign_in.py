@@ -46,6 +46,7 @@ from personalscraper.app.accounts.plex_sign_in import (
     PlexPinStarted,
     PlexSignInService,
 )
+from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.token_vault import TokenVault
@@ -54,6 +55,7 @@ from personalscraper.app.errors import (
     AppConflict,
     AppForbidden,
     AppRefusal,
+    AppTooManyRequests,
     AppUnauthenticated,
     AppUnavailable,
     RefusalCode,
@@ -78,6 +80,10 @@ SHARED_MACHINE = "REDACTED-machine-3"
 PLEX_ID = 900002
 PIN_ID = 900001
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
+
+
+#: The client key every start of this file comes from.
+_CLIENT = "client"
 
 
 def _sample(name: str) -> Any:
@@ -459,7 +465,7 @@ def _sign_in(door: PlexSignInService, clock: _Clock) -> SignInResult:
     Returns:
         The sign-in.
     """
-    started = door.start()
+    started = door.start(_CLIENT)
     clock.now += 2.0
     result = door.finish(started.pin_id, nonce=started.nonce, user_agent="pytest")
     assert isinstance(result, SignInResult)
@@ -494,11 +500,26 @@ def _nothing_stored(store: AppStore) -> None:
 class TestStart:
     """``start`` — ``startPlexSignIn``."""
 
+    def test_past_the_limit_a_client_is_refused_and_plex_tv_is_not_asked(
+        self, door: PlexSignInService, plextv: _PlexTv
+    ) -> None:
+        """The start after the limit raises ``auth.rate_limited`` for that client only, with no PIN created."""
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            door.start(_CLIENT)
+        asked = len(plextv.calls)
+
+        with pytest.raises(AppTooManyRequests) as caught:
+            door.start(_CLIENT)
+
+        assert caught.value.code == RefusalCode.AUTH_RATE_LIMITED
+        assert len(plextv.calls) == asked
+        assert door.start("another-client").pin_id
+
     def test_a_pin_its_sign_in_page_and_a_nonce_only_its_hash_stored(
         self, door: PlexSignInService, store: AppStore, clock: _Clock
     ) -> None:
         """The PIN is stored with the nonce's hash; the page carries the code, the product and the client id."""
-        started = door.start()
+        started = door.start(_CLIENT)
 
         assert isinstance(started, PlexPinStarted)
         assert started.pin_id == PIN_ID
@@ -516,9 +537,9 @@ class TestStart:
         self, door: PlexSignInService, store: AppStore, plextv: _PlexTv
     ) -> None:
         """Two starts, one identifier, the same on both sign-in pages."""
-        first = door.start()
+        first = door.start(_CLIENT)
         identifier = store.settings.setting(CLIENT_IDENTIFIER_SETTING)
-        second = door.start()
+        second = door.start(_CLIENT)
 
         assert identifier
         assert store.settings.setting(CLIENT_IDENTIFIER_SETTING) == identifier
@@ -529,8 +550,8 @@ class TestStart:
         self, store: AppStore, plextv: _PlexTv, server: _Server, clock: _Clock, bus: EventBus
     ) -> None:
         """A second door over the same store — the process restarted — answers the same identifier."""
-        first = _build(store, plextv, server, clock, bus, None).start()
-        second = _build(store, plextv, server, clock, bus, None).start()
+        first = _build(store, plextv, server, clock, bus, None).start(_CLIENT)
+        second = _build(store, plextv, server, clock, bus, None).start(_CLIENT)
 
         identifiers = [
             parse_qs(urlsplit(started.sign_in_url).fragment.lstrip("?"))["clientID"] for started in (first, second)
@@ -542,7 +563,7 @@ class TestStart:
     ) -> None:
         """``forwardUrl`` is configuration, never anything the request carries."""
         door = _build(store, plextv, server, clock, bus, None, forward_url="https://tm.example.org/")
-        query = parse_qs(urlsplit(door.start().sign_in_url).fragment.lstrip("?"))
+        query = parse_qs(urlsplit(door.start(_CLIENT).sign_in_url).fragment.lstrip("?"))
         assert query["forwardUrl"] == ["https://tm.example.org/"]
 
     def test_a_start_purges_the_expired_and_the_consumed_pins(
@@ -554,7 +575,7 @@ class TestStart:
         store.pins.insert_pin(PlexPinRow(12, "B", "n", now - 60.0, now + 1740.0, None, now - 30.0))
         store.pins.insert_pin(PlexPinRow(13, "C", "n", now - 60.0, now + 1740.0, None, None))
 
-        started = door.start()
+        started = door.start(_CLIENT)
 
         assert store.pins.pin(11) is None and store.pins.pin(12) is None
         assert store.pins.pin(13) is not None and store.pins.pin(started.pin_id) is not None
@@ -564,7 +585,7 @@ class TestStart:
     ) -> None:
         """503 ``plex.unreachable``; no PIN stored."""
         plextv.down = True
-        refusal = _refusal(door.start)
+        refusal = _refusal(lambda: door.start(_CLIENT))
         assert isinstance(refusal, AppUnavailable)
         assert refusal.code is RefusalCode.PLEX_UNREACHABLE
         assert store.pins.pin(PIN_ID) is None
@@ -574,7 +595,7 @@ class TestStart:
     ) -> None:
         """No Plex server to check access against: 503 ``plex.server_unreachable`` before plex.tv is asked."""
         door = _build(store, plextv, None, clock, bus, None)
-        refusal = _refusal(door.start)
+        refusal = _refusal(lambda: door.start(_CLIENT))
         assert isinstance(refusal, AppUnavailable)
         assert refusal.code is RefusalCode.PLEX_SERVER_UNREACHABLE
         assert plextv.calls == []
@@ -586,7 +607,7 @@ class TestStart:
         door = _build(store, plextv, None, clock, bus, None)
         with logged_events() as logs:
             for _ in range(3):
-                _refusal(door.start)
+                _refusal(lambda: door.start(_CLIENT))
 
         assert [entry["event"] for entry in logs].count("plex_sign_in.no_server") == 1
 
@@ -595,13 +616,13 @@ class TestStart:
     ) -> None:
         """A door logger cached before a reconfiguration (a CLI run in the same worker) is still read."""
         door = _build(store, plextv, None, clock, bus, None)
-        _refusal(door.start)  # binds and caches the module logger on the current processor list
+        _refusal(lambda: door.start(_CLIENT))  # binds and caches the module logger on the current processor list
         session_processors = structlog.get_config()["processors"]
         # What every CLI run does through ``configure_logging``: a NEW processor list is configured.
         structlog.configure(processors=list(session_processors))
         try:
             with logged_events() as logs:
-                _refusal(_build(store, plextv, None, clock, bus, None).start)
+                _refusal(lambda: _build(store, plextv, None, clock, bus, None).start(_CLIENT))
         finally:
             structlog.configure(processors=session_processors)
 
@@ -778,7 +799,7 @@ class TestOwnerCrossCheck:
         """The resource says owned, the server's token belongs to someone else: 401 ``auth.refused``."""
         plextv.users[SERVER_TOKEN] = _user(plex_id=900099)
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -803,7 +824,7 @@ class TestOwnerCrossCheck:
         """The server's own token refused: nobody is admitted as owner — 503 ``plex.server_unreachable``."""
         del plextv.users[SERVER_TOKEN]
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -958,7 +979,7 @@ class TestLinkByEmail:
         store.accounts.insert_account(_local("account-taken", EMAIL, "household"))
         store.accounts.upsert_plex_link(_link("account-taken", 777, "shared"))
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -977,7 +998,7 @@ class TestLinkByEmail:
         before = store.accounts.account("account-local")
         plextv.users[USER_TOKEN] = _user(confirmed=False)
         door = _build(store, plextv, _Server(machine), clock, bus, vault)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -1044,7 +1065,7 @@ class TestLinkByEmail:
         else:
             store.accounts.set_sign_in_allowed("account-local", allowed=False, now=2.0)
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -1066,7 +1087,7 @@ class TestLinkByEmail:
         before = store.accounts.account("account-local")
         old = _open_sessions(store, "account-local")
         door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         monkeypatch.setattr(store.pins, "consume_pin", lambda pin_id, *, now: False)
 
@@ -1114,7 +1135,7 @@ class TestRefusals:
         Returns:
             The refusal.
         """
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         return _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
 
@@ -1200,7 +1221,7 @@ class TestRefusals:
     ) -> None:
         """plex.tv down: 503 ``plex.unreachable`` — not a refusal of the token; nothing stored."""
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         plextv.down = True
         clock.now += 2.0
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
@@ -1319,7 +1340,7 @@ class TestDefinitiveRefusal:
     ) -> None:
         """The first poll refuses and uses the PIN; the next is 400 ``plex.pin_unknown``, plex.tv not asked."""
         door = _build(store, plextv, _Server(arrange(store, plextv)), clock, bus, None)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         first = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
         assert isinstance(first, (AppUnauthenticated, AppForbidden))
@@ -1338,7 +1359,7 @@ class TestDefinitiveRefusal:
         """A 503 is no verdict on the identity: the PIN stays usable."""
         server.identifier = None
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
         assert isinstance(refusal, AppUnavailable)
@@ -1356,7 +1377,7 @@ class TestPin:
         """Unclaimed: ``PlexPending``, nothing signed in, the PIN still open."""
         plextv.pending_then_claimed()
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         assert isinstance(door.finish(started.pin_id, nonce=started.nonce, user_agent=None), PlexPending)
         row = store.pins.pin(PIN_ID)
@@ -1368,7 +1389,7 @@ class TestPin:
         """The second call inside the interval answers pending without asking plex.tv."""
         plextv.pending_then_claimed()
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         first = door.finish(started.pin_id, nonce=started.nonce, user_agent=None)
         clock.now += 0.4
@@ -1379,7 +1400,7 @@ class TestPin:
 
     def test_a_foreign_nonce_is_pin_unknown(self, door: PlexSignInService, plextv: _PlexTv) -> None:
         """Another browser's PIN: 400 ``plex.pin_unknown``, plex.tv not asked."""
-        started = door.start()
+        started = door.start(_CLIENT)
         _clock_of(door).now += 2.0
         for nonce in ("not-the-nonce", None):
             refusal = _refusal(lambda nonce=nonce: door.finish(started.pin_id, nonce=nonce, user_agent=None))
@@ -1394,7 +1415,7 @@ class TestPin:
     def test_a_used_pin_is_pin_unknown(self, door: PlexSignInService) -> None:
         """A PIN a sign-in used: 400 ``plex.pin_unknown`` — one PIN, one session."""
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         door.finish(started.pin_id, nonce=started.nonce, user_agent=None)
         clock.now += 2.0
@@ -1405,7 +1426,7 @@ class TestPin:
         """A check answered 404: 409 ``plex.pin_expired``."""
         plextv.pin = [_Response(404, None)]
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
         refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
         assert isinstance(refusal, AppConflict) and refusal.code is RefusalCode.PLEX_PIN_EXPIRED
@@ -1415,7 +1436,7 @@ class TestPin:
     ) -> None:
         """Past the expiry plex.tv gave: 409 ``plex.pin_expired``, plex.tv not asked."""
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         row = door._store.pins.pin(started.pin_id)
         assert row is not None and row.expires_at is not None
         clock.now = row.expires_at + 1.0
@@ -1460,7 +1481,7 @@ class TestNoLeak:
         email_free: list[str] = []
         try:
             with logged_events() as logs:
-                started = door.start()
+                started = door.start(_CLIENT)
                 email_free += [repr(started), str(started), repr(door), repr(store.pins.pin(started.pin_id))]
                 clock.now += 2.0
                 result = door.finish(started.pin_id, nonce=started.nonce, user_agent=None)
@@ -1468,10 +1489,10 @@ class TestNoLeak:
                 texts += [repr(result), repr(store.accounts.plex_link(result.account.id))]
                 email_free += [repr(event) for event in published]
                 plextv.down = True
-                email_free.append(json.dumps(vars(_refusal(door.start)), default=str))
+                email_free.append(json.dumps(vars(_refusal(lambda: door.start(_CLIENT))), default=str))
                 plextv.down = False
                 none_door = _build(store, plextv, _Server("REDACTED-machine-9"), clock, bus, vault)
-                other = none_door.start()
+                other = none_door.start(_CLIENT)
                 clock.now += 2.0
                 refusal = _refusal(lambda: none_door.finish(other.pin_id, nonce=other.nonce, user_agent=None))
                 email_free += [str(refusal), json.dumps(vars(refusal), default=str)]
@@ -1511,7 +1532,7 @@ class TestSessionOpenedEvent:
     ) -> None:
         """One event per session opened: the account signed in, the device its user agent names."""
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         result = door.finish(started.pin_id, nonce=started.nonce, user_agent=_FIREFOX_MAC)
@@ -1534,7 +1555,7 @@ class TestSessionOpenedEvent:
         """While the PIN is unclaimed no session is opened, and nothing is told."""
         plextv.pending_then_claimed()
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         assert isinstance(door.finish(started.pin_id, nonce=started.nonce, user_agent=None), PlexPending)
@@ -1551,7 +1572,7 @@ class TestSessionOpenedEvent:
     ) -> None:
         """An identity with no access to this server opens no session: nothing is told."""
         door = _build(store, plextv, _Server("REDACTED-machine-9"), clock, bus, vault)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
