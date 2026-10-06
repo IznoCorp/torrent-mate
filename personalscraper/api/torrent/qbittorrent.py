@@ -238,7 +238,11 @@ class QBitClient(
             raw = self._client.torrents_categories()
         except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
             _raise_neutral_torrent_error("get_categories", exc)
-        return {name: str(entry.get("savePath") or "") for name, entry in raw.items()}
+        categories: dict[str, str] = {}
+        for name, entry in raw.items():
+            save_path = entry.get("savePath") if isinstance(entry, Mapping) else None
+            categories[name] = save_path if isinstance(save_path, str) else ""
+        return categories
 
     def is_seeding(self, torrent: TorrentItem) -> bool:
         """Check if a torrent is actively seeding.
