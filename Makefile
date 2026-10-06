@@ -95,7 +95,7 @@ format:
 
 install-dev:
 	@echo "Installing PersonalScraper in development mode..."
-	pip install -e ".[dev]"
+	uv sync --frozen --extra dev
 
 version:
 	@echo "Current version:"
@@ -103,7 +103,8 @@ version:
 
 update-ytdlp:
 	@echo "Updating yt-dlp..."
-	python -m pip install -U yt-dlp
+	uv lock --upgrade-package yt-dlp
+	uv sync --frozen --extra dev
 	@echo "Running yt-dlp integration test (requires TRAILER_INTEGRATION_TESTS=1)..."
 	TRAILER_INTEGRATION_TESTS=1 python -m pytest tests/scraper/test_ytdlp_downloader.py -v -m network
 

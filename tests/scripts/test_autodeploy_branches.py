@@ -258,7 +258,12 @@ def test_prod_refuses_a_rewritten_history(origin: Origin) -> None:
 
 
 def _real_deploy(
-    origin: Origin, script: str, branch: str, *, origin_moves: bool = False
+    origin: Origin,
+    script: str,
+    branch: str,
+    *,
+    origin_moves: bool = False,
+    extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Runs the repository's real deploy script from a fresh clone on `branch`.
 
@@ -270,6 +275,7 @@ def _real_deploy(
         script: `deploy.sh` or `deploy-staging.sh`.
         branch: The branch the clone stands on.
         origin_moves: Whether origin's branch advances past the clone before the run.
+        extra_env: Variables added to the run's environment (they win over the defaults).
 
     Returns:
         The finished process.
@@ -285,7 +291,12 @@ def _real_deploy(
         origin.git(path, "commit", "-q", "-m", "pushed later")
         origin.git(path, "push", "-q", "origin", f"HEAD:refs/heads/{branch}")
         origin.git(path, "reset", "-q", "--hard", "HEAD~1")
-    env = {**origin.env, "TM_VENV": str(origin.root / "none"), "TM_STAGING_VENV": str(origin.root / "none")}
+    env = {
+        **origin.env,
+        "TM_VENV": str(origin.root / "none"),
+        "TM_STAGING_VENV": str(origin.root / "none"),
+        **(extra_env or {}),
+    }
     return subprocess.run(["bash", str(path / "scripts" / script)], cwd=path, env=env, capture_output=True, text=True)
 
 
@@ -330,3 +341,43 @@ def test_deploy_refuses_a_clone_behind_origin(origin: Origin) -> None:
     done = _real_deploy(origin, "deploy.sh", "prod", origin_moves=True)
     assert done.returncode == 1
     assert "≠ origin/prod" in done.stderr, done.stderr
+
+
+def _stub_venv(origin: Origin) -> str:
+    """Makes a venv directory that only holds an executable `bin/python`, enough to pass the venv guard.
+
+    Args:
+        origin: The test origin.
+
+    Returns:
+        The venv directory.
+    """
+    python = origin.root / "stub-venv" / "bin" / "python"
+    python.parent.mkdir(parents=True, exist_ok=True)
+    python.write_text("#!/bin/sh\n", encoding="utf-8")
+    python.chmod(0o755)
+    return str(python.parent.parent)
+
+
+@pytest.mark.parametrize(("script", "branch"), [("deploy.sh", "prod"), ("deploy-staging.sh", "staging")])
+def test_deploy_refuses_without_uv_before_any_build(origin: Origin, script: str, branch: str) -> None:
+    """The backend installs from the lock through uv: no uv, no build (nothing is wiped first)."""
+    venv = _stub_venv(origin)
+    done = _real_deploy(
+        origin, script, branch, extra_env={"TM_VENV": venv, "TM_STAGING_VENV": venv, "TM_UV": str(origin.root / "no-uv")}
+    )
+    assert done.returncode == 1
+    assert "uv not found" in done.stderr, done.stderr
+    assert "building the SPA" not in done.stdout, done.stdout
+
+
+@pytest.mark.parametrize(("script", "branch"), [("deploy.sh", "prod"), ("deploy-staging.sh", "staging")])
+def test_deploy_refuses_without_the_lock_before_any_build(origin: Origin, script: str, branch: str) -> None:
+    """With uv present but no uv.lock in the clone, the deploy refuses before the build."""
+    venv = _stub_venv(origin)
+    done = _real_deploy(
+        origin, script, branch, extra_env={"TM_VENV": venv, "TM_STAGING_VENV": venv, "TM_UV": "/usr/bin/true"}
+    )
+    assert done.returncode == 1
+    assert "uv.lock missing" in done.stderr, done.stderr
+    assert "building the SPA" not in done.stdout, done.stdout

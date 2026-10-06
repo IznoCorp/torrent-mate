@@ -99,16 +99,22 @@ jobs:
               - 'scripts/**'
               - 'config.example/**'
               - 'pyproject.toml'
+              - 'uv.lock'
               - 'Makefile'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             deps:
               - 'pyproject.toml'
+              - 'uv.lock'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             frontend_app:
               - 'frontend/**'
               - 'contract/openapi.generated.json'
               - 'pyproject.toml'
+              - 'uv.lock'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             maquette:
               - 'webui/**'
               - 'contract/**'
@@ -163,13 +169,7 @@ jobs:
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v6
-        if: needs.changes.outputs.python == 'true'
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-3.12-
-      - run: pip install ruff
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
       - run: ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
         if: needs.changes.outputs.python == 'true'
@@ -220,15 +220,7 @@ jobs:
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v6
-        if: needs.changes.outputs.python == 'true'
-        with:
-          path: |
-            .venv/
-            .mypy_cache
-          key: venv-mypy-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-mypy-${{ runner.os }}-3.12-
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
       - run: mypy personalscraper/
         if: needs.changes.outputs.python == 'true'
@@ -278,13 +270,7 @@ jobs:
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v6
-        if: needs.changes.outputs.deps == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      - run: pip install -e . pip-licenses
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.deps == 'true'
       - if: needs.changes.outputs.deps == 'true'
         run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
@@ -308,18 +294,12 @@ jobs:
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v6
-        if: needs.changes.outputs.python == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
       # RAR extractor backend for the DEV #1 golden-fixture extraction test
       # (rarfile shells out to it). `unar` is in ubuntu main; without it the
       # real-extraction test skips instead of asserting the happy path (COV-4).
       - run: sudo apt-get update && sudo apt-get install -y unar
         if: needs.changes.outputs.python == 'true'
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
       # The renaming tool reads JS/TS through `scripts/source-spans.mjs`, which
       # requires `webui/design/node_modules/typescript`. Without it, 13 of the 16
@@ -381,18 +361,9 @@ jobs:
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v6
-        if: needs.changes.outputs.deps == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      # Upgrade pip itself first — the runner ships pip 26.0.1 which carries
-      # CVE-2026-6357 (fixed in 26.1). Auditing with the upgraded pip removes
-      # the finding entirely instead of suppressing it.
-      - run: python -m pip install --upgrade "pip>=26.1"
-        if: needs.changes.outputs.deps == 'true'
-      - run: pip install -e . pip-audit
+      # The audited environment is the lock's: it carries pip >= 26.1 (the runner's
+      # 26.0.1 has CVE-2026-6357), so the finding is gone without suppressing it.
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.deps == 'true'
       # CVE-2026-3219 affects pip; no fix released yet. Ignore until upstream patch.
       # TODO(security): remove --ignore-vuln CVE-2026-3219 once pip ships a fix.
@@ -457,7 +428,7 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
       # config-home (#326): the live config left the repo (config/ untracked, canonical at
       # ~/.torrentmate/config). CI boots the app for OpenAPI generation against the tracked
@@ -578,13 +549,7 @@ jobs:
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v6
-        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
       - name: Map freshness check
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
