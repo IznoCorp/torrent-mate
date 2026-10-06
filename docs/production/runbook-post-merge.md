@@ -700,7 +700,7 @@ highest migration is refused at open (`store.schema_newer_than_code` in the log,
 
 The switch has two layers. The PRIMARY one is the checkout's `.env`: the package calls
 `load_dotenv()` at import (it never overrides a variable already set), so a
-`PERSONALSCRAPER_ENV=prod` line there covers every process of that checkout — the watch
+`PERSONALSCRAPER_ENV` line there covers every process of that checkout — the watch
 daemon on its next restart, every scheduled job, every CLI command typed there — with no
 PM2 restart. The SECOND layer is the `env` block of each engine app in `ecosystem.config.js`,
 read when PM2 (re)starts an app with `--update-env`.
@@ -713,18 +713,23 @@ code, the config load refuses the missing environment, the CLI exits 2, and
 `personalscraper-watch` crash-loops until PM2 marks it `errored` — the pipeline automation
 stops. Every scheduled job started without the variable exits 2 the same way.
 
-### Step 1 — Name prod in both checkouts' `.env` (BEFORE the promotion)
+### Step 1 — Name each checkout's environment in its `.env` (BEFORE the promotion)
+
+The prod clone `~/deploy/torrentmate` names `prod`. The staging clone `~/staging/torrentmate`
+is the preprod and names `staging`: a CLI command typed there runs as staging, never on
+prod's stores.
 
 Done ONCE, BEFORE the promotion that carries this change to `staging`, and in any case before
-it reaches `prod`. Under the code already running it changes nothing (an unset variable still
-means prod there), and nothing is restarted.
+it reaches `prod`. Nothing is restarted. In the prod clone the line changes nothing under the
+code already running, where an unset variable still means prod.
 
 ```bash
-for envfile in /Users/izno/deploy/torrentmate/.env /Users/izno/staging/torrentmate/.env; do
-  grep -q '^PERSONALSCRAPER_ENV=' "$envfile" || printf 'PERSONALSCRAPER_ENV=prod\n' >> "$envfile"
-  printf '%s ' "$envfile"; grep -c '^PERSONALSCRAPER_ENV=prod$' "$envfile"
+for pair in /Users/izno/deploy/torrentmate:prod /Users/izno/staging/torrentmate:staging; do
+  envfile="${pair%%:*}/.env"; env="${pair##*:}"
+  grep -q '^PERSONALSCRAPER_ENV=' "$envfile" || printf 'PERSONALSCRAPER_ENV=%s\n' "$env" >> "$envfile"
+  printf '%s ' "$envfile"; grep -c "^PERSONALSCRAPER_ENV=$env\$" "$envfile"
 done
-# Expected: each file prints 1
+# Expected: each file prints 1 (prod for the prod clone, staging for the staging clone)
 ```
 
 ### Step 2 — Reload the online engine apps (second layer)
@@ -754,7 +759,8 @@ for app in personalscraper-watch torrentmate-web torrentmate-web-staging \
   [ -n "$id" ] || { echo "$app not registered — skipped"; continue; }
   printf '%s ' "$app"; pm2 env "$id" | grep '^PERSONALSCRAPER_ENV'
 done
-# Expected: every online app ends with PERSONALSCRAPER_ENV: prod; a stopped one may still show
+# Expected: every online app ends with PERSONALSCRAPER_ENV: prod, except torrentmate-web-staging
+# (PERSONALSCRAPER_ENV: staging); a stopped one may still show
 # its old environment until it is started; an unregistered one is skipped.
 ```
 
