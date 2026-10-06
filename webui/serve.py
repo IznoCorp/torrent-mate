@@ -119,6 +119,7 @@ BUILD_INPUTS = (
     DESIGN_ROOT / "vite.config.mjs",
     DESIGN_ROOT / "build-identity.mjs",
     DESIGN_ROOT / "worker-source.mjs",
+    DESIGN_ROOT / "app-bundle.mjs",
 )
 
 # The shell's own translation resources. Everything this host SERVES — the

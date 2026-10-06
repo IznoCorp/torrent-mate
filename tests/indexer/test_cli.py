@@ -32,9 +32,9 @@ Test strategy:
     walk and to control the returned :class:`~personalscraper.indexer.scanner.ScanRunResult`.
 
 Note on the writer lock:
-    ``indexer_lock`` uses a :class:`filelock.FileLock` backed by a real file path
+    ``indexer_lock`` takes an ``fcntl.flock`` on a real file path
     derived from ``db_path``.  The ``tmp_path`` fixture provides a writable directory
-    so lock files are created and cleaned up automatically.
+    so the flock file is created there and the sidecar removed on release.
 
 Note on FK constraints:
     ``media_file.release_id`` is nullable since migration 002.  Stage A inserts
