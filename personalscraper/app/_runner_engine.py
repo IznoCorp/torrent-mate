@@ -203,7 +203,7 @@ def get_redis(web_config: Any) -> Any | None:
     if not web_config.enabled:
         return None
     try:
-        import redis as _redis
+        import redis as _redis  # noqa: PLC0415 — redis is an optional dependency
 
         return _redis.Redis.from_url(
             web_config.redis_url,
@@ -251,7 +251,7 @@ def kill_child_group(proc: subprocess.Popen[str]) -> None:
         return
     try:
         pgid = os.getpgid(pid)
-    except Exception:
+    except Exception:  # noqa: BLE001 — pgid probe: any failure means the child is gone
         # Already-dead child — nothing left to signal beyond the handle.
         terminate_quietly(proc)
         return
@@ -261,7 +261,7 @@ def kill_child_group(proc: subprocess.Popen[str]) -> None:
         return
     try:
         os.killpg(pgid, signal.SIGTERM)
-    except Exception:
+    except Exception:  # noqa: BLE001 — best-effort signal; falls back to terminate
         terminate_quietly(proc)
 
 
@@ -273,7 +273,7 @@ def terminate_quietly(proc: subprocess.Popen[str]) -> None:
     """
     try:
         proc.terminate()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — best-effort cleanup, logged
         log.warning("runner_terminate_failed", error=str(exc))
 
 
@@ -689,7 +689,7 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
                 is_lock_held_fn = spec.is_lock_held_fn
                 lock_file = spec.lock_file
                 if not wait_in_visible_queue(
-                    try_proceed=lambda: not is_lock_held_fn(lock_file),
+                    try_proceed=lambda held=is_lock_held_fn, lock=lock_file: not held(lock),
                     writer=writer,
                     run_uid=run_uid,
                     deadline_monotonic=queue_deadline,

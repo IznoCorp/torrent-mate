@@ -8,16 +8,24 @@ imports engine modules only, never ``commands`` nor ``cli_helpers``.
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import AbstractContextManager
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
+import structlog.contextvars
+
+from personalscraper.acquire.events import WatcherRunTriggered
 from personalscraper.app.composition import build_app_context
 from personalscraper.app.supervisor.model import (
     RunOptions as RunOptions,
 )  # re-exported: the CLI and the tests import it from here
 from personalscraper.i18n import t
 from personalscraper.logger import get_logger
+from personalscraper.run_journal import LogTailHandler
+from personalscraper.subscribers.debug_log import DebugLogSubscriber
+from personalscraper.subscribers.rich_console import RichConsoleSubscriber
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -120,22 +128,22 @@ def execute_run(
         The exit code: 0 on success, 1 when the report holds errors, 2 when the trailers step
         aborted the run.
     """
-    from datetime import datetime
-
-    import structlog.contextvars
-
-    from personalscraper.api.notify.healthchecks import HealthcheckClient
-    from personalscraper.api.notify.telegram import TelegramNotifier
-    from personalscraper.api.transport import HttpTransport
-    from personalscraper.logger import cleanup_old_logs
-    from personalscraper.pipeline import Pipeline
-    from personalscraper.run_journal import LogTailHandler
-    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
-    from personalscraper.subscribers.debug_log import DebugLogSubscriber
-    from personalscraper.subscribers.plex import PlexSubscriber, build_plex_subscriber
-    from personalscraper.subscribers.redis_stream import build_redis_publisher
-    from personalscraper.subscribers.rich_console import RichConsoleSubscriber
-    from personalscraper.subscribers.telegram import TelegramSubscriber
+    from personalscraper.api.notify.healthchecks import HealthcheckClient  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.api.notify.telegram import TelegramNotifier  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.api.transport import HttpTransport  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.logger import cleanup_old_logs  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.pipeline import Pipeline  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.subscribers.acquire import (  # noqa: PLC0415 — patched at source by tests
+        AcquisitionTelegramSubscriber,
+    )
+    from personalscraper.subscribers.plex import (  # noqa: PLC0415 — patched at source by tests
+        PlexSubscriber,
+        build_plex_subscriber,
+    )
+    from personalscraper.subscribers.redis_stream import (  # noqa: PLC0415 — patched at source by tests
+        build_redis_publisher,
+    )
+    from personalscraper.subscribers.telegram import TelegramSubscriber  # noqa: PLC0415 — patched at source by tests
 
     dry_run = options.dry_run
     skip_trailers = options.skip_trailers
@@ -242,8 +250,6 @@ def execute_run(
         # Subscribers (Telegram, Rich console) are already wired at this
         # point, so they will observe and forward the event.
         if trigger_reason:
-            from personalscraper.acquire.events import WatcherRunTriggered
-
             app_context.event_bus.emit(WatcherRunTriggered(reason=trigger_reason))
 
         # Build run-history writer (pipe-control sub-phase 1.3b).
@@ -260,7 +266,7 @@ def execute_run(
             history_writer = PipelineRunWriter(
                 db_path=db_path,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 — history is optional; the run proceeds without it
             _run_log.warning(
                 "pipeline_history_writer_init_failed",
                 exc_info=True,
@@ -362,9 +368,7 @@ def rescrape_item(
     Returns:
         The exit code: 0 on success, 1 on an unreachable index, a bad combination or an unresolved item.
     """
-    import sqlite3
-
-    from personalscraper.maintenance.rescraper import rescrape_library
+    from personalscraper.maintenance.rescraper import rescrape_library  # noqa: PLC0415 — patched at source by tests
 
     command = "library-rescrape-item"
     mode = "[bold green]" + t("cli_library.analyze.mode_live") + "[/bold green]"

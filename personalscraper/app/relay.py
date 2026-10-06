@@ -72,7 +72,7 @@ class ConnectionRegistry:
         for ws in list(self._connections):
             try:
                 await asyncio.wait_for(ws.send_json(msg), timeout=BROADCAST_SEND_TIMEOUT)
-            except Exception:
+            except Exception:  # noqa: BLE001 — any send failure drops that client
                 # Timeout (stalled client) or any transport error → drop it.
                 dead.append(ws)
         for ws in dead:
@@ -197,7 +197,7 @@ async def read_stream_loop(
                         last_id = entry_id
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception:  # noqa: BLE001 — transport loss is retried, never fatal
             # Reserved for transport errors (Redis unreachable) — NOT per-entry
             # decode failures, which are handled above without wedging the loop.
             if not warned_down:
@@ -232,7 +232,7 @@ async def replay_events(
             "list[tuple[str, dict[str, str]]]",
             await redis_pool.xrange(stream_key, min=f"({last_id}", max="+"),
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 — replay is best-effort
         logger.warning("redis_replay_failed", stream_key=stream_key, last_id=last_id)
         return []
 

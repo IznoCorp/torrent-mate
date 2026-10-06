@@ -102,8 +102,8 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
                 os.kill(pid_db, 0)
             except ProcessLookupError:
                 continue
-            except PermissionError:
-                raise AppConflict(_DUPLICATE_QUEUE_DETAIL)
+            except PermissionError as err:
+                raise AppConflict(_DUPLICATE_QUEUE_DETAIL) from err
             raise AppConflict(_DUPLICATE_QUEUE_DETAIL)
 
     # The atomic BEGIN IMMEDIATE + INSERT skeleton is owned by the engine; this
@@ -164,7 +164,7 @@ def main() -> None:
 
     try:
         config = load_config()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — process boundary: log, then exit 2
         log.error("pipeline_queue_config_load_failed", run_uid=run_uid, error=str(exc))
         sys.exit(2)
     db_path = config.indexer.db_path
@@ -186,7 +186,7 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, _on_sigterm)
 
-    from personalscraper.app.pipeline_trigger import spawn_pipeline_run
+    from personalscraper.app.pipeline_trigger import spawn_pipeline_run  # noqa: PLC0415 — patched at source by tests
 
     while True:
         if not wait_in_visible_queue(

@@ -413,11 +413,7 @@ class EventBus:
         # We compare on the token's _id (the process-monotonic counter value)
         # because dataclass __eq__ also matches on event_type (already known
         # to match here via the dict key); _id alone is the unique identifier.
-        filtered = tuple(
-            entry
-            for entry in existing
-            if entry[0]._id != token._id
-        )
+        filtered = tuple(entry for entry in existing if entry[0]._id != token._id)
         if len(filtered) == len(existing):
             # Token not found in the current tuple — already-unsubscribed or
             # never-subscribed. Idempotent no-op.
@@ -470,7 +466,7 @@ class EventBus:
         for callback in callbacks:
             try:
                 callback(event)
-            except Exception:
+            except Exception:  # noqa: BLE001 — a failing subscriber must not break dispatch
                 # Error isolation: a failing subscriber MUST NOT break dispatch
                 # to the others. ``RecursionError`` is a subclass of
                 # ``Exception`` and is therefore caught here too — the bus

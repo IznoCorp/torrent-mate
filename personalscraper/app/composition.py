@@ -29,6 +29,7 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.push.dispatch import UnconfiguredPush
+from personalscraper.verify.config_home import check_config_home
 
 log = get_logger("app.composition")
 
@@ -187,8 +188,7 @@ def build_app_context(
     # at the TRUE composition root covers every CLI command AND the web daemon
     # (commands/web.py boot path → build_app_context → here).  Fail-soft:
     # warnings are logged but never block boot.
-    from personalscraper.conf.loader import resolve_config_path
-    from personalscraper.verify.config_home import check_config_home
+    from personalscraper.conf.loader import resolve_config_path  # noqa: PLC0415 — tests patch it at its source module
 
     config_dir = resolve_config_path()
     for warning in check_config_home(config_dir, report_missing=False):

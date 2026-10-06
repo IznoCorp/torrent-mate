@@ -10,9 +10,9 @@ here, the one listing still computed in Python.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import AbstractContextManager
 from enum import StrEnum
 from pathlib import Path
-from typing import ContextManager
 
 from personalscraper.app.errors import AppUnavailable, RefusalCode
 from personalscraper.app.library.identity import ref_key
@@ -122,7 +122,7 @@ def library_unavailable(exc: IndexUnavailable) -> AppUnavailable:
     return AppUnavailable("The library index cannot be read.", code=RefusalCode.LIBRARY_UNAVAILABLE)
 
 
-def open_reader(index: LibraryIndex) -> ContextManager[LibraryReader]:
+def open_reader(index: LibraryIndex) -> AbstractContextManager[LibraryReader]:
     """Open a reader over ``library.db`` (:meth:`LibraryIndex.reader`).
 
     Args:

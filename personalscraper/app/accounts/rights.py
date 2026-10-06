@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, TypeAlias
+from typing import Final
 
 
 class Right(StrEnum):
@@ -90,7 +90,7 @@ class AnyOf:
     rights: frozenset[Right]
 
 
-Requirement: TypeAlias = Public | SignedIn | AnyOf
+type Requirement = Public | SignedIn | AnyOf
 
 
 def holds(right: Right) -> AnyOf:

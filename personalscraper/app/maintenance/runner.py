@@ -325,7 +325,7 @@ def main() -> None:
 
     try:
         config = load_config()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — process boundary: log, then exit 2
         log.error("maintenance_runner_config_load_failed", run_uid=run_uid, error=str(exc))
         sys.exit(2)
 

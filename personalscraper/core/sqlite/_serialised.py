@@ -14,10 +14,7 @@ from __future__ import annotations
 import functools
 import threading
 from collections.abc import Callable
-from typing import Concatenate, ParamSpec, Protocol, TypeVar
-
-P = ParamSpec("P")
-R = TypeVar("R")
+from typing import Concatenate, Protocol
 
 
 class HoldsConnectionLock(Protocol):
@@ -26,10 +23,9 @@ class HoldsConnectionLock(Protocol):
     _lock: threading.RLock
 
 
-S = TypeVar("S", bound=HoldsConnectionLock)
-
-
-def serialised(method: Callable[Concatenate[S, P], R]) -> Callable[Concatenate[S, P], R]:
+def serialised[S: HoldsConnectionLock, **P, R](
+    method: Callable[Concatenate[S, P], R],
+) -> Callable[Concatenate[S, P], R]:
     """Run a store method under the store's connection lock.
 
     The lock is re-entrant: a method calling another, or a transaction spanning several

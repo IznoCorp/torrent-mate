@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-class MediaType(str, Enum):
+class MediaType(str, Enum):  # noqa: UP042 — StrEnum would change str()/format() of every member
     """Canonical media type used across all metadata- and tracker-family APIs.
 
     Distinct from :class:`personalscraper.core.media_types.FileType`: ``MediaType``
