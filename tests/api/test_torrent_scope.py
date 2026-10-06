@@ -1,7 +1,7 @@
 """``scoped`` and ``scoped_hashes`` keep the torrents of the instance's own category."""
 
 from personalscraper.api.torrent._base import scoped, scoped_hashes
-from tests.fixtures.torrent_scope import PREPROD_HASH, PROD_HASH, SCOPE, shared_client, torrent
+from tests.fixtures.torrent_scope import OTHER_CATEGORY_HASH, PREPROD_HASH, PROD_HASH, SCOPE, shared_client, torrent
 
 
 def test_scoped_none_returns_every_item_unchanged() -> None:
@@ -26,7 +26,7 @@ def test_scoped_accepts_a_generator() -> None:
 def test_scoped_hashes_none_is_the_clients_hash_set() -> None:
     """No scope: exactly ``get_all_hashes()``, no per-torrent lookup."""
     client = shared_client()
-    assert scoped_hashes(client, None) == {PROD_HASH, PREPROD_HASH}
+    assert scoped_hashes(client, None) == {PROD_HASH, OTHER_CATEGORY_HASH, PREPROD_HASH}
     client.get_by_hashes.assert_not_called()
 
 

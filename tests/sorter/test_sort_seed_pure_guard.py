@@ -26,6 +26,8 @@ from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY,
+    OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
     SCOPED_TORRENT_CONFIG,
@@ -294,6 +296,10 @@ def test_run_sort_under_scope_guards_only_its_own_torrents(tmp_path: Path) -> No
 
 
 def test_run_sort_without_scope_guards_every_seed_pure_torrent(tmp_path: Path) -> None:
-    """Characterisation: no scope, both seed-pure names are in the skip set."""
+    """Characterisation: no scope, every seed-pure name is in the skip set."""
     names = _seed_pure_names_for(UNSCOPED_TORRENT_CONFIG, tmp_path)
-    assert names == {torrent(PREPROD_HASH, "tm-preprod").name, torrent(PROD_HASH, None).name}
+    assert names == {
+        torrent(PREPROD_HASH, "tm-preprod").name,
+        torrent(PROD_HASH, None).name,
+        torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY).name,
+    }

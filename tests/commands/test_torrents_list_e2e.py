@@ -145,7 +145,7 @@ def test_torrents_list_under_scope_lists_only_its_own_category(monkeypatch) -> N
 
 
 def test_torrents_list_without_scope_lists_every_torrent(monkeypatch) -> None:
-    """Characterisation: no scope, both torrents are listed."""
+    """Characterisation: no scope, every torrent is listed."""
     monkeypatch.setattr(TorrentConfig, "active_scope", lambda self: None)
     mock_boundary_torrent_client(monkeypatch, shared_client())
 
@@ -153,4 +153,4 @@ def test_torrents_list_without_scope_lists_every_torrent(monkeypatch) -> None:
 
     assert result.exit_code == 0, result.output
     names = sorted(t["name"] for t in json_from_result(result, source_attr="stdout")["torrents"])
-    assert names == ["Movie.aaaa", "Movie.bbbb"]
+    assert names == ["Movie.aaaa", "Movie.bbbb", "Movie.cccc"]

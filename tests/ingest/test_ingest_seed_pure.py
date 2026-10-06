@@ -20,6 +20,7 @@ from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.pipeline_events import ItemProgressed
 from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
     SCOPED_TORRENT_CONFIG,
@@ -284,7 +285,7 @@ def test_seed_pure_and_below_ratio_counted_once() -> None:
 
 
 def _ingest_over_shared_client(torrent_config: object) -> MagicMock:
-    """Run a dry ingest over a client shared by two instances; return the client.
+    """Run a dry ingest over a client shared by several instances; return the client.
 
     Args:
         torrent_config: The ``config.torrent`` section the run reads its scope from.
@@ -317,6 +318,9 @@ def test_ingest_under_scope_resolves_only_its_own_torrent() -> None:
 
 
 def test_ingest_without_scope_resolves_every_completed_torrent() -> None:
-    """Characterisation: no scope, both torrents are resolved as today."""
+    """Characterisation: no scope, every torrent is resolved as today."""
     client = _ingest_over_shared_client(UNSCOPED_TORRENT_CONFIG)
-    assert sorted(c.args[0].hash for c in client.get_content_path.call_args_list) == [PROD_HASH, PREPROD_HASH]
+    resolved = {c.args[0].hash for c in client.get_content_path.call_args_list}
+    # The run stops after two identical failures (no staging dir in this config), so the
+    # third torrent is never reached; the two the other instances own are both resolved.
+    assert {PROD_HASH, OTHER_CATEGORY_HASH} <= resolved

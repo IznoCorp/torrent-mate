@@ -18,6 +18,7 @@ from typer.testing import CliRunner
 from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.conf.models.watch_seed import CrossSeedConfig, WatchConfig
 from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
     SCOPED_TORRENT_CONFIG,
@@ -1192,9 +1193,9 @@ def test_poll_under_scope_sees_only_its_own_completed_torrent(tmp_path: Path) ->
 
 
 def test_poll_without_scope_sees_every_completed_torrent(tmp_path: Path) -> None:
-    """Characterisation: no scope, both completed torrents are in the input."""
+    """Characterisation: no scope, every completed torrent is in the input."""
     inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, shared_client())
-    assert inp.completed_hashes == {PREPROD_HASH, PROD_HASH}
+    assert inp.completed_hashes == {PREPROD_HASH, PROD_HASH, OTHER_CATEGORY_HASH}
 
 
 def test_poll_under_scope_counts_only_its_own_downloads(tmp_path: Path) -> None:
@@ -1204,6 +1205,6 @@ def test_poll_under_scope_counts_only_its_own_downloads(tmp_path: Path) -> None:
 
 
 def test_poll_without_scope_counts_every_download(tmp_path: Path) -> None:
-    """Characterisation: no scope, both running downloads count."""
+    """Characterisation: no scope, every running download counts."""
     inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, shared_client(progress=0.5))
-    assert inp.downloading_count == 2
+    assert inp.downloading_count == 3

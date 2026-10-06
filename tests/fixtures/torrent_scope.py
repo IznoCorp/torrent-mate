@@ -1,8 +1,9 @@
 """Shared fixtures of the scoped-readers tests: one shared client, two owners.
 
-The client holds a torrent of the other instance (no category) and one of this
-instance (category ``tm-preprod``); a reader under :data:`SCOPE` must see only
-the second.
+The client holds a torrent of the other instance (no category), one filed under
+another non-empty category (``prod``) and one of this instance (category
+``tm-preprod``); a reader under :data:`SCOPE` must see only the last, so a filter
+that merely requires "has a category" is caught.
 """
 
 from __future__ import annotations
@@ -19,6 +20,8 @@ UNSCOPED_TORRENT_CONFIG = TorrentConfig(active="qbit", clients={"qbit": TorrentC
 
 PROD_HASH = "a" * 40
 PREPROD_HASH = "b" * 40
+OTHER_CATEGORY_HASH = "c" * 40
+OTHER_CATEGORY = "prod"
 
 
 def torrent(hash_: str, category: str | None, *, progress: float = 1.0, name: str | None = None) -> TorrentItem:
@@ -46,15 +49,19 @@ def torrent(hash_: str, category: str | None, *, progress: float = 1.0, name: st
 
 
 def shared_client(*, progress: float = 1.0) -> MagicMock:
-    """Build a fake client holding the prod torrent and the preprod torrent.
+    """Build a fake client holding the prod, other-category and preprod torrents.
 
     Args:
         progress: Progress of both torrents (``1.0`` completed, else downloading).
 
     Returns:
-        A mock answering the lister contract over the two torrents.
+        A mock answering the lister contract over the three torrents.
     """
-    items = [torrent(PROD_HASH, None, progress=progress), torrent(PREPROD_HASH, "tm-preprod", progress=progress)]
+    items = [
+        torrent(PROD_HASH, None, progress=progress),
+        torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY, progress=progress),
+        torrent(PREPROD_HASH, "tm-preprod", progress=progress),
+    ]
     client = MagicMock()
     client.get_completed.return_value = [i for i in items if i.progress >= 1.0]
     client.get_all_hashes.return_value = {i.hash for i in items}

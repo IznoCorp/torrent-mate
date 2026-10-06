@@ -315,7 +315,7 @@ def test_seed_sweep_records_its_run_like_the_other_scheduled_jobs(tmp_path, test
 
 
 def _seed_list_over_shared_client(monkeypatch, scope):
-    """Run ``seed list`` over a client whose two torrents are both seed-pure.
+    """Run ``seed list`` over a client whose torrents are all seed-pure.
 
     Args:
         monkeypatch: Pytest monkeypatch fixture.
@@ -355,10 +355,12 @@ def test_seed_list_under_scope_shows_only_its_own_torrents(monkeypatch):
     output = _seed_list_over_shared_client(monkeypatch, SCOPE)
     assert "Movie.bb" in output
     assert "Movie.aa" not in output
+    assert "Movie.cc" not in output
 
 
 def test_seed_list_without_scope_shows_every_seed_pure_torrent(monkeypatch):
-    """Characterisation: no scope, both seed-pure torrents are listed."""
+    """Characterisation: no scope, every seed-pure torrent is listed."""
     output = _seed_list_over_shared_client(monkeypatch, None)
     assert "Movie.bb" in output
     assert "Movie.aa" in output
+    assert "Movie.cc" in output

@@ -35,6 +35,8 @@ from personalscraper.core.tags import SEED_PURE
 from personalscraper.core.units import ByteSize
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY,
+    OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
     SCOPED_TORRENT_CONFIG,
@@ -3133,7 +3135,7 @@ class TestCheckNotQueryableForMediaType:
 def _shared_client_service(
     tmp_path: Path, store: ConcreteAcquireStore, torrent_config: Any
 ) -> tuple[CrossSeedService, list[str]]:
-    """Build a service over a client holding a prod and a preprod torrent.
+    """Build a service over a client holding a prod, an other-category and a preprod torrent.
 
     Args:
         tmp_path: Pytest temporary directory.
@@ -3143,7 +3145,13 @@ def _shared_client_service(
     Returns:
         The service and the list recording every hash ``check`` is called with.
     """
-    client = FakeTorrentClient(completed=[torrent(PROD_HASH, None), torrent(PREPROD_HASH, "tm-preprod")])
+    client = FakeTorrentClient(
+        completed=[
+            torrent(PROD_HASH, None),
+            torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY),
+            torrent(PREPROD_HASH, "tm-preprod"),
+        ]
+    )
     cfg = make_config(tmp_path).model_copy(update={"torrent": torrent_config})
     svc = _build_service(cfg, store, client, make_registry({}, priority=[]))
     checked: list[str] = []
@@ -3167,10 +3175,10 @@ class TestClientScope:
         assert checked == [PREPROD_HASH]
 
     def test_sweep_without_scope_checks_every_torrent(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
-        """Characterisation: no scope, the sweep checks both torrents as today."""
+        """Characterisation: no scope, the sweep checks every torrent as today."""
         svc, checked = _shared_client_service(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
         svc.sweep()
-        assert sorted(checked) == [PROD_HASH, PREPROD_HASH]
+        assert sorted(checked) == sorted([PROD_HASH, OTHER_CATEGORY_HASH, PREPROD_HASH])
 
     def test_source_lookup_under_scope_ignores_the_other_instances_torrent(
         self, tmp_path: Path, store: ConcreteAcquireStore
@@ -3178,6 +3186,7 @@ class TestClientScope:
         """Under a scope a foreign hash is not a source; an own one is."""
         svc, _ = _shared_client_service(tmp_path, store, SCOPED_TORRENT_CONFIG)
         assert svc._find_completed(PROD_HASH) is None
+        assert svc._find_completed(OTHER_CATEGORY_HASH) is None
         assert svc._find_completed(PREPROD_HASH) is not None
 
     def test_source_lookup_without_scope_finds_either_torrent(
@@ -3186,4 +3195,5 @@ class TestClientScope:
         """Characterisation: no scope, both hashes are found."""
         svc, _ = _shared_client_service(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
         assert svc._find_completed(PROD_HASH) is not None
+        assert svc._find_completed(OTHER_CATEGORY_HASH) is not None
         assert svc._find_completed(PREPROD_HASH) is not None
