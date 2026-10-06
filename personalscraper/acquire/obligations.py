@@ -123,8 +123,8 @@ def sweep_obligations(
     now: int,
     rule: SeedRule,
     event_bus: EventBus,
+    scope: TorrentScope | None,
     confirm_absent_after_s: int = 1800,
-    scope: TorrentScope | None = None,
 ) -> ObligationSweepReport:
     """Run one sweep pass over the unreleased obligations.
 
@@ -137,8 +137,9 @@ def sweep_obligations(
             events are emitted on, one per write that changed a row.
         confirm_absent_after_s: How long a torrent must stay absent before its
             obligation is released.
-        scope: What this instance owns in a shared client, or ``None`` (the whole
-            client, as before). Under a scope an obligation whose torrent sits in
+        scope: REQUIRED — what this instance owns in a shared client, or ``None`` (the whole
+            client, as before); never defaulted, so a caller
+            cannot silently act unscoped. Under a scope an obligation whose torrent sits in
             another category is left alone — neither settled, marked absent nor
             released — because that torrent is not ours to judge.
 

@@ -114,8 +114,8 @@ def reswitch_stalled(
     now: float,
     *,
     event_bus: EventBus,
+    scope: TorrentScope | None,
     dead_after_s: float = DEFAULT_DEAD_AFTER_S,
-    scope: TorrentScope | None = None,
 ) -> ReswitchSummary:
     """Switch every dead-stalled grabbed release for a fresh one (reswitch #342).
 
@@ -128,8 +128,9 @@ def reswitch_stalled(
             trace, never optional).
         dead_after_s: Hard deadline past which a still-stalled torrent is dead
             even with an unknown swarm.
-        scope: What this instance owns in a shared client, or ``None`` (the whole
-            client, as before). Under a scope a stored hash whose torrent sits
+        scope: REQUIRED — what this instance owns in a shared client, or ``None`` (the whole
+            client, as before); never defaulted, so a caller
+            cannot silently act unscoped. Under a scope a stored hash whose torrent sits
             outside the scope's category belongs to another instance: it is
             skipped with a log line, never switched nor deleted.
 

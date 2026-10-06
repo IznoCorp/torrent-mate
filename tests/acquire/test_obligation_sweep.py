@@ -111,6 +111,7 @@ def _sweep(
         rule=rule,
         event_bus=bus or EventBus(),
         confirm_absent_after_s=_CONFIRM_S,
+        scope=None,
     )
 
 
@@ -277,6 +278,7 @@ def test_a_write_that_changed_nothing_emits_and_counts_nothing(store: ConcreteAc
         rule=_RULE,
         event_bus=bus,
         confirm_absent_after_s=_CONFIRM_S,  # type: ignore[arg-type]
+        scope=None,
     )
     last = sweep_obligations(
         fake_store,
@@ -285,6 +287,7 @@ def test_a_write_that_changed_nothing_emits_and_counts_nothing(store: ConcreteAc
         rule=_RULE,
         event_bus=bus,
         confirm_absent_after_s=_CONFIRM_S,  # type: ignore[arg-type]
+        scope=None,
     )
     assert (first.satisfied, last.released) == (0, 0)
     assert seen == []
