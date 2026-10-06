@@ -22,10 +22,21 @@ from personalscraper.app.composition import build_app_context
 from personalscraper.app.supervisor.model import (
     RunOptions as RunOptions,
 )  # re-exported: the CLI and the tests import it from here
+from personalscraper.core.sqlite import SqliteMigrationError
 from personalscraper.i18n import t
+from personalscraper.indexer import migrations as _migrations_pkg
+from personalscraper.indexer.db import (
+    IndexerCorruptError,
+    IndexerDiskFullError,
+    IndexerInvalidPathError,
+    apply_migrations,
+    open_db,
+)
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.run_journal import LogTailHandler
 from personalscraper.subscribers.debug_log import DebugLogSubscriber
+from personalscraper.trailers.state import TrailerStepFailed
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -34,7 +45,6 @@ if TYPE_CHECKING:
     from personalscraper.config import Settings
     from personalscraper.core.app_context import AppContext
     from personalscraper.core.event_bus import EventBus
-    from personalscraper.pipeline_history import PipelineRunWriter
     from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
     from personalscraper.subscribers.plex import PlexSubscriber
     from personalscraper.subscribers.redis_stream import RedisEventPublisher
@@ -295,8 +305,6 @@ def execute_run(
         effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
         effective_continue_on_trailer_error = continue_on_trailer_error or config.trailers.pipeline.continue_on_error
 
-        from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
-
         # Build subscribers — both self-subscribe in their constructors via the
         # shared AppContext bus. ``--headless`` skips subscriber construction
         # for silent cron / CI runs.
@@ -332,8 +340,6 @@ def execute_run(
         # history recording.
         history_writer: PipelineRunWriter | None = None
         try:
-            from personalscraper.pipeline_history import PipelineRunWriter  # noqa: PLC0415
-
             db_path = config.indexer.db_path
             assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
             history_writer = PipelineRunWriter(
@@ -446,16 +452,6 @@ def rescrape_item(
             conn: sqlite3.Connection | None = None
             db_path = config.indexer.db_path
             assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
-            from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
-            from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-            from personalscraper.indexer.db import (  # noqa: PLC0415
-                IndexerCorruptError,
-                IndexerDiskFullError,
-                IndexerInvalidPathError,
-                apply_migrations,
-                open_db,
-            )
-
             try:
                 conn = open_db(db_path, event_bus=app_context.event_bus)
                 apply_migrations(conn, Path(_migrations_pkg.__file__).parent)

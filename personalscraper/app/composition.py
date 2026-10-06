@@ -10,7 +10,9 @@ import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Final, cast
 
-from personalscraper.api.transport import RetryPolicy
+from personalscraper.api.plex import PlexClient
+from personalscraper.api.plex_account import PlexAccountClient
+from personalscraper.api.transport import CircuitPolicy, RetryPolicy
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.notices import NoticeService
 from personalscraper.app.accounts.own_sessions import OwnSessionService
@@ -19,6 +21,7 @@ from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.sign_in_notice import SignInNotifier
+from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault
 from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
 from personalscraper.app.services import AppServices
@@ -27,6 +30,7 @@ from personalscraper.app.supervisor.service import RunService
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.ownership import NullOwnershipChecker
 from personalscraper.logger import get_logger
 from personalscraper.push.dispatch import UnconfiguredPush
 from personalscraper.verify.config_home import check_config_home
@@ -40,8 +44,6 @@ ONE_ATTEMPT: Final[RetryPolicy] = RetryPolicy(max_attempts=1)
 if TYPE_CHECKING:
     from personalscraper.acquire.catalogue import ProviderLookup, TvCatalogueClient
     from personalscraper.api.metadata.registry import ProviderRegistry
-    from personalscraper.api.plex import PlexClient
-    from personalscraper.api.transport import CircuitPolicy
     from personalscraper.app.library.completeness import CatalogueView
     from personalscraper.app.library.deleting import LibraryDeletion
     from personalscraper.app.library.reads import LibraryReads
@@ -218,8 +220,6 @@ def _circuit_policy(config: Config) -> CircuitPolicy:
     Returns:
         The policy.
     """
-    from personalscraper.api.transport import CircuitPolicy  # noqa: PLC0415
-
     return CircuitPolicy(
         failure_threshold=config.thresholds.circuit_breaker_threshold,
         cooldown_seconds=config.thresholds.circuit_breaker_cooldown,
@@ -418,8 +418,6 @@ def build_app_services(
         The application services, on the process's :class:`EventBus`, with the build
         read at boot and the account services over the environment's ``app.db``.
     """
-    from personalscraper.api.plex import PlexClient  # noqa: PLC0415
-
     owned: LazyProviders | None = None
     if providers is None:
         owned = LazyProviders(lambda: _build_library_registry(config, settings, event_bus=event_bus))
@@ -489,9 +487,7 @@ def _build_plex_sign_in(
     Returns:
         The door; with no ``PLEX_TOKEN`` it has no server and admits nobody.
     """
-    from personalscraper.api.plex_account import PlexAccountClient  # noqa: PLC0415
-    from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault  # noqa: PLC0415
-    from personalscraper.conf.environment import current_environment  # noqa: PLC0415
+    from personalscraper.conf.environment import current_environment  # noqa: PLC0415 — patched at source by tests
 
     keys_malformed = False
     try:
@@ -625,8 +621,6 @@ def build_ownership_checker(config: Config) -> OwnershipChecker:
         An ``OwnershipChecker`` port implementation — concrete indexer-backed
         when the library exists, ``NullOwnershipChecker`` otherwise.
     """
-    from personalscraper.core.ownership import NullOwnershipChecker  # noqa: PLC0415
-
     db_path = config.indexer.db_path
     if db_path is None or not db_path.exists():
         return NullOwnershipChecker()
