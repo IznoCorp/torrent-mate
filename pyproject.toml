@@ -55,8 +55,8 @@ dependencies = [
 dev = [
     "pytest>=7.3.0",
     "pytest-cov>=4.0.0",
-    "ruff>=0.4.0",
-    "mypy>=1.10.0",
+    "ruff==0.16.10",
+    "mypy==2.4.0",
     "types-requests>=2.31.0",
     "pip-audit>=2.7.0",
     "pip-licenses>=4.0.0",
@@ -126,8 +126,9 @@ markers = [
     "multifs: filesystem-capability tests using faked mount/stat fixtures (no real disks required)",
     "real_mount_check: keep the real mount reading (tests that prove a folder on the system disk is not a mounted disk)",
     "integration: cross-module characterization / integration tests (not unit; may build a temp library FS)",
+    "app_e2e: the built client against a seeded v1 server in a browser (needs `npm run build:app` and Playwright)",
 ]
-addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network'"
+addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network and not app_e2e'"
 
 [tool.ruff]
 target-version = "py310"
