@@ -24,8 +24,11 @@ const INVALID = 400;
 const FORBIDDEN = 403;
 const PLATFORMS: readonly Platform[] = ["android", "ios", "desktop"];
 
-/** The right each type asks, in the contract's order — the contract's `x-rights`. */
-export const NOTIFICATION_RIGHTS: Readonly<Record<NotificationType, Right>> = {
+/**
+ * The right each type asks, in the contract's order — the contract's `x-rights`; `null` is a
+ * type every account receives (`account.sign_in`: its own sessions, ruling Q4 A).
+ */
+export const NOTIFICATION_RIGHTS: Readonly<Record<NotificationType, Right | null>> = {
   "obligation.met": "trackers.view",
   "obligation.released": "trackers.view",
   "obligation.breached": "trackers.view",
@@ -37,6 +40,7 @@ export const NOTIFICATION_RIGHTS: Readonly<Record<NotificationType, Right>> = {
   "system.run_failed": "system.view",
   "system.disk_full": "system.view",
   "system.service_down": "system.view",
+  "account.sign_in": null,
 };
 
 /**
@@ -49,9 +53,10 @@ function receivable(): NotificationType[] {
   // receiving a type is not one — the read-only instance still shows every choice the account
   // holds; the server refuses changing them on its own (`require_not_staging`).
   const rights = rightsOf({ ...signedIn(), forbiddenWrites: [] });
-  return (Object.keys(NOTIFICATION_RIGHTS) as NotificationType[]).filter((one) =>
-    rights.holds(NOTIFICATION_RIGHTS[one]),
-  );
+  return (Object.keys(NOTIFICATION_RIGHTS) as NotificationType[]).filter((one) => {
+    const asked = NOTIFICATION_RIGHTS[one];
+    return asked === null || rights.holds(asked);
+  });
 }
 
 /**

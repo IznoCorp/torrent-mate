@@ -62,7 +62,7 @@ async function shown(code: string, language: string): Promise<{ title: string; b
   const source = substituteWorker(workerSource, { build: "test", shell: ["/"], extras: [], push: pushCatalogues({ fr: catalogue, en: english }) });
   new Function("self", source)(self);
   const pending: Promise<unknown>[] = [];
-  const params = JSON.stringify({ title: "Ted Lasso S04E08", tracker: "c411", step: "scrape", disk: "Disk 2", service: "TMDB" });
+  const params = JSON.stringify({ title: "Ted Lasso S04E08", tracker: "c411", step: "scrape", disk: "Disk 2", service: "TMDB", device: "Firefox · macOS" });
   listeners.push!({
     data: { json: () => ({ data: { code, params, link: "/trackers", language } }) },
     waitUntil: (promise: Promise<unknown>) => pending.push(promise),

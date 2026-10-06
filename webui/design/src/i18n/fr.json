@@ -2385,6 +2385,10 @@
       "locked": "Le pipeline est en cours : la médiathèque ne se modifie pas pendant qu'il tourne. Réessayez à la fin de l'exécution.",
       "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'est supprimé tant qu'on ne sait pas ce qu'un tracker attend encore.",
       "unavailable": "La médiathèque est indisponible : le serveur ne peut pas la lire pour le moment. Réessayez dans un instant."
+    },
+    "session": {
+      "unknown": "Cette session n'existe plus ou n'est pas la vôtre.",
+      "current": "Cette session est celle que vous utilisez : déconnectez-vous pour la fermer."
     }
   },
   "push": {
@@ -2457,6 +2461,18 @@
         "title": "Service injoignable",
         "body": "{{service}} ne répond plus."
       }
+    },
+    "account": {
+      "sign_in": {
+        "device": {
+          "title": "Nouvelle connexion",
+          "body": "Votre compte vient d'être ouvert sur {{device}}. Si ce n'est pas vous, mettez fin à cette session dans votre Profil."
+        },
+        "unknown_device": {
+          "title": "Nouvelle connexion",
+          "body": "Votre compte vient d'être ouvert sur un appareil inconnu. Si ce n'est pas vous, mettez fin à cette session dans votre Profil."
+        }
+      }
     }
   },
   "notifications": {
@@ -2514,6 +2530,20 @@
           "label": "Service injoignable",
           "description": "Un fournisseur ou un service ne répond plus."
         }
+      },
+      "account": {
+        "sign_in": {
+          "label": "Nouvelle connexion",
+          "description": "Une connexion par Plex ouvre une nouvelle session sur votre compte."
+        }
+      }
+    }
+  },
+  "notices": {
+    "account": {
+      "sign_in": {
+        "device": "Nouvelle connexion sur {{device}}.",
+        "unknown_device": "Nouvelle connexion sur un appareil inconnu."
       }
     }
   },

@@ -43,6 +43,9 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   changeOwnPassword: null,
   // The account's own language, chosen in Profil (FG-1 B): a session act, no right.
   setOwnLanguage: null,
+  // The account's own sessions, listed and ended in Profil (ruling Q4 A): a session act, no right.
+  readOwnSessions: null,
+  revokeOwnSession: null,
   readVersion: null,
   // The account's own notification choices and its devices' tokens: each
   // account reads its own, and the read answers only the types its rights
@@ -54,6 +57,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readNotificationPreferences: null,
   updateNotificationPreference: null,
   registerPushDevice: null,
+  // The account's own in-app notices (a new sign-in): a session act, no right.
+  readNotices: null,
   // The roster: « Comptes » manages it; the reassign chooser reads it narrowly (F46).
   readAccounts: ["accounts.manage", "acquisition.reassign"],
   createAccount: "accounts.manage",

@@ -2385,6 +2385,10 @@
       "locked": "The pipeline is running: the library cannot be modified while it runs. Try again when the run ends.",
       "obligations_unreadable": "The seeding obligations cannot be read: nothing is deleted while what a tracker is still owed is unknown.",
       "unavailable": "The library is unavailable: the server cannot read it right now. Try again in a moment."
+    },
+    "session": {
+      "unknown": "This session no longer exists or is not yours.",
+      "current": "This is the session you are using: sign out to close it."
     }
   },
   "push": {
@@ -2457,6 +2461,18 @@
         "title": "Service unreachable",
         "body": "{{service}} is no longer answering."
       }
+    },
+    "account": {
+      "sign_in": {
+        "device": {
+          "title": "New sign-in",
+          "body": "Your account was just opened on {{device}}. If it was not you, end that session in your Profile."
+        },
+        "unknown_device": {
+          "title": "New sign-in",
+          "body": "Your account was just opened on an unknown device. If it was not you, end that session in your Profile."
+        }
+      }
     }
   },
   "notifications": {
@@ -2514,6 +2530,20 @@
           "label": "Service unreachable",
           "description": "A provider or a service is no longer answering."
         }
+      },
+      "account": {
+        "sign_in": {
+          "label": "New sign-in",
+          "description": "A Plex sign-in opens a new session on your account."
+        }
+      }
+    }
+  },
+  "notices": {
+    "account": {
+      "sign_in": {
+        "device": "New sign-in on {{device}}.",
+        "unknown_device": "New sign-in on an unknown device."
       }
     }
   },
