@@ -96,7 +96,7 @@ def _production(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch: Pytest's monkeypatch fixture.
     """
     monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
 
 
 @pytest.fixture

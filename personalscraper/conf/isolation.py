@@ -4,7 +4,7 @@ A file ``.tm-environment`` in ``paths.data_dir`` holds one environment name. At 
 load, a process whose environment differs from the marker refuses to start, so a
 mistyped variable can never point production at a preprod data directory, nor the
 reverse. A data directory with no marker is production's, as it always was: production
-sets nothing and writes nothing. Every other environment must find its own marker and
+names itself (``PERSONALSCRAPER_ENV=prod``) and writes no marker. Every other environment must find its own marker and
 keep every store it resolves inside that directory. Every sandbox (every environment
 but prod) must also publish on a stream key of its own, and may use a torrent client
 only inside a scope of its own. The marker is written by hand, never by the code.

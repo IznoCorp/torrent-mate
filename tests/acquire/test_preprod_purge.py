@@ -636,7 +636,7 @@ def test_listing_failure_raises_before_any_delete(
 # -- refused before any client call ----------------------------------------------------------------
 
 
-@pytest.mark.parametrize("env", [None, "prod", "dev"])
+@pytest.mark.parametrize("env", ["prod", "dev"])
 def test_refused_outside_staging_before_any_client_call(
     roots: Roots,
     mounted: None,
@@ -645,13 +645,10 @@ def test_refused_outside_staging_before_any_client_call(
     monkeypatch: pytest.MonkeyPatch,
     env: str | None,
 ) -> None:
-    """Outside ``staging`` (unset, prod, dev) the purge refuses before it touches the client."""
+    """Outside ``staging`` (prod, dev) the purge refuses before it touches the client."""
     config = _config(roots)
     _oblige(store, "aaaa", met=True)
-    if env is None:
-        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
-    else:
-        monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
     client = FakeClient([_item(roots, "aaaa")])
     with pytest.raises(SandboxGuardError, match="staging"):
         run(store, client, config)

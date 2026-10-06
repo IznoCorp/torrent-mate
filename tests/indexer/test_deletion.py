@@ -207,8 +207,8 @@ def test_dev_refuses_a_folder_outside_the_dev_roots(
 
 
 def test_prod_unchanged_deletes_without_a_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """With the variable unset (prod), a folder is deleted with no config and no marker, as before."""
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    """In prod, a folder is deleted with no config and no marker, as before."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     folder = _folder(tmp_path)
     res = delete_media_folder(folder, db_path=_journal_db(tmp_path), actor="t", label="l")
     assert res.outcome is DeleteOutcome.DELETED

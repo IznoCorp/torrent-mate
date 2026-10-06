@@ -124,14 +124,10 @@ def test_symlink_out_of_the_root_is_refused(tmp_path: Path, mounted: None, stagi
         assert_within_sandbox(config, disk / "link" / "Film")
 
 
-@pytest.mark.parametrize("env", [None, "prod"])
-def test_in_prod_the_guard_is_a_no_op(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, env: str | None) -> None:
-    """Unset or explicit prod: any path passes, unmarked or not."""
+def test_in_prod_the_guard_is_a_no_op(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """In prod any path passes, unmarked or not."""
     config = _config(tmp_path, tmp_path / "disk", tmp_path / "stage")
-    if env is None:
-        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
-    else:
-        monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     assert_within_sandbox(config, tmp_path / "anywhere")
 
 
@@ -233,9 +229,9 @@ def test_root_markers_name_one_marker_per_sandbox() -> None:
 
 
 def test_prod_unchanged_the_guard_ignores_every_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """With the variable unset (prod), an unmounted, unmarked root and any path pass, as before."""
+    """In prod, an unmounted, unmarked root and any path pass, as before."""
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     config = _config(tmp_path, tmp_path / "disk", tmp_path / "stage")
     assert_within_sandbox(config, tmp_path / "disk" / "Film (2024)")
     assert_within_sandbox(config, tmp_path / "anywhere")

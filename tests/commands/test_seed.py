@@ -407,7 +407,7 @@ def _invoke_purge(args, config, app_context, monkeypatch, *, env="staging"):
         config: The Config placed in ``ctx.obj`` (and returned by the patched loader).
         app_context: What the boundary yields.
         monkeypatch: Pytest's monkeypatch, used to set ``PERSONALSCRAPER_ENV``.
-        env: The environment; ``None`` unsets it.
+        env: The environment.
 
     Returns:
         ``(result, mock_boundary)``.
@@ -415,10 +415,7 @@ def _invoke_purge(args, config, app_context, monkeypatch, *, env="staging"):
     from personalscraper.cli_state import AppCtx
 
     app = _make_app()
-    if env is None:
-        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
-    else:
-        monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
     with (
         patch("personalscraper.conf.loader.load_config", return_value=config),
         patch("personalscraper.commands.seed.per_step_boundary") as mock_boundary,
@@ -443,7 +440,7 @@ def _fake_context(client="fake"):
     )
 
 
-@pytest.mark.parametrize("env", [None, "prod", "dev"])
+@pytest.mark.parametrize("env", ["prod", "dev"])
 def test_seed_purge_outside_staging_exits_2_before_any_client(monkeypatch, env):
     """Outside ``staging`` the command exits 2 with a message and never builds the client."""
     with patch("personalscraper.commands.seed.purge_preprod_downloads") as purge:

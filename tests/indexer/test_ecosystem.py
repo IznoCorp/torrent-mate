@@ -349,6 +349,19 @@ def test_no_app_config_points_inside_a_git_worktree() -> None:
     )
 
 
+def test_every_engine_app_names_prod_explicitly() -> None:
+    """Invariant: every app that runs the ``personalscraper`` binary sets ``PERSONALSCRAPER_ENV=prod``.
+
+    An unset variable is refused (never read as prod), so an app that forgot it would fail
+    closed at its next start. The staging web app reads prod's stores too (read-only role).
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    engine_apps = [app for app in apps if str(app.get("script", "")).endswith("/bin/personalscraper")]
+    assert engine_apps, "no app runs the personalscraper binary: the parser drifted"
+    missing = [str(app["name"]) for app in engine_apps if app.get("PERSONALSCRAPER_ENV") != "prod"]
+    assert missing == [], f"app(s) that do not set PERSONALSCRAPER_ENV=prod: {missing}"
+
+
 # ---------------------------------------------------------------------------
 # Tests — watch daemon specifics
 # ---------------------------------------------------------------------------

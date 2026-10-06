@@ -617,8 +617,8 @@ def test_a_sandboxed_delete_logs_its_plex_outcome(
 
 
 def test_in_prod_plex_is_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``PERSONALSCRAPER_ENV`` unset: with no marker anywhere, the deletion asks Plex as before."""
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    """In prod, with no marker anywhere, the deletion asks Plex as before."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     _, folder = shelf.movie("Movie (2020)", "11")
 
     report = shelf.deletion.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
