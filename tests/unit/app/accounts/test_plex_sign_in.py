@@ -1532,7 +1532,7 @@ class TestSessionOpenedEvent:
     ) -> None:
         """One event per session opened: the account signed in, the device its user agent names."""
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         result = door.finish(started.pin_id, nonce=started.nonce, user_agent=_FIREFOX_MAC)
@@ -1555,7 +1555,7 @@ class TestSessionOpenedEvent:
         """While the PIN is unclaimed no session is opened, and nothing is told."""
         plextv.pending_then_claimed()
         clock = _clock_of(door)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         assert isinstance(door.finish(started.pin_id, nonce=started.nonce, user_agent=None), PlexPending)
@@ -1572,7 +1572,7 @@ class TestSessionOpenedEvent:
     ) -> None:
         """An identity with no access to this server opens no session: nothing is told."""
         door = _build(store, plextv, _Server("REDACTED-machine-9"), clock, bus, vault)
-        started = door.start()
+        started = door.start(_CLIENT)
         clock.now += 2.0
 
         _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
