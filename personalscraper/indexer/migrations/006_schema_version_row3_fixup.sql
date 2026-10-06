@@ -30,6 +30,12 @@
 -- record fixup. It can be safely re-run (the INSERT OR IGNORE) and is
 -- idempotent across re-applies.
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 INSERT OR IGNORE INTO schema_version (version) VALUES (3);
 INSERT INTO schema_version (version) VALUES (6);
 PRAGMA user_version = 6;
+
+COMMIT;

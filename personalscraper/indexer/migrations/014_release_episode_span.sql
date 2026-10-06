@@ -16,6 +16,10 @@
 -- between the start row and the end row (both rows exist; the linker creates
 -- the full range).
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 ALTER TABLE media_release ADD COLUMN episode_end_id INTEGER REFERENCES episode(id);
 
 -- ---------------------------------------------------------------------------
@@ -24,3 +28,5 @@ ALTER TABLE media_release ADD COLUMN episode_end_id INTEGER REFERENCES episode(i
 
 INSERT INTO schema_version (version) VALUES (14);
 PRAGMA user_version = 14;
+
+COMMIT;

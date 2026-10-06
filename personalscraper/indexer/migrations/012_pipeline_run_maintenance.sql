@@ -20,6 +20,10 @@
 -- Step 1 — add the four new columns (additive, all existing rows get defaults).
 -- ---------------------------------------------------------------------------
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 ALTER TABLE pipeline_run ADD COLUMN kind         TEXT NOT NULL DEFAULT 'pipeline';
 ALTER TABLE pipeline_run ADD COLUMN command      TEXT NULL;
 ALTER TABLE pipeline_run ADD COLUMN options_json TEXT NULL;
@@ -37,3 +41,5 @@ CREATE INDEX idx_pipeline_run_kind ON pipeline_run(kind);
 
 INSERT INTO schema_version (version) VALUES (12);
 PRAGMA user_version = 12;
+
+COMMIT;
