@@ -2,8 +2,8 @@
 
 A :class:`RunRequest` is one asked run in the queue; its rules are methods, so no service holds an
 ``if`` on its state: coalescing (:meth:`~RunRequest.joins`), the legal moves
-(:meth:`~RunRequest.wait`, :meth:`~RunRequest.admit`, :meth:`~RunRequest.back_to_queue`,
-:meth:`~RunRequest.settle`) and
+(:meth:`~RunRequest.wait`, :meth:`~RunRequest.admit`, :meth:`~RunRequest.record_worker`,
+:meth:`~RunRequest.back_to_queue`, :meth:`~RunRequest.settle`, :meth:`~RunRequest.abandon`) and
 staleness (:meth:`~RunRequest.stale`). A move the state machine does not allow raises
 :class:`RunRequestStateError`: a programming error of the caller, never an answer on the wire.
 
@@ -78,6 +78,7 @@ class WaitReason(StrEnum):
     BEHIND_RUN = "behind_run"
     PIPELINE_LOCK_HELD = "pipeline_lock_held"
     PAUSED = "paused"
+    WORKER_START_FAILED = "worker_start_failed"
     SUPERVISOR_ABSENT = "supervisor_absent"
 
 
@@ -116,8 +117,9 @@ class RunRequest:
         asked_by: The account that asked.
         asked_at: When it was asked (epoch); the queue is FIFO on it.
         state: Queued, running or settled.
-        admitted_at: When its worker was started (epoch); ``None`` while queued.
-        worker_pid: Its worker's process id; ``None`` while queued.
+        admitted_at: When it was admitted (epoch), just before its worker is started; ``None`` while queued.
+        worker_pid: Its worker's process id; ``None`` while queued, and while running until the
+            started worker's pid is recorded.
         heartbeat_at: The worker's last sign of life (epoch); ``None`` while queued.
         settled_at: When it ended (epoch); ``None`` until settled.
         settlement: How it ended; ``None`` until settled.
@@ -225,11 +227,14 @@ class RunRequest:
             raise ValueError(f"{reason} is derived at read time, never recorded on request {self.uid}")
         self.wait_reason = reason
 
-    def admit(self, pid: int, now: float) -> None:
+    def admit(self, pid: int | None, now: float) -> None:
         """Start it: ``queued`` → ``running``, under its worker's process id.
 
+        The supervisor admits with no pid, saves, and only then starts the worker
+        (:meth:`record_worker` names it): a worker never runs on a request still queued.
+
         Args:
-            pid: The worker's process id.
+            pid: The worker's process id; ``None`` while the worker is not started yet.
             now: The epoch of the admission; also its first heartbeat.
 
         Raises:
@@ -241,6 +246,18 @@ class RunRequest:
         self.admitted_at = now
         self.heartbeat_at = now
         self.wait_reason = None
+
+    def record_worker(self, pid: int) -> None:
+        """Name the worker started for it, once the admission was saved.
+
+        Args:
+            pid: The worker's process id.
+
+        Raises:
+            RunRequestStateError: If it is not running.
+        """
+        self._require(RequestState.RUNNING, "record the worker of")
+        self.worker_pid = pid
 
     def back_to_queue(self, reason: WaitReason) -> None:
         """Send it back: ``running`` → ``queued`` (its worker lost ``pipeline.lock``), waiting for *reason*.
@@ -272,6 +289,21 @@ class RunRequest:
         self.state = RequestState.SETTLED
         self.settlement = settlement
         self.settled_at = now
+
+    def abandon(self, now: float) -> None:
+        """Give it up before any worker ran: ``queued`` → ``settled`` (``abandoned``), never admitted.
+
+        Args:
+            now: The epoch it was given up.
+
+        Raises:
+            RunRequestStateError: If it is not queued.
+        """
+        self._require(RequestState.QUEUED, "abandon")
+        self.state = RequestState.SETTLED
+        self.settlement = Settlement.ABANDONED
+        self.settled_at = now
+        self.wait_reason = None
 
     def stale(self, now: float) -> bool:
         """Whether it is running and its worker has not shown a sign of life for three heartbeats.

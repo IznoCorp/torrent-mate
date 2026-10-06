@@ -75,6 +75,12 @@
     "help": "Start the watcher daemon (single-process scheduler).\n\nPolls the configured torrent client each cycle, consults the\n:class:`~personalscraper.acquire.watcher.WatcherService` decision engine,\nand spawns ``personalscraper run --no-console`` (async, tracked) or\n``personalscraper cross-seed --hash {{hash}}`` (sync, sequential) as\nsubprocesses.  The daemon itself does NOT acquire ``pipeline.lock``\n(W6) — only its spawned children do.\n\nRuns until SIGTERM, SIGINT, or a fatal error.",
     "now_help": "Write the sentinel file that the watcher daemon consumes next cycle.\n\nNo IPC, no daemon dependency — if the daemon is down, the sentinel is\nconsumed at next boot.  Same channel as the future Web UI (W4).\n\nThe running ``personalscraper watch`` daemon detects this file at the\nnext poll cycle and fires a pipeline run with ``reason=manual``."
   },
+  "supervise": {
+    "help": "Start the supervisor: the one process that starts the asked pipeline runs and rescrapes.\n\nHolds the environment's lease, starts the head of the queue in a detached worker when\nnothing runs and pipeline.lock is free, settles each worker from its exit code or its\nheartbeat, and runs the watcher's poll, whose automatic runs join the same queue.\n\nRuns until SIGTERM or SIGINT; a clean stop releases the lease.",
+    "started": "Supervisor started (pid {{pid}}).",
+    "no_client": "No active torrent client: the watcher is idle, asked runs are still started.",
+    "stopped": "Supervisor stopped; lease released."
+  },
   "health_check": {
     "lookback_help": "Recent-error window.",
     "max_run_help": "Held-lock age considered stuck.",
