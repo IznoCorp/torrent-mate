@@ -29,7 +29,6 @@ import dataclasses
 import errno
 import os
 import socket
-import sqlite3
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -50,6 +49,7 @@ from personalscraper.app.supervisor.model import (
     Settlement,
     WaitReason,
 )
+from personalscraper.indexer.library_view import IndexUnavailable
 from personalscraper.lock import any_scrape_resolve_active, is_lock_held, scrape_locks_dir_for
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
@@ -70,6 +70,12 @@ ADMISSION_INTERVAL_S: Final = 2.0
 #: Seconds between two renewals of the lease while a watcher tick runs: a third of its TTL, so two
 #: renewals may fail before it lapses.
 LEASE_KEEP_INTERVAL_S: Final = LEASE_TTL_S / 3
+
+#: Consecutive unreadable reads of a silent request's ``pipeline_run`` row before it is settled
+#: ``interrupted`` anyway: thirty admission ticks, each read waiting out the store's 5 s busy
+#: timeout, are minutes — longer than any writer holds ``library.db``, so the store is broken, not
+#: busy, and the one running request must not block the queue for good.
+MAX_UNREADABLE_ROW_READS: Final = 30
 
 #: Consecutive failures of one kind of tick after which the loop stops, so PM2 restarts the
 #: process: thirty admission ticks are a minute (one lease TTL) — longer than any transient lock of
@@ -294,6 +300,7 @@ class Supervisor:
         self._held_logged = False
         self._seen: set[str] = set()
         self._start_failures: dict[str, int] = {}
+        self._unreadable_reads: dict[str, int] = {}
         self.watcher_state = WatcherState()
         if watcher is not None:
             watcher.restore(self.watcher_state)
@@ -526,7 +533,8 @@ class Supervisor:
 
         A gone worker that left no row and never beat its heartbeat ran nothing: it lost the lock
         (exit 3, unseen by a supervisor that is not its parent), so its request is queued again. A
-        row that cannot be read now is retried at the next tick, never taken for a missing one.
+        row that cannot be read now is retried at the next tick, never taken for a missing one —
+        up to :data:`MAX_UNREADABLE_ROW_READS` reads in a row, then the request is ``interrupted``.
 
         Args:
             request: The running request.
@@ -535,9 +543,16 @@ class Supervisor:
         """
         try:
             outcome = self._row_outcome(request)
-        except sqlite3.Error:
-            log.warning("supervisor.run_row_unreadable", uid=request.uid, exc_info=True)
+        except IndexUnavailable:
+            reads = self._unreadable_reads.get(request.uid, 0) + 1
+            self._unreadable_reads[request.uid] = reads
+            log.warning("supervisor.run_row_unreadable", uid=request.uid, reads=reads, exc_info=True)
+            if reads >= MAX_UNREADABLE_ROW_READS:
+                self._unreadable_reads.pop(request.uid, None)
+                log.error("supervisor.run_row_unreadable_settled", uid=request.uid, reads=reads)
+                self._settle(request, Settlement.INTERRUPTED, now, exit_code=None)
             return
+        self._unreadable_reads.pop(request.uid, None)
         if gone and outcome is None and request.heartbeat_at == request.admitted_at:
             self._requeue_lost_lock(request)
             return
@@ -556,7 +571,7 @@ class Supervisor:
             The row's outcome; ``None`` when there is no row (or no library store).
 
         Raises:
-            sqlite3.Error: If the library store cannot be read now.
+            IndexUnavailable: If the library store cannot be read now.
         """
         db_path = self._config.indexer.db_path
         if db_path is None:
@@ -612,6 +627,7 @@ class Supervisor:
         live = {request.uid for request in queued} | {request.uid for request in self._store.runs.running()}
         self._seen &= live
         self._start_failures = {uid: count for uid, count in self._start_failures.items() if uid in live}
+        self._unreadable_reads = {uid: count for uid, count in self._unreadable_reads.items() if uid in live}
 
     def _admit(self, now: float) -> None:
         """Start the head of the queue when nothing runs and nothing blocks it; else record why it waits.

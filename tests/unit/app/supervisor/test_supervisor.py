@@ -41,6 +41,7 @@ from personalscraper.app.supervisor.service import RunService
 from personalscraper.app.supervisor.supervisor import Supervisor, pid_alive
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import Event, EventBus
+from personalscraper.indexer.library_view import IndexUnavailable
 from personalscraper.pipeline_history import PipelineRunWriter
 from tests.conftest import LoggedEvents
 from tests.unit.app.supervisor.fakes import FakeWatcherHalf, FakeWorkerLauncher
@@ -1063,9 +1064,9 @@ class TestAdoptedWorker:
         clock.now += LEASE_TTL_S + STALE_AFTER_S + 1
         restarted = _supervisor(store, test_config, FakeWorkerLauncher(first_pid=9000), clock, pid=300)
 
-        locked = sqlite3.OperationalError("database is locked")
+        locked = IndexUnavailable("database is locked")
         with (
-            patch.object(PipelineRunWriter, "outcome", side_effect=locked, create=True),
+            patch.object(PipelineRunWriter, "outcome", side_effect=locked),
             logged_events() as events,
         ):
             restarted.tick_admission()
@@ -1074,6 +1075,36 @@ class TestAdoptedWorker:
         assert "supervisor.run_row_unreadable" in [event["event"] for event in events]
         restarted.tick_admission()
         assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.SUCCESS)
+
+    def test_a_run_row_that_stays_unreadable_settles_interrupted_after_a_bounded_count(
+        self,
+        store: AppStore,
+        test_config: Config,
+        launcher: FakeWorkerLauncher,
+        clock: _Clock,
+        logged_events: LoggedEvents,
+    ) -> None:
+        """A store that never reads again: running for the allowed reads, then ``interrupted``, and the queue moves."""
+        _library(test_config)
+        uid = _admitted_by_first_supervisor(store, test_config, launcher, clock)
+        clock.now += LEASE_TTL_S + STALE_AFTER_S + 1
+        fresh = FakeWorkerLauncher(first_pid=9000)
+        restarted = _supervisor(store, test_config, fresh, clock, pid=300)
+        reads = getattr(supervisor_module, "MAX_UNREADABLE_ROW_READS", 30)
+
+        with (
+            patch.object(PipelineRunWriter, "outcome", side_effect=IndexUnavailable("file is not a database")),
+            logged_events() as events,
+        ):
+            for _ in range(reads - 1):
+                restarted.tick_admission()
+                assert _state(store, uid)[0] is RequestState.RUNNING
+            nxt = _ask(store, test_config, clock, _DRY)
+            restarted.tick_admission()
+
+        assert _state(store, uid)[:2] == (RequestState.SETTLED, Settlement.INTERRUPTED)
+        assert "supervisor.run_row_unreadable_settled" in [event["event"] for event in events]
+        assert fresh.started == [nxt]
 
 
 class TestExitCodeKept:

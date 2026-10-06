@@ -13,8 +13,13 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
+from unittest.mock import patch
+
+import pytest
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.library_view import IndexUnavailable
 from personalscraper.pipeline_history import PipelineRunWriter
 
 # ---------------------------------------------------------------------------
@@ -356,12 +361,27 @@ class TestPipelineRunWriterFinalize:
 
 
 class TestPipelineRunWriterOutcome:
-    """``outcome()`` — the one read, which raises instead of guessing."""
+    """``outcome()`` — the one read, read-only, which raises instead of guessing."""
+
+    @staticmethod
+    def _library(db_path: Path) -> None:
+        """Create a library store the read view accepts: ``pipeline_run`` and its core ``media_item`` table.
+
+        Args:
+            db_path: Where to create it.
+        """
+        _create_db(db_path)
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute("CREATE TABLE media_item (id INTEGER PRIMARY KEY)")
+            conn.commit()
+        finally:
+            conn.close()
 
     def test_outcome_reads_the_row_running_then_final(self, tmp_path: Path) -> None:
         """A row reads ``running`` until finalized, then its final outcome."""
         db_path = tmp_path / "library.db"
-        _create_db(db_path)
+        self._library(db_path)
         writer = PipelineRunWriter(db_path)
         writer.insert("uid-o", trigger="web", dry_run=False, pid=1)
         assert writer.outcome("uid-o") == "running"
@@ -373,7 +393,7 @@ class TestPipelineRunWriterOutcome:
     def test_outcome_of_a_missing_row_is_none(self, tmp_path: Path) -> None:
         """No row under the uid: ``None``."""
         db_path = tmp_path / "library.db"
-        _create_db(db_path)
+        self._library(db_path)
 
         assert PipelineRunWriter(db_path).outcome("absent") is None
 
@@ -385,15 +405,37 @@ class TestPipelineRunWriterOutcome:
         assert not db_path.exists()
 
     def test_outcome_of_an_unreadable_store_raises(self, tmp_path: Path) -> None:
-        """A store without the table is unreadable: ``sqlite3.Error``, never a guessed ``None``."""
+        """A store without the tables is unreadable: ``IndexUnavailable``, never a guessed ``None``."""
         db_path = tmp_path / "library.db"
         sqlite3.connect(str(db_path)).close()
 
-        try:
+        with pytest.raises(IndexUnavailable):
             PipelineRunWriter(db_path).outcome("uid")
-        except sqlite3.Error:
-            return
-        raise AssertionError("an unreadable store answered as if it had no row")
+
+    def test_outcome_reads_over_a_connection_that_cannot_write(self, tmp_path: Path) -> None:
+        """The read's connection is read-only at the file: a write through it is refused."""
+        db_path = tmp_path / "library.db"
+        self._library(db_path)
+        real_connect = sqlite3.connect
+        refused: list[str] = []
+
+        def probing_connect(*args: Any, **kwargs: Any) -> sqlite3.Connection:  # noqa: ANN401 — sqlite3's own
+            conn = real_connect(*args, **kwargs)
+            try:
+                conn.execute("CREATE TABLE probe (x INTEGER)")
+            except sqlite3.OperationalError as exc:
+                refused.append(str(exc))
+            return conn
+
+        with patch("personalscraper.indexer.library_view.sqlite3.connect", side_effect=probing_connect):
+            assert PipelineRunWriter(db_path).outcome("absent") is None
+
+        assert refused and "readonly" in refused[0]
+        conn = real_connect(str(db_path))
+        try:
+            assert conn.execute("SELECT name FROM sqlite_master WHERE name = 'probe'").fetchone() is None
+        finally:
+            conn.close()
 
 
 class TestPipelineRunWriterFailSoft:

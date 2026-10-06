@@ -42,6 +42,7 @@ import time
 from pathlib import Path
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.library_view import IndexUnavailable, LibraryIndex
 from personalscraper.logger import get_logger
 
 log = get_logger("pipeline_history")
@@ -339,7 +340,8 @@ class PipelineRunWriter:
 
         A supervisor settling a silent worker must tell « no row » from « unreadable now »: a
         locked or broken store is retried, never taken for a missing row, so this read is not
-        fail-soft. A store that does not exist yet holds no row, and is not created.
+        fail-soft. It goes through the library's read view (``mode=ro`` and ``query_only``): it
+        can neither write nor create the store, and a store that does not exist holds no row.
 
         Args:
             run_uid: Unique run identifier.
@@ -348,14 +350,12 @@ class PipelineRunWriter:
             The row's ``outcome`` (``'running'`` while unfinished); ``None`` when no row has that uid.
 
         Raises:
-            sqlite3.Error: If the store cannot be read (locked past the busy timeout, corrupt, unmigrated).
+            IndexUnavailable: If the store cannot be read (locked past the busy timeout, corrupt, unmigrated).
         """
         if not self._db_path.exists():
             return None
-        conn = sqlite3.connect(str(self._db_path), isolation_level=None)
         try:
-            apply_pragmas(conn)
-            row = conn.execute("SELECT outcome FROM pipeline_run WHERE run_uid = ?", (run_uid,)).fetchone()
-        finally:
-            conn.close()
-        return None if row is None else str(row[0])
+            with LibraryIndex(self._db_path).reader() as reader:
+                return reader.run_outcome(run_uid)
+        except sqlite3.Error as exc:
+            raise IndexUnavailable(str(exc)) from exc
