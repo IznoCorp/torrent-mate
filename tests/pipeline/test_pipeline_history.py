@@ -355,6 +355,47 @@ class TestPipelineRunWriterFinalize:
         assert row["outcome"] == "killed"
 
 
+class TestPipelineRunWriterOutcome:
+    """``outcome()`` — the one read, which raises instead of guessing."""
+
+    def test_outcome_reads_the_row_running_then_final(self, tmp_path: Path) -> None:
+        """A row reads ``running`` until finalized, then its final outcome."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-o", trigger="web", dry_run=False, pid=1)
+        assert writer.outcome("uid-o") == "running"
+
+        writer.finalize("uid-o", "killed")
+
+        assert writer.outcome("uid-o") == "killed"
+
+    def test_outcome_of_a_missing_row_is_none(self, tmp_path: Path) -> None:
+        """No row under the uid: ``None``."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+
+        assert PipelineRunWriter(db_path).outcome("absent") is None
+
+    def test_outcome_without_a_store_is_none_and_creates_nothing(self, tmp_path: Path) -> None:
+        """A store that does not exist holds no row; the read does not create it."""
+        db_path = tmp_path / "library.db"
+
+        assert PipelineRunWriter(db_path).outcome("absent") is None
+        assert not db_path.exists()
+
+    def test_outcome_of_an_unreadable_store_raises(self, tmp_path: Path) -> None:
+        """A store without the table is unreadable: ``sqlite3.Error``, never a guessed ``None``."""
+        db_path = tmp_path / "library.db"
+        sqlite3.connect(str(db_path)).close()
+
+        try:
+            PipelineRunWriter(db_path).outcome("uid")
+        except sqlite3.Error:
+            return
+        raise AssertionError("an unreadable store answered as if it had no row")
+
+
 class TestPipelineRunWriterFailSoft:
     """Fail-soft tests — the writer must never raise."""
 

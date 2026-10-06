@@ -7,6 +7,7 @@ and exit codes the test chooses, the fake watcher half returns the inputs the te
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable, Collection
 
 from personalscraper.acquire.watcher import WatcherInput, WatcherOutput, WatcherState
 from personalscraper.app.supervisor.ids import RunUid
@@ -18,6 +19,10 @@ class FakeWorkerLauncher:
     Attributes:
         started: The uids started, in order.
         fail_with: When set, ``start`` raises it (no worker ever ran).
+        fail_times: How many starts raise ``fail_with``; ``None`` for every one.
+        on_start: Called with the uid at each start, before a process id is handed out (the
+            moment ``Popen`` would run), so a test can read the store then.
+        reaped: The ``keep`` sets each ``reap`` was handed.
     """
 
     def __init__(self, first_pid: int = 4000) -> None:
@@ -27,7 +32,10 @@ class FakeWorkerLauncher:
             first_pid: The process id the first started worker gets; the next ones count up.
         """
         self.started: list[RunUid] = []
-        self.fail_with: OSError | None = None
+        self.fail_with: BaseException | None = None
+        self.fail_times: int | None = None
+        self.on_start: Callable[[RunUid], None] | None = None
+        self.reaped: list[set[int]] = []
         self._next_pid = first_pid
         self._exits: dict[int, int] = {}
         self._pids: dict[RunUid, int] = {}
@@ -42,10 +50,14 @@ class FakeWorkerLauncher:
             The fake process id.
 
         Raises:
-            OSError: ``fail_with``, when set.
+            BaseException: ``fail_with``, while it is set and ``fail_times`` is not spent.
         """
-        if self.fail_with is not None:
+        if self.fail_with is not None and (self.fail_times is None or self.fail_times > 0):
+            if self.fail_times is not None:
+                self.fail_times -= 1
             raise self.fail_with
+        if self.on_start is not None:
+            self.on_start(uid)
         pid = self._next_pid
         self._next_pid += 1
         self.started.append(uid)
@@ -62,6 +74,14 @@ class FakeWorkerLauncher:
             The code, or ``None`` while the test has not ended it.
         """
         return self._exits.get(pid)
+
+    def reap(self, keep: Collection[int]) -> None:
+        """Record the process ids the supervisor still wants.
+
+        Args:
+            keep: The workers of the requests still running.
+        """
+        self.reaped.append(set(keep))
 
     def pid_of(self, uid: RunUid) -> int:
         """The process id *uid*'s worker was given.

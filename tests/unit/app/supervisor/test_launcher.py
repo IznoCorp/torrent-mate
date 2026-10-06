@@ -46,8 +46,8 @@ class TestStart:
 class TestExitCode:
     """How the launcher reports a child's end."""
 
-    def test_a_child_is_reported_once_it_exited_then_forgotten(self) -> None:
-        """A stub child exiting 7 is read as 7, then the launcher no longer knows it."""
+    def test_a_child_is_reported_until_it_is_reaped(self) -> None:
+        """A stub child exiting 7 is read as 7 at every peek; only a reap that no longer wants it forgets it."""
         launcher = ProcessWorkerLauncher()
         stub = subprocess.Popen([sys.executable, "-c", "raise SystemExit(7)"])  # noqa: S603 — a stub body
         launcher._children[stub.pid] = stub
@@ -58,7 +58,22 @@ class TestExitCode:
             code = launcher.exit_code(stub.pid)
 
         assert code == 7
+        assert launcher.exit_code(stub.pid) == 7, "a peek forgot the code before the supervisor saved it"
+        launcher.reap(keep={stub.pid})
+        assert launcher.exit_code(stub.pid) == 7, "a child still wanted was reaped"
+        launcher.reap(keep=set())
         assert launcher.exit_code(stub.pid) is None
+
+    def test_reap_keeps_a_child_that_still_runs(self) -> None:
+        """A child that has not exited stays tracked even when no request names it (its pid was never recorded)."""
+        launcher = ProcessWorkerLauncher()
+        running = MagicMock(pid=4321)
+        running.poll.return_value = None
+        launcher._children[4321] = running
+
+        launcher.reap(keep=set())
+
+        assert 4321 in launcher._children
 
     def test_a_process_it_did_not_start_is_unknown(self) -> None:
         """An adopted worker is not a child: no exit code, the supervisor judges it by its heartbeat."""

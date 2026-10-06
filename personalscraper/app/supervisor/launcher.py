@@ -5,8 +5,10 @@ personalscraper.app.supervisor.worker``): it is started in a session of its own,
 supervisor that started it (a PM2 restart never kills a run), and it learns WHICH request from its
 environment only (:data:`RUN_UID_ENV`): its argv carries no option.
 
-The launcher also reports the exit code of a worker it started itself; a worker adopted from a
-previous supervisor is not its child, and the supervisor judges it by its heartbeat instead.
+The launcher also reports the exit code of a worker it started itself, for as long as the
+supervisor wants it (:meth:`WorkerLauncher.reap` forgets it once its request is no longer
+running, so a save that failed can read the code again); a worker adopted from a previous
+supervisor is not its child, and the supervisor judges it by its pid and its heartbeat instead.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from collections.abc import Collection
 from typing import Final, Protocol
 
 from personalscraper.app.supervisor.ids import RunUid
@@ -42,19 +45,27 @@ class WorkerLauncher(Protocol):
             The worker's process id.
 
         Raises:
-            OSError: If no worker could be started.
+            Exception: If no worker could be started (an ``OSError`` from the system, mostly).
         """
         ...
 
     def exit_code(self, pid: int) -> int | None:
-        """The exit code of a worker this launcher started, once it has exited.
+        """The exit code of a worker this launcher started, once it has exited; reading it forgets nothing.
 
         Args:
             pid: The worker's process id.
 
         Returns:
             Its exit code (negative: the signal that killed it); ``None`` while it runs, or when
-            this launcher did not start it.
+            this launcher did not start it (or reaped it).
+        """
+        ...
+
+    def reap(self, keep: Collection[int]) -> None:
+        """Forget every exited worker but those in *keep*.
+
+        Args:
+            keep: The process ids of the workers whose requests still run (their codes are still wanted).
         """
         ...
 
@@ -88,7 +99,7 @@ class ProcessWorkerLauncher:
         return child.pid
 
     def exit_code(self, pid: int) -> int | None:
-        """The exit code of a child started here, once it has exited; it is then forgotten (reaped).
+        """The exit code of a child started here, once it has exited; it stays known until reaped.
 
         Args:
             pid: The worker's process id.
@@ -97,9 +108,16 @@ class ProcessWorkerLauncher:
             Its exit code; ``None`` while it runs, or when it is not a child of this launcher.
         """
         child = self._children.get(pid)
-        if child is None:
-            return None
-        code = child.poll()
-        if code is not None:
+        return None if child is None else child.poll()
+
+    def reap(self, keep: Collection[int]) -> None:
+        """Forget every exited child but those in *keep*; a child still running stays tracked.
+
+        A child whose pid was never recorded on its request (the supervisor died, or its save
+        failed) is not in *keep*, and is forgotten only once it has exited.
+
+        Args:
+            keep: The process ids of the workers whose requests still run.
+        """
+        for pid in [pid for pid, child in self._children.items() if pid not in keep and child.poll() is not None]:
             del self._children[pid]
-        return code

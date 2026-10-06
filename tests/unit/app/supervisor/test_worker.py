@@ -203,6 +203,24 @@ class TestLock:
         assert code == 1
         assert not (test_config.paths.data_dir / "pipeline.lock").exists()
 
+    def test_a_request_that_is_not_running_is_refused(self, store: AppStore, test_config: Config) -> None:
+        """A worker started for a request the supervisor did not admit runs nothing and never takes the lock."""
+        request = RunRequest.ask(RunKind.PIPELINE, RunTrigger.WEB, RunOptions(), AccountId("account-a"), 100.0)
+        store.runs.insert(request)
+        ran: list[RunUid] = []
+
+        code = worker.run_request(
+            request.uid,
+            config=test_config,
+            settings=None,  # type: ignore[arg-type]
+            store=store,
+            bodies=worker.Bodies(pipeline=lambda *_: ran.append(request.uid) or 0, rescrape=lambda *_: 0),
+        )
+
+        assert code == 1
+        assert ran == []
+        assert not (test_config.paths.data_dir / "pipeline.lock").exists()
+
 
 class TestHeartbeat:
     """The worker shows a sign of life while its body runs; the body knows nothing of it."""

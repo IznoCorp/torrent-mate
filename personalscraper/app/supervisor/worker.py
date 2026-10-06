@@ -33,7 +33,7 @@ from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.app.supervisor.execution import RunRecorder, RunRowFactory, execute_run, rescrape_item
 from personalscraper.app.supervisor.ids import RunUid
 from personalscraper.app.supervisor.launcher import LOST_LOCK_EXIT, RUN_UID_ENV
-from personalscraper.app.supervisor.model import HEARTBEAT_INTERVAL_S, RunKind, RunRequest, RunTrigger
+from personalscraper.app.supervisor.model import HEARTBEAT_INTERVAL_S, RequestState, RunKind, RunRequest, RunTrigger
 from personalscraper.conf.loader import load_config
 from personalscraper.config import get_settings
 from personalscraper.lock import acquire_pipeline_lock, release_lock, scrape_locks_dir_for
@@ -46,7 +46,8 @@ if TYPE_CHECKING:
 
 log = get_logger("app.supervisor.worker")
 
-#: The exit code of a worker that could not run its request (no uid, no request, a body that raised).
+#: The exit code of a worker that could not run its request (no uid, no request, a request that is
+#: not running, a body that raised).
 FAILED_EXIT: Final = 1
 
 #: A body: runs one request under the lock and returns its exit code.
@@ -262,12 +263,17 @@ def run_request(
 
     Returns:
         The body's exit code; :data:`LOST_LOCK_EXIT` when ``pipeline.lock`` is held (nothing ran);
-        :data:`FAILED_EXIT` when the request is unknown or the body raised.
+        :data:`FAILED_EXIT` when the request is unknown, not ``running`` (the supervisor saves
+        the admission before it starts the worker, so any other state means it did not admit
+        this run), or the body raised.
     """
     bodies = bodies if bodies is not None else Bodies()
     request = store.runs.get(uid)
     if request is None:
         log.error("worker.request_unknown", uid=uid)
+        return FAILED_EXIT
+    if request.state is not RequestState.RUNNING:
+        log.error("worker.request_not_running", uid=uid, state=request.state)
         return FAILED_EXIT
     data_dir = config.paths.data_dir
     lock_file = data_dir / "pipeline.lock"

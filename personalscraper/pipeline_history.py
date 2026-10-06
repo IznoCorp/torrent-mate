@@ -333,3 +333,29 @@ class PipelineRunWriter:
                 conn.close()
             except Exception:
                 pass
+
+    def outcome(self, run_uid: str) -> str | None:
+        """Read the outcome of one run's row — the one read of this writer, and the one that raises.
+
+        A supervisor settling a silent worker must tell « no row » from « unreadable now »: a
+        locked or broken store is retried, never taken for a missing row, so this read is not
+        fail-soft. A store that does not exist yet holds no row, and is not created.
+
+        Args:
+            run_uid: Unique run identifier.
+
+        Returns:
+            The row's ``outcome`` (``'running'`` while unfinished); ``None`` when no row has that uid.
+
+        Raises:
+            sqlite3.Error: If the store cannot be read (locked past the busy timeout, corrupt, unmigrated).
+        """
+        if not self._db_path.exists():
+            return None
+        conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+        try:
+            apply_pragmas(conn)
+            row = conn.execute("SELECT outcome FROM pipeline_run WHERE run_uid = ?", (run_uid,)).fetchone()
+        finally:
+            conn.close()
+        return None if row is None else str(row[0])
