@@ -12,29 +12,38 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
+import sqlite3
 from collections.abc import Callable, Iterator
-from typing import Any
+from typing import Any, Final
 
 import pytest
+from _repo_paths import DESIGN_SRC
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.ids import AccountId, RoleId
 from personalscraper.app.accounts.model import Account
+from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 from personalscraper.app.accounts.requirements import OPERATION_RIGHTS
 from personalscraper.app.accounts.rights import Public
-from personalscraper.app.idempotency.service import Claimed
+from personalscraper.app.idempotency.ids import ClaimId
+from personalscraper.app.idempotency.service import FINAL_REFUSALS, Claimed
 from personalscraper.app.services import AppServices
 from personalscraper.http_v1.idempotency import (
     IDEMPOTENCY_HEADER,
     IdempotencyRecorder,
     idempotency_guard,
-    request_fingerprint,
 )
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE
+from tests.conftest import LoggedEvents
+from tests.http_v1.test_authentication_routes import _PASSWORD, _with_password
 
 _UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+#: The client's ``FINAL_STATUSES`` set literal, its members one per line.
+_FINAL_STATUSES = re.compile(r"const FINAL_STATUSES = new Set\(\[(.*?)\]\);", re.DOTALL)
 
 
 def _services(client: TestClient) -> AppServices:
@@ -113,6 +122,17 @@ class TestReplay:
         assert first.json()["code"] == "role.name_taken"
         assert (second.status_code, second.json()) == (409, first.json())
 
+    def test_a_final_refusal_is_answered_from_the_store(self, v1_client: Callable[..., TestClient]) -> None:
+        """The world changed since the refusal: the replay still answers it, the write is not applied again."""
+        client = v1_client(role="admin")
+        taken_id = _create_role(client, None).json()["id"]
+        first = _create_role(client, "key-taken")
+        assert first.json()["code"] == "role.name_taken"
+        assert client.delete(f"/roles/{taken_id}").status_code == 200
+        second = _create_role(client, "key-taken")
+        assert (second.status_code, second.json()) == (409, first.json())
+        assert "Friends" not in _role_names(client)
+
     def test_without_a_key_every_send_applies(self, v1_client: Callable[..., TestClient]) -> None:
         """No key, no deduplication: a write sent twice is applied twice."""
         client = v1_client(role="admin")
@@ -132,14 +152,26 @@ class TestRefusals:
         assert response.json()["code"] == "request.key_reused"
         assert "Neighbours" not in _role_names(client)
 
+    def test_the_key_with_another_query_is_refused(self, v1_client: Callable[..., TestClient]) -> None:
+        """The same body under another query string is another request: 409 ``request.key_reused``."""
+        client = v1_client(role="admin")
+        assert _create_role(client, "key-query").status_code == 201
+        response = client.post(
+            "/roles?origin=outbox",
+            json={"name": "Friends", "rights": ["library.read"]},
+            headers={IDEMPOTENCY_HEADER: "key-query"},
+        )
+        assert response.status_code == 409
+        assert response.json()["code"] == "request.key_reused"
+        assert _role_names(client).count("Friends") == 1
+
     def test_a_duplicate_of_a_running_write_is_refused(self, v1_client: Callable[..., TestClient]) -> None:
         """While the first send still runs, the duplicate is refused ``request.in_progress`` and applies nothing."""
         client = v1_client(role="admin")
         body = json.dumps({"name": "Friends", "rights": ["library.read"]}).encode()
         account_id = _services(client).sessions.use(client.cookies[SESSION_COOKIE]).actor.account_id  # type: ignore[union-attr]
-        _services(client).idempotency.claim(
-            account_id, "key-run", "POST /roles", request_fingerprint("POST", "/roles", "", body)
-        )
+        idempotency = _services(client).idempotency
+        idempotency.claim(account_id, "key-run", "POST /roles", idempotency.fingerprint("POST", "/roles", "", body))
         response = client.post(
             "/roles", content=body, headers={IDEMPOTENCY_HEADER: "key-run", "content-type": "application/json"}
         )
@@ -220,6 +252,75 @@ class TestServerFailure:
         retried = _create_role(client, "key-retry")
         assert retried.status_code == 201
         assert _role_names(client).count("Friends") == 1
+
+    def test_residual_a_failure_after_the_commit_is_applied_again(
+        self, v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """RESIDUAL, pinned as it is: a 5xx raised after the write committed releases the key too.
+
+        Most 5xx roll back, so the claim is released on every one; a write that committed
+        before its 5xx is applied again by the retry. Here the second apply is refused on its
+        content (the name is taken); a write with no such guard would apply twice.
+        """
+        client = v1_client(role="admin")
+        roles = _services(client).roles
+        create_role = roles.create_role
+        applied: list[object] = []
+
+        def commit_then_fail(*args: Any, **kwargs: Any) -> Any:
+            """Create the role, then fail the first time only.
+
+            Args:
+                *args: The service call's positional arguments.
+                **kwargs: Its keyword arguments.
+
+            Returns:
+                The created role, from the second call on.
+
+            Raises:
+                RuntimeError: On the first call, after the role was created.
+            """
+            created = create_role(*args, **kwargs)
+            applied.append(created)
+            if len(applied) == 1:
+                raise RuntimeError("failed after the commit")
+            return created
+
+        monkeypatch.setattr(roles, "create_role", commit_then_fail)
+        assert _create_role(client, "key-late").status_code == 500
+        retried = _create_role(client, "key-late")
+        assert retried.json()["code"] == "role.name_taken"
+        assert _role_names(client).count("Friends") == 1
+
+
+class TestWhatIsKept:
+    """Only an answer that will not change is kept: a success or a final refusal."""
+
+    def test_the_kept_refusals_are_the_clients_final_statuses(self) -> None:
+        """The server keeps exactly the refusals the client's outbox drops as final (``query-client.ts``)."""
+        source = (DESIGN_SRC / "lib" / "query-client.ts").read_text(encoding="utf-8")
+        found = _FINAL_STATUSES.search(source)
+        assert found is not None, "FINAL_STATUSES not found in query-client.ts"
+        client_final = {int(status) for status in re.findall(r"^\s*(\d{3}),", found.group(1), re.MULTILINE)}
+        assert client_final
+        assert set(FINAL_REFUSALS) == client_final
+
+    def test_a_too_many_requests_is_not_kept(
+        self, v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A 429 says nothing of the write: once the window has passed, the same key applies it."""
+        client = v1_client(role="local-guest")
+        _with_password(client)
+        change = {"currentPassword": _PASSWORD, "newPassword": "A brand-new passphrase 7"}
+        services = _services(client)
+        monkeypatch.setattr(
+            services.credentials, "_password_limiter", SlidingWindowRateLimiter(max_attempts=0, window_seconds=60.0)
+        )
+        limited = client.put("/auth/password", json=change, headers={IDEMPOTENCY_HEADER: "key-limited"})
+        assert limited.status_code == 429
+        monkeypatch.setattr(services.credentials, "_password_limiter", SlidingWindowRateLimiter())
+        retried = client.put("/auth/password", json=change, headers={IDEMPOTENCY_HEADER: "key-limited"})
+        assert (retried.status_code, retried.json()) == (200, {"ok": True})
 
 
 #: A served route: an ``APIRoute``, or FastAPI's included-router context of one — both carry
@@ -328,13 +429,15 @@ class TestCoverage:
 class _RecordingService:
     """Stands in for the idempotency service: records what the recorder settles, in order."""
 
-    def __init__(self, events: list[str]) -> None:
+    def __init__(self, events: list[str], *, failing: str | None = None) -> None:
         """Share the event log.
 
         Args:
             events: Where each settlement and each sent message is logged.
+            failing: ``"complete"`` or ``"release"``: that call raises, as a store down would.
         """
         self.events = events
+        self._failing = failing
 
     def complete(self, claim: Claimed, status: int, body: bytes, content_type: str | None) -> None:
         """Log a completion.
@@ -344,7 +447,12 @@ class _RecordingService:
             status: The stored status.
             body: The stored body.
             content_type: The stored type.
+
+        Raises:
+            sqlite3.OperationalError: When completions fail.
         """
+        if self._failing == "complete":
+            raise sqlite3.OperationalError("database is locked")
         self.events.append(f"complete {status} {body!r} {content_type}")
 
     def release(self, claim: Claimed) -> None:
@@ -352,21 +460,27 @@ class _RecordingService:
 
         Args:
             claim: The claim.
+
+        Raises:
+            sqlite3.OperationalError: When releases fail.
         """
+        if self._failing == "release":
+            raise sqlite3.OperationalError("database is locked")
         self.events.append("release")
 
 
-def _run_recorder(inner: Callable[..., Any]) -> list[str]:
+def _run_recorder(inner: Callable[..., Any], *, failing: str | None = None) -> list[str]:
     """Run an inner ASGI application under :class:`IdempotencyRecorder`, logging what leaves.
 
     Args:
         inner: ``async (scope, receive, send)``; the claim is already in the request's state.
+        failing: The service call that raises (``"complete"`` or ``"release"``), if any.
 
     Returns:
         The settlements and the sent message types, in the order they happened.
     """
     events: list[str] = []
-    recorder = IdempotencyRecorder(inner, service=_RecordingService(events))  # type: ignore[arg-type]
+    recorder = IdempotencyRecorder(inner, service=_RecordingService(events, failing=failing))  # type: ignore[arg-type]
 
     async def receive() -> dict[str, Any]:
         """Answer an empty request body.
@@ -384,10 +498,38 @@ def _run_recorder(inner: Callable[..., Any]) -> list[str]:
         """
         events.append(f"sent {message['type']}")
 
-    scope = {"type": "http", "state": {"idempotency_claim": Claimed(claim_id="c1")}}
-    with contextlib.suppress(RuntimeError):
+    scope = {"type": "http", "state": {"idempotency_claim": Claimed(claim_id=ClaimId("c1"))}}
+    with contextlib.suppress(RuntimeError, asyncio.CancelledError):
         asyncio.run(recorder(scope, receive, send))  # type: ignore[arg-type]
     return events
+
+
+def _answering(status: int) -> Callable[..., Any]:
+    """An inner application answering one status with a JSON body.
+
+    Args:
+        status: The status answered.
+
+    Returns:
+        ``async (scope, receive, send)``.
+    """
+
+    async def inner(scope: Any, receive: Any, send: Any) -> None:
+        """Answer the status.
+
+        Args:
+            scope: The ASGI scope.
+            receive: The ASGI receive channel.
+            send: The ASGI send channel.
+        """
+        headers = [(b"content-type", b"application/json")]
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        await send({"type": "http.response.body", "body": b"{}"})
+
+    return inner
+
+
+_SENT: Final = ["sent http.response.start", "sent http.response.body"]
 
 
 class TestRecorder:
@@ -416,8 +558,8 @@ class TestRecorder:
             "sent http.response.body",
         ]
 
-    def test_an_answer_that_never_completes_releases_the_claim(self) -> None:
-        """The application fails mid-answer: nothing is stored, nothing half-sent, the retry applies."""
+    def test_an_answer_that_never_completes_keeps_the_claim(self) -> None:
+        """The application fails mid-answer, after the route ran: the claim stays for the take-over to arbitrate."""
 
         async def inner(scope: Any, receive: Any, send: Any) -> None:
             """Start an answer, then fail.
@@ -433,4 +575,47 @@ class TestRecorder:
             await send({"type": "http.response.start", "status": 200, "headers": []})
             raise RuntimeError("mid-answer")
 
-        assert _run_recorder(inner) == ["release"]
+        assert _run_recorder(inner) == []
+
+    def test_a_cancel_after_the_route_keeps_the_claim(self) -> None:
+        """A shutdown cancels the request once its write committed: nothing releases the key to a second apply."""
+
+        async def inner(scope: Any, receive: Any, send: Any) -> None:
+            """Start an answer, then be cancelled.
+
+            Args:
+                scope: The ASGI scope.
+                receive: The ASGI receive channel.
+                send: The ASGI send channel.
+
+            Raises:
+                asyncio.CancelledError: Always, mid-answer.
+            """
+            await send({"type": "http.response.start", "status": 201, "headers": []})
+            raise asyncio.CancelledError
+
+        assert _run_recorder(inner) == []
+
+    def test_a_failed_store_still_answers_and_keeps_the_claim(self, logged_events: LoggedEvents) -> None:
+        """The answer cannot be stored: the client still gets it, the claim stays running, an error is logged."""
+        with logged_events() as logs:
+            events = _run_recorder(_answering(201), failing="complete")
+        assert events == _SENT
+        assert [log["log_level"] for log in logs if log["event"] == "idempotency_store_failed"] == ["error"]
+
+    @pytest.mark.parametrize("status", [401, 403, 408, 423, 429, 500, 503])
+    def test_an_answer_that_may_change_releases_the_claim(self, status: int) -> None:
+        """Neither a success nor a final refusal: nothing is kept, the retry with the same key applies."""
+        assert _run_recorder(_answering(status)) == ["release", *_SENT]
+
+    @pytest.mark.parametrize("status", [200, 201, 204, 400, 404, 405, 409, 410, 415, 422])
+    def test_a_success_or_a_final_refusal_is_kept(self, status: int) -> None:
+        """The answers the client will not send again differently are kept for the replays."""
+        assert _run_recorder(_answering(status)) == [f"complete {status} b'{{}}' application/json", *_SENT]
+
+    def test_a_failed_release_still_answers(self, logged_events: LoggedEvents) -> None:
+        """The claim cannot be released: the client still gets the answer, an error is logged."""
+        with logged_events() as logs:
+            events = _run_recorder(_answering(503), failing="release")
+        assert events == _SENT
+        assert [log["log_level"] for log in logs if log["event"] == "idempotency_store_failed"] == ["error"]

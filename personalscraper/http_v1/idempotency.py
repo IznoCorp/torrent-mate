@@ -8,16 +8,16 @@ Two halves, both installed by ``create_v1_app`` and never by a route:
   run before the route matches. It claims the key, or raises :class:`IdempotentReplay`,
   answered with the stored answer before the route runs.
 - :class:`IdempotencyRecorder`, a pure ASGI layer outside ``ProblemOnCrash``: it reads the
-  answer of a request that claimed a key, every status included, and stores it before it
-  leaves — or, on a 5xx, releases the claim, so the retry applies.
+  answer of a request that claimed a key and stores it before it leaves when it will not
+  change (a success or a final refusal) — or releases the claim, so the retry applies.
 
-A public operation (the sign-in doors) is not guarded: no account scopes its key, and its
-answer's worth is the session cookie, which is never stored.
+A public operation (the sign-in doors ``signIn``, ``signInWithPlex``, ``startPlexSignIn``) is
+not guarded: no account scopes its key, its answer's worth is the session cookie, which is
+never stored, and the client never holds one offline.
 """
 
 from __future__ import annotations
 
-import hashlib
 from typing import Annotated, Final
 
 from fastapi import FastAPI, Header, Request
@@ -27,7 +27,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.errors import AppInternalError, RefusalCode
-from personalscraper.app.idempotency.service import Claimed, IdempotencyService, Replay
+from personalscraper.app.idempotency.service import Claimed, IdempotencyService, Replay, is_kept
 from personalscraper.logger import get_logger
 
 log = get_logger("http_v1.idempotency")
@@ -41,15 +41,13 @@ _KEY_MAX_LENGTH: Final = 255
 #: The request-state key a claim waits under for :class:`IdempotencyRecorder`.
 _CLAIM_STATE_KEY: Final = "idempotency_claim"
 
-#: The status from which an answer is not stored: the server failed, and nothing it did is
-#: known to have held.
-_SERVER_FAILURE: Final = 500
-
 _HEADER_DESCRIPTION: Final = (
     "Names this write. Sent again with the same request, the first answer is answered and "
     "nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; "
     "sent while the first is still running, it is refused 409 `request.in_progress`. "
-    "Kept 24 hours, per signed-in account."
+    "Kept 24 hours, per signed-in account. Only a success or a final refusal "
+    "(400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. "
+    "The public sign-in doors take none: they sign no account in, and are never held offline."
 )
 
 
@@ -68,25 +66,6 @@ class IdempotentReplay(Exception):
         """
         super().__init__("idempotent replay")
         self.replay = replay
-
-
-def request_fingerprint(method: str, path: str, query: str, body: bytes) -> str:
-    """Digest what makes two requests the same request.
-
-    Args:
-        method: The method, upper case.
-        path: The path.
-        query: The raw query string.
-        body: The raw body.
-
-    Returns:
-        The sha256 hex of the four, each length-prefixed so no two splits collide.
-    """
-    digest = hashlib.sha256()
-    for part in (method.encode(), path.encode(), query.encode(), body):
-        digest.update(len(part).to_bytes(8, "big"))
-        digest.update(part)
-    return digest.hexdigest()
 
 
 async def idempotency_guard(
@@ -123,13 +102,13 @@ async def idempotency_guard(
         raise AppInternalError("An idempotency key needs a signed-in account.", code=RefusalCode.INTERNAL)
     service: IdempotencyService = request.app.state.services.idempotency
     path = request.scope["path"]
-    fingerprint = request_fingerprint(request.method, path, request.url.query, await request.body())
+    fingerprint = service.fingerprint(request.method, path, request.url.query, await request.body())
     outcome = await run_in_threadpool(
         service.claim, signed_in.account_id, idempotency_key, f"{request.method} {path}", fingerprint
     )
     if isinstance(outcome, Replay):
         raise IdempotentReplay(outcome)
-    request.state.idempotency_claim = outcome
+    setattr(request.state, _CLAIM_STATE_KEY, outcome)
 
 
 def install_idempotency(app: FastAPI) -> None:
@@ -175,7 +154,23 @@ def _content_type(start: Message) -> str | None:
 
 
 class IdempotencyRecorder:
-    """Pure ASGI: stores the answer of a request that claimed a key, or releases its claim."""
+    """Pure ASGI: stores the answer of a request that claimed a key, or releases its claim.
+
+    The claim is settled only on a complete answer, and the answer always leaves:
+
+    - a success or a final refusal is stored before it leaves, so a crash once the client
+      has it never leaves the claim to be applied again;
+    - any other answer (401, 403, 408, 423, 429: nothing applied; a 5xx: taken as rolled
+      back) releases the claim, so the retry applies;
+    - a storage failure while settling is logged ``error`` and the answer forwarded anyway:
+      the claim stays running, and the take-over arbitrates;
+    - no complete answer (a crash mid-answer, a cancel at shutdown) settles nothing: the
+      route may have committed, so the claim stays running for the take-over.
+
+    Residuals, accepted and pinned by tests: a 5xx raised after the write committed
+    releases the claim and the retry applies the write again; a request still running past
+    the service's pending limit (300 s) is taken over and may be applied twice.
+    """
 
     def __init__(self, app: ASGIApp, *, service: IdempotencyService) -> None:
         """Wrap the application.
@@ -205,10 +200,7 @@ class IdempotencyRecorder:
         settled = False
 
         async def recording_send(message: Message) -> None:
-            """Forward one message; a claimed request's answer is stored BEFORE it leaves.
-
-            Stored first, so a crash after the client read the answer never leaves the claim
-            running to be taken over and applied a second time.
+            """Forward one message; a claimed request's answer is settled BEFORE it leaves.
 
             Args:
                 message: The ASGI message.
@@ -230,24 +222,25 @@ class IdempotencyRecorder:
             for kept in held:
                 await send(kept)
 
-        try:
-            await self.app(scope, receive, recording_send)
-        finally:
-            claim = state.get(_CLAIM_STATE_KEY)
-            if isinstance(claim, Claimed) and not settled:
-                # No complete answer left the application: nothing it did is known to have held.
-                await self._settle(claim, None, b"", None)
+        await self.app(scope, receive, recording_send)
 
-    async def _settle(self, claim: Claimed, status: int | None, body: bytes, content_type: str | None) -> None:
-        """Store a claimed request's answer, or release its claim when the server failed.
+    async def _settle(self, claim: Claimed, status: int, body: bytes, content_type: str | None) -> None:
+        """Store a claimed request's answer, or release its claim when the answer may change.
+
+        Never raises: a storage failure is logged and the claim left running, so the answer
+        still leaves and the write, which may have committed, is never released to a retry.
 
         Args:
             claim: The request's claim.
-            status: The answer's status, ``None`` when none started.
+            status: The answer's status.
             body: The answer's body.
             content_type: The answer's ``Content-Type``, if any.
         """
-        if status is None or status >= _SERVER_FAILURE:
-            await run_in_threadpool(self._service.release, claim)
-            return
-        await run_in_threadpool(self._service.complete, claim, status, body, content_type)
+        kept = is_kept(status)
+        try:
+            if kept:
+                await run_in_threadpool(self._service.complete, claim, status, body, content_type)
+            else:
+                await run_in_threadpool(self._service.release, claim)
+        except Exception:
+            log.error("idempotency_store_failed", status=status, kept=kept, exc_info=True)
