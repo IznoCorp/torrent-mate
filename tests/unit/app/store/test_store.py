@@ -16,6 +16,7 @@ from personalscraper.app.accounts.model import Account, Role
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.store.store import AppStore
+from personalscraper.core.sqlite import SqliteSchemaNewerError
 
 
 @pytest.fixture
@@ -141,3 +142,30 @@ class TestImmediate:
             raise RuntimeError("boom")
         assert store.accounts.account("account-alice") is None
         assert store.sessions.session(session_id) is None
+
+
+def test_an_app_db_newer_than_the_code_is_refused(tmp_path: Path) -> None:
+    """An ``app.db`` past the last app migration raises ``SqliteSchemaNewerError`` and stays as it was.
+
+    Args:
+        tmp_path: The test's temporary directory.
+    """
+    db_path = tmp_path / "app.db"
+    migrations = Path(__file__).parents[4] / "personalscraper" / "app" / "store" / "migrations"
+    newer = max(int(path.name.split("_")[0]) for path in migrations.glob("*.sql")) + 1
+    with sqlite3.connect(db_path) as seed:
+        seed.execute("CREATE TABLE written_by_a_newer_code (id INTEGER PRIMARY KEY)")
+        seed.execute(f"PRAGMA user_version = {newer}")
+    seed.close()
+    app_store = AppStore(db_path)
+
+    with pytest.raises(SqliteSchemaNewerError):
+        app_store.accounts.account("account-alice")
+
+    app_store.close()
+    assert list(tmp_path.glob("*.bak")) == []
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == newer
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        assert tables == {"written_by_a_newer_code"}
+    conn.close()

@@ -27,6 +27,7 @@ from personalscraper.core.sqlite.errors import (
     SqliteInvalidPathError,
     SqliteLockError,
     SqliteMigrationError,
+    SqliteSchemaNewerError,
 )
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "SqliteInvalidPathError",
     "SqliteLockError",
     "SqliteMigrationError",
+    "SqliteSchemaNewerError",
     "apply_migrations",
     "apply_pragmas",
     "db_lock",

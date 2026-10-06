@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.sqlite import SqliteSchemaNewerError
 from personalscraper.indexer.db import IndexerMigrationError, apply_migrations, open_db
 
 # ---------------------------------------------------------------------------
@@ -636,3 +637,30 @@ class TestMigration017ItemFacts:
         rows = conn.execute("SELECT version FROM schema_version WHERE version = 17").fetchall()
 
         assert rows == [(17,)]
+
+
+# ---------------------------------------------------------------------------
+# Test: a library.db written by a newer code is refused
+# ---------------------------------------------------------------------------
+
+
+class TestLibraryNewerThanCode:
+    """A ``library.db`` whose ``user_version`` is past the last indexer migration is not migrated."""
+
+    def test_refused_and_left_untouched(self, tmp_path: Path) -> None:
+        """``SqliteSchemaNewerError`` is raised and the store keeps its version, with no ``.bak``."""
+        db_path = tmp_path / "library.db"
+        conn = open_db(db_path, event_bus=EventBus())
+        apply_migrations(conn, MIGRATIONS_DIR)
+        newer = max(int(path.name.split("_")[0]) for path in MIGRATIONS_DIR.glob("*.sql")) + 1
+        conn.execute(f"PRAGMA user_version = {newer}")
+        schema_before = dump_schema(conn)
+
+        with pytest.raises(SqliteSchemaNewerError):
+            apply_migrations(conn, MIGRATIONS_DIR)
+
+        assert list(tmp_path.glob("*.bak")) == []
+        reopened = open_db(db_path, event_bus=EventBus())
+        assert _user_version(reopened) == newer
+        assert dump_schema(reopened) == schema_before
+        reopened.close()
