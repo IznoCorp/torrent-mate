@@ -22,8 +22,8 @@ SECURITY_HEADERS: Final[dict[str, str]] = {
 }
 
 #: The policy of v1 and of the design host: the origin alone, plus the closed list of what the
-#: interface shows from elsewhere — posters (TMDB, TVDB), avatars (plex.tv, which redirects to assets.plex.tv, and Gravatar) and the
-#: trailer embed (YouTube). No ``style-src`` or ``script-src`` of its own: no ``'unsafe-inline'``
+#: interface shows from elsewhere — posters (TMDB, TVDB), avatars (plex.tv, which redirects to
+#: assets.plex.tv, and Gravatar) and the trailer embed (YouTube). No ``style-src`` or ``script-src`` of its own: no ``'unsafe-inline'``
 #: anywhere, so a React ``style`` prop or a CSSOM assignment is allowed and an inline
 #: ``<style>``, ``<script>`` or ``style=""`` is not.
 CONTENT_SECURITY_POLICY: Final[str] = (
