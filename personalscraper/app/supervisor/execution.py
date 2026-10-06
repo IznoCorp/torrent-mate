@@ -26,7 +26,6 @@ from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.run_journal import LogTailHandler
 from personalscraper.subscribers.debug_log import DebugLogSubscriber
-from personalscraper.subscribers.rich_console import RichConsoleSubscriber
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -34,10 +33,12 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.app_context import AppContext
+    from personalscraper.core.event_bus import EventBus
     from personalscraper.pipeline_history import PipelineRunWriter
     from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
     from personalscraper.subscribers.plex import PlexSubscriber
     from personalscraper.subscribers.redis_stream import RedisEventPublisher
+    from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
 
 
@@ -132,7 +133,7 @@ class _RunSubscribers:
 
 
 def _build_subscribers(
-    app_context: AppContext,
+    event_bus: EventBus,
     config: Config,
     settings: Settings,
     *,
@@ -146,7 +147,7 @@ def _build_subscribers(
     """Wire the run's subscribers on the shared bus (they self-subscribe in their constructors).
 
     Args:
-        app_context: The run's application context, whose bus the subscribers join.
+        event_bus: The run's bus, which the subscribers join.
         config: Loaded configuration.
         settings: Loaded settings.
         console: Where the run prints; ``None`` builds no Rich subscriber.
@@ -168,6 +169,9 @@ def _build_subscribers(
     from personalscraper.subscribers.redis_stream import (  # noqa: PLC0415 — patched at source by tests
         build_redis_publisher,
     )
+    from personalscraper.subscribers.rich_console import (  # noqa: PLC0415 — patched at source by tests
+        RichConsoleSubscriber,
+    )
     from personalscraper.subscribers.telegram import TelegramSubscriber  # noqa: PLC0415 — patched at source by tests
 
     subs = _RunSubscribers()
@@ -177,20 +181,20 @@ def _build_subscribers(
     # suppress Rich / Telegram output.
     # Redis event publisher (gate on web.enabled, fail-soft — Redis down
     # must never block the pipeline boot).
-    subs.redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+    subs.redis_publisher = build_redis_publisher(event_bus, config.web)
     # Plex refresh trigger (plex-refresh D3), through the single owner
     # shared with the standalone ``personalscraper dispatch`` command so
     # both dispatch entry points behave identically. The token is the
     # gate, deliberately OUTSIDE ``--headless``: this one makes the
     # dispatched media visible in Plex rather than producing operator
     # output, so a cron run needs it exactly as much.
-    subs.plex = build_plex_subscriber(app_context.event_bus, settings)
+    subs.plex = build_plex_subscriber(event_bus, settings)
     if verbose:
-        subs.debug = DebugLogSubscriber(app_context.event_bus)
+        subs.debug = DebugLogSubscriber(event_bus)
     if not headless:
         if console is not None and not no_console:
             subs.rich = RichConsoleSubscriber(
-                app_context.event_bus,
+                event_bus,
                 console=console,
                 verbose=verbose,
                 dry_run=dry_run,
@@ -199,12 +203,12 @@ def _build_subscribers(
         if TelegramNotifier.is_configured(settings):
             tg_transport = HttpTransport(
                 TelegramNotifier.policy(settings.telegram_bot_token),
-                event_bus=app_context.event_bus,
+                event_bus=event_bus,
             )
             tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
-            subs.telegram = TelegramSubscriber(app_context.event_bus, tg_notifier)
+            subs.telegram = TelegramSubscriber(event_bus, tg_notifier)
             subs.acquisition_telegram = AcquisitionTelegramSubscriber(
-                app_context.event_bus,
+                event_bus,
                 notifier=tg_notifier,
                 enabled=config.notify.acquire_notify_enabled,
             )
@@ -303,7 +307,7 @@ def execute_run(
         # wins (the outer ``not headless`` gate prevents all subscriber
         # construction).
         subscribers = _build_subscribers(
-            app_context,
+            app_context.event_bus,
             config,
             settings,
             console=console,
