@@ -7,13 +7,15 @@ to show what was typed and pressed again to hide it.
    words, `aria-pressed="false"`, the field being `type="password"`.
 2. SHOWN: pressed, the field becomes `type="text"`, the button `aria-pressed="true"`, and the
    value is the one typed, the very same input node (never re-rendered).
-3. FOCUS AND CARET: pressed by a click while the field has the focus, the focus stays in the
+3. FOCUS AND CARET: pressed by a TAP (the context is a touch phone) while the field has the focus, the focus stays in the
    field and the caret where it was.
 4. HIDDEN AGAIN: pressed a second time, the field is `type="password"` again.
 5. SUBMIT: a submit leaves the field hidden, whichever way it ended.
 6. THE DISCLOSURE: closing the password form hides the value again.
-7. THE NAMED STATES: `signin-password-typed` and `signin-password-revealed` draw the two faces.
-8. WORDS: the label exists in French and in English.
+7. THE GATE RESTED: a revealed field, then the gate put back in its resting shape with the form open
+   (a Plex sign-in ended, the gate shown again), comes back hidden.
+8. THE NAMED STATES: `signin-password-typed` and `signin-password-revealed` draw the two faces.
+9. WORDS: the label exists in French and in English.
 """
 import asyncio
 import json
@@ -70,7 +72,7 @@ async def main():
         await page.evaluate("()=>{window.__fieldNode = document.querySelector('#loginform input[name=\"password\"]');}")
         await page.focus(FIELD)
         await page.evaluate("()=>document.querySelector('#loginform input[name=\"password\"]').setSelectionRange(3, 7)")
-        await page.click(TOGGLE)
+        await page.tap(TOGGLE)
         await page.wait_for_timeout(SETTLED)
         shown = await page.evaluate(READ)
         same = await page.evaluate(
@@ -81,14 +83,14 @@ async def main():
         journal.check("the focus stays in the field and the caret where it was",
                       shown["focused"] and shown["caret"] == [3, 7], str(shown))
 
-        await page.click(TOGGLE)
+        await page.tap(TOGGLE)
         await page.wait_for_timeout(SETTLED)
         hidden = await page.evaluate(READ)
         journal.check("pressed again, the field is hidden and the value kept",
                       hidden["type"] == "password" and hidden["pressed"] == "false" and hidden["value"] == SECRET,
                       str(hidden))
 
-        await page.click(TOGGLE)
+        await page.tap(TOGGLE)
         await page.fill('#loginform input[name="username"]', "someone@example.org")
         await page.click('[data-part="login/submit"]')
         await page.wait_for_timeout(ACTED + SETTLED)
@@ -98,7 +100,7 @@ async def main():
 
         await go("signin-password-open")
         await page.fill(FIELD, SECRET)
-        await page.click(TOGGLE)
+        await page.tap(TOGGLE)
         await page.click('[data-part="login/password-disclosure"]')
         await page.wait_for_timeout(SETTLED)
         await page.click('[data-part="login/password-disclosure"]')
@@ -106,6 +108,15 @@ async def main():
         reopened = await page.evaluate(READ)
         journal.check("closing the disclosure hides the value again",
                       reopened["type"] == "password" and reopened["pressed"] == "false", str(reopened))
+
+        await go("signin-password-open")
+        await page.fill(FIELD, SECRET)
+        await page.tap(TOGGLE)
+        await page.evaluate("()=>window.__entry.showSignIn(true, true)")
+        await page.wait_for_timeout(SETTLED)
+        rested = await page.evaluate(READ)
+        journal.check("the gate put back at rest with the form open comes back hidden",
+                      rested["type"] == "password" and rested["pressed"] == "false", str(rested))
 
         await go("signin-password-typed")
         typed = await page.evaluate(READ)

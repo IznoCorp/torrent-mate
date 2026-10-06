@@ -355,6 +355,9 @@ export function restGate(passwordOpen: boolean): void {
   if (unreachable) unreachable.hidden = true;
   const refusal = node("#loginerr");
   if (refusal) refusal.textContent = i18next.t("screens.gate.invalid");
+  // A GATE PUT BACK NEVER SHOWS WHAT WAS TYPED, even when the form comes back open: `setPasswordOpen` hides
+  // only on close, and a Plex sign-in can end with the field still revealed.
+  showPassword(false);
   setPasswordOpen(passwordOpen);
 }
 
