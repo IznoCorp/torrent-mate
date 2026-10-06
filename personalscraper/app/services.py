@@ -21,6 +21,7 @@ from personalscraper.app.store.store import AppStore
 from personalscraper.app.supervisor import (
     events as _supervisor_events,  # noqa: F401 — registers RunQueued, RunAdmitted, RunSettled
 )
+from personalscraper.app.supervisor.service import RunService
 from personalscraper.core.event_bus import EventBus
 
 if TYPE_CHECKING:
@@ -52,6 +53,7 @@ class AppServices:
         roles: The roles of the accounts screen.
         credentials: The sign-in doors' shared end, the passwords and the owner's machine acts.
         plex_sign_in: The Plex door.
+        runs: The in-process enqueue of a run or an item rescrape.
         owned_providers: The provider registry these services built for themselves, closed
             with them; ``None`` when the process handed its own over, which its owner closes.
     """
@@ -69,6 +71,7 @@ class AppServices:
     roles: RoleService
     credentials: CredentialService
     plex_sign_in: PlexSignInService
+    runs: RunService
     owned_providers: LazyProviders | None = None
 
     def close(self) -> None:
