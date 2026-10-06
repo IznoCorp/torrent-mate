@@ -30,7 +30,7 @@
    `theme.css`. Unlayered, these rules would beat every utility. */
 @layer base {
   /* login:font:start */
-  /* A file, never a `data:` URL: the pages are served under a
+  /* A file, never an inlined URL: the pages are served under a
      Content-Security-Policy whose `font-src` is the origin alone. The sign-in
      page is public, so the host serves `/fonts/` without a session. */
   @font-face {

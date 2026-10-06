@@ -584,7 +584,7 @@ class TestStart:
     ) -> None:
         """503 ``plex.unreachable``; no PIN stored."""
         plextv.down = True
-        refusal = _refusal(door.start)
+        refusal = _refusal(lambda: door.start(_CLIENT))
         assert isinstance(refusal, AppUnavailable)
         assert refusal.code is RefusalCode.PLEX_UNREACHABLE
         assert store.pins.pin(PIN_ID) is None
@@ -594,7 +594,7 @@ class TestStart:
     ) -> None:
         """No Plex server to check access against: 503 ``plex.server_unreachable`` before plex.tv is asked."""
         door = _build(store, plextv, None, clock, bus, None)
-        refusal = _refusal(door.start)
+        refusal = _refusal(lambda: door.start(_CLIENT))
         assert isinstance(refusal, AppUnavailable)
         assert refusal.code is RefusalCode.PLEX_SERVER_UNREACHABLE
         assert plextv.calls == []
@@ -606,7 +606,7 @@ class TestStart:
         door = _build(store, plextv, None, clock, bus, None)
         with logged_events() as logs:
             for _ in range(3):
-                _refusal(door.start)
+                _refusal(lambda: door.start(_CLIENT))
 
         assert [entry["event"] for entry in logs].count("plex_sign_in.no_server") == 1
 
@@ -615,13 +615,13 @@ class TestStart:
     ) -> None:
         """A door logger cached before a reconfiguration (a CLI run in the same worker) is still read."""
         door = _build(store, plextv, None, clock, bus, None)
-        _refusal(door.start)  # binds and caches the module logger on the current processor list
+        _refusal(lambda: door.start(_CLIENT))  # binds and caches the module logger on the current processor list
         session_processors = structlog.get_config()["processors"]
         # What every CLI run does through ``configure_logging``: a NEW processor list is configured.
         structlog.configure(processors=list(session_processors))
         try:
             with logged_events() as logs:
-                _refusal(_build(store, plextv, None, clock, bus, None).start)
+                _refusal(lambda: _build(store, plextv, None, clock, bus, None).start(_CLIENT))
         finally:
             structlog.configure(processors=session_processors)
 
@@ -1488,7 +1488,7 @@ class TestNoLeak:
                 texts += [repr(result), repr(store.accounts.plex_link(result.account.id))]
                 email_free += [repr(event) for event in published]
                 plextv.down = True
-                email_free.append(json.dumps(vars(_refusal(door.start)), default=str))
+                email_free.append(json.dumps(vars(_refusal(lambda: door.start(_CLIENT))), default=str))
                 plextv.down = False
                 none_door = _build(store, plextv, _Server("REDACTED-machine-9"), clock, bus, vault)
                 other = none_door.start(_CLIENT)

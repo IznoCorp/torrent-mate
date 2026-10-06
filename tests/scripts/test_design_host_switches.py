@@ -568,12 +568,12 @@ def test_the_sign_in_page_carries_the_address_that_was_asked_and_never_a_foreign
         after_refusal = ask(port, "/?refus=1&next=%2Fmediasheet%2F12")[2]
         foreign = ask(port, "/?refus=1&next=https%3A%2F%2Fevil.example%2F")[2]
         slashes = ask(port, "//evil.example/x")[2]
-    assert b'"/mediasheet/12?tab=files"' in deep
-    assert b'"/mediasheet/12"' in after_refusal
+    assert b"&quot;/mediasheet/12?tab=files&quot;" in deep
+    assert b"&quot;/mediasheet/12&quot;" in after_refusal
     assert b"evil.example" not in foreign
     # Python's own server already folds a leading `//` of the request line into one `/`: whatever
     # reaches the page is a path, and never a scheme-relative address.
-    assert b'"//' not in slashes
+    assert b"&quot;//" not in slashes
 
 
 # Drives the page's submit under node: `status` and `code` are what v1's login answers.
