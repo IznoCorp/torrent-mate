@@ -6,8 +6,10 @@ given hash, and that list filters completed torrents by the SEED_PURE tag.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -153,9 +155,35 @@ def test_seed_list_no_tagged_torrents_shows_empty():
 # ---------------------------------------------------------------------------
 
 
+# The destruction journal is a leaf (core.sqlite + the logger), not an indexer internal;
+# the purge's journal is wired in commands/seed.py.
+_SEED_ALLOWED_INDEXER_MODULES = frozenset({"personalscraper.indexer.destructive_journal"})
+
+
+def _forbidden_seed_imports(source: str) -> list[str]:
+    """Return the indexer or pipeline modules *source* imports, the allowed journal aside."""
+    import ast
+
+    forbidden: list[str] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.ImportFrom):
+            modules = [node.module or ""]
+        elif isinstance(node, ast.Import):
+            modules = [alias.name for alias in node.names]
+        else:
+            continue
+        for module in modules:
+            if module in _SEED_ALLOWED_INDEXER_MODULES:
+                continue
+            if "indexer" in module or "pipeline" in module:
+                forbidden.append(module)
+    return forbidden
+
+
 def test_seed_module_does_not_import_indexer():
-    """commands/seed.py must not import indexer or pipeline internals."""
+    """commands/seed.py must not import indexer or pipeline internals (the leaf journal aside)."""
     import importlib
+    import pathlib
     import sys
 
     # Remove cached module if already imported
@@ -165,15 +193,15 @@ def test_seed_module_does_not_import_indexer():
 
     mod = importlib.import_module("personalscraper.commands.seed")
     src = mod.__file__ or ""
-    import ast
-    import pathlib
+    assert _forbidden_seed_imports(pathlib.Path(src).read_text()) == []
 
-    tree = ast.parse(pathlib.Path(src).read_text())
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            module = getattr(node, "module", "") or ""
-            assert "indexer" not in module, f"Forbidden import of indexer in {module}"
-            assert "pipeline" not in module, f"Forbidden import of pipeline in {module}"
+
+def test_seed_import_guard_still_refuses_other_indexer_and_pipeline_modules():
+    """Control: the one exemption is the journal; any other indexer module, or pipeline, is still refused."""
+    assert _forbidden_seed_imports("from personalscraper.indexer.db import open_db\n") == ["personalscraper.indexer.db"]
+    assert _forbidden_seed_imports("import personalscraper.indexer.deletion\n") == ["personalscraper.indexer.deletion"]
+    assert _forbidden_seed_imports("from personalscraper.pipeline import Pipeline\n") == ["personalscraper.pipeline"]
+    assert _forbidden_seed_imports("from personalscraper.indexer.destructive_journal import OP_DELETE\n") == []
 
 
 # ---------------------------------------------------------------------------
@@ -364,3 +392,194 @@ def test_seed_list_without_scope_shows_every_seed_pure_torrent(monkeypatch):
     assert "Movie.bb" in output
     assert "Movie.aa" in output
     assert "Movie.cc" in output
+
+
+# ---------------------------------------------------------------------------
+# purge
+# ---------------------------------------------------------------------------
+
+
+def _invoke_purge(args, config, app_context, monkeypatch, *, env="staging"):
+    """Run ``seed purge`` with *app_context* behind a mocked ``per_step_boundary``.
+
+    Args:
+        args: The arguments after ``seed purge``.
+        config: The Config placed in ``ctx.obj`` (and returned by the patched loader).
+        app_context: What the boundary yields.
+        monkeypatch: Pytest's monkeypatch, used to set ``PERSONALSCRAPER_ENV``.
+        env: The environment; ``None`` unsets it.
+
+    Returns:
+        ``(result, mock_boundary)``.
+    """
+    from personalscraper.cli_state import AppCtx
+
+    app = _make_app()
+    if env is None:
+        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    else:
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", env)
+    with (
+        patch("personalscraper.conf.loader.load_config", return_value=config),
+        patch("personalscraper.commands.seed.per_step_boundary") as mock_boundary,
+        patch("personalscraper.commands.seed.cli_helpers.get_settings", return_value=MagicMock()),
+    ):
+        mock_boundary.return_value.__enter__ = MagicMock(return_value=app_context)
+        mock_boundary.return_value.__exit__ = MagicMock(return_value=False)
+        result = runner.invoke(app, ["seed", "purge", *args], obj=AppCtx(config=config, config_override=None))
+    return result, mock_boundary
+
+
+def _fake_context(client="fake"):
+    """Return an app context with a mock client, a mock store and a real bus."""
+    from types import SimpleNamespace
+
+    from personalscraper.core.event_bus import EventBus
+
+    return SimpleNamespace(
+        torrent_client=MagicMock() if client == "fake" else None,
+        acquire=SimpleNamespace(store=MagicMock()),
+        event_bus=EventBus(),
+    )
+
+
+@pytest.mark.parametrize("env", [None, "prod", "dev"])
+def test_seed_purge_outside_staging_exits_2_before_any_client(monkeypatch, env):
+    """Outside ``staging`` the command exits 2 with a message and never builds the client."""
+    with patch("personalscraper.commands.seed.purge_preprod_downloads") as purge:
+        result, boundary = _invoke_purge([], MagicMock(), _fake_context(), monkeypatch, env=env)
+    assert result.exit_code == 2, result.output
+    assert result.output.strip()
+    boundary.assert_not_called()
+    purge.assert_not_called()
+
+
+def test_seed_purge_passes_dry_run_and_max_and_prints_one_line_per_decision(monkeypatch):
+    """``--dry-run --max 3`` reach the purge; each decision is one line with its verdict code."""
+    from personalscraper.acquire.preprod_purge import PurgeDecision, PurgeVerdict
+
+    decisions = [
+        PurgeDecision("aaaa", "Release.A", PurgeVerdict.PURGED, 1),
+        PurgeDecision("bbbb", "Release.B", PurgeVerdict.KEPT_UNKNOWN, None),
+    ]
+    ctx = _fake_context()
+    with patch("personalscraper.commands.seed.purge_preprod_downloads", return_value=decisions) as purge:
+        result, _ = _invoke_purge(["--dry-run", "--max", "3"], MagicMock(), ctx, monkeypatch)
+    assert result.exit_code == 0, result.output
+    kwargs = purge.call_args.kwargs
+    assert (kwargs["dry_run"], kwargs["max_purged"]) == (True, 3)
+    assert purge.call_args.args[:2] == (ctx.acquire.store, ctx.torrent_client)
+    lines = result.output.splitlines()
+    assert any("purged" in line and "aaaa" in line and "Release.A" in line for line in lines)
+    assert any("kept_unknown" in line and "bbbb" in line for line in lines)
+
+
+def test_seed_purge_defaults_to_a_real_run_capped_at_20(monkeypatch):
+    """Without options the purge runs for real with a cap of 20."""
+    with patch("personalscraper.commands.seed.purge_preprod_downloads", return_value=[]) as purge:
+        result, _ = _invoke_purge([], MagicMock(), _fake_context(), monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert (purge.call_args.kwargs["dry_run"], purge.call_args.kwargs["max_purged"]) == (False, 20)
+
+
+def test_seed_purge_refuses_a_cap_below_one(monkeypatch):
+    """``--max 0`` is a usage error."""
+    with patch("personalscraper.commands.seed.purge_preprod_downloads") as purge:
+        result, _ = _invoke_purge(["--max", "0"], MagicMock(), _fake_context(), monkeypatch)
+    assert result.exit_code == 2
+    purge.assert_not_called()
+
+
+def test_seed_purge_without_client_exits_1(monkeypatch):
+    """No torrent client configured: exit 1, no purge."""
+    with patch("personalscraper.commands.seed.purge_preprod_downloads") as purge:
+        result, _ = _invoke_purge([], MagicMock(), _fake_context(client=None), monkeypatch)
+    assert result.exit_code == 1, result.output
+    purge.assert_not_called()
+
+
+def test_seed_purge_guard_refusal_exits_2(monkeypatch):
+    """A scope refusal from the purge exits 2 with its message."""
+    from personalscraper.conf.sandbox_guard import SandboxGuardError
+
+    refusal = SandboxGuardError("the client scope's category is empty")
+    with patch("personalscraper.commands.seed.purge_preprod_downloads", side_effect=refusal):
+        result, _ = _invoke_purge([], MagicMock(), _fake_context(), monkeypatch)
+    assert result.exit_code == 2, result.output
+    assert "category is empty" in result.output
+
+
+def test_seed_purge_client_failure_exits_1(monkeypatch):
+    """A client that cannot list exits 1."""
+    from personalscraper.api.torrent._errors import TorrentClientError
+
+    with patch("personalscraper.commands.seed.purge_preprod_downloads", side_effect=TorrentClientError("down", 0)):
+        result, _ = _invoke_purge([], MagicMock(), _fake_context(), monkeypatch)
+    assert result.exit_code == 1, result.output
+
+
+def test_seed_purge_journals_each_purge_in_the_preprod_library_db(tmp_path, monkeypatch):
+    """A real purge writes one ``destructive_op`` row, actor ``preprod-purge``, in ``library-staging.db``."""
+    import sqlite3
+    from types import SimpleNamespace
+
+    from personalscraper.acquire.domain import SeedObligation
+    from personalscraper.acquire.store import build_acquire_store
+    from personalscraper.conf import sandbox_guard
+    from personalscraper.conf.models.acquire import AcquireConfig
+    from personalscraper.core.event_bus import EventBus
+    from personalscraper.indexer import migrations as migrations_pkg
+    from personalscraper.indexer.db import apply_migrations
+    from tests.acquire.test_preprod_purge import FakeClient, Roots, _config, _item
+
+    roots = Roots(tmp_path)
+    config = _config(roots)
+    library_db = roots.data / "library-staging.db"
+    conn = sqlite3.connect(str(library_db), isolation_level=None)
+    apply_migrations(conn, Path(migrations_pkg.__file__).parent)
+    conn.close()
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+    store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire-staging.db"))
+    try:
+        store.seed.add(SeedObligation("aaaa", "c411", 259_200, 1.0, 5, satisfied_at=10))
+        item = _item(roots, "aaaa")
+        client = FakeClient([item])
+        ctx = SimpleNamespace(torrent_client=client, acquire=SimpleNamespace(store=store), event_bus=EventBus())
+        result, _ = _invoke_purge([], config, ctx, monkeypatch)
+        assert result.exit_code == 0, result.output
+        assert client.deleted == [("aaaa", True)]
+        conn = sqlite3.connect(str(library_db))
+        try:
+            rows = conn.execute("SELECT op, path, actor FROM destructive_op").fetchall()
+        finally:
+            conn.close()
+        assert rows == [("delete", str(item.content_path), "preprod-purge")]
+    finally:
+        store.close()
+
+
+def test_seed_purge_never_creates_a_missing_library_db(tmp_path, monkeypatch):
+    """Without ``library-staging.db`` the purge still runs and the journal creates no database file."""
+    from types import SimpleNamespace
+
+    from personalscraper.acquire.domain import SeedObligation
+    from personalscraper.acquire.store import build_acquire_store
+    from personalscraper.conf import sandbox_guard
+    from personalscraper.conf.models.acquire import AcquireConfig
+    from personalscraper.core.event_bus import EventBus
+    from tests.acquire.test_preprod_purge import FakeClient, Roots, _config, _item
+
+    roots = Roots(tmp_path)
+    config = _config(roots)
+    monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+    store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire-staging.db"))
+    try:
+        store.seed.add(SeedObligation("aaaa", "c411", 259_200, 1.0, 5, satisfied_at=10))
+        client = FakeClient([_item(roots, "aaaa")])
+        ctx = SimpleNamespace(torrent_client=client, acquire=SimpleNamespace(store=store), event_bus=EventBus())
+        result, _ = _invoke_purge([], config, ctx, monkeypatch)
+        assert result.exit_code == 0, result.output
+        assert client.deleted == [("aaaa", True)]
+        assert not (roots.data / "library-staging.db").exists()
+    finally:
+        store.close()
