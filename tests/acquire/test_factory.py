@@ -9,6 +9,7 @@ import pytest
 
 from personalscraper.acquire._ports import AcquireStore as AcquireStoreProtocol
 from personalscraper.acquire.store import ConcreteAcquireStore
+from tests.fixtures.torrent_scope import SCOPE, SCOPED_TORRENT_CONFIG, UNSCOPED_TORRENT_CONFIG
 
 
 class TestBuildAcquireContext:
@@ -240,3 +241,29 @@ class TestBuildAcquireContext:
         # TrackerEconomyConfig instance from the provider config.
         assert ctx.delete_authority._economy == {"tr4ker": econ}
         assert "c411" not in ctx.delete_authority._economy
+
+    def test_delete_authority_carries_the_active_client_scope(self, tmp_path: Path) -> None:
+        """A scoped active client reaches the DeleteAuthority, so record_dispatch reads only its category."""
+        from personalscraper.acquire._factory import build_acquire_context
+
+        config = self._minimal_config(tmp_path)
+        config.torrent = SCOPED_TORRENT_CONFIG
+
+        with patch("personalscraper.acquire._factory.build_tracker_registry") as mock_build:
+            mock_build.return_value = MagicMock()
+            ctx = build_acquire_context(config, MagicMock(), event_bus=MagicMock(), cb_policy=MagicMock())
+
+        assert ctx.delete_authority._scope == SCOPE
+
+    def test_delete_authority_is_unscoped_without_a_client_scope(self, tmp_path: Path) -> None:
+        """No scope on the active client: the DeleteAuthority reads the whole client, as before."""
+        from personalscraper.acquire._factory import build_acquire_context
+
+        config = self._minimal_config(tmp_path)
+        config.torrent = UNSCOPED_TORRENT_CONFIG
+
+        with patch("personalscraper.acquire._factory.build_tracker_registry") as mock_build:
+            mock_build.return_value = MagicMock()
+            ctx = build_acquire_context(config, MagicMock(), event_bus=MagicMock(), cb_policy=MagicMock())
+
+        assert ctx.delete_authority._scope is None

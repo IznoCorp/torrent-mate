@@ -29,6 +29,7 @@ from rich.table import Table
 
 from personalscraper import cli_helpers
 from personalscraper.acquire.obligations import DEFAULT_SEED_RULE, sweep_obligations
+from personalscraper.api.torrent._base import scoped
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.commands._cli_run_row import cli_run_row
@@ -136,7 +137,7 @@ def seed_list(ctx: typer.Context) -> None:
                 "[red]" + t("cli_acquisition.seed.error_label") + "[/red] " + t("cli_acquisition.seed.no_client")
             )
             raise typer.Exit(code=1)
-        torrents = app_context.torrent_client.get_completed()
+        torrents = scoped(app_context.torrent_client.get_completed(), config.torrent.active_scope())
         seed_pure_torrents = [x for x in torrents if SEED_PURE in (getattr(x, "tags", None) or [])]
         log.info("seed_list", total=len(torrents), seed_pure=len(seed_pure_torrents))
         if not seed_pure_torrents:

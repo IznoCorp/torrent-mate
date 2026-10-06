@@ -18,6 +18,7 @@ class TestIngestProgress:
     @staticmethod
     def _make_config() -> MagicMock:
         config = MagicMock()
+        config.torrent.active_scope.return_value = None  # no client scope: the whole client
         config.paths.staging_dir = MagicMock()
         config.paths.data_dir = Path(
             tempfile.mkdtemp()

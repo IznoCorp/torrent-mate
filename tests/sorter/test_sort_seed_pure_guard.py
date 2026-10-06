@@ -25,6 +25,16 @@ from personalscraper.models import SortResult
 from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
+from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY,
+    OTHER_CATEGORY_HASH,
+    PREPROD_HASH,
+    PROD_HASH,
+    SCOPED_TORRENT_CONFIG,
+    UNSCOPED_TORRENT_CONFIG,
+    shared_client,
+    torrent,
+)
 
 
 def _make_config(tmp_path: Path, *, verify_seed_pure: bool = False) -> Config:
@@ -251,3 +261,45 @@ def test_run_sort_guard_fail_soft_on_client_error(tmp_path: Path, flag: bool) ->
     _, kwargs = MockSorter.return_value.process.call_args
     assert kwargs["skip_names"] == frozenset()
     assert report.error_count == 0
+
+
+def _seed_pure_names_for(torrent_config: object, tmp_path: Path) -> frozenset[str]:
+    """Run the sort guard over a shared client whose torrents are all seed-pure.
+
+    Args:
+        torrent_config: The ``config.torrent`` section the run reads its scope from.
+        tmp_path: Pytest temporary directory.
+
+    Returns:
+        The skip-name set the guard handed to ``Sorter.process``.
+    """
+    config = _make_config(tmp_path, verify_seed_pure=True).model_copy(update={"torrent": torrent_config})
+    _seed_ingest(config, "some_item.mkv")
+    client = shared_client()
+    for item in client.get_completed.return_value:
+        item.tags = [SEED_PURE]
+    with patch("personalscraper.sorter.run.Sorter") as MockSorter:
+        MockSorter.return_value.process.return_value = []
+        run_sort(
+            MagicMock(),
+            staging_dir=config.paths.staging_dir,
+            config=config,
+            event_bus=EventBus(),
+            torrent_client=client,
+        )
+    return MockSorter.return_value.process.call_args.kwargs["skip_names"]
+
+
+def test_run_sort_under_scope_guards_only_its_own_torrents(tmp_path: Path) -> None:
+    """Under a scope the other instance's seed-pure names are not in the skip set."""
+    assert _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path) == {torrent(PREPROD_HASH, "tm-preprod").name}
+
+
+def test_run_sort_without_scope_guards_every_seed_pure_torrent(tmp_path: Path) -> None:
+    """Characterisation: no scope, every seed-pure name is in the skip set."""
+    names = _seed_pure_names_for(UNSCOPED_TORRENT_CONFIG, tmp_path)
+    assert names == {
+        torrent(PREPROD_HASH, "tm-preprod").name,
+        torrent(PROD_HASH, None).name,
+        torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY).name,
+    }
