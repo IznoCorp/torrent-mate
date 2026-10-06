@@ -65,6 +65,9 @@ def prepare_scratch() -> None:
     shutil.copytree(design / "src", SCRATCH / "src")
     (SCRATCH / "node_modules").symlink_to(design / "node_modules")
     (SCRATCH / "assets").symlink_to(design / "assets")
+    # The classic scripts and the typeface the document names by absolute URL (`vite.config.mjs` links them).
+    (SCRATCH / "boot").symlink_to(design / "boot")
+    (SCRATCH / "fonts").symlink_to(design / "fonts")
     # And whatever the tree reaches for OUTSIDE itself, found by reading the
     # sources rather than by naming one file here: a name typed into this rule
     # is a second copy of the guard's list, and it would rot the day a second

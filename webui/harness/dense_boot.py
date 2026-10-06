@@ -61,6 +61,9 @@ def prepare_scratch() -> None:
     shutil.copytree(design / "src", SCRATCH / "src")
     (SCRATCH / "node_modules").symlink_to(design / "node_modules")
     (SCRATCH / "assets").symlink_to(design / "assets")
+    # The classic scripts and the typeface the document names by absolute URL (`vite.config.mjs` links them).
+    (SCRATCH / "boot").symlink_to(design / "boot")
+    (SCRATCH / "fonts").symlink_to(design / "fonts")
     # What the tree reaches for OUTSIDE itself — `mocks/declared-status.ts`
     # imports the contract from the repository's `contract/`, outside the
     # design root. Found by reading the sources, never by naming one file
