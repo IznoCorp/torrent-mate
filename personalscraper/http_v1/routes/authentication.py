@@ -46,6 +46,10 @@ _SIGN_IN_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
 #: its limiter on wrong current passwords.
 _CHANGE_OWN_PASSWORD_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
 
+#: ``startPlexSignIn``'s refusals: the Problem answers of every operation and the 429 of
+#: its limiter on PINs asked per client.
+_START_PLEX_SIGN_IN_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
+
 
 #: ``signInWithPlex``'s answers besides its 200: the 202 while the PIN is unclaimed, and the
 #: Problem answers of every operation.
@@ -116,7 +120,7 @@ def sign_in(
     operation_id="startPlexSignIn",
     response_model=StartedPlexSignInModel,
     status_code=200,
-    responses=PROBLEM_RESPONSES,
+    responses=_START_PLEX_SIGN_IN_RESPONSES,
 )
 def start_plex_sign_in(
     request: Request,
@@ -126,14 +130,15 @@ def start_plex_sign_in(
     """Create a Plex PIN, bind it to this browser by the pin cookie, and answer plex.tv's page.
 
     Args:
-        request: The incoming request (the web configuration).
+        request: The incoming request (the client's key, the web configuration).
         response: The answer the pin cookie is set on.
         app_services: The application services.
 
     Returns:
         The PIN and plex.tv's page where the person confirms it.
     """
-    started = app_services.plex_sign_in.start()
+    client_key = rate_limit_key(request.client.host if request.client else None, request.headers.get("x-forwarded-for"))
+    started = app_services.plex_sign_in.start(client_key)
     set_plex_pin_cookie(response, started.nonce, max_age=started.max_age_s, web=request.app.state.config.web)
     return StartedPlexSignInModel(pin_id=started.pin_id, sign_in_url=started.sign_in_url)
 

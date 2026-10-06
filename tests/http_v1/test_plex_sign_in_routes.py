@@ -23,6 +23,7 @@ from fastapi.testclient import TestClient
 
 from personalscraper.api.plex_account import PlexAccountClient
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
+from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
 from personalscraper.app.services import AppServices
 from personalscraper.conf.environment import Environment
 from personalscraper.http_v1.session_cookie import PLEX_PIN_COOKIE, SESSION_COOKIE
@@ -183,6 +184,25 @@ class TestStartPlexSignIn:
         assert response.status_code == 503
         assert response.json()["code"] == "plex.unreachable"
         assert PLEX_PIN_COOKIE not in _cookies(response)
+
+
+class TestStartPlexSignInRateLimit:
+    """``POST /auth/plex/start`` is limited per client, like the password door."""
+
+    def test_past_the_limit_the_start_is_a_429_problem(self, v1_client: Callable[..., TestClient]) -> None:
+        """The sixth start of the window is 429 ``auth.rate_limited``, with no pin cookie and no PIN asked."""
+        client = v1_client(role=None)
+        plextv, _ = _door(client)
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            assert client.post("/auth/plex/start").status_code == 200
+        asked = len(plextv.calls)
+
+        response = client.post("/auth/plex/start")
+
+        assert response.status_code == 429
+        assert response.json()["code"] == "auth.rate_limited"
+        assert PLEX_PIN_COOKIE not in _cookies(response)
+        assert len(plextv.calls) == asked
 
 
 class TestSignInWithPlex:

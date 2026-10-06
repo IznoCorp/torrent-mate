@@ -57,12 +57,14 @@ from personalscraper.app.accounts.events import AccountRightsChanged, RightsChan
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.accounts.model import Account, PlexLink, Role, StartKind
 from personalscraper.app.accounts.pin_repository import PlexPinRow
+from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.errors import (
     AppBadRequest,
     AppConflict,
     AppForbidden,
     AppInternalError,
+    AppTooManyRequests,
     AppUnauthenticated,
     AppUnavailable,
     RefusalCode,
@@ -164,6 +166,7 @@ class PlexSignInService:
         bus: EventBus,
         clock: Callable[[], float] = time.time,
         vault_keys_malformed: bool = False,
+        start_limiter: SlidingWindowRateLimiter | None = None,
     ) -> None:
         """Build the door; nothing is opened and plex.tv is not asked until the first call.
 
@@ -183,6 +186,8 @@ class PlexSignInService:
             clock: The epoch clock.
             vault_keys_malformed: Whether ``PLEX_TOKEN_KEYS`` was set but malformed, which left
                 the door with no vault: a token not kept is then a warning, not a choice.
+            start_limiter: The limiter of PINs asked per client; a new one, with the sign-in
+                door's budget, when ``None``.
         """
         self._store = store
         self._credentials = credentials
@@ -194,6 +199,7 @@ class PlexSignInService:
         self._forward_url = forward_url
         self._bus = bus
         self._clock = clock
+        self._start_limiter = start_limiter if start_limiter is not None else SlidingWindowRateLimiter()
         self._vault_keys_malformed = vault_keys_malformed
         self._no_server_logged = False
         self._client_lock = threading.Lock()
@@ -211,15 +217,23 @@ class PlexSignInService:
 
     # -- start ----------------------------------------------------------------
 
-    def start(self) -> PlexPinStarted:
+    def start(self, client_key: str) -> PlexPinStarted:
         """Create a PIN on plex.tv, keep it bound to a fresh nonce, and answer plex.tv's page.
 
         The PINs no sign-in can use any more — consumed, or past their expiry — are deleted first.
+        The start is public and every call asks plex.tv and writes a row, so each client may ask
+        only a few PINs a minute: every call that gets past the limit counts, as no failure
+        tells a start from another.
+
+        Args:
+            client_key: The key of the client asking, from ``rate_limit_key``.
 
         Returns:
             The PIN's id, plex.tv's page, the nonce for the pin cookie and the cookie's lifetime.
 
         Raises:
+            AppTooManyRequests: ``auth.rate_limited`` — ``client_key`` asked too many PINs in
+                the window; plex.tv is not asked.
             AppUnavailable: ``plex.server_unreachable`` — no Plex server is configured, so
                 nobody could be admitted (plex.tv is not asked); ``plex.unreachable`` —
                 plex.tv did not answer.
@@ -230,6 +244,10 @@ class PlexSignInService:
                 self._no_server_logged = True
                 log.warning("plex_sign_in.no_server")
             raise AppUnavailable("No Plex server is configured.", code=RefusalCode.PLEX_SERVER_UNREACHABLE)
+        if not self._start_limiter.allow(client_key):
+            log.warning("plex_sign_in.start_rate_limited", client_key=client_key)
+            raise AppTooManyRequests("Too many sign-in starts from this client.", code=RefusalCode.AUTH_RATE_LIMITED)
+        self._start_limiter.record_failure(client_key)
         client = self._client()
         try:
             pin = client.create_pin()
