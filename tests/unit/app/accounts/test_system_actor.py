@@ -1,11 +1,13 @@
 """Unit tests for ``CredentialService.system_actor``: who an unattended act is attributed to.
 
 The Plex server's owner, else the first Admin; with neither, the reserved ``system`` account,
-logged. The instance ceiling binds the actor.
+logged; an owner that cannot be named (several links, or a link whose account is gone) is logged
+and never stops the runs. The instance ceiling binds the actor.
 """
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -64,6 +66,29 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
         yield app_store
     finally:
         app_store.close()
+
+
+def _owner_link(account_id: str, plex_id: int) -> PlexLink:
+    """An owner link of an account.
+
+    Args:
+        account_id: The account holding it (it need not exist).
+        plex_id: The plex.tv identity, unique per link.
+
+    Returns:
+        The link.
+    """
+    return PlexLink(
+        account_id=account_id,
+        plex_id=plex_id,
+        plex_uuid=f"uuid-{plex_id}",
+        plex_username=f"plex-{plex_id}",
+        server_access="owner",
+        token_ciphertext=None,
+        token_stored_at=None,
+        linked_at=float(plex_id),
+        last_sign_in_at=None,
+    )
 
 
 def _service(store: AppStore, ceiling: InstanceCeiling = _NO_CEILING) -> CredentialService:
@@ -141,3 +166,53 @@ def test_the_instance_ceiling_binds_the_system_actor(store: AppStore) -> None:
     assert _service(store, _READ_ONLY).system_actor().ceiling == _READ_ONLY
     store.accounts.insert_account(_account("account-first", "First", "admin", 1.0))
     assert _service(store, _READ_ONLY).system_actor().ceiling == _READ_ONLY
+
+
+def test_several_owner_links_log_an_error_and_fall_back_to_the_first_admin(
+    store: AppStore, logged_events: LoggedEvents
+) -> None:
+    """A stale second owner link never raises: ERROR logged, the first Admin is attributed."""
+    store.accounts.insert_account(_account("account-first", "First", "admin", 1.0))
+    store.accounts.insert_account(_account("account-owner-a", "Owner A", "admin", 2.0))
+    store.accounts.insert_account(_account("account-owner-b", "Owner B", "admin", 3.0))
+    store.accounts.upsert_plex_link(_owner_link("account-owner-a", 1))
+    store.accounts.upsert_plex_link(_owner_link("account-owner-b", 2))
+
+    with logged_events() as events:
+        actor = _service(store).system_actor()
+
+    assert (actor.account_id, actor.role_kind) == (AccountId("account-first"), RoleKind.ADMIN)
+    assert [event["event"] for event in events].count("app.system_actor_ambiguous_owner") == 1
+    assert next(e for e in events if e["event"] == "app.system_actor_ambiguous_owner")["log_level"] == "error"
+
+
+def test_several_owner_links_with_no_admin_fall_back_to_the_system_account(store: AppStore) -> None:
+    """Ambiguous owner and no Admin account: the reserved ``system`` account."""
+    store.accounts.insert_account(_account("account-owner-a", "Owner A", "local-guest", 2.0))
+    store.accounts.insert_account(_account("account-owner-b", "Owner B", "local-guest", 3.0))
+    store.accounts.upsert_plex_link(_owner_link("account-owner-a", 1))
+    store.accounts.upsert_plex_link(_owner_link("account-owner-b", 2))
+
+    assert _service(store).system_actor().account_id == AccountId("system")
+
+
+def test_an_owner_link_whose_account_is_gone_is_logged_and_falls_back(
+    store: AppStore, tmp_path: Path, logged_events: LoggedEvents
+) -> None:
+    """The owner's account row is missing: logged, and the first Admin is attributed."""
+    store.accounts.insert_account(_account("account-first", "First", "admin", 1.0))
+    store.accounts.insert_account(_account("account-gone", "Gone", "admin", 2.0))
+    store.accounts.upsert_plex_link(_owner_link("account-gone", 1))
+    # A raw connection enforces no foreign key: the account goes, its link stays (a damaged file).
+    raw = sqlite3.connect(tmp_path / "app.db")
+    try:
+        raw.execute("DELETE FROM account WHERE id = 'account-gone'")
+        raw.commit()
+    finally:
+        raw.close()
+
+    with logged_events() as events:
+        actor = _service(store).system_actor()
+
+    assert actor.account_id == AccountId("account-first")
+    assert [event["event"] for event in events].count("app.system_actor_owner_account_missing") == 1

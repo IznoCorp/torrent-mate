@@ -235,16 +235,25 @@ class CredentialService:
         reserved ``system`` account, logged ``app.system_actor_unattributed``. The instance ceiling
         binds it, so a read-only instance refuses its writes.
 
+        An owner that cannot be named never stops the runs, attribution being no authority question
+        (the actor is Admin whoever it is attributed to): several owner links are logged at ERROR
+        (``app.system_actor_ambiguous_owner``) and an owner link whose account is gone
+        (``app.system_actor_owner_account_missing``), and both fall back to the first Admin, else
+        ``system``.
+
         Returns:
             An Admin actor under the current ceiling.
-
-        Raises:
-            AmbiguousOwner: Several accounts hold the owner link (see :meth:`owner_account_id`).
         """
         ceiling = self._ceiling()
         accounts = self._store.accounts
-        owner_id = self.owner_account_id()
+        try:
+            owner_id = self.owner_account_id()
+        except AmbiguousOwner:
+            log.error("app.system_actor_ambiguous_owner")
+            owner_id = None
         attributed = accounts.account(owner_id) if owner_id is not None else None
+        if owner_id is not None and attributed is None:
+            log.error("app.system_actor_owner_account_missing", account_id=owner_id)
         if attributed is None:
             admins = accounts.accounts_on_role(SYSTEM_ROLE_ID)
             attributed = accounts.account(admins[0]) if admins else None
