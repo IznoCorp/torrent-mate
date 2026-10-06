@@ -159,7 +159,8 @@ document; French inside an English one only quotes UI copy, media titles or the 
   (Pydantic `response_model`; a route change ⇒ `make openapi` and commit the generated
   `frontend/openapi.json` and `contract/openapi.generated.json`); the
   auth perimeter is the single `guarded_api` dependency (never a per-route `Depends(require_session)`);
-  maintenance write actions hold `pipeline.lock` for their runner's lifetime; `pipeline_run`
+  a run and a v1 rescrape start only under the supervisor's lease, and their worker holds `pipeline.lock` for its
+  lifetime; maintenance write actions still hold `pipeline.lock` for their runner's lifetime; `pipeline_run`
   timestamps are epoch `time.time()`; `GET /api/version` serves the boot-cached BUILD_COMMIT.
 
 ## Reference index (lazy-load)
