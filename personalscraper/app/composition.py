@@ -17,6 +17,7 @@ from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BUILD_INFO
+from personalscraper.app.idempotency.service import IdempotencyService
 from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import build_app_store
 from personalscraper.app.supervisor.service import RunService
@@ -433,6 +434,7 @@ def build_app_services(
         credentials=credentials,
         plex_sign_in=_build_plex_sign_in(config, settings, app_store, credentials, event_bus, plex),
         runs=RunService(store=app_store, data_dir=config.paths.data_dir),
+        idempotency=IdempotencyService(app_store),
         owned_providers=owned,
     )
 

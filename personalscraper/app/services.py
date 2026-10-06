@@ -17,6 +17,7 @@ from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BuildInfo
+from personalscraper.app.idempotency.service import IdempotencyService
 from personalscraper.app.store.store import AppStore
 from personalscraper.app.supervisor import (
     events as _supervisor_events,  # noqa: F401 — registers RunQueued, RunAdmitted, RunSettled
@@ -54,6 +55,7 @@ class AppServices:
         credentials: The sign-in doors' shared end, the passwords and the owner's machine acts.
         plex_sign_in: The Plex door.
         runs: The in-process enqueue of a run or an item rescrape.
+        idempotency: The v1 writes' idempotency keys and their first answers.
         owned_providers: The provider registry these services built for themselves, closed
             with them; ``None`` when the process handed its own over, which its owner closes.
     """
@@ -72,6 +74,7 @@ class AppServices:
     credentials: CredentialService
     plex_sign_in: PlexSignInService
     runs: RunService
+    idempotency: IdempotencyService
     owned_providers: LazyProviders | None = None
 
     def close(self) -> None:
