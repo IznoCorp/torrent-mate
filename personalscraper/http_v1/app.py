@@ -21,6 +21,7 @@ from personalscraper.app.accounts.rights import Public
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.http_v1.contract import PROBLEM_RESPONSES
 from personalscraper.http_v1.contract import V1_PREFIX as V1_PREFIX  # re-exported: v0 mounts v1 there
 from personalscraper.http_v1.idempotency import idempotency_guard, install_idempotency
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
@@ -35,6 +36,10 @@ _DOCUMENT_VERSION: Final = "0.1.0"
 
 #: The methods that write: a route taking one honours an ``Idempotency-Key``.
 _UNSAFE_METHODS: Final = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+#: What a write taking an ``Idempotency-Key`` may answer besides its own answers: the 409 of
+#: ``request.key_reused`` and ``request.in_progress``.
+_IDEMPOTENCY_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {409: PROBLEM_RESPONSES[409]}
 
 #: The schemas FastAPI adds for the 422 it declares on every operation with a body or a parameter.
 _VALIDATION_SCHEMAS: Final = ("HTTPValidationError", "ValidationError")
@@ -95,17 +100,22 @@ def include_v1_router(app: FastAPI, router: APIRouter) -> None:
 
     Each route is included on its own, in the module's order, so a write for a signed-in
     account carries :func:`~personalscraper.http_v1.idempotency.idempotency_guard` right
-    after the perimeter (it reads the account the perimeter resolves), and no other does.
+    after the perimeter (it reads the account the perimeter resolves), and no other does;
+    such a write declares the 409 the guard's refusals answer.
 
     Args:
         app: The v1 sub-application.
         router: The route module's router.
     """
     for route in router.routes:
-        dependencies = [Depends(v1_perimeter)]
         if _takes_idempotency_key(route):
-            dependencies.append(Depends(idempotency_guard))
-        app.include_router(APIRouter(routes=[route]), dependencies=dependencies)
+            app.include_router(
+                APIRouter(routes=[route]),
+                dependencies=[Depends(v1_perimeter), Depends(idempotency_guard)],
+                responses=_IDEMPOTENCY_RESPONSES,
+            )
+        else:
+            app.include_router(APIRouter(routes=[route]), dependencies=[Depends(v1_perimeter)])
 
 
 def create_v1_app(

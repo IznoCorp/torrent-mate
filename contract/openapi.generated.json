@@ -1776,7 +1776,7 @@
         "operationId": "createAccount",
         "parameters": [
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -1792,7 +1792,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -1909,7 +1909,7 @@
             }
           },
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -1925,7 +1925,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -2042,7 +2042,7 @@
             }
           },
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -2058,7 +2058,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -2124,6 +2124,16 @@
             },
             "description": "A refusal, answered as a Problem."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
           "500": {
             "content": {
               "application/json": {
@@ -2165,7 +2175,7 @@
             }
           },
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -2181,7 +2191,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -2247,6 +2257,16 @@
             },
             "description": "A refusal, answered as a Problem."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
           "500": {
             "content": {
               "application/json": {
@@ -2277,7 +2297,7 @@
         "operationId": "setOwnLanguage",
         "parameters": [
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -2293,7 +2313,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -2488,7 +2508,7 @@
         "operationId": "signOut",
         "parameters": [
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -2504,7 +2524,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -2669,7 +2689,7 @@
         "operationId": "changeOwnPassword",
         "parameters": [
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -2685,7 +2705,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -3135,7 +3155,7 @@
         "operationId": "deleteLibraryItems",
         "parameters": [
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -3151,7 +3171,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -3855,7 +3875,7 @@
             }
           },
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -3871,7 +3891,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -3918,6 +3938,16 @@
             "description": "A refusal, answered as a Problem."
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
             "content": {
               "application/json": {
                 "schema": {
@@ -4069,7 +4099,7 @@
         "operationId": "createRole",
         "parameters": [
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -4085,7 +4115,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -4192,7 +4222,7 @@
             }
           },
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -4208,7 +4238,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }
@@ -4313,7 +4343,7 @@
             }
           },
           {
-            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -4329,7 +4359,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account.",
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
               "title": "Idempotency-Key"
             }
           }

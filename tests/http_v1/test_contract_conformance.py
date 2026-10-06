@@ -22,6 +22,8 @@ never a failure here; an operation v1 serves is held to the contract strictly:
 - ``problem``   each refusal answers the contract's ``Problem``: the same property names
                 and types, at least its required ones, and only refusal codes the contract
                 declares (the contract's set is the whole interface's; v1's grows lot by lot);
+- ``idempotency`` an operation taking ``Idempotency-Key`` declares the 409 its refusals
+                ``request.key_reused`` and ``request.in_progress`` answer, on each side;
 - ``right``     the operation's ``OPERATION_RIGHTS`` entry asks what the contract's
                 ``x-rights`` asks, the ruled overrides applied; an override stands only
                 over a session act (``x-rights: null``).
@@ -35,6 +37,7 @@ equals what ``create_v1_app`` serves, so the parametrisation covers every served
 
 from __future__ import annotations
 
+import copy
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -57,6 +60,7 @@ _CONTRACT: Final = CONTRACT
 _SERVED: Final = SERVED_CONTRACT
 _METHODS: Final = ("get", "post", "put", "patch", "delete")
 _NULL: Final = {"type": "null"}
+_IDEMPOTENCY_HEADER: Final = "Idempotency-Key"
 
 
 @dataclass(frozen=True)
@@ -343,6 +347,20 @@ def _parameters(document: dict[str, Any], operation: dict[str, Any]) -> set[tupl
     return found
 
 
+def _keyed_without_conflict(document: dict[str, Any], operation: dict[str, Any]) -> bool:
+    """Whether an operation takes ``Idempotency-Key`` but does not declare the 409 it may answer.
+
+    Args:
+        document: The document the operation belongs to.
+        operation: One operation.
+
+    Returns:
+        True when the header is among its parameters and ``409`` is not among its answers.
+    """
+    keyed = any(name == _IDEMPOTENCY_HEADER for where, name, _ in _parameters(document, operation) if where == "header")
+    return keyed and "409" not in operation.get("responses", {})
+
+
 def _parameter_schemas(document: dict[str, Any], operation: dict[str, Any]) -> dict[tuple[str, str], Any]:
     """An operation's parameter schemas, keyed by ``(in, name)``.
 
@@ -445,6 +463,9 @@ def check_operation(
             "refusal",
             f"v1 lacks {sorted(wanted_refusals - have_refusals)}, v1 adds {sorted(have_refusals - wanted_refusals)}",
         )
+    for side, document, body in (("the contract", contract, wanted.body), ("v1", served, have.body)):
+        if _keyed_without_conflict(document, body):
+            record("idempotency", f"{side} takes {_IDEMPOTENCY_HEADER} but declares no 409")
     problem, _ = _SchemaDiff._resolve(contract, contract["components"]["schemas"]["Problem"])
     for code in sorted(have_refusals):
         answered, _ = _SchemaDiff._normal(served, _json_schema(served, have_answers[code]))
@@ -530,6 +551,20 @@ def test_committed_document_is_the_served_one(make_v1_app: Callable[..., FastAPI
 def test_served_operation_conforms(operation_id: str) -> None:
     """A served operation is the contract's, in every checked respect."""
     assert check_operation(_contract(), _served(), OPERATION_RIGHTS, operation_id) == []
+
+
+@pytest.mark.parametrize(
+    "operation_id",
+    sorted(
+        operation_id
+        for operation_id, operation in _operations(json.loads(_CONTRACT.read_text(encoding="utf-8"))).items()
+        if operation.method != "GET"
+    ),
+)
+def test_a_keyed_contract_operation_declares_its_conflict(operation_id: str) -> None:
+    """Every contract operation taking ``Idempotency-Key``, served or not yet, declares its 409."""
+    contract = _contract()
+    assert not _keyed_without_conflict(contract, _operations(contract)[operation_id].body)
 
 
 # ---------------------------------------------------------------------------
@@ -903,3 +938,12 @@ def test_detects_a_wrong_const() -> None:
 def test_detects_a_wrong_path() -> None:
     """``readVersion`` served at another path fails the address check."""
     assert _kinds(_planted(_version_router(path="/versions")), "readVersion") == {"address"}
+
+
+def test_detects_a_keyed_operation_without_its_conflict() -> None:
+    """``createRole`` taking the key with no 409 on either side fails the idempotency check alone."""
+    contract, served = copy.deepcopy(_contract()), copy.deepcopy(_served())
+    for document in (contract, served):
+        del _operations(document)["createRole"].body["responses"]["409"]
+    kinds = {violation.kind for violation in check_operation(contract, served, OPERATION_RIGHTS, "createRole")}
+    assert kinds == {"idempotency"}
