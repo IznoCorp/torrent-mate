@@ -117,12 +117,12 @@ def build_app_context(
     # No client configured (torrent.active="") → None, no error.
     torrent_client = None
     if build_torrent_client and config.torrent.active:
-        from personalscraper.api.metadata.registry import (  # noqa: PLC0415  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415
             ConfigIssue,
             RegistryConfigError,
             RegistryProviderName,
         )
-        from personalscraper.api.torrent import (  # noqa: PLC0415  # noqa: PLC0415
+        from personalscraper.api.torrent import (  # noqa: PLC0415
             TorrentAdder,
             build_active_torrent_client,
         )

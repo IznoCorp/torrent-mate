@@ -819,6 +819,20 @@ _EVENTS_PACKAGE_DIR = _PACKAGE_ROOT / "events"
 _EVENTS_SYNTHETIC_REL = "personalscraper/events/_synthetic_probe.py"
 
 
+def _in_type_checking_body(node: ast.AST, tree: ast.Module) -> bool:
+    """Return True if ``node`` sits in the BODY of an ``if TYPE_CHECKING:`` (its ``else:`` runs at runtime)."""
+    for top in ast.walk(tree):
+        if not isinstance(top, ast.If):
+            continue
+        test = top.test
+        if (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
+            isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+        ):
+            if any(child is node for statement in top.body for child in ast.walk(statement)):
+                return True
+    return False
+
+
 def _runtime_import_targets(source: str, rel: str) -> list[tuple[int, str, tuple[str, ...]]]:
     """Return the runtime ``personalscraper`` imports of ``source``, relative imports resolved.
 
@@ -846,7 +860,7 @@ def _runtime_import_targets(source: str, rel: str) -> list[tuple[int, str, tuple
             found = [(module, tuple(alias.name for alias in node.names))]
         else:
             continue
-        if _is_type_checking_block(node, tree):
+        if _in_type_checking_body(node, tree):
             continue
         targets.extend(
             (node.lineno, module, names)
@@ -882,6 +896,14 @@ def _private_engine_imports(source: str, rel: str, engine: frozenset[str]) -> li
     violations: list[str] = []
     for line, module, names in _runtime_import_targets(source, rel):
         segments = module.split(".")[1:]
+        if module == _PACKAGE_NAME:
+            # ``from personalscraper import _fs_utils`` reaches an engine module through a name.
+            violations.extend(
+                f"{rel}:{line}: imports the private engine module {_PACKAGE_NAME}.{name}"
+                for name in names
+                if name.startswith("_") and not name.startswith("__") and name in engine
+            )
+            continue
         if not segments or segments[0] not in engine:
             continue
         if any(segment.startswith("_") for segment in segments):
@@ -937,6 +959,37 @@ def test_app_private_engine_import_exemptions() -> None:
     assert _private_engine_imports(source, _APP_SYNTHETIC_REL, _engine_top_levels()) == []
 
 
+def test_app_private_engine_import_in_type_checking_else_is_flagged() -> None:
+    """POSITIVE control: the ``else:`` branch of ``if TYPE_CHECKING:`` runs at runtime, so it IS flagged."""
+    source = (
+        "from typing import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n"
+        "    pass\n"
+        "else:\n"
+        "    from personalscraper.core.sqlite._pragmas import apply_pragmas\n"
+    )
+    violations = _private_engine_imports(source, _APP_SYNTHETIC_REL, _engine_top_levels())
+    assert len(violations) == 1, "the TYPE_CHECKING else-branch exemption is back (vacuous guard!)"
+
+
+def test_app_private_engine_module_imported_as_a_name_is_flagged() -> None:
+    """POSITIVE control: an engine module imported as a ``_`` name from the package root IS flagged."""
+    engine = _engine_top_levels()
+    absolute = _private_engine_imports("from personalscraper import _fs_utils\n", _APP_SYNTHETIC_REL, engine)
+    assert len(absolute) == 1, "guard failed to flag 'from personalscraper import _fs_utils' (vacuous guard!)"
+    relative = _private_engine_imports("from . import _fs_utils\n", "personalscraper/_synthetic_probe.py", engine)
+    assert len(relative) == 1, "guard failed to flag the relative form of a private engine module"
+    dunder = _private_engine_imports("from personalscraper import __version__\n", _APP_SYNTHETIC_REL, engine)
+    assert dunder == [], "a dunder name of the package root must not be flagged"
+
+
+def test_app_private_engine_import_ignores_the_layering_marker() -> None:
+    """NEGATIVE control of the exemption: ``# layering: allow`` is NOT honoured, the import is still flagged."""
+    source = "from personalscraper.core.sqlite._pragmas import apply_pragmas  # layering: allow because reasons\n"
+    violations = _private_engine_imports(source, _APP_SYNTHETIC_REL, _engine_top_levels())
+    assert len(violations) == 1, "guard 1 honours the '# layering: allow' marker"
+
+
 def _persistence_imports(source: str, rel: str) -> list[str]:
     """Return the runtime imports of ``app.store`` or of an ``app`` module named ``*repository``.
 
@@ -955,9 +1008,7 @@ def _persistence_imports(source: str, rel: str) -> list[str]:
             if (
                 candidate == "personalscraper.app.store"
                 or candidate.startswith("personalscraper.app.store.")
-                or (
-                    candidate.startswith("personalscraper.app.") and candidate.rsplit(".", 1)[-1].endswith("repository")
-                )
+                or candidate.rsplit(".", 1)[-1].endswith("repository")
             ):
                 violations.append(f"{rel}:{line}: imports the persistence module {candidate}")
                 break
@@ -993,6 +1044,13 @@ def test_http_v1_repository_import_is_flagged() -> None:
     violations = _persistence_imports(source, _HTTP_V1_SYNTHETIC_REL)
     assert len(violations) == 1, "http_v1 -> repository guard failed to flag an import (vacuous guard!)"
     assert "personalscraper.app.accounts.repository" in violations[0]
+
+
+def test_http_v1_repository_import_outside_app_is_flagged() -> None:
+    """POSITIVE control: a ``*repository`` module outside ``app`` (the indexer's) IS flagged."""
+    source = "from personalscraper.indexer.repository import X\n"
+    violations = _persistence_imports(source, _HTTP_V1_SYNTHETIC_REL)
+    assert len(violations) == 1, "the repository arm is still limited to personalscraper.app (vacuous guard!)"
 
 
 def test_http_v1_persistence_import_exemptions() -> None:
