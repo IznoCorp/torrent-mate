@@ -238,6 +238,44 @@ class TestRunSortGuard:
         assert kwargs["skip_names"] == frozenset()
         assert report.error_count == 0
 
+    def test_run_sort_guard_on_no_client_says_so(self, tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
+        """Flag on but no client: the guard being off is logged once, and the sort still proceeds."""
+        config = _make_config(tmp_path, verify_seed_pure=True)
+        _seed_ingest(config, "some_item.mkv")
+
+        with patch("personalscraper.sorter.run.Sorter") as MockSorter, logged_events() as events:
+            MockSorter.return_value.process.return_value = []
+            run_sort(
+                MagicMock(),
+                staging_dir=config.paths.staging_dir,
+                config=config,
+                event_bus=EventBus(),
+                torrent_client=None,
+            )
+
+        off = [e for e in events if e["event"] == "sort.seed_pure_guard_off"]
+        assert len(off) == 1
+        assert off[0]["reason"] == "no_torrent_client"
+        assert off[0]["log_level"] == "warning"
+        MockSorter.return_value.process.assert_called_once()
+
+    def test_run_sort_guard_off_no_client_stays_silent(self, tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
+        """Flag off and no client: nothing to warn about."""
+        config = _make_config(tmp_path, verify_seed_pure=False)
+        _seed_ingest(config, "some_item.mkv")
+
+        with patch("personalscraper.sorter.run.Sorter") as MockSorter, logged_events() as events:
+            MockSorter.return_value.process.return_value = []
+            run_sort(
+                MagicMock(),
+                staging_dir=config.paths.staging_dir,
+                config=config,
+                event_bus=EventBus(),
+                torrent_client=None,
+            )
+
+        assert not [e for e in events if e["event"] == "sort.seed_pure_guard_off"]
+
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_run_sort_guard_fail_soft_on_client_error(tmp_path: Path, flag: bool) -> None:
