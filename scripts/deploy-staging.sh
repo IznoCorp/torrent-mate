@@ -10,8 +10,9 @@
 # records "branch @ sha" so what is live on staging is always verifiable via
 # GET /api/version.
 #
-# S1 is read-only, so staging against the real config/data is safe (KanbanMate
-# "no test board" rule).
+# Staging is the PREPROD (k2-prep DESIGN): its apps run in the `staging`
+# environment on their own overlay, secrets, data_dir and disk roots — see
+# ecosystem.config.js. This script restarts those apps alone, never one of prod's.
 #
 # Run this INSIDE the staging clone with the staging venv (TM_STAGING_VENV).
 #
@@ -26,6 +27,9 @@ cd "$REPO"
 # prod clone). Override with TM_STAGING_VENV if relocated.
 VENV="${TM_STAGING_VENV:-$HOME/staging/torrentmate-venv}"
 PORT=8711
+# The preprod's PM2 apps — exactly those of ecosystem.config.js whose env says
+# PERSONALSCRAPER_ENV=staging (tests/indexer/test_ecosystem.py holds the two equal).
+STAGING_APPS="torrentmate-web-staging,personalscraper-preprod-follow-detect,personalscraper-preprod-search,personalscraper-preprod-grab,personalscraper-preprod-seed-sweep,personalscraper-preprod-health-check,personalscraper-preprod-index-full,personalscraper-preprod-purge"
 HEALTH_URL="http://127.0.0.1:${PORT}/api/health"
 
 fail() { printf '\n❌ STAGING DEPLOYMENT REFUSED: %s\n' "$*" >&2; exit 1; }
@@ -77,12 +81,13 @@ printf '%s @ %s\n' "$branch" "$sha" > personalscraper/web/static/BUILD_COMMIT
 # ── Reinstall the backend into the staging venv (per-clone isolation) ─────────
 "$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . failed (broken venv? missing dependencies?)"
 
-# ── Start-or-restart the staging PM2 app (fail-soft) ──────────────────────────
-# startOrRestart (not restart): the first staging autodeploy must START the app
-# if it was never launched. Uses this clone's own ecosystem.config.js entry and
-# --update-env to pick up .env changes.
-if ! pm2 startOrRestart ecosystem.config.js --only torrentmate-web-staging --update-env >/dev/null 2>&1; then
-  printf 'ℹ pm2 startOrRestart torrentmate-web-staging failed — ecosystem.config.js missing, or the app misdeclared?\n' >&2
+# ── Start-or-restart the preprod's PM2 apps (fail-soft) ───────────────────────
+# startOrRestart (not restart): the first staging autodeploy must START the apps
+# if they were never launched. Uses this clone's own ecosystem.config.js entries
+# and --update-env to pick up their env; the scheduled loops restart with the web
+# so they run the code just installed.
+if ! pm2 startOrRestart ecosystem.config.js --only "$STAGING_APPS" --update-env >/dev/null 2>&1; then
+  printf 'ℹ pm2 startOrRestart of the preprod apps failed — ecosystem.config.js missing, or an app misdeclared?\n' >&2
 fi
 
 # ── Post-check: /api/health on the staging port → expect 200 ──────────────────
@@ -99,7 +104,7 @@ for i in $(seq 1 15); do
   [ "$i" -lt 15 ] && sleep 2
 done
 if $health_ok; then
-  printf '\n✅ staging deployed: %s @ %s\n   health %s → 200 · UI on 127.0.0.1:%s (REAL board, canonical config)\n' \
+  printf '\n✅ staging deployed: %s @ %s\n   health %s → 200 · UI on 127.0.0.1:%s (preprod, its own config)\n' \
     "$branch" "$sha" "$HEALTH_URL" "$PORT"
 else
   printf '\n⚠ staging deployed: %s @ %s — but health %s answered "%s" after 15 tries (30 s).\n   Check: pm2 logs torrentmate-web-staging\n' \
