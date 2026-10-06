@@ -18,7 +18,7 @@ function suggestionWith(posterHighDefinition: string): Schemas["Suggestion"] {
   return {
     title: "Silo",
     year: "2023",
-    kind: "Série",
+    kind: "Show",
     rating: 8,
     poster: "",
     posterHighDefinition,
