@@ -135,7 +135,16 @@ def run_sort(
     # seed-pure from the sort. Guarded by config.sort.verify_seed_pure and the
     # presence of a torrent client; fail-soft so the guard never aborts the sort.
     skip_names: frozenset[str] = frozenset()
-    if getattr(config, "sort", None) is not None and config.sort.verify_seed_pure and torrent_client is not None:
+    guard_on = getattr(config, "sort", None) is not None and config.sort.verify_seed_pure
+    if guard_on and torrent_client is None:
+        # The operator asked for the guard but no client is built (none active, or the active one is
+        # disabled): say so, since the sort proceeds without it.
+        log.warning(
+            "sort.seed_pure_guard_off",
+            reason="no_torrent_client",
+            consequence="sort proceeds without the seed-pure guard; ingest-skip remains the authoritative guardrail",
+        )
+    if guard_on and torrent_client is not None:
         try:
             completed = scoped(torrent_client.get_completed(), config.torrent.active_scope())
             skip_names = frozenset(t.name for t in completed if SEED_PURE in t.tags)

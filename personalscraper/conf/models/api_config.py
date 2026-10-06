@@ -307,6 +307,20 @@ class TorrentConfig(_StrictModel):
         entry = self.clients.get(self.active)
         return entry.scope if entry is not None else None
 
+    def active_client_disabled(self) -> bool:
+        """Tell whether the active client is configured but switched off.
+
+        The one decision behind « a disabled active client means no client »: the composition root
+        builds no client for it, so the supervisor admits runs without its watcher and a worker
+        starts. An empty or unknown ``active`` is not « disabled »: the first is no client already,
+        the second stays the factory's loud misconfiguration.
+
+        Returns:
+            True when ``active`` names a configured client whose ``enabled`` is false.
+        """
+        entry = self.clients.get(self.active)
+        return entry is not None and not entry.enabled
+
 
 # ---------------------------------------------------------------------------
 # Tracker config (DESIGN S8.4)

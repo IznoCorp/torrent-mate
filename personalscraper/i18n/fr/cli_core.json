@@ -69,7 +69,7 @@
   },
   "watch": {
     "disabled": "Le démon de surveillance est désactivé (config.watch.enabled=false).",
-    "no_client": "Aucun client torrent actif configuré (config.torrent.active est vide).",
+    "no_client": "Aucun client torrent actif : config.torrent.active est vide ou son client est désactivé.",
     "sentinel_written": "Sentinelle écrite : {{path}}",
     "sentinel_consumed": "Consommée par le démon de surveillance au prochain cycle -> exécution du pipeline avec reason=manual ; si le démon est arrêté, la sentinelle reste jusqu'au prochain démarrage.",
     "help": "Démarre le démon de surveillance (ordonnanceur à processus unique).\n\nInterroge le client torrent configuré à chaque cycle, consulte le moteur de décision\n:class:`~personalscraper.acquire.watcher.WatcherService`, et lance\n``personalscraper run --no-console`` (asynchrone, suivi) ou\n``personalscraper cross-seed --hash {{hash}}`` (synchrone, séquentiel) comme sous-processus.\nLe démon lui-même n'acquiert PAS ``pipeline.lock`` (W6) : seuls ses enfants le font.\n\nTourne jusqu'à SIGTERM, SIGINT ou une erreur fatale.",
