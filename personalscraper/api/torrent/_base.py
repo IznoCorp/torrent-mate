@@ -8,12 +8,18 @@ from __future__ import annotations
 import base64
 import hashlib
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.api.torrent._layout import TorrentLayout
+
+if TYPE_CHECKING:
+    from personalscraper.api.torrent._contracts import TorrentLister
+    from personalscraper.conf.models.api_config import TorrentScope
 
 # Maximum bencode nesting depth. A legitimate ``.torrent`` is shallow
 # (top-level dict → info dict → a few lists); anything deeper is adversarial
@@ -172,6 +178,39 @@ class TorrentLimits:
     seed_time_minutes: int | None = None
     up_bytes_per_s: int | None = None
     down_bytes_per_s: int | None = None
+
+
+def scoped(items: Iterable[TorrentItem], scope: TorrentScope | None) -> list[TorrentItem]:
+    """Keep the torrents an instance owns in a shared client.
+
+    Args:
+        items: Torrents as listed by the client.
+        scope: The instance's scope; ``None`` = the whole client (today).
+
+    Returns:
+        ``list(items)`` unchanged when *scope* is ``None``; else the items whose
+        ``category`` equals ``scope.category``.
+    """
+    if scope is None:
+        return list(items)
+    return [item for item in items if item.category == scope.category]
+
+
+def scoped_hashes(client: TorrentLister, scope: TorrentScope | None) -> set[str]:
+    """Return the info hashes an instance owns in a shared client.
+
+    Args:
+        client: A client answering ``get_all_hashes`` and ``get_by_hashes``.
+        scope: The instance's scope; ``None`` = the whole client (today).
+
+    Returns:
+        ``client.get_all_hashes()`` when *scope* is ``None`` (no per-torrent
+        lookup); else the hashes of the torrents in the scope's category.
+    """
+    hashes = client.get_all_hashes()
+    if scope is None or not hashes:
+        return hashes
+    return {item.hash for item in scoped(client.get_by_hashes(hashes), scope)}
 
 
 def _parse_magnet_hash(uri: str) -> str:

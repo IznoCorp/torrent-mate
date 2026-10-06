@@ -307,3 +307,58 @@ def test_seed_sweep_records_its_run_like_the_other_scheduled_jobs(tmp_path, test
     finally:
         conn.close()
     assert rows == [("seed-sweep", "maintenance", "success")]
+
+
+# ---------------------------------------------------------------------------
+# Client scope
+# ---------------------------------------------------------------------------
+
+
+def _seed_list_over_shared_client(monkeypatch, scope):
+    """Run ``seed list`` over a client whose two torrents are both seed-pure.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+        scope: The scope the active client resolves to (``None`` = whole client).
+
+    Returns:
+        The CLI output.
+    """
+    from personalscraper.conf.models.api_config import TorrentConfig
+    from personalscraper.core.tags import SEED_PURE
+    from tests.fixtures.torrent_scope import shared_client
+
+    monkeypatch.setattr(TorrentConfig, "active_scope", lambda self: scope)
+    client = shared_client()
+    for item in client.get_completed.return_value:
+        item.tags = [SEED_PURE]
+    obj_config = MagicMock()
+    obj_config.torrent = TorrentConfig()
+    mock_app_context = MagicMock()
+    mock_app_context.torrent_client = client
+    from personalscraper.cli_state import AppCtx
+
+    with (
+        patch("personalscraper.commands.seed.per_step_boundary") as mock_boundary,
+        patch("personalscraper.commands.seed.cli_helpers.get_settings", return_value=MagicMock()),
+    ):
+        mock_boundary.return_value.__enter__ = MagicMock(return_value=mock_app_context)
+        mock_boundary.return_value.__exit__ = MagicMock(return_value=False)
+        result = runner.invoke(_make_app(), ["seed", "list"], obj=AppCtx(config=obj_config, config_override=None))
+    return result.output
+
+
+def test_seed_list_under_scope_shows_only_its_own_torrents(monkeypatch):
+    """Under a scope the other instance's seed-pure torrent is not listed."""
+    from tests.fixtures.torrent_scope import SCOPE
+
+    output = _seed_list_over_shared_client(monkeypatch, SCOPE)
+    assert "Movie.bb" in output
+    assert "Movie.aa" not in output
+
+
+def test_seed_list_without_scope_shows_every_seed_pure_torrent(monkeypatch):
+    """Characterisation: no scope, both seed-pure torrents are listed."""
+    output = _seed_list_over_shared_client(monkeypatch, None)
+    assert "Movie.bb" in output
+    assert "Movie.aa" in output

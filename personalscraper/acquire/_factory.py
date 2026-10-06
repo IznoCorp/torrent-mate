@@ -117,6 +117,7 @@ def build_acquire_context(
         store=store,
         torrent_client=torrent_client,
         economy=economy,
+        scope=config.torrent.active_scope(),
     )
     # GrabCore is the single grab handle (orchestrator + service). It is built
     # ONLY here — the only frame holding registry + config.ranking +

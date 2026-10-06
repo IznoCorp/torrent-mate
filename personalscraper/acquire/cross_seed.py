@@ -19,7 +19,7 @@ from personalscraper.acquire._cross_seed_support import (
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.api._contracts import ApiError
-from personalscraper.api.torrent._base import TorrentItem, _bencode_info_hash, parse_torrent_layout
+from personalscraper.api.torrent._base import TorrentItem, _bencode_info_hash, parse_torrent_layout, scoped
 from personalscraper.api.torrent._layout import MatchVerdict, TorrentLayout, structural_match
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
@@ -572,7 +572,7 @@ class CrossSeedService:
         need_sleep = False  # Set after a quota-counted check(); never cleared.
 
         try:
-            completed = self._lister.get_completed()
+            completed = scoped(self._lister.get_completed(), self._config.torrent.active_scope())
         except Exception as exc:  # noqa: BLE001 — fail-soft, logged
             logger.error(
                 "acquire.cross_seed.sweep.lister_error",
@@ -657,7 +657,7 @@ class CrossSeedService:
             else ``None``.
         """
         try:
-            completed = self._lister.get_completed()
+            completed = scoped(self._lister.get_completed(), self._config.torrent.active_scope())
         except Exception as exc:  # noqa: BLE001 — fail-soft, logged
             logger.warning(
                 "acquire.cross_seed.lister_error",
@@ -824,6 +824,8 @@ class CrossSeedService:
         deadline = self._clock() + timeout_s
         while self._clock() < deadline:
             try:
+                # Deliberately unscoped: the injection carries no client category, so a scoped
+                # listing would never show it and the verification would always time out.
                 completed = self._lister.get_completed()
             except Exception as exc:  # noqa: BLE001 — fail-soft poll error
                 logger.warning(

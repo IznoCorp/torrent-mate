@@ -33,6 +33,7 @@ def torrents_list(ctx: typer.Context) -> None:
 
     Output format respects the global ``--format`` flag.
     """
+    from personalscraper.api.torrent._base import scoped, scoped_hashes  # noqa: PLC0415
     from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS  # noqa: PLC0415
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
 
@@ -52,8 +53,9 @@ def torrents_list(ctx: typer.Context) -> None:
             raise typer.Exit(2)
 
         try:
-            torrents = client.get_completed()
-            active_hashes = client.get_all_hashes()
+            scope = config.torrent.active_scope()
+            torrents = scoped(client.get_completed(), scope)
+            active_hashes = scoped_hashes(client, scope)
         except TORRENT_LISTING_ERRORS as exc:
             console.print("[yellow]" + t("cli_core.torrents.listing_failed_label") + "[/yellow] " + str(exc))
             raise typer.Exit(2) from exc

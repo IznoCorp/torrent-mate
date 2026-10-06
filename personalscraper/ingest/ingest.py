@@ -14,6 +14,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.api.torrent._base import scoped, scoped_hashes
 from personalscraper.api.torrent._errors import (
     TorrentAuthError,
     TorrentLockoutError,
@@ -358,8 +359,9 @@ def run_ingest(
 
     try:
         try:
-            torrents = client.get_completed()
-            active_hashes = client.get_all_hashes()
+            scope = config.torrent.active_scope()
+            torrents = scoped(client.get_completed(), scope)
+            active_hashes = scoped_hashes(client, scope)
             log.info("torrents_found", completed=len(torrents), total=len(active_hashes))
 
             tracker = IngestTracker(config.paths.data_dir / "ingested_torrents.json")

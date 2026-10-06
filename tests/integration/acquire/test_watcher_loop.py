@@ -17,6 +17,13 @@ from typer.testing import CliRunner
 
 from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.conf.models.watch_seed import CrossSeedConfig, WatchConfig
+from tests.fixtures.torrent_scope import (
+    PREPROD_HASH,
+    PROD_HASH,
+    SCOPED_TORRENT_CONFIG,
+    UNSCOPED_TORRENT_CONFIG,
+    shared_client,
+)
 
 # ---------------------------------------------------------------------------
 # autouse — reset the module-global _shutdown_requested before/after each test
@@ -80,6 +87,7 @@ def _make_watch_config(
         cross_seed=cross_seed_cfg,
         paths=SimpleNamespace(data_dir=tmp_path),
         web=SimpleNamespace(enabled=False),
+        torrent=UNSCOPED_TORRENT_CONFIG,
     )
 
 
@@ -1150,3 +1158,52 @@ def test_watch_now_help(tmp_path: Path) -> None:
         result = runner.invoke(app, ["watch-now", "--help"])
 
     assert result.exit_code == 0, f"watch-now --help failed:\n{result.output}"
+
+
+# ---------------------------------------------------------------------------
+# Client scope — one poll cycle reads only the instance's own category
+# ---------------------------------------------------------------------------
+
+
+def _poll_once(tmp_path: Path, torrent_config: Any, client: Any) -> Any:
+    """Run one poll cycle against *client* under the given ``config.torrent``.
+
+    Args:
+        tmp_path: Pytest temporary directory (the daemon data dir; no tracker file).
+        torrent_config: The ``config.torrent`` section the poll reads its scope from.
+        client: The torrent client to poll.
+
+    Returns:
+        The cycle's ``WatcherInput``.
+    """
+    from personalscraper.commands.watch import _poll  # noqa: PLC0415
+
+    config = MagicMock()
+    config.torrent = torrent_config
+    inp, _ = _poll(client, config, tmp_path, [], None, {})
+    assert inp is not None
+    return inp
+
+
+def test_poll_under_scope_sees_only_its_own_completed_torrent(tmp_path: Path) -> None:
+    """Under a scope the other instance's completed torrent is not in the cycle's input."""
+    inp = _poll_once(tmp_path, SCOPED_TORRENT_CONFIG, shared_client())
+    assert inp.completed_hashes == {PREPROD_HASH}
+
+
+def test_poll_without_scope_sees_every_completed_torrent(tmp_path: Path) -> None:
+    """Characterisation: no scope, both completed torrents are in the input."""
+    inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, shared_client())
+    assert inp.completed_hashes == {PREPROD_HASH, PROD_HASH}
+
+
+def test_poll_under_scope_counts_only_its_own_downloads(tmp_path: Path) -> None:
+    """Under a scope the other instance's running download does not hold the quiescence gate."""
+    inp = _poll_once(tmp_path, SCOPED_TORRENT_CONFIG, shared_client(progress=0.5))
+    assert inp.downloading_count == 1
+
+
+def test_poll_without_scope_counts_every_download(tmp_path: Path) -> None:
+    """Characterisation: no scope, both running downloads count."""
+    inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, shared_client(progress=0.5))
+    assert inp.downloading_count == 2

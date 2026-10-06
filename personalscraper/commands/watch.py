@@ -40,6 +40,7 @@ from personalscraper.acquire.watcher import (
     WatcherService,
     WatcherState,
 )
+from personalscraper.api.torrent._base import scoped, scoped_hashes
 from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS
 from personalscraper.app.composition import build_app_context
 from personalscraper.cli_app import command_with_telemetry
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.torrent._contracts import TorrentLister
+    from personalscraper.conf.models.api_config import TorrentScope
     from personalscraper.conf.models.config import Config
 
 log = get_logger(__name__)
@@ -221,20 +223,21 @@ def _read_ingested_hashes(tracker_path: Path) -> frozenset[str] | None:
     return frozenset(ingested_data.keys())
 
 
-def _poll_completed(torrent_client: TorrentLister) -> list[TorrentItem] | None:
+def _poll_completed(torrent_client: TorrentLister, scope: TorrentScope | None = None) -> list[TorrentItem] | None:
     """List completed torrents, guarding against transient client errors.
 
     W1: log, skip the cycle, never crash the daemon.
 
     Args:
         torrent_client: The active torrent client.
+        scope: The instance's scope in a shared client; ``None`` = the whole client.
 
     Returns:
         The completed torrents, or ``None`` when the client raised a
         recoverable listing error — meaning the caller must skip this cycle.
     """
     try:
-        return torrent_client.get_completed()
+        return scoped(torrent_client.get_completed(), scope)
     except TORRENT_LISTING_ERRORS:
         log.warning("watcher_poll_error", exc_info=True)
         return None
@@ -275,7 +278,9 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
     return not any(marker in state for marker in _INERT_STATE_MARKERS)
 
 
-def _poll_active_downloads(torrent_client: TorrentLister, completed_hashes: frozenset[str]) -> int | None:
+def _poll_active_downloads(
+    torrent_client: TorrentLister, completed_hashes: frozenset[str], scope: TorrentScope | None = None
+) -> int | None:
     """Count the torrents still actively downloading, or None on a client error.
 
     Reads the client's full hash set, subtracts what is already complete, and inspects
@@ -287,15 +292,16 @@ def _poll_active_downloads(torrent_client: TorrentLister, completed_hashes: froz
     Args:
         torrent_client: The active torrent client.
         completed_hashes: Hashes already known complete this cycle.
+        scope: The instance's scope in a shared client; ``None`` = the whole client.
 
     Returns:
         The count of in-progress downloads, or None when the cycle must be skipped.
     """
     try:
-        pending = {h for h in torrent_client.get_all_hashes() if h not in completed_hashes}
+        pending = {h for h in scoped_hashes(torrent_client, scope) if h not in completed_hashes}
         if not pending:
             return 0
-        return sum(1 for t in torrent_client.get_by_hashes(pending) if _is_actively_downloading(t))
+        return sum(1 for t in scoped(torrent_client.get_by_hashes(pending), scope) if _is_actively_downloading(t))
     except TORRENT_LISTING_ERRORS:
         log.warning("watcher_active_downloads_poll_error", exc_info=True)
         return None
@@ -387,7 +393,8 @@ def _poll(
         return None, last_deferred
 
     # 2. Completed torrents with error guard (W1).
-    completed = _poll_completed(torrent_client)
+    scope = config.torrent.active_scope()
+    completed = _poll_completed(torrent_client, scope)
     if completed is None:
         return None, last_deferred
 
@@ -397,7 +404,7 @@ def _poll(
     # 3a. Quiescence gate input (§14.3): how many downloads are still running. Same W1
     #     guard as the completed listing — deciding on a blind count would defeat the
     #     gate on the exact cycle the client hiccups.
-    downloading_count = _poll_active_downloads(torrent_client, completed_hashes)
+    downloading_count = _poll_active_downloads(torrent_client, completed_hashes, scope)
     if downloading_count is None:
         return None, last_deferred
 

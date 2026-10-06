@@ -19,6 +19,13 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.pipeline_events import ItemProgressed
+from tests.fixtures.torrent_scope import (
+    PREPROD_HASH,
+    PROD_HASH,
+    SCOPED_TORRENT_CONFIG,
+    UNSCOPED_TORRENT_CONFIG,
+    shared_client,
+)
 
 
 def _make_torrent(
@@ -85,6 +92,7 @@ def _run_ingest(
     )
 
     mock_config = MagicMock()
+    mock_config.torrent = UNSCOPED_TORRENT_CONFIG
     mock_config.ingest.min_ratio = min_ratio
     mock_config.paths.data_dir = Path("/tmp/test-ingest-seed-pure")
     mock_config.paths.staging_dir = Path("/tmp/test-staging")
@@ -182,6 +190,7 @@ def test_non_seed_pure_torrent_not_skipped_by_seed_check() -> None:
     mock_client.get_content_path.return_value = Path("/nonexistent/Normal.Movie.2024")
 
     mock_config = MagicMock()
+    mock_config.torrent = UNSCOPED_TORRENT_CONFIG
     mock_config.ingest.min_ratio = 0.0
     mock_config.paths.data_dir = Path("/tmp/test-no-seed-skip")
     mock_config.paths.staging_dir = Path("/tmp/test-staging")
@@ -237,6 +246,7 @@ def test_seed_pure_and_below_ratio_counted_once() -> None:
     mock_client.get_content_path.side_effect = AssertionError("should not reach content resolution")
 
     mock_config = MagicMock()
+    mock_config.torrent = UNSCOPED_TORRENT_CONFIG
     mock_config.ingest.min_ratio = 1.0  # ratio check will fire
     mock_config.paths.data_dir = Path("/tmp/test-order")
     mock_config.paths.staging_dir = Path("/tmp/test-staging")
@@ -266,3 +276,47 @@ def test_seed_pure_and_below_ratio_counted_once() -> None:
     seed_pure_events = [e for e in emitted if e.details.get("reason") == "seed_pure"]
     assert len(ratio_events) == 1, f"Expected 1 ratio_below_threshold event, got {ratio_events}"
     assert len(seed_pure_events) == 0, f"Expected 0 seed_pure events (ratio fired first), got {seed_pure_events}"
+
+
+# ---------------------------------------------------------------------------
+# Client scope — the ingest reads only its own category of a shared client
+# ---------------------------------------------------------------------------
+
+
+def _ingest_over_shared_client(torrent_config: object) -> MagicMock:
+    """Run a dry ingest over a client shared by two instances; return the client.
+
+    Args:
+        torrent_config: The ``config.torrent`` section the run reads its scope from.
+
+    Returns:
+        The mock client, whose ``get_content_path`` records which torrents were resolved.
+    """
+    client = shared_client()
+    client.get_content_path.return_value = Path("/nonexistent/Movie")
+    mock_config = MagicMock()
+    mock_config.torrent = torrent_config
+    mock_config.ingest.min_ratio = 0.0
+    mock_config.paths.data_dir = Path("/tmp/test-ingest-scope")
+    mock_config.paths.staging_dir = Path("/tmp/test-staging")
+    mock_config.thresholds.min_free_space_staging_gb = 0
+    with (
+        patch("personalscraper.ingest.ingest.staging_path", return_value=Path("/tmp/test-staging")),
+        patch("personalscraper.ingest.ingest.find_ingest_dir", return_value="000-INGEST"),
+        patch("personalscraper.ingest.ingest.IngestTracker") as mock_tracker_cls,
+    ):
+        mock_tracker_cls.return_value.is_ingested.return_value = False
+        run_ingest(MagicMock(), config=mock_config, event_bus=EventBus(), dry_run=True, torrent_client=client)
+    return client
+
+
+def test_ingest_under_scope_resolves_only_its_own_torrent() -> None:
+    """Under a scope the other instance's torrent never reaches content resolution."""
+    client = _ingest_over_shared_client(SCOPED_TORRENT_CONFIG)
+    assert [c.args[0].hash for c in client.get_content_path.call_args_list] == [PREPROD_HASH]
+
+
+def test_ingest_without_scope_resolves_every_completed_torrent() -> None:
+    """Characterisation: no scope, both torrents are resolved as today."""
+    client = _ingest_over_shared_client(UNSCOPED_TORRENT_CONFIG)
+    assert sorted(c.args[0].hash for c in client.get_content_path.call_args_list) == [PROD_HASH, PREPROD_HASH]

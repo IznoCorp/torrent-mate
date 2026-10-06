@@ -14,6 +14,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.api.torrent._base import scoped
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_ingest_dir, staging_path
@@ -136,7 +137,7 @@ def run_sort(
     skip_names: frozenset[str] = frozenset()
     if getattr(config, "sort", None) is not None and config.sort.verify_seed_pure and torrent_client is not None:
         try:
-            completed = torrent_client.get_completed()
+            completed = scoped(torrent_client.get_completed(), config.torrent.active_scope())
             skip_names = frozenset(t.name for t in completed if SEED_PURE in t.tags)
             if skip_names:
                 log.info("sort.seed_pure_guard_active", skipping=sorted(skip_names))
