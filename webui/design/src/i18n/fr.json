@@ -2315,7 +2315,9 @@
   "refusals": {
     "request": {
       "invalid": "La demande est mal formée : rien n'a été changé.",
-      "cross_origin": "Demande refusée : elle ne vient pas de cette interface."
+      "cross_origin": "Demande refusée : elle ne vient pas de cette interface.",
+      "key_reused": "Demande refusée : son identifiant a déjà servi à une autre action.",
+      "in_progress": "Cette action est encore en cours sur le serveur : elle sera renvoyée."
     },
     "route": {
       "unknown": "Cette action n'existe pas sur ce serveur."

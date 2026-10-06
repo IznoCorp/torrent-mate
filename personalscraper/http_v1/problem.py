@@ -29,6 +29,8 @@ log = get_logger("http_v1.problem")
 REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.REQUEST_INVALID: "The request is invalid.",
     RefusalCode.REQUEST_CROSS_ORIGIN: "The request comes from another origin.",
+    RefusalCode.REQUEST_KEY_REUSED: "The idempotency key was used for another request.",
+    RefusalCode.REQUEST_IN_PROGRESS: "The request with this idempotency key is still running.",
     RefusalCode.ROUTE_UNKNOWN: "No operation answers this method and path.",
     RefusalCode.INTERNAL: "The server failed.",
     RefusalCode.AUTH_REQUIRED: "A signed-in session is required.",

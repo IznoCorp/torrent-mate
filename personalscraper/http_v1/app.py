@@ -14,11 +14,16 @@ from contextlib import asynccontextmanager
 from typing import Any, Final
 
 from fastapi import APIRouter, Depends, FastAPI
+from fastapi.routing import APIRoute
 
+from personalscraper.app.accounts.requirements import OPERATION_RIGHTS
+from personalscraper.app.accounts.rights import Public
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.http_v1.contract import PROBLEM_RESPONSES
 from personalscraper.http_v1.contract import V1_PREFIX as V1_PREFIX  # re-exported: v0 mounts v1 there
+from personalscraper.http_v1.idempotency import idempotency_guard, install_idempotency
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
 from personalscraper.http_v1.routes import accounts, authentication, library, media, system
@@ -28,6 +33,13 @@ from personalscraper.http_v1.session_cookie import SessionActorResolver, Session
 #: move the committed ``contract/openapi.generated.json`` with every release. ``readVersion``
 #: serves the running version.
 _DOCUMENT_VERSION: Final = "0.1.0"
+
+#: The methods that write: a route taking one honours an ``Idempotency-Key``.
+_UNSAFE_METHODS: Final = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+#: What a write taking an ``Idempotency-Key`` may answer besides its own answers: the 409 of
+#: ``request.key_reused`` and ``request.in_progress``.
+_IDEMPOTENCY_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {409: PROBLEM_RESPONSES[409]}
 
 #: The schemas FastAPI adds for the 422 it declares on every operation with a body or a parameter.
 _VALIDATION_SCHEMAS: Final = ("HTTPValidationError", "ValidationError")
@@ -66,14 +78,44 @@ def _without_validation_answers(build: Callable[[], dict[str, Any]]) -> Callable
     return openapi
 
 
+def _takes_idempotency_key(route: object) -> bool:
+    """Whether a route writes for a signed-in account, and so honours an ``Idempotency-Key``.
+
+    A public door (signing in) is left out: no account scopes its key, and its answer's
+    worth is a session cookie, which is never stored.
+
+    Args:
+        route: One route of a route module's router.
+
+    Returns:
+        True for an API route taking a mutating method whose operation is not public.
+    """
+    if not isinstance(route, APIRoute) or not (route.methods or set()) & _UNSAFE_METHODS:
+        return False
+    return not isinstance(OPERATION_RIGHTS.get(route.operation_id or ""), Public)
+
+
 def include_v1_router(app: FastAPI, router: APIRouter) -> None:
     """Include one route module under the perimeter — the only way a v1 route is added.
+
+    Each route is included on its own, in the module's order, so a write for a signed-in
+    account carries :func:`~personalscraper.http_v1.idempotency.idempotency_guard` right
+    after the perimeter (it reads the account the perimeter resolves), and no other does;
+    such a write declares the 409 the guard's refusals answer.
 
     Args:
         app: The v1 sub-application.
         router: The route module's router.
     """
-    app.include_router(router, dependencies=[Depends(v1_perimeter)])
+    for route in router.routes:
+        if _takes_idempotency_key(route):
+            app.include_router(
+                APIRouter(routes=[route]),
+                dependencies=[Depends(v1_perimeter), Depends(idempotency_guard)],
+                responses=_IDEMPOTENCY_RESPONSES,
+            )
+        else:
+            app.include_router(APIRouter(routes=[route]), dependencies=[Depends(v1_perimeter)])
 
 
 def create_v1_app(
@@ -113,6 +155,8 @@ def create_v1_app(
     app.openapi = _without_validation_answers(app.openapi)  # type: ignore[method-assign]
     install_problem_handlers(app)
     app.add_middleware(ProblemOnCrash)
+    # Outside ``ProblemOnCrash``: a crash's 500 releases the key's claim instead of storing it.
+    install_idempotency(app)
     # Outermost: a renewed session's cookie rides even on the 500 ``ProblemOnCrash`` answers.
     app.add_middleware(SessionRenewalCookie, web=config.web)
     include_v1_router(app, authentication.router)
