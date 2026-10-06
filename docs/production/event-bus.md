@@ -157,13 +157,13 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 51 production event classes, almost all
+The v1 catalog defines exactly 52 production event classes, almost all
 imported eagerly by `personalscraper.events` (plus the registry events
 re-exported via `personalscraper.api.metadata.registry`) so they
 self-register before any envelope round-trip. The count is pinned by
-`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 51`).
+`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 52`).
 
-> **Exception — `VerifyItemDone`.** Unlike the other 50 classes,
+> **Exception — `VerifyItemDone`.** Unlike the other 51 classes,
 > `VerifyItemDone` is **not** in the eager-import list of
 > `personalscraper.events.__init__`. It self-registers only when the verify
 > step is loaded — `personalscraper.verify.run` does
@@ -214,6 +214,7 @@ self-register before any envelope round-trip. The count is pinned by
 | `SeedObligationBreached`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`, `dispatched_path: str \| None`                                                         | acquire/ — muted until waves 4-5 (O2)                                                                                                                              |
 | `SeedObligationSatisfied`    | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`                                                                                         | acquire/ — emitted by `acquire.obligations.sweep_obligations` after it writes `satisfied_at`; NOT relayed to Telegram (O6)                                                                                                                              |
 | `SeedObligationReleased`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`                                                                                         | acquire/ — emitted by `acquire.obligations.sweep_obligations` after it writes `released_at` (torrent gone); NOT relayed to Telegram (O6)                                                                                                                              |
+| `PreprodPurgeCompleted`      | `personalscraper.acquire.events`                | `purged: int`, `kept: int`, `dry_run: bool`                                                                  | acquire/ — `purge_preprod_downloads` once per run (a dry run too, counting what it would purge), on the preprod's own stream; not relayed to Telegram |
 | `AccountRightsChanged`       | `personalscraper.app.accounts.events`           | `account_ids: tuple[str, ...]`, `cause: RightsChangeCause`                                                                      | app/accounts/ — E8, emitted by `AccountService.update_account` / `update_role` after the write commits, naming the accounts whose role or rights moved; never on a refused write                                                                                      |
 | `RatioMeasured`              | `personalscraper.acquire.events`                | `tracker: str`, `observed_ratio: float`, `target_ratio: float`                                                                  | acquire/ — muted until waves 4-5 (Ratio C1)                                                                                                                        |
 | `SeasonAbsorbedEpisodes`     | `personalscraper.acquire.events`                | `season_wanted_id: int`, `media_ref: MediaRef`, `season: int`, `absorbed_ids: tuple[int, ...]`                                  | acquire/ — detection or the conversion path when a season wanted absorbs its season's live episode wanteds (episode rows → `absorbed`, R5)                         |

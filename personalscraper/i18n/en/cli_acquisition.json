@@ -64,6 +64,18 @@
       "help": "Run one seed-obligation sweep and print its report as one JSON line.\n\nAsks the torrent client once about every open obligation, stamps\n``satisfied_at`` on those whose floor is reached and ``released_at`` on those\nwhose torrent stayed gone for the confirmation delay, and emits the matching\nevents. Meant to run under ``personalscraper schedule`` (hourly).\n\nArgs:\n    ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.\n\nRaises:\n    typer.Exit: Exit code 1 when no torrent client or no acquire store is\n        configured, or when the client failed (nothing was written).",
       "not_configured": "No torrent client or acquire store configured."
     },
+    "purge": {
+      "help": "Delete the preprod's torrents whose seed obligation is met, and keep every other one.\n\nRuns only under PERSONALSCRAPER_ENV=staging. Prints one line per decision\n(verdict, info hash, name), then a summary.",
+      "dry_run_help": "Decide and report only: nothing is deleted, released or journaled.",
+      "max_help": "The most torrents this run deletes.",
+      "not_staging": "The purge runs only in the preprod (PERSONALSCRAPER_ENV=staging); this process is {{env}}.",
+      "client_error": "The torrent client could not list its torrents: {{error}}",
+      "summary": "Purged {{purged}}, kept {{kept}}.",
+      "summary_dry_run": "Dry run: would purge {{purged}}, keep {{kept}}.",
+      "decision": "{{verdict}}\t{{info_hash}}\t{{name}}",
+      "refused": "The purge is refused: {{reason}}",
+      "no_journal": "The purge is refused: its journal {{path}} does not exist, and no torrent is deleted without a journal row."
+    },
     "error_label": "Error:",
     "no_client": "No torrent client configured. Check config/torrent.json5."
   },

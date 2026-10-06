@@ -332,6 +332,7 @@ _IDENTICAL_IN_BOTH_LANGUAGES: dict[str, frozenset[str]] = {
         {
             "plex_guard.mode_dry_run",
             "seed.list.col_hash",
+            "seed.purge.decision",
             "spine.dry_run_tag",
             "grab.top_line",
             "follow.list.col_id",

@@ -317,6 +317,25 @@ class SeedObligationReleased(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class PreprodPurgeCompleted(Event):
+    """The preprod's nightly purge ran.
+
+    Emitted once per run by ``acquire.preprod_purge.purge_preprod_downloads``, after
+    its last decision, on the preprod's own stream. A dry run emits it too, counting
+    what it would have purged.
+
+    Attributes:
+        purged: Torrents deleted (or, in a dry run, that would have been).
+        kept: Torrents in scope that were kept, whatever the reason.
+        dry_run: ``True`` when nothing was deleted, marked or journaled.
+    """
+
+    purged: int
+    kept: int
+    dry_run: bool
+
+
+@dataclass(frozen=True, kw_only=True)
 class RatioMeasured(Event):
     """A tracker ratio measurement was recorded.
 
@@ -521,6 +540,7 @@ __all__ = [
     "FilmAcquired",
     "GrabFailed",
     "GrabSucceeded",
+    "PreprodPurgeCompleted",
     "RatioMeasured",
     "SeasonAbsorbedEpisodes",
     "SeasonEscalatedAfterEpisodeFailures",

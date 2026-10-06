@@ -385,6 +385,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     GrabFailed,
     GrabReswitched,
     GrabSucceeded,
+    PreprodPurgeCompleted,
     RatioMeasured,
     SeasonAbsorbedEpisodes,
     SeasonEscalatedAfterEpisodeFailures,
@@ -513,6 +514,12 @@ def make_seed_obligation_released() -> SeedObligationReleased:
         info_hash="c" * 40,
         source_tracker="c411",
     )
+
+
+@register_factory(PreprodPurgeCompleted)
+def make_preprod_purge_completed() -> PreprodPurgeCompleted:
+    """Realistic PreprodPurgeCompleted factory — one purged, three kept."""
+    return PreprodPurgeCompleted(purged=1, kept=3, dry_run=False)
 
 
 @register_factory(RatioMeasured)

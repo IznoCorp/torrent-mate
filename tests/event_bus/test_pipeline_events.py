@@ -146,6 +146,8 @@ def test_event_registry_has_all_v1_events() -> None:
     feature adds ``LibraryScanSkipped`` — a disk touched by dispatch was not re-indexed (→ 50).
     The ``k1-comptes`` feature adds ``AccountRightsChanged`` (E8) — an account's role or
     rights moved (→ 51).
+    The ``preprod-purge`` feature adds ``PreprodPurgeCompleted`` — the preprod's
+    nightly purge ran (→ 52).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/production/event-bus.md``.
@@ -153,8 +155,8 @@ def test_event_registry_has_all_v1_events() -> None:
     import personalscraper.app.accounts.events  # noqa: F401 — registers E8 (the catalog does not import app)
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 51, (
-        f"Expected 51 events (50 existing + k1 AccountRightsChanged), "
+    assert len(_EVENT_CLASS_REGISTRY) == 52, (
+        f"Expected 52 events (51 existing + preprod-purge PreprodPurgeCompleted), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
