@@ -138,13 +138,14 @@ class RosterService:
 
     @requires("resetAccountPassword")
     def reset_account_password(self, actor: Actor, account_id: str, *, password: str) -> None:
-        """Give a local account a provisional password — an Admin's act; its sessions keep running.
+        """Give a local account a provisional password — an Admin's act; its sessions end.
 
         The Admin check comes first: a caller who is not Admin never learns whether an
         account exists. Then the caller's own account, which an Admin changes in Profil with
         its current password (the operator, 2026-10-04); the account; who holds its
         password; the provisional password's own refusals. scrypt runs before the writer lock is taken, and only for
-        a password that will be kept.
+        a password that will be kept. The password is set and every session of the account is revoked in one
+        ``BEGIN IMMEDIATE`` transaction, so a session opened with the old password is refused on its next request.
 
         Args:
             actor: The signed-in actor (``accounts.manage``).
@@ -175,8 +176,10 @@ class RosterService:
             account.check_password_held_here()
             if password_refusal is not None:
                 raise password_refusal
-            store.accounts.set_password_hash(account.id, password_hash, now=self._clock())
-        log.info("account_password_reset", account_id=account.id, by=actor.account_id)
+            now = self._clock()
+            store.accounts.set_password_hash(account.id, password_hash, now=now)
+            revoked = store.sessions.revoke_sessions_of(account.id, except_id=None, now=now)
+        log.info("account_password_reset", account_id=account.id, sessions_revoked=revoked, by=actor.account_id)
 
     @requires("setAccountAccess")
     def set_account_access(self, actor: Actor, account_id: str, *, allowed: bool) -> AccountSummaryView:
