@@ -695,49 +695,79 @@ as prod any more. `ecosystem.config.js` sets `PERSONALSCRAPER_ENV: "prod"` on ev
 runs the `personalscraper` binary (watch, `torrentmate-web`, `torrentmate-web-staging`, the
 eight scheduled jobs). Also, a store whose `PRAGMA user_version` is higher than the code's
 highest migration is refused at open (`store.schema_newer_than_code` in the log, with
-`path`, `found`, `known`): nothing is migrated or written.
+`path`, `found`, `known`): nothing is migrated or written, and the web app's boot fails
+(PM2 shows it errored) instead of serving it.
 
-`scripts/deploy.sh` and `scripts/deploy-staging.sh` restart only the two web apps (with
-`--update-env`). The watch daemon and the scheduled-job loops keep the environment PM2
-saved, and the Monday reboot resurrects that saved environment. So the reload below is
-done ONCE, BEFORE this code is promoted to `staging`, and in any case before it is
-promoted to `prod`. Under the code already running it changes nothing, because an unset
-variable still means prod there.
+The switch has two layers. The PRIMARY one is the checkout's `.env`: the package calls
+`load_dotenv()` at import (it never overrides a variable already set), so a
+`PERSONALSCRAPER_ENV=prod` line there covers every process of that checkout — the watch
+daemon on its next restart, every scheduled job, every CLI command typed there — with no
+PM2 restart. The SECOND layer is the `env` block of each engine app in `ecosystem.config.js`,
+read when PM2 (re)starts an app with `--update-env`.
 
-### Step 1 — Reload every PM2 app with the new environment
+What fails without the primary layer: `scripts/deploy.sh` and `scripts/deploy-staging.sh`
+restart only the two web apps (with `--update-env`, so they read the file's line). The watch
+daemon keeps the environment PM2 saved, with no variable: on its next restart (a crash, the
+Monday reboot resurrecting PM2's saved environment, `tm-resume-after-reboot`) it loads the new
+code, the config load refuses the missing environment, the CLI exits 2, and
+`personalscraper-watch` crash-loops until PM2 marks it `errored` — the pipeline automation
+stops. Every scheduled job started without the variable exits 2 the same way.
+
+### Step 1 — Name prod in both checkouts' `.env` (BEFORE the promotion)
+
+Done ONCE, BEFORE the promotion that carries this change to `staging`, and in any case before
+it reaches `prod`. Under the code already running it changes nothing (an unset variable still
+means prod there), and nothing is restarted.
 
 ```bash
-cd /Users/izno/deploy/torrentmate   # its ecosystem.config.js must carry PERSONALSCRAPER_ENV
-grep -c 'PERSONALSCRAPER_ENV: "prod"' ecosystem.config.js
+for envfile in /Users/izno/deploy/torrentmate/.env /Users/izno/staging/torrentmate/.env; do
+  grep -q '^PERSONALSCRAPER_ENV=' "$envfile" || printf 'PERSONALSCRAPER_ENV=prod\n' >> "$envfile"
+  printf '%s ' "$envfile"; grep -c '^PERSONALSCRAPER_ENV=prod$' "$envfile"
+done
+# Expected: each file prints 1
+```
+
+### Step 2 — Reload the online engine apps (second layer)
+
+After the promotion, check that the prod clone's `ecosystem.config.js` carries the line on
+its eleven engine apps, then restart ONLY the engine apps that are online, with the file's
+environment. Never a bare `pm2 startOrRestart ecosystem.config.js`: it would also start every
+app of the file that is stopped (grab, search, follow-detect, enrich, …), which must stay as
+the operator left them. A stopped app reads the file when the operator starts it.
+
+```bash
+cd /Users/izno/deploy/torrentmate
+grep -cE '^ *PERSONALSCRAPER_ENV: "prod",' ecosystem.config.js
 # Expected: 11
-pm2 startOrRestart ecosystem.config.js --update-env   # a few seconds of watch restart
+pm2 restart personalscraper-watch torrentmate-web torrentmate-web-staging --update-env
 pm2 save
 ```
 
-If the prod clone does not carry the line yet (it follows `prod`), run the reload from a
-checkout of `develop` at or after this change instead. The paths in the file are absolute.
-
-### Step 2 — Check each app's environment
+### Step 3 — Check each registered app's environment
 
 ```bash
 for app in personalscraper-watch torrentmate-web torrentmate-web-staging \
   personalscraper-index-full personalscraper-index-enrich personalscraper-backfill-ids \
   personalscraper-follow-detect personalscraper-search personalscraper-grab \
   personalscraper-health-check personalscraper-seed-sweep; do
-  printf '%s ' "$app"; pm2 env "$(pm2 id "$app" | tr -dc '0-9')" | grep '^PERSONALSCRAPER_ENV'
+  id="$(pm2 id "$app" | tr -dc '0-9')"
+  [ -n "$id" ] || { echo "$app not registered — skipped"; continue; }
+  printf '%s ' "$app"; pm2 env "$id" | grep '^PERSONALSCRAPER_ENV'
 done
-# Expected: every line ends with PERSONALSCRAPER_ENV: prod
+# Expected: every online app ends with PERSONALSCRAPER_ENV: prod; a stopped one may still show
+# its old environment until it is started; an unregistered one is skipped.
 ```
 
-### Step 3 — A command typed by hand
+### Step 4 — A command typed by hand
 
-In the prod clone, add `PERSONALSCRAPER_ENV=prod` to `~/deploy/torrentmate/.env`, so that
-a CLI command typed there names prod. A dev checkout that needs prod's stores asks for
-them on the command, e.g. `PERSONALSCRAPER_ENV=prod personalscraper …`, with the canonical
-config, whose data directory is unmarked.
+In the prod clone, Step 1's `.env` line already names prod for a CLI command typed there.
+A dev checkout that needs prod's stores asks for them on the command, e.g.
+`PERSONALSCRAPER_ENV=prod personalscraper …`, with the canonical config, whose data
+directory is unmarked. A fresh worktree or clone with no `.env` now refuses every command
+that loads the config (`make openapi`, scripts) until it names an environment.
 
 ### Rollback
 
-Remove the line from the apps' `env` blocks, then run `pm2 startOrRestart ecosystem.config.js
---update-env && pm2 save`. This is only safe while the running code still reads an unset
-variable as prod.
+Remove the `.env` lines and the apps' `env` lines, then
+`pm2 restart personalscraper-watch torrentmate-web torrentmate-web-staging --update-env && pm2 save`.
+This is only safe while the running code still reads an unset variable as prod.
