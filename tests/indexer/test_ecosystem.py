@@ -389,6 +389,23 @@ def test_no_app_config_points_inside_a_git_worktree() -> None:
     )
 
 
+def test_every_engine_app_names_prod_explicitly() -> None:
+    """Invariant: every prod app that runs the ``personalscraper`` binary sets ``PERSONALSCRAPER_ENV=prod``.
+
+    An unset variable is refused (never read as prod), so an app that forgot it would fail
+    closed at its next start. The preprod's apps name ``staging`` instead.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    engine_apps = [
+        app
+        for app in apps
+        if str(app.get("script", "")).endswith("/bin/personalscraper") and str(app["name"]) not in _PREPROD_APP_NAMES
+    ]
+    assert engine_apps, "no app runs the personalscraper binary: the parser drifted"
+    missing = [str(app["name"]) for app in engine_apps if app.get("PERSONALSCRAPER_ENV") != "prod"]
+    assert missing == [], f"app(s) that do not set PERSONALSCRAPER_ENV=prod: {missing}"
+
+
 # ---------------------------------------------------------------------------
 # Tests — watch daemon specifics
 # ---------------------------------------------------------------------------
@@ -874,11 +891,13 @@ def test_no_preprod_cron_fires_with_a_prod_cron() -> None:
 
 
 def test_only_preprod_apps_name_the_staging_environment() -> None:
-    """Prod's apps set no environment (prod is the default); only the preprod's say ``staging``."""
+    """Prod's apps name ``prod``; only the preprod's say ``staging``."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     staging = {str(a["name"]) for a in apps if a.get("PERSONALSCRAPER_ENV") == "staging"}
     others = {
-        str(a["name"]): a["PERSONALSCRAPER_ENV"] for a in apps if a.get("PERSONALSCRAPER_ENV") not in (None, "staging")
+        str(a["name"]): a["PERSONALSCRAPER_ENV"]
+        for a in apps
+        if a.get("PERSONALSCRAPER_ENV") not in (None, "prod", "staging")
     }
     assert staging == _PREPROD_APP_NAMES
     assert others == {}, f"apps naming another environment: {others}"

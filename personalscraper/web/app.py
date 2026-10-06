@@ -25,9 +25,11 @@ from personalscraper.app.relay import (
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.sqlite import SqliteSchemaNewerError
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
 from personalscraper.http_v1.deprecations import DeprecationHeaders
+from personalscraper.http_v1.security_headers import SecurityHeaders
 from personalscraper.indexer import migrations as _indexer_migrations
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.logger import get_logger
@@ -62,9 +64,15 @@ def _apply_pending_indexer_migrations(config: Config) -> None:
     creates + migrates it on first use).  Fail-soft: a migration error is
     logged but never aborts boot — health stays up and only the
     migration-dependent endpoints degrade, exactly as before this guard.
+    The one exception is a store newer than the code: that refusal aborts
+    the boot (fail closed), so the process errors instead of serving it.
 
     Args:
         config: The parsed configuration (provides ``indexer.db_path``).
+
+    Raises:
+        SqliteSchemaNewerError: The store's ``user_version`` is past the code's
+            highest indexer migration.
     """
     if is_staging_role():
         logger.info("web_boot_migrate_skipped", reason="staging role (read-only)")
@@ -81,6 +89,9 @@ def _apply_pending_indexer_migrations(config: Config) -> None:
             conn.commit()
             version = conn.execute("PRAGMA user_version").fetchone()[0]
         logger.info("web_boot_migrate_applied", db_version=version)
+    except SqliteSchemaNewerError:
+        # Fail closed: code older than the store must neither serve nor write it.
+        raise
     except Exception:  # noqa: BLE001 — fail-soft: never abort boot on a migration error
         logger.error("web_boot_migrate_failed", db_path=str(db_path), exc_info=True)
 
@@ -219,6 +230,10 @@ def create_app(
     # rather than the reverse proxy: the compression must survive a proxy
     # reconfiguration, and it is the app that knows what it serves.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # The application sets its own security headers on every response — API, v1 mount and SPA
+    # alike — so they survive a proxy reconfiguration, as the compression above does.
+    app.add_middleware(SecurityHeaders)
 
     # v0 answers the application layer's refusals as ``{"detail": ...}``.
     install_refusal_handler(app)

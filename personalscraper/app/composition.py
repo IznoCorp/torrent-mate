@@ -12,10 +12,13 @@ from typing import TYPE_CHECKING, Final, cast
 
 from personalscraper.api.transport import RetryPolicy
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.notices import NoticeService
+from personalscraper.app.accounts.own_sessions import OwnSessionService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
+from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
 from personalscraper.app.services import AppServices
@@ -25,6 +28,7 @@ from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
+from personalscraper.push.dispatch import UnconfiguredPush
 
 log = get_logger("app.composition")
 
@@ -414,12 +418,16 @@ def build_app_services(
         given = providers
         lookup = LazyProviders(lambda: given)
     plex = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
-    view, library, sheets, rescrape, deletion = _build_library_services(config, lookup, plex)
     app_store = build_app_store(config)
+    runs = RunService(store=app_store, data_dir=config.paths.data_dir)
+    view, library, sheets, rescrape, deletion = _build_library_services(config, lookup, plex, runs)
     sessions = SessionService(app_store, idle_days=config.web.session_idle_days)
     accounts = RosterService(app_store, event_bus)
     roles = RoleService(app_store, event_bus)
     credentials = CredentialService(app_store, sessions)
+    # No FCM sender is configured yet: the in-app notice is written, the push is logged unsent.
+    sign_in_notifier = SignInNotifier(app_store, UnconfiguredPush())
+    sign_in_notifier.subscribe(event_bus)
     return AppServices(
         event_bus=event_bus,
         build_info=BUILD_INFO,
@@ -434,11 +442,14 @@ def build_app_services(
         roles=roles,
         credentials=credentials,
         plex_sign_in=_build_plex_sign_in(config, settings, app_store, credentials, event_bus, plex),
-        runs=RunService(store=app_store, data_dir=config.paths.data_dir),
+        own_sessions=OwnSessionService(app_store, sessions),
+        notices=NoticeService(app_store),
+        runs=runs,
         idempotency=IdempotencyService(
             app_store, key_path=fingerprint_key_path(store_path(config.paths.data_dir, StoreName.APP))
         ),
         owned_providers=owned,
+        sign_in_notifier=sign_in_notifier,
     )
 
 
@@ -493,7 +504,7 @@ def _build_plex_sign_in(
 
 
 def _build_library_services(
-    config: "Config", providers: "ProviderLookup", plex: "PlexClient | None"
+    config: "Config", providers: "ProviderLookup", plex: "PlexClient | None", runs: RunService
 ) -> "tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]":
     """Build the library's services over one catalogue view, one index, the providers and Plex.
 
@@ -513,6 +524,7 @@ def _build_library_services(
             resolved by the loader.
         providers: Where the TMDB and TVDB clients are found.
         plex: The process's client of the Plex server; ``None`` without a ``PLEX_TOKEN``.
+        runs: The run service the rescrape asks through.
 
     Returns:
         The catalogue view (which owns and closes the catalogue store and the ownership
@@ -544,7 +556,7 @@ def _build_library_services(
         view,
         LibraryReads(index=index, view=view, sheets=sheets),
         sheets,
-        LibraryRescrape(index=index, index_db=index_db, data_dir=config.paths.data_dir),
+        LibraryRescrape(index=index, runs=runs),
         LibraryDeletion(
             index=index,
             index_db=index_db,

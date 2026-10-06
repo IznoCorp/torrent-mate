@@ -98,6 +98,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in account's live sessions
+         * @description Where the account is signed in, for Profil (the operator's ruling Q4 A, 2026-10-06: « le Profil liste les sessions actives, chacune révocable »): its live sessions — neither signed out, revoked nor expired — the newest first, the one the request is made with flagged `current`. Only the caller's own sessions, ever. A session act: no right.
+         */
+        get: operations["readOwnSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End one of the signed-in account's other sessions
+         * @description The account ends a session it does not recognise (ruling Q4 A): at once — the next request made with it is refused 401 `auth.required`. The session the request is made with is refused 409 `session.current` (signing out is `signOut`'s). A session id the account does not hold — another account's, an unknown one, one already ended — is refused 404 `session.unknown`, the same answer for all, so it never tells that another account's session exists. A session act like signing out: no right. The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right.
+         */
+        delete: operations["revokeOwnSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications/preferences": {
         parameters: {
             query?: never;
@@ -143,6 +183,26 @@ export interface paths {
         put?: never;
         /** Register this device's push token for the signed-in account (K5) */
         post: operations["registerPushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in account's in-app notices
+         * @description What the application tells the account, the newest first, at most fifty (the operator's ruling Q4 A: a new Plex sign-in is told « par FCM et dans l'application »). A notice is a `NoticeCode` and its parameters, never a sentence: the interface words it in the account's language. Only the caller's own notices, ever. A session act: no right.
+         */
+        get: operations["readNotices"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1505,7 +1565,7 @@ export interface paths {
         put?: never;
         /**
          * Start a Plex sign-in
-         * @description Creates a Plex PIN on the server and answers where the person confirms it. The interface opens `signInUrl`, then asks `signInWithPlex` with `pinId` until the PIN is claimed, refused or expired (round 4 P-2 = B).
+         * @description Creates a Plex PIN on the server and answers where the person confirms it. The interface opens `signInUrl`, then asks `signInWithPlex` with `pinId` until the PIN is claimed, refused or expired (round 4 P-2 = B). The start is public, so each client may ask only a few PINs a minute: past the limit it is refused 429 `auth.rate_limited`, the same Problem the password sign-in gives, and Plex is not asked.
          */
         post: operations["startPlexSignIn"];
         delete?: never;
@@ -1736,7 +1796,7 @@ export interface paths {
         put?: never;
         /**
          * Reset a local account's password to a provisional one
-         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). NEVER THE CALLER'S OWN ACCOUNT (the operator, 2026-10-04: « un Admin change son propre mot de passe seulement via changeOwnPassword, mot de passe actuel requis »): an Admin naming its own account is refused 403 `password.reset_own`, checked right after the Admin check. The account's open sessions are not ended by this act.
+         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). NEVER THE CALLER'S OWN ACCOUNT (the operator, 2026-10-04: « un Admin change son propre mot de passe seulement via changeOwnPassword, mot de passe actuel requis »): an Admin naming its own account is refused 403 `password.reset_own`, checked right after the Admin check. Every open session of the account ends with this act, in the same transaction as the new password: a session opened with the old password is refused on its next request.
          */
         post: operations["resetAccountPassword"];
         delete?: never;
@@ -3023,9 +3083,10 @@ export interface components {
          *     - `system.run_failed` — right `system.view`; raised by `StepErrored` — a pipeline step failed; lands on `/system`
          *     - `system.disk_full` — right `system.view`; raised by `DiskFullWarning` — a disk under its free-space threshold; lands on `/system`
          *     - `system.service_down` — right `system.view`; raised by `CircuitBreakerOpened` — a provider or a service stopped answering; lands on `/system`
+         *     - `account.sign_in` — no right: every account receives it; raised by `PlexSessionOpened` — a Plex sign-in opened a new session of the account (the operator's ruling Q4 A, 2026-10-06: a PIN confirmed by the wrong person signs THEM in); lands on `/account`, where the session can be ended
          * @enum {string}
          */
-        NotificationType: "obligation.met" | "obligation.released" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down";
+        NotificationType: "obligation.met" | "obligation.released" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down" | "account.sign_in";
         /** @description ONE TYPE'S SWITCH, the account's own (ruling Q1 A): whether pushes of that type reach any of its devices. */
         NotificationPreference: {
             type: components["schemas"]["NotificationType"];
@@ -3046,16 +3107,46 @@ export interface components {
              */
             platform: "android" | "ios" | "desktop";
         };
+        /** @description ONE LIVE SESSION OF THE SIGNED-IN ACCOUNT, as Profil lists it (ruling Q4 A). */
+        OwnSession: {
+            /** @description its key, the one `revokeOwnSession` takes */
+            id: number;
+            /** @description the browser and system its user agent names (« Firefox · macOS », or either half alone) — proper names, never words; null when it names neither */
+            device: string | null;
+            /** @description when it was opened, Unix-epoch seconds */
+            createdAt: number;
+            /** @description its last renewal, Unix-epoch seconds — a use is written at most once an hour */
+            lastSeenAt: number;
+            /** @description whether it is the session the request was made with — never revoked by `revokeOwnSession` */
+            current: boolean;
+        };
         /**
-         * @description THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from the `push` namespace of the catalogue `webpush.data.language` names — the RECIPIENT ACCOUNT's `Language`, filled by the server per account (FG-2 A); absent or unknown, the worker words it in English (OPEN-2 B). A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`.
+         * @description WHAT AN IN-APP NOTICE TELLS, as a code the interface words in the account's language — the same code its push carries (`PushCode`). Parameters: `device` for `account.sign_in.device`; none for `account.sign_in.unknown_device`.
          * @enum {string}
          */
-        PushCode: "obligation.met.seed_time" | "obligation.met.ratio" | "obligation.released.removed_here" | "obligation.released.gone_from_client" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down";
+        NoticeCode: "account.sign_in.device" | "account.sign_in.unknown_device";
+        /** @description ONE IN-APP NOTICE OF THE SIGNED-IN ACCOUNT. */
+        Notice: {
+            /** @description its key */
+            id: number;
+            code: components["schemas"]["NoticeCode"];
+            /** @description the values the code's words name, by name — facts, never words */
+            params: {
+                [key: string]: string;
+            };
+            /** @description when it was raised, Unix-epoch seconds */
+            createdAt: number;
+        };
+        /**
+         * @description THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from the `push` namespace of the catalogue `webpush.data.language` names — the RECIPIENT ACCOUNT's `Language`, filled by the server per account (FG-2 A); absent or unknown, the worker words it in English (OPEN-2 B). A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`; `device` for `account.sign_in.device` (the browser and system the session's user agent names, « Firefox · macOS »), none for `account.sign_in.unknown_device`.
+         * @enum {string}
+         */
+        PushCode: "obligation.met.seed_time" | "obligation.met.ratio" | "obligation.released.removed_here" | "obligation.released.gone_from_client" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down" | "account.sign_in.device" | "account.sign_in.unknown_device";
         /**
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "session.unknown" | "session.current" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -3296,6 +3387,69 @@ export interface operations {
             503: components["responses"]["Problem"];
         };
     };
+    readOwnSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the account's live sessions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sessions: components["schemas"]["OwnSession"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    revokeOwnSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Names this write, so that sending it again never applies it twice (the offline outbox re-sends a held write with the key it first carried). Sent again with the same request, the first answer is answered again — its status and its body — and nothing is applied; sent with another request (another body or query on the same method and path), it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`, which the client retries. A key is scoped to the signed-in account and to the method and path, and kept 24 hours. Only an answer that will not change is kept: a success, or a final refusal (400, 404, 405, 409, 410, 415, 422); any other answer (401, 403, 408, 423, 429, a 5xx) keeps nothing, and the retry with the same key applies. Without it, every send applies. The public sign-in doors (signIn, signInWithPlex, startPlexSignIn) take none: they sign no account in to scope it to, and the client never holds one offline. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                /** @description the session */
+                sessionId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the session is ended */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
     readNotificationPreferences: {
         parameters: {
             query?: never;
@@ -3385,6 +3539,34 @@ export interface operations {
                 content: {
                     "application/json": {
                         ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readNotices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the account's notices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        notices: components["schemas"]["Notice"][];
                     };
                 };
             };
@@ -3756,7 +3938,7 @@ export interface operations {
                         providerId: string;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                     };
                 };
@@ -4016,7 +4198,7 @@ export interface operations {
                         absorbedCount: number;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                         /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
                         reused: boolean;
@@ -4036,7 +4218,7 @@ export interface operations {
                         absorbedCount: number;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                         /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
                         reused: boolean;
@@ -4329,7 +4511,7 @@ export interface operations {
                     "application/json": {
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                     };
                 };
@@ -4367,7 +4549,7 @@ export interface operations {
                     "application/json": {
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                     };
                 };
@@ -4644,7 +4826,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         state: components["schemas"]["PipelineState"];
-                        /** @description the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own */
+                        /** @description the identifier of the request that answers the ask: it becomes the run's `pipeline_run.run_uid` once the supervisor admits it. Never the PREVIOUS run's identifier, which made a maintenance action claim the pipeline's last run as its own */
                         uid: string | null;
                     };
                 };
@@ -6106,6 +6288,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

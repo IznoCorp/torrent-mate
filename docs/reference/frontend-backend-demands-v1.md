@@ -25,9 +25,9 @@ the contract field by field — enums, required sets, request bodies, refusals a
 
 | | |
 | --- | ---: |
-| operations the interface requires | 105 |
-| operations v1 serves | 26 |
-| required and not served | 79 |
+| operations the interface requires | 108 |
+| operations v1 serves | 30 |
+| required and not served | 78 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -103,7 +103,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/pipeline/kill` | `killPipeline` | Stop the run |
 | `POST /api/v1/pipeline/pause` | `pausePipeline` | Pause the run |
 | `POST /api/v1/pipeline/resume` | `resumePipeline` | Resume the run |
-| `POST /api/v1/pipeline/run` | `runPipeline` | Start a run, or queue one visibly |
 | `POST /api/v1/pipeline/watcher` | `setWatcher` | Turn the automatic trigger on or off, and say which it now is |
 | `POST /api/v1/staging/media/{mediaId}/continue` | `continueStagedMedia` | Send a staged item back through the pipeline |
 | `POST /api/v1/staging/media/{mediaId}/discard` | `discardStagedMedia` | Quarantine a staged folder |

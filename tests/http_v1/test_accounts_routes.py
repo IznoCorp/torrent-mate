@@ -39,7 +39,7 @@ def _production(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch: Pytest's monkeypatch fixture.
     """
     monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
 
 
 def _services(client: TestClient) -> AppServices:
@@ -497,8 +497,8 @@ def _link(client: TestClient, account_id: str, server_access: str) -> None:
 class TestResetAccountPassword:
     """``POST /accounts/{accountId}/password`` — ``resetAccountPassword``, an Admin's act."""
 
-    def test_an_admin_resets_and_the_sessions_stay(self, v1_client: Callable[..., TestClient]) -> None:
-        """200 ``{"ok": true}``; the provisional password signs in; the account's session keeps running."""
+    def test_an_admin_resets_and_the_sessions_end(self, v1_client: Callable[..., TestClient]) -> None:
+        """200 ``{"ok": true}``; the provisional password signs in; the account's session ends."""
         client = v1_client(role="admin")
         _add_account(client, "account-guest", "local-guest")
         running = _services(client).sessions.open("account-guest", user_agent="pytest")
@@ -507,7 +507,7 @@ class TestResetAccountPassword:
 
         assert response.status_code == 200
         assert response.json() == {"ok": True}
-        assert _services(client).sessions.resolve(running) is not None
+        assert _services(client).sessions.resolve(running) is None
         login = client.post("/auth/login", json={"email": "account-guest@example.org", "password": _PASSWORD})
         assert login.status_code == 200
 

@@ -50,6 +50,10 @@
 -- the migration completes.  Drop it manually once reviewed.
 -- ---------------------------------------------------------------------------
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 CREATE TABLE _migration_007_changes (
     id INTEGER PRIMARY KEY,
     old_title TEXT NOT NULL,
@@ -227,3 +231,5 @@ DROP TABLE IF EXISTS _dedup_map;
 
 INSERT INTO schema_version (version) VALUES (7);
 PRAGMA user_version = 7;
+
+COMMIT;

@@ -10,7 +10,7 @@ import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 
-from personalscraper.core.sqlite.errors import SqliteMigrationError
+from personalscraper.core.sqlite.errors import SqliteMigrationError, SqliteSchemaNewerError
 from personalscraper.logger import get_logger
 
 log = get_logger("core.sqlite.migrate")
@@ -65,6 +65,42 @@ def _db_path_from_conn(conn: sqlite3.Connection) -> Path | None:
     return None
 
 
+def refuse_newer_schema(conn: sqlite3.Connection, dir_: Path) -> None:
+    """Refuse a store whose schema is newer than the code's highest migration.
+
+    The checkouts of this host share their stores, so a store may have been
+    migrated by a newer checkout: code that does not know its tables must
+    neither migrate nor write it. :func:`apply_migrations` runs this check
+    first; a writer that opens a store with a raw ``sqlite3.connect`` runs it
+    right after the connect, before its first write.
+
+    Args:
+        conn: Open :class:`sqlite3.Connection` to the store.
+        dir_: Directory that holds the store's ``*.sql`` migration scripts.
+
+    Raises:
+        SqliteSchemaNewerError: The store's ``PRAGMA user_version`` is higher
+            than the highest script number in *dir_*; ``store.schema_newer_than_code``
+            is logged (path, found, known) and *conn* is closed first.
+    """
+    current_version: int = conn.execute("PRAGMA user_version").fetchone()[0]
+    known_version = max((_migration_version(p) for p in dir_.glob("*.sql") if p.is_file()), default=0)
+    if current_version <= known_version:
+        return
+    db_path = _db_path_from_conn(conn)
+    log.error(
+        "store.schema_newer_than_code",
+        path=str(db_path) if db_path is not None else ":memory:",
+        found=current_version,
+        known=known_version,
+    )
+    conn.close()
+    raise SqliteSchemaNewerError(
+        f"{db_path or ':memory:'} is at schema version {current_version}, newer than the "
+        f"highest migration this code knows ({known_version}); refusing to open it"
+    )
+
+
 def apply_migrations(
     conn: sqlite3.Connection,
     dir_: Path,
@@ -83,15 +119,28 @@ def apply_migrations(
        file (sibling of the DB, via :meth:`~pathlib.Path.read_bytes` /
        :meth:`~pathlib.Path.write_bytes`).  Skipped — with a warning — when
        the connection is in-memory (no derivable DB path).
-    2. **Apply** — execute the script via :meth:`~sqlite3.Connection.executescript`
-       which runs the SQL in a single implicit transaction.
+    2. **Apply** — execute the script via :meth:`~sqlite3.Connection.executescript`.
+       ``executescript`` auto-commits every statement that runs outside an
+       explicit transaction, so each script owns ONE ``BEGIN … COMMIT`` holding
+       its whole body and its ``PRAGMA user_version`` bump (only the
+       ``PRAGMA foreign_keys`` toggles, no-ops inside a transaction, sit
+       outside it). A crash mid-script then leaves the store as it was before
+       the script, and the next attempt snapshots a whole store, never a
+       half-applied one.
     3. **Success** — log ``core.sqlite.migration.applied`` with the version number.
     4. **Failure** — restore the DB from the snapshot (if one was taken), log
        ``core.sqlite.migration.failed``, and raise an exception
        (chained from the original exception).
 
     The function is idempotent: if all migrations are already applied
-    (``PRAGMA user_version`` ≥ highest script number), it is a no-op.
+    (``PRAGMA user_version`` = highest script number), it is a no-op.
+
+    **Newer schema refused**: a store whose ``PRAGMA user_version`` is HIGHER
+    than the highest script number was migrated by a newer checkout of the code
+    (the checkouts of this host share their stores). It is refused before
+    anything is snapshotted, migrated or written: ``store.schema_newer_than_code``
+    is logged, *conn* is closed and :class:`SqliteSchemaNewerError` raised —
+    never ``error_factory``'s « migration N failed », since none was attempted.
 
     Args:
         conn: Open :class:`sqlite3.Connection` to the database.
@@ -101,6 +150,8 @@ def apply_migrations(
             :class:`SqliteMigrationError` with a human-readable message is raised.
 
     Raises:
+        SqliteSchemaNewerError: When the store's ``user_version`` is higher than
+            the highest script number in *dir_*.
         SqliteMigrationError: When a migration script fails and no
             ``error_factory`` is supplied.
         BaseException: Whatever ``error_factory(version)`` returns, when supplied.
@@ -125,6 +176,8 @@ def apply_migrations(
     )
 
     db_path: Path | None = _db_path_from_conn(conn)
+
+    refuse_newer_schema(conn, dir_)
 
     for script in scripts:
         try:

@@ -87,13 +87,13 @@ def library_index_command(
         load_config,
         resolve_config_path,
     )
+    from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import (  # noqa: PLC0415
         IndexerCorruptError,
         IndexerDiskFullError,
         IndexerInvalidPathError,
         IndexerLockError,
-        IndexerMigrationError,
         apply_migrations,
         indexer_lock,
         open_db,
@@ -160,7 +160,7 @@ def library_index_command(
                 IndexerCorruptError,
                 IndexerDiskFullError,
                 IndexerInvalidPathError,
-                IndexerMigrationError,
+                SqliteMigrationError,  # the base: a failed script or a newer schema
             ) as exc:
                 typer.echo(str(exc), err=True)
                 return 1
@@ -173,7 +173,7 @@ def library_index_command(
                     IndexerCorruptError,
                     IndexerDiskFullError,
                     IndexerInvalidPathError,
-                    IndexerMigrationError,
+                    SqliteMigrationError,  # the base: a failed script or a newer schema
                 ) as exc:
                     typer.echo(str(exc), err=True)
                     return 1

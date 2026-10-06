@@ -20,6 +20,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.core.sqlite import refuse_newer_schema
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -151,6 +153,7 @@ class DriftIssueStore:
 
         try:
             conn = sqlite3.connect(str(self._db_file))
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
         except Exception:

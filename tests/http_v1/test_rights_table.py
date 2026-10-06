@@ -26,7 +26,7 @@ _WRITE_METHODS = frozenset({"post", "put", "patch", "delete"})
 
 #: The ruled corrections to the source's ``null`` (DESIGN C.6): the sign-in
 #: operations ask no session; the account's own writes (notification choices and
-#: devices, its password, its seen mark on a closed tunnel) are refused on a
+#: devices, its password, its seen mark on a closed tunnel, the end of one of its sessions) are refused on a
 #: read-only instance (2026-10-03: no right, but a write).
 _OVERRIDES: dict[str, Requirement] = {
     "signIn": Public(),
@@ -36,6 +36,7 @@ _OVERRIDES: dict[str, Requirement] = {
     "registerPushDevice": SignedIn(write=True),
     "changeOwnPassword": SignedIn(write=True),
     "setOwnLanguage": SignedIn(write=True),
+    "revokeOwnSession": SignedIn(write=True),
     "dismissClosure": SignedIn(write=True),
 }
 

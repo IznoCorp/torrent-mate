@@ -41,49 +41,8 @@
          home-screen label falls back to the page title, which once put two
          identical « TorrentMate » side by side. -->
     <meta name="apple-mobile-web-app-title" content="TorrentMate Design" />
-    <script>
-      // Registration is best-effort here: R52 measures the worker registered
-      // AND controlling against the live host, which is the only place a
-      // worker exists. On a static server (the harness, a preview) there is
-      // nothing to register, and an unhandled rejection would fail rules
-      // about other things entirely.
-      if ("serviceWorker" in navigator)
-        addEventListener("load", () =>
-          navigator.serviceWorker.register("/sw.js").catch(() => {}),
-        );
-    </script>
-    <script>
-      // The saved appearance is applied before the first paint: the default
-      // (no data-theme attribute) paints dark, « light » forces light, and
-      // « system » follows the OS preference. The drawer's control writes the
-      // same key this reads, through `app/appearance.ts`. It sits INSIDE the
-      // pwa markers on purpose: the login gate borrows this whole block, and an
-      // operator who chose an appearance is owed it on the gate too — not only
-      // past it.
-      //
-      // B-245: THE TWO ENDS TESTED DIFFERENT WORDS. This script read « clair »
-      // and « systeme » while the application had been writing « light » and
-      // « system » since the English rename — so NO value it could store
-      // matched either literal, and the flash this script exists to prevent
-      // happened on every reload for every reader who had ever touched the
-      // control. A `data-*` contract has three ends and moves in one step; this
-      // one's third end is `localStorage`, and it was left behind.
-      (function () {
-        try {
-          var mode = localStorage.getItem("tm-apparence") || "system";
-          var light =
-            mode === "light" ||
-            (mode === "system" &&
-              matchMedia("(prefers-color-scheme: light)").matches);
-          if (light)
-            document.documentElement.setAttribute("data-theme", "light");
-          // THE PINNED MENU'S WIDTH, for the same reason: a desktop that folded it opens folded
-          // (`app/rail.ts`, DECIDED 2).
-          if (localStorage.getItem("tm-rail") === "collapsed")
-            document.documentElement.setAttribute("data-rail", "collapsed");
-        } catch (error) {}
-      })();
-    </script>
+    <script src="/boot/service-worker-register.js"></script>
+    <script src="/boot/appearance.js"></script>
     <!-- pwa:end -->
   </head>
   <body>
@@ -146,39 +105,7 @@
       <span class="desktop-switch__enter">Revenir au cadre</span>
     </label>
   </div>
-  <script>
-    // THE CHOICE IS REMEMBERED. A reload used to put the operator back inside
-    // the phone every time he had left it; the choice is a preference now,
-    // kept in `localStorage` the way the appearance is, and restored HERE —
-    // inline, right after the control, so the box is already checked when the
-    // document is parsed and before any module runs. The key is the harness's:
-    // no module of the app reads it, and it goes when the frame goes.
-    //
-    // AND ONLY WHERE THE CONTROL IS DRAWN. Where the frame is not drawn the
-    // control is `display: none` and there is nothing to leave — but a checked
-    // box would still take `overflow: clip` off the device, which the frame
-    // declares outside any breakpoint. So a narrow window neither applies the
-    // choice nor forgets it. Whether the control is drawn is asked of the
-    // stylesheet, never typed a second time here: the build links it in the
-    // head, and a script waits for a pending stylesheet before it runs.
-    (function () {
-      var key = "tm-desktop-switch";
-      var control = document.getElementById("desktop-switch");
-      try {
-        if (
-          localStorage.getItem(key) === "out-of-the-frame" &&
-          getComputedStyle(control.parentElement).display !== "none"
-        )
-          control.checked = true;
-      } catch (error) {}
-      control.addEventListener("change", function () {
-        try {
-          if (control.checked) localStorage.setItem(key, "out-of-the-frame");
-          else localStorage.removeItem(key);
-        } catch (error) {}
-      });
-    })();
-  </script>
+  <script src="/boot/desktop-switch.js"></script>
   <!-- harness:end -->
   <div class="device" id="device" data-part="shell/device">
     <!-- login:splash:start -->

@@ -41,8 +41,10 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.indexer.library_view import IndexUnavailable, LibraryIndex
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger("pipeline_history")
@@ -113,6 +115,7 @@ class PipelineRunWriter:
         verb = "INSERT OR IGNORE INTO" if if_absent else "INSERT INTO"
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             conn.execute(
                 f"{verb} pipeline_run "
@@ -154,6 +157,7 @@ class PipelineRunWriter:
         """
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             conn.execute(
                 "UPDATE pipeline_run SET pid = ? WHERE run_uid = ?",
@@ -253,6 +257,7 @@ class PipelineRunWriter:
             entry["reasons"] = list(reasons[:_MAX_PERSISTED_REASONS])
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             row = conn.execute(
                 "SELECT steps_json FROM pipeline_run WHERE run_uid = ?",
@@ -316,6 +321,7 @@ class PipelineRunWriter:
         ended_at = time.time()
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
             apply_pragmas(conn)
             conn.execute(
                 "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ?, output_tail = ? WHERE run_uid = ?",

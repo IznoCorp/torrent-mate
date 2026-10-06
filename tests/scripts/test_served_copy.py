@@ -198,3 +198,18 @@ class TestThePublisher:
         monkeypatch.setattr(served_copy, "write_stamp", stamp_after)
         assert served_copy.publish(design) == {"token": "stamped"}
         assert landed == {"document": True, "worker": True, "identity": True}
+
+    def test_the_copy_links_every_folder_the_document_names_by_url(self, copy_at, tmp_path, monkeypatch):
+        """`/assets/`, `/boot/` and `/fonts/` answer from the design root; a missing one folds onto the document."""
+        design = tmp_path / "design"
+        (design / "dist").mkdir(parents=True)
+        for name in ("assets", "boot", "fonts"):
+            (design / name).mkdir()
+        (design / "dist" / "index.html").write_text("<html></html>")
+        monkeypatch.setattr(served_copy, "write_stamp", lambda token=None: {})
+
+        served_copy.publish(design)
+
+        for name in ("assets", "boot", "fonts"):
+            assert (copy_at / name).is_symlink(), name
+            assert (copy_at / name).resolve() == (design / name).resolve(), name

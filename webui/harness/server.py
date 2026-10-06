@@ -101,9 +101,9 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
 
     # The only directories under a served root this handler answers a
     # missing path from with a 404 rather than the document — real,
-    # addressable static files (`assets/…`, `vite/…`, the dev entry under
+    # addressable static files (`assets/…`, `vite/…`, `boot/…`, `fonts/…`, the dev entry under
     # `src/…`), never a route param that merely happens to contain a dot.
-    ASSET_PREFIXES = ("/assets/", "/vite/", "/src/")
+    ASSET_PREFIXES = ("/assets/", "/vite/", "/src/", "/boot/", "/fonts/")
 
     # And the root-level files the DOCUMENT ITSELF asks for. They are not a
     # directory, so no prefix covers them, and they must 404 when absent for

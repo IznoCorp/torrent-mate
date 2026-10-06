@@ -78,6 +78,8 @@ type Screens = {
   // A role's and an account's creation pages, under « Comptes ».
   newRole: () => void;
   newAccount: () => void;
+  // The lots progress, a development page.
+  devLots: () => void;
 };
 
 declare global {
@@ -354,5 +356,6 @@ fillScreensDoor({
   ranking: () => go({ to: "/settings/ranking" }),
   newRole: () => go({ to: "/accounts/roles/new" }),
   newAccount: () => go({ to: "/accounts/new" }),
+  devLots: () => go({ to: "/dev/lots" }),
 });
 }

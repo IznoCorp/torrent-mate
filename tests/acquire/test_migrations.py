@@ -20,7 +20,8 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.core.sqlite import apply_migrations
+from personalscraper.acquire.store import ConcreteAcquireStore
+from personalscraper.core.sqlite import SqliteSchemaNewerError, apply_migrations
 
 # ---------------------------------------------------------------------------
 # Paths to real migration artefacts
@@ -923,3 +924,26 @@ class TestMigration024FollowedOriginalTitle:
         conn.commit()
         row = conn.execute("SELECT original_title FROM followed_series").fetchone()
         assert row[0] is None
+
+
+class TestAcquireNewerThanCode:
+    """An ``acquire.db`` whose ``user_version`` is past the last acquire migration is not migrated."""
+
+    def test_refused_and_left_untouched(self, tmp_path: Path) -> None:
+        """Opening the store raises ``SqliteSchemaNewerError``; the version and schema stay as they were."""
+        db_path = tmp_path / "acquire.db"
+        newer = _LATEST_VERSION + 1
+        with sqlite3.connect(db_path) as seed:
+            seed.execute("CREATE TABLE written_by_a_newer_code (id INTEGER PRIMARY KEY)")
+            seed.execute(f"PRAGMA user_version = {newer}")
+        seed.close()
+        store = ConcreteAcquireStore(db_path)
+
+        with pytest.raises(SqliteSchemaNewerError):
+            _ = store.follow
+
+        assert list(tmp_path.glob("*.bak")) == []
+        with sqlite3.connect(db_path) as conn:
+            assert _user_version(conn) == newer
+            assert _table_names(conn) == {"written_by_a_newer_code"}
+        conn.close()

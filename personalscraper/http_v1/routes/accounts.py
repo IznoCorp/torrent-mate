@@ -132,7 +132,7 @@ def reset_account_password(
     signed_in: Annotated[Actor, Depends(actor)],
     app_services: Annotated[AppServices, Depends(services)],
 ) -> PasswordSet:
-    """Give a local account a provisional password; its sessions keep running.
+    """Give a local account a provisional password; its sessions end.
 
     Args:
         account_id: The account.

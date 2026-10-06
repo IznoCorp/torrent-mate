@@ -54,7 +54,8 @@ from typing import Any, NoReturn
 
 from personalscraper.app.errors import AppConflict, AppRefusal
 from personalscraper.app.run_queue import wait_in_visible_queue
-from personalscraper.core.sqlite import apply_pragmas
+from personalscraper.core.sqlite import apply_pragmas, refuse_newer_schema
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 
@@ -458,6 +459,7 @@ def reserve_run_row(
 
     reserve_pid = os.getpid() if pid is None else pid
     conn = sqlite3.connect(str(db_path), isolation_level=None)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     try:
         apply_pragmas(conn)
         conn.row_factory = sqlite3.Row

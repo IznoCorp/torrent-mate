@@ -9,7 +9,7 @@ import CONTRACT from "../../../../contract/openapi.json";
 // joins them (the operator, 2026-10-03) — its notification writes, its « × » seen-marks, a local
 // account's own password: an account's own settings, not a delegable capability.
 const SESSION = new Set([
-  "signIn", "signOut", "startPlexSignIn", "signInWithPlex", "changeOwnPassword", "setOwnLanguage",
+  "signIn", "signOut", "startPlexSignIn", "signInWithPlex", "changeOwnPassword", "setOwnLanguage", "revokeOwnSession",
   "updateNotificationPreference", "registerPushDevice", "dismissClosure",
 ]);
 

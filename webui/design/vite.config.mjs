@@ -49,6 +49,15 @@ function injectPrototype() {
       mkdirSync(output, { recursive: true });
       rmSync(resolve(output, "assets"), { force: true, recursive: true });
       symlinkSync("../assets", resolve(output, "assets"));
+      // The document's classic scripts live in `boot/` and are named by absolute
+      // URL (`/boot/appearance.js`): no inline script, so a Content-Security-Policy
+      // without `'unsafe-inline'` still lets them run. Vite does not bundle a
+      // non-module script, so the build links the folder in, as it does `assets`.
+      rmSync(resolve(output, "boot"), { force: true, recursive: true });
+      symlinkSync("../boot", resolve(output, "boot"));
+      // The typeface the stylesheet names as `/fonts/…`, linked in the same way.
+      rmSync(resolve(output, "fonts"), { force: true, recursive: true });
+      symlinkSync("../fonts", resolve(output, "fonts"));
     },
   };
 }
@@ -66,6 +75,8 @@ const OPTIONAL_ASSETS = [
   "/maskable-192.png",
   "/maskable-512.png",
   "/offline.html",
+  "/host.css",
+  "/fonts/geist-variable.woff2",
 ];
 
 function buildWorker() {

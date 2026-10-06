@@ -24,6 +24,10 @@
 -- been attempted, it makes sense to enqueue a fresh attempt next time
 -- the drift recurs.
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 -- 1. Collapse existing pending duplicates: keep the oldest row per (scope,
 -- scope_id), drop the rest.  scope_id may be NULL (e.g. scope='disk' with
 -- no specific id); treat NULL as a distinct group only when scope itself
@@ -53,3 +57,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_repair_pending_dedup
 -- this migration is being re-run only if user_version was still <3.
 INSERT OR IGNORE INTO schema_version(version) VALUES (3);
 PRAGMA user_version = 3;
+
+COMMIT;

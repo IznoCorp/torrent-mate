@@ -1,0 +1,4 @@
+{"id": 1, "label": "sample row one", "state": "closed", "rounds": 1}
+{"id": 2, "label": "sample row two", "state": "closed", "rounds": 0}
+{"id": 3, "label": "sample row three", "state": "in-flight", "rounds": 0}
+{"id": 4, "label": "sample row four", "state": "open", "rounds": 0}

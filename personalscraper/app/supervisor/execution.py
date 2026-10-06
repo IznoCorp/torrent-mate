@@ -380,12 +380,12 @@ def rescrape_item(
             conn: sqlite3.Connection | None = None
             db_path = config.indexer.db_path
             assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
+            from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
             from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
             from personalscraper.indexer.db import (  # noqa: PLC0415
                 IndexerCorruptError,
                 IndexerDiskFullError,
                 IndexerInvalidPathError,
-                IndexerMigrationError,
                 apply_migrations,
                 open_db,
             )
@@ -397,7 +397,7 @@ def rescrape_item(
                 IndexerCorruptError,
                 IndexerInvalidPathError,
                 IndexerDiskFullError,
-                IndexerMigrationError,
+                SqliteMigrationError,  # the base: a failed script or a newer schema
             ) as exc:
                 console.print("[red]" + t("cli_library.analyze.open_failed_label") + "[/red] " + str(exc))
                 if conn is not None:

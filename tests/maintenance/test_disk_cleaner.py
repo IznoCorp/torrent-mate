@@ -1035,7 +1035,7 @@ class TestPreprodGuard:
         (actors / "Actor.jpg").write_bytes(b"\x00" * 100)
         config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
         monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
-        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
 
         result = clean_library(config, apply=True, only="actors")
 

@@ -17,6 +17,7 @@ import { libraryRoutes } from "./library";
 import { maintenanceRoutes } from "./maintenance";
 import { membershipRoutes } from "./membership";
 import { notificationRoutes } from "./notifications";
+import { ownSessionRoutes } from "./own-sessions";
 import { mediaRoutes } from "./media";
 import { pipelineRoutes } from "./pipeline";
 import { requesterRoutes } from "./requesters";
@@ -31,6 +32,7 @@ export function routes(): MockRoute[] {
     ...authenticationRoutes(),
     ...accountRoutes(),
     ...notificationRoutes(),
+    ...ownSessionRoutes(),
     ...libraryRoutes(),
     ...membershipRoutes(),
     ...mediaRoutes(),

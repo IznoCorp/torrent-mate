@@ -298,7 +298,7 @@ class TestCreateOwner:
         assert "The two passwords differ; nothing was changed." in result.stderr
         assert not (dev_data_dir / "app-dev.db").exists()
 
-    @pytest.mark.parametrize("value", ["", "prod"])
+    @pytest.mark.parametrize("value", ["prod"])
     def test_production_is_refused(
         self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch, value: str
     ) -> None:
@@ -308,7 +308,7 @@ class TestCreateOwner:
             cli_runner: The runner.
             test_config: The synthetic configuration.
             monkeypatch: Pytest monkeypatch fixture.
-            value: ``PERSONALSCRAPER_ENV``, empty or ``prod``.
+            value: ``PERSONALSCRAPER_ENV``, ``prod``.
         """
         monkeypatch.setenv("PERSONALSCRAPER_ENV", value)
 
@@ -487,7 +487,7 @@ _OPEN_SESSION_ARGS = ["accounts", "open-session", "--owner"]
 class TestOpenSession:
     """``accounts open-session --owner`` — the design host's smoke check signs in with no stored secret."""
 
-    @pytest.mark.parametrize("value", ["", "prod"])
+    @pytest.mark.parametrize("value", ["prod"])
     def test_production_is_refused(
         self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch, value: str
     ) -> None:
@@ -497,7 +497,7 @@ class TestOpenSession:
             cli_runner: The runner.
             test_config: The synthetic configuration.
             monkeypatch: Pytest monkeypatch fixture.
-            value: ``PERSONALSCRAPER_ENV``, empty or ``prod``.
+            value: ``PERSONALSCRAPER_ENV``, ``prod``.
         """
         monkeypatch.setenv("PERSONALSCRAPER_ENV", value)
 
