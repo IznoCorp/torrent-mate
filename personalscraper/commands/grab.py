@@ -16,6 +16,7 @@ import typer
 from rich.console import Console
 
 from personalscraper import cli_helpers
+from personalscraper.api.torrent._base import lookup_scoped
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     handle_cli_errors,
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.reconcile import ReconcileSummary
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.tracker._base import TrackerResult
+    from personalscraper.conf.models.api_config import TorrentScope
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
@@ -140,7 +142,9 @@ def grab(
                 # work the library owns close ``done``; rows whose torrent
                 # vanished from the client (and are unowned) requeue pending
                 # and re-enter this very run's queue.
-                reconcile = _reconcile_before_run(acquire, app_context.event_bus, console)
+                reconcile = _reconcile_before_run(
+                    acquire, app_context.event_bus, console, scope=config.torrent.active_scope()
+                )
 
                 # reswitch #342 — AFTER reconcile (review ordering note): reconcile
                 # closes library-owned rows to ``done`` first, so reswitch only
@@ -149,7 +153,7 @@ def grab(
                 # the dead torrent is removed and the row requeued with the failed
                 # hash remembered, so the next search+grab picks a DIFFERENT
                 # release. A vanished torrent is left to reconcile.
-                _reswitch_before_run(acquire, app_context.event_bus, console)
+                _reswitch_before_run(acquire, app_context.event_bus, console, scope=config.torrent.active_scope())
 
                 summary = grab_core.service.run(limit=limit, followed_id=followed_id, run_uid=run_rec.run_uid)
                 counts = t(
@@ -192,7 +196,9 @@ def grab(
                 redis_publisher.close()
 
 
-def _reconcile_before_run(acquire: AcquireContext, event_bus: EventBus, console: Console) -> ReconcileSummary:
+def _reconcile_before_run(
+    acquire: AcquireContext, event_bus: EventBus, console: Console, *, scope: TorrentScope | None
+) -> ReconcileSummary:
     """Run the B.3 reconciliation pass ahead of a real grab run (fail-soft).
 
     Gathers the torrent client's live items once for every OPEN row carrying a
@@ -205,6 +211,9 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: EventBus, console:
         acquire: The live :class:`AcquireContext` (store + ownership + client).
         event_bus: The app event bus (download events fire from the sweep).
         console: Rich console for the operator summary line.
+        scope: What this instance owns in a shared client, or ``None`` (the whole
+            client). Under a scope a stored hash held in another category is left
+            out of the client view, so the sweep never settles it as ours.
 
     Returns:
         The pass summary (zeroes when the store is unavailable or the sweep
@@ -227,7 +236,8 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: EventBus, console:
             # Full items, not bare hashes: the sweep reads ``progress`` to emit
             # the download lifecycle events (seed-caps D9).
             in_flight = store.wanted.hashes_in_flight()
-            client_items = {t.hash.lower(): t for t in torrent_client.get_by_hashes(in_flight)}
+            own, _foreign = lookup_scoped(torrent_client, in_flight, scope)
+            client_items = {t.hash.lower(): t for t in own}
         except Exception as exc:  # noqa: BLE001 — fail-soft: skip the requeue half
             log.warning("cli.grab.reconcile_client_unavailable", error=str(exc))
             client_items = None
@@ -259,7 +269,9 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: EventBus, console:
     return summary
 
 
-def _reswitch_before_run(acquire: AcquireContext, event_bus: EventBus, console: Console) -> None:
+def _reswitch_before_run(
+    acquire: AcquireContext, event_bus: EventBus, console: Console, *, scope: TorrentScope | None
+) -> None:
     """Switch every dead-stalled grabbed release to another one before grabbing (reswitch #342).
 
     A grabbed torrent whose swarm is dead / that broke / that is stuck past the
@@ -272,6 +284,8 @@ def _reswitch_before_run(acquire: AcquireContext, event_bus: EventBus, console: 
         acquire: The live :class:`AcquireContext` (store + client).
         event_bus: The app event bus (a ``GrabReswitched`` is a visible trace).
         console: Rich console for the operator line.
+        scope: What this instance owns in a shared client, or ``None``; a hash held
+            in another category is never switched nor deleted.
     """
     from personalscraper.acquire._reswitch import reswitch_stalled
 
@@ -280,7 +294,7 @@ def _reswitch_before_run(acquire: AcquireContext, event_bus: EventBus, console: 
     if store is None or torrent_client is None:
         return
     try:
-        summary = reswitch_stalled(store, torrent_client, time.time(), event_bus=event_bus)
+        summary = reswitch_stalled(store, torrent_client, time.time(), event_bus=event_bus, scope=scope)
     except Exception as exc:  # noqa: BLE001 — reswitch must never abort the grab
         log.warning("cli.grab.reswitch_failed", error=str(exc))
         return

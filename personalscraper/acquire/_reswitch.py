@@ -35,11 +35,13 @@ from typing import TYPE_CHECKING, Protocol
 
 from personalscraper.acquire._stall import StallVerdict, classify_stall
 from personalscraper.acquire.events import GrabReswitched
+from personalscraper.api.torrent._base import lookup_scoped
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.api.torrent._base import TorrentItem
+    from personalscraper.conf.models.api_config import TorrentScope
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.reswitch")
@@ -113,6 +115,7 @@ def reswitch_stalled(
     *,
     event_bus: EventBus,
     dead_after_s: float = DEFAULT_DEAD_AFTER_S,
+    scope: TorrentScope | None = None,
 ) -> ReswitchSummary:
     """Switch every dead-stalled grabbed release for a fresh one (reswitch #342).
 
@@ -125,6 +128,10 @@ def reswitch_stalled(
             trace, never optional).
         dead_after_s: Hard deadline past which a still-stalled torrent is dead
             even with an unknown swarm.
+        scope: What this instance owns in a shared client, or ``None`` (the whole
+            client, as before). Under a scope a stored hash whose torrent sits
+            outside the scope's category belongs to another instance: it is
+            skipped with a log line, never switched nor deleted.
 
     Returns:
         A :class:`ReswitchSummary` with the checked / reswitched counts.
@@ -135,7 +142,8 @@ def reswitch_stalled(
         return ReswitchSummary()
 
     try:
-        by_hash = {t.hash.lower(): t for t in torrent_client.get_by_hashes(hashes)}
+        own, _foreign = lookup_scoped(torrent_client, hashes, scope)
+        by_hash = {t.hash.lower(): t for t in own}
     except Exception as exc:  # noqa: BLE001 — fail-soft: an unreachable client is not our error
         log.warning("acquire.reswitch.client_unavailable", error=str(exc))
         return ReswitchSummary()

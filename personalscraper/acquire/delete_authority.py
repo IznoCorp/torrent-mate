@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Final, Protocol
 
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.store import _SeedSubStore
-from personalscraper.api.torrent._base import scoped
+from personalscraper.api.torrent._base import lookup_scoped, scoped
 from personalscraper.core.delete_permit import (
     ALLOW,
     ObligationsUnreadable,
@@ -465,7 +465,9 @@ class DeleteAuthority:
         an honest MISS: no obligation is invented with made-up floors.
 
         Fail-soft throughout: a client error, a missing store or a store write
-        failure returns ``False`` and never interrupts the sweep.
+        failure returns ``False`` and never interrupts the sweep. Under a scope a
+        hash held in another instance's category is not ours: it is skipped with a
+        log line and gets no obligation.
 
         Args:
             info_hash: Info-hash of the recovered torrent.
@@ -480,7 +482,7 @@ class DeleteAuthority:
         try:
             if self._store.seed.find_active_by_hash(info_hash) is not None:
                 return False  # idempotent: the obligation is already there
-            items = list(self._torrent_client.get_by_hashes({info_hash.lower()}))
+            items, _foreign = lookup_scoped(self._torrent_client, {info_hash.lower()}, self._scope)
             item = next((t for t in items if t.hash.lower() == info_hash.lower()), None)
             if item is None:
                 log.debug("acquire.record_grab_obligation.no_live_torrent", info_hash=info_hash)

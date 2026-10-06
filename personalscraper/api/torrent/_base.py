@@ -13,13 +13,16 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from personalscraper.api.torrent._layout import TorrentLayout
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.api.torrent._contracts import TorrentLister
     from personalscraper.conf.models.api_config import TorrentScope
+
+log = get_logger("api.torrent.scope")
 
 # Maximum bencode nesting depth. A legitimate ``.torrent`` is shallow
 # (top-level dict → info dict → a few lists); anything deeper is adversarial
@@ -194,6 +197,45 @@ def scoped(items: Iterable[TorrentItem], scope: TorrentScope | None) -> list[Tor
     if scope is None:
         return list(items)
     return [item for item in items if item.category == scope.category]
+
+
+class HashLookup(Protocol):
+    """The slice of a torrent client a by-hash reader needs."""
+
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        """Return the torrents matching *hashes* (any state)."""
+        ...
+
+
+def lookup_scoped(
+    client: HashLookup, hashes: set[str], scope: TorrentScope | None
+) -> tuple[list[TorrentItem], set[str]]:
+    """Look up torrents by hash, keeping to the ones an instance owns.
+
+    For the by-hash readers and writers fed from a store: a stored hash may name a
+    torrent that now sits in another instance's category, which this instance must
+    never pause, delete nor settle. Each such hash is logged and handed back apart,
+    so a caller can tell « held by another instance » from « absent from the client ».
+
+    Args:
+        client: A client answering ``get_by_hashes``.
+        hashes: The info hashes taken from a store.
+        scope: The instance's scope; ``None`` = the whole client (today).
+
+    Returns:
+        ``(own, foreign)``: the torrents to act on, and the lowercase hashes found
+        in the client outside the scope's category. With *scope* ``None`` it is
+        ``(client.get_by_hashes(hashes), set())`` and nothing is logged.
+    """
+    items = client.get_by_hashes(hashes)
+    if scope is None:
+        return list(items), set()
+    own = scoped(items, scope)
+    own_ids = {id(item) for item in own}
+    foreign = {item.hash.lower() for item in items if id(item) not in own_ids}
+    for info_hash in sorted(foreign):
+        log.warning("torrent.scope.foreign_hash_skipped", info_hash=info_hash, category=scope.category)
+    return own, foreign
 
 
 def scoped_hashes(client: TorrentLister, scope: TorrentScope | None) -> set[str]:
