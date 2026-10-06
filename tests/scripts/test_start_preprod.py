@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.indexer.test_ecosystem import _PREPROD_APP_NAMES
+from tests.indexer.test_ecosystem import _PREPROD_DEPLOYED_APP_NAMES
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "start-preprod.sh"
@@ -127,7 +127,7 @@ def test_every_preprod_app_starts_when_the_preprod_is_set_up(tmp_path: Path) -> 
     """Every precondition holds: the web and every preprod job start, nothing of prod's."""
     done, calls = _run(tmp_path)
     assert done.returncode == 0, done.stderr
-    assert _started(calls) == _PREPROD_APP_NAMES
+    assert _started(calls) == _PREPROD_DEPLOYED_APP_NAMES
     assert "--update-env" in next(c for c in calls if c.startswith("startOrRestart "))
 
 

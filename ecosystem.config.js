@@ -344,6 +344,26 @@ module.exports = {
     // The `staging` environment's engine, offset from prod's crons so the two never fire
     // together. Same self-managed `schedule` loop as prod's jobs; run from the staging clone
     // on the preprod's overlay and secrets file (see torrentmate-web-staging above).
+    // The preprod's watcher daemon: triages the preprod's own grabs (ingest, sort, scrape, dispatch
+    // into the preprod's roots); reads only the preprod's qBittorrent category (torrent scope).
+    {
+      name: "personalscraper-preprod-watch",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "watch",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 10,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_ENV: "staging",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config-staging",
+        PERSONALSCRAPER_ENV_FILE: "/Users/izno/.torrentmate/.env-staging",
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
     // 03:30 daily (prod 03:00)
     {
       name: "personalscraper-preprod-follow-detect",

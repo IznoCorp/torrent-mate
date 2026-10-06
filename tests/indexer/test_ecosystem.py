@@ -56,6 +56,7 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-preprod-health-check",
         "personalscraper-preprod-index-full",
         "personalscraper-preprod-purge",
+        "personalscraper-preprod-watch",
     }
 )
 
@@ -101,8 +102,15 @@ _PREPROD_JOBS: dict[str, tuple[str, list[str]]] = {
     "personalscraper-preprod-purge": ("0 2 * * *", ["seed", "purge"]),
 }
 
-#: Every app of the preprod: its web (the :8711 app, re-pointed) and its scheduled jobs.
-_PREPROD_APP_NAMES = frozenset({"torrentmate-web-staging", *_PREPROD_JOBS})
+#: The preprod's watcher daemon: triages the preprod's own grabs, scoped to its qBittorrent category.
+_PREPROD_WATCH = "personalscraper-preprod-watch"
+
+#: Every app of the preprod: its web (the :8711 app, re-pointed), its scheduled jobs and its watcher.
+_PREPROD_APP_NAMES = frozenset({"torrentmate-web-staging", _PREPROD_WATCH, *_PREPROD_JOBS})
+
+#: The preprod apps ``scripts/start-preprod.sh`` starts on a staging deploy: all but the watcher,
+#: which the operator starts by hand (``pm2 start ... --only``).
+_PREPROD_DEPLOYED_APP_NAMES = _PREPROD_APP_NAMES - {_PREPROD_WATCH}
 
 #: What the preprod runs from and on: the staging clone and its venv, its own overlay and its
 #: own secrets file (never prod's canonical ``.env``, k2-prep DESIGN § 2.2).
@@ -809,6 +817,26 @@ def test_preprod_apps_run_in_the_staging_environment(app_name: str) -> None:
     assert app.get("PERSONALSCRAPER_LANG") == "fr", f"{app_name}: the operator's language is pinned"
 
 
+def test_preprod_watcher_runs_scoped_from_the_staging_clone() -> None:
+    """The preprod's watcher is the ``watch`` daemon of the staging clone, in ``staging`` on its overlay.
+
+    It reads the preprod overlay's client scope (its own qBittorrent category) and writes into
+    the preprod's roots: it must never run on prod's config or from prod's clone, or it would
+    triage prod's torrents. Like prod's watcher it is a daemon, not a ``schedule`` loop.
+    """
+    app = _get_app_by_name(_parse_ecosystem_apps(_ECOSYSTEM_PATH), _PREPROD_WATCH)
+    assert app.get("script") == _STAGING_BIN
+    assert app.get("args") == "watch"
+    assert app.get("cwd") == _STAGING_CLONE
+    assert app.get("PERSONALSCRAPER_ENV") == "staging"
+    assert app.get("PERSONALSCRAPER_CONFIG") == _PREPROD_CONFIG
+    assert app.get("PERSONALSCRAPER_ENV_FILE") == _PREPROD_ENV_FILE
+    assert app.get("autorestart") is True
+    assert app.get("restart_delay") == 5000
+    assert app.get("max_restarts") == 10
+    assert app.get("kill_timeout") == 30000
+
+
 @pytest.mark.parametrize("app_name", sorted(_PREPROD_JOBS))
 def test_preprod_job_runs_its_job_at_its_offset(app_name: str) -> None:
     """Each preprod job runs its CLI job at the offset § 3.5 gives it.
@@ -961,4 +989,4 @@ def test_staging_deploy_starts_exactly_the_preprod_apps() -> None:
     web, jobs = assigned("PREPROD_WEB"), assigned("PREPROD_JOBS")
     assert web == {"torrentmate-web-staging"}
     assert jobs == set(_PREPROD_JOBS)
-    assert web | jobs == _PREPROD_APP_NAMES
+    assert web | jobs == _PREPROD_DEPLOYED_APP_NAMES
