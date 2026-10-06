@@ -1,7 +1,9 @@
 {
   "request": {
     "invalid": "The request is invalid.",
-    "cross_origin": "The request came from another origin and was refused."
+    "cross_origin": "The request came from another origin and was refused.",
+    "key_reused": "The idempotency key was already used for another request.",
+    "in_progress": "The request carrying this idempotency key is still running."
   },
   "route": {
     "unknown": "No operation answers this request."

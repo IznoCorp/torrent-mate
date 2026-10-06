@@ -3,7 +3,8 @@
 One more SQLite file beside ``library`` and ``acquire`` (Q2/Q13: three stores by owner,
 one file per environment by suffix). It holds the application layer's own state: the
 push subscriptions, and the accounts with their roles, Plex links and sessions — a push
-subscription belongs to an account, and goes with it. Each aggregate is reached through its
+subscription belongs to an account, and goes with it — and the first answers of the v1
+writes sent with an idempotency key. Each aggregate is reached through its
 own repository over the one connection and its lock; :meth:`AppStore.immediate` makes calls
 across them one transaction.
 
@@ -31,6 +32,7 @@ from personalscraper.app.accounts.account_repository import AccountRepository
 from personalscraper.app.accounts.pin_repository import PlexPinRepository
 from personalscraper.app.accounts.role_repository import RoleRepository
 from personalscraper.app.accounts.session_repository import SessionRepository
+from personalscraper.app.idempotency.repository import IdempotencyRepository
 from personalscraper.app.store.errors import AppMigrationError
 from personalscraper.app.store.setting_repository import SettingRepository
 from personalscraper.app.supervisor.lease_repository import LeaseRepository
@@ -71,6 +73,7 @@ class AppStore:
         self._settings: SettingRepository | None = None
         self._runs: QueueRepository | None = None
         self._lease: LeaseRepository | None = None
+        self._idempotency: IdempotencyRepository | None = None
         self._closed = False
         # ``db_lock`` serialises open + migrate across processes only; this one serialises
         # the threads of one process, so concurrent first accesses open a single connection.
@@ -256,6 +259,18 @@ class AppStore:
             self._lease = LeaseRepository(conn, lock=self._conn_lock)
         return self._lease
 
+    @property
+    def idempotency(self) -> IdempotencyRepository:
+        """The writes' idempotency records (opens, and migrates, the store on first access).
+
+        Returns:
+            The idempotency repository over this store's connection.
+        """
+        conn = self._ensure_open()
+        if self._idempotency is None:
+            self._idempotency = IdempotencyRepository(conn, lock=self._conn_lock)
+        return self._idempotency
+
     def close(self) -> None:
         """Close the connection if it was opened; idempotent and fail-soft."""
         # Under the open lock: a first access still opening finishes first, and its
@@ -270,6 +285,7 @@ class AppStore:
             self._settings = None
             self._runs = None
             self._lease = None
+            self._idempotency = None
             if self._conn is None:
                 return
             try:

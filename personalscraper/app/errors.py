@@ -26,6 +26,8 @@ class RefusalCode(StrEnum):
 
     REQUEST_INVALID = "request.invalid"
     REQUEST_CROSS_ORIGIN = "request.cross_origin"
+    REQUEST_KEY_REUSED = "request.key_reused"
+    REQUEST_IN_PROGRESS = "request.in_progress"
     ROUTE_UNKNOWN = "route.unknown"
     INTERNAL = "internal"
     AUTH_REQUIRED = "auth.required"
