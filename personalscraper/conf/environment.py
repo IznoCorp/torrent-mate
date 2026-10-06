@@ -1,8 +1,11 @@
 """The environment a process runs in, and the store file names it derives.
 
 One setting, ``PERSONALSCRAPER_ENV``, names the environment (``dev``, ``staging`` or
-``prod``). Each store file (library, acquire, app) takes its name from it. Absent means
-``prod``: the historical file names, unchanged. The names alone do not isolate: every
+``prod``). Each store file (library, acquire, app) takes its name from it; ``prod`` keeps
+the historical file names. The variable must be set: absent or empty is refused, never read
+as prod, so a process that names no environment cannot open prod's stores by default — prod
+(its PM2 apps) sets ``prod``, and a dev command that wants prod's stores asks for them by
+setting ``prod`` itself. The names alone do not isolate: every
 environment but prod needs a ``data_dir`` of its own, marked with its name, and the
 isolation guard (``conf/isolation.py``) refuses one that is unmarked or marked for
 another environment.
@@ -35,26 +38,28 @@ class StoreName(StrEnum):
 
 
 class EnvironmentSettingError(ValueError):
-    """PERSONALSCRAPER_ENV holds a value that is not an Environment."""
+    """PERSONALSCRAPER_ENV is unset, or holds a value that is not an Environment."""
 
 
 def current_environment() -> Environment:
     """Read the environment from ``PERSONALSCRAPER_ENV``.
 
     Returns:
-        The named environment; ``Environment.PROD`` when the variable is absent or empty
-        (production sets nothing, so nothing in production changes).
+        The named environment.
 
     Raises:
-        EnvironmentSettingError: The variable holds a value that is not an Environment.
+        EnvironmentSettingError: The variable is absent or empty (fail closed: it never
+            defaults to prod), or holds a value that is not an Environment.
     """
+    allowed = ", ".join(repr(e.value) for e in Environment)
     raw = os.environ.get(ENV_VAR, "").strip()
     if not raw:
-        return Environment.PROD
+        raise EnvironmentSettingError(
+            f"{ENV_VAR} is not set; set it to one of {allowed} (prod's stores open only under an explicit 'prod')"
+        )
     try:
         return Environment(raw)
     except ValueError:
-        allowed = ", ".join(repr(e.value) for e in Environment)
         raise EnvironmentSettingError(f"{ENV_VAR}={raw!r} is not an environment; expected one of {allowed}") from None
 
 

@@ -14,3 +14,12 @@ See ``personalscraper/indexer/db.py:apply_migrations`` for the applier and
 (every version 1..N must appear in ``schema_version``; PRAGMA user_version
 must equal the latest version after a fresh apply).
 """
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Final
+
+#: The directory of the library store's scripts: what a raw ``library.db`` writer hands
+#: :func:`personalscraper.core.sqlite.refuse_newer_schema`.
+MIGRATIONS_DIR: Final = Path(__file__).resolve().parent

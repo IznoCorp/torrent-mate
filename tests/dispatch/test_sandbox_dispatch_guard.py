@@ -42,9 +42,9 @@ def test_destination_inside_a_root_passes_under_staging(tmp_path: Path, monkeypa
     assert result.action == "error"  # untouched: the DispatchResult default
 
 
-def test_unset_environment_never_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_prod_never_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Outside staging the guard refuses nothing."""
     dispatcher, _ = _dispatcher(tmp_path)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     result = DispatchResult(source=tmp_path / "src")
     assert _refused_by_sandbox_guard(dispatcher, result, tmp_path / "anywhere") is False

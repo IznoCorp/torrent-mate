@@ -20,6 +20,10 @@
 
 PRAGMA foreign_keys = OFF;
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 -- ---------------------------------------------------------------------------
 -- Step 1: create replacement table with the CASCADE FK action.
 -- All other columns / constraints / indexes are identical to migration 002.
@@ -78,6 +82,8 @@ CREATE INDEX idx_file_enrich_pending ON media_file(enriched_at) WHERE enriched_a
 -- ---------------------------------------------------------------------------
 INSERT INTO schema_version(version) VALUES (9);
 PRAGMA user_version = 9;
+
+COMMIT;
 
 -- Restore FK enforcement so callers are not left with FK=OFF.
 PRAGMA foreign_keys = ON;

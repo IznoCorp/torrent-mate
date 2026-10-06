@@ -83,7 +83,7 @@ def test_assert_all_within_sandbox_judges_every_path(
     with pytest.raises(SandboxGuardError):
         _staging(monkeypatch)
         assert_all_within_sandbox(preprod.config, inside, outside)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV")
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     assert_all_within_sandbox(preprod.config, inside, outside)
 
 
@@ -157,8 +157,8 @@ def test_sweep_orphans_is_unchanged_outside_staging(preprod: SimpleNamespace, tm
 
 
 def test_sweep_orphans_without_a_config_is_unchanged_in_prod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``PERSONALSCRAPER_ENV`` unset: a sweep with no config and no marker removes the orphan, as before."""
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    """In prod, a sweep with no config and no marker removes the orphan, as before."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
     media_orphan, _ = _orphans(tmp_path)
     assert sweep_orphans([SweepRoot(tmp_path / "prod-media", RootKind.MEDIA_TREE)], dry_run=False) == 1
@@ -317,10 +317,10 @@ def test_run_verify_refuses_an_unmarked_staging_tree(preprod: SimpleNamespace, m
 
 
 def test_run_verify_is_unchanged_in_prod(preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``PERSONALSCRAPER_ENV`` unset: verify runs over the same unmarked staging tree without a refusal."""
+    """In prod, verify runs over the same unmarked staging tree without a refusal."""
     from personalscraper.verify.run import run_verify
 
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     report, _ = run_verify(MagicMock(), preprod.config, event_bus=EventBus())
     assert report.name == "verify"
 
@@ -416,7 +416,7 @@ def test_trailers_purge_refuses_a_trailer_outside_preprod(
     _staging(monkeypatch)
     purge()
     assert trailer.exists()
-    monkeypatch.delenv("PERSONALSCRAPER_ENV")
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     purge()
     assert not trailer.exists()
 
@@ -450,7 +450,7 @@ def test_library_fix_nfo_refuses_an_nfo_outside_preprod(
     library_fix_nfo(ctx, apply=True, config=None, db=db_path)
     assert nfo.read_text(encoding="utf-8") == original
     assert not (show / "tvshow.nfo.bak").exists()
-    monkeypatch.delenv("PERSONALSCRAPER_ENV")
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
     library_fix_nfo(ctx, apply=True, config=None, db=db_path)
     assert nfo.read_text(encoding="utf-8") != original
     assert (show / "tvshow.nfo.bak").exists()

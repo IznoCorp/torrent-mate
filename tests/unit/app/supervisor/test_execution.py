@@ -122,3 +122,30 @@ def test_an_index_that_cannot_be_opened_returns_1_and_records_an_error(
 
     assert code == 1
     assert _run_rows(db_path) == [("library-rescrape-item", "error", "1")]
+
+
+def test_an_index_newer_than_the_code_returns_1_untouched(test_config) -> None:
+    """A store past the last migration takes the open-failure path (exit 1), not a traceback."""
+    db_path = _migrated_index(test_config)
+    newer = max(int(p.name.split("_")[0]) for p in Path(migrations.__file__).parent.glob("*.sql")) + 1
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(f"PRAGMA user_version = {newer}")
+    conn.close()
+
+    @contextmanager
+    def run_row(config: object, command: str):
+        yield MagicMock()
+
+    code = rescrape_item(
+        test_config,
+        MagicMock(),
+        42,
+        console=Console(quiet=True),
+        run_row=run_row,
+        step_boundary=_step_boundary,
+    )
+
+    assert code == 1
+    with sqlite3.connect(db_path) as check:
+        assert check.execute("PRAGMA user_version").fetchone()[0] == newer
+    check.close()

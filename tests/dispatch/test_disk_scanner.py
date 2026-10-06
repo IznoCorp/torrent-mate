@@ -143,9 +143,9 @@ class TestSandboxMarker:
         ):
             assert get_disk_status(self._dc(tmp_path)).is_mounted is True
 
-    def test_unset_environment_ignores_the_marker(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Without ``PERSONALSCRAPER_ENV`` an unmarked mounted root is mounted, as before."""
-        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    def test_prod_ignores_the_marker(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """In prod an unmarked mounted root is mounted, as before."""
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
         with patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True):
             assert get_disk_status(self._dc(tmp_path)).is_mounted is True
 

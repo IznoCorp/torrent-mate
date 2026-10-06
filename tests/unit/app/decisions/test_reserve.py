@@ -299,6 +299,9 @@ class TestReserveDecisionRun:
         def mock_execute(sql: str, params: object = None) -> MagicMock:
             if isinstance(sql, str) and "BEGIN" in sql:
                 raise sqlite3.OperationalError("database is locked")
+            if isinstance(sql, str) and "user_version" in sql:
+                # The newer-schema check reads the version first: a store the code knows.
+                return MagicMock(fetchone=MagicMock(return_value=(0,)))
             return MagicMock()
 
         mock_conn.execute = mock_execute
