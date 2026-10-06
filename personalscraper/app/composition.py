@@ -412,8 +412,9 @@ def build_app_services(
         given = providers
         lookup = LazyProviders(lambda: given)
     plex = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
-    view, library, sheets, rescrape, deletion = _build_library_services(config, lookup, plex)
     app_store = build_app_store(config)
+    runs = RunService(store=app_store, data_dir=config.paths.data_dir)
+    view, library, sheets, rescrape, deletion = _build_library_services(config, lookup, plex, runs)
     sessions = SessionService(app_store, idle_days=config.web.session_idle_days)
     accounts = RosterService(app_store, event_bus)
     roles = RoleService(app_store, event_bus)
@@ -432,7 +433,7 @@ def build_app_services(
         roles=roles,
         credentials=credentials,
         plex_sign_in=_build_plex_sign_in(config, settings, app_store, credentials, event_bus, plex),
-        runs=RunService(store=app_store, data_dir=config.paths.data_dir),
+        runs=runs,
         owned_providers=owned,
     )
 
@@ -488,7 +489,7 @@ def _build_plex_sign_in(
 
 
 def _build_library_services(
-    config: "Config", providers: "ProviderLookup", plex: "PlexClient | None"
+    config: "Config", providers: "ProviderLookup", plex: "PlexClient | None", runs: RunService
 ) -> "tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]":
     """Build the library's services over one catalogue view, one index, the providers and Plex.
 
@@ -508,6 +509,7 @@ def _build_library_services(
             resolved by the loader.
         providers: Where the TMDB and TVDB clients are found.
         plex: The process's client of the Plex server; ``None`` without a ``PLEX_TOKEN``.
+        runs: The run service the rescrape asks through.
 
     Returns:
         The catalogue view (which owns and closes the catalogue store and the ownership
@@ -539,7 +541,7 @@ def _build_library_services(
         view,
         LibraryReads(index=index, view=view, sheets=sheets),
         sheets,
-        LibraryRescrape(index=index, index_db=index_db, data_dir=config.paths.data_dir),
+        LibraryRescrape(index=index, runs=runs),
         LibraryDeletion(
             index=index,
             index_db=index_db,
