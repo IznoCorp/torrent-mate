@@ -155,10 +155,9 @@ ignore = ["D104"]  # D104=__init__ docstring
 # list can only shrink.
 [tool.ruff.lint.per-file-ignores]
 # The living tools keep D103: a new script is held to it from its first line.
-"scripts/*.py" = ["D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "S608", "RUF100"]
-"webui/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "UP031", "RUF100"]
-"frontend/scripts/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
-"webui/*.py" = ["B904", "C901", "PLC0415", "RUF100"]
+"scripts/*.py" = ["D205", "E501", "E701", "E702", "F401", "F405", "F841", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "S608", "RUF100"]
+"webui/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "UP031", "RUF100"]
+"webui/*.py" = ["B904", "C901", "PLC0415"]
 
 # BLE, S608, PLC0415, B, C901, RUF100 and UP are held on `personalscraper/app/`, `personalscraper/http_v1/` and
 # `personalscraper/core/` (the v1 trees): a finding there is fixed, or carries a local
@@ -224,7 +223,7 @@ exclude = [
 # "could not be resolved" warnings. Anchoring at the repo root makes the
 # package importable regardless of the active interpreter.
 extraPaths = ["."]
-pythonVersion = "3.10"
+pythonVersion = "3.12"
 typeCheckingMode = "basic"
 reportMissingImports = "error"
 reportMissingTypeStubs = "none"
