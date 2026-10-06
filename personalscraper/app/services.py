@@ -18,6 +18,9 @@ from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BuildInfo
 from personalscraper.app.store.store import AppStore
+from personalscraper.app.supervisor import (
+    events as _supervisor_events,  # noqa: F401 — registers RunQueued, RunAdmitted, RunSettled
+)
 from personalscraper.core.event_bus import EventBus
 
 if TYPE_CHECKING:

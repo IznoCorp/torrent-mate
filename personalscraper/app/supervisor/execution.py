@@ -9,11 +9,13 @@ imports engine modules only, never ``commands`` nor ``cli_helpers``.
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from personalscraper.app.composition import build_app_context
+from personalscraper.app.supervisor.model import (
+    RunOptions as RunOptions,
+)  # re-exported: the CLI and the tests import it from here
 from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
@@ -24,25 +26,6 @@ if TYPE_CHECKING:
     from personalscraper.config import Settings
     from personalscraper.core.app_context import AppContext
     from personalscraper.pipeline_history import PipelineRunWriter
-
-
-@dataclass(frozen=True)
-class RunOptions:
-    """What a pipeline run or an item rescrape is asked to do.
-
-    Attributes:
-        dry_run: Preview the run without modifying files.
-        skip_trailers: Skip the trailers step.
-        continue_on_trailer_error: Carry on when the trailers step fails.
-        no_post_maintenance: Skip the post-run maintenance.
-        item_id: The indexer row of a rescrape; ``None`` for a pipeline run.
-    """
-
-    dry_run: bool = False
-    skip_trailers: bool = False
-    continue_on_trailer_error: bool = False
-    no_post_maintenance: bool = False
-    item_id: int | None = None
 
 
 class _RescrapeFailed(Exception):
