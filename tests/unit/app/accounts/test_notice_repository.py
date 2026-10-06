@@ -5,6 +5,7 @@ Everything is scoped to one account: a mark or a purge never reaches another acc
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -12,11 +13,15 @@ import pytest
 
 from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.notice_repository import NOTICE_CAP_PER_ACCOUNT, NOTICE_RETENTION_S
+from personalscraper.app.accounts.notices import NOTICE_READ_LIMIT
 from personalscraper.app.store.store import AppStore
 
 _NOW = 10_000_000.0
 _MINE = "account-mine"
 _OTHER = "account-other"
+# The bounds are pinned as literals: a test importing the constants would follow any value they take.
+_CAP = 100
+_RETENTION_S = 90 * 24 * 3600.0
 
 
 def _account(account_id: str) -> Account:
@@ -105,12 +110,18 @@ class TestReadMark:
 class TestBounds:
     """The table is bounded: by age, and by a count per account."""
 
+    def test_the_bounds_hold_their_documented_values(self) -> None:
+        """90 days and 100 per account, and the cap leaves room for what the interface reads."""
+        assert NOTICE_RETENTION_S == _RETENTION_S
+        assert NOTICE_CAP_PER_ACCOUNT == _CAP
+        assert NOTICE_CAP_PER_ACCOUNT >= NOTICE_READ_LIMIT
+
     def test_a_notice_past_the_retention_is_purged_on_the_next_insert(self, store: AppStore) -> None:
         """Older than the retention goes; a younger one stays."""
         store.notices.insert_notice(_MINE, "account.sign_in.device", {"n": "old"}, now=_NOW)
         young = store.notices.insert_notice(_MINE, "account.sign_in.device", {"n": "young"}, now=_NOW + 10)
 
-        newest = store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + NOTICE_RETENTION_S + 1)
+        newest = store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + _RETENTION_S + 1)
 
         assert [row.id for row in store.notices.notices_of(_MINE, limit=10)] == [newest, young]
 
@@ -118,17 +129,57 @@ class TestBounds:
         """One over the cap drops the oldest."""
         ids = [
             store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + step)
-            for step in range(NOTICE_CAP_PER_ACCOUNT + 1)
+            for step in range(_CAP + 1)
         ]
 
-        kept = [row.id for row in store.notices.notices_of(_MINE, limit=NOTICE_CAP_PER_ACCOUNT + 10)]
+        kept = [row.id for row in store.notices.notices_of(_MINE, limit=_CAP + 10)]
 
         assert kept == ids[:0:-1]
+
+    def test_the_cap_ignores_another_accounts_newer_notices(self, store: AppStore) -> None:
+        """Another account's later rows never decide which of this account's rows die."""
+        mine = [
+            store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + step) for step in range(_CAP)
+        ]
+        for step in range(_CAP):
+            store.notices.insert_notice(_OTHER, "account.sign_in.device", {}, now=_NOW + 1_000 + step)
+
+        mine.append(store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + _CAP))
+
+        assert [row.id for row in store.notices.notices_of(_MINE, limit=_CAP + 10)] == mine[:0:-1]
+        assert len(store.notices.notices_of(_OTHER, limit=_CAP + 10)) == _CAP
 
     def test_a_purge_never_touches_another_accounts_notices(self, store: AppStore) -> None:
         """Another account's old notice survives this account's insert."""
         theirs = store.notices.insert_notice(_OTHER, "account.sign_in.device", {}, now=_NOW)
 
-        store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + NOTICE_RETENTION_S + 1)
+        store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + _RETENTION_S + 1)
 
         assert [row.id for row in store.notices.notices_of(_OTHER, limit=10)] == [theirs]
+
+    def test_a_clock_stepping_back_never_purges_the_row_just_inserted(self, store: AppStore) -> None:
+        """At the cap, a notice stamped before the existing ones is still the newest by id and stays."""
+        for step in range(_CAP):
+            store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + step)
+
+        fresh = store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW - 1_000)
+
+        kept = [row.id for row in store.notices.notices_of(_MINE, limit=_CAP + 10)]
+        assert fresh in kept
+        assert len(kept) == _CAP
+
+    def test_a_failing_purge_leaves_no_inserted_row(self, store: AppStore, tmp_path: Path) -> None:
+        """The insert and the purges are one transaction: a purge that raises undoes the insert."""
+        for step in range(_CAP):
+            store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + step)
+        with sqlite3.connect(tmp_path / "app.db") as other:
+            other.execute(
+                "CREATE TRIGGER refuse_purge BEFORE DELETE ON account_notice"
+                " BEGIN SELECT RAISE(ABORT, 'purge refused'); END"
+            )
+
+        with pytest.raises(sqlite3.DatabaseError, match="purge refused"):
+            store.notices.insert_notice(_MINE, "account.sign_in.device", {}, now=_NOW + _CAP)
+
+        assert len(store.notices.notices_of(_MINE, limit=_CAP + 10)) == _CAP
+        assert store.notices.notices_of(_MINE, limit=1)[0].created_at == _NOW + _CAP - 1
