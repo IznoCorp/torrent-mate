@@ -142,3 +142,22 @@ def test_unscoped_reconcile_view_keeps_every_torrent(
     client = _client(_dead(_OWN_HASH, "tm-dev"), _dead(_FOREIGN_HASH, "prod"))
 
     assert set(_reconciled_items(monkeypatch, store, client, None) or {}) == {_OWN_HASH, _FOREIGN_HASH}
+
+
+def test_scoped_reconcile_hands_the_sweep_the_foreign_hashes(
+    monkeypatch: pytest.MonkeyPatch, store: ConcreteAcquireStore
+) -> None:
+    """A stored hash held in another category reaches the sweep as ``foreign``."""
+    _grab_row(store, _OWN_HASH, 8)
+    _grab_row(store, _FOREIGN_HASH, 9)
+    client = _client(_dead(_OWN_HASH, "tm-dev"), _dead(_FOREIGN_HASH, "prod"))
+    seen: dict[str, object] = {}
+
+    def _capture(_store: object, _ownership: object, _items: object, **kw: object):
+        seen.update(kw)
+        return reconcile_module.ReconcileSummary()
+
+    monkeypatch.setattr(reconcile_module, "reconcile_wanted", _capture)
+    _reconcile_before_run(_acquire(store, client), EventBus(), Console(quiet=True), scope=_SCOPE)
+
+    assert seen["foreign"] == {_FOREIGN_HASH}

@@ -226,6 +226,7 @@ def _reconcile_before_run(
         return ReconcileSummary()
 
     client_items: dict[str, TorrentItem] | None = None
+    foreign: set[str] = set()
     torrent_client = acquire.torrent_client
     if torrent_client is not None:
         try:
@@ -236,7 +237,7 @@ def _reconcile_before_run(
             # Full items, not bare hashes: the sweep reads ``progress`` to emit
             # the download lifecycle events (seed-caps D9).
             in_flight = store.wanted.hashes_in_flight()
-            own, _foreign = lookup_scoped(torrent_client, in_flight, scope)
+            own, foreign = lookup_scoped(torrent_client, in_flight, scope)
             client_items = {t.hash.lower(): t for t in own}
         except Exception as exc:  # noqa: BLE001 — fail-soft: skip the requeue half
             log.warning("cli.grab.reconcile_client_unavailable", error=str(exc))
@@ -250,7 +251,9 @@ def _reconcile_before_run(
     ownership = acquire.ownership
 
     try:
-        summary = reconcile_wanted(store, ownership, client_items, event_bus=event_bus, record_obligation=recorder)
+        summary = reconcile_wanted(
+            store, ownership, client_items, event_bus=event_bus, record_obligation=recorder, foreign=foreign
+        )
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
         log.warning("cli.grab.reconcile_failed", error=str(exc))
         return ReconcileSummary()

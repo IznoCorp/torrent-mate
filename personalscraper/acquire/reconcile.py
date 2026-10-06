@@ -424,6 +424,7 @@ def reconcile_wanted(
     *,
     event_bus: EventBus,
     record_obligation: Callable[[str], bool] | None = None,
+    foreign: frozenset[str] | set[str] = frozenset(),
 ) -> ReconcileSummary:
     """Reconcile every ``grabbed`` wanted row against library + client truth.
 
@@ -460,6 +461,10 @@ def reconcile_wanted(
             grab-time writer never got to record lands now
             (``DeleteAuthority.record_grab_obligation``). Fail-soft — it returns
             a bool and never raises into the sweep.
+        foreign: Lowercase hashes the client holds OUTSIDE this instance's scope
+            (``lookup_scoped``'s second result). Such a hash is not « vanished »:
+            its row stays in flight with its hash, never requeued nor confirmed,
+            exactly as the obligation sweep leaves a foreign hash alone.
 
     Returns:
         The :class:`ReconcileSummary` counts.
@@ -595,6 +600,10 @@ def reconcile_wanted(
                 reenqueued=fallback.reenqueued,
                 claimed=fallback.claimed,
             )
+            continue
+
+        if client_hashes is not None and row_hash in foreign:
+            in_flight += 1
             continue
 
         if client_hashes is not None and row_hash not in client_hashes:
