@@ -15,7 +15,7 @@ config-driven, never hardcoded (`personalscraper init-config` seeds `config/` fr
 ## Setup (per clone)
 
 ```bash
-pip install -e ".[dev]"
+uv sync --locked --extra dev   # .venv from uv.lock; activate it, or prefix commands with `uv run`
 ./hooks/install.sh   # one-time per clone — sets core.hooksPath to hooks/ (never ~/.gitconfig)
 ```
 
