@@ -20,8 +20,11 @@ export const lotName = cva("text-4 font-semibold text-foreground [overflow-wrap:
 /** How many phases the lot has. */
 export const lotCount = cva("text-2 text-muted-foreground whitespace-nowrap");
 
-/** What blocks a lot or a phase, in the definition's words. */
-export const lotBlocker = cva("text-2 text-warning-text [overflow-wrap:anywhere]");
+/** What a lot or a phase waits on, in the definition's words. */
+export const lotWaitsOn = cva("text-2 text-warning-text [overflow-wrap:anywhere]");
+
+/** A lot's description or note: running text, wrapped, never cut. */
+export const lotText = cva("text-3 text-foreground [overflow-wrap:anywhere] m-0");
 
 /** The phases, one row each, separated by the border. */
 export const phaseList = cva("flex flex-col m-0 p-0 list-none");

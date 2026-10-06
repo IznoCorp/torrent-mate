@@ -1594,8 +1594,14 @@
         "in-flight": "en cours d'écriture",
         "in-review": "en relecture",
         "ready-unarmed": "prête, non armée",
-        "armed": "armée"
-      }
+        "armed": "armée",
+        "unknown": "état inconnu"
+      },
+      "dates": "{{start}} → {{end}}",
+      "datesFrom": "{{start}} →",
+      "datesUntil": "→ {{end}}",
+      "datesEstimated": "≈ {{dates}}",
+      "duration": "Durée : {{duration}}"
     }
   },
   "surfaces": {

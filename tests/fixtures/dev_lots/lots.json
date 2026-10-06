@@ -6,6 +6,12 @@
       "name": "Alpha, the sample lot",
       "plan": "PLAN.md",
       "blockedBy": "Waits for the sample decision",
+      "description": "What the sample lot does",
+      "note": "A note about the sample lot",
+      "start": "2026-09-01",
+      "end": "2026-10-15",
+      "estimated": true,
+      "duration": "six weeks",
       "phases": [
         { "id": "P1", "codename": "alpha-one", "dispatch": [1] },
         { "id": "P2", "codename": "alpha-two", "dispatch": [2] },

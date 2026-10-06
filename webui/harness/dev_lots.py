@@ -7,7 +7,9 @@ WHAT IS READ, at 390 in the phone frame and at 1280 out of it, on the named stat
 
   1. `dev-lots`: one card per lot of the sample and one row per phase, each row's state chip saying its state in
      the interface's words and in the tone the state earns; every pull request a link to its own page, opened
-     apart; what blocks a lot or a phase said; the long lot name wrapped, never cut; nothing wider than the page;
+     apart; what blocks a lot or a phase said; each lot's optional details (description, note, dates with « ≈ » when
+     estimated, duration) drawn when given and absent when not, the sample holding both cases; the long lot name
+     wrapped, never cut; nothing wider than the page;
   2. `dev-lots-loading`: placeholders, no card;
   3. `dev-lots-error`: the error surface, an alert with its retry;
   4. `dev-lots-unavailable` and `dev-lots-none`: their notice, no card.
@@ -46,8 +48,13 @@ READING = """() => {
   const names = [...screen.querySelectorAll('[data-part="lots/lot-name"]')].map((name) => ({
     cut: name.scrollWidth > name.clientWidth + 1 || getComputedStyle(name).textOverflow === 'ellipsis',
     lines: Math.round(name.getBoundingClientRect().height / parseFloat(getComputedStyle(name).lineHeight))}));
+  const details = [...screen.querySelectorAll('[data-part="lots/lot"]')].map((card) => {
+    const text = (part) => card.querySelector(`[data-part="${part}"]`)?.textContent.trim() ?? null;
+    return {id: card.dataset.lot, description: text('lots/description'), note: text('lots/note'),
+            dates: text('lots/dates'), duration: text('lots/duration')};
+  });
   return {
-    served,
+    served, details,
     lots: screen.querySelectorAll('[data-part="lots/lot"]').length,
     phases, links, names, wider: wider.slice(0, 4),
     blockers: screen.querySelectorAll('[data-part="lots/blocker"]').length,
@@ -58,6 +65,23 @@ READING = """() => {
     stamp: !!screen.querySelector('[data-part="lots/stamp"]'),
   };
 }"""
+
+
+def expected_details(lot):
+    """The optional details one lot was given, as the card should draw them.
+
+    Args:
+        lot: One lot of the document in the page's cache.
+
+    Returns:
+        The description, the note and the dates as drawn, and the duration; None for what the lot does not give.
+    """
+    start, end = lot.get("start"), lot.get("end")
+    dates = None
+    if start or end:
+        dates = f"{start} → {end}" if start and end else (f"{start} →" if start else f"→ {end}")
+        dates = f"≈ {dates}" if lot.get("estimated") else dates
+    return lot.get("description"), lot.get("note"), dates, lot.get("duration")
 
 
 def expected_counts(served):
@@ -97,6 +121,17 @@ async def read_cases(journal, page, width):
              or "noreferrer" not in (one["rel"] or "")]
     journal.check(f"{width} dev-lots: every pull request is a link to its page, opened apart",
                   len(seen["links"]) == prs and not apart, f"{len(seen['links'])} of {prs}, {apart[:2]}")
+    wrong = []
+    for lot, seen_lot in zip(seen["served"]["lots"], seen["details"]):
+        description, note, dates, duration = expected_details(lot)
+        drawn = (seen_lot["description"], seen_lot["note"], seen_lot["dates"])
+        # The duration reads « Durée : <text> »: the words are the interface's, the text is the lot's.
+        duration_ok = (seen_lot["duration"] is None) if duration is None else (seen_lot["duration"] or "").endswith(duration)
+        if drawn != (description, note, dates) or not duration_ok:
+            wrong.append((lot["id"], drawn, seen_lot["duration"]))
+    with_details = [lot for lot in seen["served"]["lots"] if any(expected_details(lot))]
+    journal.check(f"{width} dev-lots: each lot draws the details it is given and nothing of those it is not, the sample holding both",
+                  not wrong and 0 < len(with_details) < lots, f"{wrong[:2]}, {len(with_details)} of {lots} give some")
     journal.check(f"{width} dev-lots: what blocks is said", seen["blockers"] == blockers, f"{seen['blockers']} of {blockers}")
     journal.check(f"{width} dev-lots: no lot name is cut, the longest wraps",
                   not any(one["cut"] for one in seen["names"]) and max(one["lines"] for one in seen["names"]) >= (2 if width == "390" else 1),

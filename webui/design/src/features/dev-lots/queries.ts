@@ -46,6 +46,18 @@ export type Lot = {
   name: string;
   /** What blocks it, in the definition's words. */
   blockedBy: string | null;
+  /** What the lot does; absent when the definition gives none. */
+  description?: string;
+  /** A remark about the lot; absent when the definition gives none. */
+  note?: string;
+  /** When it starts, an ISO date; absent when not given. */
+  start?: string;
+  /** When it ends, an ISO date; absent when not given. */
+  end?: string;
+  /** Whether the dates are an estimate. */
+  estimated?: boolean;
+  /** How long it takes, in the definition's words; absent when not given. */
+  duration?: string;
   /** Its phases, in the definition's order. */
   phases: LotPhase[];
 };

@@ -17,6 +17,12 @@ export const SAMPLE_LOTS: LotsDocument = {
       id: "queue",
       name: "The run queue",
       blockedBy: null,
+      description: "Every run is asked through one queue, worked by one supervisor.",
+      note: "The interface asks through the queue last.",
+      start: "2026-09-01",
+      end: "2026-10-15",
+      estimated: true,
+      duration: "six weeks",
       phases: [
         { id: "P1", title: "the steps become callables", state: "merged", dispatch: null, blockedBy: null,
           prs: [{ number: 101, url: PR(101), state: "merged" }] },

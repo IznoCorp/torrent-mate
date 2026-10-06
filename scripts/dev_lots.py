@@ -64,6 +64,9 @@ TITLE_LEAD = re.compile(r"^[^\w(]*?(?:—|–|:|-)\s*")
 # A conventional commit title's scope: `type(scope): …`.
 TITLE_SCOPE = re.compile(r"^\w+\((?P<scope>[^)]+)\):")
 
+# The optional text details a lot's definition may give, copied through when present.
+LOT_TEXT_FIELDS = ("description", "note", "start", "end", "duration")
+
 GhRunner = Callable[[list[str]], str]
 
 
@@ -94,13 +97,19 @@ def read_dispatch(path: Path) -> dict[int, str]:
         path: The record, one JSON object per line.
 
     Returns:
-        Each row id to its state word; the labels are not kept.
+        Each row id to its state word; the labels are not kept. A line that is
+        not a JSON object with an integer id is skipped with a message.
     """
     states: dict[int, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
+        if not line.strip():
+            continue
+        try:
             row = json.loads(line)
             states[int(row["id"])] = str(row.get("state", ""))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            # One bad row must not cost the whole picture: it is skipped, loudly.
+            print("dev-lots: skipped a malformed dispatch line", file=sys.stderr)
     return states
 
 
@@ -208,14 +217,19 @@ def build(
     for lot in definition.get("lots", []) or []:  # type: ignore[union-attr]
         plan = base / str(lot.get("plan", ""))
         titles = plan_titles(plan.read_text(encoding="utf-8")) if lot.get("plan") and plan.is_file() else {}
-        lots.append(
-            {
-                "id": str(lot["id"]),
-                "name": str(lot.get("name") or lot["id"]),
-                "blockedBy": lot.get("blockedBy"),
-                "phases": [phase_entry(phase, titles, dispatch, pull_requests) for phase in lot.get("phases", [])],
-            }
-        )
+        entry: dict[str, object] = {
+            "id": str(lot["id"]),
+            "name": str(lot.get("name") or lot["id"]),
+            "blockedBy": lot.get("blockedBy"),
+            "phases": [phase_entry(phase, titles, dispatch, pull_requests) for phase in lot.get("phases", [])],
+        }
+        # The optional details are passed through only when the definition gives them.
+        for field in LOT_TEXT_FIELDS:
+            if lot.get(field):
+                entry[field] = str(lot[field])
+        if "estimated" in lot:
+            entry["estimated"] = bool(lot["estimated"])
+        lots.append(entry)
     return {"available": True, "generatedAt": now, "lots": lots}
 
 
@@ -225,11 +239,20 @@ def write(out: Path, document: Mapping[str, object]) -> None:
     Args:
         out: The output path.
         document: What to write.
+
+    Raises:
+        OSError: When the file cannot be written; the previous output stays and
+            no temporary file is left.
     """
     out.parent.mkdir(parents=True, exist_ok=True)
     partial = out.with_name(out.name + ".partial")
-    partial.write_text(json.dumps(document, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    partial.replace(out)
+    try:
+        partial.write_text(json.dumps(document, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        partial.replace(out)
+    except BaseException:
+        # A failed write must leave neither a half file nor the previous output touched.
+        partial.unlink(missing_ok=True)
+        raise
 
 
 def main(environment: Mapping[str, str] | None = None, run_gh: GhRunner = run_gh) -> int:
@@ -241,7 +264,8 @@ def main(environment: Mapping[str, str] | None = None, run_gh: GhRunner = run_gh
 
     Returns:
         0 when the output is written (or there is nowhere to write it), 1 when
-        `gh` failed and the previous output was kept.
+        the definition or the `gh` listing was unusable and the previous output
+        was kept.
     """
     environment = os.environ if environment is None else environment
     out_value = environment.get(OUT_ENV)
@@ -255,7 +279,14 @@ def main(environment: Mapping[str, str] | None = None, run_gh: GhRunner = run_gh
         print("dev-lots: no lots definition, writing an unavailable document", file=sys.stderr)
         write(out, {"available": False})
         return 0
-    definition = json.loads(definition_path.read_text(encoding="utf-8"))
+    try:
+        definition = json.loads(definition_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as failure:
+        print(f"dev-lots: the lots definition is unreadable ({type(failure).__name__}), output kept", file=sys.stderr)
+        return 1
+    if not isinstance(definition, dict):
+        print("dev-lots: the lots definition is not a JSON object, output kept", file=sys.stderr)
+        return 1
     base = definition_path.parent
     dispatch_path = base / str(definition.get("dispatch", ""))
     if not definition.get("dispatch") or not dispatch_path.is_file():
@@ -264,6 +295,8 @@ def main(environment: Mapping[str, str] | None = None, run_gh: GhRunner = run_gh
         return 0
     try:
         pull_requests = json.loads(run_gh(GH_COMMAND))
+        if not isinstance(pull_requests, list) or not all(isinstance(pr, dict) for pr in pull_requests):
+            raise ValueError("the listing is not a list of objects")
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, ValueError) as failure:
         print(f"dev-lots: the pull-request listing failed ({type(failure).__name__}), output kept", file=sys.stderr)
         return 1

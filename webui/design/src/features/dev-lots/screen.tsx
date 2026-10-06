@@ -10,6 +10,7 @@
 // notice — every host but the design host), and the lots.
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { ReactElement } from "react";
 import { Chip } from "../../ui/chip";
 import { Icon } from "../../ui/icon";
@@ -21,7 +22,7 @@ import type { ChipTone } from "../../ui/variants";
 import { backAction, body, factName, screen, screenBar, scrollport } from "../../ui/variants";
 import { lotsKey, readLots, type Lot, type LotPhase, type PhaseState } from "./queries";
 import {
-  lotBlocker, lotCard, lotCount, lotHead, lotList, lotName, lotsStamp, phaseFacts, phaseHead, phaseId, phaseList,
+  lotWaitsOn, lotCard, lotCount, lotHead, lotList, lotName, lotsStamp, lotText, phaseFacts, phaseHead, phaseId, phaseList,
   phaseRow, phaseTitle, pullRequestLink,
 } from "./variants";
 
@@ -52,7 +53,9 @@ function useLots() {
  * @returns The row.
  */
 function PhaseRow({ phase }: { phase: LotPhase }): ReactElement {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // A dispatch state the page has no word for reads as a neutral one, never as the raw code.
+  const dispatchKey = `screens.devLots.dispatch.${phase.dispatch}`;
   return (
     <li className={phaseRow()} data-part="lots/phase" data-phase={phase.id} data-state={phase.state}>
       <span className={phaseHead()}>
@@ -62,7 +65,7 @@ function PhaseRow({ phase }: { phase: LotPhase }): ReactElement {
       <span className={phaseFacts()}>
         <Chip tone={TONE[phase.state]} label={t(`screens.devLots.state.${phase.state}`)} />
         {phase.dispatch ? (
-          <span data-part="lots/dispatch">{t(`screens.devLots.dispatch.${phase.dispatch}`, phase.dispatch)}</span>
+          <span data-part="lots/dispatch">{t(i18n.exists(dispatchKey) ? dispatchKey : "screens.devLots.dispatch.unknown")}</span>
         ) : null}
         {phase.prs.map((pr) => (
           <a key={pr.number} className={pullRequestLink()} data-part="lots/pr" data-state={pr.state} href={pr.url}
@@ -72,12 +75,27 @@ function PhaseRow({ phase }: { phase: LotPhase }): ReactElement {
         ))}
       </span>
       {phase.blockedBy ? (
-        <span className={lotBlocker()} data-part="lots/blocker">
+        <span className={lotWaitsOn()} data-part="lots/blocker">
           {t("screens.devLots.blockedBy", { reason: phase.blockedBy })}
         </span>
       ) : null}
     </li>
   );
+}
+
+/**
+ * The dates a lot gives, as « start → end », prefixed « ≈ » when estimated.
+ *
+ * @param lot The lot.
+ * @param t The translator.
+ * @returns The words, or null when the lot gives no date.
+ */
+function datesOf(lot: Lot, t: TFunction): string | null {
+  const { start, end } = lot;
+  if (!start && !end) return null;
+  const range = start && end ? t("screens.devLots.dates", { start, end })
+    : start ? t("screens.devLots.datesFrom", { start }) : t("screens.devLots.datesUntil", { end });
+  return lot.estimated ? t("screens.devLots.datesEstimated", { dates: range }) : range;
 }
 
 /**
@@ -88,14 +106,23 @@ function PhaseRow({ phase }: { phase: LotPhase }): ReactElement {
  */
 function LotCard({ lot }: { lot: Lot }): ReactElement {
   const { t } = useTranslation();
+  const dates = datesOf(lot, t);
   return (
     <li className={lotCard()} data-part="lots/lot" data-lot={lot.id}>
       <div className={lotHead()}>
         <h2 className={lotName()} data-part="lots/lot-name">{lot.name}</h2>
         <span className={lotCount()}>{t("screens.devLots.phases", { count: lot.phases.length })}</span>
       </div>
+      {lot.description ? <p className={lotText()} data-part="lots/description">{lot.description}</p> : null}
+      {lot.note ? <p className={lotText()} data-part="lots/note">{lot.note}</p> : null}
+      {dates || lot.duration ? (
+        <span className={phaseFacts()} data-part="lots/schedule">
+          {dates ? <span data-part="lots/dates">{dates}</span> : null}
+          {lot.duration ? <span data-part="lots/duration">{t("screens.devLots.duration", { duration: lot.duration })}</span> : null}
+        </span>
+      ) : null}
       {lot.blockedBy ? (
-        <span className={lotBlocker()} data-part="lots/blocker">
+        <span className={lotWaitsOn()} data-part="lots/blocker">
           {t("screens.devLots.blockedBy", { reason: lot.blockedBy })}
         </span>
       ) : null}
