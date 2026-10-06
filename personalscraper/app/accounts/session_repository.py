@@ -115,7 +115,7 @@ class SessionRepository:
             The session, or ``None``.
         """
         row = self._conn.execute(
-            f"SELECT {_SESSION_COLUMNS} FROM session WHERE token_hash = ?",  # noqa: S608
+            f"SELECT {_SESSION_COLUMNS} FROM session WHERE token_hash = ?",  # noqa: S608 — interpolates the module's fixed column constant only
             (token_hash,),
         ).fetchone()
         return _row(row) if row else None
@@ -131,7 +131,7 @@ class SessionRepository:
             The session, or ``None``.
         """
         row = self._conn.execute(
-            f"SELECT {_SESSION_COLUMNS} FROM session WHERE id = ?",  # noqa: S608
+            f"SELECT {_SESSION_COLUMNS} FROM session WHERE id = ?",  # noqa: S608 — interpolates the module's fixed column constant only
             (session_id,),
         ).fetchone()
         return _row(row) if row else None
@@ -148,7 +148,7 @@ class SessionRepository:
             Its live sessions.
         """
         rows = self._conn.execute(
-            f"SELECT {_SESSION_COLUMNS} FROM session"  # noqa: S608
+            f"SELECT {_SESSION_COLUMNS} FROM session"  # noqa: S608 — interpolates the module's fixed column constant only
             " WHERE account_id = ? AND revoked_at IS NULL AND expires_at > ? ORDER BY created_at DESC, id DESC",
             (account_id, now),
         ).fetchall()

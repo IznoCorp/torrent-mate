@@ -125,12 +125,12 @@ def build_app_context(
     # No client configured (torrent.active="") → None, no error.
     torrent_client = None
     if build_torrent_client and config.torrent.active:
-        from personalscraper.api.metadata.registry import (  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — pulls the provider tree, built only when a torrent client is configured
             ConfigIssue,
             RegistryConfigError,
             RegistryProviderName,
         )
-        from personalscraper.api.torrent import (  # noqa: PLC0415
+        from personalscraper.api.torrent import (  # noqa: PLC0415 — built only when a torrent client is configured, like the registry above
             TorrentAdder,
             build_active_torrent_client,
         )
@@ -160,7 +160,9 @@ def build_app_context(
     # at the same boundary as RegistryConfigError (metadata/torrent). The
     # torrent client is borrowed (shared with ingest); acquire.close() does
     # NOT own its lifecycle.
-    from personalscraper.acquire import build_acquire_context  # noqa: PLC0415
+    from personalscraper.acquire import (  # noqa: PLC0415 — keeps --help / init-config network-light (see above)
+        build_acquire_context,
+    )
 
     # RP6: build the ownership checker at the TRUE composition root. This is the
     # only frame that may import indexer/ AND see config.indexer.db_path, so it
@@ -253,7 +255,9 @@ def build_provider_registry(
     """
     # Lazy import: ProviderRegistry pulls the full provider tree, so we defer it to keep
     # CLI import time minimal for commands that never build one (``--help``, ``init-config``).
-    from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: PLC0415
+    from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — pulls the provider tree (see above)
+        ProviderRegistry,
+    )
 
     return ProviderRegistry(
         settings=settings,
@@ -289,7 +293,9 @@ def _build_library_registry(config: Config, settings: Settings, *, event_bus: Ev
         RegistryConfigError: The pruned providers section is inconsistent, or neither
             key is set.
     """
-    from personalscraper.conf.models.providers import ProvidersConfig  # noqa: PLC0415
+    from personalscraper.conf.models.providers import (  # noqa: PLC0415 — loads the provider config models only when a registry is built
+        ProvidersConfig,
+    )
 
     keyed = {name for name, field in _LIBRARY_PROVIDER_KEYS.items() if getattr(settings, field)}
     kept = keyed or set(_LIBRARY_PROVIDER_KEYS)
@@ -339,7 +345,9 @@ class LazyProviders:
             The registry's client, or ``None`` when the registry cannot be built, does
             not hold ``provider``, or this lookup is closed.
         """
-        from personalscraper.api.metadata.registry import UnknownProviderError  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — the provider tree loads only when a lookup resolves
+            UnknownProviderError,
+        )
 
         registry = self._resolve()
         if registry is None:
@@ -364,7 +372,9 @@ class LazyProviders:
         Returns:
             The registry, or ``None``.
         """
-        from personalscraper.api.metadata.registry import RegistryConfigError  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — the provider tree loads only when a lookup resolves
+            RegistryConfigError,
+        )
 
         with self._lock:
             if self._closed:
@@ -532,15 +542,33 @@ def _build_library_services(
     """
     # Lazy imports: the indexer pulls heavy trees; building AppServices for a command
     # that never reads the library stays import-light.
-    from personalscraper.acquire.catalogue import CatalogueStore  # noqa: PLC0415
-    from personalscraper.acquire.delete_authority import StrictDeletePermit  # noqa: PLC0415
-    from personalscraper.app.library.completeness import CatalogueView  # noqa: PLC0415
-    from personalscraper.app.library.deleting import LibraryDeletion  # noqa: PLC0415
-    from personalscraper.app.library.reads import LibraryReads  # noqa: PLC0415
-    from personalscraper.app.library.rescrape import LibraryRescrape  # noqa: PLC0415
-    from personalscraper.app.library.sheets import MediaSheets  # noqa: PLC0415
-    from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415
-    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
+    from personalscraper.acquire.catalogue import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        CatalogueStore,
+    )
+    from personalscraper.acquire.delete_authority import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        StrictDeletePermit,
+    )
+    from personalscraper.app.library.completeness import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        CatalogueView,
+    )
+    from personalscraper.app.library.deleting import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryDeletion,
+    )
+    from personalscraper.app.library.reads import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryReads,
+    )
+    from personalscraper.app.library.rescrape import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryRescrape,
+    )
+    from personalscraper.app.library.sheets import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        MediaSheets,
+    )
+    from personalscraper.indexer.library_view import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryIndex,
+    )
+    from personalscraper.indexer.ownership import (  # noqa: PLC0415 — defers the indexer's SQLite machinery (see above) — the library tree loads when these services are built (see above)
+        IndexerOwnershipChecker,
+    )
 
     index_db = config.indexer.db_path
     acquire_db = config.acquire.db_path
@@ -605,6 +633,8 @@ def build_ownership_checker(config: Config) -> OwnershipChecker:
     # Lazy import: indexer/ pulls the SQLite machinery; defer it so commands that
     # never build an AppContext stay import-light. app/composition is NOT subject to
     # the acquire/ layering guard, so this indexer import is legal here.
-    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
+    from personalscraper.indexer.ownership import (  # noqa: PLC0415 — defers the indexer's SQLite machinery (see above)
+        IndexerOwnershipChecker,
+    )
 
     return IndexerOwnershipChecker(db_path)

@@ -86,7 +86,9 @@ def _run_rescrape(config: Config, settings: Settings, request: RunRequest) -> in
     """
     from rich.console import Console  # noqa: PLC0415
 
-    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+    from personalscraper.cli_helpers import (  # noqa: PLC0415 — the command layer loads only when a rescrape runs
+        per_step_boundary,
+    )
 
     item_id = request.options.item_id
     db_path = config.indexer.db_path
