@@ -317,18 +317,41 @@ def library_rescrape_item(
     Examples:
         personalscraper library-rescrape-item 1600
     """
-    _rescrape(
-        ctx,
-        command="library-rescrape-item",
-        only=None,
-        disk=None,
-        category_id=None,
-        interactive=False,
-        dry_run=False,
-        max_items=None,
-        item_id=item_id,
-        write_report=False,
-    )
+    from personalscraper.app.supervisor.execution import rescrape_item  # noqa: PLC0415
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+    from personalscraper.commands._cli_run_row import cli_run_row  # noqa: PLC0415
+
+    console = state["console"]
+    config = ctx.obj.config
+    settings = cli_helpers.get_settings()
+
+    # Guard: the item look-up requires a configured and reachable indexer DB.
+    db_path = config.indexer.db_path
+    if not db_path.exists():
+        console.print("[red]" + t("cli_library.analyze.indexer_db_missing", path=db_path) + "[/red]")
+        raise typer.Exit(1)
+
+    if not cli_helpers.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
+    ):
+        # Exit 3 = lock busy (the maintenance runner re-queues on this code).
+        console.print("[red]" + t("cli_library.analyze.lock_busy") + "[/red]")
+        raise typer.Exit(3)
+
+    try:
+        code = rescrape_item(
+            config,
+            settings,
+            item_id,
+            console=console,
+            run_row=cli_run_row,
+            step_boundary=per_step_boundary,
+        )
+        if code:
+            raise typer.Exit(code)
+    finally:
+        cli_helpers.release_lock()
 
 
 def _rescrape(
