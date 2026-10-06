@@ -27,6 +27,7 @@ from personalscraper.app.supervisor.model import (
     WaitReason,
 )
 from personalscraper.app.supervisor.queue_repository import QueueRepository
+from personalscraper.core.identity import ItemId
 from personalscraper.core.sqlite import apply_migrations, open_db
 
 ASKER = AccountId("account-a")
@@ -240,18 +241,128 @@ class TestQueue:
         running = _ask(RunOptions(dry_run=True))
         running.admit(1, NOW)
         store.runs.insert(running)
-        store.runs.insert(_ask(RunOptions(item_id=3), kind=RunKind.RESCRAPE, now=NOW + 1))
+        store.runs.insert(_ask(RunOptions(item_id=ItemId(3)), kind=RunKind.RESCRAPE, now=NOW + 1))
         assert store.runs.queued_like(RunKind.PIPELINE, running.options_json, None) is None
         assert store.runs.queued_like(RunKind.PIPELINE, _ask().options_json, None) is None
 
     def test_queued_like_finds_a_queued_rescrape_by_item(self, store: AppStore) -> None:
         """Queued like finds a queued rescrape by item."""
-        queued = _ask(RunOptions(item_id=3), kind=RunKind.RESCRAPE)
+        queued = _ask(RunOptions(item_id=ItemId(3)), kind=RunKind.RESCRAPE)
         store.runs.insert(queued)
-        store.runs.insert(_ask(RunOptions(item_id=4), kind=RunKind.RESCRAPE, now=NOW + 1))
-        asked = _ask(RunOptions(item_id=3, dry_run=True), kind=RunKind.RESCRAPE)
-        assert store.runs.queued_like(RunKind.RESCRAPE, asked.options_json, 3) == queued
-        assert store.runs.queued_like(RunKind.RESCRAPE, asked.options_json, 5) is None
+        store.runs.insert(_ask(RunOptions(item_id=ItemId(4)), kind=RunKind.RESCRAPE, now=NOW + 1))
+        asked = _ask(RunOptions(item_id=ItemId(3), dry_run=True), kind=RunKind.RESCRAPE)
+        assert store.runs.queued_like(RunKind.RESCRAPE, asked.options_json, ItemId(3)) == queued
+        assert store.runs.queued_like(RunKind.RESCRAPE, asked.options_json, ItemId(5)) is None
+
+    def test_queued_lists_every_queued_request_in_fifo_order(self, store: AppStore) -> None:
+        """Queued lists every queued request, oldest ask first, and nothing else."""
+        late = _ask(RunOptions(dry_run=True), now=NOW + 10)
+        early = _ask(now=NOW)
+        middle = _ask(RunOptions(skip_trailers=True), now=NOW + 5)
+        running = _ask(RunOptions(no_post_maintenance=True), now=NOW + 1)
+        running.admit(1, NOW + 1)
+        settled = _ask(RunOptions(continue_on_trailer_error=True), now=NOW + 2)
+        settled.admit(2, NOW + 2)
+        settled.settle(Settlement.SUCCESS, NOW + 3)
+        for request in (late, early, middle, running, settled):
+            store.runs.insert(request)
+        assert store.runs.queued() == (early, middle, late)
+
+    def test_queued_keeps_insertion_order_on_a_tie(self, store: AppStore) -> None:
+        """Queued breaks an equal ``asked_at`` by insertion order."""
+        first = _ask(RunOptions(dry_run=True))
+        second = _ask(RunOptions(skip_trailers=True))
+        store.runs.insert(first)
+        store.runs.insert(second)
+        assert store.runs.queued() == (first, second)
+
+    def test_queued_of_an_empty_queue_is_empty(self, store: AppStore) -> None:
+        """Queued of an empty queue is an empty tuple."""
+        assert store.runs.queued() == ()
+
+    def test_touch_heartbeat_moves_a_running_requests_heartbeat(self, store: AppStore) -> None:
+        """A heartbeat on a running request is written and says so."""
+        request = _ask()
+        request.admit(4242, NOW)
+        store.runs.insert(request)
+        assert store.runs.touch_heartbeat(request.uid, NOW + 30) is True
+        saved = store.runs.get(request.uid)
+        assert saved is not None
+        assert saved.heartbeat_at == NOW + 30
+
+    def test_touch_heartbeat_of_a_settled_request_changes_nothing(self, store: AppStore) -> None:
+        """A heartbeat on a settled request writes nothing and says so."""
+        request = _ask()
+        request.admit(4242, NOW)
+        request.settle(Settlement.SUCCESS, NOW + 1)
+        store.runs.insert(request)
+        assert store.runs.touch_heartbeat(request.uid, NOW + 30) is False
+        assert store.runs.get(request.uid) == request
+
+    def test_touch_heartbeat_of_a_queued_or_unknown_request_is_false(self, store: AppStore) -> None:
+        """A heartbeat on a queued or an unknown request writes nothing."""
+        queued = _ask()
+        store.runs.insert(queued)
+        assert store.runs.touch_heartbeat(queued.uid, NOW + 30) is False
+        assert store.runs.touch_heartbeat("f" * 32, NOW + 30) is False
+        assert store.runs.get(queued.uid) == queued
+
+    def test_a_stale_save_does_not_resurrect_a_settled_request(self, store: AppStore) -> None:
+        """A save over a row whose state moved meanwhile writes nothing and returns ``False``."""
+        request = _ask()
+        request.admit(4242, NOW)
+        store.runs.insert(request)
+        stale_copy = store.runs.get(request.uid)
+        assert stale_copy is not None
+        request.settle(Settlement.KILLED, NOW + 5)
+        assert store.runs.save(request) is True
+        stale_copy.back_to_queue(WaitReason.PIPELINE_LOCK_HELD)
+        assert store.runs.save(stale_copy) is False
+        saved = store.runs.get(request.uid)
+        assert saved is not None
+        assert saved.state is RequestState.SETTLED
+        assert saved.settlement is Settlement.KILLED
+
+    def test_a_save_returns_true_and_a_second_move_saves_from_the_new_state(self, store: AppStore) -> None:
+        """After a successful save the request is read in its new state: the next move saves too."""
+        request = _ask()
+        store.runs.insert(request)
+        request.admit(4242, NOW + 1)
+        assert store.runs.save(request) is True
+        request.settle(Settlement.SUCCESS, NOW + 2)
+        assert store.runs.save(request) is True
+
+    def test_queued_like_of_a_pipeline_ignores_the_options_of_a_rescrape_and_matches_its_own(
+        self, store: AppStore
+    ) -> None:
+        """A pipeline ask joins only a queued pipeline run of its own options."""
+        store.runs.insert(_ask(RunOptions(dry_run=True), now=NOW))
+        wanted = _ask(RunOptions(skip_trailers=True), now=NOW + 1)
+        store.runs.insert(wanted)
+        assert store.runs.queued_like(RunKind.PIPELINE, wanted.options_json, None) == wanted
+
+    def test_queued_like_of_a_rescrape_without_an_item_matches_nothing(self, store: AppStore) -> None:
+        """A rescrape with no item never joins: not even a queued rescrape of the same options."""
+        store.runs.insert(_ask(kind=RunKind.RESCRAPE))
+        asked = _ask(kind=RunKind.RESCRAPE)
+        assert store.runs.queued_like(RunKind.RESCRAPE, asked.options_json, None) is None
+
+    def test_first_queued_and_queued_order_an_out_of_order_insert(self, store: AppStore) -> None:
+        """The order is the query's, not the insertion's nor the index's: the oldest ask comes first."""
+        store._ensure_open().execute("DROP INDEX run_request_state_asked")  # the planner must not order for us
+        newer = _ask(RunOptions(dry_run=True), now=NOW + 10)
+        older = _ask(now=NOW)
+        store.runs.insert(newer)
+        store.runs.insert(older)
+        assert store.runs.first_queued() == older
+        assert store.runs.queued() == (older, newer)
+        later = _ask(RunOptions(skip_trailers=True), now=NOW + 20)
+        later.admit(1, NOW + 20)
+        earlier = _ask(RunOptions(no_post_maintenance=True), now=NOW + 15)
+        earlier.admit(2, NOW + 15)
+        store.runs.insert(later)
+        store.runs.insert(earlier)
+        assert store.runs.running() == [earlier, later]
 
 
 class TestLease:
@@ -290,7 +401,7 @@ class TestLease:
     def test_renew_extends_the_holders_lease(self, store: AppStore) -> None:
         """Renew extends the holders lease."""
         store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
-        assert store.lease.renew(4242, NOW + 30, 60) is True
+        assert store.lease.renew(4242, "iznoserver", NOW + 30, 60) is True
         lease = store.lease.read()
         assert lease is not None
         assert (lease.taken_at, lease.renewed_at, lease.expires_at) == (NOW, NOW + 30, NOW + 90)
@@ -298,32 +409,74 @@ class TestLease:
     def test_renew_is_refused_to_another_pid(self, store: AppStore) -> None:
         """Renew is refused to another pid."""
         store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
-        assert store.lease.renew(5151, NOW + 30, 60) is False
+        assert store.lease.renew(5151, "iznoserver", NOW + 30, 60) is False
         lease = store.lease.read()
         assert lease is not None
         assert lease.expires_at == NOW + 60
 
     def test_renew_without_a_lease_is_refused(self, store: AppStore) -> None:
         """Renew without a lease is refused."""
-        assert store.lease.renew(4242, NOW, 60) is False
+        assert store.lease.renew(4242, "iznoserver", NOW, 60) is False
 
     def test_release_deletes_the_holders_lease(self, store: AppStore) -> None:
         """Release deletes the holders lease."""
         store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
-        assert store.lease.release(4242) is True
+        assert store.lease.release(4242, "iznoserver") is True
         assert store.lease.read() is None
 
     def test_release_by_another_pid_keeps_the_lease(self, store: AppStore) -> None:
         """Release by another pid keeps the lease."""
         held = store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
-        assert store.lease.release(5151) is False
+        assert store.lease.release(5151, "iznoserver") is False
         assert store.lease.read() == held
 
     def test_a_released_lease_is_claimable_at_once(self, store: AppStore) -> None:
         """A released lease is claimable at once."""
         store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
-        store.lease.release(4242)
+        store.lease.release(4242, "iznoserver")
         assert store.lease.claim(5151, "iznoserver", NOW + 1, 60, _every_pid_alive) is not None
+
+    def test_a_live_lease_of_a_gone_holder_on_another_host_is_not_taken_over(self, store: AppStore) -> None:
+        """The dead-holder takeover is for this host's lease: another host's holds until it expires."""
+        held = store.lease.claim(4242, "other-host", NOW, 60, _every_pid_alive)
+        assert store.lease.claim(5151, "iznoserver", NOW + 5, 60, _no_pid_alive) is None
+        assert store.lease.read() == held
+
+    def test_another_hosts_lease_is_claimable_on_expiry(self, store: AppStore) -> None:
+        """Another host's lease is claimed once it has expired."""
+        store.lease.claim(4242, "other-host", NOW, 60, _every_pid_alive)
+        taken = store.lease.claim(5151, "iznoserver", NOW + 60, 60, _every_pid_alive)
+        assert taken is not None
+        assert (taken.holder_pid, taken.holder_host) == (5151, "iznoserver")
+
+    def test_renew_is_refused_to_the_same_pid_on_another_host(self, store: AppStore) -> None:
+        """Renew matches the holder's pid AND host."""
+        store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
+        assert store.lease.renew(4242, "other-host", NOW + 30, 60) is False
+        lease = store.lease.read()
+        assert lease is not None
+        assert lease.expires_at == NOW + 60
+
+    def test_release_by_the_same_pid_on_another_host_keeps_the_lease(self, store: AppStore) -> None:
+        """Release matches the holder's pid AND host."""
+        held = store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
+        assert store.lease.release(4242, "other-host") is False
+        assert store.lease.read() == held
+
+    def test_claim_lives_for_the_ttl_it_is_given(self, store: AppStore) -> None:
+        """A claim expires at ``now + ttl``, whatever the default ttl is."""
+        lease = store.lease.claim(4242, "iznoserver", NOW, 7, _every_pid_alive)
+        assert lease is not None
+        assert lease.expires_at == NOW + 7
+        assert store.lease.read() == lease
+
+    def test_renew_extends_for_the_ttl_it_is_given(self, store: AppStore) -> None:
+        """A renewal expires at ``now + ttl``, whatever the default ttl is."""
+        store.lease.claim(4242, "iznoserver", NOW, 60, _every_pid_alive)
+        assert store.lease.renew(4242, "iznoserver", NOW + 10, 7) is True
+        lease = store.lease.read()
+        assert lease is not None
+        assert lease.expires_at == NOW + 17
 
 
 def test_the_store_exposes_one_repository_per_aggregate(store: AppStore) -> None:

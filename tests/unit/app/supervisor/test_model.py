@@ -24,6 +24,7 @@ from personalscraper.app.supervisor.model import (
     Settlement,
     WaitReason,
 )
+from personalscraper.core.identity import ItemId
 
 ASKER = AccountId("account-a")
 NOW = 1_000.0
@@ -93,6 +94,20 @@ class TestAsk:
             ' "no_post_maintenance": false, "skip_trailers": true}'
         )
         assert request.options == options
+
+    def test_ask_keeps_a_supplied_uid(self) -> None:
+        """Ask keeps a supplied uid, and makes a new one when none is supplied."""
+        uid = RunUid("c" * 32)
+        request = RunRequest.ask(RunKind.PIPELINE, RunTrigger.WEB, RunOptions(), ASKER, NOW, uid=uid)
+        assert request.uid == uid
+        assert RunRequest.ask(RunKind.PIPELINE, RunTrigger.WEB, RunOptions(), ASKER, NOW, uid=None).uid != uid
+
+    def test_item_id_round_trips_as_an_integer_in_the_json(self) -> None:
+        """The typed item id is an integer in ``options_json`` and comes back as the same value."""
+        request = _ask(RunOptions(item_id=ItemId(7)), kind=RunKind.RESCRAPE)
+        assert '"item_id": 7' in request.options_json
+        assert request.options.item_id == ItemId(7)
+        assert _ask().options.item_id is None
 
     def test_every_trigger_code_is_the_designs(self) -> None:
         """Every trigger code is the designs."""
@@ -262,6 +277,34 @@ class TestStale:
         assert not request.stale(NOW + 10_000)
 
 
+class TestWait:
+    """A queued request records why it still waits."""
+
+    @pytest.mark.parametrize("reason", [WaitReason.BEHIND_RUN, WaitReason.PIPELINE_LOCK_HELD, WaitReason.PAUSED])
+    def test_a_queued_request_records_its_reason(self, reason: WaitReason) -> None:
+        """A queued request records its reason, and stays queued."""
+        request = _ask()
+        request.wait(reason)
+        assert (request.state, request.wait_reason) == (RequestState.QUEUED, reason)
+
+    def test_supervisor_absent_is_derived_never_recorded(self) -> None:
+        """``supervisor_absent`` is derived at read time: recording it is refused."""
+        request = _ask()
+        with pytest.raises(ValueError, match="supervisor_absent"):
+            request.wait(WaitReason.SUPERVISOR_ABSENT)
+        assert request.wait_reason is None
+
+    def test_a_running_or_settled_request_cannot_wait(self) -> None:
+        """A request that is not queued cannot wait."""
+        running = _running()
+        with pytest.raises(RunRequestStateError):
+            running.wait(WaitReason.PAUSED)
+        running.settle(Settlement.SUCCESS, NOW)
+        with pytest.raises(RunRequestStateError):
+            running.wait(WaitReason.PAUSED)
+        assert running.wait_reason is None
+
+
 class TestLease:
     """The lease is live until its expiry, and claimable once it is not live or its holder is gone."""
 
@@ -280,21 +323,35 @@ class TestLease:
 
     def test_not_claimable_while_live_and_its_holder_is_alive(self) -> None:
         """Not claimable while live and its holder is alive."""
-        assert not self._lease().claimable(NOW + 10, lambda pid: True)
+        assert not self._lease().claimable(NOW + 10, lambda pid: True, "iznoserver")
 
     def test_claimable_once_expired(self) -> None:
         """Claimable once expired."""
-        assert self._lease().claimable(NOW + 60, lambda pid: True)
+        assert self._lease().claimable(NOW + 60, lambda pid: True, "iznoserver")
 
-    def test_claimable_while_live_when_its_holder_is_gone(self) -> None:
-        """Claimable while live when its holder is gone."""
-        assert self._lease().claimable(NOW + 10, lambda pid: False)
+    def test_claimable_while_live_when_its_holder_is_gone_on_this_host(self) -> None:
+        """Claimable while live when its holder is gone and the lease is this host's."""
+        assert self._lease().claimable(NOW + 10, lambda pid: False, "iznoserver")
+
+    def test_another_hosts_live_lease_is_not_claimable_whatever_the_probe_says(self) -> None:
+        """A pid probe only speaks for this machine: another host's live lease holds until it expires."""
+        assert not self._lease().claimable(NOW + 10, lambda pid: False, "other-host")
+
+    def test_another_hosts_lease_is_claimable_once_expired(self) -> None:
+        """Another host's lease is claimable on expiry."""
+        assert self._lease().claimable(NOW + 60, lambda pid: True, "other-host")
 
     def test_the_holder_pid_is_the_one_asked_about(self) -> None:
         """The holder pid is the one asked about."""
         asked: list[int] = []
-        self._lease(holder_pid=77).claimable(NOW + 10, lambda pid: asked.append(pid) is None)
+        self._lease(holder_pid=77).claimable(NOW + 10, lambda pid: asked.append(pid) is None, "iznoserver")
         assert asked == [77]
+
+    def test_the_probe_is_not_asked_about_another_hosts_pid(self) -> None:
+        """A pid of another machine means nothing here: the probe is not called."""
+        asked: list[int] = []
+        self._lease().claimable(NOW + 10, lambda pid: asked.append(pid) is None, "other-host")
+        assert asked == []
 
 
 def test_run_uid_is_a_plain_string_on_the_wire() -> None:

@@ -27,6 +27,7 @@ from personalscraper.app.supervisor.model import (
     Settlement,
     WaitReason,
 )
+from personalscraper.core.identity import ItemId
 from personalscraper.core.sqlite import serialised
 
 _COLUMNS: Final = (
@@ -111,7 +112,7 @@ class QueueRepository:
         """Store a new request.
 
         Args:
-            request: The request, as :meth:`RunRequest.ask` made it.
+            request: The request, as :meth:`RunRequest.ask` made it; it is then read in its stored state.
 
         Raises:
             sqlite3.IntegrityError: If its uid is already taken.
@@ -120,6 +121,7 @@ class QueueRepository:
             f"INSERT INTO run_request ({_COLUMNS}) VALUES ({', '.join('?' * 13)})",  # noqa: S608 — fixed columns
             _values(request),
         )
+        request.read_state = request.state
 
     @serialised
     def get(self, uid: RunUid) -> RunRequest | None:
@@ -151,6 +153,19 @@ class QueueRepository:
         return None if row is None else _request(row)
 
     @serialised
+    def queued(self) -> tuple[RunRequest, ...]:
+        """Every request still queued, in FIFO order (oldest ask first, insertion order on a tie).
+
+        Returns:
+            The queued requests; empty when nothing waits.
+        """
+        rows = self._conn.execute(
+            f"SELECT {_COLUMNS} FROM run_request WHERE state = ? {_FIFO}",  # noqa: S608 — fixed clauses
+            (RequestState.QUEUED.value,),
+        ).fetchall()
+        return tuple(_request(row) for row in rows)
+
+    @serialised
     def running(self) -> list[RunRequest]:
         """Every request being run, oldest ask first.
 
@@ -164,7 +179,7 @@ class QueueRepository:
         return [_request(row) for row in rows]
 
     @serialised
-    def queued_like(self, kind: RunKind, options_json: str, item_id: int | None) -> RunRequest | None:
+    def queued_like(self, kind: RunKind, options_json: str, item_id: ItemId | None) -> RunRequest | None:
         """The oldest queued request an ask of this kind and options could join.
 
         A rescrape is matched on its item; a pipeline run on its canonical options. The model's
@@ -176,8 +191,10 @@ class QueueRepository:
             item_id: Its item, for a rescrape; ``None`` for a pipeline run.
 
         Returns:
-            The request, or ``None``.
+            The request, or ``None`` (always, for a rescrape with no item: it joins nothing).
         """
+        if kind is RunKind.RESCRAPE and item_id is None:
+            return None
         params: tuple[str | int, ...]
         if item_id is None:
             clause, params = "options_json = ?", (options_json,)
@@ -190,19 +207,49 @@ class QueueRepository:
         return None if row is None else _request(row)
 
     @serialised
-    def save(self, request: RunRequest) -> None:
-        """Write a request's every field back.
+    def touch_heartbeat(self, uid: RunUid, now: float) -> bool:
+        """Record a sign of life of a running request's worker; a request that is not running is left alone.
+
+        Args:
+            uid: The request's key.
+            now: The epoch of the heartbeat.
+
+        Returns:
+            ``True`` when a running request's heartbeat was written; ``False`` when nothing matched
+            (unknown, queued or settled).
+        """
+        cursor = self._conn.execute(
+            "UPDATE run_request SET heartbeat_at = ? WHERE uid = ? AND state = ?",
+            (now, uid, RequestState.RUNNING.value),
+        )
+        return cursor.rowcount == 1
+
+    @serialised
+    def save(self, request: RunRequest) -> bool:
+        """Write a request's every field back, if its row is still in the state it was read in.
+
+        A compare-and-set on :attr:`RunRequest.read_state`: a copy read before another writer moved
+        the request (a worker settled it, the supervisor killed it) writes nothing, so it cannot
+        resurrect it.
 
         Args:
             request: A request that was inserted.
+
+        Returns:
+            ``True`` when it was written (it is then read in its new state); ``False`` when the
+            row's state moved meanwhile and nothing was written.
 
         Raises:
             LookupError: If no row has its uid.
         """
         assignments = ", ".join(f"{column.strip()} = ?" for column in _COLUMNS.split(",")[1:])
         cursor = self._conn.execute(
-            f"UPDATE run_request SET {assignments} WHERE uid = ?",  # noqa: S608 — fixed columns
-            (*_values(request)[1:], request.uid),
+            f"UPDATE run_request SET {assignments} WHERE uid = ? AND state = ?",  # noqa: S608 — fixed columns
+            (*_values(request)[1:], request.uid, request.read_state.value),
         )
-        if cursor.rowcount == 0:
+        if cursor.rowcount == 1:
+            request.read_state = request.state
+            return True
+        if self._conn.execute("SELECT 1 FROM run_request WHERE uid = ?", (request.uid,)).fetchone() is None:
             raise LookupError(f"no run request {request.uid}")
+        return False

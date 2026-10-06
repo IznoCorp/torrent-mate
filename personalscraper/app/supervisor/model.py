@@ -2,12 +2,13 @@
 
 A :class:`RunRequest` is one asked run in the queue; its rules are methods, so no service holds an
 ``if`` on its state: coalescing (:meth:`~RunRequest.joins`), the legal moves
-(:meth:`~RunRequest.admit`, :meth:`~RunRequest.back_to_queue`, :meth:`~RunRequest.settle`) and
+(:meth:`~RunRequest.wait`, :meth:`~RunRequest.admit`, :meth:`~RunRequest.back_to_queue`,
+:meth:`~RunRequest.settle`) and
 staleness (:meth:`~RunRequest.stale`). A move the state machine does not allow raises
 :class:`RunRequestStateError`: a programming error of the caller, never an answer on the wire.
 
 The :class:`Lease` is the supervisor's authority to start a run: live until its expiry, claimable
-once it is not, or once its holder is gone.
+once it is not, or once its holder is gone from this machine (another machine's lease only lapses).
 
 Every timestamp is epoch ``time.time()``. The uid is typed (``RunUid``, in ``ids``).
 """
@@ -17,12 +18,13 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Final
 
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.supervisor.ids import RunUid
+from personalscraper.core.identity import ItemId
 
 #: Seconds between two heartbeats of a running worker.
 HEARTBEAT_INTERVAL_S: Final = 30.0
@@ -88,14 +90,14 @@ class RunOptions:
         skip_trailers: Skip the trailers step.
         continue_on_trailer_error: Carry on when the trailers step fails.
         no_post_maintenance: Skip the post-run maintenance.
-        item_id: The indexer row of a rescrape; ``None`` for a pipeline run.
+        item_id: The ``media_item`` row of a rescrape; ``None`` for a pipeline run.
     """
 
     dry_run: bool = False
     skip_trailers: bool = False
     continue_on_trailer_error: bool = False
     no_post_maintenance: bool = False
-    item_id: int | None = None
+    item_id: ItemId | None = None
 
 
 class RunRequestStateError(Exception):
@@ -120,6 +122,8 @@ class RunRequest:
         settled_at: When it ended (epoch); ``None`` until settled.
         settlement: How it ended; ``None`` until settled.
         wait_reason: Why it waits, when it does; ``None`` otherwise.
+        read_state: The state the request was last read or saved in (not part of its identity): the
+            repository's compare-and-set writes only over a row still in that state.
     """
 
     uid: RunUid
@@ -135,10 +139,21 @@ class RunRequest:
     settled_at: float | None = None
     settlement: Settlement | None = None
     wait_reason: WaitReason | None = None
+    read_state: RequestState = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Remember the state the request was built in (a stored row, or a new ask)."""
+        self.read_state = self.state
 
     @classmethod
     def ask(
-        cls, kind: RunKind, trigger: RunTrigger, options: RunOptions, asked_by: AccountId, now: float
+        cls,
+        kind: RunKind,
+        trigger: RunTrigger,
+        options: RunOptions,
+        asked_by: AccountId,
+        now: float,
+        uid: RunUid | None = None,
     ) -> RunRequest:
         """Make a new request, queued.
 
@@ -148,12 +163,13 @@ class RunRequest:
             options: What the run is asked to do.
             asked_by: The account that asks.
             now: The epoch of the ask.
+            uid: The request's key when the caller already minted one (it is kept); ``None`` for a new one.
 
         Returns:
-            The queued request, under a fresh uid.
+            The queued request, under *uid* or a fresh uid.
         """
         return cls(
-            uid=RunUid(uuid.uuid4().hex),
+            uid=RunUid(uuid.uuid4().hex) if uid is None else uid,
             kind=kind,
             trigger=trigger,
             options_json=json.dumps(asdict(options), sort_keys=True),
@@ -164,7 +180,10 @@ class RunRequest:
     @property
     def options(self) -> RunOptions:
         """What was asked, parsed back from its canonical text."""
-        return RunOptions(**json.loads(self.options_json))
+        data = json.loads(self.options_json)
+        if data["item_id"] is not None:
+            data["item_id"] = ItemId(data["item_id"])
+        return RunOptions(**data)
 
     def joins(self, other: RunRequest) -> bool:
         """Whether this ask is answered by *other*, a request already in the queue.
@@ -190,6 +209,21 @@ class RunRequest:
                 and other.state in (RequestState.QUEUED, RequestState.RUNNING)
             )
         return other.state is RequestState.QUEUED and other.options_json == self.options_json
+
+    def wait(self, reason: WaitReason) -> None:
+        """Record why it still waits: it stays ``queued``.
+
+        Args:
+            reason: Why it waits; never ``supervisor_absent``, which is derived at read time.
+
+        Raises:
+            RunRequestStateError: If it is not queued.
+            ValueError: If *reason* is ``supervisor_absent``.
+        """
+        self._require(RequestState.QUEUED, "wait")
+        if reason is WaitReason.SUPERVISOR_ABSENT:
+            raise ValueError(f"{reason} is derived at read time, never recorded on request {self.uid}")
+        self.wait_reason = reason
 
     def admit(self, pid: int, now: float) -> None:
         """Start it: ``queued`` → ``running``, under its worker's process id.
@@ -295,14 +329,21 @@ class Lease:
         """
         return self.expires_at > now
 
-    def claimable(self, now: float, pid_alive: Callable[[int], bool]) -> bool:
-        """Whether another supervisor may take it over: it has lapsed, or its holder is gone.
+    def claimable(self, now: float, pid_alive: Callable[[int], bool], this_host: str) -> bool:
+        """Whether another supervisor may take it over: it has lapsed, or its holder is gone from this machine.
+
+        A process id only means something on its own machine, so the dead-holder takeover (PM2
+        restarts the supervisor at once) applies to this machine's lease only; another host's
+        lease is claimable on expiry alone.
 
         Args:
             now: The epoch to judge at.
             pid_alive: Whether a process id names a live process of this machine.
+            this_host: The host of the would-be claimer.
 
         Returns:
-            ``True`` when it is not live, or its holder process no longer runs.
+            ``True`` when it is not live, or it is this host's and its holder process no longer runs.
         """
-        return not self.live(now) or not pid_alive(self.holder_pid)
+        if not self.live(now):
+            return True
+        return self.holder_host == this_host and not pid_alive(self.holder_pid)

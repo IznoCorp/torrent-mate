@@ -99,6 +99,8 @@ class LeaseRepository:
     ) -> Lease | None:
         """Take the lease if nobody holds it, or the one who does may be replaced.
 
+        The claimer's ``holder_host`` is this machine: a dead holder is only taken over on the same host.
+
         Args:
             holder_pid: The claimer's process id.
             holder_host: The machine it runs on.
@@ -111,7 +113,7 @@ class LeaseRepository:
         """
         with self._writer():
             held = self.read()
-            if held is not None and not held.claimable(now, pid_alive):
+            if held is not None and not held.claimable(now, pid_alive, holder_host):
                 return None
             lease = Lease(
                 holder_pid=holder_pid, holder_host=holder_host, taken_at=now, renewed_at=now, expires_at=now + ttl_s
@@ -124,11 +126,12 @@ class LeaseRepository:
             return lease
 
     @serialised
-    def renew(self, holder_pid: int, now: float, ttl_s: float) -> bool:
-        """Extend the lease, for its holder only.
+    def renew(self, holder_pid: int, holder_host: str, now: float, ttl_s: float) -> bool:
+        """Extend the lease, for its holder only (matched on process id AND host).
 
         Args:
             holder_pid: The process id that claims to hold it.
+            holder_host: The machine it runs on.
             now: The epoch of the renewal.
             ttl_s: How long the lease lives from now, in seconds.
 
@@ -137,20 +140,23 @@ class LeaseRepository:
             released, or another took it over).
         """
         cursor = self._conn.execute(
-            "UPDATE run_lease SET renewed_at = ?, expires_at = ? WHERE id = 1 AND holder_pid = ?",
-            (now, now + ttl_s, holder_pid),
+            "UPDATE run_lease SET renewed_at = ?, expires_at = ? WHERE id = 1 AND holder_pid = ? AND holder_host = ?",
+            (now, now + ttl_s, holder_pid, holder_host),
         )
         return cursor.rowcount == 1
 
     @serialised
-    def release(self, holder_pid: int) -> bool:
-        """Delete the lease, for its holder only (a clean stop).
+    def release(self, holder_pid: int, holder_host: str) -> bool:
+        """Delete the lease, for its holder only (a clean stop; matched on process id AND host).
 
         Args:
             holder_pid: The process id that claims to hold it.
+            holder_host: The machine it runs on.
 
         Returns:
             ``True`` when the holder's lease was deleted.
         """
-        cursor = self._conn.execute("DELETE FROM run_lease WHERE id = 1 AND holder_pid = ?", (holder_pid,))
+        cursor = self._conn.execute(
+            "DELETE FROM run_lease WHERE id = 1 AND holder_pid = ? AND holder_host = ?", (holder_pid, holder_host)
+        )
         return cursor.rowcount == 1
