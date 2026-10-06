@@ -11,5 +11,8 @@ from typing import NewType
 #: An account's key, ``account-<uuid4 hex>``.
 AccountId = NewType("AccountId", str)
 
+#: A session's key, the integer the base assigns on insert.
+SessionId = NewType("SessionId", int)
+
 #: A role's key: a seed's id, or ``role-<uuid4 hex>``.
 RoleId = NewType("RoleId", str)

@@ -65,6 +65,8 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.PLEX_TOKEN_REFUSED: "plex.tv refused the token the sign-in yielded.",
     RefusalCode.PLEX_PIN_UNKNOWN: "No Plex sign-in started in this browser answers this PIN.",
     RefusalCode.PLEX_PIN_EXPIRED: "The Plex PIN expired; start the sign-in again.",
+    RefusalCode.SESSION_UNKNOWN: "No live session of this account holds that id.",
+    RefusalCode.SESSION_CURRENT: "The current session is ended by signing out.",
     RefusalCode.PASSWORD_REQUIRED: "A local account starts with a password.",
     RefusalCode.PASSWORD_TOO_SHORT: "The password is shorter than the minimum.",
     RefusalCode.PASSWORD_TOO_WEAK: "The password lacks an uppercase letter, a digit or a special character.",

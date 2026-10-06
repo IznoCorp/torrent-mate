@@ -79,8 +79,11 @@ composes what is shown, from the catalogue of the recipient's language, `fr.json
 - every `data` value is a STRING (FCM's rule) — `params` is JSON-encoded;
 - `language` is the RECIPIENT ACCOUNT's language (`Account.language`, `"fr"` or `"en"`), filled by
   the server per account (FG-2 A; the contract's `PushCode`): the worker words the code in it, and in
-  English when it is absent or names a language the interface does not speak (OPEN-2 B). The
-  backend does not fill it yet — that is the push-language phase;
+  English when it is absent or names a language the interface does not speak (OPEN-2 B).
+  `PushMessage.language` carries it; the sign-in notice (`account.sign_in.*`,
+  `app/accounts/sign_in_notice.py`) fills it from the recipient account. No FCM sender is composed
+  yet: the application's push channel is `UnconfiguredPush`, which logs `push.not_configured` and
+  sends nothing;
 - `link` is a same-origin path (`PushMessage` refuses anything else); the worker's
   `notificationclick` opens or focuses it; `fcm_options.link` is NOT used (it wants an absolute HTTPS
   URL and applies only to notification messages);

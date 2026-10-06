@@ -106,9 +106,9 @@ def fresh(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 class TestFreshFile:
     """A file created today holds the whole schema and the five seeded roles."""
 
-    def test_reaches_version_eight(self, fresh: sqlite3.Connection) -> None:
+    def test_reaches_version_nine(self, fresh: sqlite3.Connection) -> None:
         """Every migration applied."""
-        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 8
+        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 9
 
     def test_seeds_the_five_roles_with_their_kinds_and_no_name(self, fresh: sqlite3.Connection) -> None:
         """The maquette's five roles; a seeded role carries no name (its id is translated by the interface)."""
@@ -217,6 +217,30 @@ class TestFreshFile:
                 " VALUES ('a1', 'A', 'a@x', 'local-guest', 1, 1, 'de')"
             )
 
+    @pytest.mark.parametrize(
+        "insert",
+        [
+            "INSERT INTO account_notice (account_id, code, params_json, created_at) VALUES ('nobody', 'c', '{}', 1)",
+            "INSERT INTO notification_preference (account_id, type, enabled, updated_at) VALUES ('nobody', 't', 1, 1)",
+        ],
+        ids=["notice", "preference"],
+    )
+    def test_a_notice_and_a_switch_must_name_an_account(self, fresh: sqlite3.Connection, insert: str) -> None:
+        """``009``: the notice's and the switch's account is a foreign key."""
+        with pytest.raises(sqlite3.IntegrityError):
+            fresh.execute(insert)
+
+    def test_a_switch_is_zero_or_one(self, fresh: sqlite3.Connection) -> None:
+        """``009``: ``enabled`` holds no other value."""
+        fresh.execute(
+            "INSERT INTO account (id, name, email, role_id, created_at, updated_at)"
+            " VALUES ('a1', 'A', 'a@x', 'local-guest', 1, 1)"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            fresh.execute(
+                "INSERT INTO notification_preference (account_id, type, enabled, updated_at) VALUES ('a1', 't', 2, 1)"
+            )
+
     def test_a_push_subscription_must_name_an_account(self, fresh: sqlite3.Connection) -> None:
         """``003``: the subscription's account is a foreign key."""
         with pytest.raises(sqlite3.IntegrityError):
@@ -239,10 +263,18 @@ class TestFreshFile:
             " VALUES ('account-alice', 'h', 1, 2, 1)"
         )
         fresh.execute(f"INSERT INTO push_subscription ({_PUSH_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", _PUSH_ROW)
+        fresh.execute(
+            "INSERT INTO account_notice (account_id, code, params_json, created_at)"
+            " VALUES ('account-alice', 'account.sign_in.unknown_device', '{}', 1)"
+        )
+        fresh.execute(
+            "INSERT INTO notification_preference (account_id, type, enabled, updated_at)"
+            " VALUES ('account-alice', 'account.sign_in', 0, 1)"
+        )
 
         fresh.execute("DELETE FROM account WHERE id = 'account-alice'")
 
-        for table in ("plex_link", "session", "push_subscription"):
+        for table in ("plex_link", "session", "push_subscription", "account_notice", "notification_preference"):
             assert fresh.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0, table  # noqa: S608 — fixed names
 
 
@@ -268,7 +300,7 @@ class TestExistingFile:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 8
+        assert _user_version(db_path) == 9
         conn = _connect(db_path)
         try:
             rows = conn.execute(f"SELECT {_PUSH_COLUMNS} FROM push_subscription").fetchall()  # noqa: S608 — fixed names
@@ -333,7 +365,7 @@ class TestAccountAccessMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 8
+        assert _user_version(db_path) == 9
         assert account is not None
         assert account.sign_in_allowed is True
         assert (account.name, account.email, account.role_id, account.password_hash) == (
@@ -365,7 +397,7 @@ class TestAccountDemotionMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 8
+        assert _user_version(db_path) == 9
         assert account is not None
         assert account.demoted_from is None
         assert (account.role_id, account.password_hash, account.sign_in_allowed) == ("household", "h", False)
@@ -396,7 +428,7 @@ class TestAccountLanguageMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 8
+        assert _user_version(db_path) == 9
         assert account is not None
         assert account.language == "fr"
         assert (account.role_id, account.password_hash, account.sign_in_allowed, account.demoted_from) == (

@@ -24,9 +24,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 105 |
+| operations the interface requires | 108 |
 | operations the backend has | 65 |
-| required and missing | 52 |
+| required and missing | 55 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -40,6 +40,7 @@ than a blank page.
 | operation | operationId | what it is for |
 | --- | --- | --- |
 | `DELETE /api/v1/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
+| `DELETE /api/v1/auth/sessions/{sessionId}` | `revokeOwnSession` | End one of the signed-in account's other sessions |
 | `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete media from the library, by provider identity |
 | `DELETE /api/v1/roles/{roleId}` | `deleteRole` | Delete a role nobody holds |
 | `DELETE /api/v1/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
@@ -50,6 +51,7 @@ than a blank page.
 | `GET /api/v1/acquisition/releases` | `readReleases` | The release candidates for one wanted item |
 | `GET /api/v1/acquisition/search/by-id` | `searchProviderById` | Find the one medium a source knows under an identifier |
 | `GET /api/v1/acquisition/suggestions` | `readSuggestions` | Titles worth following, and why |
+| `GET /api/v1/auth/sessions` | `readOwnSessions` | The signed-in account's live sessions |
 | `GET /api/v1/library/categories` | `readLibraryCategories` | The engine's leaf categories and their counts |
 | `GET /api/v1/library/incomplete` | `readLibraryIncomplete` | The series with holes, and how big each hole is |
 | `GET /api/v1/library/items` | `readLibraryItems` | The library listing, one page of it |
@@ -58,6 +60,7 @@ than a blank page.
 | `GET /api/v1/media/{provider}/{providerId}/cross-seed` | `readMediaCrossSeed` | The medium's cross-seed, tracker by tracker |
 | `GET /api/v1/media/{provider}/{providerId}/poster` | `readMediaPoster` | The poster file a medium's library folder holds |
 | `GET /api/v1/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
+| `GET /api/v1/notices` | `readNotices` | The signed-in account's in-app notices |
 | `GET /api/v1/notifications/preferences` | `readNotificationPreferences` | The signed-in account's notification switches, one per type it may receive |
 | `GET /api/v1/staging/destinations` | `readStagingDestinations` | Where the sort files what is not a medium |
 | `GET /api/v1/staging/media/{mediaId}/copies` | `readStagedMediaCopies` | Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture |

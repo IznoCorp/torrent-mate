@@ -73,5 +73,9 @@
     "token_refused": "plex.tv refused the sign-in; start it again.",
     "pin_unknown": "No Plex sign-in started in this browser answers this request; start it again.",
     "pin_expired": "The Plex sign-in expired; start it again."
+  },
+  "session": {
+    "unknown": "No session of this account holds that id.",
+    "current": "The current session is ended by signing out, not from this list."
   }
 }

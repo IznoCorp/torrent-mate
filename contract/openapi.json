@@ -374,6 +374,124 @@
         ]
       }
     },
+    "/auth/sessions": {
+      "get": {
+        "operationId": "readOwnSessions",
+        "x-rights": null,
+        "summary": "The signed-in account's live sessions",
+        "description": "Where the account is signed in, for Profil (the operator's ruling Q4 A, 2026-10-06: « le Profil liste les sessions actives, chacune révocable »): its live sessions — neither signed out, revoked nor expired — the newest first, the one the request is made with flagged `current`. Only the caller's own sessions, ever. A session act: no right.",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the account's live sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OwnSession"
+                      }
+                    }
+                  },
+                  "required": [
+                    "sessions"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "revokeOwnSession",
+        "x-rights": null,
+        "summary": "End one of the signed-in account's other sessions",
+        "description": "The account ends a session it does not recognise (ruling Q4 A): at once — the next request made with it is refused 401 `auth.required`. The session the request is made with is refused 409 `session.current` (signing out is `signOut`'s). A session id the account does not hold — another account's, an unknown one, one already ended — is refused 404 `session.unknown`, the same answer for all, so it never tells that another account's session exists. A session act like signing out: no right. The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right.",
+        "tags": [
+          "authentication"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "the session"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the session is ended",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/notifications/preferences": {
       "get": {
         "operationId": "readNotificationPreferences",
@@ -551,6 +669,58 @@
             "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
+      }
+    },
+    "/notices": {
+      "get": {
+        "operationId": "readNotices",
+        "x-rights": null,
+        "summary": "The signed-in account's in-app notices",
+        "description": "What the application tells the account, the newest first, at most fifty (the operator's ruling Q4 A: a new Plex sign-in is told « par FCM et dans l'application »). A notice is a `NoticeCode` and its parameters, never a sentence: the interface words it in the account's language. Only the caller's own notices, ever. A session act: no right.",
+        "tags": [
+          "notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "the account's notices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notices": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Notice"
+                      }
+                    }
+                  },
+                  "required": [
+                    "notices"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
       }
     },
     "/library/items": {
@@ -11300,9 +11470,10 @@
           "acquisition.to_handle",
           "system.run_failed",
           "system.disk_full",
-          "system.service_down"
+          "system.service_down",
+          "account.sign_in"
         ],
-        "description": "ONE FCM NOTIFICATION TYPE — the unit a reader switches on or off (the operator, 2026-10-03: « des canaux de notification, de façon à pouvoir couper les notifications FCM de certains types tout en gardant les autres »). Each type: the right an account must hold to receive it, the event that raises it, where its tap lands.\n\n- `obligation.met` — right `trackers.view`; raised by `SeedObligationSatisfied` (K0 P8, written by the obligation sweep), carrying `satisfied_by`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`\n- `obligation.released` — right `trackers.view`; raised by `SeedObligationReleased` — a new event: the sweep's confirmed absence (`goneFromClient`) or `removeDownload` (`removedHere`), carrying `released_by`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`\n- `obligation.breached` — right `trackers.view`; raised by `SeedObligationBreached`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`\n- `tracker.ratio_low` — right `trackers.view`; raised by `RatioMeasured` under the tracker's `economy.alert_threshold` (§ 18, Q10; the trigger and its hysteresis are K5's); lands on `/trackers?list=trackers`\n- `tracker.disabled` — right `trackers.view`; raised by `TrackerAuthFailed` — the engine switched a tracker off for a failure (a refused identifier, an unreachable host), never the operator's own switch; lands on `/trackers?list=trackers`\n- `crossseed.failed` — right `trackers.view`; raised by `CrossSeedRejected` of the two FAILURE families only (OPEN 8 = A) — never a mismatch, never « sans correspondance »; lands on `/trackers?panel=torrent:<infoHash>:<tracker> (the origin entry)`\n- `acquisition.arrived` — right `acquisition.follow`; raised by `FilmAcquired`, and `ItemDispatched` of an episode or a season of a followed series — the medium reached the library; lands on `/media/<provider>/<providerId>`\n- `acquisition.to_handle` — right `acquisition.todo.view`; raised by an acquisition entering « À traiter » — it waits on an operator's decision (an identification, a release to choose); lands on `/acquisition?tab=todo`\n- `system.run_failed` — right `system.view`; raised by `StepErrored` — a pipeline step failed; lands on `/system`\n- `system.disk_full` — right `system.view`; raised by `DiskFullWarning` — a disk under its free-space threshold; lands on `/system`\n- `system.service_down` — right `system.view`; raised by `CircuitBreakerOpened` — a provider or a service stopped answering; lands on `/system`",
+        "description": "ONE FCM NOTIFICATION TYPE — the unit a reader switches on or off (the operator, 2026-10-03: « des canaux de notification, de façon à pouvoir couper les notifications FCM de certains types tout en gardant les autres »). Each type: the right an account must hold to receive it, the event that raises it, where its tap lands.\n\n- `obligation.met` — right `trackers.view`; raised by `SeedObligationSatisfied` (K0 P8, written by the obligation sweep), carrying `satisfied_by`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`\n- `obligation.released` — right `trackers.view`; raised by `SeedObligationReleased` — a new event: the sweep's confirmed absence (`goneFromClient`) or `removeDownload` (`removedHere`), carrying `released_by`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`\n- `obligation.breached` — right `trackers.view`; raised by `SeedObligationBreached`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`\n- `tracker.ratio_low` — right `trackers.view`; raised by `RatioMeasured` under the tracker's `economy.alert_threshold` (§ 18, Q10; the trigger and its hysteresis are K5's); lands on `/trackers?list=trackers`\n- `tracker.disabled` — right `trackers.view`; raised by `TrackerAuthFailed` — the engine switched a tracker off for a failure (a refused identifier, an unreachable host), never the operator's own switch; lands on `/trackers?list=trackers`\n- `crossseed.failed` — right `trackers.view`; raised by `CrossSeedRejected` of the two FAILURE families only (OPEN 8 = A) — never a mismatch, never « sans correspondance »; lands on `/trackers?panel=torrent:<infoHash>:<tracker> (the origin entry)`\n- `acquisition.arrived` — right `acquisition.follow`; raised by `FilmAcquired`, and `ItemDispatched` of an episode or a season of a followed series — the medium reached the library; lands on `/media/<provider>/<providerId>`\n- `acquisition.to_handle` — right `acquisition.todo.view`; raised by an acquisition entering « À traiter » — it waits on an operator's decision (an identification, a release to choose); lands on `/acquisition?tab=todo`\n- `system.run_failed` — right `system.view`; raised by `StepErrored` — a pipeline step failed; lands on `/system`\n- `system.disk_full` — right `system.view`; raised by `DiskFullWarning` — a disk under its free-space threshold; lands on `/system`\n- `system.service_down` — right `system.view`; raised by `CircuitBreakerOpened` — a provider or a service stopped answering; lands on `/system`\n- `account.sign_in` — no right: every account receives it; raised by `PlexSessionOpened` — a Plex sign-in opened a new session of the account (the operator's ruling Q4 A, 2026-10-06: a PIN confirmed by the wrong person signs THEM in); lands on `/account`, where the session can be ended",
         "x-rights": {
           "obligation.met": "trackers.view",
           "obligation.released": "trackers.view",
@@ -11314,7 +11485,8 @@
           "acquisition.to_handle": "acquisition.todo.view",
           "system.run_failed": "system.view",
           "system.disk_full": "system.view",
-          "system.service_down": "system.view"
+          "system.service_down": "system.view",
+          "account.sign_in": null
         }
       },
       "NotificationPreference": {
@@ -11372,6 +11544,80 @@
           "platform"
         ]
       },
+      "OwnSession": {
+        "type": "object",
+        "description": "ONE LIVE SESSION OF THE SIGNED-IN ACCOUNT, as Profil lists it (ruling Q4 A).",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "its key, the one `revokeOwnSession` takes"
+          },
+          "device": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the browser and system its user agent names (« Firefox · macOS », or either half alone) — proper names, never words; null when it names neither"
+          },
+          "createdAt": {
+            "type": "number",
+            "description": "when it was opened, Unix-epoch seconds"
+          },
+          "lastSeenAt": {
+            "type": "number",
+            "description": "its last renewal, Unix-epoch seconds — a use is written at most once an hour"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "whether it is the session the request was made with — never revoked by `revokeOwnSession`"
+          }
+        },
+        "required": [
+          "id",
+          "device",
+          "createdAt",
+          "lastSeenAt",
+          "current"
+        ]
+      },
+      "NoticeCode": {
+        "type": "string",
+        "enum": [
+          "account.sign_in.device",
+          "account.sign_in.unknown_device"
+        ],
+        "description": "WHAT AN IN-APP NOTICE TELLS, as a code the interface words in the account's language — the same code its push carries (`PushCode`). Parameters: `device` for `account.sign_in.device`; none for `account.sign_in.unknown_device`."
+      },
+      "Notice": {
+        "type": "object",
+        "description": "ONE IN-APP NOTICE OF THE SIGNED-IN ACCOUNT.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "its key"
+          },
+          "code": {
+            "$ref": "#/components/schemas/NoticeCode"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "the values the code's words name, by name — facts, never words"
+          },
+          "createdAt": {
+            "type": "number",
+            "description": "when it was raised, Unix-epoch seconds"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "params",
+          "createdAt"
+        ]
+      },
       "PushCode": {
         "type": "string",
         "enum": [
@@ -11387,9 +11633,11 @@
           "acquisition.to_handle",
           "system.run_failed",
           "system.disk_full",
-          "system.service_down"
+          "system.service_down",
+          "account.sign_in.device",
+          "account.sign_in.unknown_device"
         ],
-        "description": "THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from the `push` namespace of the catalogue `webpush.data.language` names — the RECIPIENT ACCOUNT's `Language`, filled by the server per account (FG-2 A); absent or unknown, the worker words it in English (OPEN-2 B). A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`."
+        "description": "THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from the `push` namespace of the catalogue `webpush.data.language` names — the RECIPIENT ACCOUNT's `Language`, filled by the server per account (FG-2 A); absent or unknown, the worker words it in English (OPEN-2 B). A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`; `device` for `account.sign_in.device` (the browser and system the session's user agent names, « Firefox · macOS »), none for `account.sign_in.unknown_device`."
       },
       "RefusalCode": {
         "type": "string",
@@ -11433,6 +11681,8 @@
           "plex.token_refused",
           "plex.pin_unknown",
           "plex.pin_expired",
+          "session.unknown",
+          "session.current",
           "password.current_wrong",
           "password.required",
           "password.too_short",
