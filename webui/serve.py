@@ -60,6 +60,7 @@ from host_identity import with_served_identity  # noqa: E402 — the path line a
 
 # What makes the served page installable — its own subject, its own file.
 from installable import (  # noqa: E402 — the path line above must run first
+    HOST_PAGES_CSS,
     build_identity,
     manifest,
     offline_page,
@@ -276,6 +277,20 @@ REBUILD = setting("TM_DESIGN_REBUILD", ("on", "off")) == "on"
 
 ASSETS_DIR = DESIGN_ROOT / "assets"
 
+# The security headers every response carries (see `Handler._send`).
+SECURITY_HEADERS = (
+    ("X-Content-Type-Options", "nosniff"),
+    ("Strict-Transport-Security", "max-age=31536000; includeSubDomains"),
+)
+
+# The folders served WITHOUT a session, by URL prefix: the classic scripts the documents name
+# (`boot/`) and the typeface the stylesheet names (`fonts/`). They carry no private data, and
+# the sign-in page needs them before a session exists.
+PUBLIC_FILES = (
+    ("/boot/", DESIGN_ROOT / "boot", {".js": "text/javascript"}),
+    ("/fonts/", DESIGN_ROOT / "fonts", {".woff2": "font/woff2"}),
+)
+
 # Where the build writes the shell's module entry (`build.assetsDir` = "vite",
 # kept out of `dist/assets` because a symlink owns that name).
 VITE_DIR = DESIGN_ROOT / "dist" / "vite"
@@ -338,11 +353,10 @@ def build_failure(error: str, language: str = DEFAULT_LANGUAGE) -> bytes:
     return (
         f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
-        f"<title>{texts['title']}</title></head><body "
-        'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
+        f"<title>{texts['title']}</title>"
+        '<link rel="stylesheet" href="/host.css"></head><body class="failure">'
         f"<h1>{texts['heading']}</h1><p>{texts['body']}"
-        '</p><pre style="white-space:pre-wrap;background:#f6f6f6;'
-        'padding:12px;border-radius:8px">'
+        "</p><pre>"
         f"{html.escape(error)}"
         "</pre></body></html>"
     ).encode()
@@ -362,14 +376,13 @@ def diagnostic_page(error: str) -> bytes:
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
-        "<title>Design host: copy unreadable</title></head><body "
-        'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
+        "<title>Design host: copy unreadable</title>"
+        '<link rel="stylesheet" href="/host.css"></head><body class="failure">'
         "<h1>The design host cannot read its own copy</h1><p>The pages this "
         "host serves read their words from <code>design/src/i18n/fr.json</code>"
         ", and that read failed. Below is what was being reported when it "
         "did, followed by the read error itself.</p>"
-        '<pre style="white-space:pre-wrap;background:#f6f6f6;'
-        'padding:12px;border-radius:8px">'
+        "<pre>"
         f"{html.escape(error)}"
         "</pre></body></html>"
     ).encode()
@@ -405,80 +418,21 @@ def extract(source: str, marker: str) -> str:
 # The screen shown is the prototype's own startup screen, extracted like the
 # rest of the gate, so the wait that follows a sign-in is the same surface the
 # document then keeps showing — not a copy of it that drifts.
-STARTUP_SWITCH = """
-<script>
-document.querySelector('#loginform').addEventListener('submit', function (e) {
-  if (!e.currentTarget.checkValidity()) return;
-  document.querySelector('#login').hidden = true;
-  document.querySelector('#splash').hidden = false;
-});
-</script>
-"""
+STARTUP_SWITCH = '<script src="/boot/login-startup.js"></script>'
 
 
-def login_page(refused: bool, reason: str | None = None, return_to: str = "/", language: str = "fr") -> bytes:
-    """Builds the login page out of the prototype's own login screen.
+def login_styles() -> bytes:
+    """Builds the sign-in page's stylesheet, served at `/login.css`.
 
-    Args:
-        refused: True to show the rejection state — the « bad credentials »
-            line, unless `reason` says why instead.
-        reason: The key under `server.login` of the words that say why the
-            session ended, or None for a plain visit.
-        return_to: The same-origin path the page returns to once v1 opens the
-            session.
-        language: The visitor's language (`request_language`): the page is
-            worded from its catalogue, as the prototype's boot words its own.
+    A file and not a `<style>` element: the page is served under a
+    Content-Security-Policy without `'unsafe-inline'`. It is composed on every
+    request, exactly as the page was, from the same regions.
 
     Returns:
-        A complete HTML document.
+        The stylesheet, UTF-8.
     """
-    resource = texts_file(language).read_text(encoding="utf-8")
-    # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
-    # gate clones — the sign-in card and the startup screen — is the
-    # application shell, in `index.html`. The STYLE comes from two
-    # stylesheets: the scale and the palette from `theme.css`; the typeface,
-    # the reset, the sign-in screen's own style and the splash from `base.css`.
-    # Every `login:*` region left the fragment.
-    #
-    # Each `extract` below names exactly ONE file, which is the shape the login
-    # arm of `scripts/check-css-tokens.py` follows — a concatenated source left
-    # it resolving every chunk to the first file and reporting the rest
-    # missing. `extract` itself raises when a marker is absent, so pointing one
-    # at the wrong file fails loudly instead of serving a screen stripped of
-    # its design.
     base_source = BASE_STYLESHEET.read_text()
     theme_source = THEME_STYLESHEET.read_text()
-    markup_source = SHELL_DOCUMENT.read_text()
-    markup = extract(markup_source, "markup")
-    # The screen is drawn hidden inside the shell and centred against it. Here
-    # it IS the page, so it drops both.
-    #
-    # THE `hidden` IS REMOVED BY PATTERN, NOT BY ADJACENCY. This was
-    # `replace(' id="login" hidden', …)`, which needed the two attributes to
-    # remain neighbours in the markup — and `str.replace` that matches nothing
-    # returns the string unchanged, silently. Adding one attribute between them
-    # served a sign-in screen that was still `hidden`: every element measured
-    # 0x0, six holds in `entry.py` fell at once and `startup.py` timed out
-    # filling a form that was not there. The markup may now carry whatever
-    # attributes it needs, in whatever order.
-    markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup, count=1)
-    # The form posts by script (`v1_door.sign_in_script`), to v1 itself.
-    # WORDED IN THE VISITOR'S LANGUAGE, from the keys the markup carries — the
-    # same the prototype's boot reads; the markup's French is only the fallback.
-    catalogue = json.loads(resource)
-    markup = v1_door.worded(markup, catalogue)
-    markup = v1_door.as_v1_form(markup, v1_door.email_label(resource))
-    if reason is not None:
-        markup = v1_door.with_reason(markup, served_texts(language)["login"][reason])
-    # A refusal v1 explained (`auth.access_disabled`) was not a typing mistake:
-    # the reason line says why, and « bad credentials » under it would contradict it.
-    if refused and reason is None:
-        markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
-    # Inside the prototype the startup screen is what the document opens on;
-    # here it waits for the submit that makes it true — worded in the same
-    # language, or an English visitor's sign-in would load in French.
-    splash = extract(markup_source, "splash").replace(' id="splash"', ' id="splash" hidden', 1)
-    markup += v1_door.worded(splash, catalogue)
     # Everything the screen INHERITS inside the prototype — the palette, the box
     # model, the typography — is taken from it rather than restated. Both were
     # retyped here once, and both times the copy rendered correctly while the
@@ -514,13 +468,77 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/", l
      viewport instead, so it stays put whatever the page does. */
   .splash { position: fixed; }
 """
+    return (styles + adjustments).encode()
+
+
+def login_page(refused: bool, reason: str | None = None, return_to: str = "/", language: str = "fr") -> bytes:
+    """Builds the login page out of the prototype's own login screen.
+
+    Args:
+        refused: True to show the rejection state — the « bad credentials »
+            line, unless `reason` says why instead.
+        reason: The key under `server.login` of the words that say why the
+            session ended, or None for a plain visit.
+        return_to: The same-origin path the page returns to once v1 opens the
+            session.
+        language: The visitor's language (`request_language`): the page is
+            worded from its catalogue, as the prototype's boot words its own.
+
+    Returns:
+        A complete HTML document.
+    """
+    resource = texts_file(language).read_text(encoding="utf-8")
+    # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
+    # gate clones — the sign-in card and the startup screen — is the
+    # application shell, in `index.html`. The STYLE comes from two
+    # stylesheets: the scale and the palette from `theme.css`; the typeface,
+    # the reset, the sign-in screen's own style and the splash from `base.css`.
+    # Every `login:*` region left the fragment.
+    #
+    # Each `extract` below names exactly ONE file, which is the shape the login
+    # arm of `scripts/check-css-tokens.py` follows — a concatenated source left
+    # it resolving every chunk to the first file and reporting the rest
+    # missing. `extract` itself raises when a marker is absent, so pointing one
+    # at the wrong file fails loudly instead of serving a screen stripped of
+    # its design.
+    markup_source = SHELL_DOCUMENT.read_text()
+    markup = extract(markup_source, "markup")
+    # The screen is drawn hidden inside the shell and centred against it. Here
+    # it IS the page, so it drops both.
+    #
+    # THE `hidden` IS REMOVED BY PATTERN, NOT BY ADJACENCY. This was
+    # `replace(' id="login" hidden', …)`, which needed the two attributes to
+    # remain neighbours in the markup — and `str.replace` that matches nothing
+    # returns the string unchanged, silently. Adding one attribute between them
+    # served a sign-in screen that was still `hidden`: every element measured
+    # 0x0, six holds in `entry.py` fell at once and `startup.py` timed out
+    # filling a form that was not there. The markup may now carry whatever
+    # attributes it needs, in whatever order.
+    markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup, count=1)
+    # The form posts by script (`v1_door.sign_in_script`), to v1 itself.
+    # WORDED IN THE VISITOR'S LANGUAGE, from the keys the markup carries — the
+    # same the prototype's boot reads; the markup's French is only the fallback.
+    catalogue = json.loads(resource)
+    markup = v1_door.worded(markup, catalogue)
+    markup = v1_door.as_v1_form(markup, v1_door.email_label(resource))
+    if reason is not None:
+        markup = v1_door.with_reason(markup, served_texts(language)["login"][reason])
+    # A refusal v1 explained (`auth.access_disabled`) was not a typing mistake:
+    # the reason line says why, and « bad credentials » under it would contradict it.
+    if refused and reason is None:
+        markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
+    # Inside the prototype the startup screen is what the document opens on;
+    # here it waits for the submit that makes it true — worded in the same
+    # language, or an English visitor's sign-in would load in French.
+    splash = extract(markup_source, "splash").replace(' id="splash"', ' id="splash" hidden', 1)
+    markup += v1_door.worded(splash, catalogue)
     return (
         f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{served_texts(language)['login']['title']}</title>"
         f"{pwa_head(DESIGN_ROOT)}"
-        "<style>"
-        f"{styles}{adjustments}</style></head><body>{markup}"
+        '<link rel="stylesheet" href="/login.css">'
+        f"</head><body>{markup}"
         f"{STARTUP_SWITCH}{v1_door.sign_in_script(return_to)}</body></html>"
     ).encode()
 
@@ -619,6 +637,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        # The host sets its own security headers, whatever the reverse proxy does. The values are
+        # `personalscraper.http_v1.security_headers.SECURITY_HEADERS`'s: this host imports nothing
+        # of the package, and a test holds the two registers equal.
+        for name, value in SECURITY_HEADERS:
+            self.send_header(name, value)
         # The design is read to be judged, and a judgement passed on a stale
         # copy is worse than no judgement. Revalidate every time — except where
         # a route says otherwise: hash-named assets change URL when they change
@@ -630,6 +653,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
+
+    def _send_public_file(self, folder: Path, name: str, types: dict[str, str]) -> None:
+        """Answers a file of one of the design root's public folders, or 404.
+
+        Args:
+            folder: The folder, under the design root.
+            name: The requested path below it, as the request wrote it.
+            types: The content type of each extension this folder may serve.
+        """
+        # Same backstop as the artwork route: resolve() then containment, so a
+        # traversal cannot leave the folder, and only a known extension is served.
+        file_ = (folder / name).resolve()
+        content_type = types.get(file_.suffix)
+        if content_type is None or not file_.is_file() or not file_.is_relative_to(folder.resolve()):
+            self._send(404, b"")
+            return
+        self._send(200, file_.read_bytes(), content_type=content_type)
 
     def _send_page(
         self,
@@ -717,6 +757,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 language=language,
             )
             return
+        # The page's own scripts, stylesheets and typeface — no session, because the sign-in
+        # page needs them before there is one, and no inline copy of any of them: the pages
+        # are served under a Content-Security-Policy without `'unsafe-inline'`.
+        if path_ == "/login.css":
+            self._send_page(200, login_styles, "text/css", language)
+            return
+        if path_ == "/host.css":
+            self._send(200, HOST_PAGES_CSS, content_type="text/css")
+            return
+        for prefix, folder, types in PUBLIC_FILES:
+            if path_.startswith(prefix):
+                self._send_public_file(folder, path_[len(prefix) :], types)
+                return
         if path_ in ASSETS:
             file_ = ASSETS_DIR / ASSET_FILE[path_]
             if not file_.is_file():
