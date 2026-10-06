@@ -445,12 +445,12 @@ def _rescrape(
             # connection is closed in the finally block below to avoid leaks.
             conn: sqlite3.Connection | None = None
             if item_id is not None:
+                from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
                 from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
                 from personalscraper.indexer.db import (  # noqa: PLC0415
                     IndexerCorruptError,
                     IndexerDiskFullError,
                     IndexerInvalidPathError,
-                    IndexerMigrationError,
                     apply_migrations,
                     open_db,
                 )
@@ -462,7 +462,7 @@ def _rescrape(
                     IndexerCorruptError,
                     IndexerInvalidPathError,
                     IndexerDiskFullError,
-                    IndexerMigrationError,
+                    SqliteMigrationError,  # the base: a failed script or a newer schema
                 ) as exc:
                     console.print("[red]" + t("cli_library.analyze.open_failed_label") + "[/red] " + str(exc))
                     if conn is not None:
