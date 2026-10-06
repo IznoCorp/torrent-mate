@@ -34,6 +34,7 @@ BUILD_FILES = (
     "vite.config.mjs",
     "build-identity.mjs",
     "worker-source.mjs",
+    "app-bundle.mjs",
     "tsconfig.json",
 )
 
