@@ -2,8 +2,10 @@
 
 The deletion is ``library.delete``: the method is authorised by ``@requires`` before it
 opens anything, and ``actor`` is consulted again only to journal who deleted. The folder,
-index and Plex primitives are in ``app/library/deletion.py``. An id held by two rows, or by
-one row in two media folders, is a duplicate, and the deletion refuses it (O-5 B).
+index and Plex primitives are split: the folder and index ones (``delete_media_folder``,
+``remove_items``) are in ``indexer/deletion.py``; the empty-parent removal and the Plex
+follow-up (``remove_empty_parents``, ``follow_up_plex``) are in ``app/library/deletion.py``. An id held by two rows,
+or by one row in two media folders, is a duplicate, and the deletion refuses it (O-5 B).
 """
 
 from __future__ import annotations

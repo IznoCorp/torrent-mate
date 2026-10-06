@@ -15,7 +15,7 @@ from datetime import date, datetime
 from typing import Final, Literal
 
 from personalscraper.acquire.catalogue import CatalogueEpisode, ProviderLookup
-from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata import MediaDetails
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.library.catalogue import catalogue_key

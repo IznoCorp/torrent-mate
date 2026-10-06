@@ -150,6 +150,7 @@ def test_event_registry_has_all_v1_events() -> None:
     additions that bypass the documented event catalog in
     ``docs/production/event-bus.md``.
     """
+    import personalscraper.app.accounts.events  # noqa: F401 — registers E8 (the catalog does not import app)
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
     assert len(_EVENT_CLASS_REGISTRY) == 51, (

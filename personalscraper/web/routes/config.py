@@ -58,11 +58,11 @@ from personalscraper.app.config_service import (  # noqa: F401 — re-export for
 )
 from personalscraper.conf.envfile import read_env_catalog, write_env_keys
 from personalscraper.conf.loader import (
-    _LOCAL_FILENAME,
-    _MASTER_FILENAME,
+    LOCAL_FILENAME,
+    MASTER_FILENAME,
     ConfigLoadError,
     ConfigValidationError,
-    _load_json5_file,
+    load_json5_file,
     resolve_config_path,
     validate_candidate,
 )
@@ -187,21 +187,21 @@ def capture_boot_hashes(app: FastAPI) -> None:
     hashes: dict[str, str] = {}
 
     # Master.
-    master_path = config_dir / _MASTER_FILENAME
+    master_path = config_dir / MASTER_FILENAME
     if master_path.is_file():
-        hashes[_MASTER_FILENAME] = _sha256(master_path)
+        hashes[MASTER_FILENAME] = _sha256(master_path)
 
     # Overlays.
-    master = _load_json5_file(master_path)
+    master = load_json5_file(master_path)
     for name in master.get("overlays", []):
         overlay_path = config_dir / name
         if overlay_path.is_file():
             hashes[name] = _sha256(overlay_path)
 
     # Local.
-    local_path = config_dir / _LOCAL_FILENAME
+    local_path = config_dir / LOCAL_FILENAME
     if local_path.is_file():
-        hashes[_LOCAL_FILENAME] = _sha256(local_path)
+        hashes[LOCAL_FILENAME] = _sha256(local_path)
 
     app.state.config_boot_hashes = hashes
     logger.debug("config_boot_hashes_captured", count=len(hashes))
@@ -293,13 +293,13 @@ def get_files(request: Request) -> FilesResponse:
     files: list[FileInfo] = []
 
     # Master.
-    master_path = config_dir / _MASTER_FILENAME
-    master = _load_json5_file(master_path)
+    master_path = config_dir / MASTER_FILENAME
+    master = load_json5_file(master_path)
     master_owned = [k for k in master if k != "overlays"]
     master_st = master_path.stat()
     files.append(
         FileInfo(
-            name=_MASTER_FILENAME,
+            name=MASTER_FILENAME,
             owned_keys=master_owned,
             sha256=_sha256(master_path),
             mtime=master_st.st_mtime,
@@ -312,7 +312,7 @@ def get_files(request: Request) -> FilesResponse:
     for name in master.get("overlays", []):
         overlay_path = config_dir / name
         if overlay_path.is_file():
-            overlay = _load_json5_file(overlay_path)
+            overlay = load_json5_file(overlay_path)
             overlay_owned = [k for k in overlay if k != "__source__"]
             overlay_st = overlay_path.stat()
             files.append(
@@ -327,10 +327,10 @@ def get_files(request: Request) -> FilesResponse:
             )
 
     # Local (if present).
-    local_path = config_dir / _LOCAL_FILENAME
+    local_path = config_dir / LOCAL_FILENAME
     if local_path.is_file():
         try:
-            local = _load_json5_file(local_path)
+            local = load_json5_file(local_path)
         except Exception:
             logger.warning("local_json5_unreadable", path=str(local_path))
             local = {}
@@ -338,7 +338,7 @@ def get_files(request: Request) -> FilesResponse:
         local_st = local_path.stat()
         files.append(
             FileInfo(
-                name=_LOCAL_FILENAME,
+                name=LOCAL_FILENAME,
                 owned_keys=local_owned,
                 sha256=_sha256(local_path),
                 mtime=local_st.st_mtime,
@@ -362,10 +362,10 @@ def _valid_file_names(config_dir: Path) -> set[str]:
     Returns:
         Set of basenames that can be requested via ``GET /files/{name}``.
     """
-    names = {_MASTER_FILENAME, _LOCAL_FILENAME}
-    master_path = config_dir / _MASTER_FILENAME
+    names = {MASTER_FILENAME, LOCAL_FILENAME}
+    master_path = config_dir / MASTER_FILENAME
     if master_path.is_file():
-        master = _load_json5_file(master_path)
+        master = load_json5_file(master_path)
         names.update(master.get("overlays", []))
     return names
 
@@ -402,7 +402,7 @@ def get_file(name: str, request: Request) -> FileContent:
         )
 
     try:
-        values = _load_json5_file(file_path)
+        values = load_json5_file(file_path)
     except ConfigValidationError as exc:
         raise HTTPException(
             status_code=422,
@@ -490,10 +490,10 @@ def _writable_file_names(config_dir: Path) -> set[str]:
     Returns:
         Set of basenames that can be targeted by ``PUT /files/{name}``.
     """
-    names: set[str] = {_LOCAL_FILENAME}
-    master_path = config_dir / _MASTER_FILENAME
+    names: set[str] = {LOCAL_FILENAME}
+    master_path = config_dir / MASTER_FILENAME
     if master_path.is_file():
-        master = _load_json5_file(master_path)
+        master = load_json5_file(master_path)
         names.update(master.get("overlays", []))
     return names
 

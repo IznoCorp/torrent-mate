@@ -34,8 +34,7 @@ from personalscraper.app.accounts.session_repository import SessionRepository
 from personalscraper.app.store.errors import AppMigrationError
 from personalscraper.app.store.setting_repository import SettingRepository
 from personalscraper.conf.environment import StoreName, store_path
-from personalscraper.core.sqlite import apply_migrations, db_lock, open_db
-from personalscraper.core.sqlite._migrate import safe_rollback
+from personalscraper.core.sqlite import apply_migrations, db_lock, open_db, safe_rollback
 from personalscraper.logger import get_logger
 from personalscraper.push.store import SqlitePushSubscriptionStore
 

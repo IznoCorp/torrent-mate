@@ -3,7 +3,7 @@
 No sentence reaches the sheet (X4/X5): a genre is a :class:`GenreId`, a status a
 :class:`MediaStatus`, an image a provider URL, a trailer its YouTube key. A provider's
 answer is cached for five minutes (v0's sheet semantics, moved here); the index's
-facts are read fresh on every call by the service.
+facts are read fresh on every call by :class:`MediaSheets`.
 
 What the providers' clients do not return is ``None`` (« unknown »), never an empty
 « none »; what they return empty (a cast no provider lists) stays empty.
@@ -20,9 +20,9 @@ from datetime import date
 from enum import StrEnum
 from typing import Final, Literal, Protocol, runtime_checkable
 
-from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata import MediaDetails
 from personalscraper.app.errors import AppNotFound, AppUnavailable, RefusalCode
-from personalscraper.core._contracts import ApiError
+from personalscraper.core import ApiError
 from personalscraper.indexer.library_view import fold
 from personalscraper.logger import get_logger
 
@@ -459,7 +459,7 @@ class ProviderSheetCache:
         """Start empty.
 
         Args:
-            clock: The service's clock, epoch seconds.
+            clock: The owning :class:`MediaSheets`' clock, epoch seconds.
         """
         self._clock = clock
         self._entries: OrderedDict[tuple[str, str], tuple[ProviderSheet, float]] = OrderedDict()

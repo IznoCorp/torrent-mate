@@ -242,7 +242,7 @@ class LibraryReads:
         self._clock = clock
 
     def _today(self) -> date:
-        """« Today » by the service's clock, local time."""
+        """« Today » by :class:`LibraryReads`' clock, local time."""
         return date.fromtimestamp(self._clock())
 
     # ------------------------------------------------------------------ reads

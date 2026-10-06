@@ -6,6 +6,10 @@ guarantees ``event_from_envelope`` can resolve any production event class even
 if its declaring module has not been touched by the caller's import graph
 (DESIGN §Event catalog).
 
+The catalog sits below the application layer and imports nothing from ``personalscraper.app``:
+``AccountRightsChanged`` (E8) is registered by ``personalscraper.app.accounts.events``, which
+``personalscraper.app.services`` imports in every process that can emit it.
+
 The public re-export surface mirrors the canonical catalog in
 ``docs/features/event-bus/DESIGN.md`` (§Event catalog). Importers should
 prefer the producer module (e.g. ``from personalscraper.pipeline_events
@@ -44,8 +48,6 @@ from personalscraper.api.metadata.registry._events import (
     RegistryBootValidated,
     RegistryFanOutCompleted,
 )
-from personalscraper.app.accounts import events as _accounts_events  # noqa: F401
-from personalscraper.app.accounts.events import AccountRightsChanged
 from personalscraper.core import circuit as _circuit_events  # noqa: F401
 from personalscraper.core.circuit import (
     CircuitBreakerClosed,
@@ -80,7 +82,6 @@ from personalscraper.verify import events as _verify_events  # noqa: F401
 from personalscraper.verify.events import VerifyItemDone
 
 __all__ = [
-    "AccountRightsChanged",
     "BackfillCompleted",
     "BackfillItemCompleted",
     "BackfillSkipped",

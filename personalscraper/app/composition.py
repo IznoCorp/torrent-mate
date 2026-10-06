@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Final, cast
 
-from personalscraper.api.transport._policy import RetryPolicy
+from personalscraper.api.transport import RetryPolicy
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.roles import RoleService
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.catalogue import ProviderLookup, TvCatalogueClient
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.plex import PlexClient
-    from personalscraper.api.transport._policy import CircuitPolicy
+    from personalscraper.api.transport import CircuitPolicy
     from personalscraper.app.library.completeness import CatalogueView
     from personalscraper.app.library.deleting import LibraryDeletion
     from personalscraper.app.library.reads import LibraryReads
@@ -117,17 +117,13 @@ def build_app_context(
     # No client configured (torrent.active="") → None, no error.
     torrent_client = None
     if build_torrent_client and config.torrent.active:
-        from personalscraper.api.metadata.registry import (  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415  # noqa: PLC0415
             ConfigIssue,
+            RegistryConfigError,
             RegistryProviderName,
         )
-        from personalscraper.api.metadata.registry._errors import (  # noqa: PLC0415
-            RegistryConfigError,
-        )
-        from personalscraper.api.torrent._contracts import (  # noqa: PLC0415
+        from personalscraper.api.torrent import (  # noqa: PLC0415  # noqa: PLC0415
             TorrentAdder,
-        )
-        from personalscraper.api.torrent._factory import (  # noqa: PLC0415
             build_active_torrent_client,
         )
 
@@ -156,7 +152,7 @@ def build_app_context(
     # at the same boundary as RegistryConfigError (metadata/torrent). The
     # torrent client is borrowed (shared with ingest); acquire.close() does
     # NOT own its lifecycle.
-    from personalscraper.acquire._factory import build_acquire_context  # noqa: PLC0415
+    from personalscraper.acquire import build_acquire_context  # noqa: PLC0415
 
     # RP6: build the ownership checker at the TRUE composition root. This is the
     # only frame that may import indexer/ AND see config.indexer.db_path, so it
@@ -213,7 +209,7 @@ def _circuit_policy(config: "Config") -> "CircuitPolicy":
     Returns:
         The policy.
     """
-    from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
+    from personalscraper.api.transport import CircuitPolicy  # noqa: PLC0415
 
     return CircuitPolicy(
         failure_threshold=config.thresholds.circuit_breaker_threshold,
@@ -336,7 +332,7 @@ class LazyProviders:
             The registry's client, or ``None`` when the registry cannot be built, does
             not hold ``provider``, or this lookup is closed.
         """
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import UnknownProviderError  # noqa: PLC0415
 
         registry = self._resolve()
         if registry is None:
@@ -361,7 +357,7 @@ class LazyProviders:
         Returns:
             The registry, or ``None``.
         """
-        from personalscraper.api.metadata.registry._errors import RegistryConfigError  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import RegistryConfigError  # noqa: PLC0415
 
         with self._lock:
             if self._closed:

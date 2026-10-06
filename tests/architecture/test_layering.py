@@ -806,3 +806,254 @@ def test_i18n_imports_only_the_logger() -> None:
 def test_i18n_import_scan_flags_an_upward_import() -> None:
     """POSITIVE control: the scanner reports a ``personalscraper`` import (non-vacuous anchor)."""
     assert _personalscraper_imports("from personalscraper.app import x\nimport os\n") == {"personalscraper.app"}
+
+
+# ---------------------------------------------------------------------------
+# Import leaks closed by guards: three directions with NO exemption. The
+# ``# layering: allow`` marker is NOT honoured by these guards, and an import
+# under ``TYPE_CHECKING`` is exempt (it is not a runtime edge).
+# ---------------------------------------------------------------------------
+
+_PACKAGE_NAME = "personalscraper"
+_EVENTS_PACKAGE_DIR = _PACKAGE_ROOT / "events"
+_EVENTS_SYNTHETIC_REL = "personalscraper/events/_synthetic_probe.py"
+
+
+def _runtime_import_targets(source: str, rel: str) -> list[tuple[int, str, tuple[str, ...]]]:
+    """Return the runtime ``personalscraper`` imports of ``source``, relative imports resolved.
+
+    Args:
+        source: Python source code.
+        rel: Repo-relative POSIX path of the file, used to resolve relative imports.
+
+    Returns:
+        One ``(line, module, names)`` triple per import statement that is not under ``TYPE_CHECKING``:
+        ``module`` is the absolute dotted module, ``names`` the names imported from it (empty for a
+        plain ``import x.y``).
+    """
+    tree = ast.parse(source, filename=rel)
+    package_parts = rel.removesuffix(".py").split("/")[:-1]
+    targets: list[tuple[int, str, tuple[str, ...]]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found = [(alias.name, ()) for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                base = package_parts[: len(package_parts) - (node.level - 1)]
+                module = ".".join([*base, *([node.module] if node.module else [])])
+            else:
+                module = node.module or ""
+            found = [(module, tuple(alias.name for alias in node.names))]
+        else:
+            continue
+        if _is_type_checking_block(node, tree):
+            continue
+        targets.extend(
+            (node.lineno, module, names)
+            for module, names in found
+            if module == _PACKAGE_NAME or module.startswith(f"{_PACKAGE_NAME}.")
+        )
+    return targets
+
+
+def _engine_top_levels() -> frozenset[str]:
+    """Return the names of the engine: every top-level package or module of ``personalscraper`` but ``app``."""
+    return frozenset(
+        entry.stem if entry.is_file() else entry.name
+        for entry in _PACKAGE_ROOT.iterdir()
+        if not entry.name.startswith(".")
+        and entry.name != "__pycache__"
+        and (entry.is_dir() or entry.suffix == ".py")
+        and entry.name not in {"app", "__init__.py", "__main__.py"}
+    )
+
+
+def _private_engine_imports(source: str, rel: str, engine: frozenset[str]) -> list[str]:
+    """Return the runtime imports of an engine module through a ``_`` segment or a ``_`` name.
+
+    Args:
+        source: Python source code.
+        rel: Repo-relative POSIX path of the file.
+        engine: The engine's top-level names.
+
+    Returns:
+        One human-readable violation per offending import (empty if none).
+    """
+    violations: list[str] = []
+    for line, module, names in _runtime_import_targets(source, rel):
+        segments = module.split(".")[1:]
+        if not segments or segments[0] not in engine:
+            continue
+        if any(segment.startswith("_") for segment in segments):
+            violations.append(f"{rel}:{line}: imports the private engine module {module}")
+        violations.extend(
+            f"{rel}:{line}: imports the private name {name} from {module}" for name in names if name.startswith("_")
+        )
+    return violations
+
+
+def test_app_imports_only_public_engine_apis() -> None:
+    """No ``app/`` module imports, at runtime, a private engine module or a private name of one.
+
+    The engine is every top-level package or module of ``personalscraper`` but ``app``; "private" is a
+    dotted segment after ``personalscraper`` (or an imported name) starting with ``_``.
+    """
+    engine = _engine_top_levels()
+    assert {"api", "core", "conf", "acquire", "events"} <= engine, f"the engine list is wrong: {sorted(engine)}"
+    violations: list[str] = []
+    for py_file in sorted(_APP_PACKAGE_DIR.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        violations.extend(_private_engine_imports(py_file.read_text(encoding="utf-8"), rel, engine))
+    assert not violations, "app/ reaches into the engine's private modules (import the public path):\n" + "\n".join(
+        violations
+    )
+
+
+def test_app_private_engine_module_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic app/ file importing a ``_`` engine module IS flagged."""
+    source = "from personalscraper.core.sqlite._pragmas import apply_pragmas\n"
+    violations = _private_engine_imports(source, _APP_SYNTHETIC_REL, _engine_top_levels())
+    assert len(violations) == 1, "app private-module guard failed to flag a private engine module (vacuous guard!)"
+    assert "personalscraper.core.sqlite._pragmas" in violations[0]
+
+
+def test_app_private_engine_name_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic app/ file importing a ``_`` name from an engine module IS flagged."""
+    source = "from personalscraper.conf.loader import _load_json5_file\n"
+    violations = _private_engine_imports(source, _APP_SYNTHETIC_REL, _engine_top_levels())
+    assert len(violations) == 1, "app private-name guard failed to flag a private engine name (vacuous guard!)"
+    assert "_load_json5_file" in violations[0]
+
+
+def test_app_private_engine_import_exemptions() -> None:
+    """NEGATIVE control: a TYPE_CHECKING import, an ``app`` private module and a public import are not flagged."""
+    source = (
+        "from typing import TYPE_CHECKING\n"
+        "from personalscraper.app._runner_engine import reserve_run_row\n"
+        "from personalscraper.core.sqlite import apply_pragmas\n"
+        "if TYPE_CHECKING:\n"
+        "    from personalscraper.api.transport._policy import CircuitPolicy\n"
+    )
+    assert _private_engine_imports(source, _APP_SYNTHETIC_REL, _engine_top_levels()) == []
+
+
+def _persistence_imports(source: str, rel: str) -> list[str]:
+    """Return the runtime imports of ``app.store`` or of an ``app`` module named ``*repository``.
+
+    Args:
+        source: Python source code.
+        rel: Repo-relative POSIX path of the file.
+
+    Returns:
+        One human-readable violation per offending import (empty if none).
+    """
+    violations: list[str] = []
+    for line, module, names in _runtime_import_targets(source, rel):
+        # ``from personalscraper.app import store`` reaches the module through a name.
+        candidates = [module, *(f"{module}.{name}" for name in names)]
+        for candidate in candidates:
+            if (
+                candidate == "personalscraper.app.store"
+                or candidate.startswith("personalscraper.app.store.")
+                or (
+                    candidate.startswith("personalscraper.app.") and candidate.rsplit(".", 1)[-1].endswith("repository")
+                )
+            ):
+                violations.append(f"{rel}:{line}: imports the persistence module {candidate}")
+                break
+    return violations
+
+
+def test_http_v1_does_not_import_app_persistence() -> None:
+    """``http_v1/`` imports neither ``personalscraper.app.store`` nor a ``*repository`` module.
+
+    The rule: no module under ``personalscraper/http_v1/`` imports ``personalscraper.app.store`` or a
+    module whose last segment ends with ``repository``.
+    """
+    assert _HTTP_V1_PACKAGE_DIR.is_dir(), "personalscraper/http_v1/ is missing (the guard would scan nothing)"
+    violations: list[str] = []
+    for py_file in sorted(_HTTP_V1_PACKAGE_DIR.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        violations.extend(_persistence_imports(py_file.read_text(encoding="utf-8"), rel))
+    assert not violations, "http_v1/ reaches the persistence (go through a service or a view):\n" + "\n".join(
+        violations
+    )
+
+
+def test_http_v1_store_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic http_v1/ file importing ``app.store`` IS flagged."""
+    source = "from personalscraper.app.store import AppStore\n"
+    violations = _persistence_imports(source, _HTTP_V1_SYNTHETIC_REL)
+    assert len(violations) == 1, "http_v1 -> app.store guard failed to flag an import (vacuous guard!)"
+
+
+def test_http_v1_repository_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic http_v1/ file importing an ``app`` repository module IS flagged."""
+    source = "from personalscraper.app.accounts.repository import StartKind\n"
+    violations = _persistence_imports(source, _HTTP_V1_SYNTHETIC_REL)
+    assert len(violations) == 1, "http_v1 -> repository guard failed to flag an import (vacuous guard!)"
+    assert "personalscraper.app.accounts.repository" in violations[0]
+
+
+def test_http_v1_persistence_import_exemptions() -> None:
+    """NEGATIVE control: a TYPE_CHECKING import and a service import are not flagged."""
+    source = (
+        "from typing import TYPE_CHECKING\n"
+        "from personalscraper.app.accounts.service import AccountService\n"
+        "if TYPE_CHECKING:\n"
+        "    from personalscraper.app.store import AppStore\n"
+    )
+    assert _persistence_imports(source, _HTTP_V1_SYNTHETIC_REL) == []
+
+
+def _app_imports(source: str, rel: str) -> list[str]:
+    """Return the runtime imports of ``personalscraper.app`` (or a module under it) in ``source``.
+
+    Args:
+        source: Python source code.
+        rel: Repo-relative POSIX path of the file.
+
+    Returns:
+        One human-readable violation per offending import (empty if none).
+    """
+    violations: list[str] = []
+    for line, module, names in _runtime_import_targets(source, rel):
+        if module == "personalscraper.app" or module.startswith("personalscraper.app."):
+            violations.append(f"{rel}:{line}: imports {module}")
+        elif module == _PACKAGE_NAME and "app" in names:
+            violations.append(f"{rel}:{line}: imports personalscraper.app")
+    return violations
+
+
+def test_event_catalog_does_not_import_app() -> None:
+    """No ``events/`` module imports ``personalscraper.app``: the catalog sits below the application layer."""
+    assert _EVENTS_PACKAGE_DIR.is_dir(), "personalscraper/events/ is missing (the guard would scan nothing)"
+    violations: list[str] = []
+    for py_file in sorted(_EVENTS_PACKAGE_DIR.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        violations.extend(_app_imports(py_file.read_text(encoding="utf-8"), rel))
+    assert not violations, (
+        "events/ imports the application layer (register the event in its own module):\n" + "\n".join(violations)
+    )
+
+
+def test_event_catalog_app_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic events/ file importing ``app`` IS flagged, whatever the form."""
+    for source in (
+        "from personalscraper.app.accounts import events\n",
+        "from personalscraper.app.accounts.events import AccountRightsChanged\n",
+        "import personalscraper.app.accounts.events\n",
+        "from personalscraper import app\n",
+    ):
+        assert _app_imports(source, _EVENTS_SYNTHETIC_REL), f"events -> app guard missed {source!r} (vacuous guard!)"
+
+
+def test_event_catalog_app_import_exemptions() -> None:
+    """NEGATIVE control: a TYPE_CHECKING app import and an engine import are not flagged."""
+    source = (
+        "from typing import TYPE_CHECKING\n"
+        "from personalscraper.core import ApiError\n"
+        "if TYPE_CHECKING:\n"
+        "    from personalscraper.app.accounts.events import AccountRightsChanged\n"
+    )
+    assert _app_imports(source, _EVENTS_SYNTHETIC_REL) == []

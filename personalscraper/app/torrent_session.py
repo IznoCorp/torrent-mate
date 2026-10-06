@@ -25,7 +25,7 @@ import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from personalscraper.api.torrent._factory import build_active_torrent_client
+from personalscraper.api.torrent import build_active_torrent_client
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:

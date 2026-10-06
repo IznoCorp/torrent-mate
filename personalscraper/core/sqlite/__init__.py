@@ -6,6 +6,7 @@ Public API:
   open_db(path, ...)           — event-free open + corruption-quarantine
   db_lock(path, *, timeout=0)  — FileLock + sidecar + stale-PID recovery
   apply_migrations(conn, dir_) — apply *.sql migration scripts
+  safe_rollback(conn)          — best-effort ROLLBACK, no error when no transaction
   probe_mount(path)            — filesystem-type probe
   serialised                   — a store method run under its connection lock
   Sqlite*Error                 — marker exception hierarchy
@@ -15,7 +16,7 @@ from __future__ import annotations
 
 from personalscraper.core.sqlite._fs_probe import MountInfo, probe_mount
 from personalscraper.core.sqlite._lock import db_lock
-from personalscraper.core.sqlite._migrate import apply_migrations
+from personalscraper.core.sqlite._migrate import apply_migrations, safe_rollback
 from personalscraper.core.sqlite._open import open_db
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.core.sqlite._serialised import serialised
@@ -41,5 +42,6 @@ __all__ = [
     "db_lock",
     "open_db",
     "probe_mount",
+    "safe_rollback",
     "serialised",
 ]
