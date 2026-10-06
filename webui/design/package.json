@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:app": "vite build --mode app",
+    "check:app-bundle": "node app-bundle.mjs dist",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
