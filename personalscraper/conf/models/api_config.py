@@ -297,6 +297,16 @@ class TorrentConfig(_StrictModel):
     active: str = ""
     clients: dict[str, TorrentClientEntry] = Field(default_factory=dict)
 
+    def active_scope(self) -> TorrentScope | None:
+        """Return the scope of the active client.
+
+        Returns:
+            The active client's ``scope``; ``None`` when no client is active, the active one is not
+            configured, or it has no scope (the whole client, as today).
+        """
+        entry = self.clients.get(self.active)
+        return entry.scope if entry is not None else None
+
 
 # ---------------------------------------------------------------------------
 # Tracker config (DESIGN S8.4)
