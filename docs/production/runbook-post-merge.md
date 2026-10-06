@@ -699,38 +699,42 @@ highest migration is refused at open (`store.schema_newer_than_code` in the log,
 `path`, `found`, `known`): nothing is migrated or written, and the web app's boot fails
 (PM2 shows it errored) instead of serving it.
 
-The switch has two layers. The PRIMARY one is the checkout's `.env`: the package calls
-`load_dotenv()` at import (it never overrides a variable already set), so a
-`PERSONALSCRAPER_ENV` line there covers every process of that checkout — the watch
-daemon on its next restart, every scheduled job, every CLI command typed there — with no
-PM2 restart. The SECOND layer is the `env` block of each engine app in `ecosystem.config.js`,
-read when PM2 (re)starts an app with `--update-env`.
+The switch has two layers. The PRIMARY one is the prod clone's `.env`: the package import
+loads it with `load_dotenv()` (it never overrides a variable already set) unless
+`PERSONALSCRAPER_ENV_FILE` is set, in which case that file is loaded ALONE and the clone's `.env`
+is ignored. So a `PERSONALSCRAPER_ENV` line in the prod clone's `.env` covers every process of
+that clone — the watch daemon on its next restart, every scheduled job, every CLI command typed
+there — with no PM2 restart. The staging clone holds NO `.env`: the preprod's apps get
+`PERSONALSCRAPER_ENV=staging` and `PERSONALSCRAPER_ENV_FILE` from their `env` block. The SECOND
+layer is the `env` block of each engine app in `ecosystem.config.js`, read when PM2 (re)starts
+an app with `--update-env`.
 
 What fails without the primary layer: `scripts/deploy.sh` and `scripts/deploy-staging.sh`
-restart only the two web apps (with `--update-env`, so they read the file's line). The watch
+restart only the two web apps (with `--update-env`, so they read their `env` block). The watch
 daemon keeps the environment PM2 saved, with no variable: on its next restart (a crash, the
 Monday reboot resurrecting PM2's saved environment, `tm-resume-after-reboot`) it loads the new
 code, the config load refuses the missing environment, the CLI exits 2, and
 `personalscraper-watch` crash-loops until PM2 marks it `errored` — the pipeline automation
 stops. Every scheduled job started without the variable exits 2 the same way.
 
-### Step 1 — Name each checkout's environment in its `.env` (BEFORE the promotion)
+### Step 1 — Name the prod clone's environment in its `.env` (BEFORE the promotion)
 
-The prod clone `~/deploy/torrentmate` names `prod`. The staging clone `~/staging/torrentmate`
-is the preprod and names `staging`: a CLI command typed there runs as staging, never on
-prod's stores.
+Only the prod clone `~/deploy/torrentmate` names its environment in its `.env`: `prod`. The
+staging clone `~/staging/torrentmate` (the preprod) holds NO `.env`: its apps name `staging`
+and the secrets file `~/.torrentmate/.env-staging` in their `env` block, and a clone `.env`
+there would hold secrets the preprod must not read. If the staging clone has its own `.env`,
+move it out (outside the clone) BEFORE the preprod apps start: the preconditions script
+(`scripts/preprod_preconditions.py`) refuses to start the preprod jobs while it exists.
 
 Done ONCE, BEFORE the promotion that carries this change to `staging`, and in any case before
 it reaches `prod`. Nothing is restarted. In the prod clone the line changes nothing under the
 code already running, where an unset variable still means prod.
 
 ```bash
-for pair in /Users/izno/deploy/torrentmate:prod /Users/izno/staging/torrentmate:staging; do
-  envfile="${pair%%:*}/.env"; env="${pair##*:}"
-  grep -q '^PERSONALSCRAPER_ENV=' "$envfile" || printf 'PERSONALSCRAPER_ENV=%s\n' "$env" >> "$envfile"
-  printf '%s ' "$envfile"; grep -c "^PERSONALSCRAPER_ENV=$env\$" "$envfile"
-done
-# Expected: each file prints 1 (prod for the prod clone, staging for the staging clone)
+envfile=/Users/izno/deploy/torrentmate/.env
+grep -q '^PERSONALSCRAPER_ENV=' "$envfile" || printf 'PERSONALSCRAPER_ENV=prod\n' >> "$envfile"
+printf '%s ' "$envfile"; grep -c '^PERSONALSCRAPER_ENV=prod$' "$envfile"
+# Expected: 1
 ```
 
 ### Step 2 — Reload the online engine apps (second layer)
@@ -768,6 +772,9 @@ done
 ### Step 4 — A command typed by hand
 
 In the prod clone, Step 1's `.env` line already names prod for a CLI command typed there.
+The staging clone has no `.env`, so a CLI command typed there names both the environment and
+the preprod's secrets file on the command line:
+`PERSONALSCRAPER_ENV=staging PERSONALSCRAPER_ENV_FILE=/Users/izno/.torrentmate/.env-staging personalscraper …`.
 A dev checkout that needs prod's stores asks for them on the command, e.g.
 `PERSONALSCRAPER_ENV=prod personalscraper …`, with the canonical config, whose data
 directory is unmarked. A fresh worktree or clone with no `.env` now refuses every command
@@ -775,6 +782,7 @@ that loads the config (`make openapi`, scripts) until it names an environment.
 
 ### Rollback
 
-Remove the `.env` lines and the apps' `env` lines, then
+Remove the prod clone's `.env` line and the apps' `env` lines (the staging clone has no
+line to remove), then
 `pm2 restart personalscraper-watch torrentmate-web torrentmate-web-staging --update-env && pm2 save`.
 This is only safe while the running code still reads an unset variable as prod.
