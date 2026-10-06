@@ -263,6 +263,8 @@ class TorrentInjector(Protocol):
         save_path: str,
         recheck: bool = True,
         paused: bool = True,
+        category: str | None = None,
+        tags: Sequence[str] = (),
     ) -> str:
         """Inject a .torrent into the client, pointed at an existing data path.
 
@@ -272,6 +274,8 @@ class TorrentInjector(Protocol):
                 (the source torrent's ``save_path``).
             recheck: Whether to run a recheck after adding (default True).
             paused: Whether to add in paused state (default True).
+            category: Client category to file the torrent under; ``None`` = none.
+            tags: Tags the torrent is added with (default none).
 
         Returns:
             The info-hash (v1) of the injected torrent.

@@ -417,6 +417,8 @@ class QBitClient(
         save_path: str,
         recheck: bool = True,
         paused: bool = True,
+        category: str | None = None,
+        tags: Sequence[str] = (),
     ) -> str:
         """Inject a .torrent at *save_path*, add paused, optionally recheck.
 
@@ -439,6 +441,8 @@ class QBitClient(
             recheck: Run recheck after adding (default True). Does NOT poll —
                 the caller must verify completion.
             paused: Add in paused state (default True).
+            category: Category to file the torrent under; ``None`` sends none.
+            tags: Tags to add the torrent with; empty sends none.
 
         Returns:
             The torrent's v1 info-hash.
@@ -448,13 +452,19 @@ class QBitClient(
                 (415 / torrent-file), or a ``"Fails."`` result.
         """
         info_hash = _bencode_info_hash(torrent_bytes)
+        kwargs: dict[str, object] = {
+            "torrent_files": torrent_bytes,
+            "save_path": save_path,
+            "is_skip_checking": False,
+            "is_paused": paused,
+        }
+        # Sent only when set, so an unscoped inject is the same request as before.
+        if category is not None:
+            kwargs["category"] = category
+        if tags:
+            kwargs["tags"] = list(tags)
         try:
-            result = self._client.torrents_add(
-                torrent_files=torrent_bytes,
-                save_path=save_path,
-                is_skip_checking=False,
-                is_paused=paused,
-            )
+            result = self._client.torrents_add(**kwargs)  # type: ignore[arg-type,type-var]
         except qbittorrentapi.Conflict409Error:
             # Duplicate — idempotent success (same contract as add() D7).
             log.debug("qbit_inject_duplicate", info_hash=info_hash)
