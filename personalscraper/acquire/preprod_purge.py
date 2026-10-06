@@ -10,8 +10,8 @@ one, saying why. A torrent is purged only when all of these hold:
 * its hash has an unreleased obligation in the preprod's acquire store whose
   ``satisfied_at`` is set — no obligation row keeps it (a tracker with no economy
   block keeps its downloads until its block is written, operator ruling O-3 B);
-* its content path passes the sandbox guard (under a marked, mounted preprod root,
-  and not a root itself);
+* its content path passes the sandbox guard (under the scope's download root, which
+  is a marked, mounted preprod root, and not that root itself);
 * fewer than ``max_purged`` torrents were purged before it in this run.
 
 The removal is the client's own ``delete(hash, delete_files=True)``, never a
@@ -182,16 +182,18 @@ def _tracker_of(item: TorrentItem, config: Config) -> TrackerProviderConfig | No
     return None
 
 
-def _guard_content_path(config: Config, item: TorrentItem) -> Path | None:
+def _guard_content_path(config: Config, item: TorrentItem, scope: TorrentScope) -> Path | None:
     """Return the torrent's content path when the purge may destroy it, else ``None`` (logged).
 
     Args:
         config: The loaded configuration, naming the preprod's roots.
         item: The torrent.
+        scope: The preprod's scope; the content must lie under its download root, the
+            same root ``_in_scope`` judged the save path against.
 
     Returns:
-        The content path, when it is under a marked, mounted preprod root and is not
-        a root itself; ``None`` otherwise.
+        The content path, when it is under a marked, mounted preprod root, under the
+        scope's download root, and is not a root itself; ``None`` otherwise.
     """
     content_path = item.content_path
     if content_path is None:
@@ -200,6 +202,8 @@ def _guard_content_path(config: Config, item: TorrentItem) -> Path | None:
     try:
         assert_within_sandbox(config, content_path, Environment.STAGING)
         real = Path(os.path.realpath(content_path))
+        if not real.is_relative_to(Path(os.path.realpath(scope.download_root))):
+            raise SandboxGuardError(f"{content_path} is not under the download root {scope.download_root}")
         if any(real == Path(os.path.realpath(root)) for root in sandbox_roots(config)):
             raise SandboxGuardError(f"{content_path} is a sandbox root itself")
     except (SandboxGuardError, OSError) as exc:
@@ -315,7 +319,7 @@ def _decide(
     elif obligation.satisfied_at is None:
         return _kept(PurgeVerdict.KEPT_UNMET, obligation_id)
 
-    if _guard_content_path(config, item) is None:
+    if _guard_content_path(config, item, scope) is None:
         return _kept(PurgeVerdict.KEPT_OUTSIDE_ROOT, obligation_id)
     if cap_reached:
         return _kept(PurgeVerdict.KEPT_CAP, obligation_id)

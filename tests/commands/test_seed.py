@@ -560,8 +560,9 @@ def test_seed_purge_journals_each_purge_in_the_preprod_library_db(tmp_path, monk
         store.close()
 
 
-def test_seed_purge_never_creates_a_missing_library_db(tmp_path, monkeypatch):
-    """Without ``library-staging.db`` the purge still runs and the journal creates no database file."""
+@pytest.mark.parametrize("args", [[], ["--dry-run"]])
+def test_seed_purge_without_its_journal_db_is_refused_before_any_client_call(tmp_path, monkeypatch, args):
+    """Without ``library-staging.db`` the purge is refused, dry run included: nothing listed, deleted or created."""
     from types import SimpleNamespace
 
     from personalscraper.acquire.domain import SeedObligation
@@ -579,9 +580,11 @@ def test_seed_purge_never_creates_a_missing_library_db(tmp_path, monkeypatch):
         store.seed.add(SeedObligation("aaaa", "c411", 259_200, 1.0, 5, satisfied_at=10))
         client = FakeClient([_item(roots, "aaaa")])
         ctx = SimpleNamespace(torrent_client=client, acquire=SimpleNamespace(store=store), event_bus=EventBus())
-        result, _ = _invoke_purge([], config, ctx, monkeypatch)
-        assert result.exit_code == 0, result.output
-        assert client.deleted == [("aaaa", True)]
+        result, _ = _invoke_purge(args, config, ctx, monkeypatch)
+        assert result.exit_code == 2, result.output
+        assert "library-staging.db" in result.output
+        assert client.calls == []
+        assert client.deleted == []
         assert not (roots.data / "library-staging.db").exists()
     finally:
         store.close()

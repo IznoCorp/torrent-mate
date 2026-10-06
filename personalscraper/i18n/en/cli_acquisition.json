@@ -73,7 +73,8 @@
       "summary": "Purged {{purged}}, kept {{kept}}.",
       "summary_dry_run": "Dry run: would purge {{purged}}, keep {{kept}}.",
       "decision": "{{verdict}}\t{{info_hash}}\t{{name}}",
-      "refused": "The purge is refused: {{reason}}"
+      "refused": "The purge is refused: {{reason}}",
+      "no_journal": "The purge is refused: its journal {{path}} does not exist, and no torrent is deleted without a journal row."
     },
     "error_label": "Error:",
     "no_client": "No torrent client configured. Check config/torrent.json5."

@@ -236,7 +236,8 @@ def _purge_journal(library_db: Path) -> Callable[[Path], None]:
 
     The journal never creates the database: before the preprod's first full scan the
     file does not exist, and an empty one would be skipped by nothing that migrates
-    it. A missing file is logged instead (the journal is best-effort by contract).
+    it. ``seed_purge`` refuses to run while the file is absent, so the check here only
+    covers a file removed mid-run (logged: the delete it records already happened).
 
     Args:
         library_db: The preprod's library store.
@@ -287,15 +288,22 @@ def seed_purge(
         max_purged: The most torrents this run deletes.
 
     Raises:
-        typer.Exit: Exit code 2 outside ``staging`` or when the client scope is
-            refused; 1 when no torrent client or acquire store is configured, or the
-            client cannot list its torrents.
+        typer.Exit: Exit code 2 outside ``staging``, when ``library-staging.db`` (the
+            journal) is absent, or when the client scope is refused; 1 when no
+            torrent client or acquire store is configured, or the client cannot
+            list its torrents.
     """
     env = current_environment()
     if env is not Environment.STAGING:
         log.error("seed_purge_not_staging", env=env.value)
         raise _purge_error(t("cli_acquisition.seed.purge.not_staging", env=env.value), 2)
     config = ctx.obj.config
+    # No purge without its journal: checked before the client is built, dry run included,
+    # so the operator's dry run shows the refusal a real run would meet.
+    library_db = store_path(config.paths.data_dir, StoreName.LIBRARY, env)
+    if not library_db.is_file():
+        log.error("seed_purge_no_journal", db_path=str(library_db))
+        raise _purge_error(t("cli_acquisition.seed.purge.no_journal", path=str(library_db)), 2)
     settings = cli_helpers.get_settings()
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         store = app_context.acquire.store if app_context.acquire is not None else None
@@ -315,7 +323,7 @@ def seed_purge(
                 dry_run=dry_run,
                 max_purged=max_purged,
                 event_bus=app_context.event_bus,
-                journal=_purge_journal(store_path(config.paths.data_dir, StoreName.LIBRARY, env)),
+                journal=_purge_journal(library_db),
             )
         except SandboxGuardError as exc:
             log.error("seed_purge_refused", reason=str(exc))

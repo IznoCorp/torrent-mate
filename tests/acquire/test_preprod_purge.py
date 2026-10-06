@@ -437,6 +437,38 @@ def test_save_path_outside_the_download_root_is_out_of_scope(
     assert client.deleted == []
 
 
+def test_a_hash_the_client_lists_in_upper_case_finds_its_lower_case_obligation(
+    roots: Roots, mounted: None, staging: Callable[[], None], store: ConcreteAcquireStore, run: Run
+) -> None:
+    """The store keeps hashes lower-case: an upper-case client hash still finds its met obligation."""
+    config = _config(roots)
+    oid = _oblige(store, "abcdef", met=True)
+    client = FakeClient([_item(roots, "ABCDEF")])
+    staging()
+    decisions = run(store, client, config)
+    assert decisions[0].verdict is PurgeVerdict.PURGED
+    assert decisions[0].obligation_id == oid
+    assert client.deleted == [("ABCDEF", True)]
+
+
+def test_an_empty_save_path_is_out_of_scope_even_when_the_working_directory_is_in_the_root(
+    roots: Roots,
+    mounted: None,
+    staging: Callable[[], None],
+    store: ConcreteAcquireStore,
+    run: Run,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An empty save path resolves to the working directory: it must be refused, not read as that directory."""
+    config = _config(roots)
+    _oblige(store, "aaaa", met=True)
+    client = FakeClient([_item(roots, "aaaa", save_path="")])
+    monkeypatch.chdir(roots.download)
+    staging()
+    assert run(store, client, config)[0].verdict is PurgeVerdict.KEPT_OUT_OF_SCOPE
+    assert client.deleted == []
+
+
 # -- kept: the roots -------------------------------------------------------------------------------
 
 
@@ -460,6 +492,21 @@ def test_content_path_outside_the_roots_is_kept_and_the_guard_logged(
     assert client.deleted == []
     assert _released_at(store, oid) is None
     assert "acquire.preprod_purge.guard_refused" in caplog.text
+
+
+def test_content_path_under_another_preprod_root_than_the_download_root_is_kept(
+    roots: Roots, mounted: None, staging: Callable[[], None], store: ConcreteAcquireStore, run: Run
+) -> None:
+    """The save path is in the download root but the content path is in the staging root: kept, never deleted."""
+    config = _config(roots)
+    oid = _oblige(store, "aaaa", met=True)
+    client = FakeClient([_item(roots, "aaaa", content_path=roots.staging / "Release.aaaa")])
+    staging()
+    decisions = run(store, client, config)
+    assert decisions[0].verdict is PurgeVerdict.KEPT_OUTSIDE_ROOT
+    assert client.deleted == []
+    assert _released_at(store, oid) is None
+    assert run.journal == []
 
 
 def test_content_path_escaping_by_symlink_is_kept(
