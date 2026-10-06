@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from personalscraper.conf.models.config import Config
@@ -35,3 +36,19 @@ def test_v1_mounted_in_v0_keeps_its_policy(test_config: Config) -> None:
 
     assert client.get("/api/v1/anything").headers.get("content-security-policy") == CONTENT_SECURITY_POLICY
     assert "content-security-policy" not in client.get("/api/health").headers
+
+
+def test_a_v0_validation_refusal_carries_the_headers(make_web_client: Callable[..., TestClient]) -> None:
+    """FastAPI's own 422 on a v0 route (a query value that is not an integer) carries both headers."""
+    client = make_web_client()
+
+    def needs_an_integer(n: int) -> int:
+        return n
+
+    # In front of the SPA fallback, which would otherwise answer the path first.
+    client.app.router.routes.insert(0, APIRoute("/api/needs-an-integer", needs_an_integer))  # type: ignore[attr-defined]
+    response = client.get("/api/needs-an-integer", params={"n": "x"})
+
+    assert response.status_code == 422
+    assert response.headers.get("x-content-type-options") == "nosniff"
+    assert response.headers.get("strict-transport-security") == "max-age=31536000; includeSubDomains"

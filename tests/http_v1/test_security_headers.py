@@ -58,6 +58,30 @@ def test_a_v1_refusal_carries_the_headers(v1_client: Callable[..., TestClient]) 
     _assert_headers(response)
 
 
+def test_a_crash_carries_the_headers(v1_client: Callable[..., TestClient]) -> None:
+    """A 500 answered by ``ProblemOnCrash`` carries them, policy included: the middleware wraps the guard."""
+    client = v1_client()
+
+    def crash() -> None:
+        raise RuntimeError("boom")
+
+    client.app.add_api_route("/crash", crash)  # type: ignore[attr-defined]
+    response = TestClient(client.app, raise_server_exceptions=False).get("/crash")
+
+    assert response.status_code == 500
+    _assert_headers(response)
+    assert response.headers.get("content-security-policy") == CONTENT_SECURITY_POLICY
+
+
+def test_a_validation_refusal_carries_the_headers(v1_client: Callable[..., TestClient]) -> None:
+    """A body the route refuses to read (v1 answers it 400, never FastAPI's 422) carries them too."""
+    response = v1_client(role=None).post("/auth/login", json={})
+
+    assert response.status_code == 400
+    _assert_headers(response)
+    assert response.headers.get("content-security-policy") == CONTENT_SECURITY_POLICY
+
+
 def test_a_static_page_carries_the_headers(tmp_path: Path) -> None:
     """The SPA's index and an asset, served by ``mount_spa``, carry them."""
     static_dir = tmp_path / "static"
