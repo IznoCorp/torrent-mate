@@ -576,3 +576,52 @@ def test_search_no_close_when_publisher_is_none(tmp_path: Path, monkeypatch) -> 
     mock_build.assert_called_once()
     assert acquire.store is not None
     acquire.store.close()
+
+
+# ── 6. Reconcile without a client never settles a hash ───────────────────────────
+
+
+def test_search_reconcile_never_requeues_nor_confirms_a_hash_without_a_client(tmp_path: Path) -> None:
+    """The search sweep has no client view, so a stored hash is neither requeued nor confirmed.
+
+    This freezes why the search path needs no scope: with ``client_items=None`` the
+    sweep cannot read a foreign torrent as absent, so it cannot requeue it.
+    """
+    from rich.console import Console
+
+    from personalscraper.acquire import reconcile as reconcile_module
+    from personalscraper.commands.search import _reconcile_before_search
+    from personalscraper.core.event_bus import EventBus
+
+    store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    try:
+        grabbed_id = store.wanted.add(
+            WantedItem(media_ref=MediaRef(tvdb_id=4), kind="episode", status="pending", enqueued_at=1_900_000_000)
+        )
+        assert store.wanted.claim_for_search(grabbed_id, 1_900_000_100) is True
+        store.wanted.mark_grabbed(grabbed_id, "a" * 40)
+        searching_id = store.wanted.add(
+            WantedItem(media_ref=MediaRef(tvdb_id=5), kind="episode", status="pending", enqueued_at=1_900_000_000)
+        )
+        assert store.wanted.claim_for_search(searching_id, 1_900_000_100) is True
+        store.wanted.record_grab_intent(searching_id, "b" * 40)
+        ownership = MagicMock()
+        ownership.owns.return_value = False
+        acquire = MagicMock(store=store, ownership=ownership)
+        seen: list[object] = []
+        real = reconcile_module.reconcile_wanted
+
+        def _spy(_store, _ownership, client_items, **kw):
+            seen.append(client_items)
+            return real(_store, _ownership, client_items, **kw)
+
+        with patch.object(reconcile_module, "reconcile_wanted", _spy):
+            summary = _reconcile_before_search(acquire, EventBus(), Console(quiet=True))
+
+        assert seen == [None]
+        assert (summary.requeued_missing, summary.confirmed_grabbed) == (0, 0)
+        assert store.wanted.get(grabbed_id).status == "grabbed"  # type: ignore[union-attr]
+        assert store.wanted.get(grabbed_id).grabbed_hash == "a" * 40  # type: ignore[union-attr]
+        assert store.wanted.get(searching_id).status == "searching"  # type: ignore[union-attr]
+    finally:
+        store.close()

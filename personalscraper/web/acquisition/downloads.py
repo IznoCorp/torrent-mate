@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from personalscraper.acquire.store import build_acquire_store
+from personalscraper.api.torrent._base import lookup_scoped
 from personalscraper.app.torrent_session import shared_torrent_client
 from personalscraper.logger import get_logger
 from personalscraper.web.models.acquisition import (
@@ -145,6 +146,9 @@ def list_active_downloads(config: Config) -> AcquisitionDownloadsResponse:
     ``state="missing"`` so the operator sees what was grabbed even when the
     client is down.
 
+    Under a client scope a grabbed hash held in another category is left out of the
+    list: it is another instance's torrent, never reported as this instance's download.
+
     Args:
         config: The loaded config (``acquire.db_path`` + ``torrent``).
 
@@ -163,6 +167,9 @@ def list_active_downloads(config: Config) -> AcquisitionDownloadsResponse:
     hashes = {w.grabbed_hash for w in grabbed if w.grabbed_hash}
 
     by_hash: dict[str, TorrentItem] = {}
+    # Hashes the shared client holds under ANOTHER instance's category: neither ours to
+    # show (their progress is not this instance's download) nor « missing » (they exist).
+    foreign: set[str] = set()
     client_available = True
     if hashes:
         try:
@@ -173,7 +180,9 @@ def list_active_downloads(config: Config) -> AcquisitionDownloadsResponse:
                 if client is None:
                     client_available = False
                 else:
-                    by_hash = {t.hash.lower(): t for t in client.get_by_hashes(hashes)}
+                    own, held_elsewhere = lookup_scoped(client, hashes, config.torrent.active_scope())
+                    by_hash = {t.hash.lower(): t for t in own}
+                    foreign = held_elsewhere
         except Exception as exc:  # noqa: BLE001 — the panel must never 500 on a client outage
             log.warning("acquisition_downloads_client_unavailable", error=str(exc))
             client_available = False
@@ -185,6 +194,7 @@ def list_active_downloads(config: Config) -> AcquisitionDownloadsResponse:
             by_hash.get((w.grabbed_hash or "").lower()),
         )
         for w in grabbed
+        if (w.grabbed_hash or "").lower() not in foreign
     ]
     downloads.sort(key=_sort_key)
     return AcquisitionDownloadsResponse(downloads=downloads, client_available=client_available)
