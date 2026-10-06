@@ -149,9 +149,46 @@ ignore = ["D104"]  # D104=__init__ docstring
 # list can only shrink.
 [tool.ruff.lint.per-file-ignores]
 # The living tools keep D103: a new script is held to it from its first line.
-"scripts/*.py" = ["D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
-"webui/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
+"scripts/*.py" = ["D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "S608", "RUF100"]
+"webui/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "UP031", "RUF100"]
 "frontend/scripts/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
+"webui/*.py" = ["B904", "C901", "PLC0415", "RUF100"]
+
+# BLE, S608, PLC0415, B, C901, RUF100 and UP are held on `personalscraper/app/`, `personalscraper/http_v1/` and
+# `personalscraper/core/` (the v1 trees): a finding there is fixed, or carries a local
+# `# noqa: <code> — <reason>` where the code is right. Every other tree DECLARES below the rules its existing
+# code still breaks, the same way as above: a new file there is held to everything else from its first line,
+# and this list can only shrink. The v0 trees (`personalscraper/web/`, `tests/`, the CLI) are not rewritten for it.
+"personalscraper/cli.py" = ["B008", "PLC0415"]
+"personalscraper/lock.py" = ["PLC0415"]
+"personalscraper/logger.py" = ["PLC0415"]
+"personalscraper/naming_patterns.py" = ["PLC0415"]
+"personalscraper/pause.py" = ["PLC0415"]
+"personalscraper/pipeline.py" = ["BLE001", "C901", "PLC0415", "RUF100"]
+"personalscraper/pipeline_history.py" = ["BLE001", "C901"]
+"personalscraper/pipeline_steps.py" = ["PLC0415"]
+"personalscraper/text_utils.py" = ["PLC0415"]
+"personalscraper/acquire/**/*.py" = ["BLE001", "C901", "PLC0415", "S608", "UP042", "RUF100"]
+"personalscraper/api/**/*.py" = ["B905", "BLE001", "C901", "PLC0415", "UP042", "UP046", "UP047", "RUF100"]
+"personalscraper/cli_helpers/**/*.py" = ["B904"]
+"personalscraper/commands/**/*.py" = ["B008", "BLE001", "C901", "PLC0415", "UP042", "RUF100"]
+"personalscraper/conf/**/*.py" = ["B904", "B905", "C901", "PLC0415", "RUF100"]
+"personalscraper/dispatch/**/*.py" = ["B008", "BLE001", "C901", "PLC0415", "UP036", "RUF100"]
+"personalscraper/enforce/**/*.py" = ["C901"]
+"personalscraper/i18n/**/*.py" = ["UP040"]
+"personalscraper/indexer/**/*.py" = ["B007", "B008", "B904", "BLE001", "C901", "PLC0415", "S608", "UP035", "UP040", "UP042", "RUF100"]
+"personalscraper/ingest/**/*.py" = ["BLE001", "C901", "PLC0415", "RUF100"]
+"personalscraper/insights/**/*.py" = ["C901"]
+"personalscraper/maintenance/**/*.py" = ["B008", "BLE001", "C901", "PLC0415", "RUF100"]
+"personalscraper/process/**/*.py" = ["C901", "PLC0415"]
+"personalscraper/push/**/*.py" = ["S608"]
+"personalscraper/scraper/**/*.py" = ["BLE001", "C901", "PLC0415", "S608", "UP047", "RUF100"]
+"personalscraper/sorter/**/*.py" = ["C901", "PLC0415", "RUF100"]
+"personalscraper/subscribers/**/*.py" = ["BLE001", "PLC0415", "RUF100"]
+"personalscraper/trailers/**/*.py" = ["B904", "C901", "PLC0415", "RUF100"]
+"personalscraper/verify/**/*.py" = ["C901", "PLC0415"]
+"personalscraper/web/**/*.py" = ["B008", "B904", "BLE001", "C901", "PLC0415", "S608", "UP042", "RUF100"]
+"tests/**/*.py" = ["B007", "B017", "B018", "B904", "B905", "BLE001", "C901", "PLC0415", "S608", "UP017", "UP031", "UP045", "UP046", "RUF100"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
