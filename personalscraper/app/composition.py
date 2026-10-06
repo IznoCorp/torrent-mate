@@ -423,7 +423,8 @@ def build_app_services(
     roles = RoleService(app_store, event_bus)
     credentials = CredentialService(app_store, sessions)
     # No FCM sender is configured yet: the in-app notice is written, the push is logged unsent.
-    SignInNotifier(app_store, UnconfiguredPush()).subscribe(event_bus)
+    sign_in_notifier = SignInNotifier(app_store, UnconfiguredPush())
+    sign_in_notifier.subscribe(event_bus)
     return AppServices(
         event_bus=event_bus,
         build_info=BUILD_INFO,
@@ -442,6 +443,7 @@ def build_app_services(
         notices=NoticeService(app_store),
         runs=RunService(store=app_store, data_dir=config.paths.data_dir),
         owned_providers=owned,
+        sign_in_notifier=sign_in_notifier,
     )
 
 

@@ -12,6 +12,7 @@ from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.plex import PlexClient
 from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
+from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
 from personalscraper.app.library.reads import LibraryReads
 from personalscraper.app.services import AppServices
@@ -332,3 +333,14 @@ def test_one_plex_client_serves_the_door_and_the_library(test_config: Config) ->
         assert services.plex_sign_in._server is services.deletion._plex
     finally:
         services.close()
+
+
+def test_close_drains_the_sign_in_pushes(test_config: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Shutdown closes the sign-in notifier, so a push still pending is sent, not lost on restart."""
+    closed: list[bool] = []
+    monkeypatch.setattr(SignInNotifier, "close", lambda self: closed.append(True))
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
+
+    services.close()
+
+    assert closed == [True]
