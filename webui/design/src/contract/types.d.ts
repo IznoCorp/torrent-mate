@@ -3732,7 +3732,7 @@ export interface operations {
                         providerId: string;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                     };
                 };
@@ -3973,7 +3973,7 @@ export interface operations {
                         absorbedCount: number;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                         /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
                         reused: boolean;
@@ -3993,7 +3993,7 @@ export interface operations {
                         absorbedCount: number;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                         /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
                         reused: boolean;
@@ -4276,7 +4276,7 @@ export interface operations {
                     "application/json": {
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                     };
                 };
@@ -4310,7 +4310,7 @@ export interface operations {
                     "application/json": {
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
                         runUid: string | null;
                     };
                 };

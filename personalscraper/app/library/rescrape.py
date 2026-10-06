@@ -34,6 +34,7 @@ class RescrapeAccepted:
         queued: Whether a request still waits in the queue (not yet admitted by the supervisor).
         run_uid: The uid of the lowest holding row's request (one request per row holding
             live files): the one queued now, or the equal one already waiting or running.
+            Always the request's uid.
     """
 
     provider: Provider

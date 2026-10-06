@@ -1309,7 +1309,7 @@
                         "string",
                         "null"
                       ],
-                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null."
                     }
                   },
                   "required": [
@@ -1792,7 +1792,7 @@
                         "string",
                         "null"
                       ],
-                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null."
                     },
                     "reused": {
                       "type": "boolean",
@@ -1834,7 +1834,7 @@
                         "string",
                         "null"
                       ],
-                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null."
                     },
                     "reused": {
                       "type": "boolean",
@@ -2428,7 +2428,7 @@
                         "string",
                         "null"
                       ],
-                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null."
                     }
                   },
                   "required": [
@@ -2500,7 +2500,7 @@
                         "string",
                         "null"
                       ],
-                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null."
                     }
                   },
                   "required": [

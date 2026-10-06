@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
+from personalscraper.app.supervisor.model import RunTrigger
+from personalscraper.app.supervisor.service import RunAsked
 
 
 def test_a_run_is_asked_and_answers_queued_with_its_uid(v1_client: Callable[..., TestClient]) -> None:
@@ -56,3 +60,30 @@ def test_the_read_only_instance_refuses_it_even_to_an_admin(v1_client: Callable[
     assert response.status_code == 403
     assert response.json()["code"] == "instance.forbidden_write"
     assert response.json()["params"]["right"] == "pipeline.control"
+
+
+def test_the_stored_request_is_a_web_one(v1_client: Callable[..., TestClient]) -> None:
+    """The route asks as the web: the request left in the queue carries the ``WEB`` trigger."""
+    client = v1_client(rights=frozenset({Right.PIPELINE_CONTROL}))
+
+    uid = client.post("/pipeline/run").json()["uid"]
+
+    queued = client.app.state.services.runs.queue_view().queued  # type: ignore[attr-defined]
+    assert [(request.uid, request.trigger) for request in queued] == [(uid, RunTrigger.WEB)]
+
+
+def test_the_answer_carries_the_state_of_the_request_that_answers(
+    v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A joined request already running answers ``running`` with its own uid, not a hard-coded ``queued``.
+
+    The route's own ask never promises a uid, so the service answers ``running`` to it only through a
+    seam; the stub stands for that answer and shows the route passes the state through.
+    """
+    client = v1_client(rights=frozenset({Right.PIPELINE_CONTROL}))
+    runs: Any = client.app.state.services.runs  # type: ignore[attr-defined]
+    monkeypatch.setattr(runs, "ask_run", lambda *_a, **_k: RunAsked(uid="joined-uid", state="running", joined=True))
+
+    body = client.post("/pipeline/run").json()
+
+    assert body == {"state": "running", "uid": "joined-uid"}
