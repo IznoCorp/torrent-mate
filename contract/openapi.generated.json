@@ -1347,7 +1347,7 @@
       },
       "RescrapeQueued": {
         "additionalProperties": false,
-        "description": "``rescrapeMedia``'s 202: the ask accepted, running or visibly in file.\n\nAttributes:\n    provider: The provider the medium was named at.\n    provider_id: Its id there.\n    queued: Whether the ask waits on the pipeline rather than running now.\n    run_uid: The run to follow, or ``None``.",
+        "description": "``rescrapeMedia``'s 202: the ask accepted, running or visibly in file.\n\nAttributes:\n    provider: The provider the medium was named at.\n    provider_id: Its id there.\n    queued: Whether the ask waits on the pipeline rather than running now.\n    run_uid: The uid of the request answering the ask (the run to follow once admitted); always set.",
         "properties": {
           "provider": {
             "title": "Provider",
@@ -1528,6 +1528,33 @@
           "roles"
         ],
         "title": "RosterModel",
+        "type": "object"
+      },
+      "RunAnswer": {
+        "additionalProperties": false,
+        "description": "``runPipeline``'s answer (the contract's ``POST /pipeline/run`` 200).\n\nAttributes:\n    state: The contract's ``PipelineState``: what the request answering the ask stands at.\n    uid: The request's uid, which becomes the run's ``pipeline_run.run_uid`` once admitted.",
+        "properties": {
+          "state": {
+            "enum": [
+              "idle",
+              "running",
+              "queued",
+              "paused",
+              "stopping"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "uid": {
+            "title": "Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "uid"
+        ],
+        "title": "RunAnswer",
         "type": "object"
       },
       "SeasonModel": {
@@ -4514,6 +4541,108 @@
           }
         },
         "summary": "Read Notices"
+      }
+    },
+    "/pipeline/run": {
+      "post": {
+        "description": "Ask a pipeline run: queued visibly, or joined to the equal one already waiting.\n\nThe process starts nothing: the supervisor's lease is the only authority that admits\na queued request, so the answer is ``queued`` (or ``running`` for a request already\nadmitted), never ``idle``.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The state of the request answering the ask, and its uid.\n\nRaises:\n    AppForbidden: ``right.missing``, ``instance.forbidden_write`` before anything is queued.",
+        "operationId": "runPipeline",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Run Pipeline"
       }
     },
     "/roles": {

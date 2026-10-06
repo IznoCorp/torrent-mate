@@ -26,7 +26,7 @@ from personalscraper.http_v1.contract import V1_PREFIX as V1_PREFIX  # re-export
 from personalscraper.http_v1.idempotency import idempotency_guard, install_idempotency
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
-from personalscraper.http_v1.routes import accounts, authentication, library, media, notifications, system
+from personalscraper.http_v1.routes import accounts, authentication, library, media, notifications, pipeline, system
 from personalscraper.http_v1.security_headers import SecurityHeaders
 from personalscraper.http_v1.session_cookie import SessionActorResolver, SessionRenewalCookie
 
@@ -167,6 +167,7 @@ def create_v1_app(
     include_v1_router(app, system.router)
     include_v1_router(app, media.router)
     include_v1_router(app, library.router)
+    include_v1_router(app, pipeline.router)
     return app
 
 
