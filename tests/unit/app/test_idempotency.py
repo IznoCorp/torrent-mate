@@ -3,23 +3,27 @@
 A claimed key is applied once: its answer is stored, a replay of the same request reads
 it back, the same key with another request is refused, and a key still running is refused
 to a concurrent duplicate. The rows are swept past their retention; a claim abandoned by a
-crash is taken over once it is stale; a claim whose request failed is released.
+crash is taken over once it is stale; a claim whose request failed is released. A request's
+fingerprint is keyed by the server's secret file, so ``app.db`` holds no digest of a body alone.
 """
 
 from __future__ import annotations
 
+import hashlib
+import stat
 import threading
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.errors import AppConflict, RefusalCode
-from personalscraper.app.idempotency.service import Claimed, IdempotencyService, Replay
+from personalscraper.app.idempotency.service import DEFAULT_PENDING_S, Claimed, IdempotencyService, Replay
 from personalscraper.app.store.store import AppStore
 
-_ACCOUNT = "account-one"
-_OTHER_ACCOUNT = "account-two"
+_ACCOUNT = AccountId("account-one")
+_OTHER_ACCOUNT = AccountId("account-two")
 _KEY = "key-1"
 _OPERATION = "POST /accounts"
 
@@ -72,20 +76,34 @@ def clock() -> _Clock:
 
 
 @pytest.fixture
-def service(store: AppStore, clock: _Clock) -> IdempotencyService:
+def key_path(tmp_path: Path) -> Path:
+    """Where the fingerprint key file goes, not created yet.
+
+    Args:
+        tmp_path: The test's temporary directory.
+
+    Returns:
+        The key file's path.
+    """
+    return tmp_path / "app.idempotency.key"
+
+
+@pytest.fixture
+def service(store: AppStore, clock: _Clock, key_path: Path) -> IdempotencyService:
     """The service over the fresh store, a one-hour retention and a one-minute pending limit.
 
     Args:
         store: The fresh store.
         clock: The settable clock.
+        key_path: The fingerprint key file.
 
     Returns:
         The service.
     """
-    return IdempotencyService(store, retention_s=3600.0, pending_s=60.0, clock=clock)
+    return IdempotencyService(store, key_path=key_path, retention_s=3600.0, pending_s=60.0, clock=clock)
 
 
-def _claim(service: IdempotencyService, *, account: str = _ACCOUNT, fingerprint: str = "f1") -> Claimed | Replay:
+def _claim(service: IdempotencyService, *, account: AccountId = _ACCOUNT, fingerprint: str = "f1") -> Claimed | Replay:
     """Claim the test key for one account.
 
     Args:
@@ -183,6 +201,20 @@ class TestInFlight:
         clock.now += 61.0
         assert isinstance(_claim(service), Claimed)
 
+    def test_residual_a_slow_original_past_the_pending_limit_is_taken_over(
+        self, store: AppStore, clock: _Clock, key_path: Path
+    ) -> None:
+        """RESIDUAL, pinned as it is: a request still running after 300 s loses its key to the retry.
+
+        Nothing tells a slow original from a dead one; past the pending limit, the retry
+        claims the key and applies the write while the original may still commit it.
+        """
+        service = IdempotencyService(store, key_path=key_path, clock=clock)
+        assert DEFAULT_PENDING_S == 300.0
+        assert isinstance(_claim(service), Claimed)
+        clock.now += DEFAULT_PENDING_S + 1.0
+        assert isinstance(_claim(service), Claimed)
+
     def test_a_taken_over_claim_cannot_complete(self, service: IdempotencyService, clock: _Clock) -> None:
         """The abandoned claim's late answer never overwrites its successor's."""
         stale = _claim(service)
@@ -218,3 +250,75 @@ class TestRetention:
         service.complete(claim, 204, b"", None)
         clock.now += 3599.0
         assert _claim(service) == Replay(status=204, body=b"", content_type=None)
+
+
+#: A body carrying a password, as ``changeOwnPassword`` receives it.
+_PASSWORD_BODY = b'{"currentPassword":"correct horse","newPassword":"battery staple"}'
+
+
+def _plain_digests(body: bytes) -> set[str]:
+    """The digests a stolen ``app.db`` could test a guessed body against without the server's key.
+
+    Args:
+        body: The request body.
+
+    Returns:
+        The sha256 of the body alone, and of the length-prefixed request.
+    """
+    framed = hashlib.sha256()
+    for part in (b"PUT", b"/auth/password", b"", body):
+        framed.update(len(part).to_bytes(8, "big"))
+        framed.update(part)
+    return {hashlib.sha256(body).hexdigest(), framed.hexdigest()}
+
+
+class TestFingerprint:
+    """A request's fingerprint is keyed by a secret that does not live in ``app.db``."""
+
+    def test_the_stored_fingerprint_is_no_plain_digest_of_the_body(
+        self, service: IdempotencyService, store: AppStore
+    ) -> None:
+        """What ``app.db`` keeps cannot be matched against a guessed password without the key file."""
+        fingerprint = service.fingerprint("PUT", "/auth/password", "", _PASSWORD_BODY)
+        assert isinstance(service.claim(_ACCOUNT, _KEY, "PUT /auth/password", fingerprint), Claimed)
+        row = store.idempotency.find(_ACCOUNT, _KEY, "PUT /auth/password")
+        assert row is not None
+        assert row.fingerprint == fingerprint
+        assert row.fingerprint not in _plain_digests(_PASSWORD_BODY)
+
+    def test_two_processes_with_one_key_file_agree(self, store: AppStore, key_path: Path) -> None:
+        """Two services over the same key file fingerprint one request alike."""
+        first = IdempotencyService(store, key_path=key_path)
+        second = IdempotencyService(store, key_path=key_path)
+        assert first.fingerprint("PUT", "/auth/password", "", _PASSWORD_BODY) == second.fingerprint(
+            "PUT", "/auth/password", "", _PASSWORD_BODY
+        )
+
+    def test_another_key_file_disagrees(self, store: AppStore, key_path: Path, tmp_path: Path) -> None:
+        """Another server's key fingerprints the same request differently."""
+        mine = IdempotencyService(store, key_path=key_path)
+        theirs = IdempotencyService(store, key_path=tmp_path / "other.key")
+        assert mine.fingerprint("PUT", "/auth/password", "", _PASSWORD_BODY) != theirs.fingerprint(
+            "PUT", "/auth/password", "", _PASSWORD_BODY
+        )
+
+    def test_the_key_file_is_made_on_first_use_for_the_owner_only(
+        self, service: IdempotencyService, key_path: Path
+    ) -> None:
+        """Building the service touches nothing; the first fingerprint makes 32 random bytes, mode 0600."""
+        assert not key_path.exists()
+        service.fingerprint("POST", "/roles", "", b"{}")
+        assert len(key_path.read_bytes()) == 32
+        assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
+
+    def test_the_query_and_the_body_are_part_of_it(self, service: IdempotencyService) -> None:
+        """Another query or another body is another request."""
+        base = service.fingerprint("POST", "/roles", "", b"{}")
+        assert service.fingerprint("POST", "/roles", "a=1", b"{}") != base
+        assert service.fingerprint("POST", "/roles", "", b"[]") != base
+
+    def test_a_key_file_of_another_length_is_refused(self, store: AppStore, key_path: Path) -> None:
+        """A truncated or foreign key file is a server defect, never a weaker key."""
+        key_path.write_bytes(b"short")
+        with pytest.raises(RuntimeError, match="32 bytes"):
+            IdempotencyService(store, key_path=key_path).fingerprint("POST", "/roles", "", b"{}")

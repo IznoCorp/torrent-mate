@@ -16,6 +16,8 @@ import sqlite3
 import threading
 from dataclasses import dataclass
 
+from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.idempotency.ids import ClaimId
 from personalscraper.core.sqlite import serialised
 
 
@@ -33,7 +35,7 @@ class IdempotencyRow:
     """
 
     fingerprint: str
-    claim_id: str
+    claim_id: ClaimId
     created_at: float
     status: int | None
     body: bytes | None
@@ -55,7 +57,7 @@ class IdempotencyRepository:
         self._lock = lock if lock is not None else threading.RLock()
 
     @serialised
-    def find(self, account_id: str, key: str, operation: str) -> IdempotencyRow | None:
+    def find(self, account_id: AccountId, key: str, operation: str) -> IdempotencyRow | None:
         """Read one record.
 
         Args:
@@ -75,7 +77,7 @@ class IdempotencyRepository:
             return None
         return IdempotencyRow(
             fingerprint=row[0],
-            claim_id=row[1],
+            claim_id=ClaimId(row[1]),
             created_at=row[2],
             status=row[3],
             body=None if row[4] is None else bytes(row[4]),
@@ -84,7 +86,7 @@ class IdempotencyRepository:
 
     @serialised
     def claim(
-        self, account_id: str, key: str, operation: str, fingerprint: str, claim_id: str, created_at: float
+        self, account_id: AccountId, key: str, operation: str, fingerprint: str, claim_id: ClaimId, created_at: float
     ) -> None:
         """Write a running claim, replacing a record of the same identity.
 
@@ -104,7 +106,7 @@ class IdempotencyRepository:
         )
 
     @serialised
-    def complete(self, claim_id: str, status: int, body: bytes, content_type: str | None) -> bool:
+    def complete(self, claim_id: ClaimId, status: int, body: bytes, content_type: str | None) -> bool:
         """Store the answer of the run that still holds its claim.
 
         Args:
@@ -124,7 +126,7 @@ class IdempotencyRepository:
         return cursor.rowcount == 1
 
     @serialised
-    def release(self, claim_id: str) -> None:
+    def release(self, claim_id: ClaimId) -> None:
         """Delete the running claim of a run, leaving nothing stored.
 
         Args:

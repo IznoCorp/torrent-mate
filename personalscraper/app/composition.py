@@ -17,10 +17,11 @@ from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BUILD_INFO
-from personalscraper.app.idempotency.service import IdempotencyService
+from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
 from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import build_app_store
 from personalscraper.app.supervisor.service import RunService
+from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
@@ -434,7 +435,9 @@ def build_app_services(
         credentials=credentials,
         plex_sign_in=_build_plex_sign_in(config, settings, app_store, credentials, event_bus, plex),
         runs=RunService(store=app_store, data_dir=config.paths.data_dir),
-        idempotency=IdempotencyService(app_store),
+        idempotency=IdempotencyService(
+            app_store, key_path=fingerprint_key_path(store_path(config.paths.data_dir, StoreName.APP))
+        ),
         owned_providers=owned,
     )
 
