@@ -384,7 +384,8 @@ def real_processes():
     Returns:
         A dict name → {"cron": …, "environment": …}: the cron expression of a
         process whose args are `schedule --cron EXPR -- JOB`, None for a
-        service; the `PERSONALSCRAPER_ENV` its env sets, None for prod's. Or
+        service; the `PERSONALSCRAPER_ENV` its env sets, None when unset (prod's
+        processes set it to "prod" or leave it unset). Or
         None when node cannot read the files.
     """
     # A SCHEDULER IS THE `schedule` LOOP, NOT PM2's `cron_restart`. B-680 moved
@@ -550,10 +551,11 @@ async def main():
             # preprod's jobs are the same jobs of ANOTHER environment, drawn on
             # the preprod's own Système under the same names. Counting them
             # here asked prod's page to draw every job twice. So the schedulers
-            # judged are the processes that name no environment — prod's.
+            # judged are the processes whose environment is unset or an explicit
+            # "prod" — prod's.
             real_schedulers = [n for n, e in pm2.items()
                              if n.startswith(("torrentmate", "personalscraper"))
-                             and e.get("cron") and not e.get("environment")]
+                             and e.get("cron") and e.get("environment") in (None, "prod")]
             journal.check("as many services drawn as PM2 really runs",
                              services == len(real_services),
                              f"{services} drawn vs {len(real_services)} real: "
