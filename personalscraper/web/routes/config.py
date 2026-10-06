@@ -68,6 +68,7 @@ from personalscraper.conf.loader import (
 )
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError
+from personalscraper.config import env_file_path
 from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import is_staging_role, require_x_requested_with
@@ -774,7 +775,7 @@ def get_secrets(request: Request) -> SecretsResponse:
     catalog = read_env_catalog(env_example_path)
 
     # Parse .env for is_set flags — values are never read or returned.
-    env_path = _CLONE_ROOT / ".env"
+    env_path = env_file_path(_CLONE_ROOT / ".env")
     env_set: set[str] = set()
     if env_path.is_file():
         for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -836,7 +837,7 @@ def put_secrets(
             detail={"unknown_keys": unknown_keys},
         )
 
-    env_path = _CLONE_ROOT / ".env"
+    env_path = env_file_path(_CLONE_ROOT / ".env")
     logger.info("config_secrets_write", keys=sorted(body.root.keys()))
     # R10: serialize the .env read-modify-write under the same module lock as
     # PUT /files. write_env_keys reads .env, upserts, and atomically rewrites

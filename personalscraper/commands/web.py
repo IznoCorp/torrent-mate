@@ -29,7 +29,7 @@ from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.conf.envfile import write_env_keys
 from personalscraper.conf.environment import Environment, current_environment
-from personalscraper.config import get_settings
+from personalscraper.config import env_file_path, get_settings
 from personalscraper.http_v1.standalone import build_standalone_v1_app
 from personalscraper.i18n import t
 from personalscraper.logger import get_logger
@@ -40,8 +40,9 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-# Repo-root ``.env`` — the LOCAL layer of the credential overlay pydantic-settings
-# reads (see ``personalscraper.config._resolve_env_files`` / ``_ENV_FILES``: a
+# Repo-root ``.env`` — the default target when ``PERSONALSCRAPER_ENV_FILE`` is unset
+# (``env_file_path`` picks the explicit file otherwise). It is the LOCAL layer of
+# the credential overlay pydantic-settings reads (see ``personalscraper.config._resolve_env_files`` / ``_ENV_FILES``: a
 # canonical `.env` may be layered UNDER this one, but the local file wins, so
 # ``web.py set-keys`` correctly writes the authoritative layer). web.py lives two
 # package levels deep (personalscraper/commands/web.py), so the repo root is
@@ -245,12 +246,13 @@ def set_password(
     username_matches_config = username == default_username
 
     if write:
-        confirmed = typer.confirm(t("cli_web.set_password.confirm_write", path=str(_ENV_PATH)))
+        env_path = env_file_path(_ENV_PATH)
+        confirmed = typer.confirm(t("cli_web.set_password.confirm_write", path=str(env_path)))
         if not confirmed:
             typer.echo(t("cli_web.set_password.aborted"))
             raise typer.Exit(code=0)
-        write_env_keys(keys, _ENV_PATH)
-        typer.echo(t("cli_web.set_password.updated", path=str(_ENV_PATH)))
+        write_env_keys(keys, env_path)
+        typer.echo(t("cli_web.set_password.updated", path=str(env_path)))
         if not username_matches_config:
             typer.echo(t("cli_web.set_password.reminder", username=username, configured=default_username))
         # Never log secret values — only booleans about what changed.
