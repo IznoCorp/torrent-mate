@@ -162,7 +162,7 @@ def extract_nfo_metadata(nfo_path: Path) -> dict[str, Any]:
         "ratings": [],
     }
     try:
-        root = ET.parse(nfo_path).getroot()
+        root = ET.parse(nfo_path).getroot()  # trusted NFO we wrote
     except (ET.ParseError, OSError) as exc:
         log.debug("library_scan_nfo_ids_parse_error", nfo=str(nfo_path), exc_info=True, error=str(exc))
         return blank

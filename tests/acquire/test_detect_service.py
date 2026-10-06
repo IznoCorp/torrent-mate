@@ -761,6 +761,7 @@ def _series_status_of(store: ConcreteAcquireStore, followed_id: int) -> str | No
     Returns:
         The stored ``series_status``, or ``None``.
     """
+    # the column has no reader yet
     row = store._conn.execute("SELECT series_status FROM followed_series WHERE id = ?", (followed_id,)).fetchone()
     return None if row is None else row[0]
 

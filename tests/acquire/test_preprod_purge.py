@@ -84,7 +84,7 @@ class FakeClient:
             raise self.list_error
         return list(self.items)
 
-    def delete(self, hash: str, *, delete_files: bool = False) -> None:
+    def delete(self, hash: str, *, delete_files: bool = False) -> None:  # the client's own signature
         """Record the call; raise the configured error for that hash."""
         self.calls.append("delete")
         if hash in self.delete_errors:

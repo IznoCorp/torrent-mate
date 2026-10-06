@@ -228,7 +228,7 @@ def fetch_season_with_fallback(
     for name, fetch in providers:
         try:
             items = fetch(season)
-        except Exception as e:
+        except Exception as e:  # provider clients raise a wide variety
             log.warning(
                 "show_season_fetch_failed",
                 provider=name,

@@ -85,7 +85,7 @@ class PassGatesMixin:
             sqlite3.OperationalError: On a DB lock during a status write (the
                 callers' per-item isolation handles it).
         """
-        assert item.id is not None
+        assert item.id is not None  # ensured by the SELECTs in the callers
         wanted_id = item.id
 
         # A stale 'searching' row is not 'pending', so its claim would fail.
@@ -196,7 +196,7 @@ class PassGatesMixin:
             sqlite3.OperationalError: On a DB lock during a status write (the
                 callers' per-item isolation handles it).
         """
-        assert item.id is not None
+        assert item.id is not None  # ensured by the SELECTs in the callers
         wanted_id = item.id
 
         gate = self._apply_cutoff_gate(item, now, cadence=cadence)

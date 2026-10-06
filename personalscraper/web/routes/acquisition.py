@@ -137,7 +137,7 @@ def _write_follow_metadata(
             title=metadata.title,
             original_title=metadata.original_title,
         )
-    except Exception:
+    except Exception:  # fail-soft: the follow already succeeded, metadata is a nicety
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
 
 
@@ -978,7 +978,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
     try:
         existing = store.follow.find_by_ref(media_ref)
         if existing is not None:
-            assert existing.id is not None
+            assert existing.id is not None  # find_by_ref always sets id
             if existing.active:
                 raise HTTPException(
                     status_code=409,
@@ -1001,7 +1001,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             # they were the day the follow was paused (plan §6 idempotence).
             prime = enqueue_prime_run(config.indexer.db_path, existing.id)
             reactivated = store.follow.get(existing.id)
-            assert reactivated is not None
+            assert reactivated is not None  # just wrote it
             item = _item_from_followed(reactivated)
             item.poster_url = metadata.poster_url
             item.overview = metadata.overview
@@ -1052,7 +1052,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         )
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
-        assert created is not None
+        assert created is not None  # just inserted it
         _write_follow_metadata(store, new_id, metadata)
         # Amorce: catalog + queue + first search run NOW, through the existing
         # run authority — a fresh follow is never left idle until the 03:00
@@ -1107,7 +1107,7 @@ def update_follow(
             store.follow.set_cadence(followed_id, cadence_json)
 
         updated = store.follow.get(followed_id)
-        assert updated is not None
+        assert updated is not None  # just wrote it
 
         # Count wanted pending for accurate response.
         wanted_pending = _count_wanted_pending(store, followed_id)

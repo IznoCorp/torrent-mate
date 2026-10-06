@@ -44,9 +44,9 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from common import Journal, browser_channel, chrome_launch_args
+from common import Journal, browser_channel, chrome_launch_args  # the path above is what makes it importable
 
-import oracle
+import oracle  # the path above is what makes it importable
 
 # The state that diverged, and the two regions it diverged on.
 STATE = "pwa-ios"

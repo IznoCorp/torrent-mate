@@ -217,7 +217,7 @@ class _FollowSubStore:
                     series.original_title,
                 ),
             ).fetchone()
-        assert row is not None
+        assert row is not None  # RETURNING always yields the affected row
         return int(row[0])
 
     def get(self, followed_id: int) -> FollowedSeries | None:
@@ -585,7 +585,7 @@ class _SeedSubStore:
                 ),
             )
             row_id = cur.lastrowid
-        assert row_id is not None
+        assert row_id is not None  # INSERT always sets lastrowid
         return row_id
 
     def find_active_by_hash(self, info_hash: str) -> SeedObligation | None:

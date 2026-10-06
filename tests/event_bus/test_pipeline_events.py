@@ -155,8 +155,8 @@ def test_event_registry_has_all_v1_events() -> None:
     additions that bypass the documented event catalog in
     ``docs/production/event-bus.md``.
     """
-    import personalscraper.app.accounts.events
-    import personalscraper.app.supervisor.events
+    import personalscraper.app.accounts.events  # registers E8 (the catalog does not import app)
+    import personalscraper.app.supervisor.events  # registers RunQueued, RunAdmitted, RunSettled
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
     assert len(_EVENT_CLASS_REGISTRY) == 56, (
@@ -184,8 +184,8 @@ def test_the_catalogue_doc_states_the_registry_count_and_documents_the_run_event
     import re
     from pathlib import Path
 
-    import personalscraper.app.accounts.events
-    import personalscraper.app.supervisor.events
+    import personalscraper.app.accounts.events  # registers E8
+    import personalscraper.app.supervisor.events  # registers the run events
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
     doc = (Path(__file__).resolve().parents[2] / "docs" / "production" / "event-bus.md").read_text(encoding="utf-8")

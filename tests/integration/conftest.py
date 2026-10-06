@@ -548,7 +548,7 @@ class FakeTorrent:
     """
 
     name: str
-    hash: str
+    hash: str  # mirrors qbittorrentapi TorrentDictionary attribute name
     content_path: str
     ratio: float = 0.0
 

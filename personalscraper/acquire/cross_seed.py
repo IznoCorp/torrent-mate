@@ -378,7 +378,7 @@ class CrossSeedService:
                     # (iii) tag (best-effort); (iv) emit event.
                     try:
                         self._write_obligation(injected_hash, tracker, item)
-                    except Exception as exc:
+                    except Exception as exc:  # caller handles
                         logger.error(
                             "acquire.cross_seed.obligation_write_failed",
                             info_hash=injected_hash,
@@ -406,7 +406,7 @@ class CrossSeedService:
                         else:
                             try:
                                 self._controller.delete(injected_hash, delete_files=False)
-                            except Exception as del_exc:
+                            except Exception as del_exc:  # best-effort cleanup
                                 logger.error(
                                     "acquire.cross_seed.obligation_delete_failed",
                                     info_hash=injected_hash,
@@ -418,7 +418,7 @@ class CrossSeedService:
 
                     try:
                         self._controller.resume(injected_hash)
-                    except Exception as exc:
+                    except Exception as exc:  # state is recoverable
                         logger.error(
                             "acquire.cross_seed.stranded_paused_injection",
                             info_hash=injected_hash,
@@ -480,7 +480,7 @@ class CrossSeedService:
                     else:
                         try:
                             self._controller.delete(injected_hash, delete_files=False)
-                        except Exception as exc:
+                        except Exception as exc:  # best-effort cleanup
                             logger.error(
                                 "acquire.cross_seed.recheck_failed_delete_error",
                                 info_hash=injected_hash,
@@ -604,7 +604,7 @@ class CrossSeedService:
 
             try:
                 result = self.check(item.hash)
-            except Exception as exc:
+            except Exception as exc:  # per-item isolation
                 logger.error(
                     "acquire.cross_seed.sweep_item_error",
                     info_hash=item.hash,

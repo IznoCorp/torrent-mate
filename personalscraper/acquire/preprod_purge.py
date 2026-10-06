@@ -84,7 +84,7 @@ class _PurgeClient(Protocol):
         """List the client's completed torrents."""
         ...
 
-    def delete(self, hash: str, *, delete_files: bool = False) -> None:
+    def delete(self, hash: str, *, delete_files: bool = False) -> None:  # the client's own signature
         """Remove a torrent, and its files when *delete_files*."""
         ...
 

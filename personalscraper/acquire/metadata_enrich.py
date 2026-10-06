@@ -176,7 +176,7 @@ def enrich_follow_metadata(
     resolved = existing if existing is not None else FollowMetadata()
     localized = localize_show and kind == "show" and tvdb_client is not None and media_ref.tvdb_id is not None
     if localized:
-        assert media_ref.tvdb_id is not None
+        assert media_ref.tvdb_id is not None  # checked just above; narrows for mypy
         details = _fetch_details(tvdb_client, "get_series", media_ref.tvdb_id)
         if details is not None:
             resolved = _prefer_localized(resolved, _extract(details))

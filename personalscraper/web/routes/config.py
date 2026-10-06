@@ -49,7 +49,7 @@ import json5
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError as PydanticValidationError
 
-from personalscraper.app.config_service import (
+from personalscraper.app.config_service import (  # re-export for callers/tests
     _compute_ownership,
     _compute_shadowed_keys,
     _local_keys,

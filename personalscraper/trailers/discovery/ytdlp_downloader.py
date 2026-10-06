@@ -472,7 +472,7 @@ class YtdlpDownloader:
                 status=DownloadStatus.YTDLP_ERROR,
                 error_message="wall-clock timeout",
             )
-        except Exception as exc:
+        except Exception as exc:  # yt-dlp raises untyped DownloadError
             error_msg = str(exc)
             if not _is_bot_detection_error(error_msg):
                 # Non-bot error — do not retry.

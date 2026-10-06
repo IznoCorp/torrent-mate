@@ -420,7 +420,7 @@ class TestPipelineRunWriterOutcome:
         real_connect = sqlite3.connect
         refused: list[str] = []
 
-        def probing_connect(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        def probing_connect(*args: Any, **kwargs: Any) -> sqlite3.Connection:  # sqlite3's own
             conn = real_connect(*args, **kwargs)
             try:
                 conn.execute("CREATE TABLE probe (x INTEGER)")

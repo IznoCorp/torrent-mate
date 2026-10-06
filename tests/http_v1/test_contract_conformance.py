@@ -819,13 +819,13 @@ def _search_by_id_router(short: bool) -> APIRouter:
     if short:
 
         @route
-        def _search_short(provider: _ShortProvider, id: str) -> Any:
+        def _search_short(provider: _ShortProvider, id: str) -> Any:  # the contract's name
             """The planted route; never called."""
 
     else:
 
         @route
-        def _search(provider: _Provider, id: str) -> Any:
+        def _search(provider: _Provider, id: str) -> Any:  # the contract's name
             """The planted route; never called."""
 
     return router

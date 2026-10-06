@@ -160,6 +160,6 @@ def recover_artwork(
             result.action = "artwork_recovered"
             result.artwork_downloaded = [p.name for p in downloaded]
             log.info("artwork_recovered", count=len(downloaded), directory=media_dir.name, family=family)
-    except Exception as e:
+    except Exception as e:  # mixed API+IO path; see comment above
         log.warning("artwork_recovery_failed", directory=media_dir.name, exc_info=True, error=str(e))
         result.warnings.append(f"Artwork recovery failed: {e}")

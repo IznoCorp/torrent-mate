@@ -861,7 +861,7 @@ class TrailersOrchestrator:
                 cache=cache,
                 languages=languages,
             )
-        except Exception as exc:
+        except Exception as exc:  # surface any misconfig loudly
             log.error(
                 "trailers_finder_init_failed",
                 error=str(exc),
@@ -899,7 +899,7 @@ class TrailersOrchestrator:
         try:
             conn = _open_indexer_db(db_path, event_bus=self._event_bus)
             rows = _indexer_item_repo.list_all_dispatch_items(conn)
-        except Exception as exc:
+        except Exception as exc:  # degraded, but loudly logged
             log.error(
                 "trailers_library_index_build_failed",
                 error=str(exc),

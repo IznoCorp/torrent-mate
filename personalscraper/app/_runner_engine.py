@@ -355,7 +355,7 @@ def record_step(spec: RunnerSpec, label: str, started_at: float, status: str, *,
             status,
             counts={"rc": rc} if rc is not None else None,
         )
-    except Exception:
+    except Exception:  # bookkeeping must never sink the run
         log.warning(
             spec.event_prefix + "_step_record_failed",
             run_uid=spec.run_uid,

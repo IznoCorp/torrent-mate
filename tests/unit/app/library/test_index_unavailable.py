@@ -64,4 +64,4 @@ def test_an_unreadable_index_counts_as_an_unmounted_disk(world: World, tmp_path:
     """Plex's bundle clean is told a disk is gone when the index cannot say: the trash is kept."""
     absent = tmp_path / "absent.db"
 
-    assert _deletion_over(world, absent)._disk_unmounted() is True
+    assert _deletion_over(world, absent)._disk_unmounted() is True  # the branch under test is private

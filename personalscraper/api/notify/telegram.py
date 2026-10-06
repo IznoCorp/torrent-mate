@@ -146,7 +146,7 @@ class TelegramNotifier(Notifier):
                 chunks_total=chunks_total,
             )
             return False
-        except Exception as exc:
+        except Exception as exc:  # fail-soft: notifier must never abort the pipeline
             log.exception(
                 "telegram_unexpected_error",
                 error=str(exc),

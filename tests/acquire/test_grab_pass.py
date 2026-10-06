@@ -234,7 +234,7 @@ def test_grab_failure_reason_is_persisted_on_the_row(store: ConcreteAcquireStore
 
     _service(store, orch).run()
 
-    row = store.wanted._conn.execute(
+    row = store.wanted._conn.execute(  # persistence pin on the real column
         "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
     ).fetchone()
     assert row is not None
@@ -308,7 +308,7 @@ def test_a_new_grab_attempt_supersedes_the_previous_failure(store: ConcreteAcqui
 
     assert store.wanted.claim_for_grab(rowid, _PINNED_NOW) is True
 
-    row = store.wanted._conn.execute(
+    row = store.wanted._conn.execute(  # persistence pin on the real column
         "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
     ).fetchone()
     assert row is not None
@@ -328,7 +328,7 @@ def test_grab_success_clears_the_failure_reason(store: ConcreteAcquireStore) -> 
 
     _service(store, orch).run()
 
-    row = store.wanted._conn.execute(
+    row = store.wanted._conn.execute(  # persistence pin on the real column
         "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
     ).fetchone()
     assert row is not None

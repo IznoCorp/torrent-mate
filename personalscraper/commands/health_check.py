@@ -172,7 +172,7 @@ def _send_alert(config_obj: object, anomalies: list[str]) -> None:
     try:
         transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token), event_bus=EventBus())
         TelegramNotifier(transport, settings.telegram_chat_id).send(body)
-    except Exception as exc:
+    except Exception as exc:  # alerting must never crash the check
         log.warning("health_check_alert_failed", error=str(exc), exc_info=True)
 
 

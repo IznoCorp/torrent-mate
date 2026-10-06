@@ -77,7 +77,7 @@ def _fetch(registry: Any, query: str, provider: str, endpoint: str) -> Any:
         params: dict[str, Any] = {"query": query, "type": "series"}
     else:
         params = {"query": query, "language": "fr-FR", "page": 1}
-    return client._transport.get(endpoint, params=params)
+    return client._transport.get(endpoint, params=params)  # capture tool
 
 
 def main() -> int:

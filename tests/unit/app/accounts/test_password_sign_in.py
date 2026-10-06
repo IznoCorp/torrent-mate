@@ -200,7 +200,7 @@ class TestSignIn:
         result = _sign_in(accounts, "local@example.org", _PASSWORD)
         assert result.account.id == "account-local"
         assert result.account.sign_in_kind == "local"
-        actor = accounts._sessions.resolve(result.session_token)
+        actor = accounts._sessions.resolve(result.session_token)  # the session it opened
         assert actor is not None and actor.account_id == "account-local"
 
     def test_admin_signs_in(self, accounts: CredentialService) -> None:
@@ -227,7 +227,7 @@ class TestSignIn:
         self, accounts: CredentialService, store: AppStore
     ) -> None:
         """A link committed while the new session resolves shows in the answered view, as on the base."""
-        sessions = accounts._sessions
+        sessions = accounts._sessions  # the resolve the link races
         resolve = sessions.resolve
 
         def linked_then_resolved(token: str) -> object:

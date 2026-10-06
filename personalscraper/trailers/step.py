@@ -244,7 +244,7 @@ def run_trailers(
             details=[f"state write failed: {exc.strerror}"],
         )
 
-    except Exception as exc:
+    except Exception as exc:  # last-resort guard so the pipeline can dispatch
         logger.exception(
             "trailers_step_crashed",
             error=str(exc),

@@ -192,7 +192,7 @@ def run_backfill_ids(
             # Fail-soft would mask the bug behind a per-row warning — let
             # it surface to handle_cli_errors instead.
             raise
-        except Exception as exc:
+        except Exception as exc:  # fail-soft contract per DESIGN §4
             log.exception(
                 "backfill_item_failed",
                 title=row["title"],

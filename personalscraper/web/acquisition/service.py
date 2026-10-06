@@ -268,12 +268,12 @@ def scoped_provider_clients(request: Request) -> Iterator[tuple[object, object]]
         # served response into a 500.
         try:
             app_context.provider_registry.close()
-        except Exception:
+        except Exception:  # teardown must not mask the response
             logger.warning("acquisition_provider_registry_close_failed", exc_info=True)
         if app_context.acquire is not None:
             try:
                 app_context.acquire.close()
-            except Exception:
+            except Exception:  # same contract
                 logger.warning("acquisition_acquire_context_close_failed", exc_info=True)
 
 
@@ -601,7 +601,7 @@ def run_media_lookup(
         if fn is not None:
             try:
                 details = fn(provider_id)
-            except Exception:
+            except Exception:  # an unknown id is a 404, not a 500
                 logger.warning("acquisition_lookup_failed", provider=provider, provider_id=provider_id, exc_info=True)
                 details = None
     if details is None:

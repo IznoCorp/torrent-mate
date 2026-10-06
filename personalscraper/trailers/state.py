@@ -38,7 +38,7 @@ from personalscraper.logger import get_logger
 # helpers) lives in the pure `_state_model` module (solidify — module-size
 # relief). Re-exported here so existing `from …trailers.state import X` sites and
 # the `__all__` contract are unchanged; TrailerStateStore below consumes them.
-from personalscraper.trailers._state_model import (
+from personalscraper.trailers._state_model import (  # re-export
     TrailerState,
     TrailerStatus,
     compute_next_retry_at,
@@ -50,7 +50,7 @@ from personalscraper.trailers._state_model import (
 # a private name is only re-exported through a redundant alias (it does not
 # belong in the public `__all__`), so the `as` form is load-bearing, not noise.
 from personalscraper.trailers._state_model import (
-    _validate_season_number as _validate_season_number,
+    _validate_season_number as _validate_season_number,  # explicit re-export
 )
 
 log = get_logger(__name__)

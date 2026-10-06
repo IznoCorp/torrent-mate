@@ -373,7 +373,7 @@ class DetectService:
                     # with the display title (VERBATIM rule): staying NULL
                     # would refetch this row on every detect run forever.
                     original = mf.title
-                assert mf.id is not None
+                assert mf.id is not None  # filtered above; narrows for mypy
                 self._store.follow.merge_metadata(
                     mf.id, poster_url=None, overview=None, year=None, original_title=original
                 )
@@ -408,7 +408,7 @@ class DetectService:
             mf: An active show follow with a ``tvdb_id``, no ``tmdb_id`` and a
                 NULL ``original_title``.
         """
-        assert mf.id is not None and mf.media_ref.tvdb_id is not None
+        assert mf.id is not None and mf.media_ref.tvdb_id is not None  # filtered by the caller
         try:
             details = self._registry.get("tvdb").get_tv(mf.media_ref.tvdb_id)  # type: ignore[attr-defined]
             localized = getattr(details, "title", None)

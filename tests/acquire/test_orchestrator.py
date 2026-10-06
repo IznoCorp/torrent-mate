@@ -954,7 +954,7 @@ def test_search_no_matching_season_wrong_series_regression() -> None:
     def _wanted_series_title(item: WantedItem) -> str | None:
         return "Les Groos"
 
-    orchestrator._title_resolver = _wanted_series_title
+    orchestrator._title_resolver = _wanted_series_title  # test wiring of the D3 seam
 
     season_item = WantedItem(
         media_ref=MediaRef(tvdb_id=478476),
@@ -995,7 +995,7 @@ def test_search_no_matching_episode_wrong_series_regression() -> None:
     def _wanted_series_title(item: WantedItem) -> str | None:
         return "Les Groos"
 
-    orchestrator._title_resolver = _wanted_series_title
+    orchestrator._title_resolver = _wanted_series_title  # test wiring of the D3 seam
 
     episode_item = WantedItem(
         media_ref=MediaRef(tvdb_id=478476),
@@ -1038,8 +1038,8 @@ def test_search_no_matching_episode_wrong_series_with_both_resolvers_regression(
     def _wanted_series_original_title(item: WantedItem) -> str | None:
         return "The Groos"
 
-    orchestrator._title_resolver = _wanted_series_title
-    orchestrator._original_title_resolver = _wanted_series_original_title
+    orchestrator._title_resolver = _wanted_series_title  # test wiring of the D3 seam
+    orchestrator._original_title_resolver = _wanted_series_original_title  # same seam
 
     episode_item = WantedItem(
         media_ref=MediaRef(tvdb_id=478476),

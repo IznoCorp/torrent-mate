@@ -36,7 +36,7 @@ from personalscraper.indexer.merkle import (
 from personalscraper.indexer.scanner import _scan_orchestrator as _orch
 from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
 from personalscraper.indexer.scanner._concurrency import (
-    _run_disks_in_parallel,
+    _run_disks_in_parallel,  # re-export so tests/library/test_integration.py + scan_completed_events patches resolve
 )
 from personalscraper.indexer.scanner._exclusions import (
     EXCLUDED_NAMES,
@@ -45,16 +45,18 @@ from personalscraper.indexer.scanner._exclusions import (
 )
 from personalscraper.indexer.scanner._modes import (
     _purge_non_video_stream_rows,
+    # re-export so patches at scanner._scan_disk_enrich resolve via the package namespace lookup performed inside
+    # the orchestrator (also kept in __all__)
     _scan_disk_enrich,
-    _scan_disk_enrich_backfill,
-    _scan_disk_full,
-    _scan_disk_incremental,
-    _scan_disk_quick,
-    _scan_disk_verify,
+    _scan_disk_enrich_backfill,  # re-export for patch dispatch via the package namespace
+    _scan_disk_full,  # re-export for patch dispatch via the package namespace
+    _scan_disk_incremental,  # re-export for patch dispatch + __all__
+    _scan_disk_quick,  # re-export for patch dispatch via the package namespace
+    _scan_disk_verify,  # re-export for patch dispatch via the package namespace
 )
 from personalscraper.indexer.scanner._scan_orchestrator import (
-    _RECOMMENDED_MOUNT_FLAGS,
-    _check_mount_flags,
+    _RECOMMENDED_MOUNT_FLAGS,  # re-export for tests importing it from the package (also in __all__)
+    _check_mount_flags,  # re-export for tests importing it from the package (also in __all__)
     _DiskWalkContext,
     _emit_completion,
     _finalize_ok_scan_run,

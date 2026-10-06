@@ -204,7 +204,7 @@ class TrackerRegistry:
             ``api``) the grab chain turns into an honest verdict (D4).
         """
         from personalscraper.acquire._dedup import (
-            SearchOutcome,
+            SearchOutcome,  # lazy: avoids api→acquire import cycle
         )
 
         all_results: list[TrackerResult] = []

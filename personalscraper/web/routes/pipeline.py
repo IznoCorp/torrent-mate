@@ -807,7 +807,7 @@ def pipeline_stages(request: Request) -> StagesResponse:
     # Current stock per position — the single scan every surface derives from.
     try:
         items = scan_staging_media(config, db_path, live_step=current_step)
-    except Exception:
+    except Exception:  # the board must render even if the scan fails.
         logger.warning("pipeline_stages_scan_failed", exc_info=True)
         items = []
     by_stage: dict[str, list[StagingMediaItem]] = {key: [] for key, _ in STAGE_DEFS}

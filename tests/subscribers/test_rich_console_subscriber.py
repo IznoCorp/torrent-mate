@@ -98,7 +98,7 @@ def test_rich_console_subscriber_close_unsubscribes_all() -> None:
     # After close, a fresh CollectingSubscriber is the only listener on the bus.
     sentinel = CollectingSubscriber(bus, ItemProgressed)
     bus.emit(ItemProgressed(step="ingest", item="x", status="started"))
-    assert len(sentinel.received) == 1
+    assert len(sentinel.received) == 1  # exactly one collector got the emit
     # And the closed subscriber never re-renders anything (tokens cleared).
     assert sub._tokens == []
 

@@ -169,7 +169,7 @@ def grab_season(
                 reused=True,
             )
 
-        assert followed.id is not None
+        assert followed.id is not None  # get() sets id
         now = int(time.time())
 
         from personalscraper.acquire.domain import WantedItem

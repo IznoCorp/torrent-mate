@@ -117,7 +117,7 @@ class TestSigtermCleanShutdown:
     """SIGTERM-driven shutdown behaviour at the file boundary."""
 
     @pytest.fixture(autouse=True)
-    def _isolate(self):
+    def _isolate(self):  # pytest fixture
         """Reset the shutdown event before AND after each test."""
         reset_shutdown()
         yield

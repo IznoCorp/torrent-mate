@@ -2420,7 +2420,7 @@ class TestTokenBucket:
 class TestThrottleModuleHooks:
     """Tests for the process-global active-bucket plumbing."""
 
-    def teardown_method(self, _method: object) -> None:
+    def teardown_method(self, _method: object) -> None:  # pytest hook
         """Reset the active bucket between tests for isolation."""
         set_active_bucket(None)
 

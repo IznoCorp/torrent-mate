@@ -288,8 +288,8 @@ class _ProvenanceSubStore:
         try:
             with self._write_tx(self._conn):
                 self._conn.execute(sql, params)
-        except Exception as exc:
-            log.error(
+        except Exception as exc:  # advisory: a provenance write never fails a step
+            log.error(  # the traceback is carried by exc_info, not by log.exception's level
                 "acquire.provenance.write_failed",
                 error=str(exc),
                 error_type=type(exc).__name__,
@@ -563,7 +563,7 @@ class _ProvenanceSubStore:
             self._conn.row_factory = sqlite3.Row
             row = self._conn.execute(
                 f"SELECT * FROM staging_provenance {where}",
-                params,
+                params,  # fixed literals
             ).fetchone()
             return _row_to_provenance(row) if row is not None else None
         except Exception as exc:  # noqa: BLE001 — fail-soft: a read error is a miss, never a crash

@@ -264,7 +264,7 @@ class TvServiceNfoMixin:
             if not self.dry_run:
                 nfo_path.parent.mkdir(parents=True, exist_ok=True)
                 self._nfo.write_nfo(xml, nfo_path)
-        except Exception as e:
+        except Exception as e:  # fail-soft
             log.warning("episode_nfo_failed", season=season, episode=ep_start, error=str(e), exc_info=True)
             warnings.append(f"episode_nfo_failed: season={season} episode={ep_start} reason={e}")
 

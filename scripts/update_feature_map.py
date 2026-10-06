@@ -36,7 +36,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-
+  # sys.path is mutated above to make this import resolvable
 # regardless of how the script is invoked, so the import must follow.
 from _codename_overrides import resolve_codename  # noqa: E402
 

@@ -47,7 +47,7 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args
-from desktop_frame import CHECKBOX, DESKTOP, DEVICE, LABEL
+from desktop_frame import CHECKBOX, DESKTOP, DEVICE, LABEL  # the path line above must run first
 
 # The one name the two ends share: the control's script writes it, and this
 # rule reads it. Typed here because it is a contract, like the appearance's.

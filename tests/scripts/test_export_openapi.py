@@ -19,7 +19,7 @@ from personalscraper.conf.isolation import read_marker
 SCRIPT = ROOT / "scripts" / "export-openapi.py"
 
 
-def _load_export():
+def _load_export():  # a script module has no importable name
     """Import ``scripts/export-openapi.py`` (its file name is not an identifier).
 
     Returns:

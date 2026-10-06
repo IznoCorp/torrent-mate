@@ -96,7 +96,7 @@ class _RecordingVisitor(ScanVisitor):
         super().__init__(conn, disk, generation=1, files_visited=[0], dirs_visited=[0])
         self.events: list[tuple[str, str]] = []
 
-    def enter_dir(self, entry, st, rel) -> bool:
+    def enter_dir(self, entry, st, rel) -> bool:  # DirEntry/stat_result
         """Record the directory entry and always recurse (skeleton default)."""
         self.events.append(("enter_dir", entry.name))
         return True

@@ -101,7 +101,7 @@ def fall_back_to_episodes(
         created. Each caller logs its own line from it, so the two triggers stay
         distinguishable in the journal.
     """
-    assert item.id is not None
+    assert item.id is not None  # ensured by the callers' SELECTs
     assert item.followed_id is not None
     assert item.season is not None
     season_wanted_id = item.id

@@ -471,7 +471,7 @@ def follow_backfill_metadata(
     from personalscraper.core.sqlite._pragmas import apply_pragmas
 
     config = ctx.obj.config
-    assert config is not None
+    assert config is not None  # set by the CLI root callback
     console: Console = state["console"]
     settings = cli_helpers.get_settings()
     db_path = config.acquire.db_path

@@ -63,7 +63,7 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, Journal, open_page, browser_channel, chrome_launch_args
-from desktop_frame_page import (
+from desktop_frame_page import (  # the path line above must run first
     COVERS, CROSSED, DEVICE_BOX, GEOMETRY, LABELLED, NOTHING_IS_MOVING, OUTSIDE, OUT_OF_THE_FRAME, PRESENCE, READ_FORCED, UNFRAMED, UNFRAMED_DEVICE, VISIBLE_WORDS, WHAT_COVERS_IT, WHAT_THE_DECLARATIONS_MEAN)
 
 # Both sides of the frame's own breakpoint, which is where « desktop » stops

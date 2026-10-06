@@ -125,7 +125,7 @@ class _LeaseKeeper:
                     # Taken over: the next admission tick's renewal fails too and stops admitting.
                     log.warning("supervisor.lease_keep_lost")
                     return
-            except Exception:
+            except Exception:  # a missed renewal is retried; two may fail within the TTL
                 log.warning("supervisor.lease_keep_failed", exc_info=True)
 
     @contextmanager
@@ -417,7 +417,7 @@ class Supervisor:
             watcher.publish_pending(
                 fires_at=self.watcher_state.debounce_until, active_downloads=inp.downloading_count, now=inp.now
             )
-        except Exception:
+        except Exception:  # advisory: visibility never breaks the watch
             log.warning("supervisor.pending_run_publish_failed", exc_info=True)
         if out.decision is WatcherDecision.FIRE_RUN:
             try:
@@ -446,7 +446,7 @@ class Supervisor:
         name = getattr(tick, "__name__", "tick")
         try:
             tick()
-        except Exception as exc:
+        except Exception as exc:  # the loop outlives a failed tick; the next one retries
             count = failures.get(name, 0) + 1
             failures[name] = count
             log.exception("supervisor.tick_failed", tick=name, consecutive=count)
@@ -612,7 +612,7 @@ class Supervisor:
             self.watcher_state = dataclasses.replace(self.watcher_state, last_successful_run_at=now)
             try:
                 self._watcher.record_success(now)
-            except Exception:
+            except Exception:  # the in-memory state still paces this process
                 log.warning("supervisor.success_persist_failed", exc_info=True)
 
     def _announce(self) -> None:

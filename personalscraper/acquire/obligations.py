@@ -144,7 +144,7 @@ def sweep_obligations(
 
     try:
         items = client.get_by_hashes({o.info_hash.lower() for o in open_rows})
-    except Exception:
+    except Exception:  # fail-soft: a client failure ends the pass with no write, the next tick retries
         log.warning("acquire.obligations.client_error", open=len(open_rows), exc_info=True)
         return ObligationSweepReport(len(open_rows), 0, 0, 0, client_error=True)
     by_hash = {i.hash.lower(): i for i in items}

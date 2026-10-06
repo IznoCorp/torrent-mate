@@ -88,7 +88,7 @@ def per_step_boundary(
         if redis_publisher is not None:
             try:
                 redis_publisher.close()
-            except Exception:
+            except Exception:  # teardown must never mask the step outcome
                 log.warning("per_step_boundary_publisher_close_failed", exc_info=True)
         current_correlation_id.reset(token)
         app_context.provider_registry.close()

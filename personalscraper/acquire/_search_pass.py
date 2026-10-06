@@ -148,7 +148,7 @@ class SearchPassMixin(PassGatesMixin):
             json.JSONDecodeError: On corrupt criteria/profile JSON
                 (:meth:`run_search` isolates it and abandons the row).
         """
-        assert item.id is not None
+        assert item.id is not None  # ensured by the SELECTs in run_search()
         wanted_id = item.id
 
         gate = self._apply_cadence_gates(item, now, cadence=cadence)
@@ -304,7 +304,7 @@ class SearchPassMixin(PassGatesMixin):
             sqlite3.OperationalError: On a DB lock (isolated by
                 :meth:`run_search`).
         """
-        assert item.id is not None
+        assert item.id is not None  # caller claimed it by id
         wanted_id = item.id
 
         status = SEARCH_OUTCOME_STATUS.get(verdict.outcome)

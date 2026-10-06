@@ -544,7 +544,7 @@ def _build_library_services(
 
     index_db = config.indexer.db_path
     acquire_db = config.acquire.db_path
-    assert index_db is not None and acquire_db is not None
+    assert index_db is not None and acquire_db is not None  # resolved by the config loader
     # The pipeline's decision, read-only and refusing what it cannot read (operator ruling
     # R1): the web process never creates nor migrates acquire.db, and a deletion whose seed
     # obligations are unreadable is refused rather than allowed.

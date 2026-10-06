@@ -458,7 +458,7 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
                     canonical_provider=canonical,
                     outcome=outcome,
                 )
-        except Exception:
+        except Exception:  # fail-soft per-row contract
             log.exception(
                 "init_canonical_unexpected_error",
                 item_id=item_id,

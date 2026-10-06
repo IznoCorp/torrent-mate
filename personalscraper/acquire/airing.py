@@ -194,7 +194,7 @@ def poll_catalog(
         except (ApiError, CircuitOpenError) as exc:
             log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc))
             continue
-        except Exception as exc:
+        except Exception as exc:  # fail-soft: one bad series must not block others
             log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc), exc_info=True)
             continue
 

@@ -1011,7 +1011,7 @@ class GrabOrchestrator:
         # The chain only reaches "available" with a non-empty ``ranked`` list, so
         # ``top`` is guaranteed present here; assert it so the invariant is
         # checked rather than implied by the exit-path chain above.
-        assert result.top is not None
+        assert result.top is not None  # "available" always carries a top
         top, _score = result.top
 
         # --- No torrent client → cannot add (search-only / dry-run). RETRYABLE. ---
@@ -1219,7 +1219,7 @@ class GrabOrchestrator:
         """
         # WantedAbandoned.media_ref is non-optional; the orchestrator always has
         # one (every WantedItem carries a MediaRef), so the cast is safe.
-        assert media_ref is not None
+        assert media_ref is not None  # every WantedItem has a MediaRef
         self._event_bus.emit(WantedAbandoned(media_ref=media_ref, reason=reason))
         log.warning("acquire.grab.terminal", reason=reason)
         return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen, found=None)

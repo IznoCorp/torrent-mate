@@ -58,7 +58,7 @@ class _StallClient(Protocol):
         """Return the client's records for a specific hash set."""
         ...
 
-    def delete(self, hash: str, *, delete_files: bool = False) -> None:
+    def delete(self, hash: str, *, delete_files: bool = False) -> None:  # matches client API
         """Remove a torrent (optionally its files) from the client."""
         ...
 

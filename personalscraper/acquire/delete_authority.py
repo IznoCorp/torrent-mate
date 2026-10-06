@@ -174,7 +174,7 @@ class DeleteAuthority:
         Returns:
             ALLOW if permitted, veto(reason) if a live unmet obligation exists.
         """
-        assert self._store is not None
+        assert self._store is not None  # guarded by the caller
         return _decide(self._store.seed, path)
 
     def record_dispatch(
