@@ -1505,7 +1505,7 @@ export interface paths {
         put?: never;
         /**
          * Start a Plex sign-in
-         * @description Creates a Plex PIN on the server and answers where the person confirms it. The interface opens `signInUrl`, then asks `signInWithPlex` with `pinId` until the PIN is claimed, refused or expired (round 4 P-2 = B).
+         * @description Creates a Plex PIN on the server and answers where the person confirms it. The interface opens `signInUrl`, then asks `signInWithPlex` with `pinId` until the PIN is claimed, refused or expired (round 4 P-2 = B). The start is public, so each client may ask only a few PINs a minute: past the limit it is refused 429 `auth.rate_limited`, the same Problem the password sign-in gives, and Plex is not asked.
          */
         post: operations["startPlexSignIn"];
         delete?: never;
@@ -1736,7 +1736,7 @@ export interface paths {
         put?: never;
         /**
          * Reset a local account's password to a provisional one
-         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). NEVER THE CALLER'S OWN ACCOUNT (the operator, 2026-10-04: « un Admin change son propre mot de passe seulement via changeOwnPassword, mot de passe actuel requis »): an Admin naming its own account is refused 403 `password.reset_own`, checked right after the Admin check. The account's open sessions are not ended by this act.
+         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). NEVER THE CALLER'S OWN ACCOUNT (the operator, 2026-10-04: « un Admin change son propre mot de passe seulement via changeOwnPassword, mot de passe actuel requis »): an Admin naming its own account is refused 403 `password.reset_own`, checked right after the Admin check. Every open session of the account ends with this act, in the same transaction as the new password: a session opened with the old password is refused on its next request.
          */
         post: operations["resetAccountPassword"];
         delete?: never;
@@ -5974,6 +5974,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };
