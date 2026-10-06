@@ -364,7 +364,10 @@ def test_deploy_refuses_without_uv_before_any_build(origin: Origin, script: str,
     """The backend installs from the lock through uv: no uv, no build (nothing is wiped first)."""
     venv = _stub_venv(origin)
     done = _real_deploy(
-        origin, script, branch, extra_env={"TM_VENV": venv, "TM_STAGING_VENV": venv, "TM_UV": str(origin.root / "no-uv")}
+        origin,
+        script,
+        branch,
+        extra_env={"TM_VENV": venv, "TM_STAGING_VENV": venv, "TM_UV": str(origin.root / "no-uv")},
     )
     assert done.returncode == 1
     assert "uv not found" in done.stderr, done.stderr
