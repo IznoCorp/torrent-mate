@@ -281,6 +281,15 @@ ASSETS_DIR = DESIGN_ROOT / "assets"
 SECURITY_HEADERS = (
     ("X-Content-Type-Options", "nosniff"),
     ("Strict-Transport-Security", "max-age=31536000; includeSubDomains"),
+    # The operator's policy (`personalscraper.http_v1.security_headers.CONTENT_SECURITY_POLICY`).
+    (
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "img-src 'self' https://image.tmdb.org https://artworks.thetvdb.com https://plex.tv "
+        "https://www.gravatar.com; "
+        "frame-src https://www.youtube.com; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    ),
 )
 
 # The folders served WITHOUT a session, by URL prefix: the classic scripts the documents name

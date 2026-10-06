@@ -69,5 +69,5 @@ def build_standalone_v1_app(
     app.mount(V1_PREFIX, v1_app)
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_proxies)
     # Outside the mount: a path v1 does not own (the parent's 404) carries them too.
-    app.add_middleware(SecurityHeaders)
+    app.add_middleware(SecurityHeaders, with_policy=True)
     return app

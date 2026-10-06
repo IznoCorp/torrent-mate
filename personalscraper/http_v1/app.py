@@ -116,7 +116,7 @@ def create_v1_app(
     app.add_middleware(ProblemOnCrash)
     # Outermost: a renewed session's cookie rides even on the 500 ``ProblemOnCrash`` answers.
     app.add_middleware(SessionRenewalCookie, web=config.web)
-    app.add_middleware(SecurityHeaders)
+    app.add_middleware(SecurityHeaders, with_policy=True)
     include_v1_router(app, authentication.router)
     include_v1_router(app, accounts.router)
     include_v1_router(app, system.router)

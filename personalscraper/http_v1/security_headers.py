@@ -1,8 +1,11 @@
 """The security headers the served application sets itself, whatever the reverse proxy does.
 
 The application owns them for the reason it owns compression: they must survive a proxy
-reconfiguration, and it is the application that knows what it serves. The
-``Content-Security-Policy`` is not in the register yet: its text is the operator's ruling.
+reconfiguration, and it is the application that knows what it serves.
+
+The ``Content-Security-Policy`` is the operator's ruling (``'self'`` plus a closed list), and
+it is v1's and the design host's alone: v0's pages (``frontend/``) die at the switchover and
+are not under it, so the v0 application does not ask the middleware for it.
 """
 
 from __future__ import annotations
@@ -18,6 +21,19 @@ SECURITY_HEADERS: Final[dict[str, str]] = {
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 }
 
+#: The policy of v1 and of the design host: the origin alone, plus the closed list of what the
+#: interface shows from elsewhere — posters (TMDB, TVDB), avatars (plex.tv, Gravatar) and the
+#: trailer embed (YouTube). No ``style-src`` or ``script-src`` of its own: no ``'unsafe-inline'``
+#: anywhere, so a React ``style`` prop or a CSSOM assignment is allowed and an inline
+#: ``<style>``, ``<script>`` or ``style=""`` is not.
+CONTENT_SECURITY_POLICY: Final[str] = (
+    "default-src 'self'; "
+    "img-src 'self' https://image.tmdb.org https://artworks.thetvdb.com https://plex.tv "
+    "https://www.gravatar.com; "
+    "frame-src https://www.youtube.com; "
+    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+)
+
 
 class SecurityHeaders:
     """Pure ASGI middleware adding :data:`SECURITY_HEADERS` to every HTTP response.
@@ -26,13 +42,19 @@ class SecurityHeaders:
     same middleware may wrap a mounted application and its parent without doubling a value.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, *, with_policy: bool = False) -> None:
         """Wrap an application.
 
         Args:
             app: The inner ASGI application.
+            with_policy: Whether the responses also carry :data:`CONTENT_SECURITY_POLICY`; off for
+                v0, whose pages are not under it.
         """
         self.app = app
+        self.headers = {
+            **SECURITY_HEADERS,
+            **({"Content-Security-Policy": CONTENT_SECURITY_POLICY} if with_policy else {}),
+        }
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Pass the call on, adding the headers at the response start.
@@ -54,7 +76,7 @@ class SecurityHeaders:
             """
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                for name, value in SECURITY_HEADERS.items():
+                for name, value in self.headers.items():
                     if name not in headers:
                         headers[name] = value
             await send(message)

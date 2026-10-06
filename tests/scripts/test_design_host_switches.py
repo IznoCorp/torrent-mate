@@ -38,7 +38,7 @@ from pathlib import Path
 import pytest
 from _repo_paths import MAQUETTE
 
-from personalscraper.http_v1.security_headers import SECURITY_HEADERS
+from personalscraper.http_v1.security_headers import CONTENT_SECURITY_POLICY, SECURITY_HEADERS
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGN = MAQUETTE / "design"
@@ -753,7 +753,7 @@ def test_the_shell_document_and_the_base_layer_need_no_inline_allowance() -> Non
 
 
 def test_every_response_carries_the_security_headers(tmp_path: Path) -> None:
-    """The sign-in page, a 401, a 404, a boot file and the document all answer nosniff and HSTS."""
+    """The sign-in page, a 401, a 404, a boot file and the document all answer nosniff, HSTS and the policy."""
     with (
         stub_v1() as (v1, _),
         serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
@@ -766,5 +766,5 @@ def test_every_response_carries_the_security_headers(tmp_path: Path) -> None:
             ask(port, "/", cookie=f"tm_v1_session={ACCEPTED}"),
         ]
     for status, headers, _ in answers:
-        for name, value in SECURITY_HEADERS.items():
+        for name, value in {**SECURITY_HEADERS, "Content-Security-Policy": CONTENT_SECURITY_POLICY}.items():
             assert headers.get(name.lower()) == value, (status, name)
