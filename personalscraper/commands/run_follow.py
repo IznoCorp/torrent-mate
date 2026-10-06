@@ -53,6 +53,15 @@ TRAILER_ABORT_CODE: Final = 2
 #: The exit code when the supervisor's lease lapses before the followed request settles.
 LEASE_LOST_CODE: Final = 1
 
+#: How long the lease read waits on a write lock, in milliseconds: longer than the supervisor's
+#: write cadence, so a busy store is waited for rather than reported unreadable.
+LEASE_READ_BUSY_TIMEOUT_MS: Final = 10_000
+
+
+class SupervisorStateUnreadable(Exception):
+    """``app.db`` exists but its lease cannot be read (locked, corrupt): no path may be chosen."""
+
+
 _EXIT_CODES: Final[dict[Settlement, int]] = {
     Settlement.SUCCESS: 0,
     Settlement.ERROR: 1,
@@ -90,24 +99,34 @@ def lease_live(config: Config) -> bool:
     """Whether a supervisor's lease is live, read on its own and read-only.
 
     The question decides between the queue and the direct path, so it builds nothing and writes
-    nothing: ``app.db`` is never created (with no file there never was a supervisor) nor migrated.
-    A store that cannot be read is « no live lease » — the direct path needs nothing from ``app.db``.
+    nothing: ``app.db`` is never created nor migrated, and a corrupt one is left in place. With no
+    file, or no ``run_lease`` table, there never was a supervisor. Any other failure fails closed:
+    the lease alone authorises a run, so a store that cannot be read answers neither way.
 
     Args:
         config: The loaded configuration.
 
     Returns:
         ``True`` when the stored lease has not expired.
+
+    Raises:
+        SupervisorStateUnreadable: ``app.db`` exists but its lease cannot be read.
     """
     app_db = store_path(config.paths.data_dir, StoreName.APP)
     if not app_db.exists():
         return False
     try:
         with closing(sqlite3.connect(_read_only_uri(app_db), uri=True)) as conn:
-            lease = LeaseRepository(conn).read()
-    except sqlite3.Error:
+            try:
+                apply_pragmas(conn)
+            except sqlite3.Error:
+                pass  # Read-only connection — pragmas that require writes are harmless to skip.
+            conn.execute(f"PRAGMA busy_timeout={LEASE_READ_BUSY_TIMEOUT_MS}")
+            table = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'run_lease'").fetchone()
+            lease = LeaseRepository(conn).read() if table is not None else None
+    except sqlite3.Error as exc:
         log.warning("run_follow.lease_unreadable", db_path=str(app_db), exc_info=True)
-        return False
+        raise SupervisorStateUnreadable(str(app_db)) from exc
     return lease is not None and lease.live(time.time())
 
 

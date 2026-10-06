@@ -221,6 +221,7 @@
     "lease_lost_queued": "The supervisor stopped: run {{uid}} stays queued until a supervisor runs again.",
     "lease_lost_running": "The supervisor stopped while run {{uid}} was running: the run was interrupted.",
     "interactive_needs_direct": "--interactive needs the direct path: a supervisor is running, so the run is queued. Use `personalscraper scrape -i` for an interactive scrape.",
-    "detach_needs_supervisor": "--detach needs a running supervisor: none is running, so the run goes on here."
+    "detach_needs_supervisor": "--detach needs a running supervisor: none is running, so the run goes on here.",
+    "supervisor_state_unreadable": "The supervisor's state cannot be read right now: nothing was started. Retry in a moment."
   }
 }

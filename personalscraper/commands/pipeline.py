@@ -752,7 +752,12 @@ def run(
         no_post_maintenance=no_post_maintenance,
     )
 
-    if run_follow.lease_live(config):
+    try:
+        supervised = run_follow.lease_live(config)
+    except run_follow.SupervisorStateUnreadable:
+        console.print("[red]" + t("cli_core.run.supervisor_state_unreadable") + "[/red]")
+        raise typer.Exit(1) from None
+    if supervised:
         if interactive:
             console.print("[red]" + t("cli_core.run.interactive_needs_direct") + "[/red]")
             raise typer.Exit(1)

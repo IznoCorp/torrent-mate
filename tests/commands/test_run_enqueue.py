@@ -615,14 +615,32 @@ class TestNoLiveLease:
         executed.assert_called_once()
         built.assert_not_called()
 
-    def test_an_unreadable_app_db_takes_the_direct_path(
+    def test_an_unreadable_app_db_refuses_and_runs_nothing(
         self, test_config: Config, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A store that cannot be read while deciding is « no live lease »: the run still goes direct."""
+        """The lease alone authorises a run: an unreadable store refuses rather than guess, and is left in place."""
         monkeypatch.delenv(_UID_ENV, raising=False)
         app_db = store_path(test_config.paths.data_dir, StoreName.APP)
         app_db.parent.mkdir(parents=True, exist_ok=True)
-        app_db.write_bytes(b"not a database, " * 64)
+        garbage = b"not a database, " * 64
+        app_db.write_bytes(garbage)
+        with patch(_EXECUTE_RUN, return_value=0) as executed:
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 1, result.output
+        assert t("cli_core.run.supervisor_state_unreadable") in " ".join(result.output.split())
+        executed.assert_not_called()
+        assert app_db.read_bytes() == garbage
+
+    def test_an_app_db_without_the_lease_table_takes_the_direct_path(
+        self, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A store from before the supervisor (no ``run_lease`` table) never held a lease: the run goes direct."""
+        monkeypatch.delenv(_UID_ENV, raising=False)
+        app_db = store_path(test_config.paths.data_dir, StoreName.APP)
+        app_db.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(str(app_db)) as conn:
+            conn.execute("CREATE TABLE app_setting (key TEXT PRIMARY KEY, value TEXT)")
         with patch(_EXECUTE_RUN, return_value=0) as executed:
             result = runner.invoke(app, ["run"])
 

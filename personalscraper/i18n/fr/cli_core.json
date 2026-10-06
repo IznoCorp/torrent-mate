@@ -221,6 +221,7 @@
     "lease_lost_queued": "Le superviseur s'est arrêté : le run {{uid}} reste en file jusqu'au retour d'un superviseur.",
     "lease_lost_running": "Le superviseur s'est arrêté pendant le run {{uid}} : le run a été interrompu.",
     "interactive_needs_direct": "--interactive exige le chemin direct : un superviseur tourne, le run est mis en file. Utilisez `personalscraper scrape -i` pour un scrape interactif.",
-    "detach_needs_supervisor": "--detach exige un superviseur actif : aucun ne tourne, le run se poursuit ici."
+    "detach_needs_supervisor": "--detach exige un superviseur actif : aucun ne tourne, le run se poursuit ici.",
+    "supervisor_state_unreadable": "L'état du superviseur est illisible pour le moment : rien n'a été lancé. Réessayez dans un instant."
   }
 }
