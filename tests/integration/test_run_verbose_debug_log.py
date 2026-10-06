@@ -95,7 +95,7 @@ def _invoke_run(*, verbose: bool, monkeypatch: Any) -> tuple[Any, list[Any]]:
         patch("personalscraper.commands.pipeline.cli_helpers.acquire_pipeline_lock", return_value=True),
         patch("personalscraper.commands.pipeline.cli_helpers.release_lock"),
         patch("personalscraper.commands.pipeline.cli_helpers.get_settings", return_value=MagicMock()),
-        patch("personalscraper.commands.pipeline.build_app_context") as _build,
+        patch("personalscraper.app.supervisor.execution.build_app_context") as _build,
     ):
         # Build a real AppContext so its EventBus is a real bus (the subscriber
         # subscribes to it, the stub Pipeline emits on it).
@@ -181,7 +181,7 @@ def test_cli_run_verbose_debug_log_subscriber_closed_on_exception(monkeypatch: A
         patch("personalscraper.commands.pipeline.cli_helpers.acquire_pipeline_lock", return_value=True),
         patch("personalscraper.commands.pipeline.cli_helpers.release_lock"),
         patch("personalscraper.commands.pipeline.cli_helpers.get_settings", return_value=MagicMock()),
-        patch("personalscraper.commands.pipeline.build_app_context") as _build,
+        patch("personalscraper.app.supervisor.execution.build_app_context") as _build,
     ):
         from personalscraper.api.metadata.registry import ProviderRegistry
         from personalscraper.core.app_context import AppContext
