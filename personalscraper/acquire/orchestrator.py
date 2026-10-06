@@ -62,7 +62,6 @@ Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
@@ -348,15 +347,39 @@ class GrabOutcome:
     found: int | None = None
 
 
-class GrabRefusal(StrEnum):
-    """Why a grab was refused before the client was asked to add (decision reasons).
+def _scope_refusal(client: "TorrentAdder", source: "TorrentSource", scope: "TorrentScope") -> str | None:
+    """Say why a downloaded torrent must not be added under the instance's scope.
 
-    Attributes:
-        SHARED_HASH: Under a client scope, the hash is already in the shared
-            client — another instance (or an earlier grab) owns that torrent.
+    The client is shared with another instance, so the hash is checked before
+    anything is added: a hash already present is never added (the add would be
+    idempotent and the torrent would stay in the other instance's category and
+    tags). Every case that cannot PROVE the hash free refuses (fail-closed).
+    The hash is the payload's own (``source.info_hash``, what the client will
+    compute), never the tracker's, which may be absent or wrong.
+
+    Args:
+        client: The torrent client.
+        source: The resolved torrent.
+        scope: What this instance owns in the client.
+
+    Returns:
+        ``None`` when the add may proceed, else the refusal reason:
+        ``scope_unverifiable`` (the client cannot list its hashes),
+        ``hash_underivable`` (the source yields no hash) or ``shared_hash``
+        (the hash is already in the client).
     """
-
-    SHARED_HASH = "shared_hash"
+    if not isinstance(client, TorrentLister):
+        log.warning("acquire.grab.scope_unverifiable", client_type=type(client).__name__)
+        return "scope_unverifiable"
+    try:
+        info_hash = source.info_hash.lower()
+    except ValueError:
+        log.warning("acquire.grab.hash_underivable", category=scope.category)
+        return "hash_underivable"
+    if info_hash in {h.lower() for h in client.get_all_hashes()}:
+        log.info("acquire.grab.shared_hash", info_hash=info_hash, category=scope.category)
+        return "shared_hash"
+    return None
 
 
 def _add_in_scope(
@@ -364,38 +387,31 @@ def _add_in_scope(
     source: "TorrentSource",
     *,
     provider: str,
-    info_hash: str | None,
     scope: "TorrentScope | None",
     limits: "TorrentLimits | None",
-) -> str | None:
+) -> str:
     """Add a torrent, inside the instance's scope when one is configured.
 
-    ``scope`` ``None`` is today's add, verbatim. Under a scope the client is
-    shared with another instance, so the hash is checked first: a hash already
-    present is never added (the add would be idempotent and the torrent would
-    stay in the other instance's category and tags). A client that cannot list
-    its hashes cannot prove the hash is free, so it is refused too.
+    ``scope`` ``None`` is today's add, verbatim. Under a scope the add carries
+    the scope's category and instance tags; the caller has already passed
+    :func:`_scope_refusal`.
+
+    The check-then-add is not atomic: another instance could add the same hash
+    between the listing and the add. That residue is accepted — one instance
+    per client scope is the supported topology.
 
     Args:
         client: The torrent client.
-        source: The fetched torrent.
+        source: The resolved torrent.
         provider: The tracker the release came from (first tag).
-        info_hash: The hash the tracker reported, cross-checked against the
-            fetched payload by ``resolve_source``; ``None`` skips the check.
         scope: What this instance owns in the client, or ``None``.
         limits: Per-torrent limits, or ``None``.
 
     Returns:
-        The client's info hash, or ``None`` when the add was refused under a scope.
+        The client's info hash.
     """
     if scope is None:
         return client.add(source, category=None, tags=[provider], limits=limits)
-    if not isinstance(client, TorrentLister):
-        log.warning("acquire.grab.scope_unverifiable", client_type=type(client).__name__)
-        return None
-    if info_hash is not None and info_hash.lower() in {h.lower() for h in client.get_all_hashes()}:
-        log.info("acquire.grab.shared_hash", info_hash=info_hash, category=scope.category)
-        return None
     return client.add(source, category=scope.category, tags=[provider, *scope.instance_tags], limits=limits)
 
 
@@ -1020,7 +1036,25 @@ class GrabOrchestrator:
             # tracker has already run its search() in THIS grab, so a
             # login-style tracker's authed transport exists — a transient boot
             # login blip can no longer strand it for the process lifetime.
-            attempt = resolve_first_available(result.ranked, self._tracker_registry.transports(), top=top)
+            # Under a scope a candidate whose hash is shared gives way to the
+            # next ranked one within this grab: the next pass would re-pick the
+            # same top (only failed hashes are excluded), starving the item.
+            # The check runs BEFORE ``on_intent``: an intent, once reserved, is
+            # never rewritten, so it must name the candidate that is added.
+            remaining = result.ranked
+            while True:
+                attempt = resolve_first_available(remaining, self._tracker_registry.transports(), top=top)
+                if attempt.source is None or self._scope is None:
+                    break
+                refusal = _scope_refusal(self._torrent_client, attempt.source, self._scope)
+                if refusal is None:
+                    break
+                if refusal != "shared_hash":
+                    return self._retryable(media_ref, refusal, chosen=attempt.chosen)
+                remaining = [pair for pair in remaining if pair[0] is not attempt.chosen]
+                if not remaining:
+                    return self._retryable(media_ref, "shared_hash", chosen=attempt.chosen)
+                top = remaining[0][0]
             if attempt.source is None:
                 # Nothing resolved: conclude on the candidate the walk blames,
                 # so the operator alert names the tracker that broke rather
@@ -1068,12 +1102,9 @@ class GrabOrchestrator:
                 self._torrent_client,
                 source,
                 provider=top.provider,
-                info_hash=top.info_hash,
                 scope=self._scope,
                 limits=limits,
             )
-            if added is None:
-                return self._retryable(media_ref, GrabRefusal.SHARED_HASH, chosen=top)
             info_hash = added
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.

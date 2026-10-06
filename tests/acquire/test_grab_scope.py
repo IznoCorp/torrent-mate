@@ -13,9 +13,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
-from personalscraper.acquire import orchestrator as orchestrator_module
 from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import WantedItem
@@ -85,23 +84,42 @@ def _wanted() -> WantedItem:
     )
 
 
-def _orchestrator(client: object, *, scope: TorrentScope | None, bw: BandwidthConfig | None = None) -> GrabOrchestrator:
-    """Build a grab-ready orchestrator whose search yields one takeable candidate."""
+def _candidate(tracker_id: str, info_hash: str | None, seeders: int) -> TrackerResult:
+    """Build one takeable tracker result; more seeders rank first."""
+    return TrackerResult(
+        provider=PROVIDER,
+        tracker_id=tracker_id,
+        title=f"Movie 2010 MULTi 1080p BluRay x265-GRP{tracker_id}",
+        size=ByteSize(5_000_000_000 + seeders),
+        seeders=seeders,
+        leechers=0,
+        resolution="1080p",
+        info_hash=info_hash,
+        download_url=f"https://{PROVIDER}.test/torrent/{tracker_id}",
+    )
+
+
+def _source(info_hash: str | Exception = INFO_HASH) -> MagicMock:
+    """Build a fetched source whose ``info_hash`` is a value, or raises when given an exception."""
+    source = MagicMock(spec=TorrentSource)
+    if isinstance(info_hash, Exception):
+        type(source).info_hash = PropertyMock(side_effect=info_hash)
+    else:
+        type(source).info_hash = PropertyMock(return_value=info_hash)
+    return source
+
+
+def _orchestrator(
+    client: object,
+    *,
+    scope: TorrentScope | None,
+    bw: BandwidthConfig | None = None,
+    candidates: list[TrackerResult] | None = None,
+) -> GrabOrchestrator:
+    """Build a grab-ready orchestrator whose search yields the given candidates (one by default)."""
     registry = MagicMock()
     registry.search_candidates.return_value = SearchOutcome(
-        results=[
-            TrackerResult(
-                provider=PROVIDER,
-                tracker_id="t1",
-                title="Movie 2010 MULTi 1080p BluRay x265-GRP",
-                size=ByteSize(5_000_000_000),
-                seeders=50,
-                leechers=0,
-                resolution="1080p",
-                info_hash=INFO_HASH,
-                download_url=f"https://{PROVIDER}.test/torrent/1",
-            )
-        ],
+        results=candidates if candidates is not None else [_candidate("t1", INFO_HASH, 50)],
         trackers_queried=1,
         trackers_errored=0,
     )
@@ -119,10 +137,10 @@ def _orchestrator(client: object, *, scope: TorrentScope | None, bw: BandwidthCo
     )
 
 
-def _grab(orch: GrabOrchestrator):
-    """Run one grab with ``resolve_source`` patched."""
+def _grab(orch: GrabOrchestrator, *sources: MagicMock):
+    """Run one grab with ``resolve_source`` patched to return *sources* in turn (one INFO_HASH source by default)."""
     with patch(_RESOLVE) as mock_resolve:
-        mock_resolve.return_value = MagicMock(spec=TorrentSource)
+        mock_resolve.side_effect = list(sources) if sources else [_source()] * 3
         return orch.grab(_wanted(), QualityProfile())
 
 
@@ -146,7 +164,7 @@ def test_scope_set_shared_hash_is_refused_without_add() -> None:
 
     assert client.add_calls == []
     assert outcome.disposition == "retryable"
-    assert outcome.reason == orchestrator_module.GrabRefusal.SHARED_HASH == "shared_hash"
+    assert outcome.reason == "shared_hash"
 
 
 def test_scope_set_shared_hash_comparison_ignores_case() -> None:
@@ -169,29 +187,92 @@ def test_scope_set_global_caps_are_skipped() -> None:
     assert any(c.args and c.args[0] == "acquire.global_limits_skipped" for c in mock_log.info.call_args_list)
 
 
-def test_scope_set_non_lister_client_refuses_rather_than_adds_blind() -> None:
-    """A client that cannot list its hashes cannot prove the hash is free → no add."""
+def test_scope_set_non_lister_client_refuses_with_its_own_reason() -> None:
+    """A client that cannot list its hashes cannot prove the hash is free → no add, reason scope_unverifiable."""
 
     class _AddOnly:
+        """Fake client with an ``add`` and no hash listing."""
+
         def __init__(self) -> None:
+            """Start with no recorded add."""
             self.add_calls: list[dict] = []
 
         def add(self, source: TorrentSource, **kwargs: object) -> str:
+            """Record the add call and return INFO_HASH."""
             self.add_calls.append(dict(kwargs))
             return INFO_HASH
 
     client = _AddOnly()
-    result = orchestrator_module._add_in_scope(
-        client,  # type: ignore[arg-type]
-        MagicMock(spec=TorrentSource),
-        provider=PROVIDER,
-        info_hash=INFO_HASH,
+    outcome = _grab(_orchestrator(client, scope=SCOPE))
+
+    assert client.add_calls == []
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "scope_unverifiable"
+
+
+def test_scope_set_tracker_hash_none_still_checks_the_source_hash() -> None:
+    """Tracker gave no hash, the source's hash is already in the client → no add (no fail-open)."""
+    client = _SharedClient(present={INFO_HASH})
+    orch = _orchestrator(client, scope=SCOPE, candidates=[_candidate("t1", None, 50)])
+
+    outcome = _grab(orch, _source(INFO_HASH))
+
+    assert client.add_calls == []
+    assert outcome.reason == "shared_hash"
+
+
+def test_scope_set_underivable_source_hash_refuses() -> None:
+    """The source's hash cannot be derived → fail closed, no add."""
+    client = _SharedClient()
+
+    outcome = _grab(_orchestrator(client, scope=SCOPE), _source(ValueError("no hash")))
+
+    assert client.add_calls == []
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "hash_underivable"
+
+
+def test_scope_set_tracker_hash_case_does_not_hide_a_shared_hash() -> None:
+    """The source hash (not the tracker's) is compared, whatever the case on each side."""
+    client = _SharedClient(present={INFO_HASH})
+    orch = _orchestrator(client, scope=SCOPE, candidates=[_candidate("t1", INFO_HASH.upper(), 50)])
+
+    _grab(orch, _source(INFO_HASH))
+
+    assert client.add_calls == []
+
+
+def test_scope_set_shared_first_candidate_gives_way_to_the_next() -> None:
+    """Two candidates, the first shared → the second is added within the same grab."""
+    client = _SharedClient(present={INFO_HASH})
+    orch = _orchestrator(
+        client,
         scope=SCOPE,
-        limits=None,
+        candidates=[_candidate("t1", INFO_HASH, 50), _candidate("t2", "beef5678", 10)],
     )
 
-    assert result is None
+    outcome = _grab(orch, _source(INFO_HASH), _source("beef5678"))
+
+    assert outcome.disposition == "success"
+    assert len(client.add_calls) == 1
+    assert outcome.chosen is not None
+    assert outcome.chosen.tracker_id == "t2"
+
+
+def test_scope_set_every_candidate_shared_is_retryable_shared_hash() -> None:
+    """All candidates shared → no add, retryable shared_hash."""
+    client = _SharedClient(present={INFO_HASH, "beef5678"})
+    orch = _orchestrator(
+        client,
+        scope=SCOPE,
+        candidates=[_candidate("t1", INFO_HASH, 50), _candidate("t2", "beef5678", 10)],
+    )
+
+    outcome = _grab(orch, _source(INFO_HASH), _source("beef5678"))
+
     assert client.add_calls == []
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "shared_hash"
 
 
 # ── Characterisation: scope None is today's behaviour (green before AND after) ──
