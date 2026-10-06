@@ -10,12 +10,13 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Final
 
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
-from personalscraper.app.accounts.model import Account, AccountId, PlexLink, SignInKind, is_email
+from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.accounts.model import Account, PlexLink, SignInKind, is_email
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal, verify_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 from personalscraper.app.accounts.sessions import SessionService
@@ -198,6 +199,9 @@ class CredentialService:
         if actor is None:
             raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
         log.info("v1_signed_in", account_id=account.id)
+        # The view reads the Plex link once the session resolved, as the role is: not the one the
+        # access check read inside the transaction.
+        account = replace(account, plex_link=store.accounts.plex_link(account.id))
         return SignInResult(account=account_view(store, account, actor), session_token=token)
 
     def owner_account_id(self) -> AccountId | None:

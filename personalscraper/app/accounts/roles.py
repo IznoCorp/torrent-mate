@@ -12,7 +12,8 @@ from collections.abc import Callable, Sequence
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.model import Grantor, Role, RoleId, rights_named
+from personalscraper.app.accounts.ids import RoleId
+from personalscraper.app.accounts.model import Grantor, Role, rights_named
 from personalscraper.app.accounts.views import RoleView, role_view
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppNotFound, RefusalCode
 from personalscraper.app.store.store import AppStore

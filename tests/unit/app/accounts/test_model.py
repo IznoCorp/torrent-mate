@@ -10,18 +10,18 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import get_type_hints
 
 import pytest
 
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.ids import AccountId, RoleId
 from personalscraper.app.accounts.model import (
     Account,
-    AccountId,
     Grantor,
     PlexLink,
     Role,
-    RoleId,
     SignInKind,
     is_email,
     rights_named,
@@ -628,3 +628,13 @@ class TestDeleteRoleOrder:
     def test_in_use_before_escalation(self, roles: RoleService) -> None:
         """A manager deleting a held role wider than its own: ``role.in_use``."""
         assert _code(lambda: roles.delete_role(_MANAGER, "wide")) is RefusalCode.ROLE_IN_USE
+
+
+class TestTypeHints:
+    """The typed ids and the actor resolve at runtime, not for the type checker only."""
+
+    def test_actor_and_grantor_hints_resolve(self) -> None:
+        """``get_type_hints`` names ``AccountId``, ``RoleId`` and ``Actor`` without a ``NameError``."""
+        assert get_type_hints(Actor)["role_id"] is RoleId
+        assert get_type_hints(Actor)["account_id"] is AccountId
+        assert get_type_hints(Grantor)["actor"] is Actor

@@ -20,16 +20,14 @@ from personalscraper.i18n import Language
 if TYPE_CHECKING:
     from personalscraper.app.store.store import AppStore
 
-# ``Language`` and ``SignInKind`` are part of what the services answer (``AccountView.language``,
-# ``sign_in_kind``): the v1 models take them from here, since ``http_v1`` reaches the engine only
-# through ``app/``.
+# ``Language`` is part of what the services answer (``AccountView.language``): the v1 models take
+# it from here, since ``http_v1`` reaches the engine only through ``app/``.
 __all__ = [
     "AccountSummaryView",
     "AccountView",
     "Language",
     "RoleView",
     "RosterView",
-    "SignInKind",
     "account_view",
     "role_view",
 ]

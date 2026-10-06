@@ -13,7 +13,8 @@ from dataclasses import replace
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.model import Account, AccountId, Grantor, Role, RoleId, is_email
+from personalscraper.app.accounts.ids import AccountId, RoleId
+from personalscraper.app.accounts.model import Account, Grantor, Role, is_email
 from personalscraper.app.accounts.passwords import hash_password, policy_refusal
 from personalscraper.app.accounts.views import (
     AccountSummaryView,

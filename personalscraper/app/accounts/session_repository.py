@@ -16,7 +16,7 @@ import sqlite3
 import threading
 from dataclasses import dataclass, field
 
-from personalscraper.app.accounts.model import AccountId
+from personalscraper.app.accounts.ids import AccountId
 from personalscraper.core.sqlite import serialised
 
 

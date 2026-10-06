@@ -20,7 +20,8 @@ import threading
 from typing import Final
 
 from personalscraper.app.accounts.actor import RoleKind
-from personalscraper.app.accounts.model import Role, RoleId, StartKind
+from personalscraper.app.accounts.ids import RoleId
+from personalscraper.app.accounts.model import Role, StartKind
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.store.transaction import atomic
 from personalscraper.core.sqlite import serialised

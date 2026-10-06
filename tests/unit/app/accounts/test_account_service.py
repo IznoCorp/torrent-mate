@@ -22,13 +22,12 @@ from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.model import Account, PlexLink, Role
+from personalscraper.app.accounts.model import Account, PlexLink, Role, SignInKind
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, verify_password
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
-from personalscraper.app.accounts.views import SignInKind
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, AppRefusal, RefusalCode
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus

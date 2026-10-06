@@ -54,7 +54,8 @@ from personalscraper.api.plex_account import (
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.model import Account, AccountId, PlexLink, Role, StartKind
+from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.accounts.model import Account, PlexLink, Role, StartKind
 from personalscraper.app.accounts.pin_repository import PlexPinRow
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.errors import (

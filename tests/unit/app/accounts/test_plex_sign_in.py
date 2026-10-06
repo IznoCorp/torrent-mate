@@ -36,7 +36,7 @@ from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.model import Account, PlexLink
+from personalscraper.app.accounts.model import Account, PlexLink, SignInKind
 from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.accounts.pin_repository import PlexPinRow
 from personalscraper.app.accounts.plex_sign_in import (
@@ -48,7 +48,6 @@ from personalscraper.app.accounts.plex_sign_in import (
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.token_vault import TokenVault
-from personalscraper.app.accounts.views import SignInKind
 from personalscraper.app.errors import (
     AppBadRequest,
     AppConflict,

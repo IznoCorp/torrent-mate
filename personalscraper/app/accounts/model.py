@@ -4,8 +4,8 @@ The services read the facts in one ``BEGIN IMMEDIATE`` transaction, ask these ob
 write. Each ``check_*`` raises one refusal, or a fixed sequence of them; a service calls the
 checks in the order its contract names, and no object ever reorders them.
 
-The ids are typed (``AccountId``, ``RoleId``): a ``NewType`` costs nothing at runtime, so the
-wire still carries a plain string, and mypy refuses an account id where a role id is due.
+The ids are typed (``AccountId``, ``RoleId``, in ``ids``): a ``NewType`` costs nothing at runtime,
+so the wire still carries a plain string, and mypy refuses an account id where a role id is due.
 """
 
 from __future__ import annotations
@@ -13,21 +13,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TYPE_CHECKING, Literal, NewType
+from typing import Literal
 
-from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.actor import Actor, RoleKind
+from personalscraper.app.accounts.ids import AccountId, RoleId
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, RefusalCode
 from personalscraper.i18n import Language, configured_language
-
-if TYPE_CHECKING:
-    from personalscraper.app.accounts.actor import Actor
-
-#: An account's key, ``account-<uuid4 hex>``.
-AccountId = NewType("AccountId", str)
-
-#: A role's key: a seed's id, or ``role-<uuid4 hex>``.
-RoleId = NewType("RoleId", str)
 
 #: Who starts on a role at a first sign-in or a link: a Plex Home member, a Plex guest. A local
 #: account has none — its role is chosen at its creation.

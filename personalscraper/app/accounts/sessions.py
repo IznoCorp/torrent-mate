@@ -31,7 +31,7 @@ from typing import Final
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling, current_ceiling
-from personalscraper.app.accounts.model import AccountId
+from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.store.store import AppStore
 

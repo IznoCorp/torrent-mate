@@ -223,6 +223,21 @@ class TestSignIn:
         assert accounts._sessions.resolve(first.session_token) is not None  # noqa: SLF001
         assert accounts._sessions.resolve(second.session_token) is not None  # noqa: SLF001
 
+    def test_the_view_reads_the_plex_link_after_the_session_resolves(
+        self, accounts: CredentialService, store: AppStore
+    ) -> None:
+        """A link committed while the new session resolves shows in the answered view, as on the base."""
+        sessions = accounts._sessions  # noqa: SLF001 — the resolve the link races
+        resolve = sessions.resolve
+
+        def linked_then_resolved(token: str) -> object:
+            store.accounts.upsert_plex_link(_link("account-local", 3, "shared"))
+            return resolve(token)
+
+        with patch.object(sessions, "resolve", side_effect=linked_then_resolved):
+            result = _sign_in(accounts, "local@example.org", _PASSWORD)
+        assert result.account.sign_in_kind == "plex"
+
 
 class TestRefused:
     """Every failure is ``auth.refused``, and runs scrypt once."""

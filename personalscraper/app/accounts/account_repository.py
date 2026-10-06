@@ -20,7 +20,8 @@ import threading
 from dataclasses import replace
 
 from personalscraper.app.accounts.actor import RoleKind
-from personalscraper.app.accounts.model import Account, AccountId, PlexLink, RoleId
+from personalscraper.app.accounts.ids import AccountId, RoleId
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.core.sqlite import serialised
 from personalscraper.i18n import Language
 

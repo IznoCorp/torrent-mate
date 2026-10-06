@@ -10,17 +10,14 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Final, cast
+from typing import Final
 
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.ids import AccountId, RoleId
 from personalscraper.app.accounts.rights import Right
 
-if TYPE_CHECKING:
-    # ``model`` imports ``RoleKind`` from here: the ids are named for the type checker only.
-    from personalscraper.app.accounts.model import AccountId, RoleId
-
 #: The role id the system actor carries: the indelible Admin role's key.
-SYSTEM_ROLE_ID: Final = cast("RoleId", "admin")
+SYSTEM_ROLE_ID: Final = RoleId("admin")
 
 
 class RoleKind(StrEnum):
