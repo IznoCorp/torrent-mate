@@ -67,7 +67,7 @@ cd torrent-mate
 
 # 2. Python 3.12+ (géré via pyenv) + installation editable avec les extras dev
 pyenv local 3.12.4                     # ou toute version 3.12+
-uv sync --frozen --extra dev           # .venv depuis uv.lock ; l'activer, ou préfixer les commandes par `uv run`
+uv sync --locked --extra dev           # .venv depuis uv.lock ; l'activer, ou préfixer les commandes par `uv run`
 
 # 3. Hooks git (une seule fois par clone — configure core.hooksPath)
 ./hooks/install.sh

@@ -67,9 +67,9 @@ test-cov:
 
 lint:
 	@echo "Running linter..."
-	python -m ruff check personalscraper/ tests/ scripts/ webui/ frontend/scripts/
-	python -m ruff format --check personalscraper/ tests/
-	python -m mypy personalscraper/
+	uv run --locked --extra dev ruff check personalscraper/ tests/ scripts/ webui/ frontend/scripts/
+	uv run --locked --extra dev ruff format --check personalscraper/ tests/
+	uv run --locked --extra dev mypy personalscraper/
 
 check: lint
 	python3 scripts/check-typed-api.py
@@ -95,7 +95,7 @@ format:
 
 install-dev:
 	@echo "Installing PersonalScraper in development mode..."
-	uv sync --frozen --extra dev
+	uv sync --locked --extra dev
 
 version:
 	@echo "Current version:"
@@ -104,7 +104,7 @@ version:
 update-ytdlp:
 	@echo "Updating yt-dlp..."
 	uv lock --upgrade-package yt-dlp
-	uv sync --frozen --extra dev
+	uv sync --locked --extra dev
 	@echo "Running yt-dlp integration test (requires TRAILER_INTEGRATION_TESTS=1)..."
 	TRAILER_INTEGRATION_TESTS=1 python -m pytest tests/scraper/test_ytdlp_downloader.py -v -m network
 

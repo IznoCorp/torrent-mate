@@ -1,6 +1,6 @@
 name: Locked Python install
 description: >-
-  Install the project into .venv from uv.lock (never re-resolved: --frozen fails
+  Install the project into .venv from uv.lock (never re-resolved: --locked fails
   when the lock and pyproject.toml disagree) and put .venv/bin first on PATH, so
   every later step runs the locked ruff, mypy and pytest.
 inputs:
@@ -19,8 +19,8 @@ runs:
         DEV: ${{ inputs.dev }}
       run: |
         if [ "$DEV" = "true" ]; then
-          uv sync --frozen --python 3.12 --extra dev
+          uv sync --locked --python 3.12 --extra dev
         else
-          uv sync --frozen --python 3.12
+          uv sync --locked --python 3.12
         fi
         echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"

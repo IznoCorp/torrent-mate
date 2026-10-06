@@ -171,6 +171,9 @@ jobs:
           python-version: "3.12"
       - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
+      # `--locked` already refuses a drifted lock at install; this names the failure on its own line.
+      - run: uv lock --check
+        if: needs.changes.outputs.python == 'true'
       - run: ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
         if: needs.changes.outputs.python == 'true'
       - run: ruff format --check personalscraper/ tests/
