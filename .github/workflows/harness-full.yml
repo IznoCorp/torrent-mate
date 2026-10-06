@@ -83,9 +83,10 @@ jobs:
       - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       # jsonschema and the project come from the lock (the `dev` extra carries it);
-      # playwright is a harness-only tool, outside the project's dependencies.
+      # playwright comes from the lock too, through the `e2e` extra every lane shares.
       - uses: ./.github/actions/locked-install
-      - run: uv pip install playwright && python -m playwright install --with-deps chromium webkit
+      - run: uv sync --locked --python 3.12 --extra dev --extra e2e
+      - run: python -m playwright install --with-deps chromium webkit
       - run: npm ci --prefix webui/design
       - run: webui/harness/run.sh --ci --shard ${{ matrix.shard }}/4
         env:

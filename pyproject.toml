@@ -78,6 +78,12 @@ dev = [
     "jsonschema>=4.20",
 ]
 
+# The app-e2e lane's browser driver (`tests/app_e2e`, `-m app_e2e`). Pinned here so it lands in
+# `uv.lock` like everything else; the browsers themselves are fetched by `playwright install`.
+e2e = [
+    "playwright==1.63.0",
+]
+
 [project.scripts]
 # `torrentmate` is the project's public command name; `personalscraper` is kept
 # as a backward-compatible alias (same entry point). The Python package, config
