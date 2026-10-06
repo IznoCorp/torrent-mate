@@ -93,8 +93,18 @@ function PhaseRow({ phase }: { phase: LotPhase }): ReactElement {
 function datesOf(lot: Lot, t: TFunction): string | null {
   const { start, end } = lot;
   if (!start && !end) return null;
-  const range = start && end ? t("screens.devLots.dates", { start, end })
-    : start ? t("screens.devLots.datesFrom", { start }) : t("screens.devLots.datesUntil", { end });
+  let range: string;
+  if (start && end) {
+    // One key per line: the placeholder checker reads a shorthand key only at a line end.
+    range = t("screens.devLots.dates", {
+      start,
+      end,
+    });
+  } else if (start) {
+    range = t("screens.devLots.datesFrom", { start });
+  } else {
+    range = t("screens.devLots.datesUntil", { end });
+  }
   return lot.estimated ? t("screens.devLots.datesEstimated", { dates: range }) : range;
 }
 
