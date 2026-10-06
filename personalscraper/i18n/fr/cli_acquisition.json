@@ -68,12 +68,12 @@
       "help": "Supprime les torrents de la préprod dont l'obligation de seed est remplie, et garde tous les autres.\n\nNe tourne que sous PERSONALSCRAPER_ENV=staging. Affiche une ligne par décision\n(verdict, info hash, nom), puis un résumé.",
       "dry_run_help": "Décider et rapporter seulement : rien n'est supprimé, libéré ni journalisé.",
       "max_help": "Le nombre maximal de torrents supprimés par ce passage.",
-      "not_staging": "La purge ne tourne que dans la préprod (PERSONALSCRAPER_ENV=staging) ; ce processus est {env}.",
-      "client_error": "Le client torrent n'a pas pu lister ses torrents : {error}",
-      "summary": "Supprimés {purged}, gardés {kept}.",
-      "summary_dry_run": "À blanc : supprimerait {purged}, garderait {kept}.",
-      "decision": "{verdict}\t{info_hash}\t{name}",
-      "refused": "La purge est refusée : {reason}"
+      "not_staging": "La purge ne tourne que dans la préprod (PERSONALSCRAPER_ENV=staging) ; ce processus est {{env}}.",
+      "client_error": "Le client torrent n'a pas pu lister ses torrents : {{error}}",
+      "summary": "Supprimés {{purged}}, gardés {{kept}}.",
+      "summary_dry_run": "À blanc : supprimerait {{purged}}, garderait {{kept}}.",
+      "decision": "{{verdict}}\t{{info_hash}}\t{{name}}",
+      "refused": "La purge est refusée : {{reason}}"
     },
     "error_label": "Erreur :",
     "no_client": "Aucun client torrent configuré. Vérifiez config/torrent.json5."

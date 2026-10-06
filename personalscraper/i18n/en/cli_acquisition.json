@@ -68,12 +68,12 @@
       "help": "Delete the preprod's torrents whose seed obligation is met, and keep every other one.\n\nRuns only under PERSONALSCRAPER_ENV=staging. Prints one line per decision\n(verdict, info hash, name), then a summary.",
       "dry_run_help": "Decide and report only: nothing is deleted, released or journaled.",
       "max_help": "The most torrents this run deletes.",
-      "not_staging": "The purge runs only in the preprod (PERSONALSCRAPER_ENV=staging); this process is {env}.",
-      "client_error": "The torrent client could not list its torrents: {error}",
-      "summary": "Purged {purged}, kept {kept}.",
-      "summary_dry_run": "Dry run: would purge {purged}, keep {kept}.",
-      "decision": "{verdict}\t{info_hash}\t{name}",
-      "refused": "The purge is refused: {reason}"
+      "not_staging": "The purge runs only in the preprod (PERSONALSCRAPER_ENV=staging); this process is {{env}}.",
+      "client_error": "The torrent client could not list its torrents: {{error}}",
+      "summary": "Purged {{purged}}, kept {{kept}}.",
+      "summary_dry_run": "Dry run: would purge {{purged}}, keep {{kept}}.",
+      "decision": "{{verdict}}\t{{info_hash}}\t{{name}}",
+      "refused": "The purge is refused: {{reason}}"
     },
     "error_label": "Error:",
     "no_client": "No torrent client configured. Check config/torrent.json5."

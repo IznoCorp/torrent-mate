@@ -333,8 +333,11 @@ def seed_purge(
                 )
             )
         purged = sum(1 for d in decisions if d.verdict is PurgeVerdict.PURGED)
-        key = "summary_dry_run" if dry_run else "summary"
-        typer.echo(t(f"cli_acquisition.seed.purge.{key}", purged=purged, kept=len(decisions) - purged))
+        kept = len(decisions) - purged
+        if dry_run:
+            typer.echo(t("cli_acquisition.seed.purge.summary_dry_run", purged=purged, kept=kept))
+        else:
+            typer.echo(t("cli_acquisition.seed.purge.summary", purged=purged, kept=kept))
 
 
 # Register the seed sub-group on the root Typer app (import side-effect, called by cli.py).

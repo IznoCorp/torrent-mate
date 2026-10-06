@@ -472,6 +472,8 @@ def test_seed_purge_passes_dry_run_and_max_and_prints_one_line_per_decision(monk
     lines = result.output.splitlines()
     assert any("purged" in line and "aaaa" in line and "Release.A" in line for line in lines)
     assert any("kept_unknown" in line and "bbbb" in line for line in lines)
+    assert "{" not in result.output
+    assert "1" in lines[-1]
 
 
 def test_seed_purge_defaults_to_a_real_run_capped_at_20(monkeypatch):
