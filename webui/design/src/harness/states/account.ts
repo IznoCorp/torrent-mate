@@ -75,6 +75,31 @@ function chooseLanguageInProfile(language: "fr" | "en"): void {
   onLeave(() => forgetOwed(tapping));
 }
 
+// How long Profil waits before a session's « Mettre fin » is pressed, and before the confirmation's
+// own button is pressed after it opened.
+const PRESS_END_AFTER = 400;
+const PRESS_CONFIRM_AFTER = 900;
+
+/**
+ * Opens Profil, presses « Mettre fin » on the first other session and confirms the dialog that names
+ * it, the server answering as the state dialled.
+ */
+function endAnotherSession(): void {
+  applyState({ page: "profile", phase: "ready" });
+  // THE PRESSES ARE FORGOTTEN WHEN THE NEXT STATE IS DRIVEN: landing after it, they would end a
+  // session in a state that never asked.
+  const pressing = owed(() => {
+    document.querySelector<HTMLElement>('[data-part="profile/session"]:not([data-current]) [data-part="profile/session-end"]')?.click();
+  }, PRESS_END_AFTER);
+  const confirming = owed(() => {
+    document.querySelector<HTMLElement>('[data-part="dialog/button"][data-tone="danger"]')?.click();
+  }, PRESS_CONFIRM_AFTER);
+  onLeave(() => {
+    forgetOwed(pressing);
+    forgetOwed(confirming);
+  });
+}
+
 export function accountStates(): NamedState[] {
   return [
     [
@@ -104,6 +129,73 @@ export function accountStates(): NamedState[] {
       () => {
         window.__mocks?.setOperationOutcome("setOwnLanguage", { status: 403 });
         chooseLanguageInProfile("en");
+      },
+    ],
+    [
+      "profile-sessions",
+      "Profil — « Appareils connectés » : la session en cours nommée, deux autres révocables, une connexion à lire",
+      () => applyState({ page: "profile", phase: "ready" }),
+    ],
+    [
+      "profile-sessions-loading",
+      "Profil — « Appareils connectés » : le serveur n'a pas encore répondu",
+      () => {
+        window.__mocks?.setOperationOutcome("readOwnSessions", { latencyMilliseconds: HELD_FOR });
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "profile-sessions-only-current",
+      "Profil — « Appareils connectés » : aucune autre session que celle en cours",
+      () => {
+        window.__mocks?.poseOnlyCurrentSession();
+        window.__mocks?.poseNoNotices();
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "profile-sessions-load-failed",
+      "Profil — « Appareils connectés » : les sessions ne se lisent pas, un bouton pour réessayer",
+      () => {
+        window.__mocks?.setOperationOutcome("readOwnSessions", { status: 500 });
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "profile-sessions-revoking",
+      "Profil — « Appareils connectés » : la fin d'une session est confirmée, le serveur n'a pas encore répondu",
+      () => {
+        window.__mocks?.setOperationOutcome("revokeOwnSession", { latencyMilliseconds: HELD_FOR });
+        endAnotherSession();
+      },
+    ],
+    [
+      "profile-sessions-revoke-failed",
+      "Profil — « Appareils connectés » : le serveur refuse de fermer la session, elle reste ouverte et le dit",
+      () => {
+        window.__mocks?.setOperationOutcome("revokeOwnSession", { status: 404 });
+        endAnotherSession();
+      },
+    ],
+    [
+      "profile-sessions-offline",
+      "Profil — « Appareils connectés » : hors connexion, la fin de la session est retenue et dite comme telle",
+      () => {
+        endAnotherSession();
+        // THE NETWORK GOES DOWN AFTER THE LIST IS READ: the end is then held, not refused.
+        const down = owed(() => window.__mocks?.setOffline(true), PRESS_END_AFTER / 2);
+        onLeave(() => {
+          forgetOwed(down);
+          window.__mocks?.setOffline(false);
+        });
+      },
+    ],
+    [
+      "profile-notices-read",
+      "Profil — « Connexions récentes » : toutes lues, plus de bouton pour les marquer",
+      () => {
+        window.__mocks?.poseNoticesRead();
+        applyState({ page: "profile", phase: "ready" });
       },
     ],
     [

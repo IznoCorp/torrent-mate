@@ -1183,6 +1183,37 @@
       "identifierSub": "set in the configuration, not here",
       "address": "E-mail address",
       "session": "Your session",
+      "sessions": {
+        "heading": "Connected devices",
+        "intro": "The sessions open on your account. If you do not recognise one, end it: its next request is refused.",
+        "loading": "Reading your sessions…",
+        "loadFailed": "Your sessions cannot be read right now.",
+        "retry": "Try again",
+        "unknownDevice": "Unknown device",
+        "current": "This device",
+        "lastSeen": "Last active {{moment}}",
+        "openedAt": "opened {{moment}}",
+        "onlyCurrent": "No other session is open on your account.",
+        "end": "End session",
+        "ending": "Ending…",
+        "held": "Offline: ending this session will go through when the network is back.",
+        "refused": "This session could not be ended.",
+        "confirm": {
+          "heading": "End this session?",
+          "bodyBefore": "The session on ",
+          "bodyAfter": " will be closed at once: its next request is refused and its holder has to sign in again.",
+          "confirm": "End session",
+          "cancel": "Cancel"
+        },
+        "notices": {
+          "heading": "Recent sign-ins",
+          "new": "New",
+          "markAll": "Mark all as read",
+          "marking": "Marking…",
+          "markFailed": "The sign-ins could not be marked as read.",
+          "none": "No recent sign-in to report."
+        }
+      },
       "duration": "Duration",
       "durationValue": "30 days",
       "durationSub": "unused — every use extends it",

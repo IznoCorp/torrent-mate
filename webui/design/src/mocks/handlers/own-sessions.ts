@@ -38,6 +38,30 @@ function subject(): Held {
   return found;
 }
 
+/** The dials a named state turns to pose the subject no verb leaves it in. */
+export type OwnSessionDials = {
+  /** The account's other sessions are all gone: only the session in hand is left. */
+  poseOnlyCurrentSession: () => void;
+  /** Every notice of the account is marked read. */
+  poseNoticesRead: () => void;
+  /** The account has no notice at all. */
+  poseNoNotices: () => void;
+};
+
+/** Those dials, over the subject. */
+export const ownSessionDials: OwnSessionDials = {
+  poseOnlyCurrentSession: () => {
+    const state = subject();
+    state.sessions = state.sessions.filter((one) => one.current);
+  },
+  poseNoticesRead: () => {
+    for (const notice of subject().notices) notice.readAt ??= Math.floor(Date.now() / MILLISECONDS);
+  },
+  poseNoNotices: () => {
+    subject().notices = [];
+  },
+};
+
 export function ownSessionRoutes(): MockRoute[] {
   return [
     route("readOwnSessions", GET, "/auth/sessions", () => ({ sessions: subject().sessions })),

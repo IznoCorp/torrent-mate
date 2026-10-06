@@ -1183,6 +1183,37 @@
       "identifierSub": "défini dans la configuration, pas ici",
       "address": "Adresse e-mail",
       "session": "Votre session",
+      "sessions": {
+        "heading": "Appareils connectés",
+        "intro": "Les sessions ouvertes sur votre compte. Une session que vous ne reconnaissez pas : mettez-y fin, elle sera refusée dès sa prochaine requête.",
+        "loading": "Lecture de vos sessions…",
+        "loadFailed": "Vos sessions ne peuvent pas être lues pour le moment.",
+        "retry": "Réessayer",
+        "unknownDevice": "Appareil inconnu",
+        "current": "Cet appareil",
+        "lastSeen": "Dernière activité {{moment}}",
+        "openedAt": "ouverte {{moment}}",
+        "onlyCurrent": "Aucune autre session n'est ouverte sur votre compte.",
+        "end": "Mettre fin",
+        "ending": "Fin en cours…",
+        "held": "Hors connexion : la fin de cette session partira au retour du réseau.",
+        "refused": "Cette session n'a pas pu être fermée.",
+        "confirm": {
+          "heading": "Mettre fin à cette session ?",
+          "bodyBefore": "La session de ",
+          "bodyAfter": " sera fermée à l'instant : sa prochaine requête sera refusée et son titulaire devra se reconnecter.",
+          "confirm": "Mettre fin à la session",
+          "cancel": "Annuler"
+        },
+        "notices": {
+          "heading": "Connexions récentes",
+          "new": "Nouveau",
+          "markAll": "Tout marquer comme lu",
+          "marking": "Marquage…",
+          "markFailed": "Les connexions n'ont pas pu être marquées comme lues.",
+          "none": "Aucune connexion récente à signaler."
+        }
+      },
       "duration": "Durée",
       "durationValue": "30 jours",
       "durationSub": "sans utilisation — chaque usage la prolonge",

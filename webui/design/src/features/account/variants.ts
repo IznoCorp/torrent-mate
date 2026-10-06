@@ -28,3 +28,41 @@ export const accountBody = cva("account-body", {
   variants: { cut: { true: "[&_.fn]:text-muted-foreground [&_.fr]:opacity-70", false: "" } },
   defaultVariants: { cut: false },
 });
+
+/**
+ * One session of « Appareils connectés », by where it stands. THE STATE IS THE NAMED STATE'S
+ * OWN: the current session is the device in hand and is never revocable; another one is at
+ * rest, being ended (muted while the server is asked), held (ended once the network is back),
+ * or refused (said under it, the session still live).
+ *
+ * `session-row` is its identity and carries no style: a factory's anchor is the first token of
+ * its base.
+ */
+export const sessionRow = cva("session-row", {
+  variants: {
+    state: {
+      current: "",
+      rest: "",
+      ending: "opacity-60",
+      held: "opacity-70",
+      refused: "",
+    },
+  },
+  defaultVariants: { state: "rest" },
+});
+
+/**
+ * One sign-in notice, by whether the account has read it: an unread one leads with a bar in
+ * the accent and a heavier line, a read one is muted.
+ *
+ * `notice-row` is its identity and carries no style.
+ */
+export const noticeRow = cva("notice-row", {
+  variants: {
+    unread: {
+      true: "[border-inline-start:3px_solid_var(--color-primary)] pl-4 font-semibold",
+      false: "text-muted-foreground [border-inline-start:3px_solid_transparent] pl-4",
+    },
+  },
+  defaultVariants: { unread: false },
+});
