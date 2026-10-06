@@ -157,11 +157,11 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 52 production event classes, almost all
+The v1 catalog defines exactly 55 production event classes, almost all
 imported eagerly by `personalscraper.events` (plus the registry events
 re-exported via `personalscraper.api.metadata.registry`) so they
 self-register before any envelope round-trip. The count is pinned by
-`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 52`).
+`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 55`).
 
 > **Exception — `VerifyItemDone`.** Unlike the other 51 classes,
 > `VerifyItemDone` is **not** in the eager-import list of

@@ -12,6 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.supervisor.events import RunAdmitted, RunQueued, RunSettled
+from personalscraper.app.supervisor.ids import RunUid
+from personalscraper.app.supervisor.model import RunKind, RunTrigger, Settlement
 from personalscraper.core.circuit import (
     CircuitBreakerClosed,
     CircuitBreakerHalfOpened,
@@ -228,6 +231,31 @@ def make_account_rights_changed() -> AccountRightsChanged:
         account_ids=("account-3f2a9c1e", "account-77b04d10"),
         cause=RightsChangeCause.ROLE_RIGHTS_CHANGED,
     )
+
+
+# ---------------------------------------------------------------------------
+# k4a-queue-model feature — the supervisor's queue of asked runs
+# ---------------------------------------------------------------------------
+
+_SAMPLE_RUN_UID = RunUid("0123456789abcdef0123456789abcdef")
+
+
+@register_factory(RunQueued)
+def make_run_queued() -> RunQueued:
+    """Realistic :class:`RunQueued` factory."""
+    return RunQueued(uid=_SAMPLE_RUN_UID, kind=RunKind.PIPELINE, trigger=RunTrigger.WEB, joined=False)
+
+
+@register_factory(RunAdmitted)
+def make_run_admitted() -> RunAdmitted:
+    """Realistic :class:`RunAdmitted` factory."""
+    return RunAdmitted(uid=_SAMPLE_RUN_UID, kind=RunKind.PIPELINE)
+
+
+@register_factory(RunSettled)
+def make_run_settled() -> RunSettled:
+    """Realistic :class:`RunSettled` factory."""
+    return RunSettled(uid=_SAMPLE_RUN_UID, kind=RunKind.RESCRAPE, settlement=Settlement.SUCCESS)
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """Unit tests for the accounts migrations of ``app.db`` — ``002_accounts.sql`` to ``006_account_language.sql``.
 
-A fresh file reaches version 6 with the five seeded roles; an existing file keeps its push
+A fresh file reaches version 7 with the five seeded roles; an existing file keeps its push
 subscriptions through ``003``'s rebuild, and a subscription naming no account makes the
 migration fail loud, the runner restoring the file as it stood before ``003``. ``004`` gives
 every account, existing or new, ``sign_in_allowed = 1``; ``005`` leaves every account not demoted;
@@ -106,9 +106,9 @@ def fresh(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 class TestFreshFile:
     """A file created today holds the whole schema and the five seeded roles."""
 
-    def test_reaches_version_six(self, fresh: sqlite3.Connection) -> None:
+    def test_reaches_version_seven(self, fresh: sqlite3.Connection) -> None:
         """Every migration applied."""
-        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 7
 
     def test_seeds_the_five_roles_with_their_kinds_and_no_name(self, fresh: sqlite3.Connection) -> None:
         """The maquette's five roles; a seeded role carries no name (its id is translated by the interface)."""
@@ -268,7 +268,7 @@ class TestExistingFile:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 6
+        assert _user_version(db_path) == 7
         conn = _connect(db_path)
         try:
             rows = conn.execute(f"SELECT {_PUSH_COLUMNS} FROM push_subscription").fetchall()  # noqa: S608 — fixed names
@@ -333,7 +333,7 @@ class TestAccountAccessMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 6
+        assert _user_version(db_path) == 7
         assert account is not None
         assert account.sign_in_allowed is True
         assert (account.name, account.email, account.role_id, account.password_hash) == (
@@ -365,7 +365,7 @@ class TestAccountDemotionMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 6
+        assert _user_version(db_path) == 7
         assert account is not None
         assert account.demoted_from is None
         assert (account.role_id, account.password_hash, account.sign_in_allowed) == ("household", "h", False)
@@ -396,7 +396,7 @@ class TestAccountLanguageMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 6
+        assert _user_version(db_path) == 7
         assert account is not None
         assert account.language == "fr"
         assert (account.role_id, account.password_hash, account.sign_in_allowed, account.demoted_from) == (

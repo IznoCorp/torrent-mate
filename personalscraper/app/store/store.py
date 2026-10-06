@@ -33,6 +33,8 @@ from personalscraper.app.accounts.role_repository import RoleRepository
 from personalscraper.app.accounts.session_repository import SessionRepository
 from personalscraper.app.store.errors import AppMigrationError
 from personalscraper.app.store.setting_repository import SettingRepository
+from personalscraper.app.supervisor.lease_repository import LeaseRepository
+from personalscraper.app.supervisor.queue_repository import QueueRepository
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.sqlite import apply_migrations, db_lock, open_db, safe_rollback
 from personalscraper.logger import get_logger
@@ -67,6 +69,8 @@ class AppStore:
         self._sessions: SessionRepository | None = None
         self._pins: PlexPinRepository | None = None
         self._settings: SettingRepository | None = None
+        self._runs: QueueRepository | None = None
+        self._lease: LeaseRepository | None = None
         self._closed = False
         # ``db_lock`` serialises open + migrate across processes only; this one serialises
         # the threads of one process, so concurrent first accesses open a single connection.
@@ -206,6 +210,30 @@ class AppStore:
             self._settings = SettingRepository(conn, lock=self._conn_lock)
         return self._settings
 
+    @property
+    def runs(self) -> QueueRepository:
+        """The queue of asked runs (opens, and migrates, the store on first access).
+
+        Returns:
+            The queue repository over this store's connection.
+        """
+        conn = self._ensure_open()
+        if self._runs is None:
+            self._runs = QueueRepository(conn, lock=self._conn_lock)
+        return self._runs
+
+    @property
+    def lease(self) -> LeaseRepository:
+        """The supervisor's lease (opens, and migrates, the store on first access).
+
+        Returns:
+            The lease repository over this store's connection.
+        """
+        conn = self._ensure_open()
+        if self._lease is None:
+            self._lease = LeaseRepository(conn, lock=self._conn_lock)
+        return self._lease
+
     def close(self) -> None:
         """Close the connection if it was opened; idempotent and fail-soft."""
         # Under the open lock: a first access still opening finishes first, and its
@@ -218,6 +246,8 @@ class AppStore:
             self._sessions = None
             self._pins = None
             self._settings = None
+            self._runs = None
+            self._lease = None
             if self._conn is None:
                 return
             try:

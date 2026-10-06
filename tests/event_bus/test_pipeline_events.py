@@ -148,15 +148,18 @@ def test_event_registry_has_all_v1_events() -> None:
     rights moved (→ 51).
     The ``preprod-purge`` feature adds ``PreprodPurgeCompleted`` — the preprod's
     nightly purge ran (→ 52).
+    The ``k4a-queue-model`` feature adds ``RunQueued``, ``RunAdmitted`` and ``RunSettled`` —
+    the supervisor's queue of asked runs (→ 55).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/production/event-bus.md``.
     """
     import personalscraper.app.accounts.events  # noqa: F401 — registers E8 (the catalog does not import app)
+    import personalscraper.app.supervisor.events  # noqa: F401 — registers RunQueued, RunAdmitted, RunSettled
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 52, (
-        f"Expected 52 events (51 existing + preprod-purge PreprodPurgeCompleted), "
+    assert len(_EVENT_CLASS_REGISTRY) == 55, (
+        f"Expected 55 events (52 existing + the three run-queue events), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
