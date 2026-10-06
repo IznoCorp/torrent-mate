@@ -8,6 +8,7 @@
 // THE CURRENT SESSION IS NAMED AND NEVER OFFERED « Mettre fin » (signing out is the page's own
 // button): the server refuses it too (`session.current`). Every other session carries one, and it
 // asks first — a confirmation that names the device — because ending a session cannot be undone.
+// The end is the registered verb `session-end` (`session-end.ts`), so the consent rule covers it.
 //
 // THE STATES ARE NAMED in `variants.ts` and in the harness: loading, the list, only the current
 // session, one being ended, a refusal, and the network down (the end is HELD by the outbox and
@@ -15,29 +16,25 @@
 //
 // THE NOTICES SIT UNDER THE LIST, newest first, an unread one distinguished. They are marked read
 // by the account's own press, « Tout marquer comme lu », which names the newest notice it saw: one
-// raised meanwhile is not marked unseen.
-import { useState, type ReactElement } from "react";
+// raised meanwhile is not marked unseen. THEIR STATES ARE NAMED TOO — being read, failed to read
+// (with a retry), none to report, the mark being written, refused, or HELD offline (said, and the
+// button off so the mark is not queued twice) — because nothing happens in silence.
+import { useEffect, useState, type ReactElement } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { momentOf } from "../../lib/clock";
-import { dialog } from "../../lib/shell-doors";
 import { HELD, read, send } from "../../lib/query-client";
-import { refusalWords } from "../../lib/refusal";
 import { Chip } from "../../ui/chip";
-import { actionButton, factsPanel, guidance, keyValueRow, qualityHint, sectionHeading, settingRow, surfaceError } from "../../ui/variants";
-import { noticeRow, sessionRow } from "./variants";
+import { actionButton, factsPanel, guidance, keyValueRow, loadError, loadErrorAction, qualityHint, sectionHeading, settingRow, surfaceError } from "../../ui/variants";
+import { forgetEndings, SESSIONS_KEY, useEndings, WORDS } from "./session-end";
+import { noticeRow, noticesBlock, sessionRow } from "./variants";
 import type { components } from "../../contract/types";
 
 type OwnSession = components["schemas"]["OwnSession"];
 type Notice = components["schemas"]["Notice"];
 
-const SESSIONS_KEY = ["/api/v1/auth/sessions"];
 const NOTICES_KEY = ["/api/v1/notices"];
-const WORDS = "screens.accountPage.sessions";
-
-/** Where one session's end stands, by session id: asked of the server, held offline, or refused with words. */
-type Ending = { kind: "ending" } | { kind: "held" } | { kind: "refused"; words: string };
 
 /**
  * The account's live sessions, read from the server.
@@ -70,49 +67,10 @@ function useNotices() {
  */
 export function SessionsSection(): ReactElement {
   const { t } = useTranslation();
-  const client = useQueryClient();
   const sessions = useOwnSessions();
-  const [endings, setEndings] = useState<Record<number, Ending>>({});
-
-  function settle(id: number, ending: Ending | null): void {
-    setEndings((held) => {
-      const { [id]: _gone, ...rest } = held;
-      return ending === null ? rest : { ...rest, [id]: ending };
-    });
-  }
-
-  async function end(session: OwnSession): Promise<void> {
-    settle(session.id, { kind: "ending" });
-    try {
-      const answer = await send("DELETE", `/api/v1/auth/sessions/${session.id}`);
-      // HELD: the network is down and the outbox keeps the end — it is not done, and is not shown as done.
-      if (answer === HELD) return settle(session.id, { kind: "held" });
-      settle(session.id, null);
-      await client.invalidateQueries({ queryKey: SESSIONS_KEY });
-    } catch (refused) {
-      settle(session.id, { kind: "refused", words: refusalWords(refused, `${WORDS}.refused`) });
-      await client.invalidateQueries({ queryKey: SESSIONS_KEY });
-    }
-  }
-
-  function confirmEnd(session: OwnSession): void {
-    const device = session.device ?? t(`${WORDS}.unknownDevice`);
-    dialog?.open({
-      heading: t(`${WORDS}.confirm.heading`),
-      body: [{
-        type: "paragraph",
-        runs: [
-          { text: t(`${WORDS}.confirm.bodyBefore`) },
-          { text: device, strong: true },
-          { text: t(`${WORDS}.confirm.bodyAfter`) },
-        ],
-      }],
-      actions: [
-        { text: t(`${WORDS}.confirm.confirm`), tone: "danger", run: () => void end(session) },
-        { text: t(`${WORDS}.confirm.cancel`), tone: "ghost", dismiss: true },
-      ],
-    });
-  }
+  const endings = useEndings();
+  // A visit starts from the server's list: an end still held when Profil was left is not carried over.
+  useEffect(() => forgetEndings, []);
 
   const others = sessions.data?.sessions.filter((one) => !one.current) ?? [];
   const state = sessions.isError ? "failed" : sessions.data === undefined ? "loading" : others.length === 0 ? "only-current" : "list";
@@ -125,9 +83,9 @@ export function SessionsSection(): ReactElement {
         <p className={qualityHint()} role="status" data-part="profile/sessions-loading">{t(`${WORDS}.loading`)}</p>
       ) : null}
       {state === "failed" ? (
-        <div className={surfaceError({ tone: "danger" })} role="alert" data-part="profile/sessions-failed">
+        <div className={loadError()} role="alert" data-part="profile/sessions-failed">
           <b>{t(`${WORDS}.loadFailed`)}</b>
-          <button type="button" onClick={() => void sessions.refetch()}>{t(`${WORDS}.retry`)}</button>
+          <button type="button" className={loadErrorAction()} onClick={() => void sessions.refetch()}>{t(`${WORDS}.retry`)}</button>
         </div>
       ) : null}
       {sessions.data ? (
@@ -157,7 +115,7 @@ export function SessionsSection(): ReactElement {
                 </div>
                 {session.current || ending?.kind === "held" ? null : (
                   <button type="button" className={actionButton({ kind: "panelAction" })} data-part="profile/session-end"
-                    disabled={ending?.kind === "ending"} onClick={() => confirmEnd(session)}>
+                    data-session-end={session.id} disabled={ending?.kind === "ending"}>
                     {t(ending?.kind === "ending" ? `${WORDS}.ending` : `${WORDS}.end`)}
                   </button>
                 )}
@@ -177,54 +135,82 @@ export function SessionsSection(): ReactElement {
 /**
  * The sign-in notices of the account, the unread ones distinguished and marked read by a press.
  *
- * @returns The list, or nothing while the account has no notice.
+ * @returns The block, in the state the read and the mark are in.
  */
-function NoticesList(): ReactElement | null {
+function NoticesList(): ReactElement {
   const { t } = useTranslation();
   const client = useQueryClient();
-  const { data } = useNotices();
-  const [marking, setMarking] = useState<"rest" | "marking" | "failed">("rest");
-  if (!data || data.notices.length === 0) return null;
-  const unread = data.notices.filter((one) => one.readAt === undefined);
+  const notices = useNotices();
+  const [marking, setMarking] = useState<"rest" | "marking" | "failed" | "held">("rest");
+  const list = notices.data?.notices ?? [];
+  const unread = list.filter((one) => one.readAt === undefined);
+  const state = notices.isError ? "failed"
+    : notices.data === undefined ? "loading"
+      : list.length === 0 ? "empty"
+        : marking === "marking" ? "marking"
+          : marking === "failed" ? "mark-failed"
+            : marking === "held" && unread.length > 0 ? "held"
+              : "list";
   // THE NEWEST NOTICE THE ACCOUNT SAW: one raised after it has a higher id and stays unread.
-  const newest = Math.max(...data.notices.map((one) => one.id));
+  const newest = Math.max(0, ...list.map((one) => one.id));
 
   async function markAll(): Promise<void> {
+    // ONE WRITE AT A TIME: a press while one is asked or held queues nothing more.
+    if (marking === "marking" || marking === "held") return;
     setMarking("marking");
     try {
       const answer = await send("POST", "/api/v1/notices/read", { upTo: newest });
+      // HELD offline: the mark is not done and is not shown as done; a refetch would only put the
+      // unread marks back over it, so none is asked and the button stays off.
+      if (answer === HELD) return setMarking("held");
       setMarking("rest");
-      // HELD offline: nothing new to show, and a refetch would put the unread marks back over it.
-      if (answer !== HELD) await client.invalidateQueries({ queryKey: NOTICES_KEY });
+      await client.invalidateQueries({ queryKey: NOTICES_KEY });
     } catch {
       setMarking("failed");
     }
   }
 
   return (
-    <div data-part="profile/notices" data-unread={unread.length}>
+    <div className={noticesBlock({ state })} data-part="profile/notices" data-state={state} data-unread={unread.length}>
       <h3 className={sectionHeading()} data-part="heading">{t(`${WORDS}.notices.heading`)}</h3>
-      <div className={factsPanel()} data-part="panel">
-        {data.notices.map((notice) => (
-          <div key={notice.id} className={`${keyValueRow()} ${noticeRow({ unread: notice.readAt === undefined })}`}
-            data-part="profile/notice" data-notice-code={notice.code} data-unread={notice.readAt === undefined || undefined}>
-            <div className="min-w-0">
-              <div>{t(`notices.${notice.code}`, notice.params)}</div>
-              <div className={qualityHint()}>{momentOf(notice.createdAt)}</div>
+      {state === "loading" ? (
+        <p className={qualityHint()} role="status" data-part="profile/notices-loading">{t(`${WORDS}.notices.loading`)}</p>
+      ) : null}
+      {state === "failed" ? (
+        <div className={loadError()} role="alert" data-part="profile/notices-failed">
+          <b>{t(`${WORDS}.notices.loadFailed`)}</b>
+          <button type="button" className={loadErrorAction()} onClick={() => void notices.refetch()}>{t(`${WORDS}.retry`)}</button>
+        </div>
+      ) : null}
+      {state === "empty" ? (
+        <p className={qualityHint()} data-part="profile/notices-none">{t(`${WORDS}.notices.none`)}</p>
+      ) : null}
+      {list.length > 0 ? (
+        <div className={factsPanel()} data-part="panel">
+          {list.map((notice) => (
+            <div key={notice.id} className={`${keyValueRow()} ${noticeRow({ unread: notice.readAt === undefined })}`}
+              data-part="profile/notice" data-notice-code={notice.code} data-unread={notice.readAt === undefined || undefined}>
+              <div className="min-w-0">
+                <div>{t(`notices.${notice.code}`, notice.params)}</div>
+                <div className={qualityHint()}>{momentOf(notice.createdAt)}</div>
+              </div>
+              {notice.readAt === undefined ? <Chip tone="info" label={t(`${WORDS}.notices.new`)} /> : null}
             </div>
-            {notice.readAt === undefined ? <Chip tone="info" label={t(`${WORDS}.notices.new`)} /> : null}
-          </div>
-        ))}
-      </div>
-      {marking === "failed" ? (
+          ))}
+        </div>
+      ) : null}
+      {state === "mark-failed" ? (
         <p className={surfaceError({ tone: "danger" })} role="status" data-part="profile/notices-refusal">
           {t(`${WORDS}.notices.markFailed`)}
         </p>
       ) : null}
+      {state === "held" ? (
+        <p className={qualityHint()} role="status" data-part="profile/notices-held">{t(`${WORDS}.notices.held`)}</p>
+      ) : null}
       {unread.length > 0 ? (
         <button type="button" className={actionButton({ kind: "cardFoot" })} data-part="profile/notices-mark"
-          disabled={marking === "marking"} onClick={() => void markAll()}>
-          {t(marking === "marking" ? `${WORDS}.notices.marking` : `${WORDS}.notices.markAll`)}
+          disabled={state === "marking" || state === "held"} onClick={() => void markAll()}>
+          {t(state === "marking" ? `${WORDS}.notices.marking` : `${WORDS}.notices.markAll`)}
         </button>
       ) : null}
     </div>

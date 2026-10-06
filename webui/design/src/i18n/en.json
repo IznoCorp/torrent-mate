@@ -1192,7 +1192,6 @@
         "unknownDevice": "Unknown device",
         "current": "This device",
         "lastSeen": "Last active {{moment}}",
-        "openedAt": "opened {{moment}}",
         "onlyCurrent": "No other session is open on your account.",
         "end": "End session",
         "ending": "Ending…",
@@ -1207,6 +1206,9 @@
         },
         "notices": {
           "heading": "Recent sign-ins",
+          "loading": "Reading your sign-ins…",
+          "loadFailed": "Your sign-ins cannot be read right now.",
+          "held": "Offline: the mark will go through when the network is back.",
           "new": "New",
           "markAll": "Mark all as read",
           "marking": "Marking…",

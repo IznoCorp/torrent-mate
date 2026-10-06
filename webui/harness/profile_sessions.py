@@ -8,14 +8,19 @@ R528-a — « Appareils connectés » on the seeded account:
    « Cet appareil » chip and NO « Mettre fin », every other one carries it;
 2. a press on « Mettre fin » opens a confirmation that NAMES the device and sends nothing: cancelled,
    the list is unchanged; confirmed, the session leaves the list;
-3. the sign-in notices are drawn newest first, the unread ones distinguished, and « Tout marquer comme
-   lu » leaves none unread and removes itself.
+3. the sign-in notices are drawn newest first (by the time each one says), the unread ones
+   distinguished, and « Tout marquer comme lu » sends `markNoticesRead` ONCE with `upTo` the highest
+   notice id the list drew, leaves none unread and removes itself.
 
 R528-b — the surface's own named states:
 4. `profile-sessions-loading`, `-only-current`, `-load-failed`, `-revoking`, `-revoke-failed`, `-offline`
    and `profile-notices-read` exist and each says what it is: the loading line, the « no other session »
    line, the retry alert, the row being ended with its button disabled, the refusal under the row, the
    held line with no button, and no unread notice;
+   the notices' own `profile-notices-loading`, `-load-failed`, `-empty`, `-marking`, `-mark-failed` and
+   `-held` say what they are: the loading line, the retry alert, the « none to report » line, the button
+   disabled while the mark is written, the refusal with the notices still unread, and the held line with
+   the button off and ONE write only after a second press;
 5. at 390 px the page does not scroll sideways with the section drawn.
 
 Red on `origin/develop`: Profil draws no sessions and no notices, and none of these states exists.
@@ -78,6 +83,14 @@ READ = """() => {
     retry: section?.querySelector('[data-part="profile/sessions-failed"] button') !== null,
     onlyCurrent: text(section?.querySelector('[data-part="profile/sessions-only-current"]')),
     notices: notices.map((notice) => ({ code: notice.dataset.noticeCode, unread: notice.hasAttribute('data-unread'), text: text(notice.querySelector('div > div')) })),
+    noticesState: section?.querySelector('[data-part="profile/notices"]')?.dataset.state ?? null,
+    noticesLoading: text(section?.querySelector('[data-part="profile/notices-loading"]')),
+    noticesFailed: text(section?.querySelector('[data-part="profile/notices-failed"] b')),
+    noticesRetry: section?.querySelector('[data-part="profile/notices-failed"] button') !== null,
+    noticesNone: text(section?.querySelector('[data-part="profile/notices-none"]')),
+    noticesRefusal: text(section?.querySelector('[data-part="profile/notices-refusal"]')),
+    noticesHeld: text(section?.querySelector('[data-part="profile/notices-held"]')),
+    markDisabled: section?.querySelector('[data-part="profile/notices-mark"]')?.disabled ?? null,
     mark: section?.querySelector('[data-part="profile/notices-mark"]') !== null,
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
   };
@@ -89,6 +102,23 @@ DIALOG = """() => {
     open: dialog?.getAttribute('data-open') !== null && dialog?.getAttribute('data-open') !== 'false',
     text: dialog?.textContent ?? '',
     buttons: [...document.querySelectorAll('[data-part="dialog/button"]')].map((one) => one.textContent.trim()),
+  };
+}"""
+
+# The notices as the server answers them: the order the list draws is the order of these ids.
+LISTED = """async () => ({ ids: ((await (await fetch('/api/v1/notices')).json()).notices ?? []).map((one) => one.id) })"""
+
+# How many writes the outbox holds back: a mark held offline is one, and a second press adds none.
+OUTBOX = """()=>window.__outbox.depth()"""
+
+# What the page sends to `POST /notices/read`: the layer's own record keeps no body, so the page's
+# `fetch` is wrapped once to keep the bodies a press sends.
+WATCH_MARK = """()=>{
+  window.__markBodies = [];
+  const send = window.fetch;
+  window.fetch = (input, init) => {
+    if (String(input?.url ?? input).includes('/notices/read')) window.__markBodies.push(JSON.parse(init?.body ?? 'null'));
+    return send(input, init);
   };
 }"""
 
@@ -109,6 +139,11 @@ async def exists(page, state):
 
 
 async def main():
+    """Run R528 against the prototype: the section on the seeded account, then each named state.
+
+    Reads the French words from `fr.json`, drives the section by its own buttons, and ends with
+    the journal's summary, which sets the exit status.
+    """
     journal = Journal("R528 — Profil lists the account's sessions, each revocable, and its notices are marked read")
     errors = []
     async with async_playwright() as playwright:
@@ -173,12 +208,20 @@ async def main():
 
         seen = await read_at(page, "profile-sessions", READ)
         unread = [one for one in seen["notices"] if one["unread"]]
+        listed = await page.evaluate(LISTED)
+        journal.check(
+            "the notices are drawn newest first: the ids fall down the list",
+            len(listed["ids"]) == 3 and listed["ids"] == sorted(listed["ids"], reverse=True),
+            f"{listed['ids']}",
+        )
+        newest_id = max(listed["ids"], default=None)
         journal.check(
             "the notices are drawn, the unread ones distinguished and worded in the interface's language",
             len(seen["notices"]) == 3 and len(unread) == 2 and seen["mark"],
             f"{len(seen['notices'])} notices · {len(unread)} unread · {[one['text'] for one in seen['notices']]}",
         )
         if seen["mark"]:
+            await page.evaluate(WATCH_MARK)
             await page.click('[data-part="profile/notices-mark"]')
             await page.wait_for_timeout(ANSWERED)
             await settle(page)
@@ -194,6 +237,12 @@ async def main():
                 len(marked) == 1 and marked[0]["status"] == 200,
                 f"{marked}",
             )
+            bodies = await page.evaluate("()=>window.__markBodies")
+            journal.check(
+                "the read mark names the newest notice the list drew (`upTo`)",
+                bodies == [{"upTo": newest_id}],
+                f"sent {bodies} · newest {newest_id}",
+            )
 
         # ── R528-b: the named states ───────────────────────────────────────
         states = (
@@ -204,6 +253,12 @@ async def main():
             "profile-sessions-revoke-failed",
             "profile-sessions-offline",
             "profile-notices-read",
+            "profile-notices-loading",
+            "profile-notices-load-failed",
+            "profile-notices-empty",
+            "profile-notices-marking",
+            "profile-notices-mark-failed",
+            "profile-notices-held",
         )
         for state in states:
             journal.check(f"the named state {state} exists", await exists(page, state), state)
@@ -261,6 +316,69 @@ async def main():
                 "all read: no notice is unread and no button is offered",
                 bool(seen["notices"]) and not any(one["unread"] for one in seen["notices"]) and not seen["mark"],
                 f"{[one['unread'] for one in seen['notices']]} · mark {seen['mark']}",
+            )
+
+        if await exists(page, "profile-notices-loading"):
+            seen = await read_at(page, "profile-notices-loading", READ)
+            journal.check(
+                "notices loading: the line says so and no notice is drawn yet",
+                seen["noticesState"] == "loading"
+                and seen["noticesLoading"] == words("notices.loading")
+                and not seen["notices"],
+                f"{seen['noticesState']} · {seen['noticesLoading']!r}",
+            )
+        if await exists(page, "profile-notices-load-failed"):
+            seen = await read_at(page, "profile-notices-load-failed", READ)
+            journal.check(
+                "notices read failed: said, with a button to try again",
+                seen["noticesState"] == "failed"
+                and seen["noticesFailed"] == words("notices.loadFailed")
+                and seen["noticesRetry"],
+                f"{seen['noticesState']} · {seen['noticesFailed']!r} · retry {seen['noticesRetry']}",
+            )
+        if await exists(page, "profile-notices-empty"):
+            seen = await read_at(page, "profile-notices-empty", READ)
+            journal.check(
+                "no notice: the block says none is to report, and offers no mark",
+                seen["noticesState"] == "empty" and seen["noticesNone"] == words("notices.none") and not seen["mark"],
+                f"{seen['noticesState']} · {seen['noticesNone']!r} · mark {seen['mark']}",
+            )
+        if await exists(page, "profile-notices-marking"):
+            seen = await read_at(page, "profile-notices-marking", READ, wait=2 * ANSWERED)
+            journal.check(
+                "marking: the button says so and is disabled, the notices are still unread",
+                seen["noticesState"] == "marking" and seen["markDisabled"] is True
+                and any(one["unread"] for one in seen["notices"]),
+                f"{seen['noticesState']} · disabled {seen['markDisabled']}",
+            )
+        if await exists(page, "profile-notices-mark-failed"):
+            seen = await read_at(page, "profile-notices-mark-failed", READ, wait=2 * ANSWERED)
+            journal.check(
+                "mark refused: said in the interface's words, the notices still unread, the button still offered",
+                seen["noticesState"] == "mark-failed"
+                and seen["noticesRefusal"] == words("notices.markFailed")
+                and any(one["unread"] for one in seen["notices"])
+                and seen["mark"],
+                f"{seen['noticesState']} · {seen['noticesRefusal']!r}",
+            )
+        if await exists(page, "profile-notices-held"):
+            seen = await read_at(page, "profile-notices-held", READ, wait=2 * ANSWERED)
+            journal.check(
+                "offline: the mark is held and said so, never shown as done, and its button is off",
+                seen["noticesState"] == "held"
+                and seen["noticesHeld"] == words("notices.held")
+                and seen["markDisabled"] is True
+                and any(one["unread"] for one in seen["notices"]),
+                f"{seen['noticesState']} · {seen['noticesHeld']!r} · disabled {seen['markDisabled']}",
+            )
+            before = await page.evaluate(OUTBOX)
+            await page.evaluate("()=>document.querySelector('[data-part=\"profile/notices-mark\"]')?.click()")
+            await page.wait_for_timeout(SETTLED)
+            after = await page.evaluate(OUTBOX)
+            journal.check(
+                "a second press while held queues no second write",
+                after == before,
+                f"before {before} · after {after}",
             )
 
         seen = await read_at(page, "profile-sessions", READ)

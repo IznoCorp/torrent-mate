@@ -66,3 +66,26 @@ export const noticeRow = cva("notice-row", {
   },
   defaultVariants: { unread: false },
 });
+
+/**
+ * The block of sign-in notices, by where it stands. THE STATE IS THE NAMED STATE'S OWN: being
+ * read, unread-and-failed (said with a retry), none to report, the list, the mark being written,
+ * the mark refused (said, the notices still unread) or held (said; the network is down and the
+ * mark leaves with the outbox, so it is not offered twice).
+ *
+ * `notices-block` is its identity and carries no style.
+ */
+export const noticesBlock = cva("notices-block", {
+  variants: {
+    state: {
+      loading: "",
+      failed: "",
+      empty: "",
+      list: "",
+      marking: "",
+      "mark-failed": "",
+      held: "",
+    },
+  },
+  defaultVariants: { state: "list" },
+});

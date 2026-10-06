@@ -7,6 +7,8 @@
 import { signOut } from "../../app/entry";
 import { panel } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
+// « Mettre fin » on one of the account's other sessions: its own module registers the verb.
+import "./session-end";
 
 // The avatar carries the account's own name, valueless: what it opens is a KIND,
 // and `panel-account.ts` produces it.

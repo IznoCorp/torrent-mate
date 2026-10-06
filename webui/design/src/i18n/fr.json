@@ -1192,7 +1192,6 @@
         "unknownDevice": "Appareil inconnu",
         "current": "Cet appareil",
         "lastSeen": "Dernière activité {{moment}}",
-        "openedAt": "ouverte {{moment}}",
         "onlyCurrent": "Aucune autre session n'est ouverte sur votre compte.",
         "end": "Mettre fin",
         "ending": "Fin en cours…",
@@ -1207,6 +1206,9 @@
         },
         "notices": {
           "heading": "Connexions récentes",
+          "loading": "Lecture de vos connexions…",
+          "loadFailed": "Vos connexions ne peuvent pas être lues pour le moment.",
+          "held": "Hors connexion : le marquage partira au retour du réseau.",
           "new": "Nouveau",
           "markAll": "Tout marquer comme lu",
           "marking": "Marquage…",
