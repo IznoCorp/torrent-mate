@@ -685,3 +685,59 @@ pm2 delete torrentmate-web
 pm2 start ecosystem.config.js --only torrentmate-web
 pm2 save
 ```
+
+---
+
+## Store guard (store-guard) — explicit environment and newer-schema refusal
+
+From this change on, an unset or empty `PERSONALSCRAPER_ENV` is refused: no command reads it
+as prod any more. `ecosystem.config.js` sets `PERSONALSCRAPER_ENV: "prod"` on every app that
+runs the `personalscraper` binary (watch, `torrentmate-web`, `torrentmate-web-staging`, the
+eight scheduled jobs). Also, a store whose `PRAGMA user_version` is higher than the code's
+highest migration is refused at open (`store.schema_newer_than_code` in the log, with
+`path`, `found`, `known`): nothing is migrated or written.
+
+`scripts/deploy.sh` and `scripts/deploy-staging.sh` restart only the two web apps (with
+`--update-env`). The watch daemon and the scheduled-job loops keep the environment PM2
+saved, and the Monday reboot resurrects that saved environment. So the reload below is
+done ONCE, BEFORE this code is promoted to `staging`, and in any case before it is
+promoted to `prod`. Under the code already running it changes nothing, because an unset
+variable still means prod there.
+
+### Step 1 — Reload every PM2 app with the new environment
+
+```bash
+cd /Users/izno/deploy/torrentmate   # its ecosystem.config.js must carry PERSONALSCRAPER_ENV
+grep -c 'PERSONALSCRAPER_ENV: "prod"' ecosystem.config.js
+# Expected: 11
+pm2 startOrRestart ecosystem.config.js --update-env   # a few seconds of watch restart
+pm2 save
+```
+
+If the prod clone does not carry the line yet (it follows `prod`), run the reload from a
+checkout of `develop` at or after this change instead. The paths in the file are absolute.
+
+### Step 2 — Check each app's environment
+
+```bash
+for app in personalscraper-watch torrentmate-web torrentmate-web-staging \
+  personalscraper-index-full personalscraper-index-enrich personalscraper-backfill-ids \
+  personalscraper-follow-detect personalscraper-search personalscraper-grab \
+  personalscraper-health-check personalscraper-seed-sweep; do
+  printf '%s ' "$app"; pm2 env "$(pm2 id "$app" | tr -dc '0-9')" | grep '^PERSONALSCRAPER_ENV'
+done
+# Expected: every line ends with PERSONALSCRAPER_ENV: prod
+```
+
+### Step 3 — A command typed by hand
+
+In the prod clone, add `PERSONALSCRAPER_ENV=prod` to `~/deploy/torrentmate/.env`, so that
+a CLI command typed there names prod. A dev checkout that needs prod's stores asks for
+them on the command, e.g. `PERSONALSCRAPER_ENV=prod personalscraper …`, with the canonical
+config, whose data directory is unmarked.
+
+### Rollback
+
+Remove the line from the apps' `env` blocks, then run `pm2 startOrRestart ecosystem.config.js
+--update-env && pm2 save`. This is only safe while the running code still reads an unset
+variable as prod.

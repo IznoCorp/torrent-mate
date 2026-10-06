@@ -34,6 +34,12 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# The engine refuses to run with no environment named (an unset PERSONALSCRAPER_ENV is
+# never read as prod). CI's hermetic config is unmarked, which only prod accepts; pytest
+# pins it in tests/conftest.py, and this covers every other step (make openapi, scripts).
+env:
+  PERSONALSCRAPER_ENV: prod
+
 # ── The draft gate ────────────────────────────────────
 # A draft pull request costs no runner minute: EVERY job carries the same
 # condition, so a draft dispatches a run whose jobs all report `skipped` and

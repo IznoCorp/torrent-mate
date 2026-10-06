@@ -17,6 +17,10 @@
 //             library.db / .data / disks are shared with prod, so a second active
 //             watcher/grab/enrich would double-execute and race the single prod authority.
 //
+// Every app that runs the personalscraper binary names its environment explicitly
+// (PERSONALSCRAPER_ENV: "prod"): an unset variable is refused, never read as prod. The
+// staging web app reads prod's stores too (read-only role), so it names prod as well.
+//
 // All processes share the single canonical config dir (PERSONALSCRAPER_CONFIG) and the
 // real library.db / .data / disks. What differs is the CODE (which branch) and process
 // ownership. The daemons/crons run from the prod clone binary + cwd, with the config dir
@@ -48,6 +52,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -77,6 +82,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         PERSONALSCRAPER_PM2_NAME: "torrentmate-web",
         // A new account starts in the project's configured language (the
         // operator, 2026-10-05): set here, not inherited from PM2's LANG.
@@ -101,6 +107,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         PERSONALSCRAPER_WEB_ROLE: "staging",
         PERSONALSCRAPER_LANG: "fr",
       },
@@ -175,6 +182,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -193,6 +201,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -211,6 +220,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -233,6 +243,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -253,6 +264,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -272,6 +284,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -293,6 +306,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
@@ -317,6 +331,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
         // The operator's Telegram is French and the engine defaults to English
         // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
         PERSONALSCRAPER_LANG: "fr",
