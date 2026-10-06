@@ -27,7 +27,8 @@ def _canonical_env_path() -> Path | None:
     at ``<config-parent>/.env`` — while the clone's OWN root ``.env`` may lack
     some (the recurring bug: the deploy ``.env`` had no ``PLEX_TOKEN``, so the
     post-dispatch Plex refresh was silently disabled and dispatched media never
-    appeared in Plex). ``PERSONALSCRAPER_ENV_FILE`` is an explicit override.
+    appeared in Plex). ``PERSONALSCRAPER_ENV_FILE`` is an explicit override, which
+    :func:`_resolve_env_files` then loads alone.
 
     Returns:
         The canonical ``.env`` path if resolvable and present, else ``None``.
@@ -44,22 +45,43 @@ def _canonical_env_path() -> Path | None:
     return None
 
 
+def _local_env_path() -> Path:
+    """The package-root ``.env`` of this checkout.
+
+    Resolved absolutely from this module, NOT CWD-relative, so a run launched
+    from the staging dir still finds it.
+
+    Returns:
+        The path of the checkout's own ``.env`` (it may not exist).
+    """
+    return Path(__file__).resolve().parent.parent / ".env"
+
+
 def _resolve_env_files() -> tuple[str, ...]:
     """Resolve the ordered ``.env`` files pydantic-settings loads.
 
-    The package-root ``.env`` (parent of this module — resolved absolutely, NOT
-    CWD-relative, so a run launched from the staging dir still finds it) is the
-    LOCAL one. When a distinct canonical ``.env`` exists (see
-    :func:`_canonical_env_path`) it is prepended so the LOCAL file still wins for
-    every key it defines — deploy/staging keep their own values — and the
-    canonical only FILLS keys the local one omits (e.g. ``PLEX_TOKEN``).
-    pydantic-settings loads a tuple left-to-right with later files taking
-    precedence, so ``(canonical, local)`` gives exactly that.
+    An explicit ``PERSONALSCRAPER_ENV_FILE`` is loaded ALONE: it names an
+    environment's whole secret set (the preprod's ``.env-staging``), and the
+    checkout it runs from may carry another environment's ``.env`` — layering
+    that one on top would hand the preprod prod's secrets. When the named file
+    is missing nothing is loaded rather than falling back to the local one.
+
+    Otherwise the package-root ``.env`` (:func:`_local_env_path`) is the LOCAL
+    one. When a distinct canonical ``.env`` exists beside the
+    ``PERSONALSCRAPER_CONFIG`` dir (see :func:`_canonical_env_path`) it is
+    prepended so the LOCAL file still wins for every key it defines —
+    deploy/staging keep their own values — and the canonical only FILLS keys
+    the local one omits (e.g. ``PLEX_TOKEN``). pydantic-settings loads a tuple
+    left-to-right with later files taking precedence, so ``(canonical, local)``
+    gives exactly that.
 
     Returns:
         A tuple of ``.env`` paths in load order (canonical first when present).
     """
-    local = Path(__file__).resolve().parent.parent / ".env"
+    override = os.environ.get("PERSONALSCRAPER_ENV_FILE")
+    if override:
+        return (override,)
+    local = _local_env_path()
     canonical = _canonical_env_path()
     if canonical is not None and canonical.resolve() != local.resolve():
         return (str(canonical), str(local))
