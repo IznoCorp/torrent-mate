@@ -4,13 +4,13 @@
 // sources — the mock seam, the harness's publisher, the frame stylesheet and the
 // document — so a needle that stopped matching the layer it names fails here,
 // and against the app's own stylesheets, so a needle that started matching the
-// app fails too. The shell's root is lifted from the real `harness.css`.
+// app fails too. What the app keeps is lifted from the real `harness.css`.
 import { describe, expect, it } from "vitest";
 import mockSeam from "../mocks/index.ts?raw";
 import harnessPublisher from "../harness/drive.ts?raw";
 import harnessPanel from "../harness/panel.ts?raw";
 import documentSource from "../../index.html?raw";
-import { findLeaks, isLeftOut, leftOutModules, readSources, shellRoot } from "../../app-bundle.mjs";
+import { findLeaks, isLeftOut, keptBlocks, leftOutModules, readSources } from "../../app-bundle.mjs";
 
 // The stylesheets read from disk: the suite's CSS pipeline answers an empty
 // string for a `?raw` stylesheet.
@@ -92,17 +92,19 @@ describe("leftOutModules", () => {
   });
 });
 
-describe("shellRoot", () => {
-  it("lifts the stage and the device out of the frame stylesheet, and nothing scoped", () => {
-    const root = shellRoot(frameSheet);
-    expect(root).toMatch(/^\.stage \{/);
-    expect(root).toContain("\n.device {");
-    expect(root).toContain("position: relative");
-    expect(root).not.toContain("desktop-switch");
-    expect(root).not.toContain("border-radius");
+describe("keptBlocks", () => {
+  it("keeps the stage, the device and the notes' hidden default, and nothing scoped", () => {
+    const kept = keptBlocks(frameSheet);
+    expect(kept).toMatch(/^\.stage \{/);
+    expect(kept).toContain("\n.device {");
+    expect(kept).toContain("position: relative");
+    expect(kept).toMatch(/\n\.note \{\n {2}display: none;/);
+    expect(kept).not.toContain("desktop-switch");
+    expect(kept).not.toContain("border-radius: 22px");
+    expect(kept).not.toContain(":root.notes");
   });
 
   it("refuses a stylesheet without the device block", () => {
-    expect(() => shellRoot(".stage {\n  display: grid;\n}\n")).toThrow(/0 unscoped \.device blocks/);
+    expect(() => keptBlocks(".stage {\n  display: grid;\n}\n")).toThrow(/0 unscoped \.device blocks/);
   });
 });

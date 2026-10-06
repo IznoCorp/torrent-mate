@@ -5,6 +5,6 @@ export declare function findLeaks(
 ): Array<{ file: string; needle: string; what: string }>;
 export declare function isLeftOut(id: string): boolean;
 export declare function leftOutModules(modules: Record<string, { renderedLength: number }>): string[];
-export declare function shellRoot(harnessCss: string): string;
+export declare function keptBlocks(harnessCss: string): string;
 export declare function readSources(root: string, names: string[]): Array<{ name: string; text: string }>;
 export declare function readBuilt(dist: string): Array<{ name: string; text: string }>;

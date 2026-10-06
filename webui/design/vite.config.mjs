@@ -3,7 +3,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import { isLeftOut, leftOutModules, shellRoot } from "./app-bundle.mjs";
+import { isLeftOut, keptBlocks, leftOutModules } from "./app-bundle.mjs";
 import { buildIdentity } from "./build-identity.mjs";
 import { pushCatalogues, substituteWorker } from "./worker-source.mjs";
 // Tailwind v4 as a Vite plugin. WHAT CONFINES ITS SCAN IS `source(none)` on
@@ -115,8 +115,8 @@ function buildWorker() {
   };
 }
 
-// The frame stylesheet's id in the app build: the shell's root lifted out of it,
-// under a name of its own so the module guard below can refuse the file itself.
+// The frame stylesheet's id in the app build: what the app keeps of it, under a
+// name of its own so the module guard below can refuse the file itself.
 const SHELL_ROOT_ID = "\0tm-shell-root.css";
 
 // The harness chrome the document carries between its two markers.
@@ -126,18 +126,18 @@ function leaveOutTheMaquette() {
   return {
     name: "leave-out-the-maquette",
     enforce: "pre",
-    // THE FRAME STYLESHEET, REPLACED BY THE SHELL'S ROOT. `app/shell.tsx`
+    // THE FRAME STYLESHEET, REPLACED BY WHAT THE APP KEEPS OF IT. `app/shell.tsx`
     // imports `harness.css` unconditionally, and must: an import behind a
     // constant would be a lazy chunk and reorder the maquette's cascade. So the
-    // app build answers that one import with the two blocks of the file that are
-    // the shell's own (`app-bundle.mjs`, `shellRoot`) and drops the rest.
+    // app build answers that one import with the shell's root and the notes'
+    // hidden default (`app-bundle.mjs`, `keptBlocks`) and drops the rest.
     resolveId(source) {
       if (source.endsWith("/styles/harness.css")) return SHELL_ROOT_ID;
       return null;
     },
     load(id) {
       if (id !== SHELL_ROOT_ID) return null;
-      return shellRoot(readFileSync(resolve(ROOT, "src/styles/harness.css"), "utf8"));
+      return keptBlocks(readFileSync(resolve(ROOT, "src/styles/harness.css"), "utf8"));
     },
     // The frame's way out, cut from the document: exactly one marked region, or
     // the build stops — a marker lost in an edit would otherwise ship the control.

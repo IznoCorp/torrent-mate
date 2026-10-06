@@ -6,8 +6,8 @@
 // is. Vite's own default build mode is already named `production` and the
 // harness builds with it, which is why the shipped build has a name of its own.
 //
-// Pure functions, read by two callers: `vite.config.mjs` (the shell's root out
-// of the frame stylesheet, the module guard) and this file's own command line,
+// Pure functions, read by two callers: `vite.config.mjs` (what it keeps of the
+// frame stylesheet, the module guard) and this file's own command line,
 // which reads a built `dist/` and fails on any leak. The suite proves both.
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -91,29 +91,38 @@ export function leftOutModules(modules) {
     .map(([id]) => id);
 }
 
-// THE SHELL'S ROOT, the two blocks of `harness.css` that are not the frame's.
-// Every declaration the frame contributes is scoped on the desktop switch; the
-// unscoped `.stage` and `.device` blocks are the shell's own and outlive the way
-// out of the frame (`webui/harness/desktop_frame.py` holds that split). The app
-// build is the app out of the frame, so it keeps those two blocks and nothing
-// else of the file — read from it rather than copied, so they cannot drift.
-const SHELL_ROOT = ["stage", "device"];
+// WHAT THE APP KEEPS OF THE FRAME STYLESHEET: three unscoped blocks, nothing
+// else. Every declaration the frame contributes is scoped on the desktop
+// switch; the unscoped `.stage` and `.device` blocks are the shell's own root and
+// outlive the way out of the frame (`webui/harness/desktop_frame.py` holds that
+// split). The app build is the app out of the frame, so it keeps those two.
+//
+// AND `.note`, for its DEFAULT. The design notes are the harness's, but the
+// surfaces draw them, and the one rule that hides them until a reader asks is
+// in this file: without it every page of the app would carry the prototype's
+// annotations (the shown default this file's own comment already warns of).
+// The block is kept, its `:root.notes` opener is not, and nothing in the app
+// sets that class — so a note is never shown.
+//
+// Read from the file rather than copied, so they cannot drift.
+const KEPT = ["stage", "device", "note"];
 
 /**
- * The shell's root blocks, lifted out of the frame stylesheet.
+ * The blocks of the frame stylesheet the app build keeps.
  *
  * Args:
  *     harnessCss: The text of `src/styles/harness.css`.
  *
  * Returns:
- *     The `.stage` and `.device` blocks, in that order, as the file writes them.
+ *     The `.stage`, `.device` and `.note` blocks, in that order, as the file
+ *     writes them.
  *
  * Raises:
- *     Error: When either block is missing or written twice — the build stops
- *         rather than ship a shell with no root layout.
+ *     Error: When a block is missing or written twice — the build stops rather
+ *         than ship a shell with no root layout or with its notes shown.
  */
-export function shellRoot(harnessCss) {
-  return SHELL_ROOT.map((name) => {
+export function keptBlocks(harnessCss) {
+  return KEPT.map((name) => {
     const blocks = harnessCss.match(new RegExp(`^\\.${name} \\{[^}]*\\}`, "gm")) ?? [];
     if (blocks.length !== 1) {
       throw new Error(`app build: harness.css holds ${blocks.length} unscoped .${name} blocks, expected 1`);
