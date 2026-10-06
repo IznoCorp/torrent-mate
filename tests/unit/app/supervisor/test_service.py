@@ -27,6 +27,7 @@ from personalscraper.app.supervisor.model import (
     RunOptions,
     RunRequest,
     RunTrigger,
+    Settlement,
 )
 from personalscraper.app.supervisor.service import RunAsked, RunService
 from personalscraper.core.identity import ItemId
@@ -234,15 +235,57 @@ class TestAskRun:
         assert asked.uid == uid
         assert store.runs.get(uid) is not None
 
-    def test_a_supplied_uid_does_not_replace_the_joined_one(self, service: RunService, store: AppStore) -> None:
-        """An equal ask joins the waiting request even when it brings its own uid: the waiting uid answers."""
+    def test_a_supplied_uid_never_joins_another_request(self, service: RunService, store: AppStore) -> None:
+        """An equal ask waiting does not answer a caller that brings its own uid: its own request is queued."""
         first = service.ask_run(_admin(), trigger=RunTrigger.WEB, options=RunOptions())
 
         second = service.ask_run(_admin(), trigger=RunTrigger.CLI, options=RunOptions(), uid=RunUid("b" * 32))
 
-        assert second.uid == first.uid
-        assert second.joined is True
-        assert store.runs.get(RunUid("b" * 32)) is None
+        assert second == RunAsked(uid=RunUid("b" * 32), state="queued", joined=False)
+        assert second.uid != first.uid
+        assert _rows(store) == 2
+
+    def test_a_supplied_uid_already_queued_answers_that_request(self, service: RunService, store: AppStore) -> None:
+        """An idempotent retry: the queued request's uid and state, joined, no insert, no error."""
+        uid = RunUid("a" * 32)
+        service.ask_run(_admin(), trigger=RunTrigger.CLI, options=RunOptions(), uid=uid)
+
+        again = service.ask_run(_admin(), trigger=RunTrigger.CLI, options=RunOptions(dry_run=True), uid=uid)
+
+        assert again == RunAsked(uid=uid, state="queued", joined=True)
+        assert _rows(store) == 1
+
+    def test_a_supplied_uid_already_running_answers_running(self, service: RunService, store: AppStore) -> None:
+        """The request runs: the retry is answered ``running``, joined, no insert."""
+        uid = RunUid("a" * 32)
+        service.ask_run(_admin(), trigger=RunTrigger.CLI, options=RunOptions(), uid=uid)
+        request = store.runs.get(uid)
+        assert request is not None
+        request.admit(4242, 1_001.0)
+        assert store.runs.save(request)
+
+        again = service.ask_run(_admin(), trigger=RunTrigger.CLI, options=RunOptions(), uid=uid)
+
+        assert again == RunAsked(uid=uid, state="running", joined=True)
+        assert _rows(store) == 1
+
+    def test_a_supplied_uid_already_settled_answers_idle(self, service: RunService, store: AppStore) -> None:
+        """Its run is over: ``idle`` (no run active for that uid), joined, and the settled row is left alone."""
+        uid = RunUid("a" * 32)
+        service.ask_run(_admin(), trigger=RunTrigger.CLI, options=RunOptions(), uid=uid)
+        request = store.runs.get(uid)
+        assert request is not None
+        request.admit(4242, 1_001.0)
+        request.settle(Settlement.SUCCESS, 1_002.0)
+        assert store.runs.save(request)
+
+        again = service.ask_run(_admin(), trigger=RunTrigger.CLI, options=RunOptions(), uid=uid)
+
+        assert again == RunAsked(uid=uid, state="idle", joined=True)
+        assert _rows(store) == 0
+        settled = store.runs.get(uid)
+        assert settled is not None
+        assert settled.state is RequestState.SETTLED
 
     def test_two_equal_asks_from_two_connections_queue_one_request(self, tmp_path: Path, clock: _Clock) -> None:
         """The ask is atomic across connections: the read of the joinable and the insert are one writer-locked act.
