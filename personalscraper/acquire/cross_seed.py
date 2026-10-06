@@ -351,12 +351,7 @@ class CrossSeedService:
 
                 # MATCH → inject → verify → resume + tag + obligation.
                 try:
-                    injected_hash = self._injector.inject(
-                        source.file_bytes,
-                        save_path=item.save_path,
-                        recheck=True,
-                        paused=True,
-                    )
+                    injected_hash = self._inject(source.file_bytes, item.save_path)
                 except (ValueError, ApiError) as exc:
                     logger.warning(
                         "acquire.cross_seed.rejected",
@@ -799,6 +794,31 @@ class CrossSeedService:
             eligible.append(name)
         return eligible
 
+    def _inject(self, torrent_bytes: bytes, save_path: str) -> str:
+        """Inject a candidate, filed under the active scope's category and tags when there is one.
+
+        Same convention as a scoped grab: the scope's ``category`` and ``instance_tags``. Without a
+        scope the call is the plain injection, no category and no tags.
+
+        Args:
+            torrent_bytes: Raw ``.torrent`` bytes of the candidate.
+            save_path: The source torrent's save directory.
+
+        Returns:
+            The info-hash of the injected torrent.
+        """
+        scope = self._config.torrent.active_scope()
+        if scope is None:
+            return self._injector.inject(torrent_bytes, save_path=save_path, recheck=True, paused=True)
+        return self._injector.inject(
+            torrent_bytes,
+            save_path=save_path,
+            recheck=True,
+            paused=True,
+            category=scope.category,
+            tags=scope.instance_tags,
+        )
+
     def _verify_injection(self, injected_hash: str) -> str | None:
         """Poll until *injected_hash* appears verified or the configurable timeout.
 
@@ -824,9 +844,7 @@ class CrossSeedService:
         deadline = self._clock() + timeout_s
         while self._clock() < deadline:
             try:
-                # Deliberately unscoped: the injection carries no client category, so a scoped
-                # listing would never show it and the verification would always time out.
-                completed = self._lister.get_completed()
+                completed = scoped(self._lister.get_completed(), self._config.torrent.active_scope())
             except Exception as exc:  # noqa: BLE001 — fail-soft poll error
                 logger.warning(
                     "acquire.cross_seed.verify_poll_error",

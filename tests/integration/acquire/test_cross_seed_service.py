@@ -8,6 +8,7 @@ and ``structural_match`` without any parsing mocks.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Iterator, Sequence
 from pathlib import Path
@@ -39,6 +40,7 @@ from tests.fixtures.torrent_scope import (
     OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
+    SCOPE,
     SCOPED_TORRENT_CONFIG,
     UNSCOPED_TORRENT_CONFIG,
     torrent,
@@ -265,6 +267,7 @@ class FakeTorrentClient:
         self._props: dict[str, dict[str, object]] = {}
         # Call records for assertions.
         self.injected: list[tuple[bytes, str, bool, bool]] = []  # (bytes, save_path, recheck, paused)
+        self.injected_scope: list[tuple[str | None, list[str]]] = []  # (category, tags) per injection
         self.injected_hashes: list[str] = []
         self.resumed: list[str] = []
         self.deleted: list[tuple[str, bool]] = []  # (hash, delete_files)
@@ -304,6 +307,8 @@ class FakeTorrentClient:
         save_path: str,
         recheck: bool = True,
         paused: bool = True,
+        category: str | None = None,
+        tags: Sequence[str] = (),
     ) -> str:
         """Record the injection and return the derived info-hash.
 
@@ -312,6 +317,8 @@ class FakeTorrentClient:
             save_path: Target save directory.
             recheck: Whether to recheck after add.
             paused: Whether to add in paused state.
+            category: Client category the torrent is filed under.
+            tags: Tags the torrent carries.
 
         Returns:
             The v1 info-hash of the injected torrent.
@@ -319,6 +326,7 @@ class FakeTorrentClient:
         info_hash = _derive_injected_hash(torrent_bytes)
         self.injected.append((torrent_bytes, save_path, recheck, paused))
         self.injected_hashes.append(info_hash)
+        self.injected_scope.append((category, list(tags)))
         # Add a completed entry so _verify_injection can find it.
         name = f"cross-seed-{info_hash[:8]}"
         injected_item = TorrentItem(
@@ -328,7 +336,8 @@ class FakeTorrentClient:
             progress=1.0,  # Immediately "verified" by default.
             state="pausedUP",
             save_path=save_path,
-            tags=[],
+            category=category,
+            tags=list(tags),
         )
         self._completed.append(injected_item)
         # Seed file list + properties for the injected hash so the next
@@ -708,6 +717,81 @@ def _build_service(
 # ===========================================================================
 # Tests: check()
 # ===========================================================================
+
+
+def _scoped_check_scenario(
+    tmp_path: Path, store: ConcreteAcquireStore, torrent_config: Any
+) -> tuple[CrossSeedService, FakeTorrentClient, str]:
+    """Build a service whose source torrent matches one tr4ker candidate, under a given torrent config.
+
+    Args:
+        tmp_path: Pytest temporary directory.
+        store: Real acquire store.
+        torrent_config: The ``config.torrent`` section the service reads its scope from.
+
+    Returns:
+        The service, the fake client, and the info hash the candidate injects as.
+    """
+    source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+    item = dataclasses.replace(_source_item(), category=SCOPE.category)
+    candidate_torrent = make_torrent_bytes(name=item.name, files=source_files, piece_length=262144)
+    fake_client = FakeTorrentClient(completed=[item])
+    fake_client.seed_files(_SOURCE_HASH, source_files)
+    fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+    candidate_url = "https://tr4ker.example.com/dl/123"
+    transport = FakeTransport(provider_name=_TRACKER_TR4KER)
+    transport.seed(candidate_url, candidate_torrent)
+    registry = make_registry(
+        {
+            _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
+            _TRACKER_TR4KER: FakeTracker(
+                provider=_TRACKER_TR4KER,
+                transport=transport,
+                results=[_candidate_result(download_url=candidate_url)],
+            ),
+        },
+        priority=[_TRACKER_C411, _TRACKER_TR4KER],
+    )
+    cfg = make_config(tmp_path).model_copy(update={"torrent": torrent_config})
+    svc = _build_service(cfg, store, fake_client, registry)
+    return svc, fake_client, _derive_injected_hash(candidate_torrent)
+
+
+class TestInjectionCarriesScope:
+    """A cross-seed injected under a client scope is filed in the scope's category with its tags."""
+
+    def test_scoped_inject_passes_category_and_instance_tags(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """The injector is handed the scope's category and instance tags."""
+        svc, client, injected_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        result = svc.check(_SOURCE_HASH)
+        assert result.injected == [injected_hash]
+        assert client.injected_scope == [(SCOPE.category, list(SCOPE.instance_tags))]
+
+    def test_unscoped_inject_passes_no_category_and_no_tags(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Characterisation: without a scope the injection is today's, no category and no tags."""
+        svc, client, injected_hash = _scoped_check_scenario(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
+        result = svc.check(_SOURCE_HASH)
+        assert result.injected == [injected_hash]
+        assert client.injected_scope == [(None, [])]
+
+    def test_verification_under_scope_reads_the_scoped_listing(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """Under a scope a completed torrent outside the category does not verify the injection."""
+        svc, client, _ = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        real_inject = client.inject
+
+        def _inject_uncategorised(torrent_bytes: bytes, **kwargs: Any) -> str:
+            """Inject as the client would, but filed in no category."""
+            kwargs.pop("category", None)
+            return real_inject(torrent_bytes, **kwargs)
+
+        client.inject = _inject_uncategorised  # type: ignore[method-assign]
+        ticks = iter([0.0, 2.0, 130.0])
+        svc._clock = lambda: next(ticks)
+        result = svc.check(_SOURCE_HASH)
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["verify_timeout"]
 
 
 class TestCheckHappyPath:

@@ -27,6 +27,7 @@ from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource, _bencode_info_hash
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    CategoryLister,
     GlobalRateLimiter,
     TorrentAdder,
     TorrentController,
@@ -94,6 +95,7 @@ _QBIT_ADD_ERRORS: tuple[type[qbittorrentapi.APIError], ...] = (
 
 class QBitClient(
     TorrentLister,
+    CategoryLister,
     TorrentInspector,
     AuthenticatedClient,
     TorrentStateInspector,
@@ -107,7 +109,7 @@ class QBitClient(
     """qBittorrent client wrapping qbittorrentapi.Client.
 
     Composes the full set of atomic torrent capabilities
-    (:class:`TorrentLister`, :class:`TorrentInspector`,
+    (:class:`TorrentLister`, :class:`CategoryLister`, :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
     :class:`TorrentController`, :class:`TorrentAdder`,
     :class:`TorrentLimiter`, :class:`GlobalRateLimiter`,
@@ -190,6 +192,32 @@ class QBitClient(
         if not hashes:
             return []
         return [_torrent_item(t) for t in self._client.torrents_info(torrent_hashes=list(hashes))]
+
+    def get_by_category(self, category: str) -> list[TorrentItem]:
+        """Return the torrents qBittorrent files under *category*, in any state.
+
+        One ``torrents/info?category=<c>`` request: qBittorrent filters, so the
+        request does not grow with the size of the shared client.
+
+        Args:
+            category: The category to list. qBittorrent treats an empty value as
+                "uncategorised", so a blank one is refused rather than sent.
+
+        Returns:
+            The torrents of that category as :class:`TorrentItem` records.
+
+        Raises:
+            ValueError: *category* is blank.
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
+        """
+        if not category.strip():
+            raise ValueError("category: the category is empty")
+        try:
+            raw = self._client.torrents_info(category=category)
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_by_category", exc)
+        return [_torrent_item(t) for t in raw]
 
     def is_seeding(self, torrent: TorrentItem) -> bool:
         """Check if a torrent is actively seeding.
@@ -417,6 +445,8 @@ class QBitClient(
         save_path: str,
         recheck: bool = True,
         paused: bool = True,
+        category: str | None = None,
+        tags: Sequence[str] = (),
     ) -> str:
         """Inject a .torrent at *save_path*, add paused, optionally recheck.
 
@@ -439,6 +469,8 @@ class QBitClient(
             recheck: Run recheck after adding (default True). Does NOT poll —
                 the caller must verify completion.
             paused: Add in paused state (default True).
+            category: Category to file the torrent under; ``None`` sends none.
+            tags: Tags to add the torrent with; empty sends none.
 
         Returns:
             The torrent's v1 info-hash.
@@ -448,13 +480,19 @@ class QBitClient(
                 (415 / torrent-file), or a ``"Fails."`` result.
         """
         info_hash = _bencode_info_hash(torrent_bytes)
+        kwargs: dict[str, object] = {
+            "torrent_files": torrent_bytes,
+            "save_path": save_path,
+            "is_skip_checking": False,
+            "is_paused": paused,
+        }
+        # Sent only when set, so an unscoped inject is the same request as before.
+        if category is not None:
+            kwargs["category"] = category
+        if tags:
+            kwargs["tags"] = list(tags)
         try:
-            result = self._client.torrents_add(
-                torrent_files=torrent_bytes,
-                save_path=save_path,
-                is_skip_checking=False,
-                is_paused=paused,
-            )
+            result = self._client.torrents_add(**kwargs)  # type: ignore[arg-type,type-var]
         except qbittorrentapi.Conflict409Error:
             # Duplicate — idempotent success (same contract as add() D7).
             log.debug("qbit_inject_duplicate", info_hash=info_hash)

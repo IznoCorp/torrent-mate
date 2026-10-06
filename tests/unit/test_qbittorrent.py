@@ -373,6 +373,31 @@ class TestQBitClient:
         assert client.get_by_hashes(set()) == []
         client._client.torrents_info.assert_not_called()  # type: ignore[attr-defined]
 
+    def test_get_by_category_asks_qbit_for_the_category(self) -> None:
+        """get_by_category() sends one category-filtered request and maps the result."""
+        client = self._client()
+        mock_t = MagicMock()
+        mock_t.hash = "abc"
+        mock_t.name = "Robot"
+        mock_t.total_size = 1000
+        mock_t.progress = 1.0
+        mock_t.state = "uploading"
+        mock_t.content_path = "/data"
+        mock_t.category = "scoped"
+        mock_t.added_on = 1712345678
+        client._client.torrents_info.return_value = [mock_t]  # type: ignore[attr-defined]
+
+        items = client.get_by_category("scoped")
+        assert [i.hash for i in items] == ["abc"]
+        client._client.torrents_info.assert_called_once_with(category="scoped")  # type: ignore[attr-defined]
+
+    def test_get_by_category_blank_is_refused(self) -> None:
+        """A blank category is never sent: qBit reads it as « uncategorised »."""
+        client = self._client()
+        with pytest.raises(ValueError, match="category"):
+            client.get_by_category("  ")
+        client._client.torrents_info.assert_not_called()  # type: ignore[attr-defined]
+
     def test_is_seeding_uses_state_enum(self) -> None:
         """is_seeding() delegates to qbittorrentapi state_enum.is_uploading."""
         client = self._client()
