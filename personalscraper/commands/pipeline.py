@@ -752,12 +752,12 @@ def run(
         no_post_maintenance=no_post_maintenance,
     )
 
-    services = run_follow.supervised_services(config, cli_helpers.get_settings())
-    if services is not None:
+    if run_follow.lease_live(config):
+        if interactive:
+            console.print("[red]" + t("cli_core.run.interactive_needs_direct") + "[/red]")
+            raise typer.Exit(1)
+        services = run_follow.open_services(config, cli_helpers.get_settings())
         try:
-            if interactive:
-                console.print("[red]" + t("cli_core.run.interactive_needs_direct") + "[/red]")
-                raise typer.Exit(1)
             code = run_follow.enqueue_and_follow(
                 services, config, console, options=options, trigger_reason=trigger_reason, detach=detach
             )
@@ -766,6 +766,9 @@ def run(
         if code:
             raise typer.Exit(code)
         return
+
+    if detach:
+        console.print(t("cli_core.run.detach_needs_supervisor"), style="yellow", highlight=False)
 
     if not cli_helpers.acquire_pipeline_lock(
         config.paths.data_dir / "pipeline.lock",

@@ -206,11 +206,15 @@
     }
   },
   "run": {
-    "queued": "Run {{uid}} en file (position {{position}}) ; suivi en cours. Ctrl-C le laisse en file.",
-    "joined": "Le run {{uid}} était déjà demandé ; suivi en cours.",
+    "queued": "Run {{uid}} en file (position {{position}}).",
+    "joined": "Le run {{uid}} était déjà demandé.",
+    "following": "Suivi du run {{uid}} ; Ctrl-C le laisse au superviseur.",
     "step_done": "  {{step}} : {{status}}",
     "finished": "Run {{uid}} terminé : {{settlement}}.",
     "detached": "Détaché du run {{uid}} ; il continue.",
-    "interactive_needs_direct": "--interactive exige le chemin direct : un superviseur tourne, le run est mis en file. Utilisez `personalscraper scrape -i` pour un scrape interactif."
+    "lease_lost_queued": "Le superviseur s'est arrêté : le run {{uid}} reste en file jusqu'au retour d'un superviseur.",
+    "lease_lost_running": "Le superviseur s'est arrêté pendant le run {{uid}} : le run a été interrompu.",
+    "interactive_needs_direct": "--interactive exige le chemin direct : un superviseur tourne, le run est mis en file. Utilisez `personalscraper scrape -i` pour un scrape interactif.",
+    "detach_needs_supervisor": "--detach exige un superviseur actif : aucun ne tourne, le run se poursuit ici."
   }
 }

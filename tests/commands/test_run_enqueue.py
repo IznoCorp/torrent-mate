@@ -9,6 +9,8 @@ unchanged (``test_pipeline_run_app_context.py`` and its neighbours hold it).
 from __future__ import annotations
 
 import os
+import sqlite3
+import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -16,6 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from personalscraper.app.errors import RefusalCode
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.app.supervisor.ids import RunUid
 from personalscraper.app.supervisor.model import (
@@ -27,15 +30,19 @@ from personalscraper.app.supervisor.model import (
     Settlement,
 )
 from personalscraper.cli import app
+from personalscraper.commands.run_follow import _read_only
+from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.i18n import t
+from personalscraper.i18n import t, t_code
 from personalscraper.pipeline_history import PipelineRunWriter
 
 runner = CliRunner()
 
 _SLEEP = "personalscraper.commands.run_follow.time.sleep"
 _UID_ENV = "PERSONALSCRAPER_RUN_UID"
+_BUILD_SERVICES = "personalscraper.commands.run_follow.build_app_services"
+_EXECUTE_RUN = "personalscraper.commands.pipeline.execute_run"
 _PIPELINE_RUN_DDL = """
 CREATE TABLE pipeline_run (
     id INTEGER PRIMARY KEY AUTOINCREMENT, run_uid TEXT UNIQUE NOT NULL, trigger TEXT NOT NULL,
@@ -56,8 +63,6 @@ def store(test_config: Config) -> Iterator[AppStore]:
     Yields:
         The store.
     """
-    import time
-
     app_store = build_app_store(test_config)
     claimed = app_store.lease.claim(os.getpid(), "host", time.time(), 3600.0, lambda _pid: True)
     assert claimed is not None
@@ -77,8 +82,6 @@ def library_db(test_config: Config) -> Path:
     Returns:
         Its path.
     """
-    import sqlite3
-
     db_path = test_config.indexer.db_path
     assert db_path is not None
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -129,6 +132,26 @@ def _settle(store: AppStore, uid: str, settlement: Settlement) -> None:
     assert request is not None
     request.settle(settlement, 3_000.0)
     assert store.runs.save(request)
+
+
+def _release(store: AppStore) -> None:
+    """Delete the lease, as a supervisor's clean stop does.
+
+    Args:
+        store: The store.
+    """
+    assert store.lease.release(os.getpid(), "host")
+
+
+def _forget(test_config: Config, uid: str) -> None:
+    """Delete a request's row, as if another hand removed it.
+
+    Args:
+        test_config: The synthetic configuration.
+        uid: The request.
+    """
+    with sqlite3.connect(str(store_path(test_config.paths.data_dir, StoreName.APP)), isolation_level=None) as conn:
+        conn.execute("DELETE FROM run_request WHERE uid = ?", (uid,))
 
 
 def _script(*moves: Callable[[], None]) -> Callable[[float], None]:
@@ -285,6 +308,106 @@ class TestLiveLeaseEnqueues:
         assert out.index("ingest") < out.index("sort")
         assert t("cli_core.run.finished", uid="steps-uid", settlement="success") in out
 
+    def test_a_vanished_request_ends_abandoned(
+        self,
+        store: AppStore,
+        library_db: Path,
+        pipeline_run: MagicMock,
+        test_config: Config,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A request whose row disappears while followed ends on the abandoned line, exit 1."""
+        monkeypatch.setenv(_UID_ENV, "gone-uid")
+        with patch(_SLEEP, _script(lambda: _forget(test_config, "gone-uid"))):
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 1, result.output
+        assert t("cli_core.run.finished", uid="gone-uid", settlement="abandoned") in result.output
+
+    def test_the_following_line_is_printed_only_when_following(
+        self, store: AppStore, library_db: Path, pipeline_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A followed run says it is followed; a detached one does not."""
+        monkeypatch.setenv(_UID_ENV, "followed-uid")
+        with patch(
+            _SLEEP,
+            _script(lambda: _admit(store, "followed-uid"), lambda: _settle(store, "followed-uid", Settlement.SUCCESS)),
+        ):
+            followed = runner.invoke(app, ["run"])
+        monkeypatch.setenv(_UID_ENV, "left-uid")
+        with patch(_SLEEP, lambda _seconds: None):
+            detached = runner.invoke(app, ["run", "--detach"])
+
+        assert followed.exit_code == 0, followed.output
+        assert t("cli_core.run.following", uid="followed-uid") in followed.output
+        assert detached.exit_code == 0, detached.output
+        assert t("cli_core.run.queued", uid="left-uid", position=1) in detached.output
+        assert t("cli_core.run.following", uid="left-uid") not in detached.output
+
+
+class TestLeaseLost:
+    """The supervisor goes away while a request is followed: the follower stops instead of waiting for ever."""
+
+    @pytest.mark.timeout(20)
+    def test_a_queued_request_stays_queued_and_the_exit_is_non_zero(
+        self, store: AppStore, library_db: Path, pipeline_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A clean stop releases the lease: the follower says the run stays queued and exits 1."""
+        monkeypatch.setenv(_UID_ENV, "stays-uid")
+        with patch(_SLEEP, _script(lambda: _release(store))):
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 1, result.output
+        assert t("cli_core.run.lease_lost_queued", uid="stays-uid") in " ".join(result.output.split())
+        stored = store.runs.get(RunUid("stays-uid"))
+        assert stored is not None and stored.state is RequestState.QUEUED
+
+    @pytest.mark.timeout(20)
+    def test_a_running_request_is_reported_interrupted(
+        self, store: AppStore, library_db: Path, pipeline_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The lease lapses while the run runs: the follower says it was interrupted and exits 1."""
+        monkeypatch.setenv(_UID_ENV, "cut-uid")
+        with patch(_SLEEP, _script(lambda: _admit(store, "cut-uid"), lambda: _release(store))):
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 1, result.output
+        assert t("cli_core.run.lease_lost_running", uid="cut-uid") in " ".join(result.output.split())
+
+    @pytest.mark.timeout(20)
+    def test_a_settlement_seen_with_the_lease_gone_still_wins(
+        self, store: AppStore, library_db: Path, pipeline_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A supervisor that settles then stops: the follower reports the settlement, not a lost lease."""
+        monkeypatch.setenv(_UID_ENV, "last-uid")
+
+        def _settle_and_stop() -> None:
+            _settle(store, "last-uid", Settlement.SUCCESS)
+            _release(store)
+
+        with patch(_SLEEP, _script(lambda: _admit(store, "last-uid"), _settle_and_stop)):
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 0, result.output
+        assert t("cli_core.run.finished", uid="last-uid", settlement="success") in result.output
+
+
+class TestRefused:
+    """The instance refuses the ask."""
+
+    def test_a_read_only_instance_refuses_and_exits_non_zero(
+        self, store: AppStore, library_db: Path, pipeline_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The read-only ceiling refuses the system actor: the refusal text, exit 1, nothing stored."""
+        monkeypatch.setenv(_UID_ENV, "refused-uid")
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 1, result.output
+        assert t_code("cli_refusals", RefusalCode.INSTANCE_FORBIDDEN_WRITE) in " ".join(result.output.split())
+        assert store.runs.get(RunUid("refused-uid")) is None
+        pipeline_run.assert_not_called()
+
 
 class TestExitCodes:
     """The exit code mirrors the settlement."""
@@ -351,6 +474,30 @@ class TestExitCodes:
 
         assert result.exit_code == 1, result.output
 
+    def test_trailer_error_with_continue_in_config_is_a_plain_error(
+        self,
+        store: AppStore,
+        library_db: Path,
+        pipeline_run: MagicMock,
+        test_config: Config,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``trailers.pipeline.continue_on_error`` in the config carries on as the flag does: 1, as the direct path."""
+        monkeypatch.setenv(_UID_ENV, "conf-uid")
+        monkeypatch.setattr(test_config.trailers.pipeline, "continue_on_error", True)
+
+        def _end() -> None:
+            writer = PipelineRunWriter(library_db)
+            writer.insert("conf-uid", trigger="cli", dry_run=False, pid=4242, if_absent=True)
+            writer.update_step("conf-uid", "trailers", 10.0, 11.0, "error")
+            writer.finalize("conf-uid", "error")
+            _settle(store, "conf-uid", Settlement.ERROR)
+
+        with patch(_SLEEP, _script(lambda: _admit(store, "conf-uid"), _end)):
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 1, result.output
+
 
 class TestDetachAndInterrupt:
     """The follower may leave; the request stays."""
@@ -405,14 +552,24 @@ class TestInteractiveRefused:
         assert store.runs.get(RunUid("inter-uid")) is None
         pipeline_run.assert_not_called()
 
+    def test_refused_before_the_services_are_built(
+        self, store: AppStore, library_db: Path, pipeline_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The refusal needs only the lease: building the services is never reached."""
+        monkeypatch.delenv(_UID_ENV, raising=False)
+        with patch(_BUILD_SERVICES, side_effect=RuntimeError("services must not be built")) as built:
+            result = runner.invoke(app, ["run", "--interactive"])
+
+        assert result.exit_code == 1, result.output
+        assert t("cli_core.run.interactive_needs_direct") in " ".join(result.output.split())
+        built.assert_not_called()
+
 
 class TestNoLiveLease:
     """No live lease: today's direct path."""
 
     def test_an_expired_lease_takes_the_direct_path(self, test_config: Config, monkeypatch: pytest.MonkeyPatch) -> None:
         """A lapsed lease authorises nobody: the run executes in this process and asks nothing."""
-        import time
-
         monkeypatch.setenv(_UID_ENV, "direct-uid")
         app_store = build_app_store(test_config)
         try:
@@ -429,8 +586,6 @@ class TestNoLiveLease:
         self, test_config: Config, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """With no ``app.db`` at all the direct path runs and does not create the file."""
-        from personalscraper.conf.environment import StoreName, store_path
-
         monkeypatch.delenv(_UID_ENV, raising=False)
         with patch("personalscraper.commands.pipeline.execute_run", return_value=0) as executed:
             result = runner.invoke(app, ["run"])
@@ -438,3 +593,59 @@ class TestNoLiveLease:
         assert result.exit_code == 0, result.output
         executed.assert_called_once()
         assert not store_path(test_config.paths.data_dir, StoreName.APP).exists()
+
+    def test_an_app_db_without_a_lease_never_builds_the_services(
+        self, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The lease is read on its own: with none, the services are never built and the run goes direct."""
+        monkeypatch.delenv(_UID_ENV, raising=False)
+        app_store = build_app_store(test_config)
+        try:
+            assert app_store.lease.read() is None
+        finally:
+            app_store.close()
+        assert store_path(test_config.paths.data_dir, StoreName.APP).exists()
+        with (
+            patch(_BUILD_SERVICES, side_effect=RuntimeError("services must not be built")) as built,
+            patch(_EXECUTE_RUN, return_value=0) as executed,
+        ):
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 0, result.output
+        executed.assert_called_once()
+        built.assert_not_called()
+
+    def test_an_unreadable_app_db_takes_the_direct_path(
+        self, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A store that cannot be read while deciding is « no live lease »: the run still goes direct."""
+        monkeypatch.delenv(_UID_ENV, raising=False)
+        app_db = store_path(test_config.paths.data_dir, StoreName.APP)
+        app_db.parent.mkdir(parents=True, exist_ok=True)
+        app_db.write_bytes(b"not a database, " * 64)
+        with patch(_EXECUTE_RUN, return_value=0) as executed:
+            result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 0, result.output
+        executed.assert_called_once()
+
+    def test_detach_says_it_needs_a_supervisor_and_the_run_goes_on(
+        self, test_config: Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``--detach`` with no supervisor is not silently dropped: a notice, then the run here."""
+        monkeypatch.delenv(_UID_ENV, raising=False)
+        with patch(_EXECUTE_RUN, return_value=0) as executed:
+            result = runner.invoke(app, ["run", "--detach"])
+
+        assert result.exit_code == 0, result.output
+        assert t("cli_core.run.detach_needs_supervisor") in " ".join(result.output.split())
+        executed.assert_called_once()
+
+
+class TestReadOnlyRow:
+    """The follower reads the run's row without being able to write it."""
+
+    def test_the_indexer_connection_refuses_a_write(self, library_db: Path) -> None:
+        """The connection is opened read-only: a write raises."""
+        with _read_only(library_db) as conn, pytest.raises(sqlite3.OperationalError):
+            conn.execute("CREATE TABLE intruder (a INTEGER)")

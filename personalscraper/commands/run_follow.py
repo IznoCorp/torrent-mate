@@ -4,8 +4,9 @@ While a supervisor's lease is live nothing but its worker starts a run, so the c
 run through the in-process :class:`~personalscraper.app.supervisor.service.RunService` and follows
 the request the service answered (a uid-less ask may have joined another request, so the follower
 never trusts the uid it brought). It polls the request and the run's ``pipeline_run`` row, prints
-each step as it closes and exits with the run's code. With no live lease the command's direct path
-runs instead, unchanged.
+each step as it closes and exits with the run's code; when the lease lapses before the request
+settles, it stops following and exits non-zero. With no live lease the command's direct path runs
+instead: deciding reads the lease alone, read-only, and an unreadable store is « no live lease ».
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from rich.console import Console
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.errors import AppRefusal, RefusalCode
 from personalscraper.app.supervisor.ids import RunUid
+from personalscraper.app.supervisor.lease_repository import LeaseRepository
 from personalscraper.app.supervisor.model import RequestState, RunOptions, RunRequest, RunTrigger, Settlement
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.event_bus import EventBus
@@ -48,6 +50,9 @@ RUN_UID_ENV: Final = "PERSONALSCRAPER_RUN_UID"
 #: The exit code of a run the trailers step aborted (``execute_run``'s own).
 TRAILER_ABORT_CODE: Final = 2
 
+#: The exit code when the supervisor's lease lapses before the followed request settles.
+LEASE_LOST_CODE: Final = 1
+
 _EXIT_CODES: Final[dict[Settlement, int]] = {
     Settlement.SUCCESS: 0,
     Settlement.ERROR: 1,
@@ -69,30 +74,54 @@ def _trigger_of(reason: str) -> RunTrigger:
     return RunTrigger(reason) if reason else RunTrigger.CLI
 
 
-def supervised_services(config: Config, settings: Settings) -> AppServices | None:
-    """Open the application services when a supervisor's lease is live.
+def _read_only_uri(db_path: Path) -> str:
+    """The SQLite URI opening a database file read-only.
 
-    ``app.db`` is never created for the question: with no file there never was a supervisor.
+    Args:
+        db_path: The database file.
+
+    Returns:
+        A ``file:`` URI (percent-encoded, so a path with spaces holds) with ``mode=ro``.
+    """
+    return db_path.resolve().as_uri() + "?mode=ro"
+
+
+def lease_live(config: Config) -> bool:
+    """Whether a supervisor's lease is live, read on its own and read-only.
+
+    The question decides between the queue and the direct path, so it builds nothing and writes
+    nothing: ``app.db`` is never created (with no file there never was a supervisor) nor migrated.
+    A store that cannot be read is « no live lease » — the direct path needs nothing from ``app.db``.
+
+    Args:
+        config: The loaded configuration.
+
+    Returns:
+        ``True`` when the stored lease has not expired.
+    """
+    app_db = store_path(config.paths.data_dir, StoreName.APP)
+    if not app_db.exists():
+        return False
+    try:
+        with closing(sqlite3.connect(_read_only_uri(app_db), uri=True)) as conn:
+            lease = LeaseRepository(conn).read()
+    except sqlite3.Error:
+        log.warning("run_follow.lease_unreadable", db_path=str(app_db), exc_info=True)
+        return False
+    return lease is not None and lease.live(time.time())
+
+
+def open_services(config: Config, settings: Settings) -> AppServices:
+    """Build the application services the enqueue and the follower use.
 
     Args:
         config: The loaded configuration.
         settings: The loaded settings.
 
     Returns:
-        The services, which the caller closes; ``None`` when no live lease stands (the direct path).
+        The services, which the caller closes.
     """
-    if not store_path(config.paths.data_dir, StoreName.APP).exists():
-        return None
-    services = build_app_services(config, settings, event_bus=EventBus())
-    try:
-        live = services.runs.queue_view().lease_live
-    except BaseException:
-        services.close()
-        raise
-    if not live:
-        services.close()
-        return None
-    return services
+    return build_app_services(config, settings, event_bus=EventBus())
 
 
 def enqueue_and_follow(
@@ -144,6 +173,7 @@ def enqueue_and_follow(
     if detach:
         console.print(t("cli_core.run.detached", uid=uid), highlight=False)
         return 0
+    console.print(t("cli_core.run.following", uid=uid), highlight=False)
     try:
         return _follow(services, config, console, uid, options)
     except KeyboardInterrupt:
@@ -154,6 +184,9 @@ def enqueue_and_follow(
 def _follow(services: AppServices, config: Config, console: Console, uid: RunUid, options: RunOptions) -> int:
     """Poll a request until it settles, printing each step as it closes.
 
+    The lease is read before the request at each poll, so a supervisor that settles the request
+    then stops is seen settling it; a lease gone with the request still unsettled ends the follow.
+
     Args:
         services: The application services.
         config: The loaded configuration.
@@ -162,10 +195,11 @@ def _follow(services: AppServices, config: Config, console: Console, uid: RunUid
         options: What the run was asked to do.
 
     Returns:
-        The run's exit code.
+        The run's exit code, or :data:`LEASE_LOST_CODE` when the supervisor went away first.
     """
     printed = 0
     while True:
+        live = services.runs.queue_view().lease_live
         request = services.runs.request(uid)
         steps = _closed_steps(config.indexer.db_path, uid)
         for step in steps[printed:]:
@@ -176,20 +210,54 @@ def _follow(services: AppServices, config: Config, console: Console, uid: RunUid
         printed = len(steps)
         if request is None:
             log.warning("run_follow.request_vanished", uid=uid)
-            console.print("[red]" + t("cli_core.run.finished", settlement=Settlement.ABANDONED.value) + "[/red]")
+            console.print(
+                "[red]" + t("cli_core.run.finished", settlement=Settlement.ABANDONED.value, uid=uid) + "[/red]",
+                highlight=False,
+            )
             return _EXIT_CODES[Settlement.ABANDONED]
         if request.state is RequestState.SETTLED and request.settlement is not None:
-            return _finish(console, request, request.settlement, steps, options)
+            return _finish(console, config, request, request.settlement, steps, options)
+        if not live:
+            return _lease_lost(console, request)
         time.sleep(POLL_INTERVAL_S)
 
 
+def _lease_lost(console: Console, request: RunRequest) -> int:
+    """Stop following a request whose supervisor went away before it settled.
+
+    A clean stop leaves a queued request queued for the next supervisor; a crash leaves a running
+    one to be settled as interrupted when a supervisor starts again. Either way nothing will move
+    it while no supervisor runs, so waiting would never end.
+
+    Args:
+        console: Where it prints.
+        request: The unsettled request.
+
+    Returns:
+        :data:`LEASE_LOST_CODE`.
+    """
+    log.warning("run_follow.lease_lost", uid=request.uid, state=request.state.value)
+    if request.state is RequestState.QUEUED:
+        line = t("cli_core.run.lease_lost_queued", uid=request.uid)
+    else:
+        line = t("cli_core.run.lease_lost_running", uid=request.uid)
+    console.print(line, style="red", highlight=False)
+    return LEASE_LOST_CODE
+
+
 def _finish(
-    console: Console, request: RunRequest, settlement: Settlement, steps: list[dict[str, object]], options: RunOptions
+    console: Console,
+    config: Config,
+    request: RunRequest,
+    settlement: Settlement,
+    steps: list[dict[str, object]],
+    options: RunOptions,
 ) -> int:
     """Print the end of a settled request and compute its exit code.
 
     Args:
         console: Where it prints.
+        config: The loaded configuration.
         request: The settled request.
         settlement: How it ended.
         steps: The steps its row closed.
@@ -199,37 +267,38 @@ def _finish(
         ``0``, ``1``, ``2`` (a trailer abort), or ``130``.
     """
     code = _EXIT_CODES[settlement]
-    if settlement is Settlement.ERROR and _trailers_aborted(steps, options):
+    if settlement is Settlement.ERROR and _trailers_aborted(steps, options, config):
         code = TRAILER_ABORT_CODE
     style = "green" if code == 0 else "red"
     console.print(
-        f"[{style}]" + t("cli_core.run.finished", settlement=settlement.value, uid=request.uid) + f"[/{style}]",
-        highlight=False,
+        t("cli_core.run.finished", settlement=settlement.value, uid=request.uid), style=style, highlight=False
     )
     return code
 
 
-def _trailers_aborted(steps: list[dict[str, object]], options: RunOptions) -> bool:
+def _trailers_aborted(steps: list[dict[str, object]], options: RunOptions, config: Config) -> bool:
     """Whether the run's row says the trailers step aborted it.
 
-    The pipeline stops on a failed trailers step unless it was asked to continue on a trailer error,
+    The pipeline stops on a failed trailers step unless it was told to continue on a trailer error —
+    by the option or by ``trailers.pipeline.continue_on_error``, the rule ``execute_run`` applies —
     in which case the failure is an ordinary one.
 
     Args:
         steps: The steps the row closed.
         options: What the run was asked to do.
+        config: The loaded configuration.
 
     Returns:
         ``True`` when ``trailers`` closed in error and the run was not told to carry on.
     """
-    if options.continue_on_trailer_error:
+    if options.continue_on_trailer_error or config.trailers.pipeline.continue_on_error:
         return False
     return any(step.get("name") == "trailers" and step.get("status") == "error" for step in steps)
 
 
 @contextmanager
 def _read_only(db_path: Path) -> Iterator[sqlite3.Connection]:
-    """Open the indexer database for a read.
+    """Open the indexer database read-only (``mode=ro``): the worker writes it, the follower only reads.
 
     Args:
         db_path: The indexer database.
@@ -237,8 +306,11 @@ def _read_only(db_path: Path) -> Iterator[sqlite3.Connection]:
     Yields:
         The connection, closed afterwards.
     """
-    with closing(sqlite3.connect(str(db_path), isolation_level=None)) as conn:
-        apply_pragmas(conn)
+    with closing(sqlite3.connect(_read_only_uri(db_path), uri=True, isolation_level=None)) as conn:
+        try:
+            apply_pragmas(conn)
+        except sqlite3.Error:
+            pass  # Read-only connection — pragmas that require writes are harmless to skip.
         yield conn
 
 
