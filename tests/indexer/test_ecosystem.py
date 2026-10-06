@@ -860,12 +860,28 @@ def test_prod_deploy_never_starts_a_preprod_app() -> None:
 
 
 def test_staging_deploy_starts_exactly_the_preprod_apps() -> None:
-    """``deploy-staging.sh`` starts or restarts every preprod app, and never one of prod's.
+    """``start-preprod.sh`` (the staging deploy's PM2 step) names every preprod app, and never one of prod's.
 
     A staging deploy installs new code: the preprod's scheduled loops must pick it up with its
-    web, and nothing of prod may move.
+    web, and nothing of prod may move. Which of them a deploy starts is
+    ``tests/scripts/test_start_preprod.py``'s.
     """
-    names = _deploy_only_list("scripts/deploy-staging.sh")
-    assert names == _PREPROD_APP_NAMES
-    prod = {str(a["name"]) for a in _parse_ecosystem_apps(_ECOSYSTEM_PATH)} - _PREPROD_APP_NAMES
-    assert not names & prod
+    text = (_REPO_ROOT / "scripts" / "start-preprod.sh").read_text()
+
+    def assigned(variable: str) -> set[str]:
+        """Read the app names a shell variable of the script holds.
+
+        Args:
+            variable: The variable's name.
+
+        Returns:
+            The comma-separated names it is assigned.
+        """
+        assignment = re.search(rf'^{variable}="([^"]*)"', text, re.MULTILINE)
+        assert assignment is not None, f"start-preprod.sh: {variable} is never assigned"
+        return set(assignment.group(1).split(","))
+
+    web, jobs = assigned("PREPROD_WEB"), assigned("PREPROD_JOBS")
+    assert web == {"torrentmate-web-staging"}
+    assert jobs == set(_PREPROD_JOBS)
+    assert web | jobs == _PREPROD_APP_NAMES

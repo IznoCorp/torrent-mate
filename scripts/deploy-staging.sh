@@ -27,9 +27,6 @@ cd "$REPO"
 # prod clone). Override with TM_STAGING_VENV if relocated.
 VENV="${TM_STAGING_VENV:-$HOME/staging/torrentmate-venv}"
 PORT=8711
-# The preprod's PM2 apps — exactly those of ecosystem.config.js whose env says
-# PERSONALSCRAPER_ENV=staging (tests/indexer/test_ecosystem.py holds the two equal).
-STAGING_APPS="torrentmate-web-staging,personalscraper-preprod-follow-detect,personalscraper-preprod-search,personalscraper-preprod-grab,personalscraper-preprod-seed-sweep,personalscraper-preprod-health-check,personalscraper-preprod-index-full,personalscraper-preprod-purge"
 HEALTH_URL="http://127.0.0.1:${PORT}/api/health"
 
 fail() { printf '\n❌ STAGING DEPLOYMENT REFUSED: %s\n' "$*" >&2; exit 1; }
@@ -81,14 +78,11 @@ printf '%s @ %s\n' "$branch" "$sha" > personalscraper/web/static/BUILD_COMMIT
 # ── Reinstall the backend into the staging venv (per-clone isolation) ─────────
 "$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . failed (broken venv? missing dependencies?)"
 
-# ── Start-or-restart the preprod's PM2 apps (fail-soft) ───────────────────────
-# startOrRestart (not restart): the first staging autodeploy must START the apps
-# if they were never launched. Uses this clone's own ecosystem.config.js entries
-# and --update-env to pick up their env; the scheduled loops restart with the web
-# so they run the code just installed.
-if ! pm2 startOrRestart ecosystem.config.js --only "$STAGING_APPS" --update-env >/dev/null 2>&1; then
-  printf 'ℹ pm2 startOrRestart of the preprod apps failed — ecosystem.config.js missing, or an app misdeclared?\n' >&2
-fi
+# ── Start-or-restart the preprod's PM2 apps ───────────────────────────────────
+# The web always; the scheduled jobs only when the preprod is set up — the step says
+# loudly which precondition is missing (scripts/start-preprod.sh). Fail-soft: the
+# post-check below still reports the web's health.
+"$REPO"/scripts/start-preprod.sh "$VENV/bin/python" || printf '⚠ scripts/start-preprod.sh failed — see above\n' >&2
 
 # ── Post-check: /api/health on the staging port → expect 200 ──────────────────
 # Retry loop (mirrors deploy.sh): startOrRestart is async and the app rebuilds
