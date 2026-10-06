@@ -53,7 +53,8 @@ from personalscraper.api.plex_account import (
 )
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
 from personalscraper.app.accounts.credentials import CredentialService, SignInResult
-from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.device import device_label
+from personalscraper.app.accounts.events import AccountRightsChanged, PlexSessionOpened, RightsChangeCause
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.accounts.model import Account, PlexLink, Role, StartKind
 from personalscraper.app.accounts.pin_repository import PlexPinRow
@@ -179,7 +180,8 @@ class PlexSignInService:
             environment: The environment, which names the product on plex.tv.
             forward_url: Where plex.tv sends the sign-in window once confirmed, from the
                 configuration — never from the request; ``None`` leaves it on Plex.
-            bus: The bus E8 is published on after a link moves an account's role.
+            bus: The bus E8 is published on after a link moves an account's role, and every
+                session opened (:class:`PlexSessionOpened`).
             clock: The epoch clock.
             vault_keys_malformed: Whether ``PLEX_TOKEN_KEYS`` was set but malformed, which left
                 the door with no vault: a token not kept is then a warning, not a choice.
@@ -360,7 +362,10 @@ class PlexSignInService:
             raise
         if moved:
             self._bus.emit(AccountRightsChanged(account_ids=(account_id,), cause=RightsChangeCause.PLEX_LINKED))
-        return self._credentials.open_proven_session(account_id, user_agent=user_agent)
+        signed_in = self._credentials.open_proven_session(account_id, user_agent=user_agent)
+        # A PIN confirmed by the wrong person signs THEM in: the holder hears of every new session.
+        self._bus.emit(PlexSessionOpened(account_id=account_id, device=device_label(user_agent)))
+        return signed_in
 
     def _access(self, client: PlexAccountClient, token: str, plex: PlexAccount) -> PlexServerAccess:
         """What the identity is to this server, OWNER only when cross-checked.

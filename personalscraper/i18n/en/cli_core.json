@@ -180,7 +180,8 @@
       "continue_on_trailer_error": "Do not abort dispatch when the trailers step crashes.",
       "headless": "Run with no subscribers (silent mode for cron / CI). Disables Rich console output and Telegram notifications.",
       "no_console": "Disable Rich console output (progress bars, live tables). Telegram notifications remain active. Used by the Watcher daemon (``personalscraper watch``) when spawning pipeline runs; contrast with ``--headless`` which disables both Rich and Telegram. If both are passed, ``--headless`` wins.",
-      "trigger_reason": "Set by the Watcher daemon to attribute this run."
+      "trigger_reason": "Set by the Watcher daemon to attribute this run.",
+      "detach": "Queue the run and return at once instead of following it (needs a running supervisor)."
     },
     "ingest": {
       "help": "Ingest completed torrents from qBittorrent."
@@ -209,5 +210,18 @@
     "process": {
       "help": "Run process phase only (reclean + dedup + scrape + cleanup)."
     }
+  },
+  "run": {
+    "queued": "Run {{uid}} queued (position {{position}}).",
+    "joined": "Run {{uid}} was already asked.",
+    "following": "Following run {{uid}}; Ctrl-C leaves it to the supervisor.",
+    "step_done": "  {{step}}: {{status}}",
+    "finished": "Run {{uid}} finished: {{settlement}}.",
+    "detached": "Detached from run {{uid}}; it keeps going.",
+    "lease_lost_queued": "The supervisor stopped: run {{uid}} stays queued until a supervisor runs again.",
+    "lease_lost_running": "The supervisor stopped while run {{uid}} was running: the run was interrupted.",
+    "interactive_needs_direct": "--interactive needs the direct path: a supervisor is running, so the run is queued. Use `personalscraper scrape -i` for an interactive scrape.",
+    "detach_needs_supervisor": "--detach needs a running supervisor: none is running, so the run goes on here.",
+    "supervisor_state_unreadable": "The supervisor's state cannot be read right now: nothing was started. Retry in a moment."
   }
 }

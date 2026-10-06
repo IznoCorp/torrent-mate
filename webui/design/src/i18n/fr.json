@@ -1573,6 +1573,36 @@
         "heading": "Cross-seed, tracker par tracker",
         "origin": "{{name}} — l'original, sur {{tracker}}"
       }
+    },
+    "devLots": {
+      "title": "Avancement des lots",
+      "back": "Retour",
+      "updated": "Mis à jour {{moment}}",
+      "errorSubject": "l'avancement des lots",
+      "unavailable": "Aucun avancement n'est publié sur cet hôte.",
+      "noLots": "Aucun lot n'est défini.",
+      "blockedBy": "Bloqué : {{reason}}",
+      "phases_one": "{{count}} phase",
+      "phases_other": "{{count}} phases",
+      "pr": "PR #{{number}}",
+      "state": {
+        "planned": "Prévue",
+        "in-progress": "En cours",
+        "pr-open": "PR ouverte",
+        "merged": "Fusionnée"
+      },
+      "dispatch": {
+        "in-flight": "en cours d'écriture",
+        "in-review": "en relecture",
+        "ready-unarmed": "prête, non armée",
+        "armed": "armée",
+        "unknown": "état inconnu"
+      },
+      "dates": "{{start}} → {{end}}",
+      "datesFrom": "{{start}} →",
+      "datesUntil": "→ {{end}}",
+      "datesEstimated": "≈ {{dates}}",
+      "duration": "Durée : {{duration}}"
     }
   },
   "surfaces": {
@@ -2315,7 +2345,9 @@
   "refusals": {
     "request": {
       "invalid": "La demande est mal formée : rien n'a été changé.",
-      "cross_origin": "Demande refusée : elle ne vient pas de cette interface."
+      "cross_origin": "Demande refusée : elle ne vient pas de cette interface.",
+      "key_reused": "Demande refusée : son identifiant a déjà servi à une autre action.",
+      "in_progress": "Cette action est encore en cours sur le serveur : elle sera renvoyée."
     },
     "route": {
       "unknown": "Cette action n'existe pas sur ce serveur."
@@ -2386,6 +2418,10 @@
       "locked": "Le pipeline est en cours : la médiathèque ne se modifie pas pendant qu'il tourne. Réessayez à la fin de l'exécution.",
       "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'est supprimé tant qu'on ne sait pas ce qu'un tracker attend encore.",
       "unavailable": "La médiathèque est indisponible : le serveur ne peut pas la lire pour le moment. Réessayez dans un instant."
+    },
+    "session": {
+      "unknown": "Cette session n'existe plus ou n'est pas la vôtre.",
+      "current": "Cette session est celle que vous utilisez : déconnectez-vous pour la fermer."
     }
   },
   "push": {
@@ -2458,6 +2494,18 @@
         "title": "Service injoignable",
         "body": "{{service}} ne répond plus."
       }
+    },
+    "account": {
+      "sign_in": {
+        "device": {
+          "title": "Nouvelle connexion",
+          "body": "Votre compte vient d'être ouvert sur {{device}}. Si ce n'est pas vous, mettez fin à cette session dans votre Profil."
+        },
+        "unknown_device": {
+          "title": "Nouvelle connexion",
+          "body": "Votre compte vient d'être ouvert sur un appareil inconnu. Si ce n'est pas vous, mettez fin à cette session dans votre Profil."
+        }
+      }
     }
   },
   "notifications": {
@@ -2515,6 +2563,20 @@
           "label": "Service injoignable",
           "description": "Un fournisseur ou un service ne répond plus."
         }
+      },
+      "account": {
+        "sign_in": {
+          "label": "Nouvelle connexion",
+          "description": "Une connexion par Plex ouvre une nouvelle session sur votre compte."
+        }
+      }
+    }
+  },
+  "notices": {
+    "account": {
+      "sign_in": {
+        "device": "Nouvelle connexion sur {{device}}.",
+        "unknown_device": "Nouvelle connexion sur un appareil inconnu."
       }
     }
   },

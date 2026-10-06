@@ -31,7 +31,7 @@ from typing import Final
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling, current_ceiling
-from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.accounts.ids import AccountId, SessionId
 from personalscraper.app.accounts.session_repository import SessionRow
 from personalscraper.app.store.store import AppStore
 
@@ -102,7 +102,7 @@ class _Replaced:
         until: When it stops signing in; ``None`` until the new value comes back.
     """
 
-    session_id: int
+    session_id: SessionId
     replaced_at: float
     until: float | None
 
@@ -159,7 +159,7 @@ class SessionService:
         now = self._clock()
         self._store.sessions.insert_session(
             SessionRow(
-                id=0,
+                id=SessionId(0),
                 account_id=account_id,
                 token_hash=_token_hash(token),
                 created_at=now,
@@ -200,7 +200,7 @@ class SessionService:
             return None
         return found
 
-    def _confirm(self, session_id: int, now: float) -> None:
+    def _confirm(self, session_id: SessionId, now: float) -> None:
         """Start the grace of the values a session's current one replaced, if they await it.
 
         Args:
@@ -356,7 +356,7 @@ class SessionService:
                 if not awaiting:
                     del self._awaiting[session_id]
 
-    def live_session_id(self, token: str) -> int | None:
+    def live_session_id(self, token: str) -> SessionId | None:
         """The key of the live session a cookie value names, by its current value or a replaced one.
 
         Args:

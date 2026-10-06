@@ -11,7 +11,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
-from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.events import AccountRightsChanged, PlexSessionOpened, RightsChangeCause
 from personalscraper.app.supervisor.events import RunAdmitted, RunQueued, RunSettled
 from personalscraper.app.supervisor.ids import RunUid
 from personalscraper.app.supervisor.model import RunKind, RunTrigger, Settlement
@@ -231,6 +231,12 @@ def make_account_rights_changed() -> AccountRightsChanged:
         account_ids=("account-3f2a9c1e", "account-77b04d10"),
         cause=RightsChangeCause.ROLE_RIGHTS_CHANGED,
     )
+
+
+@register_factory(PlexSessionOpened)
+def make_plex_session_opened() -> PlexSessionOpened:
+    """Realistic :class:`PlexSessionOpened` factory."""
+    return PlexSessionOpened(account_id="account-3f2a9c1e", device="Firefox · macOS")
 
 
 # ---------------------------------------------------------------------------

@@ -39,6 +39,9 @@ SESSION = {
     "POST /acquisition/journeys/{infoHash}/closure/seen",
     # The account's own language carries no right (the operator, 2026-10-03: FG-1 B).
     "PUT /auth/language",
+    # Ending one of the account's own other sessions carries no right either: a session act, scoped to
+    # the caller (another account's session is a 404). A write refused only on a read-only instance.
+    "DELETE /auth/sessions/{sessionId}",
 }
 # The reads F30 gates: Système, Maintenance, the pipeline's record, Trackers, the
 # configuration's own files and secrets.

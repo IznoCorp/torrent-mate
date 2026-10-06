@@ -120,6 +120,8 @@ class PushMessage:
         tag: Collapses a newer message onto an older one of the same tag on the device.
         ttl_seconds: How long FCM keeps it for an offline device.
         urgency: Web Push ``Urgency``.
+        language: The RECIPIENT account's language (``"fr"``, ``"en"``), which the worker words
+            the code in (FG-2 A); ``None`` leaves it out, and the worker words it in English.
 
     Raises:
         ValueError: ``link`` is not a same-origin path, or ``ttl_seconds`` is negative.
@@ -131,6 +133,7 @@ class PushMessage:
     tag: str | None = None
     ttl_seconds: int = 86_400
     urgency: Literal["normal", "high"] = "normal"
+    language: str | None = None
 
     def __post_init__(self) -> None:
         """Refuses a link that could leave the application, and a negative TTL.
@@ -147,11 +150,13 @@ class PushMessage:
         """The ``webpush.data`` map: every value a string, as FCM requires.
 
         Returns:
-            ``{code, params (JSON), link[, tag]}``.
+            ``{code, params (JSON), link[, tag][, language]}``.
         """
         data = {"code": self.code, "params": json.dumps(dict(self.params), sort_keys=True), "link": self.link}
         if self.tag is not None:
             data["tag"] = self.tag
+        if self.language is not None:
+            data["language"] = self.language
         return data
 
 

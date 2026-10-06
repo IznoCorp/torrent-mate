@@ -1,0 +1,35 @@
+{
+  "sessions": [
+    {
+      "id": 41,
+      "device": "Firefox · macOS",
+      "createdAt": 1791100000,
+      "lastSeenAt": 1791280000,
+      "current": true
+    },
+    {
+      "id": 37,
+      "device": "Safari · iOS",
+      "createdAt": 1790900000,
+      "lastSeenAt": 1791200000,
+      "current": false
+    },
+    {
+      "id": 22,
+      "device": null,
+      "createdAt": 1790500000,
+      "lastSeenAt": 1790600000,
+      "current": false
+    }
+  ],
+  "notices": [
+    {
+      "id": 9,
+      "code": "account.sign_in.device",
+      "params": {
+        "device": "Safari · iOS"
+      },
+      "createdAt": 1790900000
+    }
+  ]
+}
