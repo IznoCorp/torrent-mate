@@ -291,7 +291,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         grabbed = retried = abandoned = skipped = 0
 
         for item in queue:
-            assert item.id is not None  # noqa: S101 — ensured by the SELECTs above
+            assert item.id is not None  # ensured by the SELECTs above
             wanted_id = item.id
 
             cadence = self._cadence_for(item, follow_map, global_cadence)
@@ -402,7 +402,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         season_probed: set[tuple[int, int]] = set()
 
         for item in queue:
-            assert item.id is not None  # noqa: S101 — ensured by the SELECTs above
+            assert item.id is not None  # ensured by the SELECTs above
             wanted_id = item.id
 
             cadence = self._cadence_for(item, follow_map, global_cadence)

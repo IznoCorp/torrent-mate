@@ -101,7 +101,7 @@ def test_enrich_skips_pymediainfo_for_non_video_extensions(conn: sqlite3.Connect
 
     captured_wrappers: dict[str, object] = {}
 
-    def _fake_enrich_one_file(conn_arg, file_id, file_path, item_id, wrapper, nfo_artwork_cache=None):  # noqa: ANN001
+    def _fake_enrich_one_file(conn_arg, file_id, file_path, item_id, wrapper, nfo_artwork_cache=None):
         # Map back to filename for assertion clarity.
         for name, fid in file_ids.items():
             if fid == file_id:

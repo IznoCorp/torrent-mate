@@ -54,11 +54,11 @@ DEFAULT_DEAD_AFTER_S = 2 * 60 * 60  # 2 hours
 class _StallClient(Protocol):
     """The torrent-client surface the reswitch pass needs (structural)."""
 
-    def get_by_hashes(self, hashes: set[str]) -> "list[TorrentItem]":
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
         """Return the client's records for a specific hash set."""
         ...
 
-    def delete(self, hash: str, *, delete_files: bool = False) -> None:  # noqa: A002 — matches client API
+    def delete(self, hash: str, *, delete_files: bool = False) -> None:  # matches client API
         """Remove a torrent (optionally its files) from the client."""
         ...
 
@@ -76,7 +76,7 @@ class ReswitchSummary:
     reswitched: int = 0
 
 
-def _dead_reason(item: "TorrentItem") -> str:
+def _dead_reason(item: TorrentItem) -> str:
     """Name why a torrent was declared dead (machine-stable token for the event)."""
     if item.error_reason is not None:
         return "broken"
@@ -85,7 +85,7 @@ def _dead_reason(item: "TorrentItem") -> str:
     return "deadline"
 
 
-def _grabbed_age_s(item: "TorrentItem", fallback_ts: int | None, now: float) -> float:
+def _grabbed_age_s(item: TorrentItem, fallback_ts: int | None, now: float) -> float:
     """Seconds since the torrent was grabbed.
 
     Prefers the torrent's own ``added_on`` (the authoritative grab time from the
@@ -107,11 +107,11 @@ def _grabbed_age_s(item: "TorrentItem", fallback_ts: int | None, now: float) -> 
 
 
 def reswitch_stalled(
-    store: "AcquireStore",
+    store: AcquireStore,
     torrent_client: _StallClient,
     now: float,
     *,
-    event_bus: "EventBus",
+    event_bus: EventBus,
     dead_after_s: float = DEFAULT_DEAD_AFTER_S,
 ) -> ReswitchSummary:
     """Switch every dead-stalled grabbed release for a fresh one (reswitch #342).

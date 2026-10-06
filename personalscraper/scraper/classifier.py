@@ -149,11 +149,11 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
 class ClassifierMixin:
     """Classification and title helper methods for Scraper."""
 
-    config: "Config | None"
+    config: Config | None
     _needs_keywords: bool
-    _keywords_cache: "KeywordsCache | None"
+    _keywords_cache: KeywordsCache | None
     _prefer_local_title: bool
-    _registry: "ProviderRegistry"
+    _registry: ProviderRegistry
 
     def _classify_item(
         self,

@@ -153,7 +153,7 @@ def test_a_planted_actor_parameter_is_flagged_whatever_its_annotation() -> None:
         def optional_union(self, actor: Actor | None) -> None:
             """Takes ``Actor | None``."""
 
-        def optional_typing(self, actor: Optional[Actor]) -> None:
+        def optional_typing(self, actor: Actor | None) -> None:
             """Takes ``Optional[Actor]``."""
 
         def unannotated(self, actor) -> None:  # type: ignore[no-untyped-def]

@@ -201,7 +201,7 @@ class QueueRepository:
         else:
             clause, params = "json_extract(options_json, '$.item_id') = ?", (item_id,)
         row = self._conn.execute(
-            f"SELECT {_COLUMNS} FROM run_request WHERE state = ? AND kind = ? AND {clause} {_FIFO} LIMIT 1",  # noqa: S608
+            f"SELECT {_COLUMNS} FROM run_request WHERE state = ? AND kind = ? AND {clause} {_FIFO} LIMIT 1",  # noqa: S608 — interpolates fixed columns and one of the two clause literals chosen above
             (RequestState.QUEUED.value, kind.value, *params),
         ).fetchone()
         return None if row is None else _request(row)

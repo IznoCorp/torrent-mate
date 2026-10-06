@@ -23,10 +23,10 @@ def _collect_command_names() -> list[str]:
     e.g. ``"trailers scan"``, ``"config migrate-category"``).
     """
     # Trigger registration of all commands on the shared app instance.
-    import personalscraper.commands.config  # noqa: F401,PLC0415
-    import personalscraper.commands.info  # noqa: F401,PLC0415
-    import personalscraper.commands.library  # noqa: F401,PLC0415
-    import personalscraper.commands.pipeline  # noqa: F401,PLC0415
+    import personalscraper.commands.config  # noqa: PLC0415
+    import personalscraper.commands.info  # noqa: PLC0415
+    import personalscraper.commands.library  # noqa: PLC0415
+    import personalscraper.commands.pipeline  # noqa: PLC0415
     import personalscraper.trailers.cli  # noqa: F401,PLC0415
 
     names: list[str] = []

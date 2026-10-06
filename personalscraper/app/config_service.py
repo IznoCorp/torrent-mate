@@ -91,7 +91,7 @@ def _local_keys(config_dir: Path) -> set[str]:
         return set()
     try:
         local = load_json5_file(local_path)
-    except Exception:
+    except Exception:  # noqa: BLE001 — an unreadable local file is reported and ignored
         logger.warning("local_json5_unreadable", path=str(local_path))
         return set()
     return {k for k in local if k != "__source__"}

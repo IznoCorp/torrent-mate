@@ -21,7 +21,7 @@ from pathlib import Path
 from _repo_paths import DESIGN, DESIGN_SRC
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nofrench_lexicon import (  # noqa: E402
+from nofrench_lexicon import (
     walk,
     EXTRACTED_CSS, FROZEN_IDENTIFIERS, REGIONS, ROOT, examined,
     french_only, french_tokens_in, has_accent, read, relative, split_identifier,

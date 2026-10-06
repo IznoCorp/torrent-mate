@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def store(tmp_path: Path) -> "Iterator[ConcreteAcquireStore]":
+def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
     """Yield a real :class:`ConcreteAcquireStore` on ``tmp_path/acquire.db``.
 
     Mirrors the integration-level fixture in

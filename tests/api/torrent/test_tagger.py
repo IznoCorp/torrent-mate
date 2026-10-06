@@ -39,7 +39,7 @@ def test_seed_pure_in_all():
 # ---------------------------------------------------------------------------
 
 
-def _make_qbit_client() -> "QBitClient":
+def _make_qbit_client() -> QBitClient:
     """Build a QBitClient with a mocked underlying qbittorrentapi.Client."""
     from personalscraper.api.torrent.qbittorrent import QBitClient
 
@@ -90,7 +90,7 @@ def test_qbit_tagger_protocol_compliance():
 # ---------------------------------------------------------------------------
 
 
-def _make_tx_client() -> "TransmissionClient":
+def _make_tx_client() -> TransmissionClient:
     """Build a TransmissionClient with a mocked underlying transmission_rpc.Client."""
     from personalscraper.api.torrent.transmission import TransmissionClient
 

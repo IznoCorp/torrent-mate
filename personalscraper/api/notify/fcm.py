@@ -56,9 +56,9 @@ from personalscraper.logger import get_logger
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
+    from typing import Self
 
     from google.oauth2.service_account import Credentials
-    from typing_extensions import Self
 
 log = get_logger("api.fcm")
 

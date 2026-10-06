@@ -10,7 +10,9 @@ import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Final, cast
 
-from personalscraper.api.transport import RetryPolicy
+from personalscraper.api.plex import PlexClient
+from personalscraper.api.plex_account import PlexAccountClient
+from personalscraper.api.transport import CircuitPolicy, RetryPolicy
 from personalscraper.app.accounts.credentials import CredentialService
 from personalscraper.app.accounts.notices import NoticeService
 from personalscraper.app.accounts.own_sessions import OwnSessionService
@@ -19,6 +21,7 @@ from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.sign_in_notice import SignInNotifier
+from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault
 from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
 from personalscraper.app.services import AppServices
@@ -27,8 +30,10 @@ from personalscraper.app.supervisor.service import RunService
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.ownership import NullOwnershipChecker
 from personalscraper.logger import get_logger
 from personalscraper.push.dispatch import UnconfiguredPush
+from personalscraper.verify.config_home import check_config_home
 
 log = get_logger("app.composition")
 
@@ -39,8 +44,6 @@ ONE_ATTEMPT: Final[RetryPolicy] = RetryPolicy(max_attempts=1)
 if TYPE_CHECKING:
     from personalscraper.acquire.catalogue import ProviderLookup, TvCatalogueClient
     from personalscraper.api.metadata.registry import ProviderRegistry
-    from personalscraper.api.plex import PlexClient
-    from personalscraper.api.transport import CircuitPolicy
     from personalscraper.app.library.completeness import CatalogueView
     from personalscraper.app.library.deleting import LibraryDeletion
     from personalscraper.app.library.reads import LibraryReads
@@ -54,11 +57,11 @@ if TYPE_CHECKING:
 
 
 def build_app_context(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
     build_torrent_client: bool = False,
-    provider_retry: "RetryPolicy | None" = None,
+    provider_retry: RetryPolicy | None = None,
 ) -> AppContext:
     """Build the process-scoped :class:`AppContext`, once per process.
 
@@ -127,12 +130,12 @@ def build_app_context(
     # decision is made once; the factory keeps refusing a disabled client for a direct caller.
     torrent_client = None
     if build_torrent_client and config.torrent.active and not config.torrent.active_client_disabled():
-        from personalscraper.api.metadata.registry import (  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — pulls the provider tree, built only when a torrent client is configured
             ConfigIssue,
             RegistryConfigError,
             RegistryProviderName,
         )
-        from personalscraper.api.torrent import (  # noqa: PLC0415
+        from personalscraper.api.torrent import (  # noqa: PLC0415 — built only when a torrent client is configured, like the registry above
             TorrentAdder,
             build_active_torrent_client,
         )
@@ -162,7 +165,9 @@ def build_app_context(
     # at the same boundary as RegistryConfigError (metadata/torrent). The
     # torrent client is borrowed (shared with ingest); acquire.close() does
     # NOT own its lifecycle.
-    from personalscraper.acquire import build_acquire_context  # noqa: PLC0415
+    from personalscraper.acquire import (  # noqa: PLC0415 — keeps --help / init-config network-light (see above)
+        build_acquire_context,
+    )
 
     # RP6: build the ownership checker at the TRUE composition root. This is the
     # only frame that may import indexer/ AND see config.indexer.db_path, so it
@@ -190,8 +195,7 @@ def build_app_context(
     # at the TRUE composition root covers every CLI command AND the web daemon
     # (commands/web.py boot path → build_app_context → here).  Fail-soft:
     # warnings are logged but never block boot.
-    from personalscraper.conf.loader import resolve_config_path
-    from personalscraper.verify.config_home import check_config_home
+    from personalscraper.conf.loader import resolve_config_path  # noqa: PLC0415 — tests patch it at its source module
 
     config_dir = resolve_config_path()
     for warning in check_config_home(config_dir, report_missing=False):
@@ -207,7 +211,7 @@ def build_app_context(
     )
 
 
-def _circuit_policy(config: "Config") -> "CircuitPolicy":
+def _circuit_policy(config: Config) -> CircuitPolicy:
     """The circuit breaker policy of the provider transports, from ``config.thresholds``.
 
     A value: each caller builds its own, all equal (the acquire context's and the
@@ -219,8 +223,6 @@ def _circuit_policy(config: "Config") -> "CircuitPolicy":
     Returns:
         The policy.
     """
-    from personalscraper.api.transport import CircuitPolicy  # noqa: PLC0415
-
     return CircuitPolicy(
         failure_threshold=config.thresholds.circuit_breaker_threshold,
         cooldown_seconds=config.thresholds.circuit_breaker_cooldown,
@@ -228,13 +230,13 @@ def _circuit_policy(config: "Config") -> "CircuitPolicy":
 
 
 def build_provider_registry(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
     event_bus: EventBus,
     retry: RetryPolicy | None = None,
-    providers_config: "ProvidersConfig | None" = None,
-) -> "ProviderRegistry":
+    providers_config: ProvidersConfig | None = None,
+) -> ProviderRegistry:
     """Build the process's metadata provider registry, in the configured language.
 
     Args:
@@ -256,7 +258,9 @@ def build_provider_registry(
     """
     # Lazy import: ProviderRegistry pulls the full provider tree, so we defer it to keep
     # CLI import time minimal for commands that never build one (``--help``, ``init-config``).
-    from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: PLC0415
+    from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — pulls the provider tree (see above)
+        ProviderRegistry,
+    )
 
     return ProviderRegistry(
         settings=settings,
@@ -272,7 +276,7 @@ def build_provider_registry(
 _LIBRARY_PROVIDER_KEYS: Final[dict[str, str]] = {"tmdb": "tmdb_api_key", "tvdb": "tvdb_api_key"}
 
 
-def _build_library_registry(config: "Config", settings: "Settings", *, event_bus: EventBus) -> "ProviderRegistry":
+def _build_library_registry(config: Config, settings: Settings, *, event_bus: EventBus) -> ProviderRegistry:
     """Build v1's registry, with :data:`ONE_ATTEMPT`, over the providers the library reads.
 
     The providers section is pruned to TMDB and TVDB, and to those of the two whose key
@@ -292,7 +296,9 @@ def _build_library_registry(config: "Config", settings: "Settings", *, event_bus
         RegistryConfigError: The pruned providers section is inconsistent, or neither
             key is set.
     """
-    from personalscraper.conf.models.providers import ProvidersConfig  # noqa: PLC0415
+    from personalscraper.conf.models.providers import (  # noqa: PLC0415 — loads the provider config models only when a registry is built
+        ProvidersConfig,
+    )
 
     keyed = {name for name, field in _LIBRARY_PROVIDER_KEYS.items() if getattr(settings, field)}
     kept = keyed or set(_LIBRARY_PROVIDER_KEYS)
@@ -320,7 +326,7 @@ class LazyProviders:
     from a pool.
     """
 
-    def __init__(self, build: Callable[[], "ProviderRegistry"]) -> None:
+    def __init__(self, build: Callable[[], ProviderRegistry]) -> None:
         """Hold the builder; nothing is built yet.
 
         Args:
@@ -332,7 +338,7 @@ class LazyProviders:
         self._closed = False
         self._lock = threading.Lock()
 
-    def get(self, provider: str) -> "TvCatalogueClient | None":
+    def get(self, provider: str) -> TvCatalogueClient | None:
         """Return the client of ``provider``, building the registry on the first call.
 
         Args:
@@ -342,7 +348,9 @@ class LazyProviders:
             The registry's client, or ``None`` when the registry cannot be built, does
             not hold ``provider``, or this lookup is closed.
         """
-        from personalscraper.api.metadata.registry import UnknownProviderError  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — the provider tree loads only when a lookup resolves
+            UnknownProviderError,
+        )
 
         registry = self._resolve()
         if registry is None:
@@ -361,13 +369,15 @@ class LazyProviders:
             if self._registry is not None:
                 self._registry.close()
 
-    def _resolve(self) -> "ProviderRegistry | None":
+    def _resolve(self) -> ProviderRegistry | None:
         """Return the registry, building it once; ``None`` once it failed to build or is closed.
 
         Returns:
             The registry, or ``None``.
         """
-        from personalscraper.api.metadata.registry import RegistryConfigError  # noqa: PLC0415
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415 — the provider tree loads only when a lookup resolves
+            RegistryConfigError,
+        )
 
         with self._lock:
             if self._closed:
@@ -385,11 +395,11 @@ class LazyProviders:
 
 
 def build_app_services(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
     event_bus: EventBus,
-    providers: "ProviderRegistry | None" = None,
+    providers: ProviderRegistry | None = None,
 ) -> AppServices:
     """Build the process's :class:`AppServices`.
 
@@ -411,8 +421,6 @@ def build_app_services(
         The application services, on the process's :class:`EventBus`, with the build
         read at boot and the account services over the environment's ``app.db``.
     """
-    from personalscraper.api.plex import PlexClient  # noqa: PLC0415
-
     owned: LazyProviders | None = None
     if providers is None:
         owned = LazyProviders(lambda: _build_library_registry(config, settings, event_bus=event_bus))
@@ -457,12 +465,12 @@ def build_app_services(
 
 
 def _build_plex_sign_in(
-    config: "Config",
-    settings: "Settings",
-    app_store: "AppStore",
+    config: Config,
+    settings: Settings,
+    app_store: AppStore,
     credentials: CredentialService,
     event_bus: EventBus,
-    server: "PlexClient | None",
+    server: PlexClient | None,
 ) -> PlexSignInService:
     """Build the Plex door: the vault, the managed server and plex.tv's account client.
 
@@ -482,9 +490,7 @@ def _build_plex_sign_in(
     Returns:
         The door; with no ``PLEX_TOKEN`` it has no server and admits nobody.
     """
-    from personalscraper.api.plex_account import PlexAccountClient  # noqa: PLC0415
-    from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault  # noqa: PLC0415
-    from personalscraper.conf.environment import current_environment  # noqa: PLC0415
+    from personalscraper.conf.environment import current_environment  # noqa: PLC0415 — patched at source by tests
 
     keys_malformed = False
     try:
@@ -507,8 +513,8 @@ def _build_plex_sign_in(
 
 
 def _build_library_services(
-    config: "Config", providers: "ProviderLookup", plex: "PlexClient | None", runs: RunService
-) -> "tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]":
+    config: Config, providers: ProviderLookup, plex: PlexClient | None, runs: RunService
+) -> tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]:
     """Build the library's services over one catalogue view, one index, the providers and Plex.
 
     Inert: the catalogue store and the ownership checker open on first use, the deletion
@@ -535,19 +541,37 @@ def _build_library_services(
     """
     # Lazy imports: the indexer pulls heavy trees; building AppServices for a command
     # that never reads the library stays import-light.
-    from personalscraper.acquire.catalogue import CatalogueStore  # noqa: PLC0415
-    from personalscraper.acquire.delete_authority import StrictDeletePermit  # noqa: PLC0415
-    from personalscraper.app.library.completeness import CatalogueView  # noqa: PLC0415
-    from personalscraper.app.library.deleting import LibraryDeletion  # noqa: PLC0415
-    from personalscraper.app.library.reads import LibraryReads  # noqa: PLC0415
-    from personalscraper.app.library.rescrape import LibraryRescrape  # noqa: PLC0415
-    from personalscraper.app.library.sheets import MediaSheets  # noqa: PLC0415
-    from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415
-    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
+    from personalscraper.acquire.catalogue import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        CatalogueStore,
+    )
+    from personalscraper.acquire.delete_authority import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        StrictDeletePermit,
+    )
+    from personalscraper.app.library.completeness import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        CatalogueView,
+    )
+    from personalscraper.app.library.deleting import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryDeletion,
+    )
+    from personalscraper.app.library.reads import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryReads,
+    )
+    from personalscraper.app.library.rescrape import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryRescrape,
+    )
+    from personalscraper.app.library.sheets import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        MediaSheets,
+    )
+    from personalscraper.indexer.library_view import (  # noqa: PLC0415 — the library tree loads when these services are built (see above)
+        LibraryIndex,
+    )
+    from personalscraper.indexer.ownership import (  # noqa: PLC0415 — defers the indexer's SQLite machinery (see above) — the library tree loads when these services are built (see above)
+        IndexerOwnershipChecker,
+    )
 
     index_db = config.indexer.db_path
     acquire_db = config.acquire.db_path
-    assert index_db is not None and acquire_db is not None  # noqa: S101 — resolved by the config loader
+    assert index_db is not None and acquire_db is not None  # resolved by the config loader
     # The pipeline's decision, read-only and refusing what it cannot read (operator ruling
     # R1): the web process never creates nor migrates acquire.db, and a deletion whose seed
     # obligations are unreadable is refused rather than allowed.
@@ -571,7 +595,7 @@ def _build_library_services(
     )
 
 
-def build_ownership_checker(config: "Config") -> "OwnershipChecker":
+def build_ownership_checker(config: Config) -> OwnershipChecker:
     """Build the RP6 ownership checker from the configured ``library.db`` path.
 
     Returns an :class:`~personalscraper.indexer.ownership.IndexerOwnershipChecker`
@@ -600,14 +624,14 @@ def build_ownership_checker(config: "Config") -> "OwnershipChecker":
         An ``OwnershipChecker`` port implementation — concrete indexer-backed
         when the library exists, ``NullOwnershipChecker`` otherwise.
     """
-    from personalscraper.core.ownership import NullOwnershipChecker  # noqa: PLC0415
-
     db_path = config.indexer.db_path
     if db_path is None or not db_path.exists():
         return NullOwnershipChecker()
     # Lazy import: indexer/ pulls the SQLite machinery; defer it so commands that
     # never build an AppContext stay import-light. app/composition is NOT subject to
     # the acquire/ layering guard, so this indexer import is legal here.
-    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
+    from personalscraper.indexer.ownership import (  # noqa: PLC0415 — defers the indexer's SQLite machinery (see above)
+        IndexerOwnershipChecker,
+    )
 
     return IndexerOwnershipChecker(db_path)

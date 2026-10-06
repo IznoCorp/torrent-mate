@@ -447,7 +447,7 @@ def fetch_details(
         except ApiError as exc:
             if exc.http_status != _NOT_FOUND:
                 raise _refuse_unavailable(provider, exc) from exc
-        except Exception as exc:  # noqa: BLE001 — a provider down is a 503, never a 500
+        except Exception as exc:  # a provider down is a 503, never a 500
             raise _refuse_unavailable(provider, exc) from exc
     raise refuse_not_found(provider)
 

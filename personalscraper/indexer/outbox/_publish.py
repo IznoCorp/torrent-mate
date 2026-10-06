@@ -87,7 +87,7 @@ def publish_event(
         finally:
             conn.close()
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning(
             "indexer.db.outbox_lost",
             op=op,

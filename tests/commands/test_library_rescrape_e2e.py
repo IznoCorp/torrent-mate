@@ -385,7 +385,7 @@ def test_rescrape_partial_payload_nfo_renderer_handles_none_fields(tmp_path: Pat
 
     # Re-parse to prove the renderer emitted well-formed XML.
     assert nfo_path.exists()
-    tree = ET.parse(str(nfo_path))  # noqa: S314
+    tree = ET.parse(str(nfo_path))
     root = tree.getroot()
     title_el = root.find("title")
     assert title_el is not None, f"NFO missing <title>; xml head: {nfo_path.read_text()[:200]}"

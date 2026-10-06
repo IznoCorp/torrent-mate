@@ -29,6 +29,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Final
 
+from rich.console import Console
+
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.app.supervisor.execution import RunRecorder, RunRowFactory, execute_run, rescrape_item
 from personalscraper.app.supervisor.ids import RunUid
@@ -84,9 +86,9 @@ def _run_rescrape(config: Config, settings: Settings, request: RunRequest) -> in
     Returns:
         The rescrape's exit code; 1 when the request names no item or the index is missing.
     """
-    from rich.console import Console  # noqa: PLC0415
-
-    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+    from personalscraper.cli_helpers import (  # noqa: PLC0415 — the command layer loads only when a rescrape runs
+        per_step_boundary,
+    )
 
     item_id = request.options.item_id
     db_path = config.indexer.db_path
@@ -219,7 +221,7 @@ class _Heartbeat:
         while not self._stopped.wait(self._interval_s):
             try:
                 self._store.runs.touch_heartbeat(self._uid, self._clock())
-            except Exception:  # noqa: BLE001 — a missed beat must never stop the run it reports on
+            except Exception:  # a missed beat must never stop the run it reports on
                 log.warning("worker.heartbeat_failed", uid=self._uid, exc_info=True)
 
     def __enter__(self) -> None:

@@ -86,7 +86,7 @@ class AccountRepository:
         Returns:
             The accounts.
         """
-        rows = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account ORDER BY created_at, rowid")  # noqa: S608
+        rows = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account ORDER BY created_at, rowid")  # noqa: S608 — interpolates the module's fixed column constants only
         return [self._with_link(row) for row in rows.fetchall()]
 
     def _with_link(self, row: tuple[object, ...]) -> Account:
@@ -110,7 +110,7 @@ class AccountRepository:
         Returns:
             The account, or ``None``.
         """
-        row = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE id = ?", (account_id,)).fetchone()  # noqa: S608
+        row = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE id = ?", (account_id,)).fetchone()  # noqa: S608 — interpolates the module's fixed column constants only
         return self._with_link(row) if row else None
 
     @serialised
@@ -124,7 +124,7 @@ class AccountRepository:
             The account, or ``None``.
         """
         row = self._conn.execute(
-            f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE lower(email) = lower(?)",  # noqa: S608
+            f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE lower(email) = lower(?)",  # noqa: S608 — interpolates the module's fixed column constants only
             (email,),
         ).fetchone()
         return self._with_link(row) if row else None
@@ -140,7 +140,7 @@ class AccountRepository:
             sqlite3.IntegrityError: On a taken key, a taken e-mail (any case) or an unknown role.
         """
         self._conn.execute(
-            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
+            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608 — interpolates the module's fixed column constants only
             (
                 account.id,
                 account.name,
@@ -259,7 +259,7 @@ class AccountRepository:
             The link, or ``None``.
         """
         row = self._conn.execute(
-            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE account_id = ?",  # noqa: S608
+            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE account_id = ?",  # noqa: S608 — interpolates the module's fixed column constants only
             (account_id,),
         ).fetchone()
         return _link(row) if row else None
@@ -274,7 +274,7 @@ class AccountRepository:
         Returns:
             The link, or ``None``.
         """
-        row = self._conn.execute(f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE plex_id = ?", (plex_id,)).fetchone()  # noqa: S608
+        row = self._conn.execute(f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE plex_id = ?", (plex_id,)).fetchone()  # noqa: S608 — interpolates the module's fixed column constants only
         return _link(row) if row else None
 
     @serialised
@@ -285,7 +285,7 @@ class AccountRepository:
             The first link whose ``server_access`` is ``owner``, or ``None``.
         """
         row = self._conn.execute(
-            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE server_access = 'owner' ORDER BY linked_at, rowid LIMIT 1"  # noqa: S608
+            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE server_access = 'owner' ORDER BY linked_at, rowid LIMIT 1"  # noqa: S608 — interpolates the module's fixed column constants only
         ).fetchone()
         return _link(row) if row else None
 
@@ -300,7 +300,7 @@ class AccountRepository:
             The owner links; empty when no account holds one.
         """
         rows = self._conn.execute(
-            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE server_access = 'owner' ORDER BY linked_at, rowid"  # noqa: S608
+            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE server_access = 'owner' ORDER BY linked_at, rowid"  # noqa: S608 — interpolates the module's fixed column constants only
         ).fetchall()
         return [_link(row) for row in rows]
 
@@ -319,7 +319,7 @@ class AccountRepository:
             sqlite3.IntegrityError: On a plex id linked to another account, or an unknown account.
         """
         self._conn.execute(
-            f"INSERT INTO plex_link ({_LINK_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"  # noqa: S608
+            f"INSERT INTO plex_link ({_LINK_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"  # noqa: S608 — interpolates the module's fixed column constants only
             " ON CONFLICT (account_id) DO UPDATE SET plex_id = excluded.plex_id, plex_uuid = excluded.plex_uuid,"
             " plex_username = excluded.plex_username, server_access = excluded.server_access,"
             " token_ciphertext = COALESCE(excluded.token_ciphertext, plex_link.token_ciphertext),"
@@ -346,7 +346,7 @@ class AccountRepository:
             The links, by account key.
         """
         rows = self._conn.execute(
-            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE token_ciphertext IS NOT NULL ORDER BY account_id"  # noqa: S608
+            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE token_ciphertext IS NOT NULL ORDER BY account_id"  # noqa: S608 — interpolates the module's fixed column constants only
         )
         return [_link(row) for row in rows]
 

@@ -68,7 +68,7 @@ class FixSeasonCountsStats(CliFixStatsMixin):
     fixed: int = 0
     details: list[dict[str, int]] = field(default_factory=list)
 
-    def snapshot(self) -> "FixSeasonCountsStats":
+    def snapshot(self) -> FixSeasonCountsStats:
         """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
         return replace(self, details=list(self.details))
 

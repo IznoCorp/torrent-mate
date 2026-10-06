@@ -96,16 +96,16 @@ class _RecordingVisitor(ScanVisitor):
         super().__init__(conn, disk, generation=1, files_visited=[0], dirs_visited=[0])
         self.events: list[tuple[str, str]] = []
 
-    def enter_dir(self, entry, st, rel) -> bool:  # noqa: ANN001 — DirEntry/stat_result
+    def enter_dir(self, entry, st, rel) -> bool:  # DirEntry/stat_result
         """Record the directory entry and always recurse (skeleton default)."""
         self.events.append(("enter_dir", entry.name))
         return True
 
-    def leave_dir(self, entry, st, rel) -> None:  # noqa: ANN001
+    def leave_dir(self, entry, st, rel) -> None:
         """Record the subtree exit (skip the path-row write — not under test)."""
         self.events.append(("leave_dir", entry.name))
 
-    def visit_file(self, entry, st, parent_rel) -> None:  # noqa: ANN001
+    def visit_file(self, entry, st, parent_rel) -> None:
         """Record the file visit (no DB write)."""
         self.events.append(("visit_file", entry.name))
 

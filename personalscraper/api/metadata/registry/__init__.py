@@ -280,7 +280,7 @@ class ProviderRegistry:
         cb_policy: CircuitPolicy,
         providers_config: ProvidersConfig,
         language: str,
-        retry: "RetryPolicy | None" = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """Initialize the registry by instantiating providers and validating config.
 

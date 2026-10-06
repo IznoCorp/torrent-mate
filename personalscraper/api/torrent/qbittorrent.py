@@ -694,7 +694,7 @@ class QBitClient(
 # -- Factory entry point -----------------------------------------------------
 
 
-def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> "QBitClient":
+def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> QBitClient:
     """Construct and authenticate a QBitClient.
 
     Args:

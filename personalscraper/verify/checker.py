@@ -314,7 +314,7 @@ class MediaChecker:
             Root Element, or None if parse fails.
         """
         try:
-            tree = ET.parse(nfo_path)  # noqa: S314
+            tree = ET.parse(nfo_path)
             return tree.getroot()
         except (ET.ParseError, OSError) as exc:
             log.warning("verify_nfo_parse_failed", nfo=nfo_path.name, exc_info=True, error=str(exc))

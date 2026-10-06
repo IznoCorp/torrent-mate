@@ -409,7 +409,7 @@ class TransmissionClient(
 # -- Factory entry point -----------------------------------------------------
 
 
-def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> "TransmissionClient":
+def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> TransmissionClient:
     """Construct a TransmissionClient with pre-check.
 
     Args:

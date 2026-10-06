@@ -118,11 +118,11 @@ __all__ = [
 class ExistingValidatorMixin:
     """Existing scrape validation and repair helper methods."""
 
-    patterns: "NamingPatterns"
+    patterns: NamingPatterns
     dry_run: bool
-    _registry: "ProviderRegistry"
-    _artwork: "ArtworkDownloader"
-    _generate_episode_nfos: "Callable[..., list[str]]"  # from TvServiceNfoMixin (Phase 27.2 S3 extraction)
+    _registry: ProviderRegistry
+    _artwork: ArtworkDownloader
+    _generate_episode_nfos: Callable[..., list[str]]  # from TvServiceNfoMixin (Phase 27.2 S3 extraction)
 
     def _repair_season_dir(self, show_dir: Path) -> tuple[set[tuple[int, int]], bool]:
         """Collect organised episodes and replace them when a new root duplicate exists.

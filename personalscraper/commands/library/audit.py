@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -65,7 +64,7 @@ def library_reconcile(
         "--clean-fk-orphans",
         help=t("cli_library.audit.reconcile_clean_fk_orphans_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.audit.reconcile_config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.audit.reconcile_config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -122,7 +121,7 @@ def library_reconcile(
     # reported, and --clean-fk-orphans --dry-run previews without deleting).
     apply_fk_clean = clean_fk_orphans and not (read_only or dry_run)
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
 
     # The boundary's "app" tier already built the process-scoped AppContext (via
     # per_step_boundary, binding a fresh correlation_id) so the pre-open
@@ -266,7 +265,7 @@ def _print_reconcile_rich(payload: dict[str, object]) -> None:
 def library_ghost_audit(
     ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help=t("cli_library.audit.ghost_disk_help")),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.audit.ghost_config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.audit.ghost_config_help")),
 ) -> None:
     """Audit storage disks for NTFS-via-macFUSE ghost dirents.
 
@@ -349,7 +348,7 @@ def library_relink(
         "--dry-run",
         help=t("cli_library.audit.relink_dry_run_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.audit.relink_config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.audit.relink_config_help")),
 ) -> None:
     """Relink ``media_file`` rows whose ``release_id`` is NULL.
 

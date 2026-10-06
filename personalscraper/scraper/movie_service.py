@@ -55,19 +55,19 @@ class MovieServiceMixin:
     Artwork/Keyword/Video to ``registry.locked()`` (identity-locked semantics).
     """
 
-    patterns: "NamingPatterns"
+    patterns: NamingPatterns
     dry_run: bool
-    _registry: "ProviderRegistry"
-    _artwork: "ArtworkDownloader"
+    _registry: ProviderRegistry
+    _artwork: ArtworkDownloader
     _imdb: Any
     _rotten_tomatoes: Any
-    config: "Config | None"
-    _nfo: "NFOGenerator"
-    _classify_item: "Callable[..., str | None]"
-    _resolve_title: "Callable[..., str]"
-    _strip_trailing_year: "Callable[[str], str]"
-    _check_missing_movie_artwork: "Callable[..., list[str]]"
-    _repair_movie_dir: "Callable[..., bool]"
+    config: Config | None
+    _nfo: NFOGenerator
+    _classify_item: Callable[..., str | None]
+    _resolve_title: Callable[..., str]
+    _strip_trailing_year: Callable[[str], str]
+    _check_missing_movie_artwork: Callable[..., list[str]]
+    _repair_movie_dir: Callable[..., bool]
 
     def _match_movie_candidates(
         self,
@@ -585,7 +585,7 @@ class MovieServiceMixin:
     def _apply_external_ids(
         self,
         movie_data_dict: dict[str, Any],
-        match: "MatchResult",
+        match: MatchResult,
         year: int | None,
     ) -> None:
         """Fold the Q5=B external-ids pass result into ``movie_data_dict`` in place.

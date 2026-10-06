@@ -249,7 +249,7 @@ class TestRegistryIsClosed:
 
         monkeypatch.setattr(composition, "build_app_context", _boom)
 
-        with pytest.raises(HTTPException) as exc_info:  # noqa: PT012 — the with-block IS the call
+        with pytest.raises(HTTPException) as exc_info:  # the with-block IS the call
             with scoped_provider_clients(MagicMock()):
                 pass
 

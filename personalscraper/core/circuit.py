@@ -32,7 +32,7 @@ from enum import Enum
 
 import requests
 
-from personalscraper.core._contracts import CircuitOpenError
+from personalscraper.core._contracts import ApiError, CircuitOpenError
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.logger import get_logger
 
@@ -330,8 +330,6 @@ class CircuitBreaker:
         Returns:
             True if the error indicates a provider outage.
         """
-        from personalscraper.core._contracts import ApiError
-
         if isinstance(exc, ApiError):
             return exc.http_status >= 500
 

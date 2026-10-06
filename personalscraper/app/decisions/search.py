@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
 from personalscraper.scraper.decision_candidate import DecisionCandidate
+from personalscraper.scraper.search_ranking import gather_tv_candidates, rank_search_results
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -90,7 +91,7 @@ def build_provider_clients(config: Config, settings: Settings) -> tuple[object, 
         ProviderSearchError: When the provider registry cannot be built (missing
             API keys or a misconfigured/disabled provider).
     """
-    from personalscraper.app.composition import build_app_context
+    from personalscraper.app.composition import build_app_context  # noqa: PLC0415 — tests patch it at its source module
 
     try:
         app_context = build_app_context(config, settings)
@@ -136,11 +137,6 @@ def search_candidates(
     Raises:
         ProviderSearchError: On client-build failure or a provider search error.
     """
-    from personalscraper.scraper.search_ranking import (
-        gather_tv_candidates,
-        rank_search_results,
-    )
-
     tmdb_client, tvdb_client = build_provider_clients(config, settings)
     now_year = datetime.now(tz=UTC).year
 

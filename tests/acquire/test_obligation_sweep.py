@@ -87,7 +87,7 @@ def _add(store: ConcreteAcquireStore, info_hash: str = "aaaa", *, path: str | No
 
 def _row(store: ConcreteAcquireStore, obligation_id: int) -> sqlite3.Row:
     """Read one seed_obligation row back."""
-    conn = sqlite3.connect(store._db_path)  # noqa: SLF001
+    conn = sqlite3.connect(store._db_path)
     conn.row_factory = sqlite3.Row
     try:
         return conn.execute("SELECT * FROM seed_obligation WHERE id = ?", (obligation_id,)).fetchone()  # type: ignore[no-any-return]
@@ -95,7 +95,7 @@ def _row(store: ConcreteAcquireStore, obligation_id: int) -> sqlite3.Row:
         conn.close()
 
 
-def _sweep(  # noqa: ANN202
+def _sweep(
     store: ConcreteAcquireStore,
     client: FakeClient,
     now: int = _NOW,

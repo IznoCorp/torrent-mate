@@ -26,7 +26,7 @@ from personalscraper.scraper.confidence import (
     match_tvshow_tvdb_detailed,
     prompt_user_choice,
     score_match,
-)  # noqa: F401
+)
 from personalscraper.scraper.decision_candidate import DecisionCandidate  # noqa: F401
 
 # ---------------------------------------------------------------------------

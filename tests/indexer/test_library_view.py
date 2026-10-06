@@ -221,7 +221,7 @@ def test_a_negative_page_is_refused(seeded: FixtureIndex) -> None:
 def test_the_reader_opens_nothing_writable(seeded: FixtureIndex) -> None:
     """A write through the reader raises, even with ``query_only`` lifted: the file is opened read-only."""
     with LibraryIndex(seeded.path).reader() as reader:
-        conn = reader._conn  # noqa: SLF001 - the connection under test is private
+        conn = reader._conn  # the connection under test is private
         with pytest.raises(sqlite3.OperationalError):
             conn.execute("DELETE FROM media_item")
         conn.execute("PRAGMA query_only=OFF")

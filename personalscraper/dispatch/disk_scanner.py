@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.models.disks import DiskConfig  # noqa: F401
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_sandbox_root
 from personalscraper.core.sqlite._fs_probe import is_mounted as _volume_is_mounted
 from personalscraper.logger import get_logger

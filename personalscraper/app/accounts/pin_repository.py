@@ -70,7 +70,7 @@ class PlexPinRepository:
             sqlite3.IntegrityError: On a taken PIN id.
         """
         self._conn.execute(
-            f"INSERT INTO plex_pin ({_PIN_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
+            f"INSERT INTO plex_pin ({_PIN_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?)",  # noqa: S608 — interpolates the module's fixed column constant only
             (
                 row.pin_id,
                 row.code,
@@ -92,7 +92,7 @@ class PlexPinRepository:
         Returns:
             The PIN, or ``None``.
         """
-        row = self._conn.execute(f"SELECT {_PIN_COLUMNS} FROM plex_pin WHERE pin_id = ?", (pin_id,)).fetchone()  # noqa: S608
+        row = self._conn.execute(f"SELECT {_PIN_COLUMNS} FROM plex_pin WHERE pin_id = ?", (pin_id,)).fetchone()  # noqa: S608 — interpolates the module's fixed column constant only
         return PlexPinRow(*row) if row else None
 
     @serialised

@@ -86,7 +86,7 @@ def is_nfo_complete(nfo_path: Path) -> bool:
     if not nfo_path.exists():
         return False
     try:
-        tree = ET.parse(nfo_path)  # noqa: S314
+        tree = ET.parse(nfo_path)
         root = tree.getroot()
         for uid in root.findall("uniqueid"):
             if uid.text and uid.text.strip().lower() not in _INVALID_UNIQUEID_VALUES and uid.text.strip():
@@ -162,7 +162,7 @@ def extract_nfo_metadata(nfo_path: Path) -> dict[str, Any]:
         "ratings": [],
     }
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we wrote
+        root = ET.parse(nfo_path).getroot()  # trusted NFO we wrote
     except (ET.ParseError, OSError) as exc:
         log.debug("library_scan_nfo_ids_parse_error", nfo=str(nfo_path), exc_info=True, error=str(exc))
         return blank

@@ -108,12 +108,12 @@ def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, An
 
 
 def ordered_episode_providers(
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
     priority: dict[str, int],
     tvdb_id: int | None,
     tmdb_id: int | None,
     episode_default_name: str,
-) -> "list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]]":
+) -> list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]]:
     """Build the per-season fetch list, ordered by ``episode_scraping`` priority.
 
     Iterates ``registry.chain(EpisodeFetcher)`` to enumerate the
@@ -207,7 +207,7 @@ def ordered_episode_providers(
 
 def fetch_season_with_fallback(
     season: int,
-    providers: "list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]]",
+    providers: list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]],
 ) -> dict[tuple[int, int], dict[str, Any]]:
     """Iterate providers in priority order, return the first non-empty result.
 
@@ -228,7 +228,7 @@ def fetch_season_with_fallback(
     for name, fetch in providers:
         try:
             items = fetch(season)
-        except Exception as e:  # noqa: BLE001 — provider clients raise a wide variety
+        except Exception as e:  # provider clients raise a wide variety
             log.warning(
                 "show_season_fetch_failed",
                 provider=name,
@@ -245,7 +245,7 @@ def fetch_season_with_fallback(
     return {}
 
 
-def xref_fetch_tmdb_season(registry: "ProviderRegistry", tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
+def xref_fetch_tmdb_season(registry: ProviderRegistry, tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
     """Return ``{episode_number: external_ids}`` from a TMDb season fetch.
 
     Legitimately direct dispatch (sub-phase 7.4 carve-out): the caller
@@ -266,7 +266,7 @@ def xref_fetch_tmdb_season(registry: "ProviderRegistry", tmdb_id: int, season: i
     return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
 
 
-def xref_fetch_tvdb_season(registry: "ProviderRegistry", tvdb_id: int, season: int) -> dict[int, dict[str, str]]:
+def xref_fetch_tvdb_season(registry: ProviderRegistry, tvdb_id: int, season: int) -> dict[int, dict[str, str]]:
     """Return ``{episode_number: external_ids}`` from a TVDB season fetch.
 
     Legitimately direct dispatch — see :func:`xref_fetch_tmdb_season`.

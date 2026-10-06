@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -150,7 +150,7 @@ class IndexEntry:
     category: str
     path: str
     media_type: str
-    last_updated: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    last_updated: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class MediaIndex:
@@ -245,7 +245,7 @@ class MediaIndex:
         except Exception as exc:  # noqa: BLE001 — defensive; log and swallow
             log.warning("media_index.close_error", error=str(exc), error_type=type(exc).__name__)
 
-    def __enter__(self) -> "MediaIndex":
+    def __enter__(self) -> MediaIndex:
         """Enter the context manager.
 
         Returns:
@@ -346,7 +346,7 @@ class MediaIndex:
                     category=item_row.category_id,
                     path=dispatch_path,
                     media_type=media_type,
-                    last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                    last_updated=datetime.fromtimestamp(item_row.date_modified, tz=UTC).isoformat(),
                 )
             # Stale denormalized target: the stored path's folder year
             # contradicts the matched item's year. Reject and fall through to
@@ -412,7 +412,7 @@ class MediaIndex:
                         category=item_row.category_id,
                         path=dispatch_path,
                         media_type=_kind_to_media_type(item_row.kind),
-                        last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                        last_updated=datetime.fromtimestamp(item_row.date_modified, tz=UTC).isoformat(),
                     )
 
             if best_entry is not None:
@@ -513,7 +513,7 @@ class MediaIndex:
                 category=item_row.category_id,
                 path=dispatch_path,
                 media_type=media_type,
-                last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                last_updated=datetime.fromtimestamp(item_row.date_modified, tz=UTC).isoformat(),
             )
         return None
 

@@ -352,12 +352,12 @@ def apply_hard_filters(
 
 
 def filter_to_episode(
-    results: "list[TrackerResult]",
+    results: list[TrackerResult],
     season: int,
     episode: int,
     *,
-    titles: "Sequence[str | None] | None" = None,
-) -> "list[TrackerResult]":
+    titles: Sequence[str | None] | None = None,
+) -> list[TrackerResult]:
     """Keep only results whose title carries the exact ``SxxEyy`` token.
 
     A title-based query (``"{title} SxxEyy"``) returns fuzzy matches — other
@@ -457,7 +457,7 @@ def filter_to_season(
     season: int,
     *,
     expected_count: int | None = None,
-    titles: "Sequence[str | None] | None" = None,
+    titles: Sequence[str | None] | None = None,
 ) -> list[TrackerResult]:
     """Keep only WHOLE-season packs targeting the given *season*.
 
@@ -622,10 +622,10 @@ _TITLE_SIMILARITY_THRESHOLD = 60
 
 
 def filter_to_movie(
-    results: "list[TrackerResult]",
-    titles: "Sequence[str | None]",
+    results: list[TrackerResult],
+    titles: Sequence[str | None],
     year: int | None,
-) -> "list[TrackerResult]":
+) -> list[TrackerResult]:
     """Keep only releases matching the wanted MOVIE's identity (titles + year, #28).
 
     A title query (``"{title} {year}"``) returns fuzzy matches — a bare title
@@ -689,7 +689,7 @@ def filter_to_movie(
     return kept
 
 
-def _parse_release_identity(release_title: str) -> "tuple[str, int | None]":
+def _parse_release_identity(release_title: str) -> tuple[str, int | None]:
     """Parse a release name into ``(title, year)`` via guessit (fail-soft).
 
     Returns ``(raw_title, None)`` on any guessit failure so a parse error never

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.app_e2e
 
 
-def test_the_profile_shows_the_signed_in_account(app_server: AppServer, signed_in_page: "Page") -> None:
+def test_the_profile_shows_the_signed_in_account(app_server: AppServer, signed_in_page: Page) -> None:
     """``/account`` draws the account v1 answers for the session: its name and its e-mail."""
     page = signed_in_page
     with page.expect_response(lambda response: response.url.endswith("/api/v1/auth/me")) as me:
@@ -27,7 +27,7 @@ def test_the_profile_shows_the_signed_in_account(app_server: AppServer, signed_i
     assert_the_app_document(page)
 
 
-def test_the_roster_lists_the_owner(app_server: AppServer, signed_in_page: "Page") -> None:
+def test_the_roster_lists_the_owner(app_server: AppServer, signed_in_page: Page) -> None:
     """``/accounts`` draws the accounts v1 answers: the seeded owner is the one row."""
     page = signed_in_page
     with page.expect_response(lambda response: response.url.endswith("/api/v1/accounts")) as roster:

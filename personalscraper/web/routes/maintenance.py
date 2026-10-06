@@ -24,7 +24,7 @@ import threading
 import time
 import uuid
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -605,7 +605,7 @@ def get_index_health(
                 last_scan_mode = scan_row["mode"]
                 last_scan_status = scan_row["status"]
                 if scan_row["started_at"] is not None:
-                    last_scan_started_at = datetime.fromtimestamp(scan_row["started_at"], tz=timezone.utc).isoformat()
+                    last_scan_started_at = datetime.fromtimestamp(scan_row["started_at"], tz=UTC).isoformat()
                     # Stuck detection: running + started > 1 h ago (mirrors
                     # doctor.py _check_no_stuck_scan_run threshold).
                     if (
@@ -614,7 +614,7 @@ def get_index_health(
                     ):
                         last_scan_stuck = True
                 if scan_row["finished_at"] is not None:
-                    last_scan_finished_at = datetime.fromtimestamp(scan_row["finished_at"], tz=timezone.utc).isoformat()
+                    last_scan_finished_at = datetime.fromtimestamp(scan_row["finished_at"], tz=UTC).isoformat()
 
             # ── Soft-deleted files ────────────────────────────────────────
             soft_deleted = conn.execute("SELECT COUNT(*) FROM media_file WHERE deleted_at IS NOT NULL").fetchone()[0]

@@ -74,7 +74,7 @@ def test_filtered_on_fresh_registry() -> None:
         default_severity = Severity.ERROR
         description = "alpha"
 
-        def run(self, ctx):  # noqa: ANN001, ANN202
+        def run(self, ctx):
             return []
 
     @reg.register
@@ -86,7 +86,7 @@ def test_filtered_on_fresh_registry() -> None:
         default_severity = Severity.ERROR
         description = "beta"
 
-        def run(self, ctx):  # noqa: ANN001, ANN202
+        def run(self, ctx):
             return []
 
     # identity
@@ -112,7 +112,7 @@ def test_all_for_stage_dedups_across_media_types() -> None:
         default_severity = Severity.ERROR
         description = "both"
 
-        def run(self, ctx):  # noqa: ANN001, ANN202
+        def run(self, ctx):
             return []
 
     names = [c.name for c in reg._all_for_stage(CheckStage.DISPATCH)]

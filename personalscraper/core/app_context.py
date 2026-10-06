@@ -71,8 +71,8 @@ class AppContext:
     settings: Settings
     event_bus: EventBus
     provider_registry: ProviderRegistry
-    torrent_client: "QBitClient | TransmissionClient | None" = None
-    acquire: "AcquireContext | None" = None  # RP5c — acquisition lobe handle
+    torrent_client: QBitClient | TransmissionClient | None = None
+    acquire: AcquireContext | None = None  # RP5c — acquisition lobe handle
 
 
 __all__ = ["AppContext"]

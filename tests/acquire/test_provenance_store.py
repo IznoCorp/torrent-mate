@@ -40,7 +40,7 @@ class TestMigration010:
 
     def test_table_and_index_present(self, store: ConcreteAcquireStore) -> None:
         """A fresh store has the table and its current_path index."""
-        conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
+        conn = store._ensure_open()  # test reaches the migrated schema
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert "staging_provenance" in tables
         indexes = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
@@ -238,7 +238,7 @@ class TestMigration011ResolutionColumns:
 
     def test_resolution_columns_and_index_present(self, store: ConcreteAcquireStore) -> None:
         """A fresh store carries the resolution_* columns and their partial index."""
-        conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
+        conn = store._ensure_open()  # test reaches the migrated schema
         cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
         assert {"resolution_state", "decision_id", "resolution_trigger", "resolution_at"} <= cols
         indexes = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
@@ -246,7 +246,7 @@ class TestMigration011ResolutionColumns:
 
     def test_user_version_at_least_11(self, store: ConcreteAcquireStore) -> None:
         """Migration 011 (and any later) has been applied — user_version >= 11."""
-        conn = store._ensure_open()  # noqa: SLF001
+        conn = store._ensure_open()
         assert conn.execute("PRAGMA user_version").fetchone()[0] >= 11
 
 
@@ -287,7 +287,7 @@ class TestResolutionProjection:
             "/stage/manual-item", state="awaiting", resolved_at=1, decision_id=99, trigger="mid_band"
         )
         assert store.provenance.by_path("/stage/manual-item") is None
-        conn = store._ensure_open()  # noqa: SLF001
+        conn = store._ensure_open()
         assert conn.execute("SELECT COUNT(*) FROM staging_provenance").fetchone()[0] == 0
 
     def test_set_resolution_swallows_db_error(self) -> None:
@@ -329,7 +329,7 @@ class TestMigration012RunLinkage:
 
     def test_run_columns_present_and_version_12(self, store: ConcreteAcquireStore) -> None:
         """A fresh store carries the four *_run_uid columns and the latest user_version."""
-        conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
+        conn = store._ensure_open()  # test reaches the migrated schema
         cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
         assert {"grab_run_uid", "ingest_run_uid", "scrape_run_uid", "dispatch_run_uid"} <= cols
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 26  # latest chain: 026 catalogue

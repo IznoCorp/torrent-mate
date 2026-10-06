@@ -6,6 +6,7 @@ asserted is the ``pipeline_run`` row a failed rescrape leaves behind, not a call
 
 from __future__ import annotations
 
+import io
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,6 +18,7 @@ from rich.console import Console
 
 from personalscraper.app.supervisor.execution import rescrape_item
 from personalscraper.commands._cli_run_row import cli_run_row
+from personalscraper.i18n import t
 from personalscraper.indexer import migrations
 from personalscraper.indexer.db import IndexerInvalidPathError, apply_migrations
 from personalscraper.maintenance.rescraper import LibraryRescrapeResult
@@ -109,19 +111,23 @@ def test_an_index_that_cannot_be_opened_returns_1_and_records_an_error(
     def refuse(*args: object, **kwargs: object) -> None:
         raise IndexerInvalidPathError(db_path, Path("/Volumes/unreachable"))
 
-    monkeypatch.setattr("personalscraper.indexer.db.open_db", refuse)
+    # ``open_db`` is bound at module level in ``execution``: the patch targets that binding.
+    monkeypatch.setattr("personalscraper.app.supervisor.execution.open_db", refuse)
+    output = io.StringIO()
 
     code = rescrape_item(
         test_config,
         MagicMock(),
         42,
-        console=Console(quiet=True),
+        console=Console(file=output, width=200, color_system=None),
         run_row=cli_run_row,
         step_boundary=_step_boundary,
     )
 
     assert code == 1
     assert _run_rows(db_path) == [("library-rescrape-item", "error", "1")]
+    # An item that is merely not found leaves the same row: the open-failure label tells the two apart.
+    assert t("cli_library.analyze.open_failed_label") in output.getvalue()
 
 
 def test_an_index_newer_than_the_code_returns_1_untouched(test_config) -> None:

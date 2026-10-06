@@ -8,16 +8,35 @@ imports engine modules only, never ``commands`` nor ``cli_helpers``.
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
+import structlog.contextvars
+
+from personalscraper.acquire.events import WatcherRunTriggered
 from personalscraper.app.composition import build_app_context
 from personalscraper.app.supervisor.model import (
     RunOptions as RunOptions,
 )  # re-exported: the CLI and the tests import it from here
+from personalscraper.core.sqlite import SqliteMigrationError
 from personalscraper.i18n import t
+from personalscraper.indexer import migrations as _migrations_pkg
+from personalscraper.indexer.db import (
+    IndexerCorruptError,
+    IndexerDiskFullError,
+    IndexerInvalidPathError,
+    apply_migrations,
+    open_db,
+)
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
+from personalscraper.run_journal import LogTailHandler
+from personalscraper.subscribers.debug_log import DebugLogSubscriber
+from personalscraper.trailers.state import TrailerStepFailed
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -25,7 +44,12 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.app_context import AppContext
-    from personalscraper.pipeline_history import PipelineRunWriter
+    from personalscraper.core.event_bus import EventBus
+    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
+    from personalscraper.subscribers.plex import PlexSubscriber
+    from personalscraper.subscribers.redis_stream import RedisEventPublisher
+    from personalscraper.subscribers.rich_console import RichConsoleSubscriber
+    from personalscraper.subscribers.telegram import TelegramSubscriber
 
 
 class _RescrapeFailed(Exception):
@@ -91,6 +115,116 @@ class StepBoundary(Protocol):
         """
 
 
+@dataclass
+class _RunSubscribers:
+    """The event subscribers one pipeline run wires on its bus, closed together after the run."""
+
+    rich: RichConsoleSubscriber | None = None
+    telegram: TelegramSubscriber | None = None
+    acquisition_telegram: AcquisitionTelegramSubscriber | None = None
+    plex: PlexSubscriber | None = None
+    debug: DebugLogSubscriber | None = None
+    redis_publisher: RedisEventPublisher | None = None
+
+    def close(self) -> None:
+        """Close every subscriber that was built, in the order they were wired."""
+        if self.rich is not None:
+            self.rich.close()
+        if self.telegram is not None:
+            self.telegram.close()
+        if self.acquisition_telegram is not None:
+            self.acquisition_telegram.close()
+        if self.plex is not None:
+            self.plex.close()
+        if self.debug is not None:
+            self.debug.close()
+        if self.redis_publisher is not None:
+            self.redis_publisher.close()
+
+
+def _build_subscribers(
+    event_bus: EventBus,
+    config: Config,
+    settings: Settings,
+    *,
+    console: Console | None,
+    verbose: bool,
+    headless: bool,
+    no_console: bool,
+    dry_run: bool,
+    run_id: str,
+) -> _RunSubscribers:
+    """Wire the run's subscribers on the shared bus (they self-subscribe in their constructors).
+
+    Args:
+        event_bus: The run's bus, which the subscribers join.
+        config: Loaded configuration.
+        settings: Loaded settings.
+        console: Where the run prints; ``None`` builds no Rich subscriber.
+        verbose: Build the DEBUG event logger and give the Rich subscriber its details.
+        headless: Build no console or Telegram subscriber (silent cron / CI runs).
+        no_console: Build no Rich subscriber but keep Telegram (the watcher daemon).
+        dry_run: Whether the run is a dry run, shown by the Rich subscriber.
+        run_id: The run's id, shown by the Rich subscriber.
+
+    Returns:
+        The subscribers that were built, to close once the run ends.
+    """
+    from personalscraper.api.notify.telegram import TelegramNotifier  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.api.transport import HttpTransport  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.subscribers.acquire import (  # noqa: PLC0415 — patched at source by tests
+        AcquisitionTelegramSubscriber,
+    )
+    from personalscraper.subscribers.plex import build_plex_subscriber  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.subscribers.redis_stream import (  # noqa: PLC0415 — patched at source by tests
+        build_redis_publisher,
+    )
+    from personalscraper.subscribers.rich_console import (  # noqa: PLC0415 — patched at source by tests
+        RichConsoleSubscriber,
+    )
+    from personalscraper.subscribers.telegram import TelegramSubscriber  # noqa: PLC0415 — patched at source by tests
+
+    subs = _RunSubscribers()
+    # ``--verbose`` activates the DebugLogSubscriber which logs every
+    # emitted event at DEBUG. Registered independently of ``--headless``
+    # so verbose log streams work even in cron / CI contexts that
+    # suppress Rich / Telegram output.
+    # Redis event publisher (gate on web.enabled, fail-soft — Redis down
+    # must never block the pipeline boot).
+    subs.redis_publisher = build_redis_publisher(event_bus, config.web)
+    # Plex refresh trigger (plex-refresh D3), through the single owner
+    # shared with the standalone ``personalscraper dispatch`` command so
+    # both dispatch entry points behave identically. The token is the
+    # gate, deliberately OUTSIDE ``--headless``: this one makes the
+    # dispatched media visible in Plex rather than producing operator
+    # output, so a cron run needs it exactly as much.
+    subs.plex = build_plex_subscriber(event_bus, settings)
+    if verbose:
+        subs.debug = DebugLogSubscriber(event_bus)
+    if not headless:
+        if console is not None and not no_console:
+            subs.rich = RichConsoleSubscriber(
+                event_bus,
+                console=console,
+                verbose=verbose,
+                dry_run=dry_run,
+                run_id=run_id,
+            )
+        if TelegramNotifier.is_configured(settings):
+            tg_transport = HttpTransport(
+                TelegramNotifier.policy(settings.telegram_bot_token),
+                event_bus=event_bus,
+            )
+            tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
+            subs.telegram = TelegramSubscriber(event_bus, tg_notifier)
+            subs.acquisition_telegram = AcquisitionTelegramSubscriber(
+                event_bus,
+                notifier=tg_notifier,
+                enabled=config.notify.acquire_notify_enabled,
+            )
+    return subs
+
+
 def execute_run(
     config: Config,
     settings: Settings,
@@ -120,22 +254,10 @@ def execute_run(
         The exit code: 0 on success, 1 when the report holds errors, 2 when the trailers step
         aborted the run.
     """
-    from datetime import datetime
-
-    import structlog.contextvars
-
-    from personalscraper.api.notify.healthchecks import HealthcheckClient
-    from personalscraper.api.notify.telegram import TelegramNotifier
-    from personalscraper.api.transport import HttpTransport
-    from personalscraper.logger import cleanup_old_logs
-    from personalscraper.pipeline import Pipeline
-    from personalscraper.run_journal import LogTailHandler
-    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
-    from personalscraper.subscribers.debug_log import DebugLogSubscriber
-    from personalscraper.subscribers.plex import PlexSubscriber, build_plex_subscriber
-    from personalscraper.subscribers.redis_stream import build_redis_publisher
-    from personalscraper.subscribers.rich_console import RichConsoleSubscriber
-    from personalscraper.subscribers.telegram import TelegramSubscriber
+    from personalscraper.api.notify.healthchecks import HealthcheckClient  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.api.transport import HttpTransport  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.logger import cleanup_old_logs  # noqa: PLC0415 — patched at source by tests
+    from personalscraper.pipeline import Pipeline  # noqa: PLC0415 — patched at source by tests
 
     dry_run = options.dry_run
     skip_trailers = options.skip_trailers
@@ -183,8 +305,6 @@ def execute_run(
         effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
         effective_continue_on_trailer_error = continue_on_trailer_error or config.trailers.pipeline.continue_on_error
 
-        from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
-
         # Build subscribers — both self-subscribe in their constructors via the
         # shared AppContext bus. ``--headless`` skips subscriber construction
         # for silent cron / CI runs.
@@ -194,56 +314,23 @@ def execute_run(
         # ``--headless`` disables both; if both flags are passed, ``--headless``
         # wins (the outer ``not headless`` gate prevents all subscriber
         # construction).
-        rich_subscriber: RichConsoleSubscriber | None = None
-        telegram_subscriber: TelegramSubscriber | None = None
-        acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
-        plex_subscriber: PlexSubscriber | None = None
-        # ``--verbose`` activates the DebugLogSubscriber which logs every
-        # emitted event at DEBUG. Registered independently of ``--headless``
-        # so verbose log streams work even in cron / CI contexts that
-        # suppress Rich / Telegram output.
-        debug_subscriber: DebugLogSubscriber | None = None
-        # Redis event publisher (gate on web.enabled, fail-soft — Redis down
-        # must never block the pipeline boot).
-        redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
-        # Plex refresh trigger (plex-refresh D3), through the single owner
-        # shared with the standalone ``personalscraper dispatch`` command so
-        # both dispatch entry points behave identically. The token is the
-        # gate, deliberately OUTSIDE ``--headless``: this one makes the
-        # dispatched media visible in Plex rather than producing operator
-        # output, so a cron run needs it exactly as much.
-        plex_subscriber = build_plex_subscriber(app_context.event_bus, settings)
-        if verbose:
-            debug_subscriber = DebugLogSubscriber(app_context.event_bus)
-        if not headless:
-            if console is not None and not no_console:
-                rich_subscriber = RichConsoleSubscriber(
-                    app_context.event_bus,
-                    console=console,
-                    verbose=verbose,
-                    dry_run=dry_run,
-                    run_id=run_id,
-                )
-            if TelegramNotifier.is_configured(settings):
-                tg_transport = HttpTransport(
-                    TelegramNotifier.policy(settings.telegram_bot_token),
-                    event_bus=app_context.event_bus,
-                )
-                tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
-                telegram_subscriber = TelegramSubscriber(app_context.event_bus, tg_notifier)
-                acq_telegram_subscriber = AcquisitionTelegramSubscriber(
-                    app_context.event_bus,
-                    notifier=tg_notifier,
-                    enabled=config.notify.acquire_notify_enabled,
-                )
+        subscribers = _build_subscribers(
+            app_context.event_bus,
+            config,
+            settings,
+            console=console,
+            verbose=verbose,
+            headless=headless,
+            no_console=no_console,
+            dry_run=dry_run,
+            run_id=run_id,
+        )
 
         # Emit ``WatcherRunTriggered`` before ``PipelineStarted`` when the
         # run is spawned by the Watcher daemon (``--trigger-reason`` set).
         # Subscribers (Telegram, Rich console) are already wired at this
         # point, so they will observe and forward the event.
         if trigger_reason:
-            from personalscraper.acquire.events import WatcherRunTriggered
-
             app_context.event_bus.emit(WatcherRunTriggered(reason=trigger_reason))
 
         # Build run-history writer (pipe-control sub-phase 1.3b).
@@ -253,14 +340,12 @@ def execute_run(
         # history recording.
         history_writer: PipelineRunWriter | None = None
         try:
-            from personalscraper.pipeline_history import PipelineRunWriter  # noqa: PLC0415
-
             db_path = config.indexer.db_path
             assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
             history_writer = PipelineRunWriter(
                 db_path=db_path,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 — history is optional; the run proceeds without it
             _run_log.warning(
                 "pipeline_history_writer_init_failed",
                 exc_info=True,
@@ -289,18 +374,7 @@ def execute_run(
                 )
             finally:
                 tail_handler.uninstall()
-                if rich_subscriber is not None:
-                    rich_subscriber.close()
-                if telegram_subscriber is not None:
-                    telegram_subscriber.close()
-                if acq_telegram_subscriber is not None:
-                    acq_telegram_subscriber.close()
-                if plex_subscriber is not None:
-                    plex_subscriber.close()
-                if debug_subscriber is not None:
-                    debug_subscriber.close()
-                if redis_publisher is not None:
-                    redis_publisher.close()
+                subscribers.close()
         except TrailerStepFailed as exc:
             # Trailers step failed and --continue-on-trailer-error was not set.
             # Exit with code 2 (distinct from generic pipeline error exit 1) so
@@ -362,9 +436,7 @@ def rescrape_item(
     Returns:
         The exit code: 0 on success, 1 on an unreachable index, a bad combination or an unresolved item.
     """
-    import sqlite3
-
-    from personalscraper.maintenance.rescraper import rescrape_library
+    from personalscraper.maintenance.rescraper import rescrape_library  # noqa: PLC0415 — patched at source by tests
 
     command = "library-rescrape-item"
     mode = "[bold green]" + t("cli_library.analyze.mode_live") + "[/bold green]"
@@ -380,16 +452,6 @@ def rescrape_item(
             conn: sqlite3.Connection | None = None
             db_path = config.indexer.db_path
             assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
-            from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
-            from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-            from personalscraper.indexer.db import (  # noqa: PLC0415
-                IndexerCorruptError,
-                IndexerDiskFullError,
-                IndexerInvalidPathError,
-                apply_migrations,
-                open_db,
-            )
-
             try:
                 conn = open_db(db_path, event_bus=app_context.event_bus)
                 apply_migrations(conn, Path(_migrations_pkg.__file__).parent)

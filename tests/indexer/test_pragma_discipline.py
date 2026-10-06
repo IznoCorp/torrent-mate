@@ -174,7 +174,7 @@ class TestRawConnectSitesPragmas:
         db_path.touch()
 
         called_with: list[sqlite3.Connection] = []
-        original_apply = _disk._apply_pragmas  # noqa: SLF001
+        original_apply = _disk._apply_pragmas
 
         def recording_apply(conn: sqlite3.Connection) -> None:
             called_with.append(conn)
@@ -195,7 +195,7 @@ class TestRawConnectSitesPragmas:
         db_path.touch()
 
         called_with: list[sqlite3.Connection] = []
-        original_apply = _publish._apply_pragmas  # noqa: SLF001
+        original_apply = _publish._apply_pragmas
 
         def recording_apply(conn: sqlite3.Connection) -> None:
             called_with.append(conn)

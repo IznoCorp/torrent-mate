@@ -64,7 +64,7 @@ def _set_dispatch_path(conn: sqlite3.Connection, item_id: int, path: str) -> Non
     conn.commit()
 
 
-def _run_fix_nfo(args: list[str], db_path: Path) -> "Any":  # noqa: F821
+def _run_fix_nfo(args: list[str], db_path: Path) -> Any:
     """Run library-fix-nfo with --db pointing at the synthetic DB.
 
     --format json is always passed so the emit() helper produces

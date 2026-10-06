@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import TYPE_CHECKING
 
 import typer
@@ -50,7 +51,7 @@ def plex_guard(
         personalscraper plex-guard --item-id 1600
         personalscraper plex-guard --repair --item-id 1600
     """
-    from datetime import datetime, timezone  # noqa: PLC0415
+    from datetime import datetime  # noqa: PLC0415
 
     from personalscraper.api.plex import PlexClient  # noqa: PLC0415
     from personalscraper.io_utils import write_json  # noqa: PLC0415
@@ -80,7 +81,7 @@ def plex_guard(
         connection=bundle.indexer_conn,
         repair=repair,
         item_ids=item_id,
-        now=datetime.now(timezone.utc).isoformat(),
+        now=datetime.now(UTC).isoformat(),
     )
 
     for finding in result.findings:

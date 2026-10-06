@@ -11,7 +11,7 @@ so the web layer can call it on a hot list endpoint.
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET  # noqa: S405 — trusted local NFO we wrote
+import xml.etree.ElementTree as ET  # trusted local NFO we wrote
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -94,7 +94,7 @@ def read_nfo_metadata(nfo_path: Path) -> NfoMetadata:
         return NfoMetadata()
 
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted local NFO
+        root = ET.parse(nfo_path).getroot()  # trusted local NFO
     except (ET.ParseError, OSError) as exc:
         logger.debug("staging_nfo_parse_failed", nfo_path=str(nfo_path), error=str(exc))
         return NfoMetadata()

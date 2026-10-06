@@ -8,14 +8,14 @@ per the web-ui epoch convention.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from personalscraper.web.registry_projection import RegistryHealthProjection
 
 
 def _iso(epoch: float) -> str:
     """Render *epoch* as the ISO-8601 UTC string an Event serializes into ``data``."""
-    return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(epoch, tz=UTC).isoformat()
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

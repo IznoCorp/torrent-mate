@@ -103,21 +103,21 @@ def main(
 
 # Import command modules after the callback is registered.  Import side effects
 # attach commands to the shared Typer app.
-import personalscraper.commands.config  # noqa: E402,F401
-import personalscraper.commands.cross_seed  # noqa: E402,F401
-import personalscraper.commands.follow  # noqa: E402,F401
-import personalscraper.commands.grab  # noqa: E402,F401
-import personalscraper.commands.health_check  # noqa: E402,F401
-import personalscraper.commands.library  # noqa: E402,F401 — re-exports from library/{scan,query,maintenance,audit,analyze}
-import personalscraper.commands.pipeline  # noqa: E402,F401
-import personalscraper.commands.plex_guard  # noqa: E402,F401
-import personalscraper.commands.schedule  # noqa: E402,F401
-import personalscraper.commands.scrape_resolve  # noqa: E402,F401
-import personalscraper.commands.search  # noqa: E402,F401
-import personalscraper.commands.seed  # noqa: E402,F401
-import personalscraper.commands.spine  # noqa: E402,F401
-import personalscraper.commands.supervise  # noqa: E402,F401
-import personalscraper.commands.torrents  # noqa: E402,F401
+import personalscraper.commands.config  # noqa: E402
+import personalscraper.commands.cross_seed  # noqa: E402
+import personalscraper.commands.follow  # noqa: E402
+import personalscraper.commands.grab  # noqa: E402
+import personalscraper.commands.health_check  # noqa: E402
+import personalscraper.commands.library  # noqa: E402 — re-exports from library/{scan,query,maintenance,audit,analyze}
+import personalscraper.commands.pipeline  # noqa: E402
+import personalscraper.commands.plex_guard  # noqa: E402
+import personalscraper.commands.schedule  # noqa: E402
+import personalscraper.commands.scrape_resolve  # noqa: E402
+import personalscraper.commands.search  # noqa: E402
+import personalscraper.commands.seed  # noqa: E402
+import personalscraper.commands.spine  # noqa: E402
+import personalscraper.commands.supervise  # noqa: E402
+import personalscraper.commands.torrents  # noqa: E402
 import personalscraper.commands.watch  # noqa: E402,F401
 
 # Web is a Typer sub-app (bare ``web`` boots the daemon via its callback;

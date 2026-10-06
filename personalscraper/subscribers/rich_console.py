@@ -171,7 +171,7 @@ class RichConsoleSubscriber:
         icon = self._icon(step)
         self.console.print("\n" + icon + " [bold]" + _step_word(step).upper() + "[/bold]", highlight=False)
 
-    def _render_step_end(self, step: str, report: StepReport, elapsed: float) -> None:  # noqa: ARG002
+    def _render_step_end(self, step: str, report: StepReport, elapsed: float) -> None:
         """Print step summary line and verbose details."""
         elapsed_str = f"{elapsed:.1f}s"
         ok = report.success_count

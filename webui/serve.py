@@ -53,13 +53,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # The v1 door — its own subject, its own file.
-import v1_door  # noqa: E402 — the path line above must run first
+import v1_door  # the path line above must run first
 
 # The identity of the tree this host serves — its own subject, its own file.
-from host_identity import with_served_identity  # noqa: E402 — the path line above must run first
+from host_identity import with_served_identity  # the path line above must run first
 
 # What makes the served page installable — its own subject, its own file.
-from installable import (  # noqa: E402 — the path line above must run first
+from installable import (  # the path line above must run first
     HOST_PAGES_CSS,
     build_identity,
     manifest,
@@ -721,7 +721,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         self._send(status, body, content_type=content_type)
 
-    def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+    def do_GET(self) -> None:  # name imposed by BaseHTTPRequestHandler
         """Answers a GET, or names v1 when the v1 door cannot ask it."""
         try:
             self._get()
@@ -898,7 +898,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     do_HEAD = do_GET
 
-    def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+    def do_POST(self) -> None:  # name imposed by BaseHTTPRequestHandler
         """Answers a stale form post: its body discarded, then a redirect to the sign-in page.
 
         The form posts to v1 by script, so a post that reaches this host is a

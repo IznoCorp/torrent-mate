@@ -159,7 +159,7 @@ def supervise(ctx: typer.Context) -> None:
     redis_publisher = None
     try:
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
-    except Exception:  # noqa: BLE001 — visibility only
+    except Exception:  # visibility only
         log.warning("redis_publisher_init_failed", exc_info=True)
 
     acquire = app_context.acquire

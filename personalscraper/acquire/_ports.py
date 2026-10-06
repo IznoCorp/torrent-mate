@@ -440,7 +440,7 @@ class WatchSubStore(Protocol):
         """Persist the ``last_successful_run_at`` timestamp (upsert)."""
         ...
 
-    def get_pending_run(self) -> "PendingRun | None":
+    def get_pending_run(self) -> PendingRun | None:
         """Return the watcher's last published wait, or None (§8 / DOIT-2)."""
         ...
 
@@ -616,19 +616,19 @@ class ProvenanceSubStore(Protocol):
         """Snapshot ``{current_path: media_ref}`` for tracked, identified rows (#30)."""
         ...
 
-    def list_journeys(self, limit: int = 200) -> "list[ProvenanceRow]":
+    def list_journeys(self, limit: int = 200) -> list[ProvenanceRow]:
         """Return provenance rows most-recent first (F1 journey view; fail-soft)."""
         ...
 
-    def list_journeys_for_run(self, run_uid: str, limit: int = 500) -> "list[ProvenanceRow]":
+    def list_journeys_for_run(self, run_uid: str, limit: int = 500) -> list[ProvenanceRow]:
         """Return acquisitions a run advanced at any stage (F3 converse view; fail-soft)."""
         ...
 
-    def list_stuck(self, older_than: int, exists_fn: Callable[[str], bool], limit: int = 500) -> "list[ProvenanceRow]":
+    def list_stuck(self, older_than: int, exists_fn: Callable[[str], bool], limit: int = 500) -> list[ProvenanceRow]:
         """Return in-flight items stuck past *older_than* whose folder still exists (F4; fail-soft)."""
         ...
 
-    def stage_counts(self) -> "dict[str, int]":
+    def stage_counts(self) -> dict[str, int]:
         """Return ``{status: count}`` over the registry (F5 overview, uncapped; fail-soft)."""
         ...
 

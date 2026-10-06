@@ -41,10 +41,10 @@ log = get_logger("cli.grab")
 
 
 def _build_acq_telegram_subscriber(
-    config: "Config",
-    settings: "Settings",
-    event_bus: "EventBus",
-) -> "AcquisitionTelegramSubscriber | None":
+    config: Config,
+    settings: Settings,
+    event_bus: EventBus,
+) -> AcquisitionTelegramSubscriber | None:
     """Build the acquisition Telegram subscriber for a grab run (D8).
 
     Mirrors EXACTLY the gates of the ``run`` command's wiring
@@ -118,7 +118,7 @@ def grab(
         # pipeline command wires it, but never calls reconcile_wanted). Built
         # INSIDE the try (pipeline.py pattern) so a construction failure still
         # reaches the finally and closes the redis publisher.
-        acq_telegram_subscriber: "AcquisitionTelegramSubscriber | None" = None
+        acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
         try:
             acq_telegram_subscriber = _build_acq_telegram_subscriber(config, settings, app_context.event_bus)
             acquire = app_context.acquire
@@ -192,7 +192,7 @@ def grab(
                 redis_publisher.close()
 
 
-def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", console: Console) -> "ReconcileSummary":
+def _reconcile_before_run(acquire: AcquireContext, event_bus: EventBus, console: Console) -> ReconcileSummary:
     """Run the B.3 reconciliation pass ahead of a real grab run (fail-soft).
 
     Gathers the torrent client's live items once for every OPEN row carrying a
@@ -216,7 +216,7 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
     if store is None:
         return ReconcileSummary()
 
-    client_items: "dict[str, TorrentItem] | None" = None
+    client_items: dict[str, TorrentItem] | None = None
     torrent_client = acquire.torrent_client
     if torrent_client is not None:
         try:
@@ -259,7 +259,7 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
     return summary
 
 
-def _reswitch_before_run(acquire: AcquireContext, event_bus: "EventBus", console: Console) -> None:
+def _reswitch_before_run(acquire: AcquireContext, event_bus: EventBus, console: Console) -> None:
     """Switch every dead-stalled grabbed release to another one before grabbing (reswitch #342).
 
     A grabbed torrent whose swarm is dead / that broke / that is stuck past the
@@ -357,7 +357,7 @@ def _run_dry(
         queries = [build_search_query(item, title, year)]
         if original_title and original_title != title:
             queries.append(build_search_query(item, original_title, year))
-        results: "list[TrackerResult] | None" = None
+        results: list[TrackerResult] | None = None
         circuit_open = False
         for attempt_no, attempt_query in enumerate(queries):
             try:

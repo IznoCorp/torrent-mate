@@ -412,7 +412,8 @@ def match_tvshow_detailed(
     tvdb_candidates: list[DecisionCandidate] = []
     try:
         tvdb_match, tvdb_candidates = match_tvshow_tvdb_detailed(tvdb_client, title, year, local_seasons=local_seasons)
-    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of ApiError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
+    # TVDB adapter raises a mix of ApiError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
+    except Exception as e:
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
     if tvdb_match is not None:

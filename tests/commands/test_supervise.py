@@ -59,7 +59,8 @@ def _staging(test_config: Config, monkeypatch: pytest.MonkeyPatch, marker: str) 
     )
 
 
-def _invoke(cli_runner: CliRunner, config: Config, leases: list[Lease | None], *, wedged: bool = False) -> Any:  # noqa: ANN401 — typer's Result
+# typer's Result
+def _invoke(cli_runner: CliRunner, config: Config, leases: list[Lease | None], *, wedged: bool = False) -> Any:
     """Run ``supervise`` for one admission tick over *config*, recording the lease it held.
 
     Args:

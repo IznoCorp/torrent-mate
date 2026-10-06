@@ -12,10 +12,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import ClassVar, TypeAlias
+from typing import ClassVar
 
 #: The typed facts a refusal carries for the interface's sentence — never a sentence.
-RefusalParams: TypeAlias = Mapping[str, str | int | float | bool | list[str]]
+type RefusalParams = Mapping[str, str | int | float | bool | list[str]]
 
 
 class RefusalCode(StrEnum):

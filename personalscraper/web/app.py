@@ -92,7 +92,7 @@ def _apply_pending_indexer_migrations(config: Config) -> None:
     except SqliteSchemaNewerError:
         # Fail closed: code older than the store must neither serve nor write it.
         raise
-    except Exception:  # noqa: BLE001 — fail-soft: never abort boot on a migration error
+    except Exception:  # fail-soft: never abort boot on a migration error
         logger.error("web_boot_migrate_failed", db_path=str(db_path), exc_info=True)
 
 

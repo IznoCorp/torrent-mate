@@ -121,7 +121,7 @@ class TorrentSource:
             raise ValueError("TorrentSource requires exactly one of magnet or file_bytes")
 
     @classmethod
-    def from_magnet(cls, uri: str) -> "TorrentSource":
+    def from_magnet(cls, uri: str) -> TorrentSource:
         """Build from magnet URI.
 
         Args:
@@ -133,7 +133,7 @@ class TorrentSource:
         return cls(magnet=uri)
 
     @classmethod
-    def from_file(cls, data: bytes) -> "TorrentSource":
+    def from_file(cls, data: bytes) -> TorrentSource:
         """Build from raw .torrent bytes.
 
         Args:

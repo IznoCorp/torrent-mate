@@ -42,7 +42,6 @@ import shlex
 import subprocess
 import tempfile
 import threading
-from datetime import timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -50,7 +49,7 @@ import json5
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError as PydanticValidationError
 
-from personalscraper.app.config_service import (  # noqa: F401 — re-export for callers/tests
+from personalscraper.app.config_service import (  # re-export for callers/tests
     _compute_ownership,
     _compute_shadowed_keys,
     _local_keys,
@@ -687,7 +686,7 @@ def put_file(
             backup_dir.mkdir(parents=True, exist_ok=True)
             # Microsecond granularity: second-level timestamps collide (and
             # silently overwrite) when saves land within the same second.
-            ts = datetime.datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            ts = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%S%fZ")
             backup_path = backup_dir / f"{name}.{ts}.json5"
             backup_path.write_bytes(file_path.read_bytes())
 
@@ -700,7 +699,7 @@ def put_file(
         # Atomic write with header comment.
         header = (
             f"// Written by TorrentMate config editor "
-            f"{datetime.datetime.now(timezone.utc).isoformat()} "
+            f"{datetime.datetime.now(datetime.UTC).isoformat()} "
             f"— hand-written comments are not preserved.\n"
         )
         content = header + json5.dumps(body.values, indent=2) + "\n"

@@ -26,7 +26,7 @@ from __future__ import annotations
 import subprocess
 import unicodedata
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -112,7 +112,7 @@ def _parse_since(since: str | None) -> datetime | None:
     if since is None:
         return None
     try:
-        return datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=UTC)
     except ValueError:
         typer.echo(t("cli_trailers.since_invalid", since=repr(since)), err=True)
         raise typer.Exit(code=2)
@@ -134,8 +134,8 @@ def _item_added_at(item: ScanItem) -> datetime:
     try:
         mtime = source.stat().st_mtime
     except OSError:
-        return datetime.fromtimestamp(0, tz=timezone.utc)
-    return datetime.fromtimestamp(mtime, tz=timezone.utc)
+        return datetime.fromtimestamp(0, tz=UTC)
+    return datetime.fromtimestamp(mtime, tz=UTC)
 
 
 def _filter_since(items: list[ScanItem], since_dt: datetime | None) -> list[ScanItem]:

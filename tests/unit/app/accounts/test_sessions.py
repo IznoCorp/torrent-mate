@@ -128,7 +128,7 @@ def _rows(store: AppStore) -> list[tuple[object, ...]]:
     Returns:
         Each row's ``token_hash``, ``expires_at``, ``last_seen_at``, ``revoked_at``, ``user_agent``.
     """
-    conn = sqlite3.connect(store._db_path)  # noqa: SLF001 — the test reads the file itself, as an attacker would
+    conn = sqlite3.connect(store._db_path)  # the test reads the file itself, as an attacker would
     try:
         return conn.execute(
             "SELECT token_hash, expires_at, last_seen_at, revoked_at, user_agent FROM session"
@@ -148,7 +148,7 @@ def _delete_the_role(store: AppStore, role_id: str) -> None:
         store: The store.
         role_id: The role to delete.
     """
-    conn = sqlite3.connect(store._db_path)  # noqa: SLF001 — the test writes the file itself
+    conn = sqlite3.connect(store._db_path)  # the test writes the file itself
     try:
         conn.execute("DELETE FROM role WHERE id = ?", (role_id,))
         conn.commit()
@@ -393,7 +393,7 @@ class TestRenewal:
         first = sessions.use(token)
         assert first is not None and first.renewed_token is not None
         assert stale is not None
-        assert sessions._renew(store, stale, clock.now) is None  # noqa: SLF001 — the race's loser
+        assert sessions._renew(store, stale, clock.now) is None  # the race's loser
         assert _rows(store)[0][0] == hashlib.sha256(first.renewed_token.encode()).hexdigest()
 
     def test_a_revoked_session_never_renews(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
@@ -493,11 +493,11 @@ class TestEviction:
         assert first is not None and first.renewed_token is not None
         assert sessions.use(first.renewed_token) is not None
         old_hash = hashlib.sha256(old.encode()).hexdigest()
-        assert old_hash in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
+        assert old_hash in sessions._replaced  # the memory bound is the subject
         clock.now += SESSION_RENEWAL_INTERVAL_S
         second = sessions.use(first.renewed_token)
         assert second is not None and second.renewed_token is not None
-        assert old_hash not in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
+        assert old_hash not in sessions._replaced  # the memory bound is the subject
 
     def test_a_value_awaiting_for_an_idle_lifetime_is_forgotten(self, sessions: SessionService, clock: _Clock) -> None:
         """Renewed, the new value never presented, an idle lifetime passed: another session's renewal evicts it."""
@@ -507,14 +507,14 @@ class TestEviction:
         lost = sessions.use(old)
         assert lost is not None and lost.renewed_token is not None
         old_hash = hashlib.sha256(old.encode()).hexdigest()
-        assert sessions._awaiting == {key: [old_hash]}  # noqa: SLF001 — the memory bound is the subject
+        assert sessions._awaiting == {key: [old_hash]}  # the memory bound is the subject
         clock.now += _IDLE_S
         other = sessions.open(_ACCOUNT_ID, user_agent=None)
         clock.now += SESSION_RENEWAL_INTERVAL_S
         renewal = sessions.use(other)
         assert renewal is not None and renewal.renewed_token is not None
-        assert old_hash not in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
-        assert key not in sessions._awaiting  # noqa: SLF001 — the memory bound is the subject
+        assert old_hash not in sessions._replaced  # the memory bound is the subject
+        assert key not in sessions._awaiting  # the memory bound is the subject
 
 
 class TestClose:

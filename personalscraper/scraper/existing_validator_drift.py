@@ -125,7 +125,7 @@ def _episode_nfo_has_canonical_uniqueid(nfo_path: Path, canonical_family: str) -
         ``True`` iff the canonical uniqueid is present and populated.
     """
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
+        root = ET.parse(nfo_path).getroot()  # trusted NFO we just wrote
     except (ET.ParseError, OSError):
         return False
     expected = canonical_family.lower()
@@ -177,7 +177,7 @@ def verify_tvshow_scrape_drift(
         for a log field; ``"ok"`` on success.
     """
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
+        root = ET.parse(nfo_path).getroot()  # trusted NFO we just wrote
     except (ET.ParseError, OSError) as exc:
         return False, f"nfo_parse_failed:{exc}"
 

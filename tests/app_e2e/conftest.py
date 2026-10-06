@@ -220,7 +220,7 @@ def app_server(test_config: Config, built_client: Path) -> Iterator[AppServer]:
 
 
 @pytest.fixture(scope="session")
-def browser() -> Iterator["Browser"]:
+def browser() -> Iterator[Browser]:
     """One headless Chromium for the whole lane — one browser at a time on this machine.
 
     Yields:
@@ -239,7 +239,7 @@ def browser() -> Iterator["Browser"]:
 
 
 @pytest.fixture
-def context(browser: "Browser") -> Iterator["BrowserContext"]:
+def context(browser: Browser) -> Iterator[BrowserContext]:
     """A fresh browser context per test, in English, at a phone's size.
 
     Args:
@@ -257,7 +257,7 @@ def context(browser: "Browser") -> Iterator["BrowserContext"]:
 
 
 @pytest.fixture
-def signed_in_page(app_server: AppServer, context: "BrowserContext") -> "Page":
+def signed_in_page(app_server: AppServer, context: BrowserContext) -> Page:
     """A page carrying the owner's session, as a browser that signed in earlier would.
 
     Args:
@@ -271,7 +271,7 @@ def signed_in_page(app_server: AppServer, context: "BrowserContext") -> "Page":
     return context.new_page()
 
 
-def assert_the_app_document(page: "Page") -> None:
+def assert_the_app_document(page: Page) -> None:
     """The page is the app's document: no way out of a phone frame, no design note shown.
 
     Args:

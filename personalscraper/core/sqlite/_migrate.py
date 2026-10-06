@@ -211,7 +211,7 @@ def apply_migrations(
         sql_text = script.read_text(encoding="utf-8")
         try:
             conn.executescript(sql_text)
-        except Exception as exc:  # noqa: BLE001 — catch-all so we can restore + re-raise
+        except Exception as exc:  # catch-all so we can restore + re-raise
             log.error(
                 "core.sqlite.migration.failed",
                 version=ver,

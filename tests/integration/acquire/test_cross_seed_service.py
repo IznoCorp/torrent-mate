@@ -457,7 +457,7 @@ def make_registry(
     trackers: dict[str, FakeTracker],
     priority: list[str] | None = None,
     priority_by_media_type: dict[str, list[str]] | None = None,
-) -> "FakeRegistry":
+) -> FakeRegistry:
     """Build a fake :class:`TrackerRegistry` from :class:`FakeTracker` instances.
 
     Args:

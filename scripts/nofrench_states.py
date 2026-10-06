@@ -51,7 +51,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nofrench_lexicon import (  # noqa: E402
+from nofrench_lexicon import (
     walk,
     MAQUETTE, examined, french_only, read, relative, split_identifier,
 )

@@ -23,13 +23,13 @@ def _collect_paths(routes: list[BaseRoute]) -> list[str]:
     for r in routes:
         # Leaf route — has a .path attribute (Route, Mount, APIRoute).
         if hasattr(r, "path"):
-            paths.append(getattr(r, "path"))
+            paths.append(r.path)
         # Recursion case 1: direct .routes attribute (Mount, etc.).
         if hasattr(r, "routes"):
-            paths.extend(_collect_paths(getattr(r, "routes")))
+            paths.extend(_collect_paths(r.routes))
         # Recursion case 2: _IncludedRouter wraps original_router (APIRouter).
-        if hasattr(r, "original_router") and hasattr(getattr(r, "original_router"), "routes"):
-            paths.extend(_collect_paths(getattr(r, "original_router").routes))
+        if hasattr(r, "original_router") and hasattr(r.original_router, "routes"):
+            paths.extend(_collect_paths(r.original_router.routes))
     return paths
 
 

@@ -49,7 +49,7 @@ class TestExitCode:
     def test_a_child_is_reported_until_it_is_reaped(self) -> None:
         """A stub child exiting 7 is read as 7 at every peek; only a reap that no longer wants it forgets it."""
         launcher = ProcessWorkerLauncher()
-        stub = subprocess.Popen([sys.executable, "-c", "raise SystemExit(7)"])  # noqa: S603 — a stub body
+        stub = subprocess.Popen([sys.executable, "-c", "raise SystemExit(7)"])  # a stub body
         launcher._children[stub.pid] = stub
         deadline = time.monotonic() + 10
         code = launcher.exit_code(stub.pid)

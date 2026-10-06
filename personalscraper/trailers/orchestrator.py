@@ -11,7 +11,7 @@ import shutil
 import sqlite3
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -141,8 +141,8 @@ class TrailersOrchestrator:
         config: Any,
         staging_dir: Path | None,
         *,
-        event_bus: "EventBus",
-        registry: "ProviderRegistry",
+        event_bus: EventBus,
+        registry: ProviderRegistry,
     ) -> None:
         """Wire up Scanner, TrailerFinder, YtdlpDownloader, TrailerStateStore.
 
@@ -202,7 +202,7 @@ class TrailersOrchestrator:
 
         self._library_index: dict[tuple[str, str], _LibraryEntry] | None = None
 
-    def run(self, items: "list[Any] | None" = None) -> dict[str, int]:
+    def run(self, items: list[Any] | None = None) -> dict[str, int]:
         """Execute the full trailer acquisition loop.
 
         Runs ``auto_gc`` once, snapshots the run config, scans staging (unless
@@ -510,7 +510,7 @@ class TrailersOrchestrator:
                 year=item.year,
                 season_number=item.season_number,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # I2: circuit-breaker open is a distinct failure mode from a generic
             # finder error — its own counter lets operators distinguish a tripped
             # TMDB/YouTube circuit from a real error. Both persist an HTTP_ERROR
@@ -636,7 +636,7 @@ class TrailersOrchestrator:
                     # but carries the consecutive-attempt counter, so it is built
                     # inline rather than via build_retry_state.
                     state=TrailerState(
-                        last_attempt=datetime.now(timezone.utc).isoformat(),
+                        last_attempt=datetime.now(UTC).isoformat(),
                         attempts=1,
                         status=TrailerStatus.BOT_DETECTED,
                         media_path=str(item.path),
@@ -792,7 +792,7 @@ class TrailersOrchestrator:
         """
         return list(self._failed_items)
 
-    def _build_finder(self) -> "TrailerFinder | None":
+    def _build_finder(self) -> TrailerFinder | None:
         """Construct a fully wired TrailerFinder from config values.
 
         Uses ``self._registry`` (threaded from :class:`AppContext` —
@@ -861,7 +861,7 @@ class TrailersOrchestrator:
                 cache=cache,
                 languages=languages,
             )
-        except Exception as exc:  # noqa: BLE001 — surface any misconfig loudly
+        except Exception as exc:  # surface any misconfig loudly
             log.error(
                 "trailers_finder_init_failed",
                 error=str(exc),
@@ -899,7 +899,7 @@ class TrailersOrchestrator:
         try:
             conn = _open_indexer_db(db_path, event_bus=self._event_bus)
             rows = _indexer_item_repo.list_all_dispatch_items(conn)
-        except Exception as exc:  # noqa: BLE001 — degraded, but loudly logged
+        except Exception as exc:  # degraded, but loudly logged
             log.error(
                 "trailers_library_index_build_failed",
                 error=str(exc),

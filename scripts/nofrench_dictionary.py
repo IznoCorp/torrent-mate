@@ -22,13 +22,13 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nofrench_lexicon import (  # noqa: E402
+from nofrench_lexicon import (
     walk,
     DICTIONARY_EXCEPTIONS, FROZEN_IDENTIFIERS, HARNESS, MAQUETTE, ROOT,
     SCRIPTS, SHELL, examined, maquette_servers, read, relative,
     split_identifier,
 )
-from nofrench_scan import (  # noqa: E402
+from nofrench_scan import (
     TS_DECLARATION, python_declarations,
 )
 

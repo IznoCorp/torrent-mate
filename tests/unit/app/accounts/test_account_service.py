@@ -1055,7 +1055,7 @@ class TestDeleteRole:
         roles.delete_role(admin, created.id)
 
         assert store.roles.role(created.id) is None
-        rows = store.accounts._conn.execute(  # noqa: SLF001
+        rows = store.accounts._conn.execute(
             "SELECT count(*) FROM role_right WHERE role_id = ?", (created.id,)
         ).fetchone()
         assert rows[0] == 0
@@ -1332,7 +1332,7 @@ class TestSetOwnLanguage:
     def test_an_account_gone_since_its_session_is_auth_required(self, store: AppStore, accounts: RosterService) -> None:
         """The session's account was deleted: ``auth.required``, nothing written."""
         caller = _actor_of(store, "account-guest")
-        store.accounts._conn.execute("DELETE FROM account WHERE id = ?", (caller.account_id,))  # noqa: SLF001
+        store.accounts._conn.execute("DELETE FROM account WHERE id = ?", (caller.account_id,))
 
         with pytest.raises(AppRefusal) as raised:
             accounts.set_own_language(caller, Language.EN)

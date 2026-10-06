@@ -150,10 +150,10 @@ def search(
 
 
 def _build_search_service(
-    acquire: "AcquireContext",
-    config: "Config",
-    event_bus: "EventBus",
-) -> "AcquisitionService":
+    acquire: AcquireContext,
+    config: Config,
+    event_bus: EventBus,
+) -> AcquisitionService:
     """Build orchestrator + service inline for the search pass.
 
     ``acquire/_factory.py`` builds ``GrabCore`` (orchestrator + service) only when
@@ -237,7 +237,7 @@ def _build_search_service(
 # ── Reconcile ────────────────────────────────────────────────────────────────────
 
 
-def _reconcile_before_search(acquire: "AcquireContext", event_bus: "EventBus", console: Console) -> "ReconcileSummary":
+def _reconcile_before_search(acquire: AcquireContext, event_bus: EventBus, console: Console) -> ReconcileSummary:
     """Run the ownership reconcile sweep ahead of a real search run (fail-soft).
 
     Mirrors ``grab.py``'s ``_reconcile_before_run`` guard choice.  That sweep has
@@ -292,10 +292,10 @@ def _reconcile_before_search(acquire: "AcquireContext", event_bus: "EventBus", c
 
 
 def _run_dry(
-    acquire: "AcquireContext",
-    config: "Config",
+    acquire: AcquireContext,
+    config: Config,
     console: Console,
-    service: "AcquisitionService",
+    service: AcquisitionService,
     *,
     limit: int | None,
     followed_id: int | None = None,
@@ -332,7 +332,7 @@ def _run_dry(
     # de-duplicated, scoped, capped).  _build_queue is the shared private helper
     # both passes use — reusing it is what makes the preview faithful; a
     # re-implementation here would be free to drift from the real pass.
-    queue = service._build_queue(  # noqa: SLF001
+    queue = service._build_queue(
         store.wanted.list_pending(),
         now=now,
         limit=limit,
@@ -347,14 +347,14 @@ def _run_dry(
     global_cadence = cadence_from_config(config.acquire.cadence)
     # _load_follow_map / _cadence_for are private read-only helpers — same
     # faithfulness justification as _build_queue above.
-    follow_map = service._load_follow_map(queue)  # noqa: SLF001
+    follow_map = service._load_follow_map(queue)
 
     would_search: list[str] = []
     would_skip: list[str] = []
     would_abandon: list[str] = []
 
     for item in queue:
-        cadence = service._cadence_for(item, follow_map, global_cadence)  # noqa: SLF001
+        cadence = service._cadence_for(item, follow_map, global_cadence)
         label = f"{item.media_ref} ({item.kind})"
         if is_past_cutoff(cadence, now=now, enqueued_at=item.enqueued_at):
             would_abandon.append(label)

@@ -36,8 +36,8 @@ if TYPE_CHECKING:
 
 @contextmanager
 def per_step_boundary(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
     build_torrent_client: bool = False,
     stream_events: bool = False,
@@ -88,7 +88,7 @@ def per_step_boundary(
         if redis_publisher is not None:
             try:
                 redis_publisher.close()
-            except Exception:  # noqa: BLE001 — teardown must never mask the step outcome
+            except Exception:  # teardown must never mask the step outcome
                 log.warning("per_step_boundary_publisher_close_failed", exc_info=True)
         current_correlation_id.reset(token)
         app_context.provider_registry.close()

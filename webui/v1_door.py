@@ -109,7 +109,7 @@ def ask_v1(token: str) -> tuple[int, str | None]:
         f"{V1_URL}/api/v1/auth/me", headers={"Cookie": f"{V1_COOKIE}={token}", "Accept": "application/json"}
     )
     try:
-        with urllib.request.urlopen(request, timeout=V1_TIMEOUT) as answer:  # noqa: S310 — a configured loopback URL
+        with urllib.request.urlopen(request, timeout=V1_TIMEOUT) as answer:  # a configured loopback URL
             return answer.status, None
     except urllib.error.HTTPError as refusal:
         return refusal.code, _code_of(refusal)
