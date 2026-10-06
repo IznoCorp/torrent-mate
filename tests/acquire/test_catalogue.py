@@ -22,7 +22,7 @@ from personalscraper.acquire.catalogue import (
 from personalscraper.acquire.errors import AcquireCorruptError
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails, SeasonInfo
-from personalscraper.core.sqlite import apply_migrations
+from personalscraper.core.sqlite import SqliteSchemaNewerError, apply_migrations
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 NOW = 1_800_000_000.0
@@ -60,6 +60,28 @@ class TestMigration026:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 26
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"catalogue_show", "catalogue_episode"} <= tables
+
+
+class TestNewerThanTheCode:
+    """An ``acquire.db`` migrated past the code is refused by the catalogue's opener."""
+
+    def test_opening_a_newer_store_is_refused_untouched(self, tmp_path: Path) -> None:
+        """The first use raises ``SqliteSchemaNewerError``; the store keeps its version and gets no table."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        newer = max(int(sql.name[:3]) for sql in MIGRATIONS_DIR.glob("*.sql")) + 1
+        conn.execute(f"PRAGMA user_version = {newer}")
+        conn.close()
+        catalogue = CatalogueStore(db_path)
+
+        with pytest.raises(SqliteSchemaNewerError):
+            catalogue.episodes("tvdb", "1")
+
+        catalogue.close()
+        with sqlite3.connect(str(db_path)) as check:
+            assert check.execute("PRAGMA user_version").fetchone()[0] == newer
+        check.close()
 
 
 class TestReplaceShow:

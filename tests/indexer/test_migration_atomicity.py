@@ -64,6 +64,22 @@ def _user_version(conn: sqlite3.Connection) -> int:
     return int(conn.execute("PRAGMA user_version").fetchone()[0])
 
 
+def _row_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    """Return the row count of every table, so a data-only script's half-write shows.
+
+    Args:
+        conn: An open connection.
+
+    Returns:
+        Table name → its number of rows.
+    """
+    tables = [
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+    ]
+    return {table: int(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]) for table in tables}
+
+
 def _store_before(script: Path, tmp_path: Path) -> Path:
     """Build a ``library.db`` migrated up to the version just before *script*.
 
@@ -106,7 +122,7 @@ def _crash_mid_script(db_path: Path, script: Path) -> None:
 
 @pytest.mark.parametrize("script", _SCRIPTS, ids=[script.name for script in _SCRIPTS])
 def test_a_crash_mid_script_leaves_the_store_as_before(script: Path, tmp_path: Path) -> None:
-    """After a crash inside a script, schema and ``user_version`` are those before the script.
+    """After a crash inside a script, schema, rows and ``user_version`` are those before the script.
 
     Args:
         script: An indexer migration script.
@@ -114,7 +130,7 @@ def test_a_crash_mid_script_leaves_the_store_as_before(script: Path, tmp_path: P
     """
     db_path = _store_before(script, tmp_path)
     with sqlite3.connect(db_path) as conn:
-        schema_before, version_before = _schema(conn), _user_version(conn)
+        schema_before, version_before, rows_before = _schema(conn), _user_version(conn), _row_counts(conn)
     conn.close()
 
     _crash_mid_script(db_path, script)
@@ -122,6 +138,7 @@ def test_a_crash_mid_script_leaves_the_store_as_before(script: Path, tmp_path: P
     with sqlite3.connect(db_path) as conn:
         assert _user_version(conn) == version_before
         assert _schema(conn) == schema_before
+        assert _row_counts(conn) == rows_before
     conn.close()
 
 

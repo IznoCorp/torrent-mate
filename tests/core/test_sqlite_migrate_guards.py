@@ -280,6 +280,37 @@ class TestFailedScriptLeavesTheStoreAsBefore:
         bak.close()
 
 
+class TestFailedScriptRestoresThePreFailureBytes:
+    """A failed script's ``.bak`` is the store before it, byte for byte, and the restore puts it back."""
+
+    def test_bak_holds_the_pre_failure_store_and_the_store_is_restored_from_it(self, tmp_path: Path) -> None:
+        """A script that half-applies (auto-committed DDL, then an error) leaves no trace once restored.
+
+        The script is deliberately non-transactional: its first statement is committed before the
+        second fails, so only the restore from the ``.bak`` can put the store back.
+        """
+        migrations = _write_scripts(
+            tmp_path / "migrations",
+            {"001_a.sql": "BEGIN TRANSACTION;\nCREATE TABLE a (id INTEGER);\nPRAGMA user_version = 1;\nCOMMIT;\n"},
+        )
+        db_path = tmp_path / "store.db"
+        conn = sqlite3.connect(db_path, isolation_level=None)  # rollback journal: the file holds every write
+        apply_migrations(conn, migrations)
+        conn.execute("INSERT INTO a VALUES (7)")
+        before = db_path.read_bytes()
+        (migrations / "002_b.sql").write_text(
+            "CREATE TABLE b (id INTEGER);\nINSERT INTO missing_table VALUES (1);\nPRAGMA user_version = 2;\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SqliteMigrationError):
+            apply_migrations(conn, migrations)
+
+        bak_bytes = (tmp_path / "store.db.pre-migration-2.bak").read_bytes()
+        assert bak_bytes == before
+        assert db_path.read_bytes() == bak_bytes
+
+
 @pytest.mark.parametrize(
     "script",
     [
