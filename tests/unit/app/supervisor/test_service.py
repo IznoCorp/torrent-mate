@@ -8,7 +8,8 @@ the waiting requests in order.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+import threading
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -242,6 +243,54 @@ class TestAskRun:
         assert second.uid == first.uid
         assert second.joined is True
         assert store.runs.get(RunUid("b" * 32)) is None
+
+    def test_two_equal_asks_from_two_connections_queue_one_request(self, tmp_path: Path, clock: _Clock) -> None:
+        """The ask is atomic across connections: the read of the joinable and the insert are one writer-locked act.
+
+        Both asks are held right before their insert until the other reaches it. Under the writer
+        lock the second ask cannot even read until the first has committed, so the rendezvous times
+        out for the first, which then inserts, and the second joins it. Without the lock both read
+        an empty queue, meet, and both insert.
+        """
+        meeting = threading.Barrier(2)
+        stores = [AppStore(tmp_path / "app.db"), AppStore(tmp_path / "app.db")]
+        try:
+            for app_store in stores:
+                runs = app_store.runs
+                insert = runs.insert
+
+                def gated(request: RunRequest, insert: Callable[[RunRequest], None] = insert) -> None:
+                    """Wait for the other ask right before the real insert, at most a second."""
+                    try:
+                        meeting.wait(timeout=1.0)
+                    except threading.BrokenBarrierError:
+                        pass
+                    insert(request)
+
+                runs.insert = gated  # type: ignore[method-assign]  # instance-level spy
+            answers: list[RunAsked] = []
+
+            def ask(app_store: AppStore) -> None:
+                """Ask the same pipeline run through one connection."""
+                answers.append(
+                    RunService(store=app_store, data_dir=tmp_path, clock=clock).ask_run(
+                        _admin(), trigger=RunTrigger.WEB, options=RunOptions()
+                    )
+                )
+
+            threads = [threading.Thread(target=ask, args=(app_store,)) for app_store in stores]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=10)
+
+            assert len(answers) == 2
+            assert len({answer.uid for answer in answers}) == 1
+            assert sorted(answer.joined for answer in answers) == [False, True]
+            assert _rows(stores[0]) == 1
+        finally:
+            for app_store in stores:
+                app_store.close()
 
     def test_asks_are_logged(self, service: RunService, logged_events: LoggedEvents) -> None:
         """``app.runs.asked`` for a new request, ``app.runs.joined`` for a joined one."""
