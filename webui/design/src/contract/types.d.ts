@@ -4574,7 +4574,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         state: components["schemas"]["PipelineState"];
-                        /** @description the run's identifier once it has one. Null here: a run that has just been asked for has no record yet, and answering the PREVIOUS run's identifier made a maintenance action claim the pipeline's last run as its own */
+                        /** @description the identifier of the request that answers the ask: it becomes the run's `pipeline_run.run_uid` once the supervisor admits it. Never the PREVIOUS run's identifier, which made a maintenance action claim the pipeline's last run as its own */
                         uid: string | null;
                     };
                 };

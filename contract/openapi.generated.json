@@ -1411,6 +1411,33 @@
         "title": "RosterModel",
         "type": "object"
       },
+      "RunAnswer": {
+        "additionalProperties": false,
+        "description": "``runPipeline``'s answer (the contract's ``POST /pipeline/run`` 200).\n\nAttributes:\n    state: The contract's ``PipelineState``: what the request answering the ask stands at.\n    uid: The request's uid, which becomes the run's ``pipeline_run.run_uid`` once admitted.",
+        "properties": {
+          "state": {
+            "enum": [
+              "idle",
+              "running",
+              "queued",
+              "paused",
+              "stopping"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "uid": {
+            "title": "Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "uid"
+        ],
+        "title": "RunAnswer",
+        "type": "object"
+      },
       "SeasonModel": {
         "additionalProperties": false,
         "description": "The contract's ``Season``: one season, as the catalogue and the library know it.\n\nAttributes:\n    number: The season number.\n    episodes: How many episodes the catalogue lists, or ``None``.\n    air_date: The season's first air date, or ``None``.\n    off_catalogue: The held episode numbers above the catalogue's last, ascending.",
@@ -3860,6 +3887,85 @@
           }
         },
         "summary": "Read Media Seasons"
+      }
+    },
+    "/pipeline/run": {
+      "post": {
+        "description": "Ask a pipeline run: queued visibly, or joined to the equal one already waiting.\n\nThe process starts nothing: the supervisor's lease is the only authority that admits\na queued request, so the answer is ``queued`` (or ``running`` for a request already\nadmitted), never ``idle``.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The state of the request answering the ask, and its uid.\n\nRaises:\n    AppForbidden: ``right.missing``, ``instance.forbidden_write`` before anything is queued.",
+        "operationId": "runPipeline",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Run Pipeline"
       }
     },
     "/roles": {
