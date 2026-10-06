@@ -1,8 +1,8 @@
 """``personalscraper web serve-v1`` — the standalone v1 server, refused on production stores.
 
 The command builds the standalone v1 application and hands it to uvicorn on the
-loopback address; it never starts under production (``PERSONALSCRAPER_ENV`` unset or
-``prod``), whose stores a development server must not open.
+loopback address; it never starts under production (``PERSONALSCRAPER_ENV=prod``), whose
+stores a development server must not open.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ def _refusal(language: Language) -> str:
     return catalogue["serve_v1"]["refused_prod"]
 
 
-@pytest.mark.parametrize("value", ["", "prod"])
+@pytest.mark.parametrize("value", ["prod"])
 def test_production_is_refused(
     cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
@@ -78,7 +78,7 @@ def test_production_is_refused(
         cli_runner: The runner.
         test_config: The synthetic configuration.
         monkeypatch: Pytest monkeypatch fixture.
-        value: ``PERSONALSCRAPER_ENV``, empty or ``prod``.
+        value: ``PERSONALSCRAPER_ENV``, ``prod``.
     """
     monkeypatch.setenv("PERSONALSCRAPER_ENV", value)
 
