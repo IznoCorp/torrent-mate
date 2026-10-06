@@ -563,6 +563,40 @@ class GrabOrchestrator:
         except ApiError as exc:
             log.warning("acquire.global_limits.failed", error=str(exc))
 
+    def scope_allows_grab(self) -> bool:
+        """Say whether a grab pass may run: the scope's category is fit to receive adds.
+
+        Checked ONCE per grab run, before any tracker search: under a scope the
+        category must exist and file its torrents under the scope's
+        ``download_root`` (an add under an unknown category lands in the client's
+        default save path, in the other instance's area). A refusal skips the whole
+        pass with one log event naming the cause — checking per item would cost a
+        tracker search and a ``GrabFailed`` per item per tick. Fail closed: a client
+        that cannot be read refuses too. Nothing is created.
+
+        Always ``True`` without a scope, without a client, or with a client that
+        defines no categories (see :func:`category_refusal`).
+
+        Returns:
+            ``True`` when the pass may proceed, ``False`` when it must be skipped.
+        """
+        if self._scope is None or self._torrent_client is None:
+            return True
+        try:
+            reason = category_refusal(self._torrent_client, self._scope)
+            error = None
+        except ApiError as exc:
+            reason, error = "category_check_failed", str(exc)
+        if reason is None:
+            return True
+        log.warning(
+            "acquire.grab_pass.scope_refused",
+            reason=reason,
+            category=self._scope.category,
+            error=error,
+        )
+        return False
+
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
     # ------------------------------------------------------------------
@@ -1041,13 +1075,6 @@ class GrabOrchestrator:
             # same top (only failed hashes are excluded), starving the item.
             # The check runs BEFORE ``on_intent``: an intent, once reserved, is
             # never rewritten, so it must name the candidate that is added.
-            # The scope's category must exist and file under the scope's root before
-            # anything is fetched or added: an add under an unknown category lands in
-            # the client's default save path. Fail closed, nothing is created.
-            if self._scope is not None:
-                category_refusal_reason = category_refusal(self._torrent_client, self._scope)
-                if category_refusal_reason is not None:
-                    return self._retryable(media_ref, category_refusal_reason, chosen=top)
             remaining = result.ranked
             while True:
                 attempt = resolve_first_available(remaining, self._tracker_registry.transports(), top=top)
