@@ -71,5 +71,9 @@
     "token_refused": "plex.tv a refusé la connexion ; recommencez-la.",
     "pin_unknown": "Aucune connexion Plex commencée dans ce navigateur ne répond à cette demande ; recommencez-la.",
     "pin_expired": "La connexion Plex a expiré ; recommencez-la."
+  },
+  "session": {
+    "unknown": "Aucune session de ce compte ne porte cet identifiant.",
+    "current": "La session en cours se termine en se déconnectant, pas depuis cette liste."
   }
 }

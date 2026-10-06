@@ -15,8 +15,9 @@ from __future__ import annotations
 import sqlite3
 import threading
 from dataclasses import dataclass, field
+from typing import Any
 
-from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.accounts.ids import AccountId, SessionId
 from personalscraper.core.sqlite import serialised
 
 
@@ -35,7 +36,7 @@ class SessionRow:
         user_agent: The browser's user agent.
     """
 
-    id: int
+    id: SessionId
     account_id: AccountId
     token_hash: str = field(repr=False)
     created_at: float
@@ -46,6 +47,18 @@ class SessionRow:
 
 
 _SESSION_COLUMNS = "id, account_id, token_hash, created_at, expires_at, last_seen_at, revoked_at, user_agent"
+
+
+def _row(values: tuple[Any, ...]) -> SessionRow:
+    """A session from a ``session`` row's columns, its key and account typed.
+
+    Args:
+        values: The columns, in ``_SESSION_COLUMNS`` order.
+
+    Returns:
+        The session.
+    """
+    return SessionRow(SessionId(values[0]), AccountId(values[1]), *values[2:])
 
 
 class SessionRepository:
@@ -63,7 +76,7 @@ class SessionRepository:
         self._lock = lock if lock is not None else threading.RLock()
 
     @serialised
-    def insert_session(self, row: SessionRow) -> int:
+    def insert_session(self, row: SessionRow) -> SessionId:
         """Insert a session; its ``id`` is ignored and assigned by the base.
 
         Args:
@@ -89,7 +102,7 @@ class SessionRepository:
             ),
         )
         assert cursor.lastrowid is not None  # an INSERT into a rowid table always sets it
-        return cursor.lastrowid
+        return SessionId(cursor.lastrowid)
 
     @serialised
     def session_by_hash(self, token_hash: str) -> SessionRow | None:
@@ -105,10 +118,10 @@ class SessionRepository:
             f"SELECT {_SESSION_COLUMNS} FROM session WHERE token_hash = ?",  # noqa: S608
             (token_hash,),
         ).fetchone()
-        return SessionRow(*row) if row else None
+        return _row(row) if row else None
 
     @serialised
-    def session(self, session_id: int) -> SessionRow | None:
+    def session(self, session_id: SessionId) -> SessionRow | None:
         """A session by its key, revoked or not.
 
         Args:
@@ -121,7 +134,7 @@ class SessionRepository:
             f"SELECT {_SESSION_COLUMNS} FROM session WHERE id = ?",  # noqa: S608
             (session_id,),
         ).fetchone()
-        return SessionRow(*row) if row else None
+        return _row(row) if row else None
 
     @serialised
     def live_sessions_of(self, account_id: AccountId, *, now: float) -> list[SessionRow]:
@@ -139,10 +152,12 @@ class SessionRepository:
             " WHERE account_id = ? AND revoked_at IS NULL AND expires_at > ? ORDER BY created_at DESC, id DESC",
             (account_id, now),
         ).fetchall()
-        return [SessionRow(*row) for row in rows]
+        return [_row(row) for row in rows]
 
     @serialised
-    def renew_session(self, session_id: int, *, seen_at: float, token_hash: str, expires_at: float, now: float) -> bool:
+    def renew_session(
+        self, session_id: SessionId, *, seen_at: float, token_hash: str, expires_at: float, now: float
+    ) -> bool:
         """Renew a live session under a new value, if no other renewal came first.
 
         The write is conditional on ``last_seen_at`` still being the one read: of two
@@ -166,7 +181,7 @@ class SessionRepository:
         return cursor.rowcount == 1
 
     @serialised
-    def revoke_session(self, session_id: int, *, now: float) -> None:
+    def revoke_session(self, session_id: SessionId, *, now: float) -> None:
         """Mark a session revoked.
 
         Args:
@@ -176,7 +191,7 @@ class SessionRepository:
         self._conn.execute("UPDATE session SET revoked_at = ? WHERE id = ?", (now, session_id))
 
     @serialised
-    def revoke_sessions_of(self, account_id: AccountId, *, except_id: int | None, now: float) -> int:
+    def revoke_sessions_of(self, account_id: AccountId, *, except_id: SessionId | None, now: float) -> int:
         """Mark every live session of an account revoked, but one.
 
         Args:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from personalscraper.app.accounts.ids import AccountId
 from personalscraper.core.event_bus import Event
 
 
@@ -46,5 +47,5 @@ class PlexSessionOpened(Event):
         device: The browser and system the session's user agent names; ``None`` when it names neither.
     """
 
-    account_id: str
+    account_id: AccountId
     device: str | None

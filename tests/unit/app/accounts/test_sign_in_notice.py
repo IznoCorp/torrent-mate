@@ -8,6 +8,7 @@ fails, or is not configured, never loses the in-app notice.
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -126,7 +127,7 @@ def notifier(store: AppStore, push: _Push) -> SignInNotifier:
     Returns:
         The notifier.
     """
-    return SignInNotifier(store, push, clock=lambda: _NOW)
+    return SignInNotifier(store, push, clock=lambda: _NOW, defer=lambda send: send())
 
 
 class TestInAppNotice:
@@ -167,7 +168,7 @@ class TestInAppNotice:
 class TestPush:
     """The push channel: the same code, the account's language, under its switch."""
 
-    def test_pushes_the_code_in_the_accounts_language_to_profil(self, notifier: SignInNotifier, push: _Push) -> None:
+    def test_pushes_the_code_in_the_accounts_language_to_profile(self, notifier: SignInNotifier, push: _Push) -> None:
         """One fan-out to the account: its code, the device, ``language`` = the account's, the tap on Profil."""
         notifier.on_plex_session_opened(PlexSessionOpened(account_id=_OTHER, device="Safari · iOS"))
 
@@ -248,3 +249,65 @@ class TestUnconfiguredPush:
         assert [(entry["account_id"], entry["code"]) for entry in events] == [
             (_ACCOUNT, "account.sign_in.unknown_device")
         ]
+
+
+class TestOffTheRequestPath:
+    """The push never holds the sign-in: the notice is written in the request, the send runs apart."""
+
+    def test_the_handler_returns_while_the_send_is_still_blocked(self, store: AppStore) -> None:
+        """A sender that blocks: the handler has already written the notice and returned; the send runs after."""
+        gate = threading.Event()
+        started = threading.Event()
+        sent_from: list[str] = []
+
+        class _Blocking:
+            def notify_account(self, account_id: str, message: PushMessage) -> DispatchReport:
+                started.set()
+                gate.wait(timeout=5)
+                sent_from.append(threading.current_thread().name)
+                return DispatchReport()
+
+        notifier = SignInNotifier(store, _Blocking(), clock=lambda: _NOW)
+        try:
+            notifier.on_plex_session_opened(PlexSessionOpened(account_id=_ACCOUNT, device="Firefox · macOS"))
+
+            # The handler came back: the send has not finished, and the notice is already there.
+            assert sent_from == []
+            assert len(store.notices.notices_of(_ACCOUNT, limit=10)) == 1
+            gate.set()
+        finally:
+            gate.set()
+            notifier.close()
+
+        assert started.is_set()
+        assert sent_from
+        assert sent_from[0] != threading.current_thread().name
+
+
+class TestMessageBuiltInTheTry:
+    """A message that cannot be built never fails the sign-in: it is logged with its traceback."""
+
+    def test_a_message_that_cannot_be_built_is_logged_and_the_notice_kept(
+        self,
+        notifier: SignInNotifier,
+        store: AppStore,
+        push: _Push,
+        logged_events: LoggedEvents,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Building the ``PushMessage`` raises: nothing escapes, the notice stays, a warning carries exc_info."""
+
+        def _broken(**_: object) -> PushMessage:
+            raise ValueError("the link is not a path")
+
+        monkeypatch.setattr("personalscraper.app.accounts.sign_in_notice.PushMessage", _broken)
+
+        with logged_events() as logs:
+            notifier.on_plex_session_opened(PlexSessionOpened(account_id=_ACCOUNT, device="Firefox · macOS"))
+
+        assert push.sent == []
+        assert len(store.notices.notices_of(_ACCOUNT, limit=10)) == 1
+        failed = [entry for entry in logs if entry["event"] == "sign_in_notice.push_failed"]
+        assert len(failed) == 1
+        assert failed[0]["log_level"] == "warning"
+        assert failed[0].get("exc_info")

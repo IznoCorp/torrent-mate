@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.accounts.device import device_label
+from personalscraper.app.accounts.ids import SessionId
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.errors import AppConflict, AppNotFound, RefusalCode
 from personalscraper.app.store.store import AppStore
@@ -40,7 +41,7 @@ class OwnSessionView:
         current: Whether it is the session the request was made with.
     """
 
-    id: int
+    id: SessionId
     device: str | None
     created_at: float
     last_seen_at: float
@@ -87,7 +88,7 @@ class OwnSessionService:
         ]
 
     @requires("revokeOwnSession")
-    def revoke_own_session(self, actor: Actor, token: str, session_id: int) -> None:
+    def revoke_own_session(self, actor: Actor, token: str, session_id: SessionId) -> None:
         """End one of the signed-in account's other sessions, at once: its next request is refused.
 
         Args:

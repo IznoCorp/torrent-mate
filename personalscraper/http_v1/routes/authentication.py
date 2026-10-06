@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse
 
 from personalscraper.app.accounts.actor import Actor
+from personalscraper.app.accounts.ids import SessionId
 from personalscraper.app.accounts.plex_sign_in import PlexPending
 from personalscraper.app.accounts.ratelimit import rate_limit_key
 from personalscraper.app.errors import AppUnauthenticated, RefusalCode
@@ -341,5 +342,5 @@ def revoke_own_session(
     Returns:
         ``{"ok": true}``.
     """
-    app_services.own_sessions.revoke_own_session(signed_in, token, session_id)
+    app_services.own_sessions.revoke_own_session(signed_in, token, SessionId(session_id))
     return SessionRevoked(ok=True)
