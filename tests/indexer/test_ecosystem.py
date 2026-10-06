@@ -869,7 +869,8 @@ def test_no_preprod_cron_fires_with_a_prod_cron() -> None:
     }
     unaccepted = {pair: minutes for pair, minutes in clashes.items() if pair not in _ACCEPTED_CLASHES}
     assert unaccepted == {}, f"preprod jobs firing with a prod job: {unaccepted}"
-    assert set(clashes) == _ACCEPTED_CLASHES, f"accepted clashes that no longer occur: {_ACCEPTED_CLASHES - set(clashes)}"
+    stale = _ACCEPTED_CLASHES - set(clashes)
+    assert stale == set(), f"accepted clashes that no longer occur: {stale}"
 
 
 def test_only_preprod_apps_name_the_staging_environment() -> None:
