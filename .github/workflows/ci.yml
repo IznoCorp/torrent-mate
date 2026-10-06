@@ -504,7 +504,10 @@ jobs:
         if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]" && pip install playwright && python -m playwright install --with-deps chromium
+      - uses: ./.github/actions/locked-install
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      # Playwright is not in uv.lock: the browser driver is the one unlocked install of this job.
+      - run: uv pip install playwright && python -m playwright install --with-deps chromium
         if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
       - run: python -m pytest -m app_e2e tests/app_e2e -q --no-header
         if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
