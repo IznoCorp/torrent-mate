@@ -848,6 +848,96 @@ class TestScopedInjectionNeverTakesAnotherInstancesHash:
         assert client.by_hashes_calls == []
 
 
+class _CategoryAwareClient(FakeTorrentClient):
+    """The fake client, defining categories like qBittorrent, counting the reads.
+
+    Attributes:
+        categories: Category name → save path.
+        category_reads: How many times the categories were read.
+    """
+
+    def __init__(self, categories: dict[str, str], completed: list[TorrentItem] | None = None) -> None:
+        """Hold the categories the client defines.
+
+        Args:
+            categories: Category name → save path.
+            completed: Pre-seeded completed torrents.
+        """
+        super().__init__(completed)
+        self.categories = categories
+        self.category_reads = 0
+
+    def get_categories(self) -> dict[str, str]:
+        """Count the read and return the categories."""
+        self.category_reads += 1
+        return dict(self.categories)
+
+
+def _category_aware(client: FakeTorrentClient, categories: dict[str, str]) -> _CategoryAwareClient:
+    """Return a category-defining twin of *client* holding the same state."""
+    twin = _CategoryAwareClient(categories)
+    twin.__dict__.update({k: v for k, v in client.__dict__.items() if k != "categories"})
+    return twin
+
+
+class TestScopedInjectionNeedsItsCategory:
+    """Under a scope the category must exist, filed under the scope's root, before an injection."""
+
+    def _scenario(
+        self, tmp_path: Path, store: ConcreteAcquireStore, categories: dict[str, str], torrent_config: Any
+    ) -> tuple[CrossSeedService, _CategoryAwareClient]:
+        """Build the scoped scenario over a client defining *categories*."""
+        svc, plain, _ = _scoped_check_scenario(tmp_path, store, torrent_config)
+        client = _category_aware(plain, categories)
+        svc._lister = client
+        svc._injector = client
+        svc._controller = client
+        svc._tagger = client
+        return svc, client
+
+    def test_missing_category_is_refused_with_no_write(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """The client defines no category of the scope: nothing is injected, rechecked nor deleted."""
+        svc, client = self._scenario(tmp_path, store, {"prod": "/srv/prod"}, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["category_missing"]
+        assert client.injected == []
+        assert client.resumed == []
+        assert client.deleted == []
+
+    def test_category_filed_outside_the_download_root_is_refused(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """The category exists but its save path is not under the scope's download root."""
+        svc, client = self._scenario(tmp_path, store, {SCOPE.category: "/elsewhere/complete"}, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert [reason for _, _, reason in result.rejected] == ["category_save_path"]
+        assert client.injected == []
+
+    def test_category_under_the_download_root_is_injected(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """The category exists under the scope's root: the injection goes through."""
+        save_path = str(SCOPE.download_root / "complete")
+        svc, client = self._scenario(tmp_path, store, {SCOPE.category: save_path}, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert len(result.injected) == 1
+        assert client.category_reads >= 1
+
+    def test_unscoped_inject_never_reads_the_categories(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Without a scope the injection is today's and the categories are not read."""
+        svc, client = self._scenario(tmp_path, store, {}, UNSCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert len(result.injected) == 1
+        assert client.category_reads == 0
+
+
 class TestCheckHappyPath:
     """test_check_injects_on_match_and_tags_and_writes_obligation (ACC-6)."""
 

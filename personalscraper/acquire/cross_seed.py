@@ -20,7 +20,13 @@ from personalscraper.acquire._cross_seed_support import (
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.api._contracts import ApiError
-from personalscraper.api.torrent._base import TorrentItem, _bencode_info_hash, parse_torrent_layout, scoped
+from personalscraper.api.torrent._base import (
+    TorrentItem,
+    _bencode_info_hash,
+    category_refusal,
+    parse_torrent_layout,
+    scoped,
+)
 from personalscraper.api.torrent._layout import MatchVerdict, TorrentLayout, structural_match
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
@@ -51,7 +57,8 @@ class _ScopeRefusal(Exception):
     """A scoped injection refused before anything reached the client.
 
     Attributes:
-        reason: The rejection reason code (``shared_hash`` or ``hash_underivable``).
+        reason: The rejection reason code: ``category_missing``, ``category_save_path``,
+            ``shared_hash`` or ``hash_underivable``.
     """
 
     def __init__(self, reason: str) -> None:
@@ -835,14 +842,21 @@ class CrossSeedService:
         Returns:
             The info-hash of the injected torrent.
 
+        A scoped injection also needs the scope's category to exist and file under the scope's
+        ``download_root`` (``category_refusal``; a client without categories keeps today's path).
+
         Raises:
-            _ScopeRefusal: Under a scope, the candidate's hash cannot be derived
-                (``hash_underivable``) or is held outside the scope's category
-                (``shared_hash``); nothing was sent to the client.
+            _ScopeRefusal: Under a scope, the category is missing (``category_missing``) or filed
+                elsewhere (``category_save_path``), the candidate's hash cannot be derived
+                (``hash_underivable``) or is held outside the scope's category (``shared_hash``);
+                nothing was sent to the client.
         """
         scope = self._config.torrent.active_scope()
         if scope is None:
             return self._injector.inject(torrent_bytes, save_path=save_path, recheck=True, paused=True)
+        category_reason = category_refusal(self._injector, scope)
+        if category_reason is not None:
+            raise _ScopeRefusal(category_reason)
         try:
             candidate_hash = _bencode_info_hash(torrent_bytes).lower()
         except ValueError:

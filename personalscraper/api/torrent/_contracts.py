@@ -9,6 +9,7 @@ interface :
 | -------------------------------- | ---------------------------- |
 | ``get_completed()``              | :class:`TorrentLister`       |
 | ``get_all_hashes()``             | :class:`TorrentLister`       |
+| ``get_categories()``             | :class:`CategoryReader`      |
 | ``get_content_path()``           | :class:`TorrentInspector`    |
 | ``login()`` (optional)           | :class:`AuthenticatedClient` |
 | ``is_seeding()``                 | :class:`TorrentStateInspector` |
@@ -97,6 +98,28 @@ class CategoryLister(Protocol):
 
         Returns:
             The torrents the client files under that category.
+        """
+        ...
+
+
+@runtime_checkable
+class CategoryReader(Protocol):
+    """Capability — read the categories the client defines, with their save paths.
+
+    Lets a scoped instance prove, before it adds anything, that its category
+    exists and files torrents where the scope says. Composed by
+    :class:`~personalscraper.api.torrent.qbittorrent.QBitClient`; a client
+    without categories (Transmission) omits it, and
+    :func:`~personalscraper.api.torrent._base.category_refusal` then keeps the
+    earlier path for it.
+    """
+
+    def get_categories(self) -> dict[str, str]:
+        """Return the client's categories.
+
+        Returns:
+            Category name → the save path the client files that category under
+            (``""`` when the category has none).
         """
         ...
 
@@ -335,6 +358,7 @@ class TorrentInjector(Protocol):
 __all__ = [
     "AuthenticatedClient",
     "CategoryLister",
+    "CategoryReader",
     "GlobalRateLimiter",
     "TorrentAdder",
     "TorrentController",

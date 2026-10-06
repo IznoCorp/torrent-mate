@@ -28,6 +28,7 @@ from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, Torren
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
     CategoryLister,
+    CategoryReader,
     GlobalRateLimiter,
     TorrentAdder,
     TorrentController,
@@ -96,6 +97,7 @@ _QBIT_ADD_ERRORS: tuple[type[qbittorrentapi.APIError], ...] = (
 class QBitClient(
     TorrentLister,
     CategoryLister,
+    CategoryReader,
     TorrentInspector,
     AuthenticatedClient,
     TorrentStateInspector,
@@ -109,7 +111,8 @@ class QBitClient(
     """qBittorrent client wrapping qbittorrentapi.Client.
 
     Composes the full set of atomic torrent capabilities
-    (:class:`TorrentLister`, :class:`CategoryLister`, :class:`TorrentInspector`,
+    (:class:`TorrentLister`, :class:`CategoryLister`, :class:`CategoryReader`,
+    :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
     :class:`TorrentController`, :class:`TorrentAdder`,
     :class:`TorrentLimiter`, :class:`GlobalRateLimiter`,
@@ -218,6 +221,24 @@ class QBitClient(
         except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
             _raise_neutral_torrent_error("get_by_category", exc)
         return [_torrent_item(t) for t in raw]
+
+    def get_categories(self) -> dict[str, str]:
+        """Return the categories qBittorrent defines, with their save paths.
+
+        One ``torrents/categories`` request.
+
+        Returns:
+            Category name → ``savePath`` (``""`` when the category has none).
+
+        Raises:
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
+        """
+        try:
+            raw = self._client.torrents_categories()
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_categories", exc)
+        return {name: str(entry.get("savePath") or "") for name, entry in raw.items()}
 
     def is_seeding(self, torrent: TorrentItem) -> bool:
         """Check if a torrent is actively seeding.

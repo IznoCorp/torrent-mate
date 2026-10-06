@@ -75,7 +75,7 @@ from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.torrent._base import TorrentLimits
+from personalscraper.api.torrent._base import TorrentLimits, category_refusal
 from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter, TorrentLister
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._ranking import rank
@@ -1041,6 +1041,13 @@ class GrabOrchestrator:
             # same top (only failed hashes are excluded), starving the item.
             # The check runs BEFORE ``on_intent``: an intent, once reserved, is
             # never rewritten, so it must name the candidate that is added.
+            # The scope's category must exist and file under the scope's root before
+            # anything is fetched or added: an add under an unknown category lands in
+            # the client's default save path. Fail closed, nothing is created.
+            if self._scope is not None:
+                category_refusal_reason = category_refusal(self._torrent_client, self._scope)
+                if category_refusal_reason is not None:
+                    return self._retryable(media_ref, category_refusal_reason, chosen=top)
             remaining = result.ranked
             while True:
                 attempt = resolve_first_available(remaining, self._tracker_registry.transports(), top=top)

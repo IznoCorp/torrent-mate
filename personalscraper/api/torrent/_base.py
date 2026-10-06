@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -267,6 +268,53 @@ def scoped_hashes(client: TorrentLister, scope: TorrentScope | None) -> set[str]
     if not hashes:
         return hashes
     return {item.hash for item in scoped(client.get_by_hashes(hashes), scope)}
+
+
+def category_refusal(client: object, scope: TorrentScope | None) -> str | None:
+    """Say why a scoped add must not be sent: its category is not what the scope assumes.
+
+    The scope's category is never sent with a save path — the client's own category
+    entry decides where the torrent lands. An add under a category the client does
+    not define would land in the client's default save path, in the other
+    instance's area. So before a scoped add the category must exist and file its
+    torrents under the scope's ``download_root``. Fail closed: anything that cannot
+    prove it refuses. Nothing is created.
+
+    A client without categories (Transmission) is not asked and keeps its earlier
+    path. Without a scope the client is not asked either.
+
+    Args:
+        client: The torrent client about to receive the add.
+        scope: The instance's scope; ``None`` = the whole client (today).
+
+    Returns:
+        ``None`` when the add may proceed, else the refusal reason:
+        ``category_missing`` (the client defines no such category) or
+        ``category_save_path`` (its save path is not under ``download_root``).
+
+    Raises:
+        ApiError: The client could not be read; the add must not be sent either.
+    """
+    from personalscraper.api.torrent._contracts import CategoryReader  # noqa: PLC0415 — _contracts imports this module
+
+    if scope is None or not isinstance(client, CategoryReader):
+        return None
+    categories = client.get_categories()
+    if scope.category not in categories:
+        log.warning("torrent.scope.category_missing", category=scope.category)
+        return "category_missing"
+    save_path = categories[scope.category]
+    if not save_path.strip() or not Path(os.path.normpath(save_path)).is_relative_to(
+        Path(os.path.normpath(scope.download_root))
+    ):
+        log.warning(
+            "torrent.scope.category_save_path_outside_root",
+            category=scope.category,
+            save_path=save_path,
+            download_root=str(scope.download_root),
+        )
+        return "category_save_path"
+    return None
 
 
 def _parse_magnet_hash(uri: str) -> str:

@@ -297,3 +297,79 @@ def test_scope_none_global_caps_still_applied() -> None:
     orch.apply_global_caps()
 
     assert client.global_calls == [{"down": 5_000_000, "up": 1_000_000}]
+
+
+# ── The scope's category must exist, filed under the scope's download root, before an add ──
+
+
+class _CategoryClient(_SharedClient):
+    """A shared client that also defines categories, counting the reads.
+
+    Attributes:
+        categories: Category name → save path.
+        category_reads: How many times the categories were read.
+    """
+
+    def __init__(self, categories: dict[str, str]) -> None:
+        """Hold the categories the client defines.
+
+        Args:
+            categories: Category name → save path.
+        """
+        super().__init__()
+        self.categories = categories
+        self.category_reads = 0
+
+    def get_categories(self) -> dict[str, str]:
+        """Count the read and return the categories."""
+        self.category_reads += 1
+        return dict(self.categories)
+
+
+def test_scope_set_missing_category_is_refused_without_add() -> None:
+    """The client defines no ``tm-preprod``: nothing is added, the reason is category_missing."""
+    client = _CategoryClient({"prod": "/downloads/complete"})
+
+    outcome = _grab(_orchestrator(client, scope=SCOPE))
+
+    assert client.add_calls == []
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "category_missing"
+
+
+def test_scope_set_category_filed_outside_the_download_root_is_refused() -> None:
+    """The category exists but its save path is not under the scope's root: nothing is added."""
+    client = _CategoryClient({"tm-preprod": "/downloads/complete"})
+
+    outcome = _grab(_orchestrator(client, scope=SCOPE))
+
+    assert client.add_calls == []
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "category_save_path"
+
+
+def test_scope_set_category_under_the_download_root_is_added() -> None:
+    """The category exists and files under the scope's root: the add goes through."""
+    client = _CategoryClient({"tm-preprod": "/downloads/preprod/complete"})
+
+    outcome = _grab(_orchestrator(client, scope=SCOPE))
+
+    assert outcome.disposition == "success"
+    assert len(client.add_calls) == 1
+
+
+def test_scope_none_never_reads_the_categories() -> None:
+    """No scope: the add is today's and the client is not asked for its categories."""
+    client = _CategoryClient({})
+
+    outcome = _grab(_orchestrator(client, scope=None))
+
+    assert outcome.disposition == "success"
+    assert client.category_reads == 0
+
+
+def test_scope_set_a_client_without_categories_keeps_todays_path() -> None:
+    """A client that does not define categories (no capability) is added to as before."""
+    client = _SharedClient()
+
+    assert _grab(_orchestrator(client, scope=SCOPE)).disposition == "success"
