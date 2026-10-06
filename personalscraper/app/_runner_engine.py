@@ -53,6 +53,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, NoReturn
 
+import redis as _redis
+
 from personalscraper.app.errors import AppConflict, AppRefusal
 from personalscraper.app.run_queue import wait_in_visible_queue
 from personalscraper.core.sqlite import apply_pragmas, refuse_newer_schema
@@ -204,8 +206,6 @@ def get_redis(web_config: Any) -> Any | None:
     if not web_config.enabled:
         return None
     try:
-        import redis as _redis  # noqa: PLC0415 — redis is an optional dependency
-
         return _redis.Redis.from_url(
             web_config.redis_url,
             socket_connect_timeout=2,
