@@ -25,6 +25,8 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.scheduler import _parse as scheduler_parse
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -801,18 +803,73 @@ def test_preprod_job_runs_its_job_at_its_offset(app_name: str) -> None:
     assert (cron, job) == _PREPROD_JOBS[app_name]
 
 
+def _week_minutes(cron: str) -> set[tuple[int, int, int]]:
+    """List the minutes of a week a cron fires at, expanded by the scheduler's own parser.
+
+    Wildcards, ranges and steps are expanded, so ``15 * * * *`` and ``15 3 * * *`` share
+    03:15. Day of month and month are not judged: every job of the file leaves them ``*``
+    (asserted), so a clash is a weekday, an hour and a minute in common.
+
+    Args:
+        cron: A five-field cron expression.
+
+    Returns:
+        Its ``(weekday, hour, minute)`` firings, Sunday = 0.
+    """
+    minutes, hours, days, months, weekdays = scheduler_parse(cron)
+    assert (days, months) == scheduler_parse("* * * * *")[2:4], f"{cron!r}: a day of month or month is set"
+    return {(w, h, m) for w in weekdays for h in hours for m in minutes}
+
+
+@pytest.mark.parametrize(
+    ("prod", "preprod"),
+    [("15 * * * *", "15 3 * * *"), ("0 1 * * 1", "0 1 * * *"), ("*/15 * * * *", "45 2 * * 3")],
+)
+def test_a_wildcard_clash_is_seen(prod: str, preprod: str) -> None:
+    """Two crons that fire in the same minute clash, whatever wildcard or step either writes.
+
+    Args:
+        prod: A prod job's cron.
+        preprod: A preprod job's cron firing at one of its minutes.
+    """
+    assert _week_minutes(prod) & _week_minutes(preprod)
+
+
+# The one preprod/prod coincidence the preprod's schedule (k2-prep DESIGN § 3.5) gives:
+# its health check at :20 meets prod's grab at 03:20 and 15:20. A light read-only job,
+# accepted as written; any other clash is refused.
+_ACCEPTED_CLASHES = {("personalscraper-preprod-health-check", "personalscraper-grab")}
+
+
 def test_no_preprod_cron_fires_with_a_prod_cron() -> None:
-    """No preprod job shares a firing minute with a prod job — the offsets are the load bound."""
+    """No preprod job shares a firing minute with a prod job — the offsets are the load bound.
+
+    Save the clashes ``_ACCEPTED_CLASHES`` names, which must still occur: an allowance
+    that no longer matches the file is stale and fails too.
+    """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
 
-    def minutes(name: str) -> set[tuple[str, str, str]]:
-        cron, _ = _job_schedule(_get_app_by_name(apps, name))
-        minute, hour, _, _, weekday = cron.split()
-        return {(m, h, weekday) for m in minute.split(",") for h in hour.split(",")}
+    def fires(name: str) -> set[tuple[int, int, int]]:
+        """List the minutes of a week an app's job fires at.
 
-    prod = set().union(*(minutes(n) for n in _SCHEDULED_JOB_NAMES))
-    clashes = {n: sorted(minutes(n) & prod) for n in _PREPROD_JOBS if minutes(n) & prod}
-    assert clashes == {}, f"preprod jobs firing with a prod job: {clashes}"
+        Args:
+            name: The app's name.
+
+        Returns:
+            Its ``(weekday, hour, minute)`` firings.
+        """
+        cron, _ = _job_schedule(_get_app_by_name(apps, name))
+        return _week_minutes(cron)
+
+    clashes = {
+        (preprod, prod): sorted(fires(preprod) & fires(prod))
+        for preprod in _PREPROD_JOBS
+        for prod in _SCHEDULED_JOB_NAMES
+        if fires(preprod) & fires(prod)
+    }
+    unaccepted = {pair: minutes for pair, minutes in clashes.items() if pair not in _ACCEPTED_CLASHES}
+    assert unaccepted == {}, f"preprod jobs firing with a prod job: {unaccepted}"
+    assert set(clashes) == _ACCEPTED_CLASHES, f"accepted clashes that no longer occur: {_ACCEPTED_CLASHES - set(clashes)}"
 
 
 def test_only_preprod_apps_name_the_staging_environment() -> None:
