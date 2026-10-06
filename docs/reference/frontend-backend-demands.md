@@ -24,9 +24,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 108 |
+| operations the interface requires | 109 |
 | operations the backend has | 65 |
-| required and missing | 55 |
+| required and missing | 56 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -80,6 +80,7 @@ than a blank page.
 | `POST /api/v1/auth/plex/start` | `startPlexSignIn` | Start a Plex sign-in |
 | `POST /api/v1/decisions/{decisionId}/reopen` | `reopenDecision` | Re-open a settled decision for arbitration, with the candidates a provider search finds |
 | `POST /api/v1/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
+| `POST /api/v1/notices/read` | `markNoticesRead` | Mark the signed-in account's notices read, up to one |
 | `POST /api/v1/notifications/devices` | `registerPushDevice` | Register this device's push token for the signed-in account (K5) |
 | `POST /api/v1/roles` | `createRole` | Create an ordinary role |
 | `POST /api/v1/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
