@@ -449,8 +449,9 @@ JWT-cookie auth on `/api/*` and the WS handshake).
 
 ### PM2 entries
 
-In `ecosystem.config.js`. **Every daemon/cron runs from the prod clone**
-(`~/deploy/torrentmate` + its venv), never from the dev checkout — see
+In `ecosystem.config.js`. **Every prod daemon/cron runs from the prod clone**
+(`~/deploy/torrentmate` + its venv), the preprod apps from the staging clone
+(`~/staging/torrentmate` + its venv), never from the dev checkout — see
 **Environment separation** below.
 
 | App                             | Script / interpreter   | Notes                                                       |
@@ -459,7 +460,7 @@ In `ecosystem.config.js`. **Every daemon/cron runs from the prod clone**
 | `torrentmate-web-staging`       | `web --port 8711`      | cwd: `~/staging/torrentmate`, staging venv                  |
 | `torrentmate-autodeploy`        | `autodeploy-poll.sh`   | interpreter: `/bin/bash`, cwd: prod clone, restart_delay 60 |
 | `personalscraper-watch`         | `watch`                | prod clone/venv; the watcher daemon (`autorestart: true`)   |
-| `personalscraper-preprod-watch` | `watch`                | staging clone/venv, `staging` env; triages the preprod's own grabs, scoped to its qBittorrent category |
+| `personalscraper-preprod-watch` | `watch`                | staging clone/venv, `staging` env; the preprod's own grabs  |
 | `personalscraper-index-enrich`  | `library-index …`      | prod clone/venv; cron Sun 04:30                   |
 | `personalscraper-backfill-ids`  | `library-backfill-ids` | prod clone/venv; cron Sun 05:00                   |
 | `personalscraper-follow-detect` | `follow detect`        | prod clone/venv; cron daily 03:00                 |

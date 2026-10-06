@@ -340,10 +340,7 @@ module.exports = {
       },
     },
 
-    // ---- PREPROD scheduled jobs (k2-prep DESIGN § 3.5) ----
-    // The `staging` environment's engine, offset from prod's crons so the two never fire
-    // together. Same self-managed `schedule` loop as prod's jobs; run from the staging clone
-    // on the preprod's overlay and secrets file (see torrentmate-web-staging above).
+    // ---- PREPROD daemon ----
     // The preprod's watcher daemon: triages the preprod's own grabs (ingest, sort, scrape, dispatch
     // into the preprod's roots); reads only the preprod's qBittorrent category (torrent scope).
     {
@@ -364,6 +361,11 @@ module.exports = {
         PERSONALSCRAPER_LANG: "fr",
       },
     },
+
+    // ---- PREPROD scheduled jobs (k2-prep DESIGN § 3.5) ----
+    // The `staging` environment's engine, offset from prod's crons so the two never fire
+    // together. Same self-managed `schedule` loop as prod's jobs; run from the staging clone
+    // on the preprod's overlay and secrets file (see torrentmate-web-staging above).
     // 03:30 daily (prod 03:00)
     {
       name: "personalscraper-preprod-follow-detect",
