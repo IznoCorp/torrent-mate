@@ -774,7 +774,9 @@ class TestInjectionCarriesScope:
         assert result.injected == [injected_hash]
         assert client.injected_scope == [(None, [])]
 
-    def test_verification_under_scope_reads_the_scoped_listing(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+    def test_verification_under_scope_reads_the_scoped_listing(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
         """Under a scope a completed torrent outside the category does not verify the injection."""
         svc, client, _ = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
         real_inject = client.inject

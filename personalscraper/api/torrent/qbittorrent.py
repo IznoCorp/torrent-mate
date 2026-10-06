@@ -27,6 +27,7 @@ from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource, _bencode_info_hash
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    CategoryLister,
     GlobalRateLimiter,
     TorrentAdder,
     TorrentController,
@@ -94,6 +95,7 @@ _QBIT_ADD_ERRORS: tuple[type[qbittorrentapi.APIError], ...] = (
 
 class QBitClient(
     TorrentLister,
+    CategoryLister,
     TorrentInspector,
     AuthenticatedClient,
     TorrentStateInspector,
@@ -107,7 +109,7 @@ class QBitClient(
     """qBittorrent client wrapping qbittorrentapi.Client.
 
     Composes the full set of atomic torrent capabilities
-    (:class:`TorrentLister`, :class:`TorrentInspector`,
+    (:class:`TorrentLister`, :class:`CategoryLister`, :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
     :class:`TorrentController`, :class:`TorrentAdder`,
     :class:`TorrentLimiter`, :class:`GlobalRateLimiter`,
@@ -190,6 +192,32 @@ class QBitClient(
         if not hashes:
             return []
         return [_torrent_item(t) for t in self._client.torrents_info(torrent_hashes=list(hashes))]
+
+    def get_by_category(self, category: str) -> list[TorrentItem]:
+        """Return the torrents qBittorrent files under *category*, in any state.
+
+        One ``torrents/info?category=<c>`` request: qBittorrent filters, so the
+        request does not grow with the size of the shared client.
+
+        Args:
+            category: The category to list. qBittorrent treats an empty value as
+                "uncategorised", so a blank one is refused rather than sent.
+
+        Returns:
+            The torrents of that category as :class:`TorrentItem` records.
+
+        Raises:
+            ValueError: *category* is blank.
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
+        """
+        if not category.strip():
+            raise ValueError("category: the category is empty")
+        try:
+            raw = self._client.torrents_info(category=category)
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_by_category", exc)
+        return [_torrent_item(t) for t in raw]
 
     def is_seeding(self, torrent: TorrentItem) -> bool:
         """Check if a torrent is actively seeding.

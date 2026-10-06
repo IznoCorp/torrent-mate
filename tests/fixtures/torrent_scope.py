@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent.qbittorrent import QBitClient
 from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig, TorrentScope
 
 SCOPE = TorrentScope(category="tm-preprod", download_root=Path("/srv/preprod"))
@@ -55,15 +56,47 @@ def shared_client(*, progress: float = 1.0) -> MagicMock:
         progress: Progress of both torrents (``1.0`` completed, else downloading).
 
     Returns:
-        A mock answering the lister contract over the three torrents.
+        A mock of a category-listing client answering the lister contract over the three torrents.
     """
     items = [
         torrent(PROD_HASH, None, progress=progress),
         torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY, progress=progress),
         torrent(PREPROD_HASH, "tm-preprod", progress=progress),
     ]
-    client = MagicMock()
+    # spec'd so the runtime-checkable capability check sees get_by_category, as it does on the real client
+    client = MagicMock(spec=QBitClient)
     client.get_completed.return_value = [i for i in items if i.progress >= 1.0]
     client.get_all_hashes.return_value = {i.hash for i in items}
     client.get_by_hashes.side_effect = lambda hs: [i for i in items if i.hash in hs]
+    client.get_by_category.side_effect = lambda category: [i for i in items if i.category == category]
     return client
+
+
+class HashOnlyClient:
+    """A client without categories (Transmission's shape): lists hashes and looks torrents up by hash.
+
+    Attributes:
+        by_hashes_calls: The hash sets ``get_by_hashes`` was asked for.
+    """
+
+    def __init__(self) -> None:
+        """Hold the prod, other-category and preprod torrents."""
+        self._items = [
+            torrent(PROD_HASH, None),
+            torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY),
+            torrent(PREPROD_HASH, "tm-preprod"),
+        ]
+        self.by_hashes_calls: list[set[str]] = []
+
+    def get_completed(self) -> list[TorrentItem]:
+        """Return the completed torrents."""
+        return list(self._items)
+
+    def get_all_hashes(self) -> set[str]:
+        """Return every hash."""
+        return {i.hash for i in self._items}
+
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        """Record the request and return the torrents of those hashes."""
+        self.by_hashes_calls.append(set(hashes))
+        return [i for i in self._items if i.hash in hashes]

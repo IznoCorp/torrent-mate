@@ -199,16 +199,30 @@ def scoped(items: Iterable[TorrentItem], scope: TorrentScope | None) -> list[Tor
 def scoped_hashes(client: TorrentLister, scope: TorrentScope | None) -> set[str]:
     """Return the info hashes an instance owns in a shared client.
 
+    Under a scope a client that lists by category (:class:`CategoryLister`,
+    qBittorrent) is asked for that category alone, so the request does not carry
+    every hash of the shared client. A client without categories (Transmission)
+    cannot filter server-side: it keeps the earlier path, listing its hashes and
+    looking those torrents up, then keeping the scope's category.
+
     Args:
-        client: A client answering ``get_all_hashes`` and ``get_by_hashes``.
+        client: A client answering ``get_all_hashes`` and ``get_by_hashes``, and
+            ``get_by_category`` when it files torrents by category.
         scope: The instance's scope; ``None`` = the whole client (today).
 
     Returns:
         ``client.get_all_hashes()`` when *scope* is ``None`` (no per-torrent
         lookup); else the hashes of the torrents in the scope's category.
     """
+    from personalscraper.api.torrent._contracts import CategoryLister  # noqa: PLC0415 — _contracts imports this module
+
+    if scope is None:
+        return client.get_all_hashes()
+    if isinstance(client, CategoryLister):
+        # The category is re-checked here: a client filter may match more than the exact category.
+        return {item.hash for item in scoped(client.get_by_category(scope.category), scope)}
     hashes = client.get_all_hashes()
-    if scope is None or not hashes:
+    if not hashes:
         return hashes
     return {item.hash for item in scoped(client.get_by_hashes(hashes), scope)}
 
