@@ -1,5 +1,5 @@
 # personalscraper/core/sqlite/_lock.py
-"""Single-writer FileLock with PID sidecar and stale-recovery (SSOT).
+"""Single-writer flock with PID sidecar and stale-recovery (SSOT).
 
 Event-free: no EventBus.  Logs via core.sqlite.lock.* event names.
 """
@@ -42,16 +42,16 @@ def db_lock(
 
     Keeping metadata in a separate file keeps the flock file empty and stable.
 
-    On timeout (the flock is still held after ``timeout`` seconds):
+    Once the flock is held, a sidecar left on disk is stale (its writer crashed and
+    the kernel released the lock): ``core.sqlite.lock.stale_recovered`` is logged
+    and the sidecar is overwritten.  The sidecar is never judged before the flock
+    is held, since a live holder may be about to write its own.
 
-    * Read ``<path>.lock.json``, extract ``pid``.
-    * ``os.kill(pid, 0)`` — only ``ProcessLookupError`` means the process is
-      gone: log ``core.sqlite.lock.stale_recovered``, delete the sidecar and
-      acquire.  Any other outcome (including ``PermissionError``) is a live
-      holder.
-    * If the holder is alive or unknown, raise via ``error_factory(pid)`` (or a
-      bare :class:`SqliteLockError` if no factory is supplied; ``pid`` is
-      ``-1`` when the holder is unknown).
+    On timeout (the flock is still held after ``timeout`` seconds) the lock is
+    refused whatever the sidecar says: a dead or unreadable sidecar cannot be told
+    apart from a holder that has not written its own yet.  Raise via
+    ``error_factory(pid)`` (or a bare :class:`SqliteLockError` if no factory is
+    supplied; ``pid`` is ``-1`` when the holder is unknown).
 
     The flock file itself is **never** unlinked: removing it lets a second
     writer lock a fresh inode while the first still holds the old one.  An
@@ -84,22 +84,6 @@ def db_lock(
         }
     )
 
-    # --- Pre-acquisition stale check ---
-    # If a metadata sidecar exists before we even try to acquire the OS lock, check
-    # whether the recorded PID is still alive.  When a process crashes, the kernel
-    # releases the fcntl lock but the metadata file is left behind.  Without this
-    # check we would acquire silently and overwrite the stale metadata, losing the
-    # opportunity to log the recovery and alert the operator.  Only the sidecar is
-    # removed: the flock file stays, the OS lock alone decides who may write.
-    if meta_path.exists():
-        prior_pid = _read_pid(meta_path)
-        if prior_pid is not None and not _pid_gone(prior_pid):
-            pass  # live holder — the OS lock will block/timeout below
-        else:
-            if prior_pid is not None:
-                log.warning("core.sqlite.lock.stale_recovered", stale_pid=prior_pid)
-            _remove_sidecar(meta_path)
-
     fd = _try_flock(lock_path, timeout)
     if fd is None:
         # The OS lock is held by another process, whatever its sidecar says: a dead
@@ -113,6 +97,13 @@ def db_lock(
         ) from None
 
     try:
+        # Holding the flock, any sidecar still on disk is stale by definition: its writer
+        # crashed (the kernel released its lock) or was never alive.  Judging it before the
+        # flock is taken would race a live holder writing its own sidecar.  Overwriting it
+        # below replaces it; only the recovery is logged here.
+        stale_pid = _read_pid(meta_path) if meta_path.exists() else None
+        if stale_pid is not None:
+            log.warning("core.sqlite.lock.stale_recovered", stale_pid=stale_pid)
         meta_path.write_text(lock_metadata)
         yield
     finally:
@@ -165,26 +156,6 @@ def _read_pid(meta_path: Path) -> int | None:
     except (OSError, json.JSONDecodeError, ValueError, TypeError, AttributeError):
         return None
     return pid if pid > 0 else None
-
-
-def _pid_gone(pid: int) -> bool:
-    """Tell whether a process is certainly gone.
-
-    Args:
-        pid: Positive process id to probe with signal 0.
-
-    Returns:
-        ``True`` only for ``ProcessLookupError``.  ``PermissionError`` (the
-        process exists under another user) and any other probe failure count as
-        alive: a denied probe is a live holder.
-    """
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return True
-    except OSError:
-        return False
-    return False
 
 
 def _remove_sidecar(meta_path: Path) -> None:

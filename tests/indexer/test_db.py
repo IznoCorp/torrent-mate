@@ -123,7 +123,7 @@ class TestIndexerLockLifecycle:
         meta_path = Path(str(db_path) + ".lock.json")
 
         with indexer_lock(db_path):
-            # FileLock file and metadata sidecar must exist while held
+            # flock file and metadata sidecar must exist while held
             assert lock_path.exists()
             assert meta_path.exists()
 
@@ -161,7 +161,7 @@ class TestStaleLockRecovery:
         dead_pid = 99999
         # Write stale metadata sidecar (simulates a previous holder that crashed)
         meta_path.write_text(json.dumps({"pid": dead_pid, "started_at": 0.0, "hostname": "test"}))
-        # Write the FileLock file too so FileLock sees it as held
+        # Write the flock file too, as a crashed holder would have left it
         lock_path.touch()
 
         with caplog.at_level(logging.WARNING):
