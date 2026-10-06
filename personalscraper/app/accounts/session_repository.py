@@ -124,6 +124,24 @@ class SessionRepository:
         return SessionRow(*row) if row else None
 
     @serialised
+    def live_sessions_of(self, account_id: AccountId, *, now: float) -> list[SessionRow]:
+        """An account's live sessions — neither revoked nor expired — the newest first.
+
+        Args:
+            account_id: The account.
+            now: The current time (epoch seconds); a session expiring at or before it is not live.
+
+        Returns:
+            Its live sessions.
+        """
+        rows = self._conn.execute(
+            f"SELECT {_SESSION_COLUMNS} FROM session"  # noqa: S608
+            " WHERE account_id = ? AND revoked_at IS NULL AND expires_at > ? ORDER BY created_at DESC, id DESC",
+            (account_id, now),
+        ).fetchall()
+        return [SessionRow(*row) for row in rows]
+
+    @serialised
     def renew_session(self, session_id: int, *, seen_at: float, token_hash: str, expires_at: float, now: float) -> bool:
         """Renew a live session under a new value, if no other renewal came first.
 

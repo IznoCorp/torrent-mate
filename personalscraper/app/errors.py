@@ -55,6 +55,8 @@ class RefusalCode(StrEnum):
     ROLE_IN_USE = "role.in_use"
     ROLE_DEFAULT = "role.default"
     RIGHT_UNKNOWN = "right.unknown"
+    SESSION_UNKNOWN = "session.unknown"
+    SESSION_CURRENT = "session.current"
     PASSWORD_REQUIRED = "password.required"
     PASSWORD_TOO_SHORT = "password.too_short"
     PASSWORD_TOO_WEAK = "password.too_weak"

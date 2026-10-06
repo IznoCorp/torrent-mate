@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse
 
 from personalscraper.app.accounts.actor import Actor
@@ -17,9 +17,12 @@ from personalscraper.http_v1.deps import actor, services
 from personalscraper.http_v1.models.authentication import (
     AccountModel,
     ChangeOwnPasswordBody,
+    OwnSessionModel,
+    OwnSessionsModel,
     PasswordSet,
     PlexPendingModel,
     PlexSignInBody,
+    SessionRevoked,
     SetOwnLanguageBody,
     SignedOut,
     SignInBody,
@@ -45,6 +48,9 @@ _SIGN_IN_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
 #: ``changeOwnPassword``'s refusals: the Problem answers of every operation and the 429 of
 #: its limiter on wrong current passwords.
 _CHANGE_OWN_PASSWORD_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
+
+#: ``revokeOwnSession``'s refusals: it names a session (404), beside the Problem answers of every operation.
+_REVOKE_OWN_SESSION_RESPONSES = {**PROBLEM_RESPONSES, 404: PROBLEM_RESPONSES[400]}
 
 
 #: ``signInWithPlex``'s answers besides its 200: the 202 while the PIN is unclaimed, and the
@@ -283,3 +289,57 @@ def set_own_language(
         The account, as now held.
     """
     return AccountModel.from_view(app_services.accounts.set_own_language(signed_in, body.language))
+
+
+@router.get(
+    "/auth/sessions",
+    operation_id="readOwnSessions",
+    response_model=OwnSessionsModel,
+    status_code=200,
+    responses=PROBLEM_RESPONSES,
+)
+def read_own_sessions(
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+    token: Annotated[str, Depends(signed_in_token)],
+) -> OwnSessionsModel:
+    """The signed-in account's live sessions, the one this request carries flagged current.
+
+    Args:
+        signed_in: The signed-in actor.
+        app_services: The application services.
+        token: The caller's session value.
+
+    Returns:
+        Its sessions, the newest first.
+    """
+    views = app_services.own_sessions.read_own_sessions(signed_in, token)
+    return OwnSessionsModel(sessions=[OwnSessionModel.from_view(view) for view in views])
+
+
+@router.delete(
+    "/auth/sessions/{sessionId}",
+    operation_id="revokeOwnSession",
+    response_model=SessionRevoked,
+    status_code=200,
+    responses=_REVOKE_OWN_SESSION_RESPONSES,
+)
+def revoke_own_session(
+    session_id: Annotated[int, Path(alias="sessionId", description="the session")],
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+    token: Annotated[str, Depends(signed_in_token)],
+) -> SessionRevoked:
+    """End one of the signed-in account's other sessions: its next request is refused.
+
+    Args:
+        session_id: The session to end.
+        signed_in: The signed-in actor.
+        app_services: The application services.
+        token: The caller's session value, never the one ended here.
+
+    Returns:
+        ``{"ok": true}``.
+    """
+    app_services.own_sessions.revoke_own_session(signed_in, token, session_id)
+    return SessionRevoked(ok=True)

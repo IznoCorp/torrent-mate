@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Final, cast
 
 from personalscraper.api.transport import RetryPolicy
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.own_sessions import OwnSessionService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
@@ -432,6 +433,7 @@ def build_app_services(
         roles=roles,
         credentials=credentials,
         plex_sign_in=_build_plex_sign_in(config, settings, app_store, credentials, event_bus, plex),
+        own_sessions=OwnSessionService(app_store, sessions),
         runs=RunService(store=app_store, data_dir=config.paths.data_dir),
         owned_providers=owned,
     )

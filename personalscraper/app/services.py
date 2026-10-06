@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from personalscraper.app.accounts import events as _accounts_events  # noqa: F401 — registers E8 (AccountRightsChanged)
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.own_sessions import OwnSessionService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
@@ -53,6 +54,7 @@ class AppServices:
         roles: The roles of the accounts screen.
         credentials: The sign-in doors' shared end, the passwords and the owner's machine acts.
         plex_sign_in: The Plex door.
+        own_sessions: The signed-in account's own sessions, listed and revoked.
         runs: The in-process enqueue of a run or an item rescrape.
         owned_providers: The provider registry these services built for themselves, closed
             with them; ``None`` when the process handed its own over, which its owner closes.
@@ -71,6 +73,7 @@ class AppServices:
     roles: RoleService
     credentials: CredentialService
     plex_sign_in: PlexSignInService
+    own_sessions: OwnSessionService
     runs: RunService
     owned_providers: LazyProviders | None = None
 
