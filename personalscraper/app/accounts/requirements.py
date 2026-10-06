@@ -50,6 +50,12 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "setOwnLanguage": SignedIn(write=True),
         # The account's own notification choices and devices: a session act, no right; the
         # writes are refused on a read-only instance (ruling of 2026-10-03).
+        # The account's own sessions, read and ended in Profil (ruling Q4 A): a session act, no
+        # right; the revocation is a write, refused on a read-only instance.
+        "readOwnSessions": SignedIn(),
+        "revokeOwnSession": SignedIn(write=True),
+        # The account's own in-app notices (a new sign-in): a session act, no right.
+        "readNotices": SignedIn(),
         "readNotificationPreferences": SignedIn(),
         "updateNotificationPreference": SignedIn(write=True),
         "registerPushDevice": SignedIn(write=True),

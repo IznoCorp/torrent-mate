@@ -382,9 +382,10 @@ def real_processes():
     """The PM2 processes the ecosystem files declare, or None when unreadable.
 
     Returns:
-        A dict name → {"cron": …}: the cron expression of a process whose args
-        are `schedule --cron EXPR -- JOB`, None for a service. Or None when
-        node cannot read the files.
+        A dict name → {"cron": …, "environment": …}: the cron expression of a
+        process whose args are `schedule --cron EXPR -- JOB`, None for a
+        service; the `PERSONALSCRAPER_ENV` its env sets, None for prod's. Or
+        None when node cannot read the files.
     """
     # A SCHEDULER IS THE `schedule` LOOP, NOT PM2's `cron_restart`. B-680 moved
     # every scheduled job off `cron_restart` (PM2 6.0.8 ticks twice at a
@@ -398,7 +399,8 @@ def real_processes():
               "const loop = /^schedule --cron (?:'([^']+)'|\"([^\"]+)\"|(\\S+)) -- /;"
               "console.log(JSON.stringify(apps.map(a => {"
               " const m = loop.exec(String(a.args || ''));"
-              " return {name: a.name, pm2_env: {cron: m ? (m[1] || m[2] || m[3]) : null}};"
+              " const env = (a.env || {}).PERSONALSCRAPER_ENV || null;"
+              " return {name: a.name, pm2_env: {cron: m ? (m[1] || m[2] || m[3]) : null, environment: env}};"
               "})));")
     try:
         out = subprocess.run(["node", "-e", script, *map(str, ECOSYSTEMS)],
@@ -540,9 +542,18 @@ async def main():
             real_services = [n for n, e in pm2.items()
                               if n.startswith(("torrentmate", "personalscraper"))
                               and not e.get("cron")]
+            # THE SCHEDULERS ARE ONE ENVIRONMENT'S, THE SERVICES THE MACHINE'S.
+            # A service row says whether a process is UP, and the staging web
+            # is a process of this machine like any other — it is drawn. A
+            # scheduler row is a job of the schedule the server reads (its job
+            # registry and its own library store), which Réglages edits: the
+            # preprod's jobs are the same jobs of ANOTHER environment, drawn on
+            # the preprod's own Système under the same names. Counting them
+            # here asked prod's page to draw every job twice. So the schedulers
+            # judged are the processes that name no environment — prod's.
             real_schedulers = [n for n, e in pm2.items()
                              if n.startswith(("torrentmate", "personalscraper"))
-                             and e.get("cron")]
+                             and e.get("cron") and not e.get("environment")]
             journal.check("as many services drawn as PM2 really runs",
                              services == len(real_services),
                              f"{services} drawn vs {len(real_services)} real: "

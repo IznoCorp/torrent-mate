@@ -10,8 +10,9 @@
 # records "branch @ sha" so what is live on staging is always verifiable via
 # GET /api/version.
 #
-# S1 is read-only, so staging against the real config/data is safe (KanbanMate
-# "no test board" rule).
+# Staging is the PREPROD (k2-prep DESIGN): its apps run in the `staging`
+# environment on their own overlay, secrets, data_dir and disk roots — see
+# ecosystem.config.js. This script restarts those apps alone, never one of prod's.
 #
 # Run this INSIDE the staging clone with the staging venv (TM_STAGING_VENV).
 #
@@ -90,13 +91,11 @@ printf '%s @ %s\n' "$branch" "$sha" > personalscraper/web/static/BUILD_COMMIT
 UV_PROJECT_ENVIRONMENT="$VENV" "$UV" sync --locked --python "$VENV/bin/python" >/dev/null \
   || fail "uv sync --locked failed (lock out of date with pyproject.toml? broken venv?)"
 
-# ── Start-or-restart the staging PM2 app (fail-soft) ──────────────────────────
-# startOrRestart (not restart): the first staging autodeploy must START the app
-# if it was never launched. Uses this clone's own ecosystem.config.js entry and
-# --update-env to pick up .env changes.
-if ! pm2 startOrRestart ecosystem.config.js --only torrentmate-web-staging --update-env >/dev/null 2>&1; then
-  printf 'ℹ pm2 startOrRestart torrentmate-web-staging failed — ecosystem.config.js missing, or the app misdeclared?\n' >&2
-fi
+# ── Start-or-restart the preprod's PM2 apps ───────────────────────────────────
+# The web always; the scheduled jobs only when the preprod is set up — the step says
+# loudly which precondition is missing (scripts/start-preprod.sh). Fail-soft: the
+# post-check below still reports the web's health.
+"$REPO"/scripts/start-preprod.sh "$VENV/bin/python" || printf '⚠ scripts/start-preprod.sh failed — see above\n' >&2
 
 # ── Post-check: /api/health on the staging port → expect 200 ──────────────────
 # Retry loop (mirrors deploy.sh): startOrRestart is async and the app rebuilds
@@ -112,7 +111,7 @@ for i in $(seq 1 15); do
   [ "$i" -lt 15 ] && sleep 2
 done
 if $health_ok; then
-  printf '\n✅ staging deployed: %s @ %s\n   health %s → 200 · UI on 127.0.0.1:%s (REAL board, canonical config)\n' \
+  printf '\n✅ staging deployed: %s @ %s\n   health %s → 200 · UI on 127.0.0.1:%s (preprod, its own config)\n' \
     "$branch" "$sha" "$HEALTH_URL" "$PORT"
 else
   printf '\n⚠ staging deployed: %s @ %s — but health %s answered "%s" after 15 tries (30 s).\n   Check: pm2 logs torrentmate-web-staging\n' \

@@ -13,6 +13,7 @@ from pydantic import Field
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.model import SignInKind, StartKind
+from personalscraper.app.accounts.own_sessions import OwnSessionView
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.views import AccountView, Language, RoleView
 from personalscraper.http_v1.contract import ContractModel
@@ -181,6 +182,62 @@ class SignedOut(ContractModel):
 
     Attributes:
         ok: Always true: the session is closed.
+    """
+
+    ok: bool
+
+
+class OwnSessionModel(ContractModel):
+    """The contract's ``OwnSession``: one live session of the signed-in account.
+
+    Attributes:
+        id: Its key, the one ``revokeOwnSession`` takes.
+        device: The browser and system its user agent names; ``None`` when it names neither.
+        created_at: When it was opened (epoch seconds).
+        last_seen_at: Its last renewal (epoch seconds).
+        current: Whether it is the session the request was made with.
+    """
+
+    id: int
+    device: str | None
+    created_at: float
+    last_seen_at: float
+    current: bool
+
+    @classmethod
+    def from_view(cls, view: OwnSessionView) -> OwnSessionModel:
+        """Map a session view.
+
+        Args:
+            view: The service's view.
+
+        Returns:
+            The body.
+        """
+        return cls(
+            id=view.id,
+            device=view.device,
+            created_at=view.created_at,
+            last_seen_at=view.last_seen_at,
+            current=view.current,
+        )
+
+
+class OwnSessionsModel(ContractModel):
+    """``readOwnSessions``'s answer: the account's live sessions, the newest first.
+
+    Attributes:
+        sessions: The sessions.
+    """
+
+    sessions: list[OwnSessionModel]
+
+
+class SessionRevoked(ContractModel):
+    """``revokeOwnSession``'s acknowledgement.
+
+    Attributes:
+        ok: Always true: the session is ended.
     """
 
     ok: bool

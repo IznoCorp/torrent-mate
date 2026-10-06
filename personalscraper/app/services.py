@@ -10,13 +10,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from personalscraper.app.accounts import events as _accounts_events  # noqa: F401 — registers E8 (AccountRightsChanged)
+from personalscraper.app.accounts import (
+    events as _accounts_events,  # noqa: F401 — registers E8 (AccountRightsChanged) and PlexSessionOpened
+)
 from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.notices import NoticeService
+from personalscraper.app.accounts.own_sessions import OwnSessionService
 from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.roles import RoleService
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
+from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.build_info import BuildInfo
+from personalscraper.app.idempotency.service import IdempotencyService
 from personalscraper.app.store.store import AppStore
 from personalscraper.app.supervisor import (
     events as _supervisor_events,  # noqa: F401 — registers RunQueued, RunAdmitted, RunSettled
@@ -53,7 +59,11 @@ class AppServices:
         roles: The roles of the accounts screen.
         credentials: The sign-in doors' shared end, the passwords and the owner's machine acts.
         plex_sign_in: The Plex door.
+        own_sessions: The signed-in account's own sessions, listed and revoked.
+        notices: The signed-in account's in-app notices.
         runs: The in-process enqueue of a run or an item rescrape.
+        sign_in_notifier: The Plex sign-in notifier, whose pending pushes ``close`` drains.
+        idempotency: The v1 writes' idempotency keys and their first answers.
         owned_providers: The provider registry these services built for themselves, closed
             with them; ``None`` when the process handed its own over, which its owner closes.
     """
@@ -71,8 +81,12 @@ class AppServices:
     roles: RoleService
     credentials: CredentialService
     plex_sign_in: PlexSignInService
+    own_sessions: OwnSessionService
+    notices: NoticeService
     runs: RunService
+    idempotency: IdempotencyService
     owned_providers: LazyProviders | None = None
+    sign_in_notifier: SignInNotifier | None = None
 
     def close(self) -> None:
         """Release what the services hold: the catalogue view, ``app.db`` and their own registry, if opened.
@@ -80,6 +94,9 @@ class AppServices:
         Called once, from the web parent's lifespan (Starlette never runs a mounted
         sub-application's lifespan); a lot adding a store or a publisher closes it here.
         """
+        # First: a push still pending is sent before the store goes, not lost on restart.
+        if self.sign_in_notifier is not None:
+            self.sign_in_notifier.close()
         self.catalogue_view.close()
         self.app_store.close()
         if self.owned_providers is not None:

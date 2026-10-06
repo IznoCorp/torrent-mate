@@ -407,10 +407,21 @@ Telegram)
 - `--headless` : run with no subscribers (silent mode for cron / CI) — disables Rich console output and Telegram notifications
 - `--no-console` : disable Rich console Live display (useful when stdout is not a TTY, e.g. invoked by the watcher daemon). Unlike `--headless`, structlog file logging and Telegram notifications remain active.
 - `--trigger-reason` : label this run with a human-readable trigger cause (e.g. `"watcher-debounce"`, `"watch-now"`, `"safety-net"`). Emitted as a `WatcherRunTriggered` event for observability.
+- `--detach` : with a live supervisor lease, queue the run and return `0` at once instead of following it. Without a live lease it has no effect (the run executes in this process).
+
+**With a supervisor** (`personalscraper supervise` holds a live lease in `app.db`): nothing but the supervisor's
+worker starts a run, so `run` starts nothing in its own process. It asks the run through the queue (under
+`PERSONALSCRAPER_RUN_UID` when a caller promised one; an equal request already waiting answers it), prints the
+request's uid and position, then follows **the uid the queue answered**: each step as it closes, then the end. The exit
+code is the run's: `0` success, `1` error (`interrupted` and `abandoned` too), `2` when the trailers step aborted the
+run, `130` killed. Ctrl-C (or `--detach`) leaves the follower and keeps the request. `--interactive` is refused in this
+mode (exit `1`): use `personalscraper scrape -i`. With no live lease (no supervisor, or its lease lapsed) the command
+runs in this process exactly as before.
 
 **Examples**:
 
     personalscraper run
+    personalscraper run --detach
     personalscraper run --dry-run
     personalscraper run --skip-trailers
     personalscraper run --continue-on-trailer-error
@@ -1708,12 +1719,16 @@ that `mutate FS` + `mutate BDD` + `network`
 - `watch.debounce_s` (int) : Seconds to wait after a torrent completes before triggering a run [default: 900]
 - `watch.safety_net_hours` (int) : Maximum hours between pipeline runs — triggers a run regardless of torrent activity [default: 24]
 
+**Supervisor**: `personalscraper supervise` runs this same poll and also admits the queued runs (one worker at a
+time, under its lease); with it, a fired run is queued instead of spawned. `watch` stays as the rollback and is
+unchanged.
+
 **Examples**:
 
     personalscraper watch
     personalscraper watch --interval 120
 
-**Related**: `watch-now`, `run`, `cross-seed`
+**Related**: `watch-now`, `run`, `supervise`, `cross-seed`
 
 ---
 
@@ -2115,7 +2130,8 @@ Records **who started the run** in the `pipeline_run` history table. Values:
 | `manual`     | a manually-labelled run                             |
 | `""` (empty) | default — unlabelled                                |
 
-Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`.
+Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`. With a live supervisor lease the
+value becomes the queued request's trigger (empty means `cli`).
 
 The web route also injects `PERSONALSCRAPER_RUN_UID=<hex>` into the subprocess
 environment so the `run_uid` returned by `POST /api/pipeline/run` equals the
@@ -2129,6 +2145,7 @@ run's history row (`run()` honours the env var, falling back to a fresh
 | `pipeline.pause` | While present, a running pipeline pauses **at the next step boundary** and polls until it is removed (or SIGTERM). Create/remove it manually to pause/resume a run without the web UI. |
 | `watcher.paused` | While present, the Watcher daemon no-ops (does not auto-start runs). Distinct from pausing a run in progress.                                                                          |
 | `pipeline.lock`  | Single trigger authority — holds the running pipeline's pid; `POST /api/pipeline/kill` reads it to SIGTERM the run.                                                                    |
+| `run_lease` (row of `app.db`) | The supervisor's authority: while it is live, a run starts only through the queue and `personalscraper run` follows it (`--detach` to leave). The worker still holds `pipeline.lock` for the run's lifetime. |
 
 Manual example — pause the current run, then resume:
 
