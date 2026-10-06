@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import time
 from datetime import date
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -53,10 +52,10 @@ follow_app = typer.Typer(help=t("cli_acquisition.follow.group_help"))
 @handle_cli_errors
 def follow_add(
     ctx: typer.Context,
-    tvdb_id: Optional[int] = typer.Option(None, "--tvdb", help=t("cli_acquisition.follow.add.tvdb_help")),
-    tmdb_id: Optional[int] = typer.Option(None, "--tmdb", help=t("cli_acquisition.follow.add.tmdb_help")),
-    imdb_id: Optional[str] = typer.Option(None, "--imdb", help=t("cli_acquisition.follow.add.imdb_help")),
-    title: Optional[str] = typer.Option(
+    tvdb_id: int | None = typer.Option(None, "--tvdb", help=t("cli_acquisition.follow.add.tvdb_help")),
+    tmdb_id: int | None = typer.Option(None, "--tmdb", help=t("cli_acquisition.follow.add.tmdb_help")),
+    imdb_id: str | None = typer.Option(None, "--imdb", help=t("cli_acquisition.follow.add.imdb_help")),
+    title: str | None = typer.Option(
         None,
         "--title",
         help=t("cli_acquisition.follow.add.title_help"),
@@ -188,8 +187,8 @@ def follow_list(
 @handle_cli_errors
 def follow_remove(
     ctx: typer.Context,
-    tvdb_id: Optional[int] = typer.Option(None, "--tvdb", help=t("cli_acquisition.follow.remove.tvdb_help")),
-    followed_id: Optional[int] = typer.Option(None, "--id", help=t("cli_acquisition.follow.remove.id_help")),
+    tvdb_id: int | None = typer.Option(None, "--tvdb", help=t("cli_acquisition.follow.remove.tvdb_help")),
+    followed_id: int | None = typer.Option(None, "--id", help=t("cli_acquisition.follow.remove.id_help")),
 ) -> None:
     """Soft-unfollow a series (sets active=False, preserves history).
 
@@ -252,7 +251,7 @@ def follow_detect(
         "--dry-run",
         help=t("cli_acquisition.follow.detect.dry_run_help"),
     ),
-    series: Optional[str] = typer.Option(
+    series: str | None = typer.Option(
         None,
         "--series",
         help=t("cli_acquisition.follow.detect.series_help"),
@@ -472,7 +471,7 @@ def follow_backfill_metadata(
     from personalscraper.core.sqlite._pragmas import apply_pragmas
 
     config = ctx.obj.config
-    assert config is not None  # noqa: S101 — set by the CLI root callback
+    assert config is not None
     console: Console = state["console"]
     settings = cli_helpers.get_settings()
     db_path = config.acquire.db_path

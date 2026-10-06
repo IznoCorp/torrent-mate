@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json as _json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -22,8 +21,8 @@ _log = get_logger("library_backfill_ids")
 def library_index(
     ctx: typer.Context,
     mode: str = typer.Option("full", "--mode", help=t("cli_library.scan.library_index_mode_help")),
-    disk: Optional[str] = typer.Option(None, "--disk", help=t("cli_library.scan.disk_help")),
-    budget: Optional[int] = typer.Option(None, "--budget", help=t("cli_library.scan.library_index_budget_help")),
+    disk: str | None = typer.Option(None, "--disk", help=t("cli_library.scan.disk_help")),
+    budget: int | None = typer.Option(None, "--budget", help=t("cli_library.scan.library_index_budget_help")),
     no_budget: bool = typer.Option(
         False,
         "--no-budget",
@@ -38,7 +37,7 @@ def library_index(
     wait_for_lock: int = typer.Option(
         0, "--wait-for-lock", help=t("cli_library.scan.library_index_wait_for_lock_help")
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
     confirm_bulk_change: bool = typer.Option(
         False,
         "--confirm-bulk-change",
@@ -75,7 +74,7 @@ def library_index(
     from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
 
     # Build the process-scoped AppContext at the launchd command boundary
     # (DESIGN §Architecture — boundary-only rule). Only ``event_bus`` flows
@@ -135,7 +134,7 @@ def library_index(
 def library_init_canonical(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_library.scan.library_init_canonical_dry_run_help")),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
 ) -> None:
     """Bootstrap ``canonical_provider`` and seed ``external_ids_json`` from NFO files.
 
@@ -176,7 +175,7 @@ def library_init_canonical(
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
     from personalscraper.indexer.scanner._modes.backfill_ids import init_canonical_from_nfo  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
 
     # Resolve config — reuse the standard loader used by other library commands.
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
@@ -266,9 +265,9 @@ def library_init_canonical(
 @handle_cli_errors
 def library_scan(
     ctx: typer.Context,
-    disk: Optional[str] = typer.Option(None, "--disk", "-d", help=t("cli_library.scan.disk_help")),
+    disk: str | None = typer.Option(None, "--disk", "-d", help=t("cli_library.scan.disk_help")),
     dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_library.scan.dry_run_help")),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
 ) -> None:
     """Index the media library — visible alias of ``library-index --mode full``.
 
@@ -309,7 +308,7 @@ def library_scan(
     from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
 
     # Build the process-scoped AppContext at the launchd command boundary
     # (DESIGN §Architecture — boundary-only rule), mirroring ``library-index``.
@@ -347,13 +346,13 @@ def library_scan(
 @handle_cli_errors
 def library_backfill_ids(
     ctx: typer.Context,
-    show: Optional[str] = typer.Option(None, "--show", help=t("cli_library.scan.library_backfill_ids_show_help")),
+    show: str | None = typer.Option(None, "--show", help=t("cli_library.scan.library_backfill_ids_show_help")),
     ids_only: bool = typer.Option(False, "--ids-only", help=t("cli_library.scan.library_backfill_ids_ids_only_help")),
     ratings_only: bool = typer.Option(
         False, "--ratings-only", help=t("cli_library.scan.library_backfill_ids_ratings_only_help")
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_library.scan.library_backfill_ids_dry_run_help")),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.scan.config_help")),
 ) -> None:
     """Backfill missing cross-provider IDs and multi-source ratings on library items.
 
@@ -395,7 +394,7 @@ def library_backfill_ids(
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
     from personalscraper.indexer.scanner._modes.backfill_ids import run_backfill_ids  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
 
     if cfg.indexer.db_path is None:

@@ -87,7 +87,7 @@ def test_rich_console_subscriber_subscribes_on_init() -> None:
     """``__init__`` registers exactly six subscription tokens."""
     bus = EventBus()
     sub = RichConsoleSubscriber(bus)
-    assert len(sub._tokens) == 6  # noqa: SLF001
+    assert len(sub._tokens) == 6
 
 
 def test_rich_console_subscriber_close_unsubscribes_all() -> None:
@@ -98,9 +98,9 @@ def test_rich_console_subscriber_close_unsubscribes_all() -> None:
     # After close, a fresh CollectingSubscriber is the only listener on the bus.
     sentinel = CollectingSubscriber(bus, ItemProgressed)
     bus.emit(ItemProgressed(step="ingest", item="x", status="started"))
-    assert len(sentinel.received) == 1  # noqa: PLR2004 — exactly one collector got the emit
+    assert len(sentinel.received) == 1
     # And the closed subscriber never re-renders anything (tokens cleared).
-    assert sub._tokens == []  # noqa: SLF001
+    assert sub._tokens == []
 
 
 def test_rich_console_subscriber_failure_does_not_block_other_subscribers() -> None:

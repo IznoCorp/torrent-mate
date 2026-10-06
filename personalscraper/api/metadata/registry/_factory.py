@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import importlib
 import os
-from typing import TYPE_CHECKING, Any, Callable, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
 
 from personalscraper.api.metadata.registry._errors import UnknownProviderError
 from personalscraper.core.circuit import CircuitState
@@ -69,7 +70,7 @@ def _build_tmdb(
     event_bus: EventBus,
     *,
     language: str,
-    retry: "RetryPolicy | None" = None,
+    retry: RetryPolicy | None = None,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tmdb import TMDBClient
@@ -86,7 +87,7 @@ def _build_tvdb(
     event_bus: EventBus,
     *,
     language: str,
-    retry: "RetryPolicy | None" = None,
+    retry: RetryPolicy | None = None,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tvdb import TVDBClient
@@ -189,7 +190,7 @@ def build_providers(
     settings: Settings,
     cb_policy: CircuitPolicy,
     event_bus: EventBus,
-    retry: "RetryPolicy | None" = None,
+    retry: RetryPolicy | None = None,
     *,
     language: str,
 ) -> dict[str, object]:

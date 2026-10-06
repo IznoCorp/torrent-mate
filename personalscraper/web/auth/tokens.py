@@ -6,7 +6,7 @@ Uses PyJWT HS256. See docs/features/tm-shell/DESIGN.md §4.4 for the auth design
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -33,7 +33,7 @@ def create_session_token(username: str, secret: str, ttl_hours: int) -> str:
     """
     if not secret:
         raise ValueError("web_jwt_secret is not set")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": username,
         "iat": now,

@@ -144,11 +144,11 @@ class DetectService:
     def __init__(
         self,
         *,
-        store: "AcquireStore",
-        ownership: "OwnershipChecker",
-        registry: "ProviderRegistry",
-        event_bus: "EventBus",
-        config: "Config",
+        store: AcquireStore,
+        ownership: OwnershipChecker,
+        registry: ProviderRegistry,
+        event_bus: EventBus,
+        config: Config,
     ) -> None:
         """Store the injected collaborators.
 
@@ -165,7 +165,7 @@ class DetectService:
         self._event_bus = event_bus
         self._config = config
 
-    def run(self, *, series: str | None, dry_run: bool, today: "date", now: int) -> DetectResult:
+    def run(self, *, series: str | None, dry_run: bool, today: date, now: int) -> DetectResult:
         """Run one detect pass over the active followed set.
 
         Args:
@@ -266,7 +266,7 @@ class DetectService:
         )
         return DetectResult(DetectStatus.OK, actions, summary)
 
-    def _poll(self, show_follows: "list[FollowedSeries]", *, today: "date") -> "list[SeriesCatalog]":
+    def _poll(self, show_follows: list[FollowedSeries], *, today: date) -> list[SeriesCatalog]:
         """Poll every active show's catalogue (fail-soft → empty).
 
         Uses ``poll_catalog`` (futures included, production status carried) so
@@ -282,7 +282,7 @@ class DetectService:
             log.warning("acquire.detect.poll_failed", error=str(exc))
             return []
 
-    def _persist_series_status(self, catalogs: "list[SeriesCatalog]") -> None:
+    def _persist_series_status(self, catalogs: list[SeriesCatalog]) -> None:
         """Record each polled series' production status (best-effort).
 
         Only a NAMED status is written. A provider that returns none leaves the
@@ -304,7 +304,7 @@ class DetectService:
                     error=str(exc),
                 )
 
-    def _backfill_original_titles(self, follows: "list[FollowedSeries]") -> None:
+    def _backfill_original_titles(self, follows: list[FollowedSeries]) -> None:
         """Resolve + persist the missing original title of follows (#435).
 
         A media followed under its localized display title is commonly released
@@ -373,7 +373,7 @@ class DetectService:
                     # with the display title (VERBATIM rule): staying NULL
                     # would refetch this row on every detect run forever.
                     original = mf.title
-                assert mf.id is not None  # noqa: S101 — filtered above; narrows for mypy
+                assert mf.id is not None
                 self._store.follow.merge_metadata(
                     mf.id, poster_url=None, overview=None, year=None, original_title=original
                 )
@@ -391,7 +391,7 @@ class DetectService:
                     error=str(exc),
                 )
 
-    def _heal_tvdb_only_show(self, mf: "FollowedSeries") -> None:
+    def _heal_tvdb_only_show(self, mf: FollowedSeries) -> None:
         """Give a TVDB-only show its configured-language title, keeping the stored one.
 
         TVDB's by-id details come back in the configured language. When that
@@ -408,7 +408,7 @@ class DetectService:
             mf: An active show follow with a ``tvdb_id``, no ``tmdb_id`` and a
                 NULL ``original_title``.
         """
-        assert mf.id is not None and mf.media_ref.tvdb_id is not None  # noqa: S101 — filtered by the caller
+        assert mf.id is not None and mf.media_ref.tvdb_id is not None
         try:
             details = self._registry.get("tvdb").get_tv(mf.media_ref.tvdb_id)  # type: ignore[attr-defined]
             localized = getattr(details, "title", None)
@@ -434,7 +434,7 @@ class DetectService:
             )
 
     def _persist_aired_cache(
-        self, aired: "list[AiredEpisode]", by_ref: "dict[MediaRef, FollowedSeries]", *, now: int
+        self, aired: list[AiredEpisode], by_ref: dict[MediaRef, FollowedSeries], *, now: int
     ) -> None:
         """P0-B.1 — persist the polled aired catalog per followed series (best-effort).
 
@@ -455,7 +455,7 @@ class DetectService:
                 log.warning("acquire.detect.aired_cache_failed", followed_id=fid, error=str(exc))
 
     def _detect_movie(
-        self, mf: "FollowedSeries", actions: list[DetectAction], counts: "_MutableCounts", *, dry_run: bool, now: int
+        self, mf: FollowedSeries, actions: list[DetectAction], counts: _MutableCounts, *, dry_run: bool, now: int
     ) -> None:
         """Decide the action for one followed film and record it."""
         if mf.id is None:
@@ -525,10 +525,10 @@ class DetectService:
 
     def _detect_episode(
         self,
-        ep: "AiredEpisode",
-        by_ref: "dict[MediaRef, FollowedSeries]",
+        ep: AiredEpisode,
+        by_ref: dict[MediaRef, FollowedSeries],
         actions: list[DetectAction],
-        counts: "_MutableCounts",
+        counts: _MutableCounts,
         *,
         dry_run: bool,
         now: int,
@@ -615,14 +615,14 @@ class DetectService:
 
     def _detect_seasons(
         self,
-        known: "list[AiredEpisode]",
-        by_ref: "dict[MediaRef, FollowedSeries]",
+        known: list[AiredEpisode],
+        by_ref: dict[MediaRef, FollowedSeries],
         actions: list[DetectAction],
-        counts: "_MutableCounts",
+        counts: _MutableCounts,
         *,
         dry_run: bool,
         now: int,
-        today: "date",
+        today: date,
     ) -> None:
         """Post-pass: group KNOWN episodes by season and enqueue season wanteds (R1).
 

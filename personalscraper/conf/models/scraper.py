@@ -111,7 +111,7 @@ class ProcessCleanConfig(_StrictModel):
 
     @field_validator("verify_seed_pure")
     @classmethod
-    def _reject_reserved_flag(cls, value: bool) -> bool:  # noqa: FBT001 — pydantic validator signature
+    def _reject_reserved_flag(cls, value: bool) -> bool:
         """Reject ``verify_seed_pure=True`` — the clean-side guard is reserved.
 
         The flag is intentionally not wired (the post-sort clean-side guard is

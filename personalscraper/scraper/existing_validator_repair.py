@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 log = get_logger("scraper")
 
 
-def _repair_episode_payload(ep: "EpisodeInfo") -> dict[str, Any]:
+def _repair_episode_payload(ep: EpisodeInfo) -> dict[str, Any]:
     """Build a repair-path episode payload, including per-episode provider IDs.
 
     Mirrors :func:`personalscraper.scraper.tv_service_episodes._episode_payload`:
@@ -45,7 +45,7 @@ def _repair_episode_payload(ep: "EpisodeInfo") -> dict[str, Any]:
 
 
 def _fetch_season_episodes(
-    tmdb: "TMDBClient",
+    tmdb: TMDBClient,
     tmdb_id: int,
     season_numbers: list[int],
 ) -> dict[tuple[int, int], dict[str, Any]]:
@@ -77,7 +77,7 @@ def _fetch_season_episodes(
 
 
 def _fetch_season_episodes_tvdb(
-    tvdb: "TVDBClient",
+    tvdb: TVDBClient,
     tvdb_id: int,
     season_numbers: list[int],
 ) -> dict[tuple[int, int], dict[str, Any]]:

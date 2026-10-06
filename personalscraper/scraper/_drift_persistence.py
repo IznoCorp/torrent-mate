@@ -42,7 +42,7 @@ class DriftIssueStore:
         self._db_file = db_file
 
     @classmethod
-    def from_config(cls, config: "Config | None") -> "DriftIssueStore | None":
+    def from_config(cls, config: Config | None) -> DriftIssueStore | None:
         """Resolve the indexer DB path from config; return None if unavailable.
 
         Performs the defensive checks once at construction:

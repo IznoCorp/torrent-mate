@@ -112,7 +112,7 @@ class FollowMetadata:
             and self.original_title is None
         )
 
-    def fill_from(self, other: "FollowMetadata") -> "FollowMetadata":
+    def fill_from(self, other: FollowMetadata) -> FollowMetadata:
         """Return a copy where each missing field is taken from *other*.
 
         Never overwrites a value already present — the first source to answer
@@ -135,7 +135,7 @@ class FollowMetadata:
 
 
 def enrich_follow_metadata(
-    media_ref: "MediaRef",
+    media_ref: MediaRef,
     kind: str,
     *,
     tmdb_client: object | None,
@@ -176,7 +176,7 @@ def enrich_follow_metadata(
     resolved = existing if existing is not None else FollowMetadata()
     localized = localize_show and kind == "show" and tvdb_client is not None and media_ref.tvdb_id is not None
     if localized:
-        assert media_ref.tvdb_id is not None  # noqa: S101 — checked just above; narrows for mypy
+        assert media_ref.tvdb_id is not None
         details = _fetch_details(tvdb_client, "get_series", media_ref.tvdb_id)
         if details is not None:
             resolved = _prefer_localized(resolved, _extract(details))
@@ -223,7 +223,7 @@ def _prefer_localized(card: FollowMetadata, localized: FollowMetadata) -> Follow
 
 
 def _sources(
-    media_ref: "MediaRef",
+    media_ref: MediaRef,
     kind: str,
     tmdb_client: object | None,
     tvdb_client: object | None,

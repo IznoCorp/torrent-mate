@@ -27,7 +27,7 @@ class CliFixStatsMixin:
     filtering should override ``snapshot`` / ``to_log_dict``.
     """
 
-    def snapshot(self) -> "CliFixStatsMixin":
+    def snapshot(self) -> CliFixStatsMixin:
         """Return an independent (non-aliased) copy.
 
         Safe to pass to log emitters that may mutate, or to retain across

@@ -545,7 +545,7 @@ class TestInternalHelpers:
                 self._real = real
                 self.path = real.path
 
-            def is_dir(self, follow_symlinks=False):  # noqa: ARG002
+            def is_dir(self, follow_symlinks=False):
                 raise OSError("ghost is_dir")
 
         original_scandir = _dc.os.scandir
@@ -905,7 +905,7 @@ class TestDeletePermitHardSkip:
 class _RaisingPermit:
     """A DeletePermit whose may_delete always raises (F2 fail-open consult)."""
 
-    def may_delete(self, path: Path):  # noqa: D102, ANN001
+    def may_delete(self, path: Path):
         raise RuntimeError("permit boom")
 
 

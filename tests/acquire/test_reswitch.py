@@ -79,7 +79,7 @@ class _FakeClient:
     def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
         return [t for t in self._items if t.hash.lower() in hashes]
 
-    def delete(self, hash: str, *, delete_files: bool = False) -> None:  # noqa: A002
+    def delete(self, hash: str, *, delete_files: bool = False) -> None:
         if self._delete_raises:
             raise RuntimeError("qbit hiccup")
         self.deleted.append(hash)
@@ -144,7 +144,7 @@ def test_client_unavailable_is_a_fail_soft_no_op(store: ConcreteAcquireStore) ->
         def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
             raise RuntimeError("unreachable")
 
-        def delete(self, hash: str, *, delete_files: bool = False) -> None:  # noqa: A002
+        def delete(self, hash: str, *, delete_files: bool = False) -> None:
             raise AssertionError("must not be reached")
 
     bus, seen = _bus_capturing()

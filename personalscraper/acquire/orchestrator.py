@@ -196,9 +196,9 @@ class _QueryAttempt:
             ``None`` and the empty list flows on to ``rank_candidates``).
     """
 
-    hard_stop: "_SearchChainResult | None" = None
-    empty_verdict: "_SearchChainResult | None" = None
-    results: "list[TrackerResult]" = field(default_factory=list)
+    hard_stop: _SearchChainResult | None = None
+    empty_verdict: _SearchChainResult | None = None
+    results: list[TrackerResult] = field(default_factory=list)
 
 
 #: High-level bucket a search verdict falls into. Kept as a named alias so the
@@ -243,14 +243,14 @@ class SearchVerdict:
 
 
 def rank_candidates(
-    results: "list[TrackerResult]",
-    profile: "QualityProfile",
-    media_ref: "MediaRef | None",
-    ranking: "RankingConfig",
+    results: list[TrackerResult],
+    profile: QualityProfile,
+    media_ref: MediaRef | None,
+    ranking: RankingConfig,
     *,
-    exclude_hashes: "frozenset[str]" = frozenset(),
-    media_kind: "str | None" = None,
-) -> "tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]":
+    exclude_hashes: frozenset[str] = frozenset(),
+    media_kind: str | None = None,
+) -> tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]:
     """Run the hard-filter → dedup → rank tail of the grab chain (DESIGN §15).
 
     Shared by :meth:`GrabOrchestrator.grab` (the real acquisition path) and the
@@ -347,7 +347,7 @@ class GrabOutcome:
     found: int | None = None
 
 
-def _scope_refusal(client: "TorrentAdder", source: "TorrentSource", scope: "TorrentScope") -> str | None:
+def _scope_refusal(client: TorrentAdder, source: TorrentSource, scope: TorrentScope) -> str | None:
     """Say why a downloaded torrent must not be added under the instance's scope.
 
     The client is shared with another instance, so the hash is checked before
@@ -383,12 +383,12 @@ def _scope_refusal(client: "TorrentAdder", source: "TorrentSource", scope: "Torr
 
 
 def _add_in_scope(
-    client: "TorrentAdder",
-    source: "TorrentSource",
+    client: TorrentAdder,
+    source: TorrentSource,
     *,
     provider: str,
-    scope: "TorrentScope | None",
-    limits: "TorrentLimits | None",
+    scope: TorrentScope | None,
+    limits: TorrentLimits | None,
 ) -> str:
     """Add a torrent, inside the instance's scope when one is configured.
 
@@ -415,7 +415,7 @@ def _add_in_scope(
     return client.add(source, category=scope.category, tags=[provider, *scope.instance_tags], limits=limits)
 
 
-def _build_limits(bw: "BandwidthConfig", *, client_is_limiter: bool) -> "TorrentLimits | None":
+def _build_limits(bw: BandwidthConfig, *, client_is_limiter: bool) -> TorrentLimits | None:
     """Build per-torrent limits from bandwidth config (O4).
 
     Returns ``None`` when no caps are configured or the client lacks
@@ -476,11 +476,11 @@ class GrabOrchestrator:
         event_bus: EventBus,
         ranking: RankingConfig,
         title_resolver: Callable[[WantedItem], str | None] | None = None,
-        year_resolver: "Callable[[WantedItem], int | None] | None" = None,
-        original_title_resolver: "Callable[[WantedItem], str | None] | None" = None,
-        episode_count_resolver: "Callable[[WantedItem], int | None] | None" = None,
-        bandwidth: "BandwidthConfig",
-        scope: "TorrentScope | None" = None,
+        year_resolver: Callable[[WantedItem], int | None] | None = None,
+        original_title_resolver: Callable[[WantedItem], str | None] | None = None,
+        episode_count_resolver: Callable[[WantedItem], int | None] | None = None,
+        bandwidth: BandwidthConfig,
+        scope: TorrentScope | None = None,
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -574,7 +574,7 @@ class GrabOrchestrator:
         title: str | None,
         original_title: str | None,
         year: int | None,
-    ) -> "_QueryAttempt":
+    ) -> _QueryAttempt:
         """Run ONE tracker query and the kind-specific identity narrowing.
 
         The seam that lets :meth:`_search_chain` play the same
@@ -679,7 +679,7 @@ class GrabOrchestrator:
         item: WantedItem,
         profile: QualityProfile,
         *,
-        exclude_hashes: "frozenset[str]" = frozenset(),
+        exclude_hashes: frozenset[str] = frozenset(),
     ) -> _SearchChainResult:
         """Run the shared search→filter→rank pipeline and return the exit path.
 
@@ -830,7 +830,7 @@ class GrabOrchestrator:
         item: WantedItem,
         profile: QualityProfile,
         *,
-        exclude_hashes: "frozenset[str]" = frozenset(),
+        exclude_hashes: frozenset[str] = frozenset(),
     ) -> SearchVerdict:
         """State availability for one wanted item — NEVER downloads.
 
@@ -922,8 +922,8 @@ class GrabOrchestrator:
         item: WantedItem,
         profile: QualityProfile,
         *,
-        on_intent: "Callable[[str], None] | None" = None,
-        exclude_hashes: "frozenset[str]" = frozenset(),
+        on_intent: Callable[[str], None] | None = None,
+        exclude_hashes: frozenset[str] = frozenset(),
     ) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
@@ -1011,7 +1011,7 @@ class GrabOrchestrator:
         # The chain only reaches "available" with a non-empty ``ranked`` list, so
         # ``top`` is guaranteed present here; assert it so the invariant is
         # checked rather than implied by the exit-path chain above.
-        assert result.top is not None  # noqa: S101 — "available" always carries a top
+        assert result.top is not None
         top, _score = result.top
 
         # --- No torrent client → cannot add (search-only / dry-run). RETRYABLE. ---
@@ -1219,7 +1219,7 @@ class GrabOrchestrator:
         """
         # WantedAbandoned.media_ref is non-optional; the orchestrator always has
         # one (every WantedItem carries a MediaRef), so the cast is safe.
-        assert media_ref is not None  # noqa: S101 — every WantedItem has a MediaRef
+        assert media_ref is not None
         self._event_bus.emit(WantedAbandoned(media_ref=media_ref, reason=reason))
         log.warning("acquire.grab.terminal", reason=reason)
         return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen, found=None)

@@ -32,13 +32,13 @@ logger = get_logger(__name__)
 
 
 def build_acquire_context(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
-    event_bus: "EventBus",
-    cb_policy: "CircuitPolicy",
-    torrent_client: "QBitClient | TransmissionClient | None" = None,
-    ownership: "OwnershipChecker | None" = None,
+    event_bus: EventBus,
+    cb_policy: CircuitPolicy,
+    torrent_client: QBitClient | TransmissionClient | None = None,
+    ownership: OwnershipChecker | None = None,
 ) -> AcquireContext:
     """Build the AcquireContext at the composition-root boundary.
 

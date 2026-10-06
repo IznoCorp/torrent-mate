@@ -40,8 +40,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from markup_text import NAMING_ATTRIBUTES  # noqa: E402
-from nofrench_lexicon import (  # noqa: E402
+from markup_text import NAMING_ATTRIBUTES
+from nofrench_lexicon import (
     walk,
     MAQUETTE, ROOT, SHELL, examined, french_only, read, relative,
     split_identifier,

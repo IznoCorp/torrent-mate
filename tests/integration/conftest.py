@@ -18,7 +18,7 @@ pytest.register_assert_rewrite("tests.integration.fixtures.seeded_library_fs")
 # *this conftest's* import chain pulls in tests.e2e.  Only `sys` is needed
 # here; the rest of the imports follow below.  This must stay above all other
 # imports to capture an accurate before-state.
-_e2e_in_sys_before_our_imports = "tests.e2e" in sys.modules  # noqa: E402
+_e2e_in_sys_before_our_imports = "tests.e2e" in sys.modules
 
 import json  # noqa: E402
 import shutil  # noqa: E402
@@ -548,7 +548,7 @@ class FakeTorrent:
     """
 
     name: str
-    hash: str  # noqa: A003 — mirrors qbittorrentapi TorrentDictionary attribute name
+    hash: str
     content_path: str
     ratio: float = 0.0
 

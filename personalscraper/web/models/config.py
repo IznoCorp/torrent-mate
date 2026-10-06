@@ -201,7 +201,7 @@ class SecretsPutRequest(RootModel[dict[str, str]]):
     """
 
     @model_validator(mode="after")
-    def _reject_control_chars(self) -> "SecretsPutRequest":
+    def _reject_control_chars(self) -> SecretsPutRequest:
         r"""Reject values containing str.splitlines() separators.
 
         The forbidden set is

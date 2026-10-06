@@ -490,7 +490,7 @@ def _read_episode_titles(season_dir: Path) -> dict[int, str | None]:
             out.setdefault(ep_num, None)
             continue
         try:
-            root = ET.parse(nfo).getroot()  # noqa: S314 — trusted NFO we wrote
+            root = ET.parse(nfo).getroot()
         except (ET.ParseError, OSError) as exc:
             log.debug("indexer_item_stage_episode_nfo_parse_error", nfo=str(nfo), exc_info=True, error=str(exc))
             out.setdefault(ep_num, None)
@@ -685,7 +685,7 @@ def _nfo_facts(nfo_path: Path) -> dict[str, Any]:
     """
     facts: dict[str, Any] = {"overview": None, "poster_url": None, "date_provider_read": None}
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we wrote
+        root = ET.parse(nfo_path).getroot()
         # Read after the parse: an unreadable NFO carries no provider-read date.
         mtime = nfo_path.stat().st_mtime
     except (ET.ParseError, OSError) as exc:

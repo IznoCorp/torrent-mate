@@ -56,7 +56,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, open_page, browser_channel, chrome_launch_args  # noqa: E402
+from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 
 # The desktop the operator reads the prototype on, out of the frame (B-344).
 # Two contexts per width, because a context that declares touch is not the

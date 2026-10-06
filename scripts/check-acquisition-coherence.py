@@ -273,7 +273,7 @@ class _OwnershipIndex:
 
 
 def _season_owned(
-    ownership: "_OwnershipIndex",
+    ownership: _OwnershipIndex,
     ref: tuple[int | None, int | None, str | None],
     followed_id: int | None,
     season: int | None,

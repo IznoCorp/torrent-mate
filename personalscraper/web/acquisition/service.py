@@ -221,7 +221,7 @@ _REQUEST_RETRY = RetryPolicy(max_attempts=1)
 
 
 @contextmanager
-def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]]":
+def scoped_provider_clients(request: Request) -> Iterator[tuple[object, object]]:
     """Yield request-scoped TMDB + TVDB clients, then release the registry.
 
     Mirrors the decisions-search pattern: a fresh AppContext + ProviderRegistry
@@ -268,12 +268,12 @@ def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]
         # served response into a 500.
         try:
             app_context.provider_registry.close()
-        except Exception:  # noqa: BLE001 — teardown must not mask the response
+        except Exception:
             logger.warning("acquisition_provider_registry_close_failed", exc_info=True)
         if app_context.acquire is not None:
             try:
                 app_context.acquire.close()
-            except Exception:  # noqa: BLE001 — same contract
+            except Exception:
                 logger.warning("acquisition_acquire_context_close_failed", exc_info=True)
 
 
@@ -427,7 +427,7 @@ def run_media_search(
 # ── /api/acquisition/followed (write) ─────────────────────────────────────
 
 
-def _to_search_result(candidate: "RankedResult") -> MediaSearchResult:
+def _to_search_result(candidate: RankedResult) -> MediaSearchResult:
     """Map a scored :class:`RankedResult` to a :class:`MediaSearchResult`.
 
     The ``kind`` tag is read off the candidate's own ``media_type`` rather than
@@ -569,7 +569,7 @@ def _count_wanted_pending(store: Any, followed_id: int) -> int:
 
 
 def run_media_lookup(
-    request: "Request",
+    request: Request,
     *,
     provider: str,
     provider_id: int,
@@ -601,7 +601,7 @@ def run_media_lookup(
         if fn is not None:
             try:
                 details = fn(provider_id)
-            except Exception:  # noqa: BLE001 — an unknown id is a 404, not a 500
+            except Exception:
                 logger.warning("acquisition_lookup_failed", provider=provider, provider_id=provider_id, exc_info=True)
                 details = None
     if details is None:

@@ -166,7 +166,7 @@ class FallbackHandler(http.server.SimpleHTTPRequestHandler):
             return resolved
         return os.path.join(self.directory, "wrapped.html")
 
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002 — name imposed by BaseHTTPRequestHandler
+    def log_message(self, format: str, *args: object) -> None:
         """Silences per-request logging.
 
         A rule driving many requests does not need a stderr line per one —
@@ -278,14 +278,14 @@ def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
             self.end_headers()
             self.wfile.write(b"{}")
 
-        def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+        def do_GET(self) -> None:
             """Answers `auth/me`: 200 for a held session, 401 otherwise."""
             session = self._session()
             stand_in.asked.append(session)
             held = self.path == "/api/v1/auth/me" and session in stand_in.sessions
             self._answer(200 if held else 401)
 
-        def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+        def do_POST(self) -> None:
             """Answers `auth/logout`: ends the session its cookie carries."""
             if self.path == "/api/v1/auth/logout":
                 stand_in.sessions.discard(self._session())
@@ -691,7 +691,7 @@ if __name__ == "__main__":
             host_status: object = response.status
     except urllib.error.HTTPError as error:
         host_status = error.code
-    except OSError as trouble:  # noqa: BLE001 — a host that is not up IS the finding
+    except OSError as trouble:
         host_status = f"unreachable: {trouble}"
     journal.check(
         "the HOST on 8899 folds a router-owned address onto the document "

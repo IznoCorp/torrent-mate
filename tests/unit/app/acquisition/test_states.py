@@ -66,10 +66,10 @@ def test_empty_catalog_is_never_up_to_date() -> None:
 
 def _import_future_api():
     """Import the future states module (will fail until 4.2 delivers it)."""
-    from personalscraper.acquire.orchestrator import (  # noqa: F811
+    from personalscraper.acquire.orchestrator import (
         INCONCLUSIVE_OUTCOMES,
     )
-    from personalscraper.app.acquisition.states import (  # noqa: F811
+    from personalscraper.app.acquisition.states import (
         EpisodeState,
         derive_episode_state,
     )

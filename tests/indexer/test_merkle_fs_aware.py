@@ -175,7 +175,7 @@ class TestNtfsMerkleRootByteIdentical:
         for m in (0, 1, 999, 1_700_000_000_123_456_789, 2**40 + 7):
             assert round_mtime_ns(m, NTFS_MACFUSE) == m
 
-    def test_ntfs_built_fingerprints_root_equals_raw_root(self, fs: "FakeFilesystem") -> None:
+    def test_ntfs_built_fingerprints_root_equals_raw_root(self, fs: FakeFilesystem) -> None:
         """A root from NTFS-bucketed DB rows equals the root from RAW mtimes.
 
         This is the byte-identical anchor: ``_build_disk_fingerprints(...,
@@ -228,7 +228,7 @@ class TestNtfsMerkleRootByteIdentical:
             "NTFS bucketing must be the identity transform — the merkle root must be byte-identical to the raw root"
         )
 
-    def test_stored_ntfs_full_scan_root_equals_raw_root(self, fs: "FakeFilesystem") -> None:
+    def test_stored_ntfs_full_scan_root_equals_raw_root(self, fs: FakeFilesystem) -> None:
         """The full-scan root STORED on the disk row equals the raw-mtime root.
 
         Pins the full-scan finalize store (Phase 8 §full-scan): the value
@@ -293,7 +293,7 @@ class TestCoarseFsMerkleStability:
     cannot be reproduced after Phase 8 — is what this pins.
     """
 
-    def test_incremental_short_circuits_on_intact_exfat_root(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_short_circuits_on_intact_exfat_root(self, fs: FakeFilesystem) -> None:
         """Stored exFAT root + unchanged DB → incremental Merkle short-circuit hits."""
         fs.pause()
         conn = _make_conn_real()
@@ -324,7 +324,7 @@ class TestCoarseFsMerkleStability:
         assert result.disks_skipped == 1, "the intact exFAT root must trigger the Merkle short-circuit (disk skipped)"
         assert mock_oshash.call_count == 0, "a short-circuited disk must never recompute OSHash"
 
-    def test_db_recomputed_exfat_root_matches_stored(self, fs: "FakeFilesystem") -> None:
+    def test_db_recomputed_exfat_root_matches_stored(self, fs: FakeFilesystem) -> None:
         """The exFAT root recomputed from the DB equals the stored full-scan root.
 
         This is the direct proof of the full→incremental handoff: both sides
@@ -360,7 +360,7 @@ class TestBulkChangeFreezeGuard:
     the bucketed delta is 0.0 → the guard stays well below threshold → no freeze.
     """
 
-    def test_subbucket_jitter_does_not_trip_delta_freeze(self, fs: "FakeFilesystem") -> None:
+    def test_subbucket_jitter_does_not_trip_delta_freeze(self, fs: FakeFilesystem) -> None:
         """Bucketed delta of all-jittered-but-unchanged files is below threshold."""
         fs.pause()
         conn = _make_conn_real()
@@ -389,7 +389,7 @@ class TestBulkChangeFreezeGuard:
         raw_delta = compute_merkle_delta(raw_db_fps, raw_fresh_fps)
         assert raw_delta == 1.0, "sanity: without bucketing every file looks changed (the pre-Phase-8 freeze hazard)"
 
-    def test_incremental_misses_root_but_does_not_freeze(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_misses_root_but_does_not_freeze(self, fs: FakeFilesystem) -> None:
         """A forced Merkle MISS on exFAT runs the guard but does NOT freeze.
 
         Tampering the stored ``merkle_root`` forces a miss so the bulk-change

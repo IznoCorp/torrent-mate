@@ -422,7 +422,7 @@ class CreateFollowRequest(BaseModel):
     year: int | None = None
 
     @model_validator(mode="after")
-    def _at_least_one_id(self) -> "CreateFollowRequest":
+    def _at_least_one_id(self) -> CreateFollowRequest:
         """Validate that at least one provider ID is provided.
 
         Returns:

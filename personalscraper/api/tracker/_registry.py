@@ -174,7 +174,7 @@ class TrackerRegistry:
         query: str,
         media_type: MediaType = MediaType.MOVIE,
         year: int | None = None,
-    ) -> "SearchOutcome":
+    ) -> SearchOutcome:
         """Search every tracker and return a raw, un-ranked :class:`SearchOutcome`.
 
         Unlike :meth:`search_all`, this method:
@@ -204,7 +204,7 @@ class TrackerRegistry:
             ``api``) the grab chain turns into an honest verdict (D4).
         """
         from personalscraper.acquire._dedup import (
-            SearchOutcome,  # noqa: PLC0415 — lazy: avoids api→acquire import cycle
+            SearchOutcome,
         )
 
         all_results: list[TrackerResult] = []
@@ -267,7 +267,7 @@ class TrackerRegistry:
             errors=errors,
         )
 
-    def transports(self) -> "dict[str, HttpTransport]":
+    def transports(self) -> dict[str, HttpTransport]:
         """Return a ``{tracker name → HttpTransport}`` map for the grab seam.
 
         The grab orchestrator passes these transports to ``resolve_source`` /

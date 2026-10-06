@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.app_e2e
 
 
-def test_the_library_lists_the_seeded_titles(app_server: AppServer, signed_in_page: "Page") -> None:
+def test_the_library_lists_the_seeded_titles(app_server: AppServer, signed_in_page: Page) -> None:
     """``/media`` draws the titles v1 reads from the seeded ``library.db``, and only them."""
     page = signed_in_page
     with page.expect_response(lambda response: "/api/v1/library/items" in response.url) as items:

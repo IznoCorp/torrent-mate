@@ -45,7 +45,7 @@ import sqlite3
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 # ---------------------------------------------------------------------------
 # Paths and constants

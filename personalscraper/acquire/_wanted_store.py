@@ -84,7 +84,7 @@ class _WantedSubStore:
                 ),
             )
             row_id = cur.lastrowid
-        assert row_id is not None  # noqa: S101 — INSERT always sets lastrowid
+        assert row_id is not None
         return row_id
 
     def get(self, wanted_id: int) -> WantedItem | None:
@@ -137,7 +137,7 @@ class _WantedSubStore:
             "SELECT id, followed_id, media_ref_json, kind, season, episode, "
             "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash, "
             "last_search_outcome, last_search_found, tried_hashes_json, absorbed_by "
-            "FROM wanted WHERE status = ? ORDER BY " + order_by,  # noqa: S608 — order_by is an internal literal
+            "FROM wanted WHERE status = ? ORDER BY " + order_by,
             (status,),
         ).fetchall()
         return [_row_to_wanted(r) for r in rows]

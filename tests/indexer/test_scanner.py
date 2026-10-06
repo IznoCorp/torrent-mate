@@ -278,7 +278,7 @@ class TestExcludedNames:
 class TestScanWalksFilesAndDirs:
     """scan() visits files and directories and records them in the DB."""
 
-    def test_scan_walks_files_and_dirs(self, fs: "FakeFilesystem") -> None:
+    def test_scan_walks_files_and_dirs(self, fs: FakeFilesystem) -> None:
         """Fake FS with 2 files in 1 dir under mount root → files_visited=2, dirs_visited≥1."""
         # Build the DB while the real FS is accessible for apply_migrations.
         fs.pause()
@@ -305,7 +305,7 @@ class TestScanWalksFilesAndDirs:
 class TestScanExcludesHiddenSystemNames:
     """scan() skips EXCLUDED_NAMES and '._' resource-fork prefix entries."""
 
-    def test_scan_excludes_hidden_system_names(self, fs: "FakeFilesystem") -> None:
+    def test_scan_excludes_hidden_system_names(self, fs: FakeFilesystem) -> None:
         """Hidden/system files and dirs must not appear in media_file."""
         fs.pause()
         conn = _make_conn_real()
@@ -340,7 +340,7 @@ class TestScanExcludesHiddenSystemNames:
 class TestScanRecordsSymlinks:
     """scan() records symlinks with oshash=None (NULL in DB; never fingerprinted)."""
 
-    def test_scan_records_symlinks_with_empty_oshash(self, fs: "FakeFilesystem") -> None:
+    def test_scan_records_symlinks_with_empty_oshash(self, fs: FakeFilesystem) -> None:
         """Symlink is recorded in media_file with oshash=None (NULL; never fingerprinted)."""
         fs.pause()
         conn = _make_conn_real()
@@ -370,7 +370,7 @@ class TestScanRecordsSymlinks:
 class TestScanUpdatesDirMtimeNs:
     """scan() writes dir_mtime_ns into the path table for each visited directory."""
 
-    def test_scan_updates_dir_mtime_ns_for_each_directory(self, fs: "FakeFilesystem") -> None:
+    def test_scan_updates_dir_mtime_ns_for_each_directory(self, fs: FakeFilesystem) -> None:
         """Two subdirectories → both path rows have non-None dir_mtime_ns after scan."""
         fs.pause()
         conn = _make_conn_real()
@@ -405,7 +405,7 @@ class TestScanUpdatesDirMtimeNs:
 class TestScanRunStatus:
     """scan_run lifecycle — status transitions."""
 
-    def test_scan_run_status_ok_on_success(self, fs: "FakeFilesystem") -> None:
+    def test_scan_run_status_ok_on_success(self, fs: FakeFilesystem) -> None:
         """Successful scan → scan_run.status='ok' and finished_at NOT NULL."""
         fs.pause()
         conn = _make_conn_real()
@@ -426,7 +426,7 @@ class TestScanRunStatus:
         assert run_row.status == "ok"
         assert run_row.finished_at is not None
 
-    def test_scan_run_status_ok_when_disk_unmounted(self, fs: "FakeFilesystem") -> None:
+    def test_scan_run_status_ok_when_disk_unmounted(self, fs: FakeFilesystem) -> None:
         """DiskUnmountedError causes disk to be skipped; scan_run.status still 'ok'."""
         fs.pause()
         conn = _make_conn_real()
@@ -453,7 +453,7 @@ class TestScanSkippedDiskLogsWarning:
 
     def test_scan_skipped_disk_logs_warning(
         self,
-        fs: "FakeFilesystem",
+        fs: FakeFilesystem,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """indexer.disk.skipped_unmounted warning is emitted for a DiskUnmountedError."""
@@ -508,7 +508,7 @@ class TestScanSkippedDiskReasonCode:
 
     def test_unmounted_disk_reason_is_readable_code(
         self,
-        fs: "FakeFilesystem",
+        fs: FakeFilesystem,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """When a disk is UNMOUNTED, reason is 'mount_inaccessible', not a UUID."""
@@ -542,7 +542,7 @@ class TestScanSkippedDiskReasonCode:
 
     def test_sentinel_missing_reason_code(
         self,
-        fs: "FakeFilesystem",
+        fs: FakeFilesystem,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """When sentinel is absent (NO_SENTINEL), reason is 'sentinel_missing'."""
@@ -578,7 +578,7 @@ class TestScanSkippedDiskReasonCode:
 class TestFullModeFingerprints:
     """scan() in full mode computes oshash for video files; None (NULL) for non-video."""
 
-    def test_full_mode_fingerprints_files(self, fs: "FakeFilesystem") -> None:
+    def test_full_mode_fingerprints_files(self, fs: FakeFilesystem) -> None:
         """Video .mkv files get a non-empty oshash; a .txt file gets None (NULL)."""
         fs.pause()
         conn = _make_conn_real()
@@ -615,7 +615,7 @@ class TestFullModeFingerprints:
         # Non-video file must have NULL oshash (Stage A; OSHash not applicable).
         assert by_name["readme.txt"] is None, "readme.txt oshash must be None (NULL)"
 
-    def test_full_mode_skips_oshash_for_symlinks(self, fs: "FakeFilesystem") -> None:
+    def test_full_mode_skips_oshash_for_symlinks(self, fs: FakeFilesystem) -> None:
         """Symlink pointing to a .mkv always gets oshash=None (NULL; never fingerprinted)."""
         fs.pause()
         conn = _make_conn_real()
@@ -640,7 +640,7 @@ class TestFullModeFingerprints:
         assert "link.mkv" in by_name, f"link.mkv not found in {list(by_name)}"
         assert by_name["link.mkv"] is None, "symlink oshash must be None (NULL) regardless of extension"
 
-    def test_full_mode_writes_size_and_mtime(self, fs: "FakeFilesystem") -> None:
+    def test_full_mode_writes_size_and_mtime(self, fs: FakeFilesystem) -> None:
         """Full-mode scan populates size_bytes and mtime_ns for every file."""
         fs.pause()
         conn = _make_conn_real()
@@ -720,7 +720,7 @@ class TestQuickMode:
     # Test 1: Merkle match → disk entirely skipped (zero FS reads)
     # ------------------------------------------------------------------
 
-    def test_quick_mode_merkle_match_skips_disk(self, fs: "FakeFilesystem") -> None:
+    def test_quick_mode_merkle_match_skips_disk(self, fs: FakeFilesystem) -> None:
         """When DB-computed Merkle root equals disk.merkle_root, disk walk is skipped.
 
         Seed the DB with one file, compute the real Merkle root from those rows,
@@ -787,7 +787,7 @@ class TestQuickMode:
     # Test 2: Merkle miss → full dir walk is performed
     # ------------------------------------------------------------------
 
-    def test_quick_mode_merkle_miss_walks_disk(self, fs: "FakeFilesystem") -> None:
+    def test_quick_mode_merkle_miss_walks_disk(self, fs: FakeFilesystem) -> None:
         """When the stored merkle_root differs from the DB-computed root, the disk is walked.
 
         Store a deliberately wrong merkle_root on the disk row so the Merkle
@@ -819,7 +819,7 @@ class TestQuickMode:
     # Test 3: Dir-mtime unchanged → subtree skipped
     # ------------------------------------------------------------------
 
-    def test_quick_mode_dir_mtime_unchanged_skips_subtree(self, fs: "FakeFilesystem") -> None:
+    def test_quick_mode_dir_mtime_unchanged_skips_subtree(self, fs: FakeFilesystem) -> None:
         """Unchanged dir_mtime_ns causes _walk_dir_quick to skip the subtree.
 
         Run a full scan first to populate path rows with current dir_mtime_ns
@@ -868,7 +868,7 @@ class TestQuickMode:
     # Test 4: Dir-mtime changed → subtree IS walked
     # ------------------------------------------------------------------
 
-    def test_quick_mode_dir_mtime_changed_walks_subtree(self, fs: "FakeFilesystem") -> None:
+    def test_quick_mode_dir_mtime_changed_walks_subtree(self, fs: FakeFilesystem) -> None:
         """Stale dir_mtime_ns causes _walk_dir_quick to recurse into the subtree.
 
         Seed the path row with a dir_mtime_ns value that does NOT match the
@@ -920,7 +920,7 @@ class TestQuickMode:
     # Test 5: Merkle root recomputed and persisted after quick walk
     # ------------------------------------------------------------------
 
-    def test_quick_mode_recomputes_merkle_after_scan(self, fs: "FakeFilesystem") -> None:
+    def test_quick_mode_recomputes_merkle_after_scan(self, fs: FakeFilesystem) -> None:
         """After a Merkle-miss quick scan, disk.merkle_root is updated in the DB.
 
         The scan must recompute the Merkle root from the updated media_file rows
@@ -961,7 +961,7 @@ class TestQuickMode:
     # Test 6: _verify_dir_mtime_reliable=False disables subtree skip
     # ------------------------------------------------------------------
 
-    def test_dir_mtime_verification_disables_optimization_when_unreliable(self, fs: "FakeFilesystem") -> None:
+    def test_dir_mtime_verification_disables_optimization_when_unreliable(self, fs: FakeFilesystem) -> None:
         """When dir-mtime is unreliable, subtrees are walked even if mtime matches.
 
         Mock _verify_dir_mtime_reliable to return False.  Run a quick scan after
@@ -1084,7 +1084,7 @@ class TestBuildDiskFingerprints:
         fps = _build_disk_fingerprints(conn, disk_id=9999)
         assert fps == []
 
-    def test_returns_fingerprints_for_seeded_files(self, fs: "FakeFilesystem") -> None:
+    def test_returns_fingerprints_for_seeded_files(self, fs: FakeFilesystem) -> None:
         """Returns one FileFingerprint per non-deleted media_file row for the disk."""
         fs.pause()
         conn = _make_conn_real()
@@ -1102,7 +1102,7 @@ class TestBuildDiskFingerprints:
         fps = _build_disk_fingerprints(conn, disk.id)
         assert len(fps) == 2, f"Expected 2 fingerprints, got {len(fps)}"
 
-    def test_excludes_deleted_files(self, fs: "FakeFilesystem") -> None:
+    def test_excludes_deleted_files(self, fs: FakeFilesystem) -> None:
         """Rows with deleted_at IS NOT NULL are excluded from fingerprint results."""
         fs.pause()
         conn = _make_conn_real()
@@ -1127,7 +1127,7 @@ class TestBuildDiskFingerprints:
         fps = _build_disk_fingerprints(conn, disk.id)
         assert len(fps) == 1, f"Expected 1 fingerprint (alive only), got {len(fps)}"
 
-    def test_excludes_rows_with_null_oshash(self, fs: "FakeFilesystem") -> None:
+    def test_excludes_rows_with_null_oshash(self, fs: FakeFilesystem) -> None:
         """Rows with ``oshash IS NULL`` (Stage A) are excluded (DEV #14 regression).
 
         The scanner stores the merkle from this helper's output; the reconcile
@@ -1181,7 +1181,7 @@ class TestIncrementalMode:
     # Test 1: New file inserted with oshash populated
     # ------------------------------------------------------------------
 
-    def test_incremental_new_file_gets_oshash(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_new_file_gets_oshash(self, fs: FakeFilesystem) -> None:
         """A new video file discovered in incremental mode receives a non-NULL oshash.
 
         Seed the disk, add a new video file after the initial full scan, then run
@@ -1229,7 +1229,7 @@ class TestIncrementalMode:
     # Test 2: Renamed file — one row, path updated, no duplicate
     # ------------------------------------------------------------------
 
-    def test_incremental_renamed_file_no_duplicate(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_renamed_file_no_duplicate(self, fs: FakeFilesystem) -> None:
         """Renaming a file across an incremental scan updates path_id/filename with no duplicate.
 
         Seed the disk with a video file, compute its oshash, then physically move
@@ -1303,7 +1303,7 @@ class TestIncrementalMode:
     # Test 3: Modified content enqueues repair
     # ------------------------------------------------------------------
 
-    def test_incremental_modified_content_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_modified_content_enqueues_repair(self, fs: FakeFilesystem) -> None:
         """A file whose content changes in incremental mode triggers a repair_queue entry.
 
         Seed the disk with a video file; rewrite its content (different bytes →
@@ -1359,7 +1359,7 @@ class TestIncrementalMode:
     # Test 4: OSHash collision enqueues repair, does NOT auto-rename
     # ------------------------------------------------------------------
 
-    def test_incremental_oshash_collision_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_oshash_collision_enqueues_repair(self, fs: FakeFilesystem) -> None:
         """When two files share the same oshash (collision), repair is enqueued — no auto-rename.
 
         Seed the disk with two video files that have the same oshash (identical
@@ -1450,7 +1450,7 @@ class TestEnrichMode:
     # Test 1: enriched_at=NULL file gets media_stream rows
     # ------------------------------------------------------------------
 
-    def test_enrich_populates_media_stream(self, fs: "FakeFilesystem") -> None:
+    def test_enrich_populates_media_stream(self, fs: FakeFilesystem) -> None:
         """A file with enriched_at=NULL gets media_stream rows after enrich mode.
 
         Seed the DB with a full scan, then mock pymediainfo to return 2 streams
@@ -1528,7 +1528,7 @@ class TestEnrichMode:
     # Test 2: already-enriched file is skipped (no pymediainfo call)
     # ------------------------------------------------------------------
 
-    def test_enrich_skips_already_enriched(self, fs: "FakeFilesystem") -> None:
+    def test_enrich_skips_already_enriched(self, fs: FakeFilesystem) -> None:
         """A file with enriched_at=now is skipped — pymediainfo is NOT called.
 
         Seed the DB with a full scan and manually set ``enriched_at`` to the
@@ -1575,7 +1575,7 @@ class TestEnrichMode:
     # Test 3: budget exhaustion leaves remaining files with enriched_at=NULL
     # ------------------------------------------------------------------
 
-    def test_enrich_budget_exhaustion_leaves_remaining_null(self, fs: "FakeFilesystem") -> None:
+    def test_enrich_budget_exhaustion_leaves_remaining_null(self, fs: FakeFilesystem) -> None:
         """With a tight budget, some files are enriched while others remain NULL.
 
         Seed 5 files.  Mock ``time.monotonic`` to advance by 2 s on each call
@@ -1636,7 +1636,7 @@ class TestEnrichMode:
     # Test 4: quick_enrich=True passes parse_speed=0.5 to MediaInfoWrapper
     # ------------------------------------------------------------------
 
-    def test_enrich_quick_flag_uses_half_parse_speed(self, fs: "FakeFilesystem") -> None:
+    def test_enrich_quick_flag_uses_half_parse_speed(self, fs: FakeFilesystem) -> None:
         """quick_enrich=True causes MediaInfoWrapper to be instantiated with parse_speed=0.5.
 
         We patch the MediaInfoWrapper constructor to capture the parse_speed kwarg.
@@ -2420,7 +2420,7 @@ class TestTokenBucket:
 class TestThrottleModuleHooks:
     """Tests for the process-global active-bucket plumbing."""
 
-    def teardown_method(self, _method: object) -> None:  # noqa: D401 — pytest hook
+    def teardown_method(self, _method: object) -> None:
         """Reset the active bucket between tests for isolation."""
         set_active_bucket(None)
 
@@ -2471,7 +2471,7 @@ class TestBulkInsertFullMode:
     # test 1 — full scan + drop_indexes=True
     # ------------------------------------------------------------------
 
-    def test_full_scan_drops_indexes_and_uses_executemany(self, fs: "FakeFilesystem") -> None:
+    def test_full_scan_drops_indexes_and_uses_executemany(self, fs: FakeFilesystem) -> None:
         """Full scan with drop_indexes=True issues DROP INDEX and uses executemany.
 
         Strategy:
@@ -2541,7 +2541,7 @@ class TestBulkInsertFullMode:
     # test 2 — incremental mode must NOT drop indexes
     # ------------------------------------------------------------------
 
-    def test_incremental_does_not_drop_indexes(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_does_not_drop_indexes(self, fs: FakeFilesystem) -> None:
         """Incremental scan must never issue DROP INDEX statements (DESIGN §11.7).
 
         Incremental write volume is small (only changed files are updated) so
@@ -2604,7 +2604,7 @@ class TestQuickModeParanoiaBranch:
 
     def test_paranoia_recheck_logged_when_file_mutated_silently(
         self,
-        fs: "FakeFilesystem",
+        fs: FakeFilesystem,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Paranoia branch detects a file mutated without updating dir-mtime.
@@ -2706,7 +2706,7 @@ class TestQuickModeParanoiaBranch:
 
     def test_paranoia_branch_disabled_when_window_is_zero(
         self,
-        fs: "FakeFilesystem",
+        fs: FakeFilesystem,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """When paranoia_window_seconds=0, the paranoia branch is entirely skipped.
@@ -2819,7 +2819,7 @@ class TestScanUnexpectedExceptionReraise:
 class TestVerifyMode:
     """Verify mode: re-stat existing media_file rows and enqueue repair on drift."""
 
-    def test_verify_clean_files_bump_last_verified_at(self, fs: "FakeFilesystem") -> None:
+    def test_verify_clean_files_bump_last_verified_at(self, fs: FakeFilesystem) -> None:
         """Files whose on-disk size + mtime match the DB get last_verified_at updated."""
         fs.pause()
         conn = _make_conn_real()
@@ -2857,7 +2857,7 @@ class TestVerifyMode:
         repair_count = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
         assert repair_count == 0
 
-    def test_verify_size_mismatch_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+    def test_verify_size_mismatch_enqueues_repair(self, fs: FakeFilesystem) -> None:
         """A file whose size has changed since last scan is escalated to repair_queue."""
         fs.pause()
         conn = _make_conn_real()
@@ -2886,7 +2886,7 @@ class TestVerifyMode:
         assert "drift" in rows[0]["reason"]
         assert "expected_size" in rows[0]["payload_json"]
 
-    def test_verify_missing_file_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+    def test_verify_missing_file_enqueues_repair(self, fs: FakeFilesystem) -> None:
         """A file deleted from disk is enqueued for repair (no soft-delete)."""
         fs.pause()
         conn = _make_conn_real()
@@ -2918,7 +2918,7 @@ class TestVerifyMode:
         assert deleted_at is not None
         assert deleted_at[0] is None
 
-    def test_verify_no_enqueue_skips_repair_queue_on_missing(self, fs: "FakeFilesystem") -> None:
+    def test_verify_no_enqueue_skips_repair_queue_on_missing(self, fs: FakeFilesystem) -> None:
         """no_enqueue=True: missing file detected but NO repair_queue row is written.
 
         Regression for DEV #21 / MUST-9: library-verify --no-enqueue must be a
@@ -2952,7 +2952,7 @@ class TestVerifyMode:
             f"no_enqueue=True must not add repair_queue rows; before={queue_before}, after={queue_after}"
         )
 
-    def test_verify_no_enqueue_skips_repair_queue_on_drift(self, fs: "FakeFilesystem") -> None:
+    def test_verify_no_enqueue_skips_repair_queue_on_drift(self, fs: FakeFilesystem) -> None:
         """no_enqueue=True: size drift detected but NO repair_queue row is written.
 
         Regression for DEV #21 / MUST-9 (complementary to missing-file case).
@@ -3028,7 +3028,7 @@ class TestScanExcludesNonVideoCategories:
             staging_dirs=CANONICAL_STAGING_DIRS,
         )
 
-    def test_audiobook_root_not_indexed(self, fs: "FakeFilesystem") -> None:
+    def test_audiobook_root_not_indexed(self, fs: FakeFilesystem) -> None:
         """Files under the audiobooks folder never become media_file rows."""
         fs.pause()
         conn = _make_conn_real()
@@ -3059,7 +3059,7 @@ class TestScanExcludesNonVideoCategories:
         assert "movie.mkv" in filenames
         assert "book.m4b" not in filenames, "audiobook files are structurally unlinkable and must never be indexed"
 
-    def test_without_config_nothing_changes(self, fs: "FakeFilesystem") -> None:
+    def test_without_config_nothing_changes(self, fs: FakeFilesystem) -> None:
         """No config (tests, standalone scans) → historical behaviour intact."""
         fs.pause()
         conn = _make_conn_real()

@@ -62,7 +62,7 @@ _RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 
 
 def _make_wanted(
-    kind: 'Literal["movie", "episode", "season"]' = "movie",
+    kind: Literal["movie", "episode", "season"] = "movie",
     tvdb_id: int = 12345,
     season: int | None = None,
 ) -> WantedItem:
@@ -954,7 +954,7 @@ def test_search_no_matching_season_wrong_series_regression() -> None:
     def _wanted_series_title(item: WantedItem) -> str | None:
         return "Les Groos"
 
-    orchestrator._title_resolver = _wanted_series_title  # noqa: SLF001 — test wiring of the D3 seam
+    orchestrator._title_resolver = _wanted_series_title
 
     season_item = WantedItem(
         media_ref=MediaRef(tvdb_id=478476),
@@ -995,7 +995,7 @@ def test_search_no_matching_episode_wrong_series_regression() -> None:
     def _wanted_series_title(item: WantedItem) -> str | None:
         return "Les Groos"
 
-    orchestrator._title_resolver = _wanted_series_title  # noqa: SLF001 — test wiring of the D3 seam
+    orchestrator._title_resolver = _wanted_series_title
 
     episode_item = WantedItem(
         media_ref=MediaRef(tvdb_id=478476),
@@ -1038,8 +1038,8 @@ def test_search_no_matching_episode_wrong_series_with_both_resolvers_regression(
     def _wanted_series_original_title(item: WantedItem) -> str | None:
         return "The Groos"
 
-    orchestrator._title_resolver = _wanted_series_title  # noqa: SLF001 — test wiring of the D3 seam
-    orchestrator._original_title_resolver = _wanted_series_original_title  # noqa: SLF001 — same seam
+    orchestrator._title_resolver = _wanted_series_title
+    orchestrator._original_title_resolver = _wanted_series_original_title
 
     episode_item = WantedItem(
         media_ref=MediaRef(tvdb_id=478476),
@@ -1392,7 +1392,7 @@ def test_search_pass_accepts_original_language_release(followed_id: int = 34) ->
     registry.search_candidates.return_value = SearchOutcome(results=[release], trackers_queried=1, trackers_errored=0)
     registry.transports.return_value = {"c411": MagicMock()}
 
-    def _build(original_title_resolver: "object | None") -> GrabOrchestrator:
+    def _build(original_title_resolver: object | None) -> GrabOrchestrator:
         kwargs: dict[str, object] = {}
         if original_title_resolver is not None:
             kwargs["original_title_resolver"] = original_title_resolver
@@ -1442,7 +1442,7 @@ class TestOriginalTitleRetryQuery:
             bandwidth=BandwidthConfig(),
         )
 
-    def _registry(self, by_query: "dict[str, list[TrackerResult]]", *, errored: int = 0) -> MagicMock:
+    def _registry(self, by_query: dict[str, list[TrackerResult]], *, errored: int = 0) -> MagicMock:
         registry = MagicMock()
 
         def _search(query: str, _media_type: object, _year: object) -> SearchOutcome:
@@ -1456,7 +1456,7 @@ class TestOriginalTitleRetryQuery:
         registry.transports.return_value = {"c411": MagicMock()}
         return registry
 
-    def _queries(self, registry: MagicMock) -> "list[str]":
+    def _queries(self, registry: MagicMock) -> list[str]:
         return [c.args[0] for c in registry.search_candidates.call_args_list]
 
     def test_movie_junk_only_fr_query_retries_and_finds(self) -> None:

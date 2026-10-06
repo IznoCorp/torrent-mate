@@ -269,7 +269,7 @@ def acquire_scrape_resolve_lock(
         is never leaked).
     """
     scrape_locks_dir.mkdir(parents=True, exist_ok=True)
-    digest = hashlib.sha1(str(staging_path).encode()).hexdigest()  # noqa: S324 — non-cryptographic key derivation
+    digest = hashlib.sha1(str(staging_path).encode()).hexdigest()
     item_lock = scrape_locks_dir / f"{digest}.lock"
 
     if not acquire_lock(item_lock):

@@ -120,7 +120,7 @@ def provenance_row_is_stuck(
     return exists_fn(row.current_path)
 
 
-def journey_release_name(row: "ProvenanceRow | None") -> str | None:
+def journey_release_name(row: ProvenanceRow | None) -> str | None:
     """Return the release ACTUALLY grabbed for this journey, or None when unknown.
 
     A card that shows only the wanted media's title cannot distinguish the film from a
@@ -288,8 +288,8 @@ class _ProvenanceSubStore:
         try:
             with self._write_tx(self._conn):
                 self._conn.execute(sql, params)
-        except Exception as exc:  # noqa: BLE001 — advisory: a provenance write never fails a step
-            log.error(  # noqa: TRY400 — the traceback is carried by exc_info, not by log.exception's level
+        except Exception as exc:
+            log.error(
                 "acquire.provenance.write_failed",
                 error=str(exc),
                 error_type=type(exc).__name__,
@@ -563,7 +563,7 @@ class _ProvenanceSubStore:
             self._conn.row_factory = sqlite3.Row
             row = self._conn.execute(
                 f"SELECT * FROM staging_provenance {where}",
-                params,  # noqa: S608 — fixed literals
+                params,
             ).fetchone()
             return _row_to_provenance(row) if row is not None else None
         except Exception as exc:  # noqa: BLE001 — fail-soft: a read error is a miss, never a crash

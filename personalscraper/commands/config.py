@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -16,9 +15,7 @@ def config_migrate_category(
     ctx: typer.Context,
     from_cat: str = typer.Option(..., "--from", help=t("cli_core.config.migrate_category.from_help")),
     to_cat: str = typer.Option(..., "--to", help=t("cli_core.config.migrate_category.to_help")),
-    config: Optional[Path] = typer.Option(
-        None, "--config", "-c", help=t("cli_core.config.migrate_category.config_help")
-    ),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_core.config.migrate_category.config_help")),
 ) -> None:
     """Rewrite media_item.category_id for renamed categories.
 
@@ -37,7 +34,7 @@ def config_migrate_category(
     from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
     from personalscraper.indexer.cli import config_migrate_category_command  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is not None:
         settings = cli_helpers.get_settings()
@@ -63,7 +60,7 @@ def init_config_cmd(
         Path("config.example"),
         help=t("cli_core.config.init_config.example_help"),
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         help=t("cli_core.config.init_config.output_help"),
@@ -110,7 +107,7 @@ def init_config_cmd(
         if sync:
             from personalscraper.conf.loader import resolve_config_path  # noqa: PLC0415
 
-            global_config: Optional[Path] = ctx.obj.config_override if ctx.obj is not None else None
+            global_config: Path | None = ctx.obj.config_override if ctx.obj is not None else None
             output = resolve_config_path(global_config)
         else:
             output = Path("./config")

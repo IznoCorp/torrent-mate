@@ -226,7 +226,7 @@ class _WatchPatches:
 
         self._patches: list[Any] = []
 
-    def _enter(self) -> "_WatchPatches":
+    def _enter(self) -> _WatchPatches:
         """Activate all patches.  Returns self for use as a context manager."""
         self._patches = [
             patch("personalscraper.commands.watch.time", self.mock_time),
@@ -246,7 +246,7 @@ class _WatchPatches:
         for p in self._patches:
             p.stop()
 
-    def __enter__(self) -> "_WatchPatches":
+    def __enter__(self) -> _WatchPatches:
         return self._enter()
 
     def __exit__(self, *exc_info: Any) -> None:

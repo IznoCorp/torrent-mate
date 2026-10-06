@@ -39,9 +39,7 @@ def _add_wanted(store: ConcreteAcquireStore) -> int:
 
 def _best_json(store: ConcreteAcquireStore, wanted_id: int) -> str | None:
     """Read the raw persisted column."""
-    cur = store.wanted._conn.execute(  # noqa: SLF001 — column truth, not API echo
-        "SELECT last_search_best_json FROM wanted WHERE id = ?", (wanted_id,)
-    )
+    cur = store.wanted._conn.execute("SELECT last_search_best_json FROM wanted WHERE id = ?", (wanted_id,))
     return cur.fetchone()[0]
 
 

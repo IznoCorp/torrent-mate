@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -127,7 +127,7 @@ class TestNonFcntlBranches:
         """
         store = TrailerStateStore(state_file=tmp_path / "trailers_state.json")
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/fake",
@@ -154,7 +154,7 @@ class TestNonFcntlBranches:
         store.set(
             "movie:tmdb:1",
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.DOWNLOADED,
                 media_path=str(media),
@@ -177,7 +177,7 @@ class TestNonFcntlBranches:
         store.set(
             "movie:tmdb:42",
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.ORPHAN,
                 media_path="/gone",
@@ -207,7 +207,7 @@ class TestShouldSkipBranches:
         store.set(
             "movie:tmdb:1",
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.DOWNLOADED,
                 media_path="/x",
@@ -225,7 +225,7 @@ class TestShouldSkipBranches:
         store.set(
             "movie:tmdb:1",
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.ALREADY_PRESENT_ON_DISK,
                 media_path="/x",
@@ -243,7 +243,7 @@ class TestShouldSkipBranches:
         store.set(
             "movie:tmdb:1",
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.NO_TRAILER_AVAILABLE,
                 media_path="/x",
@@ -269,7 +269,7 @@ class TestShouldSkipBranches:
                     "version": 1,
                     "entries": {
                         "movie:tmdb:1": {
-                            "last_attempt": datetime.now(timezone.utc).isoformat(),
+                            "last_attempt": datetime.now(UTC).isoformat(),
                             "attempts": 1,
                             "status": "no_trailer_available",
                             "media_path": "/x",
@@ -334,7 +334,7 @@ class TestAllEntriesMalformed:
                     "version": 1,
                     "entries": {
                         "good": {
-                            "last_attempt": datetime.now(timezone.utc).isoformat(),
+                            "last_attempt": datetime.now(UTC).isoformat(),
                             "attempts": 1,
                             "status": "downloaded",
                             "media_path": "/x",
@@ -348,7 +348,7 @@ class TestAllEntriesMalformed:
                         },
                         "bad-status": {
                             # Invalid status value will raise ValueError.
-                            "last_attempt": datetime.now(timezone.utc).isoformat(),
+                            "last_attempt": datetime.now(UTC).isoformat(),
                             "attempts": 1,
                             "status": "not_a_real_status",
                             "media_path": "/x",
@@ -362,7 +362,7 @@ class TestAllEntriesMalformed:
                         },
                         "missing-field": {
                             # Missing required field "media_path".
-                            "last_attempt": datetime.now(timezone.utc).isoformat(),
+                            "last_attempt": datetime.now(UTC).isoformat(),
                             "attempts": 1,
                             "status": "downloaded",
                         },
@@ -522,10 +522,7 @@ class TestBackupCorruptCopyOSError:
 
         # An error event for failed backup must have been emitted.
         assert any(
-            (
-                isinstance(getattr(r, "msg", None), dict)
-                and getattr(r, "msg").get("event") == "trailer_state_corrupt_backup_failed"
-            )
+            (isinstance(getattr(r, "msg", None), dict) and r.msg.get("event") == "trailer_state_corrupt_backup_failed")
             or "trailer_state_corrupt_backup_failed" in str(getattr(r, "msg", ""))
             for r in caplog.records
         )
@@ -546,7 +543,7 @@ class TestSaveOSError:
         state_file = tmp_path / "trailers_state.json"
         store = TrailerStateStore(state_file=state_file)
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/x",
@@ -572,7 +569,7 @@ class TestSaveOSError:
         state_file = tmp_path / "trailers_state.json"
         store = TrailerStateStore(state_file=state_file)
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/x",
@@ -603,7 +600,7 @@ class TestRunGCMalformedEntry:
                     "version": 1,
                     "entries": {
                         "bad": {
-                            "last_attempt": datetime.now(timezone.utc).isoformat(),
+                            "last_attempt": datetime.now(UTC).isoformat(),
                             "attempts": 1,
                             "status": "not_a_status",
                             "media_path": "/x",
@@ -627,10 +624,7 @@ class TestRunGCMalformedEntry:
 
         # The skip log must have been emitted.
         assert any(
-            (
-                isinstance(getattr(r, "msg", None), dict)
-                and getattr(r, "msg").get("event") == "trailer_state.gc_skip_malformed"
-            )
+            (isinstance(getattr(r, "msg", None), dict) and r.msg.get("event") == "trailer_state.gc_skip_malformed")
             or "trailer_state.gc_skip_malformed" in str(getattr(r, "msg", ""))
             for r in caplog.records
         )

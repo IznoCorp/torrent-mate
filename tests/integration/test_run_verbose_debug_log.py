@@ -9,7 +9,7 @@ process-scoped :class:`EventBus`.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -30,7 +30,7 @@ runner = CliRunner()
 
 def _now() -> datetime:
     """Return a fixed UTC timestamp for deterministic report construction."""
-    return datetime(2026, 5, 12, 17, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 12, 17, 0, 0, tzinfo=UTC)
 
 
 def _expected_sequence() -> list[Any]:

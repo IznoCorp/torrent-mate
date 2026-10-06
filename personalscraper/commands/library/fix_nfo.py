@@ -285,7 +285,7 @@ def library_fix_nfo(
         # Fast path: already well-formed.  NFO files are local and trusted —
         # the XXE risk from xml.etree.ElementTree does not apply.
         try:
-            _ET.parse(str(nfo_path))  # noqa: S314
+            _ET.parse(str(nfo_path))
             stats.inc("already_ok")
             continue
         except _ET.ParseError:
@@ -350,7 +350,7 @@ def library_fix_nfo(
             truncated += b"\n"
         # Post-truncation re-parse — local trusted NFO, XXE not applicable.
         try:
-            _ET.fromstring(truncated)  # noqa: S314
+            _ET.fromstring(truncated)
         except _ET.ParseError as exc:
             stats.inc("still_malformed")
             log.warning(

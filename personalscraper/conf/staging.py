@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 _log = get_logger("staging")
 
 
-def folder_name(entry: "StagingDirConfig") -> str:
+def folder_name(entry: StagingDirConfig) -> str:
     """Compute the on-disk folder name for a staging entry.
 
     Format: ``f"{entry.id:03d}-{entry.name.upper()}"``.
@@ -35,7 +35,7 @@ def folder_name(entry: "StagingDirConfig") -> str:
     return f"{entry.id:03d}-{entry.name.upper()}"
 
 
-def staging_path(config: "Config", entry: "StagingDirConfig") -> Path:
+def staging_path(config: Config, entry: StagingDirConfig) -> Path:
     """Compute the absolute path for a staging subdirectory.
 
     Args:
@@ -48,7 +48,7 @@ def staging_path(config: "Config", entry: "StagingDirConfig") -> Path:
     return config.paths.staging_dir / folder_name(entry)
 
 
-def find_by_file_type(config: "Config", file_type: "FileType") -> "StagingDirConfig":
+def find_by_file_type(config: Config, file_type: FileType) -> StagingDirConfig:
     """Find the staging entry matching a FileType.
 
     Args:
@@ -69,7 +69,7 @@ def find_by_file_type(config: "Config", file_type: "FileType") -> "StagingDirCon
     )
 
 
-def find_ingest_dir(config: "Config") -> "StagingDirConfig":
+def find_ingest_dir(config: Config) -> StagingDirConfig:
     """Return the staging entry designated as the ingest directory.
 
     The Phase 1 validator guarantees exactly one entry has role='ingest'.
@@ -92,7 +92,7 @@ def find_ingest_dir(config: "Config") -> "StagingDirConfig":
     )
 
 
-def ensure_staging_tree(config: "Config") -> list[Path]:
+def ensure_staging_tree(config: Config) -> list[Path]:
     """Create staging_dir root and per-entry subdirectories if absent.
 
     Idempotent: directories that already exist are silently skipped.

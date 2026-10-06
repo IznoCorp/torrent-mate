@@ -38,8 +38,8 @@ _SENTINEL = object()
 
 def build_redis_publisher(
     event_bus: EventBus,
-    web_config: "WebConfig",
-) -> "RedisEventPublisher | None":
+    web_config: WebConfig,
+) -> RedisEventPublisher | None:
     """Construct a :class:`RedisEventPublisher` when ``web.enabled``, else ``None``.
 
     The ``web.enabled`` gate is checked here so every caller (pipeline, watch

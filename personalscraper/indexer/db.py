@@ -29,9 +29,10 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 from personalscraper.core.sqlite._lock import db_lock
 from personalscraper.core.sqlite._migrate import apply_migrations as _core_apply_migrations

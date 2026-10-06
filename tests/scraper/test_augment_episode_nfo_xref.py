@@ -41,7 +41,7 @@ def _make_mixin(*, dry_run: bool = False, patterns: NamingPatterns | None = None
 
 
 def _read_uniqueids(nfo_path: Path) -> list[tuple[str, str]]:
-    root = ET.parse(nfo_path).getroot()  # noqa: S314 — test fixture
+    root = ET.parse(nfo_path).getroot()
     return [((u.get("type") or "").strip(), (u.text or "").strip()) for u in root.findall("uniqueid")]
 
 

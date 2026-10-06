@@ -309,7 +309,7 @@ class TestCreateFollow:
         tmdb.get_tvdb_id.return_value = 424242
 
         @contextmanager
-        def _fake_scoped(_request: Any):  # noqa: ANN401 — test double
+        def _fake_scoped(_request: Any):
             yield tmdb, MagicMock()
 
         monkeypatch.setattr(

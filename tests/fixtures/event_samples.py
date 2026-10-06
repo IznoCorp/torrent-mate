@@ -8,7 +8,7 @@ rendering tests can iterate every event class without ``MagicMock``.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from personalscraper.app.accounts.events import AccountRightsChanged, PlexSessionOpened, RightsChangeCause
@@ -63,8 +63,8 @@ def register_factory(event_type: type[Event]) -> Callable[[Callable[[], Event]],
 
 
 # Deterministic timestamps so envelope round-trip assertions stay reproducible.
-_T0 = datetime(2026, 5, 12, 10, 0, 0, tzinfo=timezone.utc)
-_T1 = datetime(2026, 5, 12, 10, 5, 0, tzinfo=timezone.utc)
+_T0 = datetime(2026, 5, 12, 10, 0, 0, tzinfo=UTC)
+_T1 = datetime(2026, 5, 12, 10, 5, 0, tzinfo=UTC)
 
 
 def _make_real_step_report() -> StepReport:
@@ -268,7 +268,7 @@ def make_run_settled() -> RunSettled:
 # provider-ids feature — sub-phase 8.4 backfill events
 # ---------------------------------------------------------------------------
 
-from personalscraper.indexer.events import (  # noqa: E402, PLC0415
+from personalscraper.indexer.events import (  # noqa: E402
     BackfillCompleted,
     BackfillItemCompleted,
     BackfillSkipped,
@@ -409,7 +409,7 @@ def make_registry_boot_validated() -> RegistryBootValidated:
 # acquire-events feature (RP4) — 10 acquisition event factories
 # ---------------------------------------------------------------------------
 
-from personalscraper.acquire.events import (  # noqa: E402, PLC0415
+from personalscraper.acquire.events import (  # noqa: E402
     CrossSeedInjected,
     CrossSeedRejected,
     DownloadCompleted,
@@ -435,7 +435,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     WantedEnqueued,
     WatcherRunTriggered,
 )
-from personalscraper.core.identity import MediaRef  # noqa: E402, PLC0415
+from personalscraper.core.identity import MediaRef  # noqa: E402
 
 _BREAKING_BAD_REF = MediaRef(tvdb_id=81189, tmdb_id=1396, imdb_id="tt0903747")
 _INCEPTION_REF = MediaRef(tvdb_id=None, tmdb_id=27205, imdb_id="tt1375666")

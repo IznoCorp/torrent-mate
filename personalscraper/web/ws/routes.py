@@ -109,7 +109,7 @@ async def ws_events(
             try:
                 # Wait for client messages (pong or anything) — ignored.
                 await asyncio.wait_for(websocket.receive_text(), timeout=PING_INTERVAL)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Idle timeout → send keep-alive ping.
                 await websocket.send_json({"type": "ws.ping"})
     except WebSocketDisconnect:

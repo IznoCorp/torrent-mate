@@ -113,7 +113,7 @@ class TestValidateLibrary:
 class TestValidateFromIndexEdgeCases:
     """Branch coverage for validate_from_index."""
 
-    def _conn(self):  # noqa: ANN202
+    def _conn(self):
         """Build an in-memory DB with the migration chain applied."""
         import sqlite3
 

@@ -127,7 +127,7 @@ def _check_recent_errors(lookback_minutes: int) -> list[str]:
     return summary
 
 
-def _check_stuck_lock(state: "AppCtx", max_run_minutes: int) -> list[str]:
+def _check_stuck_lock(state: AppCtx, max_run_minutes: int) -> list[str]:
     """Report a pipeline.lock that has been held longer than a run should take.
 
     Args:
@@ -172,7 +172,7 @@ def _send_alert(config_obj: object, anomalies: list[str]) -> None:
     try:
         transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token), event_bus=EventBus())
         TelegramNotifier(transport, settings.telegram_chat_id).send(body)
-    except Exception as exc:  # noqa: BLE001 - alerting must never crash the check
+    except Exception as exc:
         log.warning("health_check_alert_failed", error=str(exc), exc_info=True)
 
 

@@ -475,7 +475,7 @@ class _HangingProc:
         self.returncode = -15
 
     def _lines(self) -> object:
-        def _gen():  # type: ignore[no-untyped-def] # noqa: ANN202 — local generator
+        def _gen():  # type: ignore[no-untyped-def]
             yield "démarrage\n"
             self._released.wait(10)
 

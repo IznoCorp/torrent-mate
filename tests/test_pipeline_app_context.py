@@ -190,7 +190,7 @@ class TestPipelineRunCorrelationIdBinding:
         class _ProbeStep:
             name = "ingest"
 
-            def __call__(self, ctx: StepContext) -> StepReport:  # noqa: ARG002
+            def __call__(self, ctx: StepContext) -> StepReport:
                 captured_correlation.append(current_correlation_id.get())
                 return StepReport(name="ingest", success_count=1)
 

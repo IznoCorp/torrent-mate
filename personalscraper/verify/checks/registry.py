@@ -77,7 +77,7 @@ class CheckRegistry:
 
     def __init__(self) -> None:
         """Initialize an empty registry."""
-        self._checks: dict[tuple[CheckStage, str], "Check"] = {}
+        self._checks: dict[tuple[CheckStage, str], Check] = {}
 
     def register(self, cls: type) -> type:
         """Register a Check class (decorator form).
@@ -99,7 +99,7 @@ class CheckRegistry:
             self._checks[key] = instance
         return cls
 
-    def get(self, stage: CheckStage, name: str) -> "Check | None":
+    def get(self, stage: CheckStage, name: str) -> Check | None:
         """Return the check registered for (stage, name), or None.
 
         Args:
@@ -111,7 +111,7 @@ class CheckRegistry:
         """
         return self._checks.get((stage, name))
 
-    def checks_for(self, stage: CheckStage, media_type: str) -> list["Check"]:
+    def checks_for(self, stage: CheckStage, media_type: str) -> list[Check]:
         """Return checks for a (stage, media_type) pair in _ORDER sequence.
 
         Checks not listed in _ORDER are appended after ordered ones.
@@ -124,7 +124,7 @@ class CheckRegistry:
             Ordered list of Check instances.
         """
         order = _ORDER.get((stage, media_type), [])
-        ordered: list["Check"] = []
+        ordered: list[Check] = []
         seen: set[str] = set()
         for name in order:
             check = self._checks.get((stage, name))
@@ -137,7 +137,7 @@ class CheckRegistry:
                 ordered.append(check)
         return ordered
 
-    def _all_for_stage(self, stage: CheckStage) -> list["Check"]:
+    def _all_for_stage(self, stage: CheckStage) -> list[Check]:
         """Return every distinct check registered for a stage (any media_type).
 
         Used by :meth:`checks_for_filtered` to recognise check names that are
@@ -152,7 +152,7 @@ class CheckRegistry:
             List of distinct Check instances registered for ``stage``.
         """
         seen: set[str] = set()
-        out: list["Check"] = []
+        out: list[Check] = []
         for (s, n), check in self._checks.items():
             if s == stage and n not in seen:
                 seen.add(n)
@@ -164,7 +164,7 @@ class CheckRegistry:
         stage: CheckStage,
         media_type: str,
         only: frozenset[str] | None,
-    ) -> list["Check"]:
+    ) -> list[Check]:
         """Return :meth:`checks_for` output, optionally restricted to ``only``.
 
         When ``only`` is ``None`` (the default everywhere), this is byte-for-byte
@@ -245,7 +245,7 @@ def apply_fixes(
     ctx: CheckContext,
     failed: list[CheckResult],
     policy: frozenset[str],
-) -> list["FixAction"]:
+) -> list[FixAction]:
     """Apply fix() for every failed check whose name is in the policy.
 
     Args:
@@ -256,7 +256,7 @@ def apply_fixes(
     Returns:
         List of FixAction for each correction applied.
     """
-    actions: list["FixAction"] = []
+    actions: list[FixAction] = []
     for r in failed:
         if r.name not in policy:
             continue

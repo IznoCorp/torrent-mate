@@ -3,7 +3,7 @@
 import errno
 import hashlib
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,7 +25,7 @@ def _write_entry(key: str, state_file: Path) -> None:
     s.set(
         key,
         TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=f"/fake/{key}",
@@ -43,7 +43,7 @@ def _write_specific_entry(key: str, attempts: int, state_file: Path) -> None:
     s.set(
         key,
         TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=attempts,
             status=TrailerStatus.DOWNLOADED,
             media_path=f"/fake/{key}",
@@ -140,7 +140,7 @@ class TestTrailerState:
 
     def test_create_basic_state(self) -> None:
         """TrailerState initializes with the given values."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         state = TrailerState(
             last_attempt=now.isoformat(),
             attempts=1,
@@ -155,7 +155,7 @@ class TestTrailerState:
         from dataclasses import FrozenInstanceError
 
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/x",
@@ -185,7 +185,7 @@ class TestTrailerState:
 
     def test_aware_datetime_coerced_to_iso(self) -> None:
         """A tz-aware datetime is coerced to its ISO 8601 string at construction."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         state = TrailerState(
             last_attempt=now,  # type: ignore[arg-type]
             attempts=1,
@@ -198,7 +198,7 @@ class TestTrailerState:
         """A negative season_number is rejected at construction."""
         with pytest.raises(ValueError, match="season_number"):
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.DOWNLOADED,
                 media_path="/x",
@@ -222,7 +222,7 @@ class TestTrailerStateStore:
     def test_set_then_get_round_trip(self, store: TrailerStateStore) -> None:
         """set() then get() returns the stored state."""
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/fake/path",
@@ -240,7 +240,7 @@ class TestTrailerStateStore:
         import json as _j
 
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/fake",
@@ -252,7 +252,7 @@ class TestTrailerStateStore:
     def test_get_nonexistent_key_returns_none(self, store: TrailerStateStore) -> None:
         """get() returns None for unknown keys."""
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/fake",
@@ -266,9 +266,9 @@ class TestShouldSkip:
 
     def test_skip_when_no_trailer_available_and_not_expired(self, store: TrailerStateStore) -> None:
         """should_skip returns True when no_trailer_available and next_retry is future."""
-        future = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        future = (datetime.now(UTC) + timedelta(days=7)).isoformat()
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=2,
             status=TrailerStatus.NO_TRAILER_AVAILABLE,
             media_path="/fake",
@@ -279,9 +279,9 @@ class TestShouldSkip:
 
     def test_no_skip_when_retry_expired(self, store: TrailerStateStore) -> None:
         """should_skip returns False when next_retry_at is in the past."""
-        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        past = (datetime.now(UTC) - timedelta(days=1)).isoformat()
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=2,
             status=TrailerStatus.NO_TRAILER_AVAILABLE,
             media_path="/fake",
@@ -292,9 +292,9 @@ class TestShouldSkip:
 
     def test_bot_detected_never_skipped(self, store: TrailerStateStore) -> None:
         """should_skip returns False for bot_detected regardless of next_retry_at."""
-        future = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        future = (datetime.now(UTC) + timedelta(days=30)).isoformat()
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.BOT_DETECTED,
             media_path="/fake",
@@ -310,7 +310,7 @@ class TestShouldSkip:
     def test_retry_after_progression(self) -> None:
         """Retry intervals progress through [1, 7, 30] then repeat the last."""
         policy = [1, 7, 30]
-        last_attempt = datetime.now(timezone.utc)
+        last_attempt = datetime.now(UTC)
         r1 = compute_next_retry_at(attempts=1, policy=policy, last_attempt=last_attempt)
         r2 = compute_next_retry_at(attempts=2, policy=policy, last_attempt=last_attempt)
         r3 = compute_next_retry_at(attempts=3, policy=policy, last_attempt=last_attempt)
@@ -327,7 +327,7 @@ class TestAutoGC:
     def test_gc_marks_orphan_when_media_path_missing(self, store: TrailerStateStore, tmp_path: Path) -> None:
         """auto_gc flips status to orphan when media_path no longer exists."""
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(tmp_path / "Media That Was Deleted"),
@@ -345,7 +345,7 @@ class TestAutoGC:
         media.mkdir()
         trailer = media / "Movie (2020)-trailer.mp4"
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(media),
@@ -357,7 +357,7 @@ class TestAutoGC:
 
     def test_purge_orphans_removes_orphan_entries_only(self, store: TrailerStateStore, tmp_path: Path) -> None:
         """purge_orphans removes only orphan entries and returns count."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         downloaded = TrailerState(last_attempt=now, attempts=1, status=TrailerStatus.DOWNLOADED, media_path="/a")
         orphan = TrailerState(last_attempt=now, attempts=1, status=TrailerStatus.ORPHAN, media_path="/b")
         bot = TrailerState(last_attempt=now, attempts=1, status=TrailerStatus.BOT_DETECTED, media_path="/c")
@@ -372,15 +372,15 @@ class TestAutoGC:
 
     def test_next_retry_measured_from_last_attempt_not_first_failure(self) -> None:
         """compute_next_retry_at uses last_attempt as the clock reference."""
-        first_failure = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        last_attempt = datetime(2026, 4, 1, tzinfo=timezone.utc)
+        first_failure = datetime(2026, 1, 1, tzinfo=UTC)
+        last_attempt = datetime(2026, 4, 1, tzinfo=UTC)
         result = compute_next_retry_at(attempts=3, policy=[1, 7, 30], last_attempt=last_attempt)
-        assert result == datetime(2026, 5, 1, tzinfo=timezone.utc)
+        assert result == datetime(2026, 5, 1, tzinfo=UTC)
         _ = first_failure
 
     def test_bot_detected_counter_resets_on_non_bot_outcome(self, store: TrailerStateStore) -> None:
         """bot_detected_consecutive_attempts resets to 0 on non-bot outcome."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         state_bot = TrailerState(
             last_attempt=now,
             attempts=3,
@@ -455,7 +455,7 @@ class TestAutoGC:
         store.set(
             "movie:tmdb:bad",
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.DOWNLOADED,
                 media_path="/x",
@@ -468,7 +468,7 @@ class TestAutoGC:
         store.set(
             "movie:tmdb:fresh",
             TrailerState(
-                last_attempt=datetime.now(timezone.utc).isoformat(),
+                last_attempt=datetime.now(UTC).isoformat(),
                 attempts=1,
                 status=TrailerStatus.DOWNLOADED,
                 media_path="/y",
@@ -489,7 +489,7 @@ class TestAutoGC:
         trailer = media / "Good Movie (2020)-trailer.mp4"
         trailer.write_bytes(b"x" * 200000)
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(media),
@@ -563,7 +563,7 @@ class TestLockContention:
 
         store = TrailerStateStore(state_file=state_file)
         state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.YTDLP_ERROR,
             media_path="/fake/path",
@@ -645,7 +645,7 @@ class TestDataLossLogging:
         store = TrailerStateStore(state_file=state_file)
 
         good_state = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path="/fake/path",

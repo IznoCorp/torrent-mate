@@ -30,9 +30,9 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args  # noqa: E402
+from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args
 
-from playwright.async_api import async_playwright  # noqa: E402
+from playwright.async_api import async_playwright
 
 journal = Journal("R189 — a redraw replaces its entry")
 

@@ -68,8 +68,8 @@ class PostDispatchReconcileSubscriber:
     def __init__(
         self,
         bus: EventBus,
-        store: "AcquireStore",
-        ownership: "OwnershipChecker",
+        store: AcquireStore,
+        ownership: OwnershipChecker,
     ) -> None:
         """Register the scan-completed handler and store the acquire ports.
 
@@ -178,7 +178,7 @@ class PostDispatchReconcileSubscriber:
 
 def build_post_dispatch_reconcile_subscriber(
     event_bus: EventBus,
-    acquire: "AcquireContext | None",
+    acquire: AcquireContext | None,
 ) -> PostDispatchReconcileSubscriber | None:
     """Build + wire the post-dispatch reconcile subscriber for a dispatch call.
 

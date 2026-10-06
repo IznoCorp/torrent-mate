@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -170,7 +170,7 @@ def validate_from_index(
     Returns:
         :class:`LibraryValidationResult` populated from the index.
     """
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
     conn.row_factory = sqlite3.Row
 
     rows = conn.execute(
@@ -285,7 +285,7 @@ def validate_library(
     valid_count = 0
     fixed_count = 0
     issues_count = 0
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
 
     for disk in config.disks:
         if disk_filter and disk.id != disk_filter:

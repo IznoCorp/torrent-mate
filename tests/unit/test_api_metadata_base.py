@@ -104,7 +104,7 @@ class TestMetadataClient:
         """Forgetting to declare provider_name fails at *class definition* time."""
         with pytest.raises(TypeError, match="must declare an explicit provider_name"):
 
-            class _Bare(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
+            class _Bare(MetadataClient):  # type: ignore[unused-ignore]
                 pass
 
     def test_missing_provider_name_raises_even_with_custom_init(self) -> None:
@@ -117,7 +117,7 @@ class TestMetadataClient:
         """
         with pytest.raises(TypeError, match="must declare an explicit provider_name"):
 
-            class _CustomInit(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
+            class _CustomInit(MetadataClient):  # type: ignore[unused-ignore]
                 def __init__(self) -> None:  # deliberately skips super().__init__()
                     self.flag = "should never reach this"
 
@@ -125,7 +125,7 @@ class TestMetadataClient:
         """An explicit but empty-string ``provider_name`` is rejected too."""
         with pytest.raises(TypeError, match="must declare an explicit provider_name"):
 
-            class _Empty(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
+            class _Empty(MetadataClient):  # type: ignore[unused-ignore]
                 provider_name: ClassVar[str] = ""
 
     def test_base_ships_no_capability_stubs(self) -> None:

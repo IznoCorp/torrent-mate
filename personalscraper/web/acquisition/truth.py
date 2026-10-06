@@ -80,11 +80,11 @@ class FollowTruth:
 
 def compute_follow_truth(
     acquire_conn: sqlite3.Connection,
-    checker: "IndexerOwnershipChecker",
+    checker: IndexerOwnershipChecker,
     *,
     followed_id: int,
-    media_ref: "MediaRef",
-    today: "date | None" = None,
+    media_ref: MediaRef,
+    today: date | None = None,
 ) -> FollowTruth:
     """Count each five-state bucket for one followed show.
 
@@ -224,10 +224,10 @@ def compute_follow_truth(
 
 def compute_movie_truth(
     acquire_conn: sqlite3.Connection,
-    checker: "IndexerOwnershipChecker",
+    checker: IndexerOwnershipChecker,
     *,
     followed_id: int,
-    media_ref: "MediaRef",
+    media_ref: MediaRef,
 ) -> MovieFacts:
     """Read the single unit's facts a followed FILM derives its status from (D2-B).
 

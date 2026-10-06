@@ -350,7 +350,7 @@ def run_process(
     interactive: bool = False,
     *,
     event_bus: EventBus,
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 

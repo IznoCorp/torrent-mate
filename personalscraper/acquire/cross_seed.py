@@ -7,7 +7,8 @@ downward on ``api/`` ports + ``acquire.db``, never importing triage packages.
 from __future__ import annotations
 
 import time as _time_module
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from personalscraper.acquire._cross_seed_support import (
     CrossSeedResult,
@@ -233,7 +234,7 @@ class CrossSeedService:
         # The registry does not support per-tracker restriction, so we search
         # all managed trackers once and group results by provider.
         search_outcome = self._registry.search_candidates(item.name, media_type)
-        candidates_by_provider: dict[str, list["TrackerResult"]] = {}
+        candidates_by_provider: dict[str, list[TrackerResult]] = {}
         for r in search_outcome.results:
             candidates_by_provider.setdefault(r.provider, []).append(r)
 
@@ -377,7 +378,7 @@ class CrossSeedService:
                     # (iii) tag (best-effort); (iv) emit event.
                     try:
                         self._write_obligation(injected_hash, tracker, item)
-                    except Exception as exc:  # noqa: BLE001 — caller handles
+                    except Exception as exc:
                         logger.error(
                             "acquire.cross_seed.obligation_write_failed",
                             info_hash=injected_hash,
@@ -405,7 +406,7 @@ class CrossSeedService:
                         else:
                             try:
                                 self._controller.delete(injected_hash, delete_files=False)
-                            except Exception as del_exc:  # noqa: BLE001 — best-effort cleanup
+                            except Exception as del_exc:
                                 logger.error(
                                     "acquire.cross_seed.obligation_delete_failed",
                                     info_hash=injected_hash,
@@ -417,7 +418,7 @@ class CrossSeedService:
 
                     try:
                         self._controller.resume(injected_hash)
-                    except Exception as exc:  # noqa: BLE001 — state is recoverable
+                    except Exception as exc:
                         logger.error(
                             "acquire.cross_seed.stranded_paused_injection",
                             info_hash=injected_hash,
@@ -479,7 +480,7 @@ class CrossSeedService:
                     else:
                         try:
                             self._controller.delete(injected_hash, delete_files=False)
-                        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+                        except Exception as exc:
                             logger.error(
                                 "acquire.cross_seed.recheck_failed_delete_error",
                                 info_hash=injected_hash,
@@ -603,7 +604,7 @@ class CrossSeedService:
 
             try:
                 result = self.check(item.hash)
-            except Exception as exc:  # noqa: BLE001 — per-item isolation
+            except Exception as exc:
                 logger.error(
                     "acquire.cross_seed.sweep_item_error",
                     info_hash=item.hash,

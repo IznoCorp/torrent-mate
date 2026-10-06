@@ -67,7 +67,7 @@ def library_catalogue_refresh(
         personalscraper library-catalogue-refresh --max 20
     """
     config = ctx.obj.config
-    assert config is not None  # noqa: S101 — set by the CLI root callback
+    assert config is not None
     if config.acquire.db_path is None or config.indexer.db_path is None:
         typer.echo(t("cli_library.catalogue.db_paths_not_configured"), err=True)
         raise typer.Exit(code=1)

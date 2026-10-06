@@ -191,7 +191,7 @@ def stub_v1() -> Iterator[tuple[str, list[str]]]:
     class AuthMe(http.server.BaseHTTPRequestHandler):
         """Answers `/api/v1/auth/me`: 200 for the accepted session, 401 otherwise."""
 
-        def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+        def do_GET(self) -> None:
             """Answer one session check."""
             cookie = self.headers.get("Cookie") or ""
             asked.append(cookie)

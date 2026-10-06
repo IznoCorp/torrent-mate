@@ -34,10 +34,10 @@ class TvServiceNfoMixin:
     alongside the other mixins via multiple inheritance.
     """
 
-    patterns: "NamingPatterns"
+    patterns: NamingPatterns
     dry_run: bool
-    _nfo: "NFOGenerator"
-    _artwork: "ArtworkDownloader"
+    _nfo: NFOGenerator
+    _artwork: ArtworkDownloader
 
     def _augment_episode_nfo_with_xref(self, nfo_path: Path, info: dict[str, Any]) -> None:
         """Append missing xref ``<uniqueid>`` rows to an existing episode NFO.
@@ -264,7 +264,7 @@ class TvServiceNfoMixin:
             if not self.dry_run:
                 nfo_path.parent.mkdir(parents=True, exist_ok=True)
                 self._nfo.write_nfo(xml, nfo_path)
-        except Exception as e:  # noqa: BLE001 - fail-soft
+        except Exception as e:
             log.warning("episode_nfo_failed", season=season, episode=ep_start, error=str(e), exc_info=True)
             warnings.append(f"episode_nfo_failed: season={season} episode={ep_start} reason={e}")
 

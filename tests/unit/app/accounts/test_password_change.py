@@ -357,8 +357,8 @@ class TestChangeOwnPassword:
     ) -> None:
         """The account vanished after the perimeter resolved it: 401 ``auth.required``."""
         actor, token = _signed_in(sessions, "local")
-        store.accounts._conn.execute("DELETE FROM session WHERE account_id = 'local'")  # noqa: SLF001
-        store.accounts._conn.execute("DELETE FROM account WHERE id = 'local'")  # noqa: SLF001
+        store.accounts._conn.execute("DELETE FROM session WHERE account_id = 'local'")
+        store.accounts._conn.execute("DELETE FROM account WHERE id = 'local'")
         with pytest.raises(AppUnauthenticated) as caught:
             accounts.change_own_password(actor, token, current_password=_PASSWORD, new_password=_NEW)
         assert caught.value.code == RefusalCode.AUTH_REQUIRED

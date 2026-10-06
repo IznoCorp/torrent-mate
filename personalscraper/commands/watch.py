@@ -756,7 +756,7 @@ def watch(ctx: typer.Context) -> None:
                         active_downloads=inp.downloading_count,
                         now=inp.now,
                     )
-                except Exception:  # noqa: BLE001 — advisory: visibility never breaks the watch
+                except Exception:
                     log.warning("watcher_pending_run_publish_failed", exc_info=True)
 
             # TRIGGER — execute the decision, then reap the tracked run handle.

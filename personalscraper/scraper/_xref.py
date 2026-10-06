@@ -402,7 +402,7 @@ def augment_episode_nfo_with_xref(
     recovery step.
     """
     try:
-        tree = ET.parse(nfo_path)  # noqa: S314 — trusted NFO we wrote earlier
+        tree = ET.parse(nfo_path)
     except (ET.ParseError, OSError) as exc:
         log.warning("xref_nfo_augment_parse_failed", path=str(nfo_path), error=str(exc))
         return

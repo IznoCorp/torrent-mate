@@ -85,7 +85,7 @@ class PassGatesMixin:
             sqlite3.OperationalError: On a DB lock during a status write (the
                 callers' per-item isolation handles it).
         """
-        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in the callers
+        assert item.id is not None
         wanted_id = item.id
 
         # A stale 'searching' row is not 'pending', so its claim would fail.
@@ -157,8 +157,8 @@ class PassGatesMixin:
             ``"abandoned"`` — the season row is terminal; the gate outcome
             maps to abandoned for the caller's counter.
         """
-        assert item.id is not None  # noqa: S101
-        assert item.season is not None  # noqa: S101
+        assert item.id is not None
+        assert item.season is not None
         # Episodes left implicit: the cutoff path re-enqueues the WHOLE aired
         # season, ownership unchecked (Option B above).
         fallback = fall_back_to_episodes(self._store, item, now=now, event_bus=self._event_bus)
@@ -196,7 +196,7 @@ class PassGatesMixin:
             sqlite3.OperationalError: On a DB lock during a status write (the
                 callers' per-item isolation handles it).
         """
-        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in the callers
+        assert item.id is not None
         wanted_id = item.id
 
         gate = self._apply_cutoff_gate(item, now, cadence=cadence)
@@ -228,7 +228,7 @@ class PassGatesMixin:
         return resolve_effective_profile(self._store, item)
 
 
-def resolve_effective_profile(store: "AcquireStore", item: WantedItem) -> QualityProfile:
+def resolve_effective_profile(store: AcquireStore, item: WantedItem) -> QualityProfile:
     """Resolve the effective :class:`QualityProfile` for one wanted item.
 
     Precedence (DESIGN §1, §3): the series-level profile (from

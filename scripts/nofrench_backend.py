@@ -31,10 +31,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nofrench_lexicon import (  # noqa: E402
+from nofrench_lexicon import (
     ROOT, examined, exempted, offending_string, read, walk,
 )
-from nofrench_scan import pragma_on, python_string_literals  # noqa: E402
+from nofrench_scan import pragma_on, python_string_literals
 
 BASELINE = ROOT / "scripts" / "french-exemption-baseline.json"
 

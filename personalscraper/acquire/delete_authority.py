@@ -73,10 +73,10 @@ class DeleteAuthority:
 
     def __init__(
         self,
-        store: "ConcreteAcquireStore | None",
-        torrent_client: "_ReadOnlyTorrentClient | None" = None,
-        economy: "dict[str, TrackerEconomyConfig] | None" = None,
-        scope: "TorrentScope | None" = None,
+        store: ConcreteAcquireStore | None,
+        torrent_client: _ReadOnlyTorrentClient | None = None,
+        economy: dict[str, TrackerEconomyConfig] | None = None,
+        scope: TorrentScope | None = None,
     ) -> None:
         """Initialise with the acquire store, torrent client, and economy map.
 
@@ -174,7 +174,7 @@ class DeleteAuthority:
         Returns:
             ALLOW if permitted, veto(reason) if a live unmet obligation exists.
         """
-        assert self._store is not None  # noqa: S101 — guarded by the caller
+        assert self._store is not None
         return _decide(self._store.seed, path)
 
     def record_dispatch(
@@ -331,7 +331,7 @@ class DeleteAuthority:
     def _correlate_and_record(
         self,
         *,
-        completed: "list[TorrentItem]",
+        completed: list[TorrentItem],
         basename: str,
         size: int,
         dispatched_dest: Path,
@@ -364,8 +364,8 @@ class DeleteAuthority:
         """
         # ``self._store`` is non-None here (guarded by the record_dispatch
         # pre-checks); assert for the type checker.
-        assert self._store is not None  # noqa: S101
-        assert self._torrent_client is not None  # noqa: S101
+        assert self._store is not None
+        assert self._torrent_client is not None
 
         matches = [t for t in completed if t.name == basename and t.size_bytes == size]
 
@@ -511,7 +511,7 @@ class DeleteAuthority:
         log.info("acquire.record_grab_obligation.recorded", info_hash=info_hash, tracker=tracker_name)
         return True
 
-    def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
+    def _resolve_tracker(self, item: TorrentItem) -> tuple[str, TrackerEconomyConfig] | None:
         """Resolve the source tracker for *item* from its tags and the economy map.
 
         The RP1 acquisition flow tags each torrent with its source tracker.
@@ -557,7 +557,7 @@ class DeleteAuthority:
         log.info("acquire.mark_breach.done", path=str(path), count=count)
 
 
-def _decide(seed: "_SeedSubStore", path: Path) -> PermitDecision:
+def _decide(seed: _SeedSubStore, path: Path) -> PermitDecision:
     """Decide whether *path* may go, from the active obligations under it (raises on any lookup error).
 
     VETO only when a positively-known unmet obligation exists AND its
@@ -676,10 +676,10 @@ class StrictDeletePermit:
 
 
 def build_delete_authority(
-    store: "ConcreteAcquireStore | None",
-    torrent_client: "_ReadOnlyTorrentClient | None" = None,
-    economy: "dict[str, TrackerEconomyConfig] | None" = None,
-    scope: "TorrentScope | None" = None,
+    store: ConcreteAcquireStore | None,
+    torrent_client: _ReadOnlyTorrentClient | None = None,
+    economy: dict[str, TrackerEconomyConfig] | None = None,
+    scope: TorrentScope | None = None,
 ) -> DeleteAuthority:
     """Build a DeleteAuthority over the given store, torrent client, and economy map.
 

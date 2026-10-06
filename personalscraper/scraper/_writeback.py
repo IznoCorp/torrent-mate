@@ -68,14 +68,14 @@ def _coerce_id(raw: str | int | None) -> int | None:
 
 
 def recover_artwork(
-    nfo_path: "Path",
-    media_dir: "Path",
-    result: "ScrapeResult",
+    nfo_path: Path,
+    media_dir: Path,
+    result: ScrapeResult,
     *,
     kind: str,
-    registry: "ProviderRegistry",
-    artwork: "ArtworkDownloader",
-    patterns: "NamingPatterns",
+    registry: ProviderRegistry,
+    artwork: ArtworkDownloader,
+    patterns: NamingPatterns,
 ) -> None:
     """Re-download missing artwork, resolving the provider from the canonical family.
 
@@ -160,6 +160,6 @@ def recover_artwork(
             result.action = "artwork_recovered"
             result.artwork_downloaded = [p.name for p in downloaded]
             log.info("artwork_recovered", count=len(downloaded), directory=media_dir.name, family=family)
-    except Exception as e:  # noqa: BLE001 — mixed API+IO path; see comment above
+    except Exception as e:
         log.warning("artwork_recovery_failed", directory=media_dir.name, exc_info=True, error=str(e))
         result.warnings.append(f"Artwork recovery failed: {e}")

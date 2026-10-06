@@ -122,7 +122,7 @@ def store(test_config: Config, keys: list[bytes]) -> Iterator[AppStore]:
         app_store.close()
 
 
-def _invoke(cli_runner: CliRunner, test_config: Config, args: list[str]):  # noqa: ANN202
+def _invoke(cli_runner: CliRunner, test_config: Config, args: list[str]):
     """Run the CLI over the synthetic configuration.
 
     Args:

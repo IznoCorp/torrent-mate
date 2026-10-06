@@ -343,7 +343,7 @@ def test_the_rescrape_and_the_services_share_one_run_service(test_config: Config
     """
     services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
     try:
-        assert services.rescrape._runs is services.runs  # noqa: SLF001
+        assert services.rescrape._runs is services.runs
     finally:
         services.close()
 

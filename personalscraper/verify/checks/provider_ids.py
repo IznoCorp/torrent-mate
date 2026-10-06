@@ -45,7 +45,7 @@ class EpisodeNfo:
     default_severity = Severity.WARNING
     description = "At least some episodes should have NFO files"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` for the ``episode_nfo`` check.
 
         Args:
@@ -76,7 +76,7 @@ class EpisodeCanonicalUniqueidPresent:
     default_severity = Severity.ERROR
     description = "Every episode NFO must carry the canonical uniqueid"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]``; no-op (``passed=True``) when nothing to inspect.
 
         Passes silently when no canonical family can be derived from the
@@ -142,7 +142,7 @@ class EpisodeXrefSecondaryIdPresent:
     default_severity = Severity.WARNING
     description = "Episodes should carry the secondary (xref) uniqueid"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]``; no-op (``passed=True``) when not applicable.
 
         Args:
@@ -207,7 +207,7 @@ class EpisodeXrefImdbIdPresent:
     default_severity = Severity.WARNING
     description = "Episodes should carry an IMDb uniqueid"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]``; no-op (``passed=True``) when no episode NFOs.
 
         Args:
@@ -248,7 +248,7 @@ class EpisodeXrefImdbIdPresent:
 # --- module-level helpers (copied verbatim from checker.py) ---
 
 
-def _canonical_family(show_dir: "Path", ctx: "CheckContext") -> str | None:
+def _canonical_family(show_dir: Path, ctx: CheckContext) -> str | None:
     """Derive the canonical family from ``show_dir/tvshow.nfo``.
 
     Mirrors ``check_tvshow``: parse the show NFO (None when absent or
@@ -289,7 +289,7 @@ def _canonical_family_from_nfo(root: ET.Element) -> str | None:
     return None
 
 
-def _episode_nfo_paths(show_dir: "Path") -> "list[Path]":
+def _episode_nfo_paths(show_dir: Path) -> list[Path]:
     """Return every sibling episode NFO under ``show_dir/Saison NN/``.
 
     Args:
@@ -301,7 +301,7 @@ def _episode_nfo_paths(show_dir: "Path") -> "list[Path]":
     return sorted(show_dir.rglob("S??E??*.nfo"))
 
 
-def _parse_nfo(nfo_path: "Path") -> "ET.Element | None":
+def _parse_nfo(nfo_path: Path) -> ET.Element | None:
     """Parse an NFO XML file (copied verbatim from checker.py).
 
     Args:
@@ -311,7 +311,7 @@ def _parse_nfo(nfo_path: "Path") -> "ET.Element | None":
         Root Element, or None if parse fails.
     """
     try:
-        tree = ET.parse(nfo_path)  # noqa: S314
+        tree = ET.parse(nfo_path)
         return tree.getroot()
     except (ET.ParseError, OSError) as exc:
         log.warning("verify_nfo_parse_failed", nfo=nfo_path.name, exc_info=True, error=str(exc))

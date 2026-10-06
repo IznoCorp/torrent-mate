@@ -349,7 +349,7 @@ def _canonical_ids(target: _Target) -> tuple[str, str] | None:
             error=type(exc).__name__,
         )
         return None
-    raw_id = getattr(getattr(ids, provider), "series_id")
+    raw_id = getattr(ids, provider).series_id
     if not isinstance(raw_id, str) or raw_id.strip().lower() in _PLACEHOLDER_IDS:
         return None
     return provider, raw_id.strip()

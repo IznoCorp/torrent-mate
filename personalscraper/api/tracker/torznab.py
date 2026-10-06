@@ -423,7 +423,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
 
     # -- Internal helpers ---------------------------------------------------
 
-    def _request(self, params: dict[str, Any]) -> Any:  # noqa: ANN401 — transport's own return type
+    def _request(self, params: dict[str, Any]) -> Any:
         """Call the indexer, classifying an HTTP auth failure as such (D4).
 
         The transport reports every non-2xx as a flat :exc:`ApiError`, which

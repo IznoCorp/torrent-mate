@@ -49,7 +49,7 @@ class VideoPresent:
     default_severity = Severity.ERROR
     description = "At least one video file must be present"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False when no video file exists.
 
         Args:
@@ -85,7 +85,7 @@ class NotSample:
     default_severity = Severity.WARNING
     description = "Largest video must not look like a sample"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[]`` when no video file exists; ``[CheckResult]`` otherwise.
 
         Mirrors ``check_movie``: the check is conditional on video presence.
@@ -122,7 +122,7 @@ class NoEmptyDirs:
     default_severity = Severity.ERROR
     description = "No empty subdirectories allowed"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False when empty subdirs exist.
 
         Args:
@@ -142,7 +142,7 @@ class NoEmptyDirs:
             )
         ]
 
-    def fix(self, ctx: "CheckContext") -> "list[FixAction]":
+    def fix(self, ctx: CheckContext) -> list[FixAction]:
         """Remove empty subdirectories.
 
         Args:
@@ -186,7 +186,7 @@ class SeasonStructure:
     default_severity = Severity.ERROR
     description = "Season directories must contain properly named episodes"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` for the ``season_structure`` check.
 
         Args:
@@ -226,7 +226,7 @@ class EpisodeRenamed:
     default_severity = Severity.ERROR
     description = "All season-dir videos must match SxxExx pattern"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` for the ``episode_renamed`` check.
 
         Args:
@@ -272,7 +272,7 @@ class MovieVideoRenamed:
     default_severity = Severity.ERROR
     description = "Movie video must be renamed to the canonical {Title} stem"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` for the ``movie_video_renamed`` check.
 
         Consumes ``media_completeness(...).has_renamed_video`` (``True`` when the
@@ -310,7 +310,7 @@ class RootVideoFiles:
     default_severity = Severity.ERROR
     description = "No unprocessed video files at the show root"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[]`` unless ``tvshow.nfo`` exists; ``[CheckResult]`` otherwise.
 
         Mirrors ``check_tvshow``: the check runs only when the show has been
@@ -364,7 +364,7 @@ class NoArchiveFiles:
     default_severity = Severity.ERROR
     description = "No un-extracted archive files (.rar/.r00/.zip/.7z) allowed"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False when archive files remain.
 
         Args:
@@ -393,7 +393,7 @@ class NoArchiveFiles:
 # --- module-level structure helpers (copied verbatim from checker.py) ---
 
 
-def _find_video_files(directory: "Path") -> "list[Path]":
+def _find_video_files(directory: Path) -> list[Path]:
     """Find video files in a directory (non-recursive).
 
     Args:
@@ -405,7 +405,7 @@ def _find_video_files(directory: "Path") -> "list[Path]":
     return sorted(f for f in directory.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS)
 
 
-def _find_video_files_recursive(directory: "Path") -> "list[Path]":
+def _find_video_files_recursive(directory: Path) -> list[Path]:
     """Find video files recursively in a directory tree.
 
     Args:
@@ -420,7 +420,7 @@ def _find_video_files_recursive(directory: "Path") -> "list[Path]":
     return sorted(results)
 
 
-def _find_empty_dirs(root: "Path") -> "list[Path]":
+def _find_empty_dirs(root: Path) -> list[Path]:
     """Find empty subdirectories recursively.
 
     A directory is considered empty if it contains no files (junk files
@@ -446,7 +446,7 @@ def _find_empty_dirs(root: "Path") -> "list[Path]":
     return empty
 
 
-def _find_unrenamed_episodes(season_dirs: "list[Path]") -> "list[Path]":
+def _find_unrenamed_episodes(season_dirs: list[Path]) -> list[Path]:
     """Find video files in season dirs that don't match the episode pattern.
 
     Args:

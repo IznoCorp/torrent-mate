@@ -15,7 +15,7 @@ from personalscraper.indexer import cli as indexer_cli
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from typing import Any  # noqa: F401
+    from typing import Any
 
 log = get_logger("indexer.cli")
 
@@ -32,7 +32,7 @@ def library_index_command(
     config_path: Path | None = None,
     confirm_bulk_change: bool = False,
     rebuild: bool = False,
-    event_bus: "EventBus",
+    event_bus: EventBus,
 ) -> int:
     """Run an indexer scan (full / quick / incremental / enrich) and print a JSON summary.
 
@@ -458,7 +458,7 @@ def library_reconcile_command(
     enqueue_repairs: bool = False,
     clean_fk_orphans: bool = False,
     config_path: Path | None = None,
-    event_bus: "EventBus",
+    event_bus: EventBus,
 ) -> tuple[int, dict[str, Any]]:
     """Detect index ↔ filesystem divergences without a full rescan.
 

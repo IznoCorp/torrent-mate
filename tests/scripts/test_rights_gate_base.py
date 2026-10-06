@@ -30,7 +30,7 @@ except ImportError:
     sys.modules.setdefault("playwright", types.ModuleType("playwright"))
     sys.modules["playwright.async_api"] = _stand_in
 
-import rights_gate  # noqa: E402
+import rights_gate
 
 INDEX = "webui/design/index.html"
 # Where a base cut before the prototype left `frontend/maquette/` holds it.

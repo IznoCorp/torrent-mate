@@ -41,7 +41,7 @@ log = get_logger("acquire.obligations")
 class _SweepClient(Protocol):
     """The slice of a torrent client the sweep reads."""
 
-    def get_by_hashes(self, hashes: set[str]) -> "list[TorrentItem]":
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
         """Return the torrents matching *hashes* (any state)."""
         ...
 
@@ -76,7 +76,7 @@ class SeedRule:
 DEFAULT_SEED_RULE = SeedRule(count_ratio=True, grace_s=0, ratio_margin=0.1)
 
 
-def is_met(obligation: "SeedObligation", item: "TorrentItem", rule: SeedRule) -> bool:
+def is_met(obligation: SeedObligation, item: TorrentItem, rule: SeedRule) -> bool:
     """Say whether *obligation* is met by what the client reports for *item*.
 
     Args:
@@ -115,12 +115,12 @@ class ObligationSweepReport:
 
 
 def sweep_obligations(
-    store: "AcquireStore",
+    store: AcquireStore,
     client: _SweepClient,
     *,
     now: int,
     rule: SeedRule,
-    event_bus: "EventBus",
+    event_bus: EventBus,
     confirm_absent_after_s: int = 1800,
 ) -> ObligationSweepReport:
     """Run one sweep pass over the unreleased obligations.
@@ -144,7 +144,7 @@ def sweep_obligations(
 
     try:
         items = client.get_by_hashes({o.info_hash.lower() for o in open_rows})
-    except Exception:  # noqa: BLE001 — fail-soft: a client failure ends the pass with no write, the next tick retries
+    except Exception:
         log.warning("acquire.obligations.client_error", open=len(open_rows), exc_info=True)
         return ObligationSweepReport(len(open_rows), 0, 0, 0, client_error=True)
     by_hash = {i.hash.lower(): i for i in items}

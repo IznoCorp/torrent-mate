@@ -23,8 +23,9 @@ Logging: ``personalscraper.logger.get_logger`` (NEVER ``structlog.get_logger``).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, SeriesCatalog
 from personalscraper.api._contracts import ApiError, CircuitOpenError
@@ -89,7 +90,7 @@ def _is_aired(air_date: str, today: date) -> bool:
 
 def poll_known(
     series: Sequence[FollowedSeries],
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
     *,
     today: date,
 ) -> list[AiredEpisode]:
@@ -114,10 +115,10 @@ def poll_known(
 
 def poll_catalog(
     series: Sequence[FollowedSeries],
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
     *,
     today: date,
-) -> list["SeriesCatalog"]:
+) -> list[SeriesCatalog]:
     """Return one :class:`SeriesCatalog` per successfully polled series.
 
     The widest view over the single provider poll: the episodes AND the series'
@@ -193,7 +194,7 @@ def poll_catalog(
         except (ApiError, CircuitOpenError) as exc:
             log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc))
             continue
-        except Exception as exc:  # noqa: BLE001 — fail-soft: one bad series must not block others
+        except Exception as exc:
             log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc), exc_info=True)
             continue
 
@@ -242,7 +243,7 @@ def poll_catalog(
 
 def poll_aired(
     series: Sequence[FollowedSeries],
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
     *,
     today: date,
 ) -> list[AiredEpisode]:
@@ -269,7 +270,7 @@ def poll_aired(
 def _fetch_season_with_fallback(
     tvdb_id: int | str,
     season: int,
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
 ) -> list[EpisodeInfo]:
     """Fetch episode list for one season, falling back through the provider chain.
 
@@ -303,7 +304,7 @@ def _fetch_season_with_fallback(
                 season=season,
                 error=str(exc),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.warning(
                 "acquire.airing.season_provider_error",
                 tvdb_id=tvdb_id,

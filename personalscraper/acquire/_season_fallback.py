@@ -57,12 +57,12 @@ class SeasonFallback:
 
 
 def fall_back_to_episodes(
-    store: "AcquireStore",
-    item: "WantedItem",
+    store: AcquireStore,
+    item: WantedItem,
     *,
     now: int,
-    event_bus: "EventBus",
-    episodes: "Iterable[int] | None" = None,
+    event_bus: EventBus,
+    episodes: Iterable[int] | None = None,
 ) -> SeasonFallback:
     """Re-queue a season's episodes individually and close the season row (R6).
 
@@ -101,9 +101,9 @@ def fall_back_to_episodes(
         created. Each caller logs its own line from it, so the two triggers stay
         distinguishable in the journal.
     """
-    assert item.id is not None  # noqa: S101 — ensured by the callers' SELECTs
-    assert item.followed_id is not None  # noqa: S101
-    assert item.season is not None  # noqa: S101
+    assert item.id is not None
+    assert item.followed_id is not None
+    assert item.season is not None
     season_wanted_id = item.id
     followed_id = item.followed_id
     season_number = item.season

@@ -144,7 +144,7 @@ class TestReadAccount:
         (foreign keys OFF) reaches it.
         """
         client = v1_client()
-        db_path = _services(client).app_store._db_path  # noqa: SLF001 — the test writes the file itself
+        db_path = _services(client).app_store._db_path
         conn = sqlite3.connect(db_path)
         try:
             conn.execute("DELETE FROM role WHERE id = 'household'")
@@ -196,14 +196,14 @@ class TestReadAccount:
     def test_an_account_with_no_email_and_no_link_has_no_avatar(self, v1_client: Callable[..., TestClient]) -> None:
         """Neither source: the property is absent, and the interface draws the initial."""
         client = v1_client()
-        conn = _services(client).app_store.accounts._conn  # noqa: SLF001 — no repository method blanks an e-mail
+        conn = _services(client).app_store.accounts._conn
         conn.execute("UPDATE account SET email = ''")
         assert "avatar" not in client.get("/auth/me").json()
 
     def test_the_stored_avatar_column_is_not_the_source(self, v1_client: Callable[..., TestClient]) -> None:
         """One place decides: a value left in ``account.avatar`` never outranks the resolution."""
         client = v1_client(server_access="owner")
-        conn = _services(client).app_store.accounts._conn  # noqa: SLF001 — no repository method sets an avatar
+        conn = _services(client).app_store.accounts._conn
         conn.execute("UPDATE account SET avatar = 'https://example.invalid/stale.png'")
         assert client.get("/auth/me").json()["avatar"] == "https://plex.tv/users/uuid-1/avatar"
 

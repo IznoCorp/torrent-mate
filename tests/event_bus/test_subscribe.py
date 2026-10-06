@@ -37,7 +37,7 @@ def test_subscribers_stored_per_type() -> None:
     bus.subscribe(_Foo, _noop)
     bus.subscribe(_Bar, _noop)
     # Inspect the internal dict — Phase 1 has no public introspection API.
-    keys = set(bus._subscribers.keys())  # noqa: SLF001
+    keys = set(bus._subscribers.keys())
     assert _Foo in keys
     assert _Bar in keys
 
@@ -46,9 +46,9 @@ def test_subscribe_is_copy_on_write() -> None:
     """The internal tuple is replaced on each subscribe — never mutated in place."""
     bus = EventBus()
     bus.subscribe(_Foo, _noop)
-    snapshot_before = bus._subscribers[_Foo]  # noqa: SLF001
+    snapshot_before = bus._subscribers[_Foo]
     bus.subscribe(_Foo, _noop)
-    snapshot_after = bus._subscribers[_Foo]  # noqa: SLF001
+    snapshot_after = bus._subscribers[_Foo]
     # The captured tuple object is unchanged — copy-on-write contract.
     assert len(snapshot_before) == 1
     assert len(snapshot_after) == 2
@@ -62,7 +62,7 @@ def test_unsubscribe_removes_callback() -> None:
     token = bus.subscribe(_Foo, _noop)
     bus.unsubscribe(token)
     # The key may either be absent or map to an empty tuple — both are valid.
-    remaining = bus._subscribers.get(_Foo, ())  # noqa: SLF001
+    remaining = bus._subscribers.get(_Foo, ())
     assert remaining == ()
 
 
@@ -70,12 +70,12 @@ def test_unsubscribe_unknown_token_is_noop() -> None:
     """Unsubscribing a never-registered token raises nothing and changes nothing."""
     bus = EventBus()
     bus.subscribe(_Foo, _noop)
-    snapshot = bus._subscribers[_Foo]  # noqa: SLF001
+    snapshot = bus._subscribers[_Foo]
     # Construct a synthetic token that was never returned by subscribe.
     fake_token = SubscriptionToken(_id=999_999_999, event_type=_Foo)
     bus.unsubscribe(fake_token)  # MUST NOT raise.
     # The original subscription is intact.
-    assert bus._subscribers[_Foo] is snapshot  # noqa: SLF001
+    assert bus._subscribers[_Foo] is snapshot
 
 
 def test_subscription_token_is_frozen() -> None:

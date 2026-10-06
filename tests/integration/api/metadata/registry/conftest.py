@@ -12,10 +12,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-import requests  # noqa: F401
+import requests
 import responses
 
-# ruff: noqa: D102, D107  # Test helpers with obvious behavior
+# Test helpers with obvious behavior
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,

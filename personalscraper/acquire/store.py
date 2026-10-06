@@ -60,18 +60,18 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from personalscraper.acquire._aired_store import _AiredSubStore  # noqa: PLC0415
-from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore  # noqa: PLC0415
-from personalscraper.acquire._download_marks import DownloadMarksStore  # noqa: PLC0415
-from personalscraper.acquire._provenance_store import _ProvenanceSubStore  # noqa: PLC0415
+from personalscraper.acquire._aired_store import _AiredSubStore
+from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore
+from personalscraper.acquire._download_marks import DownloadMarksStore
+from personalscraper.acquire._provenance_store import _ProvenanceSubStore
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_followed,
     _row_to_ratio,
     _row_to_seed,
 )
-from personalscraper.acquire._wanted_store import _WantedSubStore  # noqa: PLC0415
-from personalscraper.acquire._watch_store import _WatchSubStore  # noqa: PLC0415
+from personalscraper.acquire._wanted_store import _WantedSubStore
+from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
     FollowedSeries,
     RatioState,
@@ -217,7 +217,7 @@ class _FollowSubStore:
                     series.original_title,
                 ),
             ).fetchone()
-        assert row is not None  # noqa: S101 — RETURNING always yields the affected row
+        assert row is not None
         return int(row[0])
 
     def get(self, followed_id: int) -> FollowedSeries | None:
@@ -585,7 +585,7 @@ class _SeedSubStore:
                 ),
             )
             row_id = cur.lastrowid
-        assert row_id is not None  # noqa: S101 — INSERT always sets lastrowid
+        assert row_id is not None
         return row_id
 
     def find_active_by_hash(self, info_hash: str) -> SeedObligation | None:

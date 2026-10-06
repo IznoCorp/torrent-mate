@@ -77,7 +77,7 @@ class _WallClockTimeout(Exception):
     """Raised by the SIGALRM handler when the wall-clock timeout fires."""
 
 
-def _raise_wall_clock_timeout(signum: int, frame: object) -> None:  # noqa: ARG001
+def _raise_wall_clock_timeout(signum: int, frame: object) -> None:
     """SIGALRM handler — raises _WallClockTimeout to abort the download.
 
     Args:
@@ -130,7 +130,7 @@ class CookieConfig:
             )
 
     @classmethod
-    def from_env(cls) -> "CookieConfig | None":
+    def from_env(cls) -> CookieConfig | None:
         """Build CookieConfig from Settings (.env-loaded) or process env.
 
         Reads ``settings.youtube_cookies_file`` and
@@ -472,7 +472,7 @@ class YtdlpDownloader:
                 status=DownloadStatus.YTDLP_ERROR,
                 error_message="wall-clock timeout",
             )
-        except Exception as exc:  # noqa: BLE001 — yt-dlp raises untyped DownloadError
+        except Exception as exc:
             error_msg = str(exc)
             if not _is_bot_detection_error(error_msg):
                 # Non-bot error — do not retry.
@@ -511,7 +511,7 @@ class YtdlpDownloader:
                     status=DownloadStatus.YTDLP_ERROR,
                     error_message="wall-clock timeout (retry without cookies)",
                 )
-            except Exception as retry_exc:  # noqa: BLE001
+            except Exception as retry_exc:
                 retry_msg = str(retry_exc)
                 # I3: re-classify the retry exception — only genuine bot-detection
                 # signals are BOT_DETECTED; transport errors get YTDLP_ERROR so

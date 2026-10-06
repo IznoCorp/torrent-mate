@@ -84,7 +84,7 @@ class FakeClient:
             raise self.list_error
         return list(self.items)
 
-    def delete(self, hash: str, *, delete_files: bool = False) -> None:  # noqa: A002 — the client's own signature
+    def delete(self, hash: str, *, delete_files: bool = False) -> None:
         """Record the call; raise the configured error for that hash."""
         self.calls.append("delete")
         if hash in self.delete_errors:
@@ -211,7 +211,7 @@ def _oblige(store: ConcreteAcquireStore, info_hash: str, *, met: bool) -> int:
 
 def _released_at(store: ConcreteAcquireStore, obligation_id: int) -> int | None:
     """Read one obligation's ``released_at`` back."""
-    conn = sqlite3.connect(store._db_path)  # noqa: SLF001
+    conn = sqlite3.connect(store._db_path)
     try:
         return conn.execute("SELECT released_at FROM seed_obligation WHERE id = ?", (obligation_id,)).fetchone()[0]  # type: ignore[no-any-return]
     finally:

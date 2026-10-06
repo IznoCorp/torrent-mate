@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -20,8 +19,8 @@ from personalscraper.i18n import t
 @boundary(needs="app", lock=False, journal=False, staging=False)
 def library_verify(
     ctx: typer.Context,
-    disk: Optional[str] = typer.Option(None, "--disk", help=t("cli_library.maintenance.verify_disk_help")),
-    budget: Optional[int] = typer.Option(
+    disk: str | None = typer.Option(None, "--disk", help=t("cli_library.maintenance.verify_disk_help")),
+    budget: int | None = typer.Option(
         None,
         "--budget",
         help=t("cli_library.maintenance.verify_budget_help"),
@@ -31,7 +30,7 @@ def library_verify(
         "--no-enqueue",
         help=t("cli_library.maintenance.no_enqueue_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.maintenance.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.maintenance.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -58,7 +57,7 @@ def library_verify(
     """
     from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     # The boundary's "app" tier builds the AppContext (via per_step_boundary,
     # binding correlation_id) exactly as the pre-boundary path did; only its bus
     # flows into the indexer command.
@@ -86,7 +85,7 @@ def library_repair(
         "--dry-run",
         help=t("cli_library.maintenance.repair_dry_run_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.maintenance.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.maintenance.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -105,7 +104,7 @@ def library_repair(
     """
     from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     app_context = bundle.app_context
     assert app_context is not None
     rc = library_repair_command(

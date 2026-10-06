@@ -16,7 +16,7 @@ pytestmark = pytest.mark.app_e2e
 _GATE = '[data-part="login"]'
 
 
-def _submit_password(page: "Page", email: str, password: str) -> int:
+def _submit_password(page: Page, email: str, password: str) -> int:
     """Open the password door, fill it and send it.
 
     Args:
@@ -35,7 +35,7 @@ def _submit_password(page: "Page", email: str, password: str) -> int:
     return answered.value.status
 
 
-def test_a_visitor_lands_on_the_gate(app_server: AppServer, context: "BrowserContext") -> None:
+def test_a_visitor_lands_on_the_gate(app_server: AppServer, context: BrowserContext) -> None:
     """With no session, v1 answers ``readAccount`` 401 and the client shows the gate at its address."""
     page = context.new_page()
     with page.expect_response(lambda response: response.url.endswith("/api/v1/auth/me")) as me:
@@ -47,7 +47,7 @@ def test_a_visitor_lands_on_the_gate(app_server: AppServer, context: "BrowserCon
     assert_the_app_document(page)
 
 
-def test_the_owner_signs_in_with_the_password(app_server: AppServer, context: "BrowserContext") -> None:
+def test_the_owner_signs_in_with_the_password(app_server: AppServer, context: BrowserContext) -> None:
     """The fallback password signs the owner in: v1 sets the session and the gate gives way to the app."""
     page = context.new_page()
     page.goto(app_server.origin + "/")
@@ -62,7 +62,7 @@ def test_the_owner_signs_in_with_the_password(app_server: AppServer, context: "B
     assert_the_app_document(page)
 
 
-def test_a_wrong_password_keeps_the_gate(app_server: AppServer, context: "BrowserContext") -> None:
+def test_a_wrong_password_keeps_the_gate(app_server: AppServer, context: BrowserContext) -> None:
     """A refused password leaves the visitor on the gate, with no session."""
     page = context.new_page()
     page.goto(app_server.origin + "/")

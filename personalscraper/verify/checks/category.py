@@ -32,7 +32,7 @@ class Category:
     default_severity = Severity.ERROR
     description = "Category must be resolvable from NFO genres"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[]`` if NFO absent; ``[CheckResult]`` otherwise.
 
         Side effect: sets ``ctx.resolved_category`` to the resolved category

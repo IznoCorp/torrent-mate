@@ -190,7 +190,7 @@ def run_job(argv: list[str]) -> int:
     Returns:
         The child's exit code.
     """
-    child = subprocess.Popen([sys.executable, "-m", "personalscraper", *argv])  # noqa: S603 — fixed argv, no shell
+    child = subprocess.Popen([sys.executable, "-m", "personalscraper", *argv])
     _CURRENT_CHILD.append(child)
     try:
         return child.wait()

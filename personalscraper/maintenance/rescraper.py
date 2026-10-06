@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -435,7 +435,7 @@ def _rescrape_item(
             tmdb_id=None,
             id_source=None,
             match_confidence=None,
-            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
         )
 
     # Resolve TMDB ID
@@ -463,7 +463,7 @@ def _rescrape_item(
             tmdb_id=None,
             id_source=None,
             match_confidence=confidence,
-            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
         )
 
     # Fetch API data once, honouring the source-of-match invariant via the
@@ -503,7 +503,7 @@ def _rescrape_item(
             tmdb_id=report_tmdb_id,
             id_source=id_source,
             match_confidence=confidence,
-            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
         )
 
     actions: list[str] = []
@@ -597,7 +597,7 @@ def _rescrape_item(
         tmdb_id=report_tmdb_id,
         id_source=id_source,
         match_confidence=confidence,
-        rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+        rescraped_at=datetime.now(tz=UTC).isoformat(),
     )
 
 
@@ -923,7 +923,7 @@ def rescrape_library(
     skipped_count = 0
     error_count = 0
     items_processed = 0
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
 
     candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter, item_id=item_id)
 
@@ -969,7 +969,7 @@ def rescrape_library(
                     tmdb_id=None,
                     id_source=None,
                     match_confidence=None,
-                    rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+                    rescraped_at=datetime.now(tz=UTC).isoformat(),
                 )
             )
             error_count += 1

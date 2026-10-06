@@ -33,7 +33,7 @@ logger = get_logger(__name__)
 
 
 def _count_absorbed_for_season(
-    store: "ConcreteAcquireStore",
+    store: ConcreteAcquireStore,
     followed_id: int,
     season: int,
 ) -> int:
@@ -58,7 +58,7 @@ def _count_absorbed_for_season(
 
 
 def _absorb_live_episodes_for_season(
-    store: "ConcreteAcquireStore",
+    store: ConcreteAcquireStore,
     followed_id: int,
     season: int,
     season_wanted_id: int,
@@ -169,7 +169,7 @@ def grab_season(
                 reused=True,
             )
 
-        assert followed.id is not None  # noqa: S101 — get() sets id
+        assert followed.id is not None
         now = int(time.time())
 
         from personalscraper.acquire.domain import WantedItem

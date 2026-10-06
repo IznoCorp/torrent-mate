@@ -80,13 +80,13 @@ def fetch_show_data(
 
 
 def _tvdb_series_to_show_data(
-    tvdb_data: "MediaDetails | dict[str, Any]",
+    tvdb_data: MediaDetails | dict[str, Any],
     tvdb_id: int,
     tvdb_client: Any = None,
     preferred_language: str = "fr-FR",
     fallback_language: str = "en-US",
     *,
-    external_ids: "ScraperExternalIds | None" = None,
+    external_ids: ScraperExternalIds | None = None,
 ) -> dict[str, Any]:
     """Convert TVDB series data to a TMDB-like show_data dict.
 
