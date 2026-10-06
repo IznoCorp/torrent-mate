@@ -15,6 +15,11 @@
     "secondaryLine": "depuis le 10 août"
   },
   {
+    "label": "Veille de la préproduction",
+    "state": "reachable",
+    "secondaryLine": "depuis le 10 août"
+  },
+  {
     "label": "Déploiement automatique",
     "state": "reachable",
     "secondaryLine": "depuis le 10 août"
