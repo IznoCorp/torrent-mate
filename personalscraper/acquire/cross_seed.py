@@ -47,6 +47,23 @@ logger = get_logger(__name__)
 _VERIFY_POLL_INTERVAL_S = 2
 
 
+class _ScopeRefusal(Exception):
+    """A scoped injection refused before anything reached the client.
+
+    Attributes:
+        reason: The rejection reason code (``shared_hash`` or ``hash_underivable``).
+    """
+
+    def __init__(self, reason: str) -> None:
+        """Keep the reason code.
+
+        Args:
+            reason: The rejection reason code.
+        """
+        super().__init__(reason)
+        self.reason = reason
+
+
 class CrossSeedService:
     """Orchestrates cross-seed matching + injection for completed torrents.
 
@@ -353,6 +370,10 @@ class CrossSeedService:
                 # MATCH → inject → verify → resume + tag + obligation.
                 try:
                     injected_hash = self._inject(source.file_bytes, item.save_path)
+                except _ScopeRefusal as refusal:
+                    # Nothing was sent: the client is left exactly as it was.
+                    self._reject(result, _candidate_id(candidate), tracker, refusal.reason, info_hash)
+                    continue
                 except (ValueError, ApiError) as exc:
                     logger.warning(
                         "acquire.cross_seed.rejected",
@@ -799,7 +820,13 @@ class CrossSeedService:
         """Inject a candidate, filed under the active scope's category and tags when there is one.
 
         Same convention as a scoped grab: the scope's ``category`` and ``instance_tags``. Without a
-        scope the call is the plain injection, no category and no tags.
+        scope the call is the plain injection, no category and no tags, and the client is not asked
+        about the hash.
+
+        Under a scope the client is shared, and an injection of a hash it already holds is idempotent:
+        the torrent would be rechecked, then deleted if it failed to verify under this instance's
+        category. So the rule of a scoped grab applies (``_scope_refusal``): a hash the client holds
+        outside the scope's category is never injected, rechecked nor deleted.
 
         Args:
             torrent_bytes: Raw ``.torrent`` bytes of the candidate.
@@ -807,10 +834,24 @@ class CrossSeedService:
 
         Returns:
             The info-hash of the injected torrent.
+
+        Raises:
+            _ScopeRefusal: Under a scope, the candidate's hash cannot be derived
+                (``hash_underivable``) or is held outside the scope's category
+                (``shared_hash``); nothing was sent to the client.
         """
         scope = self._config.torrent.active_scope()
         if scope is None:
             return self._injector.inject(torrent_bytes, save_path=save_path, recheck=True, paused=True)
+        try:
+            candidate_hash = _bencode_info_hash(torrent_bytes).lower()
+        except ValueError:
+            logger.warning("acquire.cross_seed.hash_underivable", category=scope.category)
+            raise _ScopeRefusal("hash_underivable") from None
+        held = self._lister.get_by_hashes({candidate_hash})
+        if any(h.hash.lower() == candidate_hash and h.category != scope.category for h in held):
+            logger.info("acquire.cross_seed.shared_hash", info_hash=candidate_hash, category=scope.category)
+            raise _ScopeRefusal("shared_hash")
         return self._injector.inject(
             torrent_bytes,
             save_path=save_path,

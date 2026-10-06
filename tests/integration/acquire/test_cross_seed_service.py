@@ -273,6 +273,7 @@ class FakeTorrentClient:
         self.deleted: list[tuple[str, bool]] = []  # (hash, delete_files)
         self.tags_added: dict[str, set[str]] = {}  # hash -> set of tags
         self.tags_removed: dict[str, set[str]] = {}  # hash -> set of tags
+        self.by_hashes_calls: list[set[str]] = []  # hash sets ``get_by_hashes`` was asked for
 
     # -- Seeding helpers ------------------------------------------------------
 
@@ -297,6 +298,11 @@ class FakeTorrentClient:
     def get_all_hashes(self) -> set[str]:
         """Return all known hashes."""
         return {t.hash for t in self._completed}
+
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        """Record the request and return the known torrents of those hashes."""
+        self.by_hashes_calls.append(set(hashes))
+        return [t for t in self._completed if t.hash in hashes]
 
     # -- TorrentInjector ------------------------------------------------------
 
@@ -792,6 +798,54 @@ class TestInjectionCarriesScope:
         result = svc.check(_SOURCE_HASH)
         assert result.injected == []
         assert [reason for _, _, reason in result.rejected] == ["verify_timeout"]
+
+
+class TestScopedInjectionNeverTakesAnotherInstancesHash:
+    """Under a scope a candidate whose hash the client holds outside the category is refused untouched."""
+
+    def test_hash_held_in_another_category_is_refused_with_no_write(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """No inject, recheck, resume nor delete: the other instance's torrent stays as it is."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        client.seed_item(torrent(candidate_hash, OTHER_CATEGORY))
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["shared_hash"]
+        assert client.injected == []
+        assert client.resumed == []
+        assert client.deleted == []
+
+    def test_hash_held_with_no_category_is_refused(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """An uncategorised torrent belongs to the other instance as well."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        client.seed_item(torrent(candidate_hash, None))
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert [reason for _, _, reason in result.rejected] == ["shared_hash"]
+        assert client.injected == []
+
+    def test_free_hash_is_injected_as_before(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """A hash the client does not hold is injected, after one lookup of that hash."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == [candidate_hash]
+        assert {candidate_hash} in client.by_hashes_calls
+
+    def test_unscoped_inject_asks_the_client_nothing(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Without a scope the injection is today's: no hash lookup, whatever the client holds."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
+        client.seed_item(torrent(candidate_hash, OTHER_CATEGORY))
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == [candidate_hash]
+        assert client.by_hashes_calls == []
 
 
 class TestCheckHappyPath:
