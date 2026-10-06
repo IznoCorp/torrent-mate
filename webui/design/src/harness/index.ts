@@ -25,6 +25,7 @@ import { trackersStates } from "./states/trackers";
 import { crossSeedStates } from "./states/cross-seed";
 import { tunnelStates } from "./states/tunnel";
 import { blockedStates } from "./states/blocked";
+import { devLotsStates } from "./states/dev-lots";
 
 /**
  * Every named state, in the order `__states()` has always listed them.
@@ -59,6 +60,7 @@ function namedStates(): NamedState[] {
     ...rightsStates(),
     ...signInStates(),
     ...creationStates(),
+    ...devLotsStates(),
   ];
 }
 

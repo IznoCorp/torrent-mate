@@ -1573,6 +1573,36 @@
         "heading": "Cross-seed, tracker by tracker",
         "origin": "{{name}} — the original, on {{tracker}}"
       }
+    },
+    "devLots": {
+      "title": "Lots progress",
+      "back": "Back",
+      "updated": "Updated {{moment}}",
+      "errorSubject": "the lots progress",
+      "unavailable": "No progress is published on this host.",
+      "noLots": "No lot is defined.",
+      "blockedBy": "Blocked: {{reason}}",
+      "phases_one": "{{count}} phase",
+      "phases_other": "{{count}} phases",
+      "pr": "PR #{{number}}",
+      "state": {
+        "planned": "Planned",
+        "in-progress": "In progress",
+        "pr-open": "PR open",
+        "merged": "Merged"
+      },
+      "dispatch": {
+        "in-flight": "being written",
+        "in-review": "in review",
+        "ready-unarmed": "ready, not armed",
+        "armed": "armed",
+        "unknown": "unknown state"
+      },
+      "dates": "{{start}} → {{end}}",
+      "datesFrom": "{{start}} →",
+      "datesUntil": "→ {{end}}",
+      "datesEstimated": "≈ {{dates}}",
+      "duration": "Duration: {{duration}}"
     }
   },
   "surfaces": {
