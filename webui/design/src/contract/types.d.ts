@@ -3418,7 +3418,10 @@ export interface operations {
     revokeOwnSession: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Names this write, so that sending it again never applies it twice (the offline outbox re-sends a held write with the key it first carried). Sent again with the same request, the first answer is answered again — its status and its body — and nothing is applied; sent with another request (another body or query on the same method and path), it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`, which the client retries. A key is scoped to the signed-in account and to the method and path, and kept 24 hours. Only an answer that will not change is kept: a success, or a final refusal (400, 404, 405, 409, 410, 415, 422); any other answer (401, 403, 408, 423, 429, a 5xx) keeps nothing, and the retry with the same key applies. Without it, every send applies. The public sign-in doors (signIn, signInWithPlex, startPlexSignIn) take none: they sign no account in to scope it to, and the client never holds one offline. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
             path: {
                 /** @description the session */
                 sessionId: number;
