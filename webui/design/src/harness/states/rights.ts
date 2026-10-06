@@ -66,6 +66,12 @@ function tap(selector: string): void {
   document.querySelector<HTMLElement>(selector)?.click();
 }
 
+/** Types a password into the gate's form, the way a person does: through the field. */
+function typePassword(): void {
+  const field = document.querySelector<HTMLInputElement>('#loginform input[name="password"]');
+  if (field) field.value = "correct horse";
+}
+
 // A manager who is not Admin: the spectator's role, given accounts.manage.
 const MANAGER_RIGHTS: Right[] = ["library.read", "acquisition.see.others", "accounts.manage", "acquisition.request"];
 
@@ -285,6 +291,25 @@ export function rightsStates(): NamedState[] {
       () => {
         showGate();
         tap('[data-part="login/password-disclosure"]');
+      },
+    ],
+    [
+      "signin-password-typed",
+      "Connexion — le mot de passe saisi, masqué : le bouton « afficher » au repos",
+      () => {
+        showGate();
+        tap('[data-part="login/password-disclosure"]');
+        typePassword();
+      },
+    ],
+    [
+      "signin-password-revealed",
+      "Connexion — le mot de passe saisi, affiché : le bouton « afficher » enfoncé",
+      () => {
+        showGate();
+        tap('[data-part="login/password-disclosure"]');
+        typePassword();
+        tap('[data-part="login/password-reveal"]');
       },
     ],
     [

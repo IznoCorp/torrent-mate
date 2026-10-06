@@ -46,7 +46,15 @@ import { landSignedIn } from "./frame-verbs";
 import type { Schemas } from "../lib/contract-schemas";
 import { refusalWords } from "../lib/refusal";
 import { followTheSignedIn } from "../lib/account";
-import { actionButton, crossReferenceLink } from "../ui/variants";
+import {
+  actionButton,
+  crossReferenceLink,
+  passwordReveal,
+  passwordRevealField,
+  passwordRevealHost,
+} from "../ui/variants";
+import { icons } from "./icons";
+import { svgIcon } from "../lib/markup-text";
 
 // The statuses the two doors answer with.
 const PENDING = 202;
@@ -168,6 +176,7 @@ function plexBlock(): HTMLElement | null {
     setPasswordOpen(form.hidden !== false),
   );
   loginByEmail(form);
+  passwordRevealButton(form);
   return block;
 }
 
@@ -221,6 +230,65 @@ function loginByEmail(form: HTMLElement): void {
 }
 
 /**
+ * Puts the show/hide button on the password field.
+ *
+ * AT RUN TIME, NOT IN THE MARKUP, for the reason `loginByEmail` gives: the form is the region the design
+ * host extracts byte for byte (R427). The field is wrapped where it stands, never rebuilt — its value, its
+ * focus and its caret are the same node's throughout — and its label is pointed at by `aria-labelledby`,
+ * so the button inside the label does not become part of the field's name.
+ *
+ * @param form The password form.
+ */
+function passwordRevealButton(form: HTMLElement): void {
+  const field = form.querySelector<HTMLInputElement>('input[name="password"]');
+  if (!field || form.querySelector('[data-part="login/password-reveal"]')) return;
+  const label = field.closest("label")?.querySelector("span");
+  if (label) {
+    label.id = "loginpasswordlabel";
+    field.setAttribute("aria-labelledby", label.id);
+  }
+  const host = document.createElement("div");
+  host.className = passwordRevealHost();
+  field.classList.add(...passwordRevealField().split(" "));
+  field.replaceWith(host);
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = passwordReveal();
+  toggle.dataset.part = "login/password-reveal";
+  toggle.dataset.wordsLabel = "screens.gate.showPassword";
+  toggle.setAttribute("aria-label", i18next.t("screens.gate.showPassword"));
+  host.append(field, toggle);
+  showPassword(false);
+  // THE FIELD KEEPS THE FOCUS when a pointer presses the button: the press must not take it.
+  toggle.addEventListener("mousedown", (event) => event.preventDefault());
+  toggle.addEventListener("click", () => {
+    const kept = document.activeElement === field;
+    const { selectionStart, selectionEnd } = field;
+    showPassword(field.type === "password");
+    if (!kept) return;
+    field.focus();
+    field.setSelectionRange(selectionStart, selectionEnd);
+    // A CHANGE OF TYPE REBUILDS THE FIELD'S BOX, and the browser resets the caret when it does, after
+    // this handler returns: the caret is put back once more, on the frame that follows.
+    requestAnimationFrame(() => field.setSelectionRange(selectionStart, selectionEnd));
+  });
+}
+
+/**
+ * Shows or hides what the password field holds, its button drawn to match.
+ *
+ * @param shown True to show the value as text.
+ */
+function showPassword(shown: boolean): void {
+  const field = node<HTMLInputElement>('#loginform input[name="password"]');
+  const toggle = node<HTMLElement>('[data-part="login/password-reveal"]');
+  if (field) field.type = shown ? "text" : "password";
+  if (!toggle) return;
+  toggle.setAttribute("aria-pressed", String(shown));
+  toggle.innerHTML = svgIcon(shown ? icons.eyeOff : icons.eye);
+}
+
+/**
  * Opens or closes the password form behind its disclosure.
  *
  * @param open True to show the form.
@@ -229,6 +297,8 @@ export function setPasswordOpen(open: boolean): void {
   const form = node("#loginform");
   const disclosure = node('[data-part="login/password-disclosure"]');
   if (form) form.hidden = !open;
+  // A FORM CLOSED HIDES WHAT WAS TYPED: it never comes back showing it.
+  if (!open) showPassword(false);
   disclosure?.setAttribute("aria-expanded", String(open));
 }
 
@@ -453,6 +523,8 @@ export function installGate(end: Ending): void {
     // the name is what a password manager files the e-mail under.
     const email = String(fields.get("username") ?? "").trim();
     const password = String(fields.get("password") ?? "");
+    // WHATEVER BECOMES OF THE SUBMIT, the secret is hidden again.
+    showPassword(false);
     // An empty field shows the refusal state and asks nobody.
     if (!email || !password) {
       const refusal = node("#loginerr");
