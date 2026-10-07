@@ -71,12 +71,18 @@ class _SharedClient:
         return []
 
     def get_by_category(self, category: str) -> list:
-        """Return the torrents held under *category* (``held`` maps category to hashes)."""
+        """Return the torrents filed under exactly *category*, as a client with the subcategories setting off does."""
         return [SimpleNamespace(hash=h, category=category) for h in self.held.get(category, ())]
 
     def get_by_hashes(self, hashes: set[str]) -> list:
-        """Satisfy the ``TorrentLister`` runtime gate; the grab never reads it."""
-        return []
+        """Return the held torrents among *hashes*, each with the category it is filed under."""
+        wanted = {h.lower() for h in hashes}
+        return [
+            SimpleNamespace(hash=h, category=category)
+            for category, held in self.held.items()
+            for h in held
+            if h.lower() in wanted
+        ]
 
     def apply_global_limits(self, *, down_bytes_per_s: int | None, up_bytes_per_s: int | None) -> None:
         """Record a global-limits call."""
@@ -470,6 +476,28 @@ def test_unscoped_grab_of_a_hash_held_by_a_sandbox_is_refused_without_add() -> N
     assert outcome.reason == "sandbox_hash"
 
 
+def test_unscoped_grab_of_a_hash_held_under_a_sandbox_subcategory_is_refused() -> None:
+    """A category filter that is exact misses ``tm-dev/x``; the torrent's own category still says it is a sandbox's."""
+    client = _SharedClient(present={INFO_HASH})
+    client.held = {"tm-dev/x": {INFO_HASH}}
+    assert client.get_by_category("tm-dev") == []
+    outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
+
+    assert client.add_calls == []
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "sandbox_hash"
+
+
+def test_unscoped_grab_of_a_hash_under_a_lookalike_category_keeps_todays_add() -> None:
+    """``tm-devX`` is not under ``tm-dev``: the subcategory prefix is ``tm-dev/``."""
+    client = _SharedClient(present={INFO_HASH})
+    client.held = {"tm-devX": {INFO_HASH}}
+    outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
+
+    assert outcome.disposition == "success"
+    assert len(client.add_calls) == 1
+
+
 def test_unscoped_grab_sandbox_hash_comparison_ignores_case() -> None:
     """A sandbox hash reported in upper case is still the sandbox's."""
     client = _SharedClient(present={INFO_HASH})
@@ -499,13 +527,13 @@ def test_unscoped_grab_without_sandbox_categories_is_unchanged() -> None:
     assert len(client.add_calls) == 1
 
 
-def test_unscoped_grab_is_refused_when_the_client_cannot_list_by_category() -> None:
-    """Fail closed: a client that cannot list a category cannot prove the hash is not a sandbox's."""
+def test_unscoped_grab_is_refused_when_the_client_cannot_look_a_hash_up() -> None:
+    """Fail closed: a client that cannot look a hash up cannot prove the hash is not a sandbox's."""
 
-    class _NoCategories(_SharedClient):
-        get_by_category = None  # type: ignore[assignment]
+    class _NoLookup(_SharedClient):
+        get_by_hashes = None  # type: ignore[assignment]
 
-    client = _NoCategories()
+    client = _NoLookup()
     outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
 
     assert client.add_calls == []

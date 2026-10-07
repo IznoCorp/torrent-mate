@@ -201,6 +201,22 @@ def scoped(items: Iterable[TorrentItem], scope: TorrentScope | None) -> list[Tor
     return [item for item in items if item.category == scope.category]
 
 
+def in_sandbox(category: str | None, sandbox_categories: tuple[str, ...]) -> bool:
+    """Tell whether a torrent's category is a sandbox's, or a qBittorrent subcategory of one.
+
+    Args:
+        category: The torrent's category; ``None`` or empty = uncategorised, which is prod's.
+        sandbox_categories: The categories that belong to the sandboxes.
+
+    Returns:
+        True when *category* equals a sandbox category or lies under it (``tm-dev/x``; the
+        prefix is ``tm-dev/``, so ``tm-devX`` is not under ``tm-dev``).
+    """
+    if not category:
+        return False
+    return any(category == s or category.startswith(s + "/") for s in sandbox_categories)
+
+
 def triage_skip_reason(item: TorrentItem, scope: TorrentScope | None) -> str | None:
     """Say why an instance's triage must leave a torrent alone, if it must.
 

@@ -80,7 +80,7 @@ Returns `200` + `SID` cookie on success. Returns `403` on bad credentials (count
 | Parameter  | Type   | Required | Description                                                                                                                                                       |
 | ---------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `filter`   | string | no       | One of: `all`, `downloading`, `seeding`, `completed`, `paused`, `active`, `inactive`, `resumed`, `stalled`, `stalled_uploading`, `stalled_downloading`, `errored` |
-| `category` | string | no       | Empty string = no category; absent = any                                                                                                                          |
+| `category` | string | no       | Empty string = no category; absent = any. A category `c` also returns the torrents under its subcategories `c/x` (prefix `c/`, so `cX` never matches) only when the « subcategories » setting is on before 5.2.0, always from 5.2.0 |
 | `tag`      | string | no       | Filter by tag (since API 2.8.3)                                                                                                                                   |
 | `sort`     | string | no       | Field name to sort by                                                                                                                                             |
 | `reverse`  | bool   | no       | Reverse sort order                                                                                                                                                |
