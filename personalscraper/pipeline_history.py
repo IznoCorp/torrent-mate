@@ -5,8 +5,10 @@ run with per-step timing data stored as a JSON array in ``steps_json``.
 
 The writer is **fail-soft**: every method wraps its DB work in a try/except,
 logs a warning on failure, and never raises.  A history-write error must
-never abort the pipeline.  It never creates the DB: a missing file is the named
-``pipeline_history.db_missing`` condition, and the store is migrated at the run's boot.
+never abort the pipeline.  It never creates an empty DB itself: a missing file is brought to the
+current schema once per process through
+:func:`~personalscraper.indexer.db.ensure_library_schema` (under the indexer's lock), and a store
+that cannot be ensured is the named ``pipeline_history.library_db_unavailable`` error, logged once.
 
 Each method opens a short-lived ``sqlite3`` connection (open → write →
 commit → close), matching the indexer's connection conventions (WAL pragmas
@@ -44,6 +46,7 @@ from pathlib import Path
 
 from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.db import ensure_library_schema
 from personalscraper.indexer.library_view import IndexUnavailable, LibraryIndex
 from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
@@ -54,6 +57,10 @@ log = get_logger("pipeline_history")
 #: thousands of per-item warnings would otherwise bloat the row; the raw log
 #: tail (``output_tail``) keeps the exhaustive detail.
 _MAX_PERSISTED_REASONS = 20
+
+
+#: Library DB paths this process failed to ensure: reported once, then every write skips silently.
+_UNENSURABLE: set[Path] = set()
 
 
 class _DbMissing(Exception):
@@ -82,21 +89,30 @@ class PipelineRunWriter:
     def _connect(self) -> sqlite3.Connection:
         """Open the existing DB for writing — never create it.
 
-        A missing file is logged as ``pipeline_history.db_missing`` and refused: a plain
-        ``sqlite3.connect`` would create an EMPTY file that the indexer's later migration then
-        mistakes for a store, and every write would fail on a missing table. The store is
-        migrated at the run's boot (:func:`~personalscraper.indexer.db.ensure_library_schema`).
+        A missing file is first brought to the current schema, once per process, by
+        :func:`~personalscraper.indexer.db.ensure_library_schema` under the indexer's lock: a
+        plain ``sqlite3.connect`` would create an EMPTY file that every write then fails on. A
+        store that cannot be ensured is logged ONCE as ``pipeline_history.library_db_unavailable``
+        and refused silently afterwards. A store already at head is a no-op.
 
         Returns:
             An open connection, with the newer-schema guard and the PRAGMAs applied.
 
         Raises:
-            _DbMissing: The DB file does not exist.
+            _DbMissing: The DB file does not exist and could not be ensured.
             sqlite3.Error: The DB cannot be opened.
         """
         if not self._db_path.exists():
-            log.warning("pipeline_history.db_missing", db_path=str(self._db_path))
-            raise _DbMissing(str(self._db_path))
+            if self._db_path in _UNENSURABLE:
+                raise _DbMissing(str(self._db_path))
+            try:
+                ensure_library_schema(self._db_path)
+            except Exception as exc:
+                _UNENSURABLE.add(self._db_path)
+                log.error(
+                    "pipeline_history.library_db_unavailable", db_path=str(self._db_path), error=str(exc), exc_info=True
+                )
+                raise _DbMissing(str(self._db_path)) from exc
         # mode=rw: SQLite itself refuses to create the file if it vanishes between the check and here.
         conn = sqlite3.connect(f"{self._db_path.resolve().as_uri()}?mode=rw", uri=True, isolation_level=None)
         refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
@@ -153,7 +169,7 @@ class PipelineRunWriter:
             )
             conn.commit()
         except _DbMissing:
-            pass  # already logged once by _connect as pipeline_history.db_missing
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.insert_failed",
@@ -192,7 +208,7 @@ class PipelineRunWriter:
             )
             conn.commit()
         except _DbMissing:
-            pass  # already logged once by _connect as pipeline_history.db_missing
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.update_pid_failed",
@@ -314,7 +330,7 @@ class PipelineRunWriter:
             )
             conn.commit()
         except _DbMissing:
-            pass  # already logged once by _connect as pipeline_history.db_missing
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.update_step_failed",
@@ -356,7 +372,7 @@ class PipelineRunWriter:
             )
             conn.commit()
         except _DbMissing:
-            pass  # already logged once by _connect as pipeline_history.db_missing
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.finalize_failed",
