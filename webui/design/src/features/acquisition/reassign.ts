@@ -12,7 +12,8 @@
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 
-import { read, send } from "../../lib/query-client";
+import { read } from "../../lib/query-client";
+import { sendVerb } from "./verb-outcome";
 import { panel, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
@@ -109,17 +110,17 @@ export function installReassignVerb(client: QueryClient): void {
   registerVerb("reassign-to", (value) => {
     const [kind, title, from, to] = value.split(PART);
     void (async () => {
-      try {
-        await send("POST", "/api/v1/acquisition/requesters/reassign", { kind, title, from, to });
-        const roster = client.getQueryData<Schemas["Roster"]>(accountsQuery.queryKey);
-        const name = roster?.accounts.find((one) => one.id === to)?.name ?? to;
-        panel?.close();
-        toast?.show({ message: i18next.t("verbs.reassign.done", { name }) });
-        await client.refetchQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
-        await client.refetchQueries({ queryKey: ["/api/v1/acquisition/followed"] });
-      } catch {
-        toast?.show({ message: i18next.t("verbs.reassign.refused") });
-      }
+      const sent = await sendVerb("POST", "/api/v1/acquisition/requesters/reassign", { kind, title, from, to });
+      // HELD: the outbox keeps the move, the request is still where it was, and the lists are not read over it.
+      if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
+      if (sent.kind === "failed") return void toast?.show({ message: i18next.t("verbs.acquisition.failed") });
+      if (sent.kind === "refused") return void toast?.show({ message: i18next.t("verbs.reassign.refused") });
+      const roster = client.getQueryData<Schemas["Roster"]>(accountsQuery.queryKey);
+      const name = roster?.accounts.find((one) => one.id === to)?.name ?? to;
+      panel?.close();
+      toast?.show({ message: i18next.t("verbs.reassign.done", { name }) });
+      await client.refetchQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+      await client.refetchQueries({ queryKey: ["/api/v1/acquisition/followed"] });
     })();
   });
 }

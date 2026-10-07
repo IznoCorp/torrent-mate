@@ -11,7 +11,9 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, toast } from "../../lib/shell-doors";
-import { send, sharedQueryClient } from "../../lib/query-client";
+import { sharedQueryClient } from "../../lib/query-client";
+import { refusalWords } from "../../lib/refusal";
+import { sendVerb } from "./verb-outcome";
 import type { Schemas } from "../../lib/contract-schemas";
 
 /** The reads a quarantined folder moves: the queue, the staging area and a follow's releases. */
@@ -35,17 +37,22 @@ function askedByFollow(title: string): boolean {
 }
 
 /**
- * Quarantines one folder, then says where it went.
+ * Quarantines one folder, then says where it went — or says it is held, refused, or failed.
  *
  * @param title The folder.
  */
 async function quarantine(title: string): Promise<void> {
-  const answer = (await send("POST", `/api/v1/staging/media/${encodeURIComponent(title)}/discard`, {})) as
-    | { quarantine_path?: string }
-    | undefined;
+  const outcome = await sendVerb<{ quarantine_path?: string }>("POST", `/api/v1/staging/media/${encodeURIComponent(title)}/discard`, {});
+  const say = (key: string) => i18next.t(`verbs.acquisition.abandon.${key}`, { title });
+  // HELD: the outbox keeps the quarantine, the folder has not moved, and the reads are not asked again.
+  if (outcome.kind === "held") return void toast?.show({ message: say("held") });
+  if (outcome.kind === "refused") {
+    return void toast?.show({ message: refusalWords(outcome.failure, "verbs.acquisition.abandon.refused") });
+  }
+  if (outcome.kind === "failed") return void toast?.show({ message: say("failed") });
   for (const queryKey of LEFT) await sharedQueryClient?.invalidateQueries({ queryKey });
   toast?.show({
-    message: i18next.t("verbs.acquisition.abandon.done", { title: title, path: answer?.quarantine_path ?? "" }),
+    message: i18next.t("verbs.acquisition.abandon.done", { title: title, path: outcome.answer?.quarantine_path ?? "" }),
   });
 }
 

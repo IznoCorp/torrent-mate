@@ -13,8 +13,9 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, toast } from "../../lib/shell-doors";
-import { isRequestFailure, read, send, sharedQueryClient } from "../../lib/query-client";
+import { read, sharedQueryClient } from "../../lib/query-client";
 import { refusalWords } from "../../lib/refusal";
+import { sendVerb } from "./verb-outcome";
 
 /** The words each case the read answers is said in; any other answer is unknown. */
 const CASE_WORDS: Record<string, string> = { keeps_files: "caseKeepsFiles", only_copy: "caseOnlyCopy" };
@@ -24,7 +25,7 @@ const UNKNOWN_WORDS = "caseUnknown";
 const LEFT = [["/api/v1/acquisition/to-handle"], ["/api/v1/staging/media"]];
 
 /**
- * Deletes one folder, then says it is gone — or says the layer refused.
+ * Deletes one folder, then says it is gone — or says it is held, refused, or failed.
  *
  * THE REFUSAL IS SAID, NOT THROWN. The confirming action is a promise nothing awaits, and a refusal
  * is a plain problem body: left to escape, it surfaced as an unhandled rejection a browser prints as
@@ -34,16 +35,16 @@ const LEFT = [["/api/v1/acquisition/to-handle"], ["/api/v1/staging/media"]];
  * @param title The folder.
  */
 async function deleteFolder(title: string): Promise<void> {
-  try {
-    await send("DELETE", `/api/v1/staging/media/${encodeURIComponent(title)}`);
-  } catch (refusal) {
-    toast?.show({
-      message: refusalWords(isRequestFailure(refusal) ? refusal : null, "verbs.acquisition.deleteStaged.refused"),
-    });
-    return;
+  const outcome = await sendVerb("DELETE", `/api/v1/staging/media/${encodeURIComponent(title)}`);
+  const say = (key: string) => i18next.t(`verbs.acquisition.deleteStaged.${key}`, { title });
+  // HELD: the outbox keeps the deletion, the folder is still on the disk, and nothing is read again.
+  if (outcome.kind === "held") return void toast?.show({ message: say("held") });
+  if (outcome.kind === "refused") {
+    return void toast?.show({ message: refusalWords(outcome.failure, "verbs.acquisition.deleteStaged.refused") });
   }
+  if (outcome.kind === "failed") return void toast?.show({ message: say("failed") });
   for (const queryKey of LEFT) await sharedQueryClient?.invalidateQueries({ queryKey });
-  toast?.show({ message: i18next.t("verbs.acquisition.deleteStaged.done", { title }) });
+  toast?.show({ message: say("done") });
 }
 
 /**

@@ -18,12 +18,14 @@ const opened: DialogDescriptor[] = [];
 const said: string[] = [];
 const invalidated: unknown[] = [];
 let refusal: unknown = null;
+let answer: unknown;
 
 vi.mock("../../lib/query-client", () => ({
   read: async () => ({ case: "only_copy" }),
+  HELD: Symbol.for("test-held"),
   send: async () => {
     if (refusal !== null) throw refusal;
-    return undefined;
+    return answer;
   },
   isRequestFailure: (failure: unknown) => typeof failure === "object" && failure !== null && "status" in failure,
   sharedQueryClient: { invalidateQueries: async (filters: unknown) => void invalidated.push(filters) },
@@ -55,6 +57,7 @@ describe("deleting a folder set aside", () => {
     invalidated.length = 0;
     escaped.length = 0;
     refusal = null;
+    answer = undefined;
     runner.on("unhandledRejection", catchEscaped);
   });
   afterEach(() => {
@@ -74,5 +77,28 @@ describe("deleting a folder set aside", () => {
     expect(said).toHaveLength(1);
     expect(said[0]).not.toBe(i18next.t("verbs.acquisition.deleteStaged.done", { title: "Lucky" }));
     expect(said[0]).toBe(i18next.t("verbs.acquisition.deleteStaged.refused", { title: "Lucky" }));
+  });
+
+  it("says the deletion is held, never done, when the outbox keeps it", async () => {
+    answer = Symbol.for("test-held");
+    await confirm("Lucky");
+    expect(said).toEqual([i18next.t("verbs.acquisition.deleteStaged.held", { title: "Lucky" })]);
+    expect(said[0]).not.toBe(i18next.t("verbs.acquisition.deleteStaged.done", { title: "Lucky" }));
+    expect(invalidated).toEqual([]);
+    expect(escaped).toEqual([]);
+  });
+
+  it("does not word a network error as a refusal", async () => {
+    refusal = new TypeError("network down");
+    await confirm("Lucky");
+    expect(escaped).toEqual([]);
+    expect(said).toEqual([i18next.t("verbs.acquisition.deleteStaged.failed", { title: "Lucky" })]);
+    expect(said[0]).not.toBe(i18next.t("verbs.acquisition.deleteStaged.refused", { title: "Lucky" }));
+  });
+
+  it("says a refusal in the words of its code, not the fallback", async () => {
+    refusal = { status: 403, title: "a right this account does not hold", code: "right.missing", params: {} };
+    await confirm("Lucky");
+    expect(said).toEqual([i18next.t("refusals.right.missing")]);
   });
 });

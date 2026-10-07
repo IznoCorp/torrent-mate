@@ -2122,7 +2122,10 @@
         "bodyFollow": " The follow continues: another release will be searched for.",
         "confirm": "Quarantine",
         "cancel": "Cancel",
-        "done": "“{{title}}” quarantined: {{path}}"
+        "done": "“{{title}}” quarantined: {{path}}",
+        "refused": "The quarantine was refused: the folder has not moved.",
+        "held": "Offline: the quarantine of “{{title}}” will go out when the network is back, the folder has not moved.",
+        "failed": "The network did not answer: “{{title}}” was not quarantined."
       },
       "deleteStaged": {
         "heading": "Delete “{{title}}” from disk?",
@@ -2134,11 +2137,16 @@
         "confirm": "Delete",
         "cancel": "Cancel",
         "done": "“{{title}}” deleted from disk.",
-        "refused": "The deletion was refused: the folder is still on disk."
+        "refused": "The deletion was refused: the folder is still on disk.",
+        "held": "Offline: the deletion of “{{title}}” will go out when the network is back, the folder is still on disk.",
+        "failed": "The network did not answer: the folder is still on disk."
       },
       "left": "“{{title}}” set aside — it is waiting for you, folded at the end of “To handle”.",
       "resolved": "Identified as “{{choice}}” — the pipeline resumes through to the library.",
-      "closureSeenRefused": "“{{title}}” could not be marked as seen: its card stays in “To handle”."
+      "closureSeenRefused": "“{{title}}” could not be marked as seen: its card stays in “To handle”.",
+      "held": "Offline: the action is kept and will go out when the network is back.",
+      "failed": "The network did not answer: the action was not done.",
+      "refused": "The server refused: the action was not done."
     },
     "media": {
       "seasonAsked": "Season {{season}} of “{{title}}” requested — {{count}} episodes to download.",

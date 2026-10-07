@@ -2122,7 +2122,10 @@
         "bodyFollow": " Le suivi continue : une autre release sera cherchée.",
         "confirm": "Mettre en quarantaine",
         "cancel": "Annuler",
-        "done": "« {{title}} » mis en quarantaine : {{path}}"
+        "done": "« {{title}} » mis en quarantaine : {{path}}",
+        "refused": "La mise en quarantaine a été refusée : le dossier n'a pas bougé.",
+        "held": "Hors connexion : la mise en quarantaine de « {{title}} » partira au retour du réseau, le dossier n'a pas bougé.",
+        "failed": "Le réseau n'a pas répondu : « {{title}} » n'a pas été mis en quarantaine."
       },
       "deleteStaged": {
         "heading": "Supprimer « {{title}} » du disque ?",
@@ -2134,11 +2137,16 @@
         "confirm": "Supprimer",
         "cancel": "Annuler",
         "done": "« {{title}} » supprimé du disque.",
-        "refused": "La suppression a été refusée : le dossier est toujours sur le disque."
+        "refused": "La suppression a été refusée : le dossier est toujours sur le disque.",
+        "held": "Hors connexion : la suppression de « {{title}} » partira au retour du réseau, le dossier est toujours sur le disque.",
+        "failed": "Le réseau n'a pas répondu : le dossier est toujours sur le disque."
       },
       "left": "« {{title}} » mis de côté — il vous attend, replié en fin d'« À traiter ».",
       "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque.",
-      "closureSeenRefused": "« {{title}} » n'a pas pu être marqué comme vu : sa carte reste dans « À traiter »."
+      "closureSeenRefused": "« {{title}} » n'a pas pu être marqué comme vu : sa carte reste dans « À traiter ».",
+      "held": "Hors connexion : l'action est gardée et partira au retour du réseau.",
+      "failed": "Le réseau n'a pas répondu : l'action n'a pas été faite.",
+      "refused": "Le serveur a refusé : l'action n'a pas été faite."
     },
     "media": {
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",

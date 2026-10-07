@@ -17,7 +17,8 @@ import { landingTab, rememberTab } from "./tab-memory";
 import { dialParts, landOnCard } from "./landing";
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
-import { HELD, send } from "../../lib/query-client";
+import { refusalWords } from "../../lib/refusal";
+import { sendVerb } from "./verb-outcome";
 import { queueActions } from "../../lib/queue";
 import { fillLandingDoor, followLink, panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
@@ -70,21 +71,25 @@ registerVerb("sheetprim", (value) => {
  * Searches for one follow now, and says what the search found.
  *
  * WHAT WAS NOT FOUND IS CONFIRMED BY A LIVE SEARCH: the act sends the follow's
- * own search and reads its answer — « aucun torrent trouvé » or how many.
+ * own search and reads its answer — « aucun torrent trouvé » or how many. A search the
+ * outbox holds, the layer refuses or the network loses is said in its own words, never thrown.
  * Announcing a search nothing sent was the promise of a result no surface drew.
  *
  * @param title The follow's title — its address.
  */
 async function searchNow(title: string): Promise<void> {
-  const answer = await send<{ found: number }>(
+  const sent = await sendVerb<{ found: number }>(
     "POST", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/search`);
-  // HELD OR REFUSED, the queue and the refusal say so themselves.
-  if (answer === undefined || answer === HELD) return;
+  // HELD: the outbox keeps the search, nothing was searched, and nothing is announced as found.
+  if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
+  if (sent.kind === "refused") return void toast?.show({ message: refusalWords(sent.failure, "verbs.acquisition.refused") });
+  if (sent.kind === "failed") return void toast?.show({ message: i18next.t("verbs.acquisition.failed") });
+  if (sent.answer === undefined) return;
   const named = baseTitle(title);
   toast?.show({
-    message: answer.found === 0
+    message: sent.answer.found === 0
       ? i18next.t("verbs.acquisition.searchFoundNone", { title: named })
-      : i18next.t("verbs.acquisition.searchFound", { title: named, count: answer.found }),
+      : i18next.t("verbs.acquisition.searchFound", { title: named, count: sent.answer.found }),
   });
 }
 // An incomplete series: the search for its missing episodes is said where it
