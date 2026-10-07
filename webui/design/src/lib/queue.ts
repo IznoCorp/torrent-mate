@@ -249,6 +249,36 @@ export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
   ["/api/v1/staging/media", "/api/v1/acquisition/to-handle", "/api/v1/acquisition/followed"],
 ];
 
+// THE WRITES WHOSE ONLINE VERB REFRESHES LISTS THAT ARE NOT UNDER THEIR OWN
+// ADDRESS, and that a replay from the outbox must refresh the same way.
+//
+// WHY NOT A PAIR. `ADDRESSES_THAT_MOVE_TOGETHER` is symmetric — a write to
+// either end moves the other. These are ONE-WAY: a reassign moves the queue and
+// the follows, and a write to the queue moves no reassign. A pair would also
+// make a write to `to-handle` refresh the decisions, which nothing asks for.
+// The address is matched whole (a pattern), because the writes that matter end in
+// a verb after a variable segment — `…/journeys/<title>/plex-match` — which a
+// prefix cannot tell from the journey's other writes.
+//
+// DECLARED HERE, beside the lists and the verbs that name them, for the reason
+// the pairing is: these are domain addresses, and invariant 10 refuses them in
+// `app/`. The frame reads the table without knowing what is in it.
+export const REPLAY_REFRESHES: readonly { readonly write: RegExp; readonly lists: readonly string[] }[] = [
+  {
+    write: /^\/api\/v1\/acquisition\/requesters\/reassign$/,
+    lists: ["/api/v1/acquisition/to-handle", "/api/v1/acquisition/followed"],
+  },
+  {
+    write: /^\/api\/v1\/acquisition\/journeys\/[^/]+\/(plex-match|closure\/seen)$/,
+    lists: ["/api/v1/acquisition/to-handle"],
+  },
+  // A decision correction: reopened, or a settled folder put back in the queue.
+  {
+    write: /^\/api\/v1\/(decisions\/[^/]+\/reopen|staging\/media\/[^/]+\/enqueue)$/,
+    lists: ["/api/v1/decisions/"],
+  },
+];
+
 /**
  * Installs the queue's four actions, for the dying engine to call.
  *

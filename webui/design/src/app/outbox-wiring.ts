@@ -18,7 +18,7 @@
 //   THE MOCK LAYER'S RESET — because the outbox is IndexedDB and survives it.
 import { readCondition, subscribeToCondition } from "../lib/relay-condition";
 import { HELD, send } from "../lib/query-client";
-import { ADDRESSES_THAT_MOVE_TOGETHER } from "../lib/queue";
+import { ADDRESSES_THAT_MOVE_TOGETHER, REPLAY_REFRESHES } from "../lib/queue";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   departOnReconnection,
@@ -59,12 +59,19 @@ export function installOutboxWiring(queryClient: QueryClient): void {
     // direction.
     const also = ADDRESSES_THAT_MOVE_TOGETHER.find(
       (pair) => pair.some((one) => path.startsWith(one)));
+    // AND THE LISTS A VERB REFRESHES ONLINE THAT ARE NOT UNDER ITS ADDRESS — a
+    // reassign moves the queue and the follows, a Plex answer the queue. One-way,
+    // so declared apart from the pairing, in the same module and for the same
+    // reason; read here without knowing what is in it.
+    const alsoRefreshed = REPLAY_REFRESHES
+      .filter((entry) => entry.write.test(path))
+      .flatMap((entry) => entry.lists);
     void queryClient.invalidateQueries({
       predicate: (query) => {
         const key = query.queryKey[0];
         if (typeof key !== "string") return false;
         if (path === key || path.startsWith(`${key}/`)) return true;
-        return also !== undefined && also.includes(key);
+        return (also !== undefined && also.includes(key)) || alsoRefreshed.includes(key);
       },
     });
   });
