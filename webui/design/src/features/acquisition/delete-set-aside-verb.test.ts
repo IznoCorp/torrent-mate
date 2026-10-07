@@ -9,6 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18next from "../../lib/unit-words";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
 
+// THE RUNNER'S OWN PROCESS, typed by what is used of it: the app's types carry no Node.
+const runner = (globalThis as unknown as {
+  process: { on: (event: string, listener: (reason: unknown) => void) => void; off: (event: string, listener: (reason: unknown) => void) => void };
+}).process;
+
 const opened: DialogDescriptor[] = [];
 const said: string[] = [];
 const invalidated: unknown[] = [];
@@ -50,10 +55,10 @@ describe("deleting a folder set aside", () => {
     invalidated.length = 0;
     escaped.length = 0;
     refusal = null;
-    process.on("unhandledRejection", catchEscaped);
+    runner.on("unhandledRejection", catchEscaped);
   });
   afterEach(() => {
-    process.off("unhandledRejection", catchEscaped);
+    runner.off("unhandledRejection", catchEscaped);
   });
 
   it("says the folder is deleted when the layer accepts", async () => {
