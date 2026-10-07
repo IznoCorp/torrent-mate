@@ -991,7 +991,10 @@ def test_app_private_engine_import_ignores_the_layering_marker() -> None:
 
 
 def _persistence_imports(source: str, rel: str) -> list[str]:
-    """Return the runtime imports of ``app.store`` or of an ``app`` module named ``*repository``.
+    """Return the runtime imports of ``app.store`` or of any module named ``*repository``.
+
+    The repository arm matches on the last dotted segment alone, wherever the module
+    lives (``app`` or the indexer's, say).
 
     Args:
         source: Python source code.
