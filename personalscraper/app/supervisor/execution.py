@@ -71,9 +71,7 @@ def _open_history_writer(config: Config) -> PipelineRunWriter | None:
     try:
         db_path = config.indexer.db_path
         assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
-        # A non-path value (a mocked config) would stringify to a junk filesystem path: never migrate it.
-        if isinstance(db_path, Path):
-            ensure_library_schema(db_path)
+        ensure_library_schema(db_path)
         return PipelineRunWriter(db_path=db_path)
     except Exception as exc:  # noqa: BLE001 — history is optional; the run proceeds without it
         get_logger("pipeline").error("pipeline_history.library_db_unavailable", error=str(exc), exc_info=True)
