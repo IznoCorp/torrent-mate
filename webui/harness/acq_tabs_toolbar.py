@@ -42,8 +42,9 @@ TABS = [
      "sort": "data-follows-sort-pill", "first": ACQ["followSort"]["az"], "second": ACQ["followSort"]["za"],
      "by_title": True, "switch": True},
     {"id": "now", "state": "acq-now-loaded", "search": "#nowq", "filter": "data-now-filter-pill",
-     "sort": "data-now-sort-pill", "first": ACQ.get("nowSort", {}).get("az", ""),
-     "second": ACQ.get("nowSort", {}).get("za", ""), "by_title": True, "switch": False},
+     "sort": "data-now-sort-pill", "first": ACQ["nowSort"]["az"],
+     "second": ACQ["nowSort"]["za"], "by_title": True, "switch": False,
+     "progress": ACQ["nowSort"]["progress"]},
     {"id": "todo", "state": "acq-todo-every-cause", "search": "#todoq", "filter": "data-todo-filter-pill",
      "sort": "data-todo-sort-pill", "first": ACQ["todoSort"]["newest"], "second": ACQ["todoSort"]["oldest"],
      "by_title": False, "switch": False},
@@ -73,6 +74,14 @@ ZONE = """() => {
 PILL = """(verb) => { const node = document.querySelector(`#view [data-part="pill/select"][${verb}]`);
   return node ? {text: node.firstChild?.textContent.trim() ?? '', pressed: node.getAttribute('aria-pressed') === 'true',
     count: node.querySelector('[data-part="pill/select-count"]')?.textContent.trim() ?? null} : null; }"""
+# Each card's title and how many rungs of its strip it has passed, in page order, the sections TITLES leaves out
+# left out here too.
+DONE_BY_TITLE = """() => [...document.querySelectorAll('#view [data-part="card/strip"]')]
+  .filter(strip => !strip.closest('[data-part="section/set-aside"], [data-part="section/paused"]'))
+  .map(strip => { let card = strip;
+    while (card && !card.querySelector('[data-part="card/title"]')) card = card.parentElement;
+    return {title: card?.querySelector('[data-part="card/title"]').textContent.trim() ?? '',
+      done: strip.querySelectorAll('[data-state="done"]').length}; })"""
 SORTED_BY_TITLE = """(titles) => [...titles].sort((left, right) => left.localeCompare(right, 'fr'))"""
 CHOICES = """() => { const sheet = document.querySelector('#sheet');
   if (!sheet || !sheet.hasAttribute('data-open')) return null;
@@ -87,6 +96,18 @@ async def tap(page, selector):
         await target.first.tap()
         await page.wait_for_timeout(ACTED)
     return await target.count()
+
+
+async def tap_tab(journal, page, tab_id):
+    """Taps a tab of the bar and holds that it exists and is the one selected afterwards."""
+    tab = page.locator(f'[data-acqtab="{tab_id}"]')
+    found = await tab.count() > 0
+    journal.check(f"the tab « {tab_id} » is on the bar", found)
+    if found:
+        await tab.first.tap()
+        await page.wait_for_timeout(ACTED)
+    selected = found and await tab.first.get_attribute("aria-selected") == "true"
+    journal.check(f"the tab « {tab_id} » is the selected one after the tap", selected)
 
 
 async def choose_text(page, pill, text):
@@ -123,7 +144,7 @@ ALL_SIDES = ("top", "height", "left", "width")
 def same_place(name, reference, other):
     """Whether two boxes share what places them, within a half pixel."""
     if reference is None or other is None:
-        return reference is other
+        return False
     return all(abs(reference[key] - other[key]) <= TOLERANCE for key in PLACE.get(name, ALL_SIDES))
 
 
@@ -192,6 +213,16 @@ async def check_tab(journal, page, tab):
     journal.check(f"{name}: « {tab['first']} » and « {tab['second']} » order the list differently, the pill saying it",
                   first != second and sorted(first) == sorted(second) and sort_pill is not None
                   and sort_pill["text"] == tab["second"], f"{first} / {second} · {sort_pill}")
+    if "progress" in tab:
+        await choose_text(page, tab["sort"], tab["progress"])
+        by_progress = await page.evaluate(TITLES)
+        rows = {row["title"]: row["done"] for row in await page.evaluate(DONE_BY_TITLE)}
+        done = [rows.get(title) for title in by_progress]
+        journal.check(f"{name}: « {tab['progress']} » puts the furthest card first, each one no further than the one before",
+                      None not in done and len(set(done)) > 1 and done == sorted(done, reverse=True),
+                      f"{by_progress} · {done}")
+        journal.check(f"{name}: « {tab['progress']} » orders the list otherwise than « {tab['first']} »",
+                      sorted(by_progress) == sorted(first) and by_progress != first, f"{by_progress} / {first}")
     if tab["by_title"]:
         by_title = await page.evaluate(SORTED_BY_TITLE, first)
         journal.check(f"{name}: the two orders are the titles' by French collation, one the reverse of the other",
@@ -216,13 +247,14 @@ async def main():
             places[f"{tab['id']} (posed)"] = await page.evaluate(ZONE)
         await pose(page, "acq-todo-every-cause")
         for tab in TABS:
-            await tap(page, f'[data-acqtab="{tab["id"]}"]')
+            await tap_tab(journal, page, tab["id"])
             places[f"{tab['id']} (tapped)"] = await page.evaluate(ZONE)
         reference_name, reference = next(iter(places.items()))
         for label, zone in places.items():
             moved = mismatches(reference, zone) if zone["present"] and reference["present"] else ["zone"]
             journal.check(f"the zone, the field, the pills and the tab bar of « {label} » sit where « {reference_name} »'s do",
                           not moved, f"moved: {moved} · {zone['boxes']} vs {reference['boxes']}")
+            journal.check(f"the tab bar of « {label} » is drawn", zone["boxes"]["tabs"] is not None)
             journal.check(f"« {label} » is not wider than the screen", zone["overflow"] <= 0, str(zone["overflow"]))
 
         journal.check("no JS error", not errors, str(errors))
