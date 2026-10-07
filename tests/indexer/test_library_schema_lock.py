@@ -103,6 +103,20 @@ def test_web_boot_migration_still_fails_closed_on_a_newer_store(
     assert _version(db_path) == 9999
 
 
+def test_web_boot_still_fails_closed_on_a_newer_store_while_the_lock_is_held(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The newer-schema refusal does not depend on the lock: a held lock never turns it fail-soft."""
+    monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
+    db_path = _empty_store(tmp_path / "library.db")
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA user_version = 9999")
+    conn.close()
+    with db_lock(db_path), pytest.raises(SqliteSchemaNewerError):
+        _apply_pending_indexer_migrations(_config_for(db_path))
+    assert _version(db_path) == 9999
+
+
 def test_media_index_migration_waits_on_the_indexer_lock(tmp_path: Path) -> None:
     """``MediaIndex`` cannot migrate the store while another process holds its lock."""
     db_path = _empty_store(tmp_path / "library.db")
@@ -162,3 +176,18 @@ def test_writer_that_cannot_ensure_the_schema_logs_once_across_writes(tmp_path: 
     assert [e["event"] for e in logs if e["log_level"] in ("error", "warning")] == [
         "pipeline_history.library_db_unavailable"
     ]
+
+
+def test_writer_retries_the_ensure_after_a_lock_timeout(tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
+    """A lock timeout skips that write only; the next write, lock free, ensures and writes its row."""
+    db_path = tmp_path / "library.db"
+    writer = PipelineRunWriter(db_path)
+    with db_lock(db_path):
+        writer.insert("r-locked", trigger="cli", dry_run=False, pid=1)
+    assert not db_path.exists()
+    writer.insert("r-free", trigger="cli", dry_run=False, pid=1)
+    conn = sqlite3.connect(str(db_path))
+    try:
+        assert conn.execute("SELECT run_uid FROM pipeline_run").fetchall() == [("r-free",)]
+    finally:
+        conn.close()

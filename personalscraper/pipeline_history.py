@@ -46,7 +46,7 @@ from pathlib import Path
 
 from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.indexer.db import ensure_library_schema
+from personalscraper.indexer.db import IndexerLockError, ensure_library_schema
 from personalscraper.indexer.library_view import IndexUnavailable, LibraryIndex
 from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
@@ -93,7 +93,8 @@ class PipelineRunWriter:
         :func:`~personalscraper.indexer.db.ensure_library_schema` under the indexer's lock: a
         plain ``sqlite3.connect`` would create an EMPTY file that every write then fails on. A
         store that cannot be ensured is logged ONCE as ``pipeline_history.library_db_unavailable``
-        and refused silently afterwards. A store already at head is a no-op.
+        and refused silently afterwards; a lock timeout is not memoised (that write is skipped and logged,
+        the next one tries again). A store already at head is a no-op.
 
         Returns:
             An open connection, with the newer-schema guard and the PRAGMAs applied.
@@ -108,7 +109,9 @@ class PipelineRunWriter:
             try:
                 ensure_library_schema(self._db_path)
             except Exception as exc:
-                _UNENSURABLE.add(self._db_path)
+                # A lock timeout is transient (a scan holds the lock): skip this write, retry on the next.
+                if not isinstance(exc, IndexerLockError):
+                    _UNENSURABLE.add(self._db_path)
                 log.error(
                     "pipeline_history.library_db_unavailable", db_path=str(self._db_path), error=str(exc), exc_info=True
                 )
