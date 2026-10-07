@@ -291,7 +291,7 @@ class Supervisor:
         self._config = config
         self._launcher = launcher
         self._watcher = watcher
-        self._engine: DecisionEngine = watcher_service if watcher_service is not None else WatcherService(config.watch)
+        self._engine: DecisionEngine = watcher_service if watcher_service is not None else WatcherService(config.watch, scoped=config.torrent.active_scope() is not None)
         self._clock = clock
         self._pid = pid if pid is not None else os.getpid()
         self._host = host if host is not None else socket.gethostname()

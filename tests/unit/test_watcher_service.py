@@ -286,6 +286,29 @@ class TestWatcherService:
         assert out.new_state.backoff_multiplier == 1  # incremented, not reset
         assert out.new_state.debounce_origin == "safety_net"
 
+    def test_scoped_boot_without_a_recorded_run_starts_the_safety_net_clock(self) -> None:
+        """A scoped instance with no recorded run is IDLE on boot; its first safety net is due after the delay."""
+        svc = WatcherService(
+            WatchConfig(enabled=True, debounce_s=900, safety_net_hours=24, poll_interval_s=60), scoped=True
+        )
+        boot = _inp(completed=set(), ingested=set(), now=1_000_000.0)
+        out = svc.evaluate(boot, WatcherState())
+        assert out.decision == WatcherDecision.IDLE
+        assert out.new_state.last_successful_run_at == 1_000_000.0
+        just_before = _inp(completed=set(), ingested=set(), now=1_000_000.0 + 24 * 3600 - 1)
+        assert svc.evaluate(just_before, out.new_state).decision == WatcherDecision.IDLE
+        due = _inp(completed=set(), ingested=set(), now=1_000_000.0 + 24 * 3600)
+        fired = svc.evaluate(due, out.new_state)
+        assert fired.decision == WatcherDecision.FIRE_RUN
+        assert fired.run_reason == "safety_net"
+
+    def test_scoped_boot_still_honours_the_sentinel(self) -> None:
+        """The boot clock never swallows a manual poke."""
+        svc = WatcherService(WatchConfig(enabled=True, safety_net_hours=24), scoped=True)
+        out = svc.evaluate(_inp(completed=set(), ingested=set(), now=1_000_000.0, sentinel=True), WatcherState())
+        assert out.decision == WatcherDecision.FIRE_RUN
+        assert out.run_reason == "manual"
+
     def test_safety_net_fires_when_expired_25h(self, svc: WatcherService) -> None:
         """25 h elapsed with 24 h config → safety net triggers."""
         state = WatcherState(last_successful_run_at=1_000_000.0)

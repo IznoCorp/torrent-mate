@@ -128,12 +128,16 @@ class WatcherService:
     and executes the returned :class:`WatcherOutput`.
     """
 
-    def __init__(self, config_watch: WatchConfig) -> None:
+    def __init__(self, config_watch: WatchConfig, *, scoped: bool = False) -> None:
         """Initialise from watch config.
 
         Args:
             config_watch: ``AppConfig.watch`` (:class:`WatchConfig`).
+            scoped: The instance owns a scope in a shared torrent client. With no recorded
+                successful run, it starts the safety-net clock on its first cycle instead of
+                firing a run at once (an unscoped instance fires, as always).
         """
+        self._scoped: bool = scoped
         self._poll_interval_s: int = config_watch.poll_interval_s
         self._debounce_s: int = config_watch.debounce_s
         self._safety_net_hours: int = config_watch.safety_net_hours
@@ -176,6 +180,12 @@ class WatcherService:
         """
         if not self._enabled:
             return WatcherOutput(decision=WatcherDecision.IDLE, new_state=state)
+
+        # 0. A scoped instance with no recorded run starts its safety-net clock at boot: a fresh
+        # sandbox has no history, and « never ran » must not read as « overdue ». The seed is
+        # in-memory only (never persisted), so only a real successful run is ever recorded.
+        if self._scoped and state.last_successful_run_at is None:
+            state = dataclasses.replace(state, last_successful_run_at=inp.now)
 
         # 1. Sentinel present — manual poke bypasses all windows.
         if inp.sentinel_present:

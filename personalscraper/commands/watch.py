@@ -697,7 +697,7 @@ def watch(ctx: typer.Context) -> None:
         typer.echo(t("cli_core.watch.no_client"), err=True)
         raise typer.Exit(code=1)
 
-    svc = WatcherService(config.watch)
+    svc = WatcherService(config.watch, scoped=config.torrent.active_scope() is not None)
     state = WatcherState()
 
     # Restore last_successful_run_at from acquire.db (fail-soft).
