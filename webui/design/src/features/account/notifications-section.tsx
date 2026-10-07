@@ -25,7 +25,7 @@ import { useTranslation } from "react-i18next";
 import { read, send } from "../../lib/query-client";
 import { toast } from "../../lib/shell-doors";
 import { Switch } from "../../ui/switch";
-import { actionButton, factsPanel, guidance, keyValueRow, qualityHint, sectionHeading, settingRow } from "../../ui/variants";
+import { actionButton, factsPanel, guidance, keyValueRow, qualityHint, section, sectionHeading, settingRow } from "../../ui/variants";
 import { chipTone } from "../../ui/fact-rows";
 import { Chip } from "../../ui/chip";
 import { deviceSupport, enablePush, poseGeneration, type DeviceSupport } from "./push-device";
@@ -126,7 +126,7 @@ export function NotificationsSection(): ReactElement | null {
   }
 
   return (
-    <section data-part="profile/notifications">
+    <section className={section()} data-part="profile/notifications">
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.notifications.heading")}</h2>
       <p className={guidance()} data-part="profile/notifications-guidance">
         {t("screens.accountPage.notifications.intro")}

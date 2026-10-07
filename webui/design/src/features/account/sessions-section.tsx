@@ -26,9 +26,9 @@ import { useTranslation } from "react-i18next";
 import { momentOf } from "../../lib/clock";
 import { HELD, read, send } from "../../lib/query-client";
 import { Chip } from "../../ui/chip";
-import { actionButton, factsPanel, guidance, keyValueRow, loadError, loadErrorAction, qualityHint, sectionHeading, settingRow, surfaceError } from "../../ui/variants";
+import { actionButton, factsPanel, guidance, keyValueRow, loadError, loadErrorAction, qualityHint, section, sectionHeading, settingRow, surfaceError } from "../../ui/variants";
 import { forgetEndings, SESSIONS_KEY, useEndings, WORDS } from "./session-end";
-import { noticeRow, noticesSection, sessionRow } from "./variants";
+import { noticeRow, noticesSection, sessionRow, sessionsSection } from "./variants";
 import type { components } from "../../contract/types";
 
 type OwnSession = components["schemas"]["OwnSession"];
@@ -76,7 +76,8 @@ export function SessionsSection(): ReactElement {
   const state = sessions.isError ? "failed" : sessions.data === undefined ? "loading" : others.length === 0 ? "only-current" : "list";
 
   return (
-    <section data-part="profile/sessions" data-state={state}>
+    <section className={sessionsSection()} data-part="profile/sessions" data-state={state}>
+      <div className={section()}>
       <h2 className={sectionHeading()} data-part="heading">{t(`${WORDS}.heading`)}</h2>
       <p className={guidance()} data-part="profile/sessions-guidance">{t(`${WORDS}.intro`)}</p>
       {state === "loading" ? (
@@ -127,6 +128,7 @@ export function SessionsSection(): ReactElement {
       {state === "only-current" ? (
         <p className={qualityHint()} data-part="profile/sessions-only-current">{t(`${WORDS}.onlyCurrent`)}</p>
       ) : null}
+      </div>
       <NoticesList />
     </section>
   );
@@ -171,7 +173,7 @@ function NoticesList(): ReactElement {
   }
 
   return (
-    <div className={noticesSection({ state })} data-part="profile/notices" data-state={state} data-unread={unread.length}>
+    <div className={`${noticesSection({ state })} ${section()}`} data-part="profile/notices" data-state={state} data-unread={unread.length}>
       <h3 className={sectionHeading()} data-part="heading">{t(`${WORDS}.notices.heading`)}</h3>
       {state === "loading" ? (
         <p className={qualityHint()} role="status" data-part="profile/notices-loading">{t(`${WORDS}.notices.loading`)}</p>
