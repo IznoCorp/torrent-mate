@@ -20,7 +20,9 @@ set -euo pipefail
 message_file="$1"
 # Comments and the diff `git commit -v` appends are not the message.
 message="$(grep -v '^#' "$message_file" | sed '/^diff --git /,$d')"
-subject="$(printf '%s\n' "$message" | head -1)"
+# The first line by expansion, not `| head -1`: head exits after one line and the
+# writer of a large message would take SIGPIPE (see the note before the checks).
+subject="${message%%$'\n'*}"
 
 fail() {
     printf '\n✖ commit-msg: %s\n\n' "$1" >&2
@@ -34,14 +36,17 @@ case "$subject" in
 esac
 
 # Conventional Commits: <type>[(<scope>)][!]: <description>
-if ! printf '%s' "$subject" | grep -qE '^(feat|fix|chore|refactor|style|docs|test|perf|build|ci)(\([a-z0-9._/-]+\))?!?: .+'; then
+# The tests below read a here-string, never `printf | grep -q`: grep -q exits at
+# its first match, the writer then takes SIGPIPE, and under `pipefail` the
+# pipeline reads 141 instead of 0 — a verdict decided by timing and size.
+if ! grep -qE '^(feat|fix|chore|refactor|style|docs|test|perf|build|ci)(\([a-z0-9._/-]+\))?!?: .+' <<<"$subject"; then
     fail "not a Conventional Commit. Expected « <type>[(<scope>)]: <description> » with type in
   feat | fix | chore | refactor | style | docs | test | perf | build | ci"
 fi
 
 # A version prefix — « v0.98.4: … » — is forbidden: version traceability lives
 # in IMPLEMENTATION.md, not in commit subjects.
-if printf '%s' "$subject" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+ *[:—-]'; then
+if grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+ *[:—-]' <<<"$subject"; then
     fail "version prefix in the subject. Version traceability lives in IMPLEMENTATION.md."
 fi
 
@@ -76,7 +81,7 @@ fi
 # bare column one. An anchor that only knows column one is an anchor for a
 # message nobody writes.
 _LINE='^[[:space:]]*([>*+-][[:space:]]*)*'
-if printf '%s' "$message" | grep -qiE "${_LINE}co-authored-by:.*(claude|anthropic)|${_LINE}🤖|${_LINE}generated with .*claude|${_LINE}claude-session:"; then
+if grep -qiE "${_LINE}co-authored-by:.*(claude|anthropic)|${_LINE}🤖|${_LINE}generated with .*claude|${_LINE}claude-session:" <<<"$message"; then
     fail "AI attribution trailer. CLAUDE.md forbids Co-Authored-By / Claude / Anthropic / Claude-Session."
 fi
 
