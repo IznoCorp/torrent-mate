@@ -75,8 +75,8 @@ from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.torrent._base import TorrentLimits, category_refusal
-from personalscraper.api.torrent._contracts import CategoryLister, GlobalRateLimiter, TorrentLimiter, TorrentLister
+from personalscraper.api.torrent._base import TorrentLimits, category_refusal, in_sandbox
+from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter, TorrentLister
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._ranking import rank
 from personalscraper.core._contracts import CircuitOpenError
@@ -387,7 +387,9 @@ def _sandbox_refusal(client: TorrentAdder, source: TorrentSource, sandbox_catego
 
     The unscoped counterpart of :func:`_scope_refusal`: an add of a hash a sandbox holds is
     idempotent, and prod would then treat the sandbox's torrent as its own. Only a hash held under
-    a sandbox category is refused (a hash prod itself holds keeps today's add). Every case that
+    a sandbox category, or a subcategory of one, is refused (a hash prod itself holds keeps today's
+    add). The decision rests on the torrent's own category, looked up by hash: a category filter
+    returns ``c/x`` under ``c`` only when the client's subcategories setting is on. Every case that
     cannot PROVE the hash is not a sandbox's refuses (fail-closed).
 
     Args:
@@ -397,10 +399,10 @@ def _sandbox_refusal(client: TorrentAdder, source: TorrentSource, sandbox_catego
 
     Returns:
         ``None`` when the add may proceed, else the refusal reason: ``scope_unverifiable`` (the
-        client cannot list a category), ``hash_underivable`` (the source yields no hash) or
-        ``sandbox_hash`` (a sandbox category holds the hash).
+        client cannot look a hash up), ``hash_underivable`` (the source yields no hash) or
+        ``sandbox_hash`` (a sandbox category or subcategory holds the hash).
     """
-    if not isinstance(client, CategoryLister):
+    if not isinstance(client, TorrentLister):
         log.warning("acquire.grab.scope_unverifiable", client_type=type(client).__name__)
         return "scope_unverifiable"
     try:
@@ -408,9 +410,9 @@ def _sandbox_refusal(client: TorrentAdder, source: TorrentSource, sandbox_catego
     except ValueError:
         log.warning("acquire.grab.hash_underivable", category=None)
         return "hash_underivable"
-    for category in sandbox_categories:
-        if info_hash in {item.hash.lower() for item in client.get_by_category(category)}:
-            log.info("acquire.grab.sandbox_hash", info_hash=info_hash, category=category)
+    for item in client.get_by_hashes({info_hash}):
+        if item.hash.lower() == info_hash and in_sandbox(item.category, sandbox_categories):
+            log.info("acquire.grab.sandbox_hash", info_hash=info_hash, category=item.category)
             return "sandbox_hash"
     return None
 

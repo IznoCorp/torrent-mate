@@ -532,6 +532,13 @@ class TestQBitNeutralErrorTranslation:
         with pytest.raises(TorrentUnreachableError):
             client.get_all_hashes()
 
+    def test_get_by_hashes_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on get_by_hashes → TorrentUnreachableError, never the raw client error."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentUnreachableError):
+            client.get_by_hashes({"abc"})
+
     def test_get_content_path_connection_error_maps_to_unreachable(self) -> None:
         """APIConnectionError on get_content_path → TorrentUnreachableError."""
         client = self._client()

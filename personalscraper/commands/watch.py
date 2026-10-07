@@ -40,7 +40,7 @@ from personalscraper.acquire.watcher import (
     WatcherService,
     WatcherState,
 )
-from personalscraper.api.torrent._base import scoped, scoped_hashes, triage_skip_reason
+from personalscraper.api.torrent._base import in_sandbox, scoped, scoped_hashes, triage_skip_reason
 from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS
 from personalscraper.app.composition import build_app_context
 from personalscraper.cli_app import command_with_telemetry
@@ -277,21 +277,6 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
     return not any(marker in state for marker in _INERT_STATE_MARKERS)
 
 
-def _in_sandbox(category: str | None, sandbox_categories: tuple[str, ...]) -> bool:
-    """Tell whether a torrent's category is a sandbox's, or a qBittorrent subcategory of one.
-
-    Args:
-        category: The torrent's category; ``None`` or empty = uncategorised, which is prod's.
-        sandbox_categories: The categories that belong to the sandboxes.
-
-    Returns:
-        True when *category* equals a sandbox category or lies under it (``tm-dev/x``).
-    """
-    if not category:
-        return False
-    return any(category == s or category.startswith(s + "/") for s in sandbox_categories)
-
-
 def _poll_active_downloads(
     torrent_client: TorrentLister,
     completed_hashes: frozenset[str],
@@ -324,7 +309,7 @@ def _poll_active_downloads(
         return sum(
             1
             for t in scoped(torrent_client.get_by_hashes(pending), scope)
-            if not _in_sandbox(t.category, sandbox_categories) and _is_actively_downloading(t)
+            if not in_sandbox(t.category, sandbox_categories) and _is_actively_downloading(t)
         )
     except TORRENT_LISTING_ERRORS:
         log.warning("watcher_active_downloads_poll_error", exc_info=True)

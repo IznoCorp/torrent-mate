@@ -191,10 +191,18 @@ class QBitClient(
         Returns:
             The matching torrents as :class:`TorrentItem` records (order and
             completeness follow whatever qBittorrent returns for the filter).
+
+        Raises:
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
         """
         if not hashes:
             return []
-        return [_torrent_item(t) for t in self._client.torrents_info(torrent_hashes=list(hashes))]
+        try:
+            raw = self._client.torrents_info(torrent_hashes=list(hashes))
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_by_hashes", exc)
+        return [_torrent_item(t) for t in raw]
 
     def get_by_category(self, category: str) -> list[TorrentItem]:
         """Return the torrents qBittorrent files under *category*, in any state.
