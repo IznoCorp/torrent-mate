@@ -13,7 +13,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-import structlog
 
 from personalscraper.app.supervisor.execution import _open_history_writer
 from personalscraper.core.sqlite import apply_migrations
@@ -87,13 +86,13 @@ def test_run_boot_leaves_a_store_at_head_untouched(tmp_path: Path) -> None:
     conn.close()
 
 
-def test_run_boot_refuses_a_newer_schema_before_any_migration(tmp_path: Path) -> None:
+def test_run_boot_refuses_a_newer_schema_before_any_migration(tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
     """A store migrated past the code is neither migrated nor written: no writer, one error event."""
     db_path = tmp_path / "library.db"
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA user_version = 9999")
     conn.close()
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         assert _open_history_writer(_config_for(db_path)) is None
     errors = [e for e in logs if e["log_level"] == "error" and e["event"] == "pipeline_history.library_db_unavailable"]
     assert len(errors) == 1
@@ -104,18 +103,22 @@ def test_run_boot_refuses_a_newer_schema_before_any_migration(tmp_path: Path) ->
     assert list(tmp_path.glob("*.bak")) == []
 
 
-def test_unopenable_db_is_one_error_event_and_no_per_step_warnings(tmp_path: Path) -> None:
+def test_unopenable_db_is_one_error_event_and_no_per_step_warnings(tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
     """A DB that cannot be opened gives one error for the run; the run goes on without a writer."""
     blocker = tmp_path / "not-a-dir"
     blocker.write_text("x")
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         assert _open_history_writer(_config_for(blocker / "library.db")) is None
     assert [e["event"] for e in logs if e["log_level"] == "error"] == ["pipeline_history.library_db_unavailable"]
     assert [e for e in logs if e["log_level"] == "warning"] == []
 
 
 @pytest.mark.parametrize("method", ["insert", "update_pid", "update_step", "finalize"])
-def test_writer_on_a_missing_db_creates_no_file_and_names_the_condition(tmp_path: Path, method: str) -> None:
+def test_writer_on_a_missing_db_creates_no_file_and_names_the_condition(
+    tmp_path: Path,
+    method: str,
+    logged_events,  # type: ignore[no-untyped-def]
+) -> None:
     """``pipeline_history`` never creates a DB through ``connect()``: a missing one is a named event."""
     db_path = tmp_path / "library-staging.db"
     writer = PipelineRunWriter(db_path)
@@ -125,7 +128,7 @@ def test_writer_on_a_missing_db_creates_no_file_and_names_the_condition(tmp_path
         "update_step": lambda: writer.update_step("r", "ingest", 1.0, 2.0, "success"),
         "finalize": lambda: writer.finalize("r", "success"),
     }
-    with structlog.testing.capture_logs() as logs:
+    with logged_events() as logs:
         calls[method]()
     assert not db_path.exists()
     assert [e for e in logs if e["event"] == "pipeline_history.db_missing"]
