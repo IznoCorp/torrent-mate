@@ -332,8 +332,9 @@ export const drawerGroup = cva(
 );
 
 /** The appearance group, which sits outside the navigation: it takes the
- *  navigation's own padding, so its heading starts where every group's does. */
-export const drawerAppearance = cva("px-4");
+ *  navigation's own padding, so its heading starts where every group's does —
+ *  and its bottom one, so the control does not rest on the footer's border (B-711). */
+export const drawerAppearance = cva("px-4 pb-6");
 
 /** The appearance selector, under its heading and aligned with it. */
 export const drawerAppearanceSwitch = cva("mx-6");
