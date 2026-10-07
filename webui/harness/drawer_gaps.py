@@ -15,7 +15,10 @@ WHAT THIS RULE HOLDS, at 390 px, read through `getBoundingClientRect`:
 3. at every position the navigation's scroll can come to rest on, no group heading stands at the
    cut with all its entries below it — a heading is never the last thing a reader sees. The
    rest positions are those the scroll lands on after each step of `SCROLL_STEP` px, and the
-   rule waits `SETTLE_MS` for the browser's snapping to finish.
+   rule waits `SETTLE_MS` for the browser's snapping to finish;
+4. the same holds at 844×390 (a phone turned on its side), where the largest group is taller than
+   the navigation's visible height: at every rest no heading stands bare, and the last entry of
+   EVERY group can be brought whole into the visible navigation.
 """
 
 import asyncio
@@ -25,6 +28,7 @@ from common import Journal, browser_channel, chrome_launch_args, open_page, read
 from playwright.async_api import async_playwright
 
 WIDTH = 390
+LANDSCAPE = {"width": 844, "height": 390}
 
 # Two sections of Profil are apart by the page's own gap between sections (`--spacing-7`, 14 px);
 # a heading and what it heads by `section()`'s (`--spacing-4`, 8 px); the control and the footer
@@ -68,6 +72,24 @@ READ_STRANDED = """() => {
   }).map((group) => group.querySelector('.sect').textContent);
 }"""
 
+# Whether each group's last entry can be scrolled whole into the navigation's visible box. The
+# scroll is moved to the entry's own offset and clamped by the browser, so a group the scroll
+# range cannot bring up reads false.
+READ_REACHABLE = """() => {
+  const nav = document.querySelector('#drawer nav');
+  return [...nav.querySelectorAll('.grp')].map((group) => {
+    const last = [...group.querySelectorAll('a, button')].at(-1);
+    if (!last) return {title: group.querySelector('.sect')?.textContent ?? '', reachable: false};
+    nav.scrollTop += last.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom;
+    const box = nav.getBoundingClientRect();
+    const rect = last.getBoundingClientRect();
+    return {
+      title: group.querySelector('.sect')?.textContent ?? '',
+      reachable: rect.height > 0 && rect.top >= box.top - 0.5 && rect.bottom <= box.bottom + 0.5,
+    };
+  });
+}"""
+
 READ_DRAWER = """() => {
   const control = document.querySelector('#drawer [data-appearance]')?.closest('[data-part="view/switch"]');
   const footer = document.querySelector('#drawer [data-part="shell/served-identity"]');
@@ -107,6 +129,28 @@ async def shoot(page, name):
     if SHOTS:
         os.makedirs(SHOTS, exist_ok=True)
         await page.screenshot(path=os.path.join(SHOTS, f"{name}.png"))
+
+
+async def stranded_at_rests(page):
+    """Steps the navigation's scroll and reads the bare headings at every rest.
+
+    Args:
+        page: The Playwright page, its drawer open.
+
+    Returns:
+        The headings left bare, keyed by the scroll position they rest at.
+    """
+    stranded = {}
+    reach = await page.evaluate(
+        "()=>{const nav=document.querySelector('#drawer nav');return nav.scrollHeight-nav.clientHeight}"
+    )
+    for top in range(0, int(reach) + SCROLL_STEP, SCROLL_STEP):
+        await page.evaluate("(top)=>{document.querySelector('#drawer nav').scrollTo(0, top)}", top)
+        await page.wait_for_timeout(SETTLE_MS)
+        at_rest = await page.evaluate(READ_STRANDED)
+        if at_rest:
+            stranded[top] = at_rest
+    return stranded
 
 
 async def main():
@@ -164,20 +208,25 @@ async def main():
             drawer["found"] and not bare,
             str(drawer.get("groups")),
         )
-        stranded = {}
-        reach = await page.evaluate(
-            "()=>{const nav=document.querySelector('#drawer nav');return nav.scrollHeight-nav.clientHeight}"
-        )
-        for top in range(0, int(reach) + SCROLL_STEP, SCROLL_STEP):
-            await page.evaluate("(top)=>{document.querySelector('#drawer nav').scrollTo(0, top)}", top)
-            await page.wait_for_timeout(SETTLE_MS)
-            at_rest = await page.evaluate(READ_STRANDED)
-            if at_rest:
-                stranded[top] = at_rest
+        stranded = await stranded_at_rests(page)
         journal.check(
             "no group heading rests at the cut with its entries below it",
             not stranded,
             str(dict(list(stranded.items())[:6])),
+        )
+        await context.close()
+
+        # A PHONE ON ITS SIDE: the largest group is taller than what the navigation shows.
+        context, page = await open_page(browser, viewport=LANDSCAPE, is_mobile=True, has_touch=True)
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        await read_at(page, "drawer-navigation", READ_DRAWER)
+        # No heading check here: at this height a group is taller than the navigation and scrolls
+        # freely inside its snap area by design, so only reachability is asserted.
+        unreachable = [g["title"] for g in await page.evaluate(READ_REACHABLE) if not g["reachable"]]
+        journal.check(
+            "at 844x390 the last entry of every group can be brought whole into the navigation",
+            not unreachable,
+            str(unreachable),
         )
         await context.close()
         await browser.close()
