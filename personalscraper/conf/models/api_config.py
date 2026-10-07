@@ -212,7 +212,8 @@ class TorrentScope(_StrictModel):
     v0_seed_pure: bool = Field(
         default=True,
         description=(
-            "Deprecated: add seed-pure so v0 prod skips this torrent; set false, then remove, once v1 replaces v0 in prod"
+            "Deprecated: add seed-pure so v0 prod skips this torrent; "
+            "set false, then remove, once v1 replaces v0 in prod"
         ),
     )
 

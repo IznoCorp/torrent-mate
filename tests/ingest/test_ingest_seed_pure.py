@@ -372,7 +372,7 @@ def _skip_reasons(emitted: list[ItemProgressed]) -> list[object]:
     return [e.details.get("reason") for e in emitted if e.status == "skipped"]
 
 
-def test_ingest_under_scope_triages_own_grab_carrying_seed_pure() -> None:
+def test_ingest_under_scope_ingests_own_grab_carrying_seed_pure() -> None:
     """Under a scope an own grab is ingested, though it carries the seed-pure v0 prod reads."""
     client, emitted = _scoped_ingest(["c411", *SCOPE.grab_tags])
     assert [c.args[0].hash for c in client.get_content_path.call_args_list] == [PREPROD_HASH]

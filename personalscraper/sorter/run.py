@@ -100,8 +100,9 @@ def run_sort(
             ``config.sort.verify_seed_pure`` is True to build the set of
             completed-torrent names the triage leaves alone (seed-pure
             unscoped; under a scope, untagged or seed-only — see
-            ``triage_skip_reason``), which the sort genuinely excludes. ``None`` (or the flag off) leaves the guard inert — the
-            sort proceeds with an empty skip set. The query is fail-soft: any
+            ``triage_skip_reason``), which the sort genuinely excludes.
+            ``None`` (or the flag off) leaves the guard inert — the sort
+            proceeds with an empty skip set. The query is fail-soft: any
             client error logs a warning and keeps the skip set empty. Note: the
             standalone ``personalscraper sort`` command does NOT wire a client
             (the seed-pure sort guard is pipeline-only by design — DESIGN §4.2),

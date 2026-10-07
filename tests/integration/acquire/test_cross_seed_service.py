@@ -796,7 +796,9 @@ def _scoped_check_scenario(
 class TestInjectionCarriesScope:
     """A cross-seed injected under a client scope is filed in the scope's category with its tags."""
 
-    def test_scoped_inject_passes_category_and_cross_seed_tags(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+    def test_scoped_inject_passes_category_and_cross_seed_tags(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
         """The injector is handed the scope's category, the instance tags, seed-only and the v0 seed-pure."""
         svc, client, injected_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
         result = svc.check(_SOURCE_HASH)
@@ -815,7 +817,6 @@ class TestInjectionCarriesScope:
         assert result.injected == [injected_hash]
         assert client.injected_scope == [(SCOPE.category, ["tm-preprod", SEED_ONLY])]
         assert SEED_PURE not in client.tags_added[injected_hash]
-
 
     def test_unscoped_inject_passes_no_category_and_no_tags(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
         """Characterisation: without a scope the injection is today's, no category and no tags."""

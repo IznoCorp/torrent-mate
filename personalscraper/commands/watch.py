@@ -323,7 +323,7 @@ def _poll_deferrals(
 
     Args:
         completed: Completed torrents from the poll.
-        exclude_hashes: Hashes to exclude from deferral (ingested ∪ seed-pure).
+        exclude_hashes: Hashes to exclude from deferral (ingested ∪ triage-skipped).
         config: The typed configuration (ratio / free-space thresholds).
         deferral_dirs: Staging probe dirs.
         deferral_ingest_dir: The ingest dir, or ``None`` when deferral is off.
