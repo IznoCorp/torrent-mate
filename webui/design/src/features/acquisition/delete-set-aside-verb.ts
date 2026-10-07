@@ -13,7 +13,8 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, toast } from "../../lib/shell-doors";
-import { read, send, sharedQueryClient } from "../../lib/query-client";
+import { isRequestFailure, read, send, sharedQueryClient } from "../../lib/query-client";
+import { refusalWords } from "../../lib/refusal";
 
 /** The words each case the read answers is said in; any other answer is unknown. */
 const CASE_WORDS: Record<string, string> = { keeps_files: "caseKeepsFiles", only_copy: "caseOnlyCopy" };
@@ -23,12 +24,24 @@ const UNKNOWN_WORDS = "caseUnknown";
 const LEFT = [["/api/v1/acquisition/to-handle"], ["/api/v1/staging/media"]];
 
 /**
- * Deletes one folder, then says it is gone.
+ * Deletes one folder, then says it is gone — or says the layer refused.
+ *
+ * THE REFUSAL IS SAID, NOT THROWN. The confirming action is a promise nothing awaits, and a refusal
+ * is a plain problem body: left to escape, it surfaced as an unhandled rejection a browser prints as
+ * « Object », with the folder still on the disk and the reader told nothing (an account without the
+ * pipeline's right confirming a dialog another account opened, the way a harness walk meets it).
  *
  * @param title The folder.
  */
 async function deleteFolder(title: string): Promise<void> {
-  await send("DELETE", `/api/v1/staging/media/${encodeURIComponent(title)}`);
+  try {
+    await send("DELETE", `/api/v1/staging/media/${encodeURIComponent(title)}`);
+  } catch (refusal) {
+    toast?.show({
+      message: refusalWords(isRequestFailure(refusal) ? refusal : null, "verbs.acquisition.deleteStaged.refused"),
+    });
+    return;
+  }
   for (const queryKey of LEFT) await sharedQueryClient?.invalidateQueries({ queryKey });
   toast?.show({ message: i18next.t("verbs.acquisition.deleteStaged.done", { title }) });
 }
