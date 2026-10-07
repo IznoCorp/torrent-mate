@@ -17,6 +17,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import qbittorrentapi
+
 from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import WantedItem
@@ -25,6 +27,7 @@ from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentLimits, TorrentSource
+from personalscraper.api.torrent.qbittorrent import QBitClient
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.conf.models.acquire import AcquireConfig, BandwidthConfig
@@ -486,6 +489,18 @@ def test_unscoped_grab_of_a_hash_held_under_a_sandbox_subcategory_is_refused() -
     assert client.add_calls == []
     assert outcome.disposition == "retryable"
     assert outcome.reason == "sandbox_hash"
+
+
+def test_unscoped_grab_whose_hash_lookup_fails_is_a_retryable_add_failure() -> None:
+    """A qBittorrent outage on the hash lookup: nothing is added and the grab retries, it does not crash."""
+    client = QBitClient("localhost", 8081, "admin", "pass")
+    client._client = MagicMock()
+    client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")
+    outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
+
+    client._client.torrents_add.assert_not_called()
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "add_failed"
 
 
 def test_unscoped_grab_of_a_hash_under_a_lookalike_category_keeps_todays_add() -> None:
