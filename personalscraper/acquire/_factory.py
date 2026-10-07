@@ -189,6 +189,7 @@ def build_acquire_context(
             episode_count_resolver=_episode_count_resolver,
             bandwidth=config.acquire.bandwidth,
             scope=config.torrent.active_scope(),
+            sandbox_categories=config.torrent.active_sandbox_categories(),
         )
         service = AcquisitionService(
             store=store,

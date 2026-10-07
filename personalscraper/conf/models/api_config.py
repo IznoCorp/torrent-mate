@@ -322,12 +322,36 @@ class TorrentClientEntry(_StrictModel):
         host: Hostname or IP address.
         port: WebUI port number.
         scope: The part of the client this instance owns; ``None`` = the whole client.
+        sandbox_categories: For an UNSCOPED instance (prod) sharing the client with sandboxes: the
+            categories that belong to them. Prod refuses to grab a hash held there and does not
+            count their downloads in its watcher's quiescence gate. Empty = today's behaviour.
     """
 
     enabled: bool = True
     host: str = "localhost"
     port: int = 8080
     scope: TorrentScope | None = None
+    sandbox_categories: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _sandbox_categories_valid(self) -> "TorrentClientEntry":
+        """Refuse a blank sandbox category, and the key on a scoped instance.
+
+        A blank category would match every uncategorised torrent, i.e. prod's own. A scoped
+        instance is itself a sandbox: it owns one category and skips its seed-pure ones, so the
+        key belongs to the unscoped instance only.
+
+        Returns:
+            The entry, unchanged.
+
+        Raises:
+            ValueError: A category is blank, or the entry has both a scope and sandbox categories.
+        """
+        if any(not category.strip() for category in self.sandbox_categories):
+            raise ValueError("sandbox_categories: a category is empty")
+        if self.scope is not None and self.sandbox_categories:
+            raise ValueError("sandbox_categories: only an unscoped instance lists the sandboxes' categories")
+        return self
 
 
 class TorrentConfig(_StrictModel):
@@ -350,6 +374,16 @@ class TorrentConfig(_StrictModel):
         """
         entry = self.clients.get(self.active)
         return entry.scope if entry is not None else None
+
+    def active_sandbox_categories(self) -> tuple[str, ...]:
+        """Return the sandbox categories an unscoped instance keeps out of.
+
+        Returns:
+            The active client's ``sandbox_categories``; empty when no client is active or the
+            active one is not configured.
+        """
+        entry = self.clients.get(self.active)
+        return entry.sandbox_categories if entry is not None else ()
 
     def active_client_disabled(self) -> bool:
         """Tell whether the active client is configured but switched off.

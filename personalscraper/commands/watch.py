@@ -278,7 +278,10 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
 
 
 def _poll_active_downloads(
-    torrent_client: TorrentLister, completed_hashes: frozenset[str], scope: TorrentScope | None = None
+    torrent_client: TorrentLister,
+    completed_hashes: frozenset[str],
+    scope: TorrentScope | None = None,
+    sandbox_categories: tuple[str, ...] = (),
 ) -> int | None:
     """Count the torrents still actively downloading, or None on a client error.
 
@@ -292,6 +295,8 @@ def _poll_active_downloads(
         torrent_client: The active torrent client.
         completed_hashes: Hashes already known complete this cycle.
         scope: The instance's scope in a shared client; ``None`` = the whole client.
+        sandbox_categories: Unscoped instance only: categories of the sandboxes sharing the
+            client. Their downloads are not this instance's, so they never hold its gate.
 
     Returns:
         The count of in-progress downloads, or None when the cycle must be skipped.
@@ -300,7 +305,11 @@ def _poll_active_downloads(
         pending = {h for h in scoped_hashes(torrent_client, scope) if h not in completed_hashes}
         if not pending:
             return 0
-        return sum(1 for t in scoped(torrent_client.get_by_hashes(pending), scope) if _is_actively_downloading(t))
+        return sum(
+            1
+            for t in scoped(torrent_client.get_by_hashes(pending), scope)
+            if t.category not in sandbox_categories and _is_actively_downloading(t)
+        )
     except TORRENT_LISTING_ERRORS:
         log.warning("watcher_active_downloads_poll_error", exc_info=True)
         return None
@@ -403,7 +412,9 @@ def _poll(
     # 3a. Quiescence gate input (§14.3): how many downloads are still running. Same W1
     #     guard as the completed listing — deciding on a blind count would defeat the
     #     gate on the exact cycle the client hiccups.
-    downloading_count = _poll_active_downloads(torrent_client, completed_hashes, scope)
+    downloading_count = _poll_active_downloads(
+        torrent_client, completed_hashes, scope, config.torrent.active_sandbox_categories()
+    )
     if downloading_count is None:
         return None, last_deferred
 

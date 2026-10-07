@@ -1214,6 +1214,15 @@ def test_poll_without_scope_counts_every_download(tmp_path: Path) -> None:
     assert inp.downloading_count == 3
 
 
+def test_poll_without_scope_ignores_the_sandboxes_downloads(tmp_path: Path) -> None:
+    """Prod counts only the torrents outside the sandbox categories: a sandbox download holds nothing."""
+    from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig  # noqa: PLC0415
+
+    prod_config = TorrentConfig(active="qbit", clients={"qbit": TorrentClientEntry(sandbox_categories=("tm-preprod",))})
+    inp = _poll_once(tmp_path, prod_config, shared_client(progress=0.5))
+    assert inp.downloading_count == 2  # prod's and the other category's; not the sandbox's
+
+
 def _poll_scoped_items(tmp_path: Path, items: list[Any]) -> Any:
     """Run one scoped poll cycle over completed torrents of the scope's category.
 

@@ -16,6 +16,11 @@
   //       instance_tags: ["tm-preprod"],
   //     },
   //   },
+  //
+  // sandbox_categories (per client, optional, default []): on the UNSCOPED instance (prod) only, the
+  // categories of the sandboxes sharing the client; prod refuses to grab a hash held there and does not
+  // count their downloads in its watcher's quiescence gate. Refused on a scoped instance.
+  //   qbittorrent: { enabled: true, host: "localhost", port: 8080, sandbox_categories: ["tm-preprod", "tm-dev"] },
   torrent: {
     active: "qbittorrent",
     clients: {
