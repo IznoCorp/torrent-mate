@@ -725,7 +725,9 @@ class TestWatcherHalf:
         assert launcher.started == [uid]
 
     @pytest.mark.parametrize(
-        ("torrent_config", "queued"), [(SCOPED_TORRENT_CONFIG, 0), (UNSCOPED_TORRENT_CONFIG, 1)], ids=["scoped", "unscoped"]
+        ("torrent_config", "queued"),
+        [(SCOPED_TORRENT_CONFIG, 0), (UNSCOPED_TORRENT_CONFIG, 1)],
+        ids=["scoped", "unscoped"],
     )
     def test_the_default_engine_is_scoped_by_the_config(
         self,
