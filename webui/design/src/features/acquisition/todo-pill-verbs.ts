@@ -11,7 +11,7 @@ import { TODO_FILTERS, TODO_SORTS, todoCounts, type TodoFilter, type TodoSort } 
 import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache } from "../../ui/panel/contract";
 import { choicesDescriptor, closeThenApply } from "../../ui/pill-select";
-import { FILTER_MEMORY, SORT_MEMORY, todoFilterInForce, todoSortInForce } from "./todo-pills";
+import { FILTER_MEMORY, SORT_MEMORY, TODO_SEARCH_KEY, todoFilterInForce, todoSortInForce } from "./todo-pills";
 
 /**
  * The queue's answer the tab draws, from the cache.
@@ -30,8 +30,10 @@ registerProducer("todo-filter", {
     if (queue === undefined) return null;
     // EVERY CAUSE IS OFFERED, its count beside it — a cause with no card reads 0:
     // the panel says what exists. « Mis de côté » is outside the list (ruling 16).
-    const counts = todoCounts(todoCards(queue));
-    const current = todoFilterInForce(store.read().state);
+    // THE SEARCH TYPED IS APPLIED, so a cause counts what the list would show once chosen.
+    const state = store.read().state;
+    const counts = todoCounts(todoCards(queue), String(state[TODO_SEARCH_KEY] ?? ""));
+    const current = todoFilterInForce(state);
     return choicesDescriptor(
       i18next.t("screens.acquisition.todoFilterTitle"),
       i18next.t("screens.acquisition.todoFilterMeta"),

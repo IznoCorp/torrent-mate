@@ -102,9 +102,10 @@ registerVerb("complete", (title) => {
 registerVerb("journey", (title) => panel.produce("journey", title));
 registerVerb("more", () => panel.produce("more"));
 
-// The follows' search cross: an empty filter shows the whole list again.
-registerVerb("clear-filter", () => {
-  store.write({ filter: "" });
+// A search cross: an empty search shows the whole list again. The attribute names
+// the tab's key; « Suivis »' own, `filter`, is what an empty one means.
+registerVerb("clear-filter", (key) => {
+  store.write({ [key || "filter"]: "" });
   redraw();
 });
 

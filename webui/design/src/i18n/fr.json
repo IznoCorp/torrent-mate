@@ -1150,7 +1150,27 @@
       "todoSortTitle": "Trier « À traiter »",
       "todoSortMeta": "L'urgence d'abord : ce qui attend votre jugement, puis ce qui repart seul, puis ce qui est clos.",
       "todoFilterCount_one": "{{count}} carte",
-      "todoFilterCount_other": "{{count}} cartes"
+      "todoFilterCount_other": "{{count}} cartes",
+      "nowFilter": {
+        "all": "Tout",
+        "series": "Séries",
+        "movies": "Films"
+      },
+      "nowFilterTitle": "Afficher dans « En cours »",
+      "nowFilterMeta": "Les séries et les films en route, avec leur nombre.",
+      "nowFilterEmpty": "Aucune acquisition en cours ne correspond.",
+      "nowFilterCount_one": "{{count}} acquisition",
+      "nowFilterCount_other": "{{count}} acquisitions",
+      "nowSort": {
+        "queue": "Ordre de la file",
+        "progress": "Avancement",
+        "az": "A → Z",
+        "za": "Z → A"
+      },
+      "nowSortTitle": "Trier « En cours »",
+      "nowSortMeta": "L'ordre de la file d'abord, tel que le moteur le sert ; « Avancement » met en tête ce qui est le plus près d'arriver.",
+      "nowSearchLabel": "Filtrer les acquisitions en cours",
+      "todoSearchLabel": "Filtrer les cartes à traiter"
     },
     "accountPage": {
       "install": {

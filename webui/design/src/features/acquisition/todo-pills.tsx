@@ -1,4 +1,5 @@
-// « À traiter »'s filter pill and sort pill (DECIDED 1 of maquette-blocked).
+// « À traiter »'s filter pill and sort pill (DECIDED 1 of maquette-blocked), in the
+// zone every tab draws (`acquisition-zone.tsx`).
 //
 // THE ONE PILL OF EVERY LIST (`ui/pill-select.tsx`), fed the cause in force and
 // the cards it keeps, and beside it the sort in force. Both are REMEMBERED on
@@ -9,8 +10,10 @@ import { useTranslation } from "react-i18next";
 import { tabMemory } from "../../lib/tab-memory";
 import { TODO_FILTERS, TODO_SORTS, type TodoFilter, type TodoSort } from "./todo-order";
 import { useUiState } from "../../lib/store-access";
-import { PillSelect } from "../../ui/pill-select";
-import { filterZone, pillBar, pillScroll } from "../../ui/variants";
+import { AcquisitionZone } from "./acquisition-zone";
+
+/** The store key « À traiter »'s search is kept under. */
+export const TODO_SEARCH_KEY = "todoSearch";
 
 /** The device's memory of the filter and of the sort. */
 export const FILTER_MEMORY = tabMemory("todo-filter", "all", new Set(TODO_FILTERS));
@@ -42,33 +45,33 @@ export function todoSortInForce(state: Record<string, unknown>): TodoSort {
 }
 
 /**
- * The two pills.
+ * The zone, fed the cause in force and the sort in force.
  *
- * @param props.shown How many cards the filter keeps.
- * @returns The filter zone.
+ * @param props.shown How many cards the filter keeps, or nothing while the list is not drawn.
+ * @returns The zone.
  */
-export function TodoPills({ shown }: { shown: number }): ReactElement {
+export function TodoPills({ shown }: { shown?: number }): ReactElement {
   const { t } = useTranslation();
   const state = useUiState();
   const filter = todoFilterInForce(state);
   const sort = todoSortInForce(state);
   return (
-    <div className={filterZone()} data-part="todo/filters">
-      <div className={pillBar()}>
-        <div className={pillScroll()} data-part="pill/list">
-          <PillSelect
-            label={t(`screens.acquisition.todoFilter.${filter}`)}
-            count={shown}
-            pressed={filter !== "all"}
-            attributes={{ "data-todo-filter-pill": "" }}
-          />
-          <PillSelect
-            label={t(`screens.acquisition.todoSort.${sort}`)}
-            pressed={sort !== "urgency"}
-            attributes={{ "data-todo-sort-pill": "" }}
-          />
-        </div>
-      </div>
-    </div>
+    <AcquisitionZone
+      searchKey={TODO_SEARCH_KEY}
+      searchId="todoq"
+      searchLabel={t("screens.acquisition.todoSearchLabel")}
+      filter={{
+        label: t(`screens.acquisition.todoFilter.${filter}`),
+        count: shown,
+        pressed: filter !== "all",
+        attributes: { "data-todo-filter-pill": "" },
+      }}
+      sort={{
+        label: t(`screens.acquisition.todoSort.${sort}`),
+        pressed: sort !== "urgency",
+        attributes: { "data-todo-sort-pill": "" },
+      }}
+      modes={false}
+    />
   );
 }
