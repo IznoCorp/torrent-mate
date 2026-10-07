@@ -20,7 +20,7 @@ import { blockDoor, mediumCardMarkup } from "./card-markup";
 import { closureFoot } from "./closure-markup";
 import { setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { causeOf, orderTodo } from "./todo-order";
-import { TodoPills, todoFilterInForce, todoSortInForce } from "./todo-pills";
+import { TODO_SEARCH_KEY, TodoPills, todoFilterInForce, todoSortInForce } from "./todo-pills";
 import { useResumedMessage } from "./resumed";
 import { Disclosure } from "../../ui/disclosure";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
@@ -54,25 +54,28 @@ export function TodoTab(): ReactElement {
   // A REFUSED READ IS SAID WHATEVER THE PHASE — `NowTab`'s reason.
   if (state.phase !== "ready" || queueRefused) {
     return (
-      <div
-        className={body()}
-        data-part="surface/body"
-        data-region="acquisition/body"
-      >
-        {state.phase === "error" || queueRefused ? (
-          <SurfaceError subject={t("screens.acquisition.errorTodo")} failure={queueError ?? undefined} />
-        ) : (
-          <div className={sectionClass()} data-part="section">
-            <Skeletons count={3} shape="card" />
-          </div>
-        )}
-      </div>
+      <>
+        <TodoPills />
+        <div
+          className={body()}
+          data-part="surface/body"
+          data-region="acquisition/body"
+        >
+          {state.phase === "error" || queueRefused ? (
+            <SurfaceError subject={t("screens.acquisition.errorTodo")} failure={queueError ?? undefined} />
+          ) : (
+            <div className={sectionClass()} data-part="section">
+              <Skeletons count={3} shape="card" />
+            </div>
+          )}
+        </div>
+      </>
     );
   }
   const blocked = queue ? todoCards(queue) : [];
   const setAside = queue ? setAsideCards(queue) : [];
   const filter = todoFilterInForce(state);
-  const drawn = orderTodo(blocked, filter, todoSortInForce(state));
+  const drawn = orderTodo(blocked, filter, todoSortInForce(state), String(state[TODO_SEARCH_KEY] ?? ""));
   // EACH CARD OFFERS WHAT UNBLOCKS IT, by its cause — never by a section.
   const feet = (card: QueueCard) => {
     const cause = causeOf(card);
@@ -100,80 +103,79 @@ export function TodoTab(): ReactElement {
     return blockDoor(card, rights);
   };
   return (
-    <div
-      className={body()}
-      data-part="surface/body"
-      data-region="acquisition/body"
-    >
-      {blocked.length === 0 ? (
-        <Markup
-          className={emptyNote()}
-          data-part="empty-state"
-          html={emptyNoteMarkup(
-            t("screens.acquisition.todoEmptyTitle"),
-            t("screens.acquisition.todoEmptyBody"),
-          )}
-        />
-      ) : (
-        <>
-          <TodoPills shown={drawn.length} />
-          {drawn.length === 0 ? (
-            <Markup
-              className={emptyNote()}
-              data-part="empty-state"
-              html={emptyNoteMarkup(t("screens.acquisition.todoFilterEmpty"), "")}
-            />
-          ) : (
-            <Markup
-              tag="section"
-              className={sectionClass()}
-              data-part="section"
-              html={drawn.map((card) => mediumCardMarkup(card, feet(card))).join("")}
-            />
-          )}
-        </>
-      )}
-      {setAside.length === 0 ? null : (
-        <section className={sectionClass()} data-part="section/set-aside">
-          <Disclosure
-            summary={
+    <>
+      {/* THE ZONE IS THE TAB'S SIBLING, BEFORE ITS BODY — `NowTab`'s reason. */}
+      <TodoPills shown={drawn.length} />
+      <div
+        className={body()}
+        data-part="surface/body"
+        data-region="acquisition/body"
+      >
+        {blocked.length === 0 ? (
+          <Markup
+            className={emptyNote()}
+            data-part="empty-state"
+            html={emptyNoteMarkup(
+              t("screens.acquisition.todoEmptyTitle"),
+              t("screens.acquisition.todoEmptyBody"),
+            )}
+          />
+        ) : drawn.length === 0 ? (
+          <Markup
+            className={emptyNote()}
+            data-part="empty-state"
+            html={emptyNoteMarkup(t("screens.acquisition.todoFilterEmpty"), "")}
+          />
+        ) : (
+          <Markup
+            tag="section"
+            className={sectionClass()}
+            data-part="section"
+            html={drawn.map((card) => mediumCardMarkup(card, feet(card))).join("")}
+          />
+        )}
+        {setAside.length === 0 ? null : (
+          <section className={sectionClass()} data-part="section/set-aside">
+            <Disclosure
+              summary={
+                <Markup
+                  html={sectionInnerMarkup(
+                    "waiting",
+                    t("screens.acquisition.todoSetAside"),
+                    String(setAside.length),
+                    "",
+                  )}
+                />
+              }
+            >
               <Markup
-                html={sectionInnerMarkup(
-                  "waiting",
-                  t("screens.acquisition.todoSetAside"),
-                  String(setAside.length),
-                  "",
-                )}
-              />
-            }
-          >
-            <Markup
-              className={foldedCards()}
-              html={setAside
-                .map((card) =>
-                  mediumCardMarkup(
-                    card,
-                    offeredFeet(
-                      [
-                        {
-                          label: t("screens.acquisition.blockedFoot"),
-                          attributes: { "data-resolution": card.title },
-                        },
-                        {
-                          label: t("screens.acquisition.deleteFoot"),
-                          attributes: { "data-staging-delete": card.title },
-                        },
-                      ],
+                className={foldedCards()}
+                html={setAside
+                  .map((card) =>
+                    mediumCardMarkup(
                       card,
-                      rights,
+                      offeredFeet(
+                        [
+                          {
+                            label: t("screens.acquisition.blockedFoot"),
+                            attributes: { "data-resolution": card.title },
+                          },
+                          {
+                            label: t("screens.acquisition.deleteFoot"),
+                            attributes: { "data-staging-delete": card.title },
+                          },
+                        ],
+                        card,
+                        rights,
+                      ),
                     ),
-                  ),
-                )
-                .join("")}
-            />
-          </Disclosure>
-        </section>
-      )}
-    </div>
+                  )
+                  .join("")}
+              />
+            </Disclosure>
+          </section>
+        )}
+      </div>
+    </>
   );
 }

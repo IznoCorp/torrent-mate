@@ -1150,7 +1150,27 @@
       "todoSortTitle": "Sort “To handle”",
       "todoSortMeta": "Urgency first: what awaits your judgement, then what resumes on its own, then what is closed.",
       "todoFilterCount_one": "{{count}} card",
-      "todoFilterCount_other": "{{count}} cards"
+      "todoFilterCount_other": "{{count}} cards",
+      "nowFilter": {
+        "all": "All",
+        "series": "Series",
+        "movies": "Movies"
+      },
+      "nowFilterTitle": "Show in “In progress”",
+      "nowFilterMeta": "Series and movies on their way, with their count.",
+      "nowFilterEmpty": "No acquisition in progress matches.",
+      "nowFilterCount_one": "{{count}} item",
+      "nowFilterCount_other": "{{count}} items",
+      "nowSort": {
+        "queue": "Queue order",
+        "progress": "Progress",
+        "az": "A → Z",
+        "za": "Z → A"
+      },
+      "nowSortTitle": "Sort “In progress”",
+      "nowSortMeta": "The queue's order first, as the engine serves it; “Progress” puts what is closest to arriving on top.",
+      "nowSearchLabel": "Filter the acquisitions in progress",
+      "todoSearchLabel": "Filter the cards to handle"
     },
     "accountPage": {
       "install": {

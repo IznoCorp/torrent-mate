@@ -79,6 +79,7 @@ const IDENTICAL_IN_BOTH_LANGUAGES: ReadonlySet<string> = new Set([
   "screens.system.runMinutesSeconds_other", "screens.run.stepStatus.unknown", "screens.library.incompleteUnknown",
   "screens.library.incompleteInvented", "screens.library.countCategory", "screens.library.emptySearchDot",
   "screens.library.rowLine", "screens.acquisition.followSort.az", "screens.acquisition.followSort.za",
+  "screens.acquisition.nowSort.az", "screens.acquisition.nowSort.za",
   "screens.acquisition.emptyNoFollowsBodyPlus", "screens.maintenance.arrow", "screens.settings.arrow",
   "surfaces.ladder.step", "surfaces.ladder.subStep", "settingValue.andMore", "panels.sort.ways.az.normal",
   "panels.sort.ways.az.inverse", "verbs.library.delete.videoFilesValue", "verbs.acquisition.searchAgain",

@@ -8,6 +8,7 @@
 // newest first inside each group. The filter keeps one cause; the sort may also
 // order every card by its time alone.
 import type { QueueCard } from "../../lib/engine-queue";
+import { titleMatches } from "./title-search";
 
 /** The filter's choices, in the order its panel offers them. */
 export const TODO_FILTERS = ["all", "resolve", "plex", "step", "disks", "ratio", "unreachable", "closed"] as const;
@@ -100,10 +101,11 @@ function newestFirst(left: number | null, right: number | null): number {
  * @param cards Every card of the list (`todoCards`).
  * @param filter The filter in force.
  * @param sort The sort in force.
+ * @param search What was typed in the filter zone; the cards whose title holds it are kept.
  * @returns The cards drawn, in their order.
  */
-export function orderTodo(cards: QueueCard[], filter: TodoFilter, sort: TodoSort): QueueCard[] {
-  const kept = filter === "all" ? [...cards] : cards.filter((card) => causeOf(card) === filter);
+export function orderTodo(cards: QueueCard[], filter: TodoFilter, sort: TodoSort, search = ""): QueueCard[] {
+  const kept = cards.filter((card) => (filter === "all" || causeOf(card) === filter) && titleMatches(card.title, search));
   const time = (card: QueueCard) => stoppedAt(card);
   if (sort === "newest") return kept.sort((left, right) => newestFirst(time(left), time(right)));
   if (sort === "oldest") return kept.sort((left, right) => {
@@ -119,11 +121,13 @@ export function orderTodo(cards: QueueCard[], filter: TodoFilter, sort: TodoSort
  * How many cards each filter keeps.
  *
  * @param cards Every card of the list.
+ * @param search What was typed in the filter zone: the pill says what the list shows, so each cause counts with it applied.
  * @returns The count per filter, « all » included.
  */
-export function todoCounts(cards: QueueCard[]): Record<TodoFilter, number> {
+export function todoCounts(cards: QueueCard[], search = ""): Record<TodoFilter, number> {
   const counts = Object.fromEntries(TODO_FILTERS.map((filter) => [filter, 0])) as Record<TodoFilter, number>;
-  counts.all = cards.length;
-  for (const card of cards) counts[causeOf(card)] += 1;
+  const found = cards.filter((card) => titleMatches(card.title, search));
+  counts.all = found.length;
+  for (const card of found) counts[causeOf(card)] += 1;
   return counts;
 }
