@@ -8,17 +8,19 @@ import { describe, expect, it } from "vitest";
 import type { QueueCard } from "../../lib/engine-queue";
 import { NOW_FILTERS, NOW_SORTS, nowCounts, orderNow } from "./now-order";
 
+const RUNGS = ["requested", "searched", "grabbed", "downloading", "arrived", "identified", "shelved", "verified"] as const;
+
 /**
- * A card on its way.
+ * A card on its way, in the shape the queue serves it: its ladder, no strip.
  *
  * @param title Its title.
- * @param kind Film or series.
- * @param done How many of the five pipeline positions it has passed.
+ * @param kind Film or series; omitted, the card carries none.
+ * @param done How many rungs of its ladder it has passed.
  * @returns The card.
  */
-function card(title: string, kind: "movie" | "show", done: number): QueueCard {
-  const strip = [0, 0, 0, 0, 0].map((_, index) => (index < done ? 1 : 0));
-  return { title, secondaryLine: "", kind, ids: null, poster: null, strip } as QueueCard;
+function card(title: string, kind: "movie" | "show" | undefined, done: number): QueueCard {
+  const ladder = RUNGS.map((rung, index) => ({ rung, state: index < done ? "done" : "pending", when: "" }));
+  return { title, secondaryLine: "", kind, ids: null, poster: null, ladder } as QueueCard;
 }
 
 // An accented title, composed from its parts: the guardrail refuses a French literal in the code.
@@ -28,6 +30,10 @@ const silo = card("Silo", "show", 4);
 const amelie = card(ACCENTED, "movie", 1);
 const severance = card("Severance", "show", 3);
 const ALL = [dune, silo, amelie, severance];
+// A card with no kind counts as a series; one still on its five-position strip is read from it.
+const kindless = card("Kindless", undefined, 5);
+const stripped = (title: string, strip: number[]) => ({ title, secondaryLine: "", kind: "show", ids: null, poster: null, strip }) as QueueCard;
+const stripOnly = [stripped("Early", [1, 0, 0, 0, 0]), stripped("Late", [1, 1, 1, 1, 0])];
 const titles = (cards: QueueCard[]) => cards.map((one) => one.title);
 
 describe("orderNow", () => {
@@ -49,6 +55,11 @@ describe("orderNow", () => {
     expect(titles(orderNow(ALL, "all", "progress", ""))).toEqual(["Silo", "Severance", "Dune", ACCENTED]);
     expect(titles(orderNow(ALL, "all", "az", ""))).toEqual([ACCENTED, "Dune", "Severance", "Silo"]);
     expect(titles(orderNow(ALL, "all", "za", ""))).toEqual(["Silo", "Severance", "Dune", ACCENTED]);
+  });
+  it("keeps a card with no kind among the series, and orders a strip-only card by its strip", () => {
+    expect(titles(orderNow([...ALL, kindless], "series", "queue", ""))).toEqual(["Silo", "Severance", "Kindless"]);
+    expect(titles(orderNow([...ALL, kindless], "movies", "queue", ""))).toEqual(["Dune", ACCENTED]);
+    expect(titles(orderNow(stripOnly, "all", "progress", ""))).toEqual(["Late", "Early"]);
   });
   it("does not reorder its input", () => {
     const given = [...ALL];

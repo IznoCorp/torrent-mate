@@ -30,12 +30,15 @@ function kept(card: QueueCard, filter: NowFilter): boolean {
 }
 
 /**
- * How far a card has gone: the pipeline positions it has passed.
+ * How far a card has gone: the rungs of its ladder it has passed — the list the
+ * queue serves and the card draws — or, for a card with no ladder, the
+ * pipeline positions its strip has passed.
  *
  * @param card The card.
- * @returns The count of positions done.
+ * @returns The count of rungs (or positions) done.
  */
 function progressOf(card: QueueCard): number {
+  if (card.ladder !== undefined) return card.ladder.filter((rung) => rung.state === "done").length;
   return (card.strip ?? []).filter((position) => position === 1).length;
 }
 
