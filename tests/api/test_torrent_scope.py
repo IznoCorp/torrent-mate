@@ -1,6 +1,7 @@
 """``scoped`` and ``scoped_hashes`` keep the torrents of the instance's own category."""
 
-from personalscraper.api.torrent._base import scoped, scoped_hashes
+from personalscraper.api.torrent._base import scoped, scoped_hashes, triage_skip_reason
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 from tests.fixtures.torrent_scope import (
     OTHER_CATEGORY_HASH,
     PREPROD_HASH,
@@ -74,3 +75,29 @@ def test_scoped_hashes_client_without_categories_keeps_the_hash_lookup() -> None
     client = HashOnlyClient()
     assert scoped_hashes(client, SCOPE) == {PREPROD_HASH}
     assert client.by_hashes_calls == [{PROD_HASH, OTHER_CATEGORY_HASH, PREPROD_HASH}]
+
+
+def test_triage_unscoped_skips_seed_pure_only() -> None:
+    """No scope (v0 prod): a seed-pure torrent is skipped, an untagged or seed-only one triaged."""
+    assert triage_skip_reason(torrent(PROD_HASH, None, tags=[SEED_PURE]), None) == "seed_pure"
+    assert triage_skip_reason(torrent(PROD_HASH, None, tags=[]), None) is None
+    assert triage_skip_reason(torrent(PROD_HASH, None, tags=["c411", SEED_ONLY]), None) is None
+
+
+def test_triage_scoped_own_grab_carrying_seed_pure_is_triaged() -> None:
+    """Under a scope an own grab is triaged, the seed-pure v0 prod reads notwithstanding."""
+    grab = torrent(PREPROD_HASH, "tm-preprod", tags=["c411", *SCOPE.grab_tags])
+    assert SEED_PURE in grab.tags
+    assert triage_skip_reason(grab, SCOPE) is None
+
+
+def test_triage_scoped_own_seed_only_cross_seed_is_skipped() -> None:
+    """Under a scope an own cross-seed (seed-only) is skipped."""
+    cross_seed = torrent(PREPROD_HASH, "tm-preprod", tags=list(SCOPE.cross_seed_tags))
+    assert triage_skip_reason(cross_seed, SCOPE) == "seed_only"
+
+
+def test_triage_scoped_torrent_without_the_instance_tag_is_not_own() -> None:
+    """Under a scope a torrent of the category without the instance tag, or of another category, is not this one's."""
+    assert triage_skip_reason(torrent(PREPROD_HASH, "tm-preprod", tags=["c411"]), SCOPE) == "not_own"
+    assert triage_skip_reason(torrent(PROD_HASH, None, tags=["tm-preprod"]), SCOPE) == "not_own"

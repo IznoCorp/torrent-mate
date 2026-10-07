@@ -25,7 +25,14 @@ OTHER_CATEGORY_HASH = "c" * 40
 OTHER_CATEGORY = "prod"
 
 
-def torrent(hash_: str, category: str | None, *, progress: float = 1.0, name: str | None = None) -> TorrentItem:
+def torrent(
+    hash_: str,
+    category: str | None,
+    *,
+    progress: float = 1.0,
+    name: str | None = None,
+    tags: list[str] | None = None,
+) -> TorrentItem:
     """Build a torrent of the shared client.
 
     Args:
@@ -33,10 +40,14 @@ def torrent(hash_: str, category: str | None, *, progress: float = 1.0, name: st
         category: Client category, or ``None`` for the other instance's.
         progress: Download progress; ``1.0`` is completed.
         name: Display name (defaults to ``Movie.<hash prefix>``).
+        tags: Tags; defaults to :data:`SCOPE`'s instance tags in its category (a
+            torrent this instance added carries them), else none.
 
     Returns:
         The torrent item.
     """
+    if tags is None:
+        tags = list(SCOPE.instance_tags) if category == SCOPE.category else []
     return TorrentItem(
         hash=hash_,
         name=name or f"Movie.{hash_[:4]}",
@@ -44,7 +55,7 @@ def torrent(hash_: str, category: str | None, *, progress: float = 1.0, name: st
         progress=progress,
         state="uploading" if progress >= 1.0 else "downloading",
         category=category,
-        tags=[],
+        tags=tags,
         ratio=2.0,
     )
 

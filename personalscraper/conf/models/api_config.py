@@ -20,7 +20,7 @@ from personalscraper.conf.models._ranking import (
     RankingCriterion,
     ThresholdEntry,
 )
-from personalscraper.core.tags import SEED_PURE
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 
 __all__ = [
     "MetadataConfig",
@@ -189,21 +189,58 @@ class TorrentScope(_StrictModel):
     """What this instance owns in a shared client. Absent = the whole client (today).
 
     Two instances may share one client: each keeps to its own category and save
-    path, and tags every torrent it adds with its instance tags. ``seed-pure`` is
-    mandatory among them so the other instance's triage (ingest, sort, watcher,
-    cross-seed) never picks these torrents up.
+    path, and tags every torrent it adds with its instance tags. Its triage
+    (ingest, sort, watcher, cross-seed) takes a torrent of its category that
+    carries every instance tag, and skips one also tagged ``seed-only`` (its
+    cross-seeds); it never reads ``seed-pure``. An unscoped instance (v0 prod)
+    keeps skipping ``seed-pure``, which every torrent added here also carries
+    while ``v0_seed_pure`` is on.
 
     Attributes:
         category: Client category of every torrent this instance adds and reads.
         download_root: Save path root of this instance's torrents.
-        instance_tags: Tags added to every torrent this instance adds.
+        instance_tags: Tags naming this instance, added to every torrent it adds.
+        v0_seed_pure: Deprecated: add seed-pure so v0 prod skips this torrent; set
+            false, then remove, once v1 replaces v0 in prod.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     category: str = Field(min_length=1)
     download_root: Path
-    instance_tags: tuple[str, ...] = ("tm-preprod", SEED_PURE)
+    instance_tags: tuple[str, ...] = ("tm-preprod",)
+    v0_seed_pure: bool = Field(
+        default=True,
+        description=(
+            "Deprecated: add seed-pure so v0 prod skips this torrent; set false, then remove, once v1 replaces v0 in prod"
+        ),
+    )
+
+    @property
+    def grab_tags(self) -> tuple[str, ...]:
+        """Return the tags of a torrent this instance grabs (the provider tag aside).
+
+        Returns:
+            The instance tags, then ``seed-pure`` while ``v0_seed_pure`` is on.
+        """
+        return (*self.instance_tags, *self._v0_tags())
+
+    @property
+    def cross_seed_tags(self) -> tuple[str, ...]:
+        """Return the tags of a torrent this instance cross-seeds.
+
+        Returns:
+            The instance tags, ``seed-only``, then ``seed-pure`` while ``v0_seed_pure`` is on.
+        """
+        return (*self.instance_tags, SEED_ONLY, *self._v0_tags())
+
+    def _v0_tags(self) -> tuple[str, ...]:
+        """Return the tag v0 prod needs to skip this instance's torrents.
+
+        Returns:
+            ``(seed-pure,)`` while ``v0_seed_pure`` is on, else ``()``.
+        """
+        return (SEED_PURE,) if self.v0_seed_pure else ()
 
     @field_validator("category")
     @classmethod
@@ -248,11 +285,14 @@ class TorrentScope(_StrictModel):
 
     @field_validator("instance_tags")
     @classmethod
-    def _non_empty_and_seed_pure(cls, v: tuple[str, ...]) -> tuple[str, ...]:
-        """Refuse an empty tag and a tag set without ``seed-pure``.
+    def _instance_tags_valid(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        """Refuse no instance tag, an empty tag, and a triage tag among the instance tags.
 
         An empty tag filter lists every torrent of the client, so one empty tag
-        would put the whole client in scope.
+        would put the whole client in scope. Without a tag the instance would own
+        no torrent. A triage tag (``seed-pure``, ``seed-only``) on every grab would
+        hide the grabs from this instance's or prod's triage: those tags are added
+        per kind of torrent (``grab_tags``, ``cross_seed_tags``), never configured.
 
         Args:
             v: The instance tags as configured.
@@ -261,12 +301,15 @@ class TorrentScope(_StrictModel):
             The tags, unchanged.
 
         Raises:
-            ValueError: A tag is empty, or ``seed-pure`` is missing.
+            ValueError: No tag, a tag is empty, or a tag is ``seed-pure`` or ``seed-only``.
         """
+        if not v:
+            raise ValueError("instance_tags: an instance tag is required")
         if any(not tag.strip() for tag in v):
             raise ValueError("instance_tags: a tag is empty")
-        if SEED_PURE not in v:
-            raise ValueError(f"instance_tags: {SEED_PURE!r} is required")
+        for triage_tag in (SEED_PURE, SEED_ONLY):
+            if triage_tag in v:
+                raise ValueError(f"instance_tags: {triage_tag!r} is a triage tag, not an instance tag")
         return v
 
 
