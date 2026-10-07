@@ -30,6 +30,7 @@ from personalscraper.indexer.db import (
     IndexerDiskFullError,
     IndexerInvalidPathError,
     apply_migrations,
+    ensure_library_schema,
     open_db,
 )
 from personalscraper.logger import get_logger
@@ -50,6 +51,31 @@ if TYPE_CHECKING:
     from personalscraper.subscribers.redis_stream import RedisEventPublisher
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
+
+
+def _open_history_writer(config: Config) -> PipelineRunWriter | None:
+    """Migrate the library DB, then build the run-history writer over it.
+
+    A fresh environment has no library DB yet (only the indexer used to create and migrate it),
+    so the run boot brings it to the current schema before the first history write. A store that
+    cannot be opened or migrated (locked past the wait, corrupt, newer than this code, bad path)
+    is logged ONCE as an error for the run and the run proceeds without history — never one
+    swallowed warning per step.
+
+    Args:
+        config: Loaded configuration; ``config.indexer.db_path`` is the environment's library DB.
+
+    Returns:
+        The writer, or ``None`` when the store is unavailable.
+    """
+    try:
+        db_path = config.indexer.db_path
+        assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
+        ensure_library_schema(db_path)
+        return PipelineRunWriter(db_path=db_path)
+    except Exception as exc:  # noqa: BLE001 — history is optional; the run proceeds without it
+        get_logger("pipeline").error("pipeline_history.library_db_unavailable", error=str(exc), exc_info=True)
+        return None
 
 
 class _RescrapeFailed(Exception):
@@ -338,18 +364,7 @@ def execute_run(
         # the one the loaded ``Config`` resolved.  Fail-soft: if construction fails (missing
         # library.db, permission error, etc.) the pipeline runs without
         # history recording.
-        history_writer: PipelineRunWriter | None = None
-        try:
-            db_path = config.indexer.db_path
-            assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
-            history_writer = PipelineRunWriter(
-                db_path=db_path,
-            )
-        except Exception:  # noqa: BLE001 — history is optional; the run proceeds without it
-            _run_log.warning(
-                "pipeline_history_writer_init_failed",
-                exc_info=True,
-            )
+        history_writer = _open_history_writer(config)
 
         # Capture the log tail for the durable run journal (universal run
         # journal, 2026-07-08): every trigger path — cli, web-spawned,

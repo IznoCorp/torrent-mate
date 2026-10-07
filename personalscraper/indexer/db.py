@@ -32,9 +32,10 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from personalscraper.core.sqlite._lock import db_lock
+from personalscraper.core.sqlite._migrate import _migration_version
 from personalscraper.core.sqlite._migrate import apply_migrations as _core_apply_migrations
 from personalscraper.core.sqlite._open import OpenDbErrorFactories
 from personalscraper.core.sqlite._open import open_db as _core_open_db
@@ -48,6 +49,7 @@ from personalscraper.core.sqlite.errors import (
     SqliteMigrationError,
 )
 from personalscraper.indexer.events import DiskFullWarning
+from personalscraper.indexer.migrations import MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -69,6 +71,7 @@ __all__ = [
     "open_db",
     "indexer_lock",
     "apply_migrations",
+    "ensure_library_schema",
     "_apply_pragmas",
 ]
 
@@ -388,3 +391,70 @@ def apply_migrations(conn: sqlite3.Connection, dir_: Path) -> None:
             closed before the exception propagates.
     """
     _core_apply_migrations(conn, dir_, error_factory=IndexerMigrationError)
+
+
+#: Generous wait for the BRIEF open+migrate lock of :func:`ensure_library_schema` (never 0:
+#: the watcher, the run it spawns, the web and the jobs may open the store at the same moment).
+_MIGRATION_LOCK_TIMEOUT_S: Final = 10.0
+
+
+def _library_schema_at_head(db_path: Path, dir_: Path) -> bool:
+    """Tell whether an existing store already sits at the highest migration, without writing.
+
+    Args:
+        db_path: Path of the library database.
+        dir_: Directory that holds the ``*.sql`` migration scripts.
+
+    Returns:
+        ``True`` only when the file exists and its ``PRAGMA user_version`` equals the highest
+        script number; ``False`` for a missing, older, newer or unreadable store.
+    """
+    if not db_path.exists():
+        return False
+    head = max((_migration_version(p) for p in dir_.glob("*.sql") if p.is_file()), default=0)
+    try:
+        conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return False
+    try:
+        version: int = conn.execute("PRAGMA user_version").fetchone()[0]
+        return version == head
+    except sqlite3.Error:
+        return False
+    finally:
+        conn.close()
+
+
+def ensure_library_schema(db_path: Path, dir_: Path | None = None) -> None:
+    """Migrate the library DB to the current schema, creating it when it does not exist.
+
+    The boot-time counterpart of the indexer's own migration, for a run that writes its history
+    before any index run has built the store (a fresh environment). A store already at head is
+    a no-op that takes no lock and writes nothing. Otherwise the brief ``db_lock`` — the one the
+    indexer takes — spans open + migrate, and :func:`apply_migrations` runs the newer-schema
+    guard before any snapshot or script, so a store migrated past this code is refused, never
+    touched. A new or empty store is migrated without ``.pre-migration`` backups.
+
+    Args:
+        db_path: Path of the library database, resolved from the explicit environment by the
+            loaded config.
+        dir_: Directory of the ``*.sql`` scripts; defaults to the library's own.
+
+    Raises:
+        IndexerLockError: The brief migration lock could not be taken in time.
+        IndexerCorruptError: The existing store is malformed.
+        IndexerInvalidPathError: *db_path* is on a macFUSE-NTFS volume.
+        IndexerMigrationError: A pending script failed.
+        SqliteSchemaNewerError: The store's schema is newer than the code's.
+    """
+    scripts_dir = dir_ if dir_ is not None else MIGRATIONS_DIR
+    if _library_schema_at_head(db_path, scripts_dir):
+        return
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with db_lock(db_path, timeout=_MIGRATION_LOCK_TIMEOUT_S, error_factory=IndexerLockError):
+        conn = _core_open_db(db_path, errors=_OPEN_DB_ERROR_FACTORIES)
+        try:
+            apply_migrations(conn, scripts_dir)
+        finally:
+            conn.close()
+    log.info("indexer.library_schema.ensured", db_path=str(db_path))
