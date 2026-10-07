@@ -10,7 +10,7 @@
 //
 // A TAB THAT CANNOT SHOW THE SWITCH KEEPS ITS SLOT: the switch is the tallest
 // thing of the row, so leaving it out would shorten the zone and lift the list.
-// The slot is drawn invisible, with the switch's own classes, so the row keeps
+// The slot is drawn invisible, divider included, with the switch's own classes, so the row keeps
 // its height and the pills their places.
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
@@ -108,7 +108,8 @@ export function AcquisitionZone({ searchKey, searchId, searchLabel, filter, sort
           <PillSelect {...filter} />
           <PillSelect {...sort} />
         </div>
-        <div className={viewSwitchWrap()}>
+        {/* THE WRAPPER CARRIES THE DIVIDER (a pseudo-element), so the slot is hidden whole, not its switch alone. */}
+        <div className={`${viewSwitchWrap()}${modes ? "" : " invisible"}`}>
           {modes ? (
             <div className={viewSwitch()} data-part="view/switch">
               {MODES.map(({ mode, icon, label }) => (
@@ -126,8 +127,8 @@ export function AcquisitionZone({ searchKey, searchId, searchLabel, filter, sort
             </div>
           ) : (
             // THE SLOT KEPT (see the head of this file): the switch's own classes
-            // and icons, invisible and out of the accessibility tree and the taps.
-            <div className={`${viewSwitch()} invisible`} data-part="view/switch-slot" aria-hidden="true">
+            // and icons, under the invisible wrapper, out of the accessibility tree.
+            <div className={viewSwitch()} data-part="view/switch-slot" aria-hidden="true">
               {MODES.map(({ mode, icon }) => (
                 <span key={mode} className={viewSwitchButton()}>
                   <Icon paths={icons[icon]} />

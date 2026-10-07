@@ -62,6 +62,8 @@ ZONE = """() => {
     present: !!zone,
     search: !!zone?.querySelector('input[type="search"]'),
     pills: pills.length,
+    slotHidden: (() => { const slot = zone?.querySelector('[data-part="view/switch-slot"]');
+      return slot ? getComputedStyle(slot).visibility === 'hidden' : null; })(),
     switchButtons: zone ? zone.querySelectorAll('[data-part="view/switch"] [data-fmode]').length : 0,
     boxes: {zone: box(zone), search: box(zone?.querySelector('input[type="search"]')), filter: box(pills[0]),
       sort: box(pills[1]), tabs: box(view?.querySelector('[data-region="acquisition/tabs"]'))},
@@ -151,6 +153,8 @@ async def check_tab(journal, page, tab):
     journal.check(f"{name}: the display switch is {'drawn' if tab['switch'] else 'left out'}",
                   (zone["switchButtons"] == 3) == tab["switch"] and (zone["switchButtons"] in (0, 3)),
                   f"{zone['switchButtons']} buttons")
+    journal.check(f"{name}: " + ("no slot is kept" if tab["switch"] else "the switch's slot is kept, and invisible, divider included"),
+                  zone["slotHidden"] is (None if tab["switch"] else True), str(zone["slotHidden"]))
     titles = await page.evaluate(TITLES)
     journal.check(f"{name}: the list draws at least three cards to narrow and to order", len(titles) >= 3, str(titles))
     term, held = term_for(titles)
