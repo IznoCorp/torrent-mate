@@ -129,6 +129,8 @@ for rule in json.load(sys.stdin):
 
 # exemption_reason <n> <list> — the reason PR <n> is exempt, or nothing. The list is
 # checked whole first, so a malformed entry stops the script whichever PR it names.
+# Ignored: a blank line, or a line whose FIRST character is `#`; an indented `#` line
+# is an entry and refuses.
 exemption_reason() {
   local number="$1" list="$2" line num reason
   while IFS= read -r line; do
