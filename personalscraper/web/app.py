@@ -83,7 +83,8 @@ def _apply_pending_indexer_migrations(config: Config) -> None:
     try:
         # One path, one lock: the indexer's own, shared with the watcher, the runs and the jobs.
         ensure_library_schema(db_path)
-        with closing(sqlite3.connect(str(db_path), timeout=30)) as conn:
+        # Read-only: ensure_library_schema above is the only writer of this boot.
+        with closing(sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True, timeout=30)) as conn:
             apply_pragmas(conn)
             version = conn.execute("PRAGMA user_version").fetchone()[0]
         logger.info("web_boot_migrate_applied", db_version=version)
