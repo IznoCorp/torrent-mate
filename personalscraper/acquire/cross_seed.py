@@ -27,6 +27,7 @@ from personalscraper.api.torrent._base import (
     is_under_download_root,
     parse_torrent_layout,
     scoped,
+    triage_skip_reason,
 )
 from personalscraper.api.torrent._layout import MatchVerdict, TorrentLayout, structural_match
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
@@ -139,7 +140,9 @@ class CrossSeedService:
 
         1. Global kill-switch check.
         2. Locate source torrent via :meth:`TorrentLister.get_completed`.
-        3. Skip ``SEED_PURE``-tagged torrents.
+        3. Skip a torrent the triage leaves alone (``triage_skip_reason``):
+           ``SEED_PURE`` unscoped; under a scope, another instance's or an
+           untagged torrent and an own ``seed-only`` cross-seed.
         4. Read local layout via :meth:`TorrentInjector.list_files` +
            :meth:`TorrentInjector.properties`.
         5. Determine eligible target trackers (``cross_seed=true``, enabled,
@@ -172,11 +175,12 @@ class CrossSeedService:
             result.skip_reason = "not_found"
             return result
 
-        # 3. Skip SEED_PURE (it IS a cross-seed already).
-        if SEED_PURE in item.tags:
-            logger.info("acquire.cross_seed.skip", info_hash=info_hash, reason="seed_pure")
+        # 3. Skip what the triage leaves alone (a seed-pure / seed-only torrent IS a cross-seed already).
+        skip_reason = triage_skip_reason(item, self._config.torrent.active_scope())
+        if skip_reason is not None:
+            logger.info("acquire.cross_seed.skip", info_hash=info_hash, reason=skip_reason)
             result.skipped = True
-            result.skip_reason = "seed_pure"
+            result.skip_reason = skip_reason
             return result
 
         # 4. Read local layout.
@@ -453,7 +457,7 @@ class CrossSeedService:
                         )
 
                     try:
-                        self._tagger.add_tags(injected_hash, [SEED_PURE])
+                        self._tagger.add_tags(injected_hash, self._cross_seed_tags())
                     except Exception as exc:  # noqa: BLE001 — best-effort tagging
                         logger.warning(
                             "acquire.cross_seed.tag_failed",
@@ -555,7 +559,7 @@ class CrossSeedService:
         """Throttled back-catalog sweep over all completed torrents (X2 — D6).
 
         Iterates every completed torrent via :meth:`TorrentLister.get_completed`,
-        skipping ``SEED_PURE``-tagged items.  For each eligible torrent:
+        skipping the items the triage leaves alone (``triage_skip_reason``).  For each eligible torrent:
 
         * **Quota gate** — checks
           :meth:`~personalscraper.acquire.store._CrossSeedSubStore.daily_searches_remaining`
@@ -605,9 +609,10 @@ class CrossSeedService:
             )
             return SweepResult(lister_failed=True)
 
+        scope = self._config.torrent.active_scope()
         for item in completed:
-            # Skip SEED_PURE (cheap tag check — avoids wasted check() call).
-            if SEED_PURE in item.tags:
+            # Skip what the triage leaves alone (cheap tag check — avoids wasted check() call).
+            if triage_skip_reason(item, scope) is not None:
                 continue
 
             # Quota gate — stop if no daily searches remain.
@@ -827,7 +832,8 @@ class CrossSeedService:
     def _inject(self, torrent_bytes: bytes, save_path: str) -> str:
         """Inject a candidate, filed under the active scope's category and tags when there is one.
 
-        Same convention as a scoped grab: the scope's ``category`` and ``instance_tags``. Without a
+        Same convention as a scoped grab: the scope's ``category``, with its ``cross_seed_tags`` (the
+        instance tags, ``seed-only`` so its own triage skips it, ``seed-pure`` per the v0 flag). Without a
         scope the call is the plain injection, no category and no tags, and the client is not asked
         about the hash.
 
@@ -882,8 +888,21 @@ class CrossSeedService:
             recheck=True,
             paused=True,
             category=scope.category,
-            tags=scope.instance_tags,
+            tags=scope.cross_seed_tags,
         )
+
+    def _cross_seed_tags(self) -> list[str]:
+        """Return the tags a verified cross-seed is given.
+
+        Unscoped, ``seed-pure`` (the v0 rule). Under a scope, the scope's cross-seed tags (instance
+        tags, ``seed-only``, and ``seed-pure`` while ``v0_seed_pure`` is on): the injection already
+        carries them, and tagging again covers a client that dropped tags on a duplicate add.
+
+        Returns:
+            The tags to add to the injected torrent.
+        """
+        scope = self._config.torrent.active_scope()
+        return [SEED_PURE] if scope is None else list(scope.cross_seed_tags)
 
     def _verify_injection(self, injected_hash: str) -> str | None:
         """Poll until *injected_hash* appears verified or the configurable timeout.

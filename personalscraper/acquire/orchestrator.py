@@ -412,7 +412,7 @@ def _add_in_scope(
     """
     if scope is None:
         return client.add(source, category=None, tags=[provider], limits=limits)
-    return client.add(source, category=scope.category, tags=[provider, *scope.instance_tags], limits=limits)
+    return client.add(source, category=scope.category, tags=[provider, *scope.grab_tags], limits=limits)
 
 
 def _build_limits(bw: BandwidthConfig, *, client_is_limiter: bool) -> TorrentLimits | None:
@@ -1183,7 +1183,7 @@ class GrabOrchestrator:
             info_hash=info_hash,
             chosen=top,
             category=None if self._scope is None else self._scope.category,
-            tags=(top.provider,) if self._scope is None else (top.provider, *self._scope.instance_tags),
+            tags=(top.provider,) if self._scope is None else (top.provider, *self._scope.grab_tags),
             found=len(result.ranked),
         )
 
