@@ -135,7 +135,7 @@ def run_sort(
     # Seed-pure sort guard (opt-in): genuinely exclude the completed torrents the
     # triage leaves alone from the sort. Guarded by config.sort.verify_seed_pure and the
     # presence of a torrent client; fail-soft so the guard never aborts the sort.
-    skip_names: frozenset[str] = frozenset()
+    skip_names: dict[str, str] = {}
     guard_on = getattr(config, "sort", None) is not None and config.sort.verify_seed_pure
     if guard_on and torrent_client is None:
         # The operator asked for the guard but no client is built (none active, or the active one is
@@ -150,7 +150,11 @@ def run_sort(
             scope = config.torrent.active_scope()
             completed = scoped(torrent_client.get_completed(), scope)
             # seed-pure unscoped; under a scope, the untagged and the own seed-only ones.
-            skip_names = frozenset(t.name for t in completed if triage_skip_reason(t, scope) is not None)
+            # Each name keeps the predicate's reason so the skip is reported as what it is.
+            for t in completed:
+                reason = triage_skip_reason(t, scope)
+                if reason is not None:
+                    skip_names[t.name] = reason
             if skip_names:
                 log.info("sort.seed_pure_guard_active", skipping=sorted(skip_names))
         except Exception as exc:  # noqa: BLE001 — guard must never abort the sort

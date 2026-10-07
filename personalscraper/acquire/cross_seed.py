@@ -457,6 +457,9 @@ class CrossSeedService:
                         )
 
                     try:
+                        # Unscoped, an untagged cross-seed is reprocessed as new work until it is
+                        # tagged. Under a scope it has no instance tag, so the triage predicate
+                        # answers ``not_own`` and skips it: it fails closed, it is not triaged.
                         self._tagger.add_tags(injected_hash, self._cross_seed_tags())
                     except Exception as exc:  # noqa: BLE001 — best-effort tagging
                         logger.warning(

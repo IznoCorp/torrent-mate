@@ -3543,6 +3543,28 @@ class TestClientScope:
         svc.sweep()
         assert sorted(checked) == sorted([PROD_HASH, OTHER_CATEGORY_HASH, PREPROD_HASH])
 
+    def test_sweep_without_scope_skips_a_seed_pure_torrent_and_checks_an_untagged_one(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """Unscoped, the sweep leaves a ``seed-pure`` torrent alone and checks an untagged one."""
+        seed_pure_item = torrent(PROD_HASH, None)
+        seed_pure_item.tags = [SEED_PURE]
+        untagged_item = torrent(OTHER_CATEGORY_HASH, None)
+        untagged_item.tags = []
+        client = FakeTorrentClient(completed=[seed_pure_item, untagged_item])
+        cfg = make_config(tmp_path).model_copy(update={"torrent": UNSCOPED_TORRENT_CONFIG})
+        svc = _build_service(cfg, store, client, make_registry({}, priority=[]))
+        checked: list[str] = []
+
+        def _record(info_hash: str) -> CrossSeedResult:
+            """Record the hash and answer an empty result."""
+            checked.append(info_hash)
+            return CrossSeedResult()
+
+        svc.check = _record  # type: ignore[method-assign]
+        svc.sweep()
+        assert checked == [OTHER_CATEGORY_HASH]
+
     def test_source_lookup_under_scope_ignores_the_other_instances_torrent(
         self, tmp_path: Path, store: ConcreteAcquireStore
     ) -> None:
