@@ -73,7 +73,9 @@ class SortConfig(_StrictModel):
     Attributes:
         verify_seed_pure: Opt-in seed-pure sort guard. When ``True``, the sort
             step asks the torrent client for the set of completed torrents
-            tagged ``seed-pure`` and genuinely excludes any staging item whose
+            the triage leaves alone (``seed-pure`` unscoped; under a scope, the
+            torrents that are not the instance's own and its ``seed-only``
+            cross-seeds) and genuinely excludes any staging item whose
             name matches one of them (reported as a ``skipped`` result, never
             moved into the library). Enforced (the sort guard is active). The
             always-on ingest skip (phase 3) remains the primary guardrail; this
@@ -84,8 +86,8 @@ class SortConfig(_StrictModel):
     verify_seed_pure: bool = Field(
         default=False,
         description=(
-            "Opt-in seed-pure sort guard. Enforced: when True, seed-pure-tagged "
-            "completed torrents are genuinely excluded from the sort (skipped, not moved)."
+            "Opt-in seed-pure sort guard. Enforced: when True, the completed torrents the "
+            "triage leaves alone are genuinely excluded from the sort (skipped, not moved)."
         ),
     )
 

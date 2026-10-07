@@ -44,8 +44,9 @@ def cross_seed(
     """Native cross-seeding engine — find matching torrents on other trackers and inject them.
 
     The ``--sweep`` flag iterates all completed torrents in the client and
-    cross-seeds each eligible one (exclude ``SEED_PURE``-tagged, exclude
-    recently-searched, honour daily quota + inter-search delay).
+    cross-seeds each eligible one (exclude what the triage leaves alone: ``SEED_PURE``-tagged
+    unscoped, a torrent that is not the scoped instance's own or is its ``seed-only`` cross-seed
+    under a scope; exclude recently-searched, honour daily quota + inter-search delay).
 
     The ``--hash`` flag cross-seeds a single torrent identified by its V1
     info-hash.  Idempotent — re-running the same hash is a no-op (recently-searched

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from personalscraper.api.torrent._layout import TorrentLayout
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -198,6 +199,37 @@ def scoped(items: Iterable[TorrentItem], scope: TorrentScope | None) -> list[Tor
     if scope is None:
         return list(items)
     return [item for item in items if item.category == scope.category]
+
+
+def triage_skip_reason(item: TorrentItem, scope: TorrentScope | None) -> str | None:
+    """Say why an instance's triage must leave a torrent alone, if it must.
+
+    The one rule every triage reader (ingest, watcher, sort guard, deferred
+    listing, cross-seed source selection) applies. Unscoped (v0 prod), the
+    legacy rule: a ``seed-pure`` torrent is skipped. Scoped, a torrent is this
+    instance's to triage when it sits in the scope's category and carries every
+    instance tag, unless it is also ``seed-only`` (a cross-seed); ``seed-pure``
+    is not read, as every torrent a scoped instance adds may carry it for v0.
+
+    Args:
+        item: A torrent of the client.
+        scope: The instance's scope; ``None`` = the whole client (today).
+
+    Returns:
+        ``None`` when the torrent is to be triaged; else the reason code:
+        ``"seed_pure"`` (unscoped), ``"not_own"`` (scoped, another instance's or
+        untagged) or ``"seed_only"`` (scoped, an own cross-seed).
+    """
+    # Read defensively: a degenerate provider response may omit the tags (then
+    # the torrent carries none) or carry ``None``.
+    tags = getattr(item, "tags", None) or []
+    if scope is None:
+        return "seed_pure" if SEED_PURE in tags else None
+    if getattr(item, "category", None) != scope.category or not all(tag in tags for tag in scope.instance_tags):
+        return "not_own"
+    if SEED_ONLY in tags:
+        return "seed_only"
+    return None
 
 
 class HashLookup(Protocol):

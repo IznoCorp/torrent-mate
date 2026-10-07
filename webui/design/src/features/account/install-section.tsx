@@ -13,7 +13,7 @@ import { useState, useSyncExternalStore, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { applyUpdate, installFace, promptInstall, subscribeInstall } from "../../app/install-state";
 import { toast } from "../../lib/shell-doors";
-import { actionButton, factsPanel, guidance, keyValueRow, qualityHint, sectionHeading, settingRow } from "../../ui/variants";
+import { actionButton, factsPanel, guidance, keyValueRow, qualityHint, section, sectionHeading, settingRow } from "../../ui/variants";
 
 /** The steps of the manual route, in order: the keys under `screens.accountPage.install.steps`. */
 const STEPS = ["share", "addToHome", "confirm"] as const;
@@ -42,7 +42,7 @@ export function InstallSection(): ReactElement | null {
 
   const press = face === "install" ? () => void install() : face === "ios" ? () => setShowSteps((open) => !open) : applyUpdate;
   return (
-    <section data-part="profile/install" data-face={face}>
+    <section className={section()} data-part="profile/install" data-face={face}>
       <h2 className={sectionHeading()} data-part="heading">{t(`${words}.heading`)}</h2>
       <div className={factsPanel()} data-part="panel">
         <div className={`${keyValueRow()} ${settingRow()}`} data-part="key-value">

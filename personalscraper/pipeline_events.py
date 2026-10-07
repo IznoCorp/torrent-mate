@@ -49,7 +49,8 @@ class StepItemStatus(StrEnum):
     * ``started`` — every step (ingest, sort, clean, scrape, cleanup,
       enforce, verify, trailers, dispatch)
     * ``skipped`` — ingest (already_ingested, ratio_below_threshold,
-      seed_pure, found_in_staging, already_exists, insufficient_space),
+      seed_pure, seed_only, not_own, found_in_staging, already_exists,
+      insufficient_space),
       trailers (skip_flag/disabled), scrape (skipped_already_done /
       skipped_no_category), dispatch (skipped action), clean (cat_status),
       cleanup, sorter, enforce

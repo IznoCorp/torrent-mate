@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig, TorrentScope
-from personalscraper.core.tags import SEED_PURE
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 
 _EXAMPLE_TORRENT = Path(__file__).resolve().parents[2] / "config.example" / "torrent.json5"
 
@@ -20,7 +20,8 @@ class TestTorrentScope:
         scope = TorrentScope(category="tm-preprod", download_root=tmp_path)
         assert scope.category == "tm-preprod"
         assert scope.download_root == tmp_path
-        assert scope.instance_tags == ("tm-preprod", SEED_PURE)
+        assert scope.instance_tags == ("tm-preprod",)
+        assert scope.v0_seed_pure is True
 
     @pytest.mark.parametrize("category", ["", " ", "\t"])
     def test_blank_category_refused(self, tmp_path: Path, category: str) -> None:
@@ -42,12 +43,40 @@ class TestTorrentScope:
     def test_blank_tag_refused(self, tmp_path: Path, tag: str) -> None:
         """An empty or whitespace-only instance tag would match every torrent in a tag filter: refused."""
         with pytest.raises(ValidationError, match="empty"):
-            TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=(tag, SEED_PURE))
+            TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=(tag,))
 
-    def test_seed_pure_missing_refused(self, tmp_path: Path) -> None:
-        """Without seed-pure, the other instance's triage would pick this instance's torrents up: refused."""
-        with pytest.raises(ValidationError, match=SEED_PURE):
-            TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=("tm-preprod",))
+    def test_instance_tag_alone_accepted(self, tmp_path: Path) -> None:
+        """The instance tag alone names the instance: seed-pure is no longer required among the tags."""
+        scope = TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=("tm-dev",))
+        assert scope.instance_tags == ("tm-dev",)
+
+    def test_no_instance_tag_refused(self, tmp_path: Path) -> None:
+        """Without an instance tag a scoped reader could own no torrent: refused."""
+        with pytest.raises(ValidationError, match="instance tag"):
+            TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=())
+
+    @pytest.mark.parametrize("tag", [SEED_PURE, SEED_ONLY])
+    def test_triage_tag_among_instance_tags_refused(self, tmp_path: Path, tag: str) -> None:
+        """A triage tag is not an instance tag: with one among them no grab of the instance would be triaged."""
+        with pytest.raises(ValidationError, match=tag):
+            TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=("tm-preprod", tag))
+
+    def test_grab_tags_carry_seed_pure_while_v0_flag_on(self, tmp_path: Path) -> None:
+        """With the v0 flag on (default) a grab carries the instance tags and seed-pure, so v0 prod skips it."""
+        scope = TorrentScope(category="tm-preprod", download_root=tmp_path)
+        assert scope.grab_tags == ("tm-preprod", SEED_PURE)
+
+    def test_grab_tags_without_v0_flag(self, tmp_path: Path) -> None:
+        """With the v0 flag off a grab carries the instance tags alone."""
+        scope = TorrentScope(category="tm-preprod", download_root=tmp_path, v0_seed_pure=False)
+        assert scope.grab_tags == ("tm-preprod",)
+
+    def test_cross_seed_tags_carry_seed_only(self, tmp_path: Path) -> None:
+        """A cross-seed carries the instance tags, seed-only, and seed-pure while the v0 flag is on."""
+        on = TorrentScope(category="tm-preprod", download_root=tmp_path)
+        off = TorrentScope(category="tm-preprod", download_root=tmp_path, v0_seed_pure=False)
+        assert on.cross_seed_tags == ("tm-preprod", SEED_ONLY, SEED_PURE)
+        assert off.cross_seed_tags == ("tm-preprod", SEED_ONLY)
 
     def test_unknown_field_refused(self, tmp_path: Path) -> None:
         """A typo in the scope is caught, as everywhere in the config."""
@@ -78,7 +107,7 @@ class TestTorrentClientEntryScope:
                         "scope": {
                             "category": "tm-preprod",
                             "download_root": str(tmp_path),
-                            "instance_tags": ["tm-preprod", SEED_PURE],
+                            "instance_tags": ["tm-preprod"],
                         }
                     }
                 },
@@ -86,7 +115,7 @@ class TestTorrentClientEntryScope:
         )
         scope = cfg.clients["qbittorrent"].scope
         assert isinstance(scope, TorrentScope)
-        assert scope.instance_tags == ("tm-preprod", SEED_PURE)
+        assert scope.instance_tags == ("tm-preprod",)
 
     def test_shipped_example_sets_no_scope(self) -> None:
         """The shipped example leaves every client unscoped, so a sync adds no key to an existing config."""

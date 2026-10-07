@@ -947,3 +947,17 @@ class TestAcquireNewerThanCode:
             assert _user_version(conn) == newer
             assert _table_names(conn) == {"written_by_a_newer_code"}
         conn.close()
+
+
+def test_migrating_an_empty_acquire_db_writes_no_backup(tmp_path: Path) -> None:
+    """A new / empty DB has nothing to protect: every migration of a fresh store leaves no ``.bak``."""
+    import sqlite3
+
+    from personalscraper.acquire.store import _MIGRATIONS_DIR
+    from personalscraper.core.sqlite import apply_migrations
+
+    db_path = tmp_path / "acquire-staging.db"
+    conn = sqlite3.connect(str(db_path))
+    apply_migrations(conn, _MIGRATIONS_DIR)
+    conn.close()
+    assert list(tmp_path.glob("*.bak")) == []

@@ -73,7 +73,8 @@ export const noticeRow = cva("notice-row", {
  * the mark refused (said, the notices still unread) or held (said; the network is down and the
  * mark leaves with the outbox, so it is not offered twice).
  *
- * `notices-block` is its identity and carries no style.
+ * `notices-block` is its identity and carries no style of its own: the block is drawn as a `section()`
+ * (the heading and its content apart), at the call site.
  */
 export const noticesSection = cva("notices-block", {
   variants: {
@@ -89,3 +90,10 @@ export const noticesSection = cva("notices-block", {
   },
   defaultVariants: { state: "list" },
 });
+
+/**
+ * The « Appareils connectés » block: the sessions section and the sign-in notices under it are two
+ * sections of the page, so they are apart by the page's own gap between sections (`body`'s `gap-7`),
+ * and each draws its own heading, guidance and panel apart by `section()`'s.
+ */
+export const sessionsSection = cva("flex flex-col gap-7");

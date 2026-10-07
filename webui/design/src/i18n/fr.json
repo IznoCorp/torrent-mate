@@ -2133,7 +2133,8 @@
         "caseUnknown": "qBittorrent n'a pas répondu : ce dossier est traité comme le seul exemplaire.",
         "confirm": "Supprimer",
         "cancel": "Annuler",
-        "done": "« {{title}} » supprimé du disque."
+        "done": "« {{title}} » supprimé du disque.",
+        "refused": "La suppression a été refusée : le dossier est toujours sur le disque."
       },
       "left": "« {{title}} » mis de côté — il vous attend, replié en fin d'« À traiter ».",
       "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque.",

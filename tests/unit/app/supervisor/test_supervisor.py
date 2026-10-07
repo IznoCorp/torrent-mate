@@ -135,7 +135,7 @@ def _input(now: float = 1000.0, *, sentinel: bool = False) -> WatcherInput:
     return WatcherInput(
         completed_hashes=frozenset(),
         ingested_hashes=frozenset(),
-        seed_pure_hashes=frozenset(),
+        triage_skipped_hashes=frozenset(),
         sentinel_present=sentinel,
         pipeline_lock_held=False,
         now=now,

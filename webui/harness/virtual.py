@@ -529,14 +529,36 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     # whenever the fling happens to stop the window on one of them. The measured
     # row is therefore the drawn row nearest the middle whose title the library
     # holds ONCE, counted from the layer's own listing and not typed into this rule.
+    #
+    # A TITLE HELD ONCE IS NOT YET A ROW THE LAYER WILL DELETE. The delete names a
+    # medium by its identity, and the layer refuses an identity two rows hold
+    # (`media.ambiguous`, 409, nothing goes — O-5 B). The fixture gives the film
+    # « Bob l'éponge - Le film Un héros sort de l'eau » and the series « Bob
+    # l'éponge » the same tmdb and imdb ids, so the film's title is unique and
+    # its identity is not: measured there, the offline half passes (the request
+    # never leaves the browser) and the online half waits five seconds for a row
+    # the refusal kept — « gone after the answer: False » — on the runs where the
+    # fling happens to stop the window on it, and on no other. The rows that
+    # qualify therefore carry a title held once AND every identity held once.
     held_once = await page.evaluate("""async () => {
-      const counts = {};
+      const titles = {};
+      const identities = {};
+      const rows = [];
       for (let page = 0; ; page += 1) {
         const answer = await (await fetch(`/api/v1/library/items?page=${page}`)).json();
         if (!answer.items.length) break;
-        for (const item of answer.items) counts[item.title] = (counts[item.title] || 0) + 1;
+        for (const item of answer.items) {
+          rows.push(item);
+          titles[item.title] = (titles[item.title] || 0) + 1;
+          for (const [provider, id] of Object.entries(item.ids || {})) {
+            const key = `${provider}:${id}`;
+            identities[key] = (identities[key] || 0) + 1;
+          }
+        }
       }
-      return Object.keys(counts).filter((title) => counts[title] === 1);
+      return rows.filter((item) => titles[item.title] === 1
+        && Object.entries(item.ids || {}).every(([provider, id]) => identities[`${provider}:${id}`] === 1))
+        .map((item) => item.title);
     }""")
     drawn = await page.evaluate("""({ row, pitch, once }) => {
       const container = document.querySelector('#libitems');
