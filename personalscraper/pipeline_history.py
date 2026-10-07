@@ -5,7 +5,8 @@ run with per-step timing data stored as a JSON array in ``steps_json``.
 
 The writer is **fail-soft**: every method wraps its DB work in a try/except,
 logs a warning on failure, and never raises.  A history-write error must
-never abort the pipeline.
+never abort the pipeline.  It never creates the DB: a missing file is the named
+``pipeline_history.db_missing`` condition, and the store is migrated at the run's boot.
 
 Each method opens a short-lived ``sqlite3`` connection (open → write →
 commit → close), matching the indexer's connection conventions (WAL pragmas
@@ -55,6 +56,10 @@ log = get_logger("pipeline_history")
 _MAX_PERSISTED_REASONS = 20
 
 
+class _DbMissing(Exception):
+    """The run-history DB file does not exist: a named condition, never a file created empty."""
+
+
 class PipelineRunWriter:
     """Durable run-history writer for the ``pipeline_run`` table.
 
@@ -73,6 +78,30 @@ class PipelineRunWriter:
             db_path: Path to the indexer SQLite database.
         """
         self._db_path = db_path
+
+    def _connect(self) -> sqlite3.Connection:
+        """Open the existing DB for writing — never create it.
+
+        A missing file is logged as ``pipeline_history.db_missing`` and refused: a plain
+        ``sqlite3.connect`` would create an EMPTY file that the indexer's later migration then
+        mistakes for a store, and every write would fail on a missing table. The store is
+        migrated at the run's boot (:func:`~personalscraper.indexer.db.ensure_library_schema`).
+
+        Returns:
+            An open connection, with the newer-schema guard and the PRAGMAs applied.
+
+        Raises:
+            _DbMissing: The DB file does not exist.
+            sqlite3.Error: The DB cannot be opened.
+        """
+        if not self._db_path.exists():
+            log.warning("pipeline_history.db_missing", db_path=str(self._db_path))
+            raise _DbMissing(str(self._db_path))
+        # mode=rw: SQLite itself refuses to create the file if it vanishes between the check and here.
+        conn = sqlite3.connect(f"{self._db_path.resolve().as_uri()}?mode=rw", uri=True, isolation_level=None)
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
+        apply_pragmas(conn)
+        return conn
 
     # ------------------------------------------------------------------
     # Public API
@@ -114,9 +143,7 @@ class PipelineRunWriter:
         dry_run_int = 1 if dry_run else 0
         verb = "INSERT OR IGNORE INTO" if if_absent else "INSERT INTO"
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
-            apply_pragmas(conn)
+            conn = self._connect()
             conn.execute(
                 f"{verb} pipeline_run "
                 "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "
@@ -125,6 +152,8 @@ class PipelineRunWriter:
                 (run_uid, trigger, dry_run_int, started_at, pid, kind, command, options_json),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.db_missing
         except Exception:
             log.warning(
                 "pipeline_history.insert_failed",
@@ -156,14 +185,14 @@ class PipelineRunWriter:
             pid: OS process ID to store in the row.
         """
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
-            apply_pragmas(conn)
+            conn = self._connect()
             conn.execute(
                 "UPDATE pipeline_run SET pid = ? WHERE run_uid = ?",
                 (pid, run_uid),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.db_missing
         except Exception:
             log.warning(
                 "pipeline_history.update_pid_failed",
@@ -256,9 +285,7 @@ class PipelineRunWriter:
             # not every line (the raw log tail keeps the full detail).
             entry["reasons"] = list(reasons[:_MAX_PERSISTED_REASONS])
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
-            apply_pragmas(conn)
+            conn = self._connect()
             row = conn.execute(
                 "SELECT steps_json FROM pipeline_run WHERE run_uid = ?",
                 (run_uid,),
@@ -286,6 +313,8 @@ class PipelineRunWriter:
                 (json.dumps(steps), run_uid),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.db_missing
         except Exception:
             log.warning(
                 "pipeline_history.update_step_failed",
@@ -320,14 +349,14 @@ class PipelineRunWriter:
         """
         ended_at = time.time()
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
-            apply_pragmas(conn)
+            conn = self._connect()
             conn.execute(
                 "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ?, output_tail = ? WHERE run_uid = ?",
                 (ended_at, outcome, error, output_tail, run_uid),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.db_missing
         except Exception:
             log.warning(
                 "pipeline_history.finalize_failed",

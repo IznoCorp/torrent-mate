@@ -59,13 +59,14 @@ class _StubPipeline:
         return PipelineReport(started_at=_now(), steps={"ingest": StepReport(name="ingest")})
 
 
-def _invoke_run(*, verbose: bool, monkeypatch: Any) -> tuple[Any, list[Any]]:
+def _invoke_run(*, verbose: bool, monkeypatch: Any, tmp_path: Path) -> tuple[Any, list[Any]]:
     """Run the CLI ``run`` command with / without ``--verbose`` and capture events.
 
     Patches ``DebugLogSubscriber.on_event`` so emitted events are appended to
     a per-call list (returned alongside the runner result). The Pipeline,
     config loading, and lock files are all stubbed so the CLI invocation
-    exercises only the subscriber-wiring branch.
+    exercises only the subscriber-wiring branch. The library DB the run boot migrates
+    lives under *tmp_path*: a bare ``MagicMock`` path would become a ``<MagicMock ...>`` file.
     """
     received: list[Any] = []
 
@@ -85,6 +86,7 @@ def _invoke_run(*, verbose: bool, monkeypatch: Any) -> tuple[Any, list[Any]]:
     config.paths.staging_dir = Path("/tmp/__phase5_4_test__/staging")
     config.trailers.pipeline.skip = True
     config.trailers.pipeline.continue_on_error = False
+    config.indexer.db_path = tmp_path / "library.db"
 
     cmd = ["--verbose", "run", "--headless", "--skip-trailers"] if verbose else ["run", "--headless", "--skip-trailers"]
 
@@ -113,13 +115,13 @@ def _invoke_run(*, verbose: bool, monkeypatch: Any) -> tuple[Any, list[Any]]:
     return result, received
 
 
-def test_cli_run_verbose_registers_debug_log_subscriber(monkeypatch: Any) -> None:
+def test_cli_run_verbose_registers_debug_log_subscriber(monkeypatch: Any, tmp_path: Path) -> None:
     """``run --verbose`` registers a working :class:`DebugLogSubscriber`.
 
     Strict equality on the event-type sequence — soft cardinality
     (``len(received) >= 1``) is trivially evaded by a stub that emits nothing.
     """
-    result, received = _invoke_run(verbose=True, monkeypatch=monkeypatch)
+    result, received = _invoke_run(verbose=True, monkeypatch=monkeypatch, tmp_path=tmp_path)
 
     assert result.exit_code == 0, f"exit={result.exit_code}\nstdout={result.stdout}\nstderr={result.stderr}"
     received_types = [type(e).__name__ for e in received]
@@ -128,16 +130,16 @@ def test_cli_run_verbose_registers_debug_log_subscriber(monkeypatch: Any) -> Non
     )
 
 
-def test_cli_run_without_verbose_does_not_register_debug_log_subscriber(monkeypatch: Any) -> None:
+def test_cli_run_without_verbose_does_not_register_debug_log_subscriber(monkeypatch: Any, tmp_path: Path) -> None:
     """Without ``--verbose``, no :class:`DebugLogSubscriber` is constructed."""
-    result, received = _invoke_run(verbose=False, monkeypatch=monkeypatch)
+    result, received = _invoke_run(verbose=False, monkeypatch=monkeypatch, tmp_path=tmp_path)
 
     assert result.exit_code == 0, f"exit={result.exit_code}\nstdout={result.stdout}\nstderr={result.stderr}"
     types = [type(e).__name__ for e in received]
     assert received == [], f"DebugLogSubscriber received events without --verbose: {types}"
 
 
-def test_cli_run_verbose_debug_log_subscriber_closed_on_exception(monkeypatch: Any) -> None:
+def test_cli_run_verbose_debug_log_subscriber_closed_on_exception(monkeypatch: Any, tmp_path: Path) -> None:
     """``DebugLogSubscriber.close()`` runs on the CLI's exception path.
 
     Stubs Pipeline.run to raise after emitting two events, then emits a third
@@ -173,6 +175,7 @@ def test_cli_run_verbose_debug_log_subscriber_closed_on_exception(monkeypatch: A
     config.paths.staging_dir = Path("/tmp/__phase6_11_test__/staging")
     config.trailers.pipeline.skip = True
     config.trailers.pipeline.continue_on_error = False
+    config.indexer.db_path = tmp_path / "library.db"
 
     with (
         patch("personalscraper.conf.loader.load_config", return_value=config),
