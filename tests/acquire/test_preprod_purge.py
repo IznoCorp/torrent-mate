@@ -45,7 +45,7 @@ from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.sandbox_guard import SandboxGuardError
 from personalscraper.core.event_bus import Event, EventBus
-from personalscraper.core.tags import SEED_PURE
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 _NOW = 1_800_000_000
@@ -403,11 +403,11 @@ def test_another_category_is_never_seen(
 def test_missing_instance_tag_is_out_of_scope(
     roots: Roots, mounted: None, staging: Callable[[], None], store: ConcreteAcquireStore, run: Run
 ) -> None:
-    """A torrent in the category but without every instance tag is kept as out of scope."""
+    """A torrent in the category but without every instance tag is kept as out of scope, seed-pure or not."""
     config = _config(roots)
     _oblige(store, "aaaa", met=True)
     _oblige(store, "bbbb", met=True)
-    client = FakeClient([_item(roots, "aaaa", tags=["c411", "tm-preprod"]), _item(roots, "bbbb", tags=[])])
+    client = FakeClient([_item(roots, "aaaa", tags=["c411", SEED_PURE]), _item(roots, "bbbb", tags=[])])
     staging()
     decisions = run(store, client, config)
     assert _verdicts(decisions) == {
@@ -415,6 +415,23 @@ def test_missing_instance_tag_is_out_of_scope(
         "bbbb": PurgeVerdict.KEPT_OUT_OF_SCOPE,
     }
     assert client.deleted == []
+
+
+def test_instance_tag_alone_is_in_scope_for_grabs_and_cross_seeds(
+    roots: Roots, mounted: None, staging: Callable[[], None], store: ConcreteAcquireStore, run: Run
+) -> None:
+    """The instance tag is the match: a grab without seed-pure and a seed-only cross-seed are both purged."""
+    scope = TorrentScope(category=_CATEGORY, download_root=roots.download, v0_seed_pure=False)
+    config = _config(roots, scope=scope)
+    _oblige(store, "aaaa", met=True)
+    _oblige(store, "bbbb", met=True)
+    grab = _item(roots, "aaaa", tags=["c411", *scope.grab_tags])
+    cross_seed = _item(roots, "bbbb", tags=["c411", *scope.cross_seed_tags])
+    assert SEED_PURE not in grab.tags
+    assert SEED_ONLY in cross_seed.tags
+    staging()
+    decisions = run(store, FakeClient([grab, cross_seed]), config)
+    assert _verdicts(decisions) == {"aaaa": PurgeVerdict.PURGED, "bbbb": PurgeVerdict.PURGED}
 
 
 @pytest.mark.parametrize("where", ["elsewhere", "", "sibling"])
@@ -666,7 +683,7 @@ def test_empty_scope_is_refused_before_any_client_call(
         "blank_category": TorrentScope.model_construct(category=" ", download_root=roots.download),
         "no_tags": TorrentScope.model_construct(category=_CATEGORY, download_root=roots.download, instance_tags=()),
         "blank_tag": TorrentScope.model_construct(
-            category=_CATEGORY, download_root=roots.download, instance_tags=("", SEED_PURE)
+            category=_CATEGORY, download_root=roots.download, instance_tags=("",)
         ),
     }[scope]
     config = _config(roots, scope=built)
