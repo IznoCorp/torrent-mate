@@ -12,9 +12,12 @@ WHAT THIS RULE HOLDS, at 390 px, read through `getBoundingClientRect`:
 1. between the sessions card and the notices heading there is at least `SECTION_GAP` px, and in each
    section of Profil a heading is `HEADING_GAP` px above what it heads;
 2. between the appearance control and the footer's top edge there is at least `FOOT_GAP` px;
-3. every group heading of the open menu has, at the end of the navigation's scroll, an entry below
-   it that is inside the navigation's visible box — a heading is never the last thing a reader sees.
+3. at every position the navigation's scroll can come to rest on, no group heading stands at the
+   cut with all its entries below it — a heading is never the last thing a reader sees. The
+   rest positions are those the scroll lands on after each step of `SCROLL_STEP` px, and the
+   rule waits `SETTLE_MS` for the browser's snapping to finish.
 """
+
 import asyncio
 import os
 
@@ -29,6 +32,11 @@ WIDTH = 390
 SECTION_GAP = 14
 HEADING_GAP = 8
 FOOT_GAP = 12
+
+# How far the navigation is scrolled between two readings, and how long the browser may take to
+# settle on a rest position after one.
+SCROLL_STEP = 30
+SETTLE_MS = 250
 
 READ_PROFILE = """() => {
   const panel = document.querySelector('[data-part="profile/sessions"] [data-part="panel"]');
@@ -47,6 +55,17 @@ READ_PROFILE = """() => {
     gap: Math.round((heading.getBoundingClientRect().top - panel.getBoundingClientRect().bottom) * 10) / 10,
     inside,
   };
+}"""
+
+# The group headings drawn in the navigation whose first entry is not drawn whole above the cut.
+READ_STRANDED = """() => {
+  const nav = document.querySelector('#drawer nav');
+  const cut = nav.getBoundingClientRect().bottom;
+  return [...nav.querySelectorAll('.grp')].filter((group) => {
+    const title = group.querySelector('.sect')?.getBoundingClientRect();
+    const first = group.querySelector('a, button')?.getBoundingClientRect();
+    return title && first && title.bottom <= cut && title.height > 0 && first.bottom > cut;
+  }).map((group) => group.querySelector('.sect').textContent);
 }"""
 
 READ_DRAWER = """() => {
@@ -101,25 +120,65 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(
-            browser, viewport={"width": WIDTH, "height": 844}, is_mobile=True, has_touch=True)
+            browser, viewport={"width": WIDTH, "height": 844}, is_mobile=True, has_touch=True
+        )
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         profile = await read_at(page, "profile-sessions", READ_PROFILE)
-        await page.evaluate("()=>document.querySelector('[data-part=\"profile/notices\"]').scrollIntoView({block:'center'})")
+        await page.evaluate(
+            "()=>document.querySelector('[data-part=\"profile/notices\"]').scrollIntoView({block:'center'})"
+        )
         await shoot(page, "1-profil-sessions")
-        journal.check("the sessions card and the notices heading are apart",
-                      profile["found"] and profile["gap"] >= SECTION_GAP, str(profile))
-        bare_headings = [one["name"] for one in profile.get("inside", []) if one["gap"] is None or one["gap"] < HEADING_GAP]
-        journal.check("every account section keeps its heading apart from what it heads",
-                      profile["found"] and not bare_headings, str(profile.get("inside")))
+        journal.check(
+            "the sessions card and the notices heading are apart",
+            profile["found"] and profile["gap"] >= SECTION_GAP,
+            str(profile),
+        )
+        bare_headings = [
+            one["name"] for one in profile.get("inside", []) if one["gap"] is None or one["gap"] < HEADING_GAP
+        ]
+        journal.check(
+            "every account section keeps its heading apart from what it heads",
+            profile["found"] and not bare_headings,
+            str(profile.get("inside")),
+        )
 
         drawer = await read_at(page, "drawer-navigation", READ_DRAWER)
-        journal.check("the appearance control and the footer are apart",
-                      drawer["found"] and drawer["gap"] >= FOOT_GAP, str(drawer))
-        await shoot(page, "2-drawer-appearance-footer")
+        journal.check(
+            "the appearance control and the footer are apart",
+            drawer["found"] and drawer["gap"] >= FOOT_GAP,
+            str(drawer),
+        )
+        await shoot(page, "2-drawer-end-of-scroll")
+        # THE OPERATOR'S POSITION: scrolled so the « Maquette » heading is the last thing the
+        # navigation shows, its entries below the cut.
+        await page.evaluate("""()=>{
+          const nav = document.querySelector('#drawer nav');
+          const title = nav.querySelector('[data-part="harness/menu"] .sect');
+          nav.scrollTop += title.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom + 8;
+        }""")
+        await shoot(page, "3-drawer-heading-at-the-cut")
         bare = [g["title"] for g in drawer.get("groups", []) if not g["visible"]]
-        journal.check("no group heading ends the visible menu without its entries",
-                      drawer["found"] and not bare, str(drawer.get("groups")))
+        journal.check(
+            "the end of the menu's scroll shows every group's entries",
+            drawer["found"] and not bare,
+            str(drawer.get("groups")),
+        )
+        stranded = {}
+        reach = await page.evaluate(
+            "()=>{const nav=document.querySelector('#drawer nav');return nav.scrollHeight-nav.clientHeight}"
+        )
+        for top in range(0, int(reach) + SCROLL_STEP, SCROLL_STEP):
+            await page.evaluate("(top)=>{document.querySelector('#drawer nav').scrollTo(0, top)}", top)
+            await page.wait_for_timeout(SETTLE_MS)
+            at_rest = await page.evaluate(READ_STRANDED)
+            if at_rest:
+                stranded[top] = at_rest
+        journal.check(
+            "no group heading rests at the cut with its entries below it",
+            not stranded,
+            str(dict(list(stranded.items())[:6])),
+        )
         await context.close()
         await browser.close()
     journal.summary(errors)
