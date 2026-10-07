@@ -84,3 +84,17 @@ def test_english_about_the_ban_is_accepted(tmp_path, what):
         f"{what} was refused — B-058: the hook caught prose because two of its "
         "four alternatives were not anchored to a line start"
     )
+
+
+def test_a_match_on_the_first_line_of_a_huge_message_is_still_refused(tmp_path):
+    """A trailer followed by a body far larger than a pipe buffer is refused, not raced.
+
+    With `printf … | grep -q` under `pipefail`, grep exits at its first match while
+    the writer is still blocked on the rest of the body; the writer takes SIGPIPE and
+    the pipeline reads 141, not 0 — so the match was read as no-match and the ban
+    depended on timing. The body here is several hundred KB, so the writer is
+    always still writing when grep matches the first line.
+    """
+    body = "an ordinary line of the body, long enough to fill the pipe quickly\n" * 8000
+    message = "fix(scope): a thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n" + body
+    assert run_hook(tmp_path, message) == 1, "a trailer ahead of a huge body was not refused (SIGPIPE as verdict)"
