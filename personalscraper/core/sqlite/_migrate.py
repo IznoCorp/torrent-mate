@@ -118,7 +118,9 @@ def apply_migrations(
     1. **Snapshot** — write a ``.pre-migration-<ver>.bak`` backup of the DB
        file (sibling of the DB, via :meth:`~pathlib.Path.read_bytes` /
        :meth:`~pathlib.Path.write_bytes`).  Skipped — with a warning — when
-       the connection is in-memory (no derivable DB path).
+       the connection is in-memory (no derivable DB path), and skipped for
+       every script of the run when the store is new and empty (no schema
+       object, ``user_version`` 0): there is nothing to protect.
     2. **Apply** — execute the script via :meth:`~sqlite3.Connection.executescript`.
        ``executescript`` auto-commits every statement that runs outside an
        explicit transaction, so each script owns ONE ``BEGIN … COMMIT`` holding
@@ -179,6 +181,12 @@ def apply_migrations(
 
     refuse_newer_schema(conn, dir_)
 
+    # A store with no schema object at all (a file just created, or left empty) has nothing a
+    # snapshot could protect: judged once, before the first script, so the later scripts of the
+    # same run — each of which sees the tables of the one before — are not snapshotted either.
+    # A failed script then leaves a partly migrated NEW store, which the next attempt resumes.
+    store_was_empty = current_version == 0 and conn.execute("SELECT count(*) FROM sqlite_master").fetchone()[0] == 0
+
     for script in scripts:
         try:
             ver = _migration_version(script)
@@ -196,7 +204,9 @@ def apply_migrations(
         # checkpoint the WAL may hold pages that are not yet in the DB file,
         # making a raw file-copy snapshot incomplete.
         bak_path: Path | None = None
-        if db_path is not None:
+        if store_was_empty:
+            log.debug("core.sqlite.migration.no_snapshot", version=ver, reason="new empty database; nothing to protect")
+        elif db_path is not None:
             conn.execute("PRAGMA wal_checkpoint(FULL)")
             bak_path = db_path.parent / f"{db_path.name}.pre-migration-{ver}.bak"
             bak_path.write_bytes(db_path.read_bytes())
