@@ -272,6 +272,12 @@ export const REPLAY_REFRESHES: readonly { readonly write: RegExp; readonly lists
     write: /^\/api\/v1\/acquisition\/journeys\/[^/]+\/(plex-match|closure\/seen)$/,
     lists: ["/api/v1/acquisition/to-handle"],
   },
+  // A held season grab: its path says `follows`, not `followed`, so neither the
+  // prefix compare nor the pair reaches the lists its online verb refreshes.
+  {
+    write: /^\/api\/v1\/acquisition\/follows\/[^/]+\/seasons\/\d+\/grab$/,
+    lists: ["/api/v1/acquisition/followed", "/api/v1/acquisition/to-handle"],
+  },
   // A decision correction: reopened, or a settled folder put back in the queue.
   {
     write: /^\/api\/v1\/(decisions\/[^/]+\/reopen|staging\/media\/[^/]+\/enqueue)$/,

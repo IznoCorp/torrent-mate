@@ -91,6 +91,11 @@ describe("a held write replayed from the outbox", () => {
     expect(stale).toContain(TO_HANDLE);
   });
 
+  it("refreshes the follows and the queue after a season grab", async () => {
+    const stale = await staleAfterReplayOf("POST", "/api/v1/acquisition/follows/Some%20Title/seasons/2/grab");
+    expect(stale).toEqual(expect.arrayContaining([TO_HANDLE, FOLLOWED]));
+  });
+
   it("refreshes the decisions after a decision is reopened", async () => {
     const stale = await staleAfterReplayOf("POST", "/api/v1/decisions/decision-1/reopen");
     expect(stale).toContain(DECISIONS);
