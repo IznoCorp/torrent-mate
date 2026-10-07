@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._fs_probe import is_mounted
-from personalscraper.indexer.db import apply_migrations, open_db
+from personalscraper.indexer.db import ensure_library_schema, open_db
 from personalscraper.indexer.repos import item_repo
 from personalscraper.indexer.repos.item_repo import (
     _ATTR_DISPATCH_DISK,
@@ -57,9 +57,6 @@ _SERIES_CATEGORY_IDS = frozenset(
         "tv_programs",
     }
 )
-
-# Path to the migration SQL scripts, relative to this package.
-_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "indexer" / "migrations"
 
 
 def _normalize_key(name: str) -> str:
@@ -207,8 +204,9 @@ class MediaIndex:
             db_path = configured_db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
+        # Migrate under the indexer's lock before opening: one path for every library DB migration.
+        ensure_library_schema(db_path)
         self._conn = open_db(db_path, event_bus=event_bus)
-        apply_migrations(self._conn, _MIGRATIONS_DIR)
 
         log.info("indexer.dispatch.opened", db_path=str(db_path))
 

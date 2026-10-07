@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 from personalscraper.core.sqlite._lock import db_lock
-from personalscraper.core.sqlite._migrate import _migration_version
+from personalscraper.core.sqlite._migrate import _migration_version, refuse_newer_schema
 from personalscraper.core.sqlite._migrate import apply_migrations as _core_apply_migrations
 from personalscraper.core.sqlite._open import OpenDbErrorFactories
 from personalscraper.core.sqlite._open import open_db as _core_open_db
@@ -407,7 +407,11 @@ def _library_schema_at_head(db_path: Path, dir_: Path) -> bool:
 
     Returns:
         ``True`` only when the file exists and its ``PRAGMA user_version`` equals the highest
-        script number; ``False`` for a missing, older, newer or unreadable store.
+        script number; ``False`` for a missing, older or unreadable store.
+
+    Raises:
+        SqliteSchemaNewerError: The store's schema is newer than the code's. Refused here, on the
+            read-only probe, so the refusal never depends on the migration lock being free.
     """
     if not db_path.exists():
         return False
@@ -417,6 +421,7 @@ def _library_schema_at_head(db_path: Path, dir_: Path) -> bool:
     except sqlite3.Error:
         return False
     try:
+        refuse_newer_schema(conn, dir_)
         version: int = conn.execute("PRAGMA user_version").fetchone()[0]
         return version == head
     except sqlite3.Error:
@@ -430,7 +435,8 @@ def ensure_library_schema(db_path: Path, dir_: Path | None = None) -> None:
 
     The boot-time counterpart of the indexer's own migration, for a run that writes its history
     before any index run has built the store (a fresh environment). A store already at head is
-    a no-op that takes no lock and writes nothing. Otherwise the brief ``db_lock`` — the one the
+    a no-op that takes no lock and writes nothing, and a store newer than this code is refused by
+    that same read-only probe, before the lock is taken. Otherwise the brief ``db_lock`` — the one the
     indexer takes — spans open + migrate, and :func:`apply_migrations` runs the newer-schema
     guard before any snapshot or script, so a store migrated past this code is refused, never
     touched. A new or empty store is migrated without ``.pre-migration`` backups.

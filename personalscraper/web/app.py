@@ -30,8 +30,7 @@ from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
 from personalscraper.http_v1.deprecations import DeprecationHeaders
 from personalscraper.http_v1.security_headers import SecurityHeaders
-from personalscraper.indexer import migrations as _indexer_migrations
-from personalscraper.indexer.db import apply_migrations
+from personalscraper.indexer.db import ensure_library_schema
 from personalscraper.logger import get_logger
 from personalscraper.web.auth.routes import router as auth_router
 from personalscraper.web.deps import is_staging_role, require_session
@@ -81,12 +80,12 @@ def _apply_pending_indexer_migrations(config: Config) -> None:
     if db_path is None or not db_path.exists():
         logger.info("web_boot_migrate_skipped", reason="indexer db absent")
         return
-    migrations_dir = Path(_indexer_migrations.__file__).resolve().parent
     try:
-        with closing(sqlite3.connect(str(db_path), timeout=30)) as conn:
+        # One path, one lock: the indexer's own, shared with the watcher, the runs and the jobs.
+        ensure_library_schema(db_path)
+        # Read-only: ensure_library_schema above is the only writer of this boot.
+        with closing(sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True, timeout=30)) as conn:
             apply_pragmas(conn)
-            apply_migrations(conn, migrations_dir)
-            conn.commit()
             version = conn.execute("PRAGMA user_version").fetchone()[0]
         logger.info("web_boot_migrate_applied", db_version=version)
     except SqliteSchemaNewerError:

@@ -14,10 +14,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from personalscraper import pipeline_history
 from personalscraper.app.supervisor.execution import _open_history_writer
 from personalscraper.core.sqlite import apply_migrations
 from personalscraper.indexer.migrations import MIGRATIONS_DIR
 from personalscraper.pipeline_history import PipelineRunWriter
+
+
+@pytest.fixture(autouse=True)
+def _forget_unensurable_stores(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Start each test with the writer's per-process memory of unensurable stores empty."""
+    monkeypatch.setattr(pipeline_history, "_UNENSURABLE", set())
 
 
 def _config_for(db_path: Path) -> MagicMock:
@@ -114,13 +121,15 @@ def test_unopenable_db_is_one_error_event_and_no_per_step_warnings(tmp_path: Pat
 
 
 @pytest.mark.parametrize("method", ["insert", "update_pid", "update_step", "finalize"])
-def test_writer_on_a_missing_db_creates_no_file_and_names_the_condition(
+def test_writer_on_an_unensurable_db_creates_no_file_and_skips_silently_after_one_error(
     tmp_path: Path,
     method: str,
     logged_events,  # type: ignore[no-untyped-def]
 ) -> None:
-    """``pipeline_history`` never creates a DB through ``connect()``: a missing one is a named event."""
-    db_path = tmp_path / "library-staging.db"
+    """A store the writer cannot ensure is created as no file, reported once, and never raises."""
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("x")
+    db_path = blocker / "library-staging.db"
     writer = PipelineRunWriter(db_path)
     calls = {
         "insert": lambda: writer.insert("r", trigger="cli", dry_run=False, pid=1),
@@ -130,5 +139,8 @@ def test_writer_on_a_missing_db_creates_no_file_and_names_the_condition(
     }
     with logged_events() as logs:
         calls[method]()
+        calls[method]()
     assert not db_path.exists()
-    assert [e for e in logs if e["event"] == "pipeline_history.db_missing"]
+    assert [e["event"] for e in logs if e["log_level"] in ("error", "warning")] == [
+        "pipeline_history.library_db_unavailable"
+    ]

@@ -12,7 +12,6 @@ import sqlite3
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import structlog.contextvars
@@ -24,12 +23,11 @@ from personalscraper.app.supervisor.model import (
 )  # re-exported: the CLI and the tests import it from here
 from personalscraper.core.sqlite import SqliteMigrationError
 from personalscraper.i18n import t
-from personalscraper.indexer import migrations as _migrations_pkg
 from personalscraper.indexer.db import (
     IndexerCorruptError,
     IndexerDiskFullError,
     IndexerInvalidPathError,
-    apply_migrations,
+    IndexerLockError,
     ensure_library_schema,
     open_db,
 )
@@ -468,9 +466,10 @@ def rescrape_item(
             db_path = config.indexer.db_path
             assert db_path is not None, "indexer.db_path must be resolved by the loaded Config"
             try:
+                ensure_library_schema(db_path)
                 conn = open_db(db_path, event_bus=app_context.event_bus)
-                apply_migrations(conn, Path(_migrations_pkg.__file__).parent)
             except (
+                IndexerLockError,
                 IndexerCorruptError,
                 IndexerInvalidPathError,
                 IndexerDiskFullError,
