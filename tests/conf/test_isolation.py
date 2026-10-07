@@ -207,7 +207,7 @@ def _client(*, enabled: bool, scoped: bool, tmp_path: Path) -> TorrentConfig:
     Returns:
         The torrent config.
     """
-    scope = TorrentScope(category="tm-dev", download_root=tmp_path / "dl", instance_tags=("tm-dev", "seed-pure"))
+    scope = TorrentScope(category="tm-dev", download_root=tmp_path / "dl", instance_tags=("tm-dev",))
     entry = TorrentClientEntry(enabled=enabled, scope=scope if scoped else None)
     return TorrentConfig(active="qbittorrent", clients={"qbittorrent": entry})
 

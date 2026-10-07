@@ -315,7 +315,7 @@ def stage_watch_decide(config: Config) -> None:
     try:
         completed = app.torrent_client.get_completed()
         completed_hashes = frozenset(t.hash for t in completed)
-        seed_pure_hashes = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
+        triage_skipped_hashes = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
 
         tracker = IngestTracker(tracker_path=Path(config.paths.data_dir) / "ingested_torrents.json")
         try:
@@ -324,11 +324,11 @@ def stage_watch_decide(config: Config) -> None:
             ingested = frozenset()
 
         svc = WatcherService(config.watch)
-        new_completions = completed_hashes - ingested - seed_pure_hashes
+        new_completions = completed_hashes - ingested - triage_skipped_hashes
         inp = WatcherInput(
             completed_hashes=completed_hashes,
             ingested_hashes=ingested,
-            seed_pure_hashes=seed_pure_hashes,
+            triage_skipped_hashes=triage_skipped_hashes,
             sentinel_present=(Path(config.paths.data_dir) / "watch.trigger").exists(),
             pipeline_lock_held=False,
             now=time.time(),
@@ -338,7 +338,7 @@ def stage_watch_decide(config: Config) -> None:
         _kv("watch.enabled", config.watch.enabled)
         _kv("completed torrents", len(completed_hashes))
         _kv("ingested (tracked)", len(ingested))
-        _kv("SEED_PURE-tagged", len(seed_pure_hashes))
+        _kv("SEED_PURE-tagged", len(triage_skipped_hashes))
         _kv("NEW completions (work)", len(new_completions))
         _kv("=> DECISION (live config)", out.decision.name)
         if not config.watch.enabled:

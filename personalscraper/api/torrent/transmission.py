@@ -240,8 +240,9 @@ class TransmissionClient(
         :func:`_split_labels` already decodes. The sentinel does NOT lie about a
         category — ``_split_labels`` maps a leading ``""`` back to
         ``category=None``, and EVERY consumer of a torrent's category/tags reads
-        that DECODED value (the ingest ``SEED_PURE`` skip, the sort
-        ``SEED_PURE`` guard, the cross-seed ``SEED_PURE`` skip, the web staging
+        that DECODED value (the ingest, sort-guard and cross-seed triage
+        skips, which apply ``triage_skip_reason`` — ``SEED_PURE`` unscoped, the
+        instance tag and ``SEED_ONLY`` under a scope — and the web staging
         category filter) — none reads raw ``labels[0]``. So ``add`` emits the
         sentinel directly instead of raising; the former
         ``UnsupportedCapabilityError`` for tags-without-category is REJECTED and
@@ -475,8 +476,8 @@ def _split_labels(labels: list[str]) -> tuple[str | None, list[str]]:
     ``labels[0]`` is the no-category sentinel (written by :func:`_labels` when a
     category-less torrent carries tags): in that case ``labels[1:]`` are the
     tags and the category is ``None``. This keeps tags readable as tags on
-    category-less torrents — the property the ingest skip (``SEED_PURE in
-    tags``) depends on.
+    category-less torrents — the property the triage skip
+    (``triage_skip_reason``, which reads the tags) depends on.
 
     Args:
         labels: The torrent's flat labels list.

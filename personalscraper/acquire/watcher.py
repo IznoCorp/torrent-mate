@@ -69,7 +69,9 @@ class WatcherInput:
     Attributes:
         completed_hashes: Set of info-hashes from ``get_completed()``.
         ingested_hashes: Set of already-ingested hashes.
-        seed_pure_hashes: Set of SEED_PURE-tagged hashes (skip these).
+        triage_skipped_hashes: Hashes the triage leaves alone (skip these):
+            SEED_PURE-tagged unscoped; under a scope, the untagged and the
+            own SEED_ONLY ones (``api.torrent._base.triage_skip_reason``).
         sentinel_present: True if ``data_dir/watch.trigger`` exists.
         pipeline_lock_held: True if the lock is held by a live process
             (``is_lock_held`` probe; manual run in progress).
@@ -92,7 +94,7 @@ class WatcherInput:
 
     completed_hashes: frozenset[str]
     ingested_hashes: frozenset[str]
-    seed_pure_hashes: frozenset[str]
+    triage_skipped_hashes: frozenset[str]
     sentinel_present: bool
     pipeline_lock_held: bool
     now: float
@@ -193,7 +195,7 @@ class WatcherService:
         # 2. Cross-seed: new completions not yet dispatched this daemon lifetime.
         # Deferred hashes still belong here — a completed torrent is seedable
         # regardless of why ingest would skip it.
-        work_set = inp.completed_hashes - inp.ingested_hashes - inp.seed_pure_hashes
+        work_set = inp.completed_hashes - inp.ingested_hashes - inp.triage_skipped_hashes
         cross_seed_new = work_set - state.cross_seed_dispatched
         if cross_seed_new:
             new_state = dataclasses.replace(

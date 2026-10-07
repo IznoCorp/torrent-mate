@@ -2,7 +2,7 @@
 
 With no scope configured the grab is what it always was (characterisation, green
 before and after the change). With a scope: the add carries the scope's category
-and the instance tags (``seed-pure`` included), a hash already in the shared
+and the instance tags (with ``seed-pure`` while ``v0_seed_pure`` is on), a hash already in the shared
 client is refused, and the global caps are never applied.
 
 Mocking note (Python 3.12): the runtime-protocol ``isinstance`` check uses
@@ -159,6 +159,16 @@ def test_scope_set_add_carries_category_and_instance_tags() -> None:
     ]
     assert outcome.category == "tm-preprod"
     assert outcome.tags == (PROVIDER, "tm-preprod", "seed-pure")
+
+
+def test_scope_without_v0_flag_add_carries_instance_tags_only() -> None:
+    """Scope set, v0_seed_pure off → the grab carries the provider and the instance tags, no seed-pure."""
+    client = _SharedClient()
+    scope = SCOPE.model_copy(update={"v0_seed_pure": False})
+    outcome = _grab(_orchestrator(client, scope=scope))
+
+    assert client.add_calls == [{"category": "tm-preprod", "tags": [PROVIDER, "tm-preprod"], "limits": None}]
+    assert outcome.tags == (PROVIDER, "tm-preprod")
 
 
 def test_scope_set_shared_hash_is_refused_without_add() -> None:

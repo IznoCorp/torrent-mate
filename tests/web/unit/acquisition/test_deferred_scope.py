@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 from personalscraper.web.acquisition.service import _list_deferred_torrents
 from tests.fixtures.torrent_scope import (
     OTHER_CATEGORY,
@@ -32,10 +33,13 @@ def _config(tmp_path: Path, scope: object) -> MagicMock:
     return config
 
 
-def _listed(tmp_path: Path, scope: object) -> list[str]:
-    """Names listed as deferred over the shared client under *scope*."""
+def _listed(tmp_path: Path, scope: object, tags: dict[str, list[str]] | None = None) -> list[str]:
+    """Names listed as deferred over the shared client under *scope*, *tags* overriding a torrent's tags by hash."""
+    client = shared_client()
+    for item in client.get_completed.return_value:
+        item.tags = (tags or {}).get(item.hash, item.tags)
     with (
-        patch(f"{_SESSION}.build_active_torrent_client", return_value=shared_client()),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
         patch("personalscraper.ingest.deferral.deferral_probe_dirs", return_value=[tmp_path]),
     ):
         return [d.name for d in _list_deferred_torrents(_config(tmp_path, scope))]
@@ -52,3 +56,20 @@ def test_unscoped_listing_keeps_every_completed_torrent(tmp_path: Path) -> None:
     assert sorted(_listed(tmp_path, None)) == sorted(
         f"Movie.{h[:4]}" for h in (PROD_HASH, OTHER_CATEGORY_HASH, PREPROD_HASH)
     )
+
+
+def test_scoped_listing_keeps_own_grab_carrying_seed_pure(tmp_path: Path) -> None:
+    """Under a scope an own grab tagged seed-pure for v0 is still listed as waiting for ingest."""
+    assert _listed(tmp_path, SCOPE, {PREPROD_HASH: ["c411", *SCOPE.grab_tags]}) == [f"Movie.{PREPROD_HASH[:4]}"]
+
+
+def test_scoped_listing_leaves_out_own_seed_only_and_untagged(tmp_path: Path) -> None:
+    """Under a scope an own seed-only cross-seed, or a torrent without the instance tag, is never listed."""
+    assert _listed(tmp_path, SCOPE, {PREPROD_HASH: [*SCOPE.instance_tags, SEED_ONLY]}) == []
+    assert _listed(tmp_path, SCOPE, {PREPROD_HASH: ["c411"]}) == []
+
+
+def test_unscoped_listing_leaves_out_seed_pure(tmp_path: Path) -> None:
+    """Characterisation: without a scope a seed-pure torrent is left out, an untagged one listed."""
+    names = _listed(tmp_path, None, {PROD_HASH: [SEED_PURE]})
+    assert sorted(names) == sorted(f"Movie.{h[:4]}" for h in (OTHER_CATEGORY_HASH, PREPROD_HASH))

@@ -40,12 +40,11 @@ from personalscraper.acquire.watcher import (
     WatcherService,
     WatcherState,
 )
-from personalscraper.api.torrent._base import scoped, scoped_hashes
+from personalscraper.api.torrent._base import scoped, scoped_hashes, triage_skip_reason
 from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS
 from personalscraper.app.composition import build_app_context
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import handle_cli_errors
-from personalscraper.core.tags import SEED_PURE
 from personalscraper.i18n import t
 from personalscraper.ingest.deferral import classify_deferrals, deferral_probe_dirs
 from personalscraper.ingest.tracker import IngestTracker
@@ -324,7 +323,7 @@ def _poll_deferrals(
 
     Args:
         completed: Completed torrents from the poll.
-        exclude_hashes: Hashes to exclude from deferral (ingested ∪ seed-pure).
+        exclude_hashes: Hashes to exclude from deferral (ingested ∪ triage-skipped).
         config: The typed configuration (ratio / free-space thresholds).
         deferral_dirs: Staging probe dirs.
         deferral_ingest_dir: The ingest dir, or ``None`` when deferral is off.
@@ -408,12 +407,14 @@ def _poll(
     if downloading_count is None:
         return None, last_deferred
 
-    seed_pure_hashes = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
+    # The torrents the triage leaves alone: seed-pure unscoped; under a scope, the
+    # untagged and the own seed-only ones (``triage_skip_reason``).
+    triage_skipped_hashes = frozenset(t.hash for t in completed if triage_skip_reason(t, scope) is not None)
 
     # 3b. Transient-skip deferrals (live, self-healing, nothing persisted).
     deferred, last_deferred = _poll_deferrals(
         completed,
-        ingested_hashes | seed_pure_hashes,
+        ingested_hashes | triage_skipped_hashes,
         config,
         deferral_dirs,
         deferral_ingest_dir,
@@ -425,7 +426,7 @@ def _poll(
     inp = WatcherInput(
         completed_hashes=completed_hashes,
         ingested_hashes=ingested_hashes,
-        seed_pure_hashes=seed_pure_hashes,
+        triage_skipped_hashes=triage_skipped_hashes,
         sentinel_present=(data_dir / "watch.trigger").exists(),
         pipeline_lock_held=is_lock_held(data_dir / "pipeline.lock"),
         now=now,

@@ -171,9 +171,8 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
     Returns:
         One :class:`DeferredTorrent` per deferred hash (possibly empty).
     """
-    from personalscraper.api.torrent._base import scoped  # noqa: PLC0415
+    from personalscraper.api.torrent._base import scoped, triage_skip_reason  # noqa: PLC0415
     from personalscraper.app.torrent_session import shared_torrent_client  # noqa: PLC0415
-    from personalscraper.core.tags import SEED_PURE  # noqa: PLC0415
     from personalscraper.ingest.deferral import (  # noqa: PLC0415
         classify_deferrals,
         deferral_probe_dirs,
@@ -186,10 +185,12 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
             if client is None:
                 return []
             # A shared client also completes other instances' torrents: keep the scope's own.
-            completed = scoped(client.get_completed(), config.torrent.active_scope())
+            scope = config.torrent.active_scope()
+            completed = scoped(client.get_completed(), scope)
         tracker = IngestTracker(tracker_path=config.paths.data_dir / "ingested_torrents.json")
         ingested = frozenset(tracker.load().keys())
-        seed_pure = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
+        # What the ingest skips for good is never « waiting »: seed-pure unscoped, untagged / seed-only scoped.
+        never_ingested = frozenset(t.hash for t in completed if triage_skip_reason(t, scope) is not None)
         dirs = deferral_probe_dirs(config)
         deferred = classify_deferrals(
             completed,
@@ -197,7 +198,7 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
             ingest_dir=dirs[-1],
             min_free_gb=config.thresholds.min_free_space_staging_gb,
             staging_probe_dirs=dirs,
-            exclude_hashes=ingested | seed_pure,
+            exclude_hashes=ingested | never_ingested,
         )
         by_hash = {t.hash: t.name for t in completed}
         return [
