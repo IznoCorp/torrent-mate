@@ -220,11 +220,12 @@ def triage_skip_reason(item: TorrentItem, scope: TorrentScope | None) -> str | N
         ``"seed_pure"`` (unscoped), ``"not_own"`` (scoped, another instance's or
         untagged) or ``"seed_only"`` (scoped, an own cross-seed).
     """
-    # Read defensively: a degenerate provider response may carry no tag list.
-    tags = item.tags or []
+    # Read defensively: a degenerate provider response may omit the tags (then
+    # the torrent carries none) or carry ``None``.
+    tags = getattr(item, "tags", None) or []
     if scope is None:
         return "seed_pure" if SEED_PURE in tags else None
-    if item.category != scope.category or not all(tag in tags for tag in scope.instance_tags):
+    if getattr(item, "category", None) != scope.category or not all(tag in tags for tag in scope.instance_tags):
         return "not_own"
     if SEED_ONLY in tags:
         return "seed_only"

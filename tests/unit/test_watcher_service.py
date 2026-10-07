@@ -52,7 +52,7 @@ def _inp(
     return WatcherInput(
         completed_hashes=frozenset(completed),
         ingested_hashes=frozenset(ingested),
-        seed_pure_hashes=frozenset(seed_pure or set()),
+        triage_skipped_hashes=frozenset(seed_pure or set()),
         sentinel_present=sentinel,
         pipeline_lock_held=lock_held,
         now=now,
@@ -346,7 +346,7 @@ class TestWatcherService:
             completed=set(original_inp.completed_hashes),
             ingested=set(original_inp.ingested_hashes),
             now=original_inp.now,
-            seed_pure=set(original_inp.seed_pure_hashes),
+            seed_pure=set(original_inp.triage_skipped_hashes),
             sentinel=original_inp.sentinel_present,
             lock_held=original_inp.pipeline_lock_held,
         )
@@ -362,7 +362,7 @@ class TestWatcherService:
         # Verify input unchanged
         assert original_inp.completed_hashes == inp_before.completed_hashes
         assert original_inp.ingested_hashes == inp_before.ingested_hashes
-        assert original_inp.seed_pure_hashes == inp_before.seed_pure_hashes
+        assert original_inp.triage_skipped_hashes == inp_before.triage_skipped_hashes
         assert original_inp.sentinel_present == inp_before.sentinel_present
         assert original_inp.pipeline_lock_held == inp_before.pipeline_lock_held
         assert original_inp.now == inp_before.now

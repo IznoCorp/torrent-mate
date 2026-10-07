@@ -14,7 +14,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.api.torrent._base import scoped, scoped_hashes
+from personalscraper.api.torrent._base import scoped, scoped_hashes, triage_skip_reason
 from personalscraper.api.torrent._errors import (
     TorrentAuthError,
     TorrentLockoutError,
@@ -28,7 +28,6 @@ from personalscraper.core.delete_permit import SeedObligationChecker
 from personalscraper.core.event_bus import EventBus, current_run_uid
 from personalscraper.core.media_types import FileType
 from personalscraper.core.provenance_port import StagingProvenanceWriter
-from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -445,21 +444,20 @@ def run_ingest(
                         )
                         continue
 
-                    # Skip torrents tagged seed-pure — they were downloaded
-                    # only for ratio seeding and must never enter the media
-                    # library. This check is unconditional (no config gate).
-                    # Check order: already-ingested → ratio → seed-pure →
-                    # content resolution.
-                    # ``tags`` is read defensively (mirroring the ratio guard's
-                    # ``getattr(torrent, "ratio", None)``): a degenerate provider
-                    # response may omit the attribute, in which case the torrent
-                    # simply carries no tags and is never treated as seed-pure.
-                    torrent_tags = getattr(torrent, "tags", None) or []
-                    if SEED_PURE in torrent_tags:
+                    # Skip the torrents the triage leaves alone — unscoped, those
+                    # tagged seed-pure (downloaded only for ratio seeding); under a
+                    # scope, another instance's or untagged torrents and the own
+                    # seed-only cross-seeds (``triage_skip_reason``). They must
+                    # never enter the media library. This check is unconditional
+                    # (no config gate). Check order: already-ingested → ratio →
+                    # triage skip → content resolution.
+                    skip_reason = triage_skip_reason(torrent, scope)
+                    if skip_reason is not None:
                         log.info(
-                            "ingest.seed_pure_skipped",
+                            "ingest.seed_pure_skipped" if skip_reason == "seed_pure" else "ingest.triage_skipped",
                             name=name,
-                            tags=torrent_tags,
+                            reason=skip_reason,
+                            tags=getattr(torrent, "tags", None) or [],
                         )
                         report.skip_count += 1
                         event_bus.emit(
@@ -467,7 +465,7 @@ def run_ingest(
                                 step="ingest",
                                 item=name,
                                 status="skipped",
-                                details={"reason": "seed_pure"},
+                                details={"reason": skip_reason},
                             )
                         )
                         continue

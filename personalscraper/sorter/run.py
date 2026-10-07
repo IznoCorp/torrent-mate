@@ -14,13 +14,12 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.api.torrent._base import scoped
+from personalscraper.api.torrent._base import scoped, triage_skip_reason
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
-from personalscraper.core.tags import SEED_PURE
 from personalscraper.logger import get_logger
 from personalscraper.models import SortResult, StepReport
 from personalscraper.pipeline_protocol import record
@@ -99,8 +98,9 @@ def run_sort(
         torrent_client: Optional torrent client exposing ``get_completed()``
             (a :class:`TorrentLister`). Consulted only when
             ``config.sort.verify_seed_pure`` is True to build the set of
-            seed-pure-tagged completed-torrent names that the sort genuinely
-            excludes. ``None`` (or the flag off) leaves the guard inert — the
+            completed-torrent names the triage leaves alone (seed-pure
+            unscoped; under a scope, untagged or seed-only — see
+            ``triage_skip_reason``), which the sort genuinely excludes. ``None`` (or the flag off) leaves the guard inert — the
             sort proceeds with an empty skip set. The query is fail-soft: any
             client error logs a warning and keeps the skip set empty. Note: the
             standalone ``personalscraper sort`` command does NOT wire a client
@@ -131,8 +131,8 @@ def run_sort(
     cleaner = NameCleaner()
     sorter = Sorter(config=config, cleaner=cleaner, dry_run=dry_run)
 
-    # Seed-pure sort guard (opt-in): genuinely exclude completed torrents tagged
-    # seed-pure from the sort. Guarded by config.sort.verify_seed_pure and the
+    # Seed-pure sort guard (opt-in): genuinely exclude the completed torrents the
+    # triage leaves alone from the sort. Guarded by config.sort.verify_seed_pure and the
     # presence of a torrent client; fail-soft so the guard never aborts the sort.
     skip_names: frozenset[str] = frozenset()
     guard_on = getattr(config, "sort", None) is not None and config.sort.verify_seed_pure
@@ -146,8 +146,10 @@ def run_sort(
         )
     if guard_on and torrent_client is not None:
         try:
-            completed = scoped(torrent_client.get_completed(), config.torrent.active_scope())
-            skip_names = frozenset(t.name for t in completed if SEED_PURE in t.tags)
+            scope = config.torrent.active_scope()
+            completed = scoped(torrent_client.get_completed(), scope)
+            # seed-pure unscoped; under a scope, the untagged and the own seed-only ones.
+            skip_names = frozenset(t.name for t in completed if triage_skip_reason(t, scope) is not None)
             if skip_names:
                 log.info("sort.seed_pure_guard_active", skipping=sorted(skip_names))
         except Exception as exc:  # noqa: BLE001 — guard must never abort the sort

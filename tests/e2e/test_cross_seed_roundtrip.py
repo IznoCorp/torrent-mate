@@ -168,7 +168,7 @@ class TestCrossSeedRoundtrip:
     def test_watcher_predicate_ignores_seed_pure(self) -> None:
         """Watcher work predicate (W7) excludes SEED_PURE-tagged torrents.
 
-        When a completed hash is present in ``seed_pure_hashes``, the watcher's
+        When a completed hash is present in ``triage_skipped_hashes``, the watcher's
         work-set computation subtracts it, producing an empty ``cross_seed_new``
         set → no FIRE_RUN → IDLE.
 
@@ -181,7 +181,7 @@ class TestCrossSeedRoundtrip:
         inp = WatcherInput(
             completed_hashes=frozenset({"abc123"}),
             ingested_hashes=frozenset(),
-            seed_pure_hashes=frozenset({"abc123"}),  # same hash is SEED_PURE
+            triage_skipped_hashes=frozenset({"abc123"}),  # same hash is SEED_PURE
             sentinel_present=False,
             pipeline_lock_held=False,
             now=1_000_000.0,

@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent.qbittorrent import QBitClient
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.ingest import run_ingest
@@ -23,9 +24,11 @@ from tests.fixtures.torrent_scope import (
     OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
+    SCOPE,
     SCOPED_TORRENT_CONFIG,
     UNSCOPED_TORRENT_CONFIG,
     shared_client,
+    torrent,
 )
 
 
@@ -324,3 +327,67 @@ def test_ingest_without_scope_resolves_every_completed_torrent() -> None:
     # The run stops after two identical failures (no staging dir in this config), so the
     # third torrent is never reached; the two the other instances own are both resolved.
     assert {PROD_HASH, OTHER_CATEGORY_HASH} <= resolved
+
+
+# ---------------------------------------------------------------------------
+# Client scope — the ingest triages its own grabs and skips its seed-only cross-seeds
+# ---------------------------------------------------------------------------
+
+
+def _scoped_ingest(tags: list[str]) -> tuple[MagicMock, list[ItemProgressed]]:
+    """Run a dry scoped ingest over one completed torrent of the scope's category.
+
+    Args:
+        tags: The torrent's tags.
+
+    Returns:
+        The mock client (``get_content_path`` records a resolved torrent) and the emitted events.
+    """
+    item = torrent(PREPROD_HASH, SCOPE.category, tags=tags)
+    client = MagicMock(spec=QBitClient)
+    client.get_completed.return_value = [item]
+    client.get_by_category.return_value = [item]
+    client.get_content_path.return_value = Path("/nonexistent/Movie")
+    emitted: list[ItemProgressed] = []
+    event_bus = EventBus()
+    event_bus.subscribe(ItemProgressed, emitted.append)
+    mock_config = MagicMock()
+    mock_config.torrent = SCOPED_TORRENT_CONFIG
+    mock_config.ingest.min_ratio = 0.0
+    mock_config.paths.data_dir = Path("/tmp/test-ingest-scope")
+    mock_config.paths.staging_dir = Path("/tmp/test-staging")
+    mock_config.thresholds.min_free_space_staging_gb = 0
+    with (
+        patch("personalscraper.ingest.ingest.staging_path", return_value=Path("/tmp/test-staging")),
+        patch("personalscraper.ingest.ingest.find_ingest_dir", return_value="000-INGEST"),
+        patch("personalscraper.ingest.ingest.IngestTracker") as mock_tracker_cls,
+    ):
+        mock_tracker_cls.return_value.is_ingested.return_value = False
+        run_ingest(MagicMock(), config=mock_config, event_bus=event_bus, dry_run=True, torrent_client=client)
+    return client, emitted
+
+
+def _skip_reasons(emitted: list[ItemProgressed]) -> list[object]:
+    """Return the reason of every ``skipped`` event."""
+    return [e.details.get("reason") for e in emitted if e.status == "skipped"]
+
+
+def test_ingest_under_scope_triages_own_grab_carrying_seed_pure() -> None:
+    """Under a scope an own grab is ingested, though it carries the seed-pure v0 prod reads."""
+    client, emitted = _scoped_ingest(["c411", *SCOPE.grab_tags])
+    assert [c.args[0].hash for c in client.get_content_path.call_args_list] == [PREPROD_HASH]
+    assert "seed_pure" not in _skip_reasons(emitted)
+
+
+def test_ingest_under_scope_skips_own_seed_only_cross_seed() -> None:
+    """Under a scope an own seed-only cross-seed is skipped before content resolution."""
+    client, emitted = _scoped_ingest(list(SCOPE.cross_seed_tags))
+    client.get_content_path.assert_not_called()
+    assert _skip_reasons(emitted) == ["seed_only"]
+
+
+def test_ingest_under_scope_skips_a_torrent_without_the_instance_tag() -> None:
+    """Under a scope a torrent of the category without the instance tag is not this instance's."""
+    client, emitted = _scoped_ingest(["c411"])
+    client.get_content_path.assert_not_called()
+    assert _skip_reasons(emitted) == ["not_own"]

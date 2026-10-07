@@ -16,14 +16,18 @@ import pytest
 from typer.testing import CliRunner
 
 from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent.qbittorrent import QBitClient
 from personalscraper.conf.models.watch_seed import CrossSeedConfig, WatchConfig
+from personalscraper.core.tags import SEED_PURE
 from tests.fixtures.torrent_scope import (
     OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
+    SCOPE,
     SCOPED_TORRENT_CONFIG,
     UNSCOPED_TORRENT_CONFIG,
     shared_client,
+    torrent,
 )
 
 # ---------------------------------------------------------------------------
@@ -1208,3 +1212,44 @@ def test_poll_without_scope_counts_every_download(tmp_path: Path) -> None:
     """Characterisation: no scope, every running download counts."""
     inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, shared_client(progress=0.5))
     assert inp.downloading_count == 3
+
+
+def _poll_scoped_items(tmp_path: Path, items: list[Any]) -> Any:
+    """Run one scoped poll cycle over completed torrents of the scope's category.
+
+    Args:
+        tmp_path: Pytest temporary directory.
+        items: The completed torrents the client lists.
+
+    Returns:
+        The cycle's ``WatcherInput``.
+    """
+    client = MagicMock(spec=QBitClient)
+    client.get_completed.return_value = items
+    client.get_by_category.return_value = items
+    client.get_by_hashes.side_effect = lambda hs: [i for i in items if i.hash in hs]
+    return _poll_once(tmp_path, SCOPED_TORRENT_CONFIG, client)
+
+
+def test_poll_under_scope_works_own_grab_and_skips_seed_only_and_untagged(tmp_path: Path) -> None:
+    """Under a scope an own grab (seed-pure for v0) is work; an own seed-only and an untagged one are skipped."""
+    grab, cross_seed, untagged = "1" * 40, "2" * 40, "3" * 40
+    inp = _poll_scoped_items(
+        tmp_path,
+        [
+            torrent(grab, SCOPE.category, tags=["c411", *SCOPE.grab_tags]),
+            torrent(cross_seed, SCOPE.category, tags=list(SCOPE.cross_seed_tags)),
+            torrent(untagged, SCOPE.category, tags=["c411"]),
+        ],
+    )
+    assert inp.triage_skipped_hashes == {cross_seed, untagged}
+
+
+def test_poll_without_scope_skips_seed_pure_only(tmp_path: Path) -> None:
+    """Characterisation: no scope, a seed-pure torrent is skipped and an untagged one is work."""
+    items = [torrent(PROD_HASH, None, tags=[SEED_PURE]), torrent(OTHER_CATEGORY_HASH, None, tags=[])]
+    client = MagicMock(spec=QBitClient)
+    client.get_completed.return_value = items
+    client.get_all_hashes.return_value = {i.hash for i in items}
+    inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, client)
+    assert inp.triage_skipped_hashes == {PROD_HASH}

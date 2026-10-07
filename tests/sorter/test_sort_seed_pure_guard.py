@@ -20,7 +20,7 @@ import pytest
 from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
-from personalscraper.core.tags import SEED_PURE
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 from personalscraper.models import SortResult
 from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter
@@ -30,6 +30,7 @@ from tests.fixtures.torrent_scope import (
     OTHER_CATEGORY_HASH,
     PREPROD_HASH,
     PROD_HASH,
+    SCOPE,
     SCOPED_TORRENT_CONFIG,
     UNSCOPED_TORRENT_CONFIG,
     shared_client,
@@ -301,12 +302,13 @@ def test_run_sort_guard_fail_soft_on_client_error(tmp_path: Path, flag: bool) ->
     assert report.error_count == 0
 
 
-def _seed_pure_names_for(torrent_config: object, tmp_path: Path) -> frozenset[str]:
-    """Run the sort guard over a shared client whose torrents are all seed-pure.
+def _seed_pure_names_for(torrent_config: object, tmp_path: Path, tags: list[str] | None = None) -> frozenset[str]:
+    """Run the sort guard over a shared client whose torrents all carry the same tags.
 
     Args:
         torrent_config: The ``config.torrent`` section the run reads its scope from.
         tmp_path: Pytest temporary directory.
+        tags: The tags every torrent carries (default: seed-pure alone).
 
     Returns:
         The skip-name set the guard handed to ``Sorter.process``.
@@ -315,7 +317,7 @@ def _seed_pure_names_for(torrent_config: object, tmp_path: Path) -> frozenset[st
     _seed_ingest(config, "some_item.mkv")
     client = shared_client()
     for item in client.get_completed.return_value:
-        item.tags = [SEED_PURE]
+        item.tags = list(tags) if tags is not None else [SEED_PURE]
     with patch("personalscraper.sorter.run.Sorter") as MockSorter:
         MockSorter.return_value.process.return_value = []
         run_sort(
@@ -341,3 +343,19 @@ def test_run_sort_without_scope_guards_every_seed_pure_torrent(tmp_path: Path) -
         torrent(PROD_HASH, None).name,
         torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY).name,
     }
+
+
+def test_run_sort_under_scope_sorts_own_grab_carrying_seed_pure(tmp_path: Path) -> None:
+    """Under a scope an own grab is sorted, though it carries the seed-pure v0 prod reads."""
+    assert _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path, ["c411", *SCOPE.grab_tags]) == frozenset()
+
+
+def test_run_sort_under_scope_guards_own_seed_only_cross_seed(tmp_path: Path) -> None:
+    """Under a scope an own seed-only cross-seed is guarded from the sort."""
+    names = _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path, [*SCOPE.instance_tags, SEED_ONLY])
+    assert names == {torrent(PREPROD_HASH, "tm-preprod").name}
+
+
+def test_run_sort_under_scope_guards_a_torrent_without_the_instance_tag(tmp_path: Path) -> None:
+    """Under a scope a torrent of the category without the instance tag is not this instance's: guarded."""
+    assert _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path, ["c411"]) == {torrent(PREPROD_HASH, "tm-preprod").name}
