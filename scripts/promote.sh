@@ -34,18 +34,25 @@
 #   3. main only: every first-parent commit it brings is the merge of a PR into
 #      `develop` whose required checks (read from develop's branch rules)
 #      passed at its head — the latest run of each name, as GitHub counts it,
-#      concluded `success`, `skipped` or `neutral`; a commit with no PR is named;
+#      concluded `success`, `skipped` or `neutral`; a commit with no PR is named.
+#      Exemption: a PR listed in scripts/promote-exemptions.txt (`<number> | <reason>`,
+#      added by a PR) skips the required-checks test; each one used is printed as
+#      `promote: #<n> exempt — <reason>`, and an entry with no reason stops the script;
 #   4. prod and tag: the `__version__` at <sha> has no tag `v<version>` yet.
 #
 # `--dry-run` runs every check and prints what would move, pushing nothing.
 # GH overrides the `gh` command (its tests stub it); TM_GIT_NET_TIMEOUT bounds
-# every network git operation (60 s).
+# every network git operation (60 s); TM_PROMOTE_EXEMPTIONS points at another
+# exemption list (its tests).
 #
 set -euo pipefail
 
 GH="${GH:-gh}"
 GIT_NET_TIMEOUT="${TM_GIT_NET_TIMEOUT:-60}"
 INIT_PATH="personalscraper/__init__.py"
+# fd 3 stays promote's stdout inside the command substitutions that capture fd 1.
+exec 3>&1
+EXEMPTIONS_FILE="${TM_PROMOTE_EXEMPTIONS:-$(dirname "${BASH_SOURCE[0]}")/promote-exemptions.txt}"
 
 refuse() { printf 'promote: REFUSED — %s\n' "$*" >&2; exit 1; }
 say() { printf 'promote: %s\n' "$*"; }
@@ -120,10 +127,29 @@ for rule in json.load(sys.stdin):
 '
 }
 
+# exemption_reason <n> <list> — the reason PR <n> is exempt, or nothing. The list is
+# checked whole first, so a malformed entry stops the script whichever PR it names.
+exemption_reason() {
+  local number="$1" list="$2" line num reason
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue ;; esac
+    num="$(printf '%s' "${line%%|*}" | tr -d '[:space:]')"
+    reason="$(printf '%s' "${line#*|}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    case "$num" in ''|*[!0-9]*) refuse "exemption entry « $line » in $EXEMPTIONS_FILE has no PR number" ;; esac
+    case "$line" in *'|'*) ;; *) reason="" ;; esac
+    [ -n "$reason" ] || refuse "exemption entry #$num in $EXEMPTIONS_FILE has no reason"
+    [ "$num" != "$number" ] || printf '%s' "$reason"
+  done <<<"$list"
+}
+
 # Rule 3: every first-parent commit from main's tip to <sha> is a merged PR into
 # develop whose required checks passed at its head. Prints the PR numbers.
 check_pull_requests() {
-  local from="$1" to="$2" required commit pr head missing numbers=""
+  local from="$1" to="$2" required commit pr head missing exempt exemptions numbers=""
+  [ -r "$EXEMPTIONS_FILE" ] || refuse "cannot read the exemption list $EXEMPTIONS_FILE"
+  exemptions="$(cat "$EXEMPTIONS_FILE")"
+  # Validate every entry before any PR is looked at.
+  exemption_reason 0 "$exemptions" >/dev/null || exit 1
   required="$(required_checks)" || refuse "cannot read develop's branch rules through $GH"
   [ -n "$required" ] || refuse "develop's branch rules require no status check — nothing to prove a PR passed"
   for commit in $(git rev-list --first-parent --reverse "$from..$to"); do
@@ -136,6 +162,13 @@ for pull in json.load(sys.stdin):
         break
 ' "$commit")" || refuse "cannot read the pull requests of $(short "$commit") through $GH"
     [ -n "$pr" ] || refuse "$(short "$commit") « $(git log -1 --format=%s "$commit") » is no merged PR into develop (a push that bypassed review)"
+    exempt="$(exemption_reason "${pr%% *}" "$exemptions")" || exit 1
+    if [ -n "$exempt" ]; then
+      # fd 3 is promote's stdout: this runs inside a command substitution that captures fd 1.
+      say "#${pr%% *} exempt — $exempt" >&3
+      numbers="$numbers #${pr%% *}"
+      continue
+    fi
     head="${pr#* }"
     missing="$("$GH" api "repos/{owner}/{repo}/commits/$head/check-runs?per_page=100" | python3 -c '
 import json, sys

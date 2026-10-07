@@ -1,0 +1,5 @@
+# Pull requests that promote.sh rule 3 lets through although a required check was
+# not green at their head. One per line: `<PR number> | <reason>`. A line with no
+# number or no reason stops the script; blank lines and `#` comments are ignored.
+# An entry is added by a PR, and every promotion prints the ones it used.
+762 | docs-only PR; harness-full red at its head 4cc2a9a7e, deterministic, merged before the rule could refuse it

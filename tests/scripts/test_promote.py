@@ -120,6 +120,7 @@ class Flow:
             ]
         }
         self._next_pr = 100
+        self.env: dict[str, str] = {}
 
     def commit(self, branch: str, version: str, message: str, files: dict[str, str] | None = None) -> str:
         """Commits a version on `branch` in the seed clone and pushes it.
@@ -223,6 +224,7 @@ class Flow:
             "GH": str(stub),
             "TM_TEST_GH": str(answers),
             "TM_TEST_GH_LOG": str(self.root / "gh.log"),
+            **self.env,
         }
         return subprocess.run(
             ["bash", str(_SCRIPT), *args], cwd=self.work, env=env, capture_output=True, text=True, timeout=60
@@ -349,6 +351,67 @@ def test_rule_3_refuses_a_commit_with_no_pr(flow: Flow) -> None:
     assert done.returncode == 1, _out(done)
     assert "chore: pushed past review" in done.stderr
     assert flow.tip("main") == flow.base
+
+
+def _exemptions(flow: Flow, content: str) -> None:
+    """Points the script at an exemption list holding `content`.
+
+    Args:
+        flow: The flow whose next promotion reads the list.
+        content: The list's text.
+    """
+    path = flow.root / "exemptions.txt"
+    path.write_text(content, encoding="utf-8")
+    flow.env["TM_PROMOTE_EXEMPTIONS"] = str(path)
+
+
+def test_rule_3_lets_through_a_listed_pr_and_names_it(flow: Flow) -> None:
+    """A listed PR with a red required check passes, and its exemption is printed with its reason."""
+    sha = flow.merged_pr("0.1.1", checks="failure")
+    _exemptions(flow, "# a comment\n\n101 | docs-only, red at its head\n")
+    done = flow.promote("main")
+    assert done.returncode == 0, _out(done)
+    assert "promote: #101 exempt — docs-only, red at its head\n" in done.stdout
+    assert flow.tip("main") == sha
+
+
+def test_rule_3_still_refuses_an_unlisted_pr_beside_a_listed_one(flow: Flow) -> None:
+    """The exemption covers its own PR only: another PR with a red check is refused."""
+    flow.merged_pr("0.1.1", checks="failure")
+    flow.merged_pr("0.1.2", checks="failure")
+    _exemptions(flow, "101 | docs-only, red at its head\n")
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "PR #102" in done.stderr and "not green" in done.stderr
+    assert flow.tip("main") == flow.base
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["101\n", "101 |   \n", "101 | \n", "abc | a reason\n"],
+    ids=["bare", "blank", "empty", "no-number"],
+)
+def test_rule_3_refuses_an_exemption_without_a_reason(flow: Flow, entry: str) -> None:
+    """A malformed entry stops the script, even when its PR would pass on its own."""
+    flow.merged_pr("0.1.1")
+    _exemptions(flow, entry)
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "exemption" in done.stderr
+    assert flow.tip("main") == flow.base
+
+
+def test_rule_3_exemption_list_is_versioned_with_its_first_entry() -> None:
+    """The shipped list holds #762 with its reason, and nothing else."""
+    lines = [
+        line
+        for line in (_SCRIPT.parent / "promote-exemptions.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    assert lines == [
+        "762 | docs-only PR; harness-full red at its head 4cc2a9a7e, deterministic, "
+        "merged before the rule could refuse it"
+    ]
 
 
 def test_rule_3_refuses_a_pr_whose_checks_were_not_green(flow: Flow) -> None:
