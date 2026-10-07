@@ -2113,7 +2113,8 @@
         "caseUnknown": "qBittorrent did not answer: this folder is treated as the only copy.",
         "confirm": "Delete",
         "cancel": "Cancel",
-        "done": "“{{title}}” deleted from disk."
+        "done": "“{{title}}” deleted from disk.",
+        "refused": "The deletion was refused: the folder is still on disk."
       },
       "left": "“{{title}}” set aside — it is waiting for you, folded at the end of “To handle”.",
       "resolved": "Identified as “{{choice}}” — the pipeline resumes through to the library.",
