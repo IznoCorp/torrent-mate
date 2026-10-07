@@ -139,6 +139,12 @@ class TestSandboxCategories:
         with pytest.raises(ValueError, match="sandbox_categories"):
             TorrentClientEntry.model_validate({"sandbox_categories": bad})
 
+    @pytest.mark.parametrize("bad", [[" tm-dev"], ["tm-dev "], ["tm-preprod", "\ttm-dev"]])
+    def test_padded_category_is_refused(self, bad: list[str]) -> None:
+        """A padded category matches nothing in qBittorrent, so prod would silently fail open: refused."""
+        with pytest.raises(ValueError, match="whitespace"):
+            TorrentClientEntry.model_validate({"sandbox_categories": bad})
+
 
 class TestTrackerConfig:
     """TrackerConfig model tests."""

@@ -44,6 +44,7 @@ from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.indexer.library_view import IndexUnavailable
 from personalscraper.pipeline_history import PipelineRunWriter
 from tests.conftest import LoggedEvents
+from tests.fixtures.torrent_scope import SCOPED_TORRENT_CONFIG, UNSCOPED_TORRENT_CONFIG
 from tests.unit.app.supervisor.fakes import FakeWatcherHalf, FakeWorkerLauncher
 
 _HOST = "host-a"
@@ -722,6 +723,28 @@ class TestWatcherHalf:
         uid = _ask(store, test_config, clock)
         supervisor.tick_admission()
         assert launcher.started == [uid]
+
+    @pytest.mark.parametrize(
+        ("torrent_config", "queued"), [(SCOPED_TORRENT_CONFIG, 0), (UNSCOPED_TORRENT_CONFIG, 1)], ids=["scoped", "unscoped"]
+    )
+    def test_the_default_engine_is_scoped_by_the_config(
+        self,
+        store: AppStore,
+        watching: Config,
+        launcher: FakeWorkerLauncher,
+        clock: _Clock,
+        torrent_config: object,
+        queued: int,
+    ) -> None:
+        """The real engine is built scoped on a scoped config: a boot with no recorded run asks nothing there only."""
+        config = watching.model_copy(update={"torrent": torrent_config})
+        watcher = FakeWatcherHalf()
+        watcher.inputs = [_input()]
+        supervisor = _supervisor(store, config, launcher, clock, watcher=watcher)
+        supervisor.tick_admission()
+        supervisor.tick_watcher()
+
+        assert len(store.runs.queued()) == queued
 
     def test_no_torrent_client_asks_nothing(
         self, store: AppStore, watching: Config, launcher: FakeWorkerLauncher, clock: _Clock

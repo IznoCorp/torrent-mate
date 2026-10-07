@@ -277,6 +277,21 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
     return not any(marker in state for marker in _INERT_STATE_MARKERS)
 
 
+def _in_sandbox(category: str | None, sandbox_categories: tuple[str, ...]) -> bool:
+    """Tell whether a torrent's category is a sandbox's, or a qBittorrent subcategory of one.
+
+    Args:
+        category: The torrent's category; ``None`` or empty = uncategorised, which is prod's.
+        sandbox_categories: The categories that belong to the sandboxes.
+
+    Returns:
+        True when *category* equals a sandbox category or lies under it (``tm-dev/x``).
+    """
+    if not category:
+        return False
+    return any(category == s or category.startswith(s + "/") for s in sandbox_categories)
+
+
 def _poll_active_downloads(
     torrent_client: TorrentLister,
     completed_hashes: frozenset[str],
@@ -296,7 +311,8 @@ def _poll_active_downloads(
         completed_hashes: Hashes already known complete this cycle.
         scope: The instance's scope in a shared client; ``None`` = the whole client.
         sandbox_categories: Unscoped instance only: categories of the sandboxes sharing the
-            client. Their downloads are not this instance's, so they never hold its gate.
+            client, subcategories included. Their downloads are not this instance's, so they
+            never hold its gate.
 
     Returns:
         The count of in-progress downloads, or None when the cycle must be skipped.
@@ -308,7 +324,7 @@ def _poll_active_downloads(
         return sum(
             1
             for t in scoped(torrent_client.get_by_hashes(pending), scope)
-            if t.category not in sandbox_categories and _is_actively_downloading(t)
+            if not _in_sandbox(t.category, sandbox_categories) and _is_actively_downloading(t)
         )
     except TORRENT_LISTING_ERRORS:
         log.warning("watcher_active_downloads_poll_error", exc_info=True)

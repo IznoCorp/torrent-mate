@@ -335,9 +335,10 @@ class TorrentClientEntry(_StrictModel):
 
     @model_validator(mode="after")
     def _sandbox_categories_valid(self) -> "TorrentClientEntry":
-        """Refuse a blank sandbox category, and the key on a scoped instance.
+        """Refuse a blank or padded sandbox category, and the key on a scoped instance.
 
-        A blank category would match every uncategorised torrent, i.e. prod's own. A scoped
+        A blank category would match every uncategorised torrent, i.e. prod's own; a padded one
+        (``" tm-dev"``) matches nothing, qBittorrent categories being exact, so prod would fail open. A scoped
         instance is itself a sandbox: it owns one category and skips its seed-pure ones, so the
         key belongs to the unscoped instance only.
 
@@ -345,10 +346,12 @@ class TorrentClientEntry(_StrictModel):
             The entry, unchanged.
 
         Raises:
-            ValueError: A category is blank, or the entry has both a scope and sandbox categories.
+            ValueError: A category is blank or padded, or the entry has both a scope and sandbox categories.
         """
         if any(not category.strip() for category in self.sandbox_categories):
             raise ValueError("sandbox_categories: a category is empty")
+        if any(category != category.strip() for category in self.sandbox_categories):
+            raise ValueError("sandbox_categories: a category has surrounding whitespace")
         if self.scope is not None and self.sandbox_categories:
             raise ValueError("sandbox_categories: only an unscoped instance lists the sandboxes' categories")
         return self
