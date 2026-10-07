@@ -12,8 +12,10 @@
 // holding the send, which is the shape an act with no inverse needs.
 import i18next from "i18next";
 import { CancelledError } from "@tanstack/react-query";
-import { read, send, sharedQueryClient } from "../../lib/query-client";
+import { read, sharedQueryClient } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
+import { refusalWords } from "../../lib/refusal";
+import { sendVerb } from "./verb-outcome";
 import { bridge, icons, panel, toast } from "../../lib/shell-doors";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
 import type { Schemas } from "../../lib/contract-schemas";
@@ -63,18 +65,27 @@ function choicePanel(folder?: string): PanelDescriptor | null {
 }
 
 /**
- * Files one folder under a destination, then offers to put it back.
+ * Files one folder under a destination, then offers to put it back — or says it is held, refused, or failed.
  *
  * @param folder The folder.
  * @param destination The destination's name.
  */
 async function reclassify(folder: string, destination: string): Promise<void> {
   const path = `/api/v1/staging/media/${encodeURIComponent(folder)}/reclassify`;
-  const answer = (await send("POST", path, { destination })) as { destination?: string } | undefined;
+  const sent = await sendVerb<{ destination?: string }>("POST", path, { destination });
+  // HELD: the outbox keeps the filing, the folder has not moved, and there is nothing to undo yet.
+  if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
+  if (sent.kind === "refused") return void toast?.show({ message: refusalWords(sent.failure, "verbs.acquisition.refused") });
+  if (sent.kind === "failed") return void toast?.show({ message: i18next.t("verbs.acquisition.failed") });
   await readAgain();
   toast?.show({
-    message: i18next.t("verbs.acquisition.reclassified", { title: folder, destination: answer?.destination ?? destination }),
-    undo: () => void send("DELETE", path).then(readAgain),
+    message: i18next.t("verbs.acquisition.reclassified", { title: folder, destination: sent.answer?.destination ?? destination }),
+    undo: () => void sendVerb("DELETE", path).then(async (undone) => {
+      if (undone.kind === "held") toast?.show({ message: i18next.t("verbs.acquisition.held") });
+      else if (undone.kind === "refused") toast?.show({ message: refusalWords(undone.failure, "verbs.acquisition.refused") });
+      else if (undone.kind === "failed") toast?.show({ message: i18next.t("verbs.acquisition.failed") });
+      else await readAgain();
+    }),
   });
 }
 

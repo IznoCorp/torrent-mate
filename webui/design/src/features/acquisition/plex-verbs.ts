@@ -8,7 +8,8 @@
 // leaves the match to confirm, the card where it was.
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
-import { send } from "../../lib/query-client";
+import { refusalWords } from "../../lib/refusal";
+import { sendVerb } from "./verb-outcome";
 import { registerVerb } from "../../lib/verbs";
 import { queueNow } from "../../lib/queue";
 import { toast } from "../../lib/shell-doors";
@@ -37,15 +38,21 @@ export function heldMatch(title: string): Identity | null {
 }
 
 /**
- * Answers one medium's Plex match.
+ * Answers one medium's Plex match, and says it — or says it is held, refused, or failed.
  *
  * @param outcome Whether the match is the medium.
  * @param title The medium.
  * @param identity The identity picked, which a correction carries.
  */
 export async function answerMatch(outcome: "confirm" | "correct", title: string, identity?: Identity): Promise<void> {
-  await send("POST", `/api/v1/acquisition/journeys/${encodeURIComponent(title)}/plex-match`,
+  const sent = await sendVerb("POST", `/api/v1/acquisition/journeys/${encodeURIComponent(title)}/plex-match`,
     identity === undefined ? { outcome } : { outcome, identity });
+  // HELD: the outbox keeps the answer, the match is not answered yet, and the queue is not read over it.
+  if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
+  if (sent.kind === "refused") {
+    return void toast?.show({ message: refusalWords(sent.failure, "verbs.acquisition.refused") });
+  }
+  if (sent.kind === "failed") return void toast?.show({ message: i18next.t("verbs.acquisition.failed") });
   await heldClient?.invalidateQueries({ queryKey: QUEUE });
   toast?.show({
     message: outcome === "correct"
