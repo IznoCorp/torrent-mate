@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING
 
 import typer
+from rich.markup import escape
 
 from personalscraper import cli_helpers
 from personalscraper.app.supervisor.execution import RunOptions, execute_run
@@ -117,11 +118,12 @@ def _check_row(spec: CheckSpec) -> str:
         spec: The check to describe.
 
     Returns:
-        The row, columns padded as the listing has always been.
+        The row, columns padded as the listing has always been, escaped for
+        Rich: the ``[group]`` column would otherwise be read as markup.
     """
     fix = t("cli_core.pipeline.check_fixable") if spec.fixable else "-"
     idx = t("cli_core.pipeline.check_indexable") if spec.indexable else "-"
-    return t(
+    row = t(
         "cli_core.pipeline.check_row",
         name=f"{spec.name:<34}",
         group=spec.group,
@@ -130,6 +132,7 @@ def _check_row(spec: CheckSpec) -> str:
         indexable=f"{idx:<9}",
         description=spec.description,
     )
+    return escape(row)
 
 
 def _run_help() -> str:
