@@ -76,7 +76,7 @@ from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.torrent._base import TorrentLimits, category_refusal
-from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter, TorrentLister
+from personalscraper.api.torrent._contracts import CategoryLister, GlobalRateLimiter, TorrentLimiter, TorrentLister
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._ranking import rank
 from personalscraper.core._contracts import CircuitOpenError
@@ -382,6 +382,39 @@ def _scope_refusal(client: TorrentAdder, source: TorrentSource, scope: TorrentSc
     return None
 
 
+def _sandbox_refusal(client: TorrentAdder, source: TorrentSource, sandbox_categories: tuple[str, ...]) -> str | None:
+    """Say why an unscoped instance must not add a torrent a sandbox already holds.
+
+    The unscoped counterpart of :func:`_scope_refusal`: an add of a hash a sandbox holds is
+    idempotent, and prod would then treat the sandbox's torrent as its own. Only a hash held under
+    a sandbox category is refused (a hash prod itself holds keeps today's add). Every case that
+    cannot PROVE the hash is not a sandbox's refuses (fail-closed).
+
+    Args:
+        client: The torrent client.
+        source: The resolved torrent.
+        sandbox_categories: The categories that belong to the sandboxes.
+
+    Returns:
+        ``None`` when the add may proceed, else the refusal reason: ``scope_unverifiable`` (the
+        client cannot list a category), ``hash_underivable`` (the source yields no hash) or
+        ``sandbox_hash`` (a sandbox category holds the hash).
+    """
+    if not isinstance(client, CategoryLister):
+        log.warning("acquire.grab.scope_unverifiable", client_type=type(client).__name__)
+        return "scope_unverifiable"
+    try:
+        info_hash = source.info_hash.lower()
+    except ValueError:
+        log.warning("acquire.grab.hash_underivable", category=None)
+        return "hash_underivable"
+    for category in sandbox_categories:
+        if info_hash in {item.hash.lower() for item in client.get_by_category(category)}:
+            log.info("acquire.grab.sandbox_hash", info_hash=info_hash, category=category)
+            return "sandbox_hash"
+    return None
+
+
 def _add_in_scope(
     client: TorrentAdder,
     source: TorrentSource,
@@ -481,6 +514,7 @@ class GrabOrchestrator:
         episode_count_resolver: Callable[[WantedItem], int | None] | None = None,
         bandwidth: BandwidthConfig,
         scope: TorrentScope | None = None,
+        sandbox_categories: tuple[str, ...] = (),
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -524,8 +558,11 @@ class GrabOrchestrator:
                 instance tags, global caps applied. Set = adds land in the
                 scope's category with its tags, a hash already in the client is
                 refused, and the global caps are left to the other instance.
+            sandbox_categories: Unscoped instance only: the categories that belong to the
+                sandboxes sharing the client. A hash held under one is refused, never adopted.
         """
         self._scope = scope
+        self._sandbox_categories = sandbox_categories if scope is None else ()
         self._tracker_registry = tracker_registry
         self._torrent_client = torrent_client
         self._event_bus = event_bus
@@ -1070,7 +1107,7 @@ class GrabOrchestrator:
             # tracker has already run its search() in THIS grab, so a
             # login-style tracker's authed transport exists — a transient boot
             # login blip can no longer strand it for the process lifetime.
-            # Under a scope a candidate whose hash is shared gives way to the
+            # Under a scope (or, unscoped, a sandbox's hash) a candidate whose hash is shared gives way to the
             # next ranked one within this grab: the next pass would re-pick the
             # same top (only failed hashes are excluded), starving the item.
             # The check runs BEFORE ``on_intent``: an intent, once reserved, is
@@ -1078,16 +1115,21 @@ class GrabOrchestrator:
             remaining = result.ranked
             while True:
                 attempt = resolve_first_available(remaining, self._tracker_registry.transports(), top=top)
-                if attempt.source is None or self._scope is None:
+                if attempt.source is None:
                     break
-                refusal = _scope_refusal(self._torrent_client, attempt.source, self._scope)
+                if self._scope is not None:
+                    refusal = _scope_refusal(self._torrent_client, attempt.source, self._scope)
+                elif self._sandbox_categories:
+                    refusal = _sandbox_refusal(self._torrent_client, attempt.source, self._sandbox_categories)
+                else:
+                    break
                 if refusal is None:
                     break
-                if refusal != "shared_hash":
+                if refusal not in ("shared_hash", "sandbox_hash"):
                     return self._retryable(media_ref, refusal, chosen=attempt.chosen)
                 remaining = [pair for pair in remaining if pair[0] is not attempt.chosen]
                 if not remaining:
-                    return self._retryable(media_ref, "shared_hash", chosen=attempt.chosen)
+                    return self._retryable(media_ref, refusal, chosen=attempt.chosen)
                 top = remaining[0][0]
             if attempt.source is None:
                 # Nothing resolved: conclude on the candidate the walk blames,

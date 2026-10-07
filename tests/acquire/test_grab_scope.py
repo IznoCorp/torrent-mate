@@ -14,6 +14,7 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from personalscraper.acquire._dedup import SearchOutcome
@@ -44,6 +45,7 @@ class _SharedClient:
 
     def __init__(self, present: set[str] | None = None) -> None:
         self.present = present or set()
+        self.held: dict[str, set[str]] = {}
         self.add_calls: list[dict] = []
         self.global_calls: list[dict] = []
 
@@ -67,6 +69,10 @@ class _SharedClient:
     def get_completed(self) -> list:
         """Satisfy the ``TorrentLister`` runtime gate; the grab never reads it."""
         return []
+
+    def get_by_category(self, category: str) -> list:
+        """Return the torrents held under *category* (``held`` maps category to hashes)."""
+        return [SimpleNamespace(hash=h, category=category) for h in self.held.get(category, ())]
 
     def get_by_hashes(self, hashes: set[str]) -> list:
         """Satisfy the ``TorrentLister`` runtime gate; the grab never reads it."""
@@ -118,6 +124,7 @@ def _orchestrator(
     *,
     scope: TorrentScope | None,
     bw: BandwidthConfig | None = None,
+    sandbox_categories: tuple[str, ...] = (),
     candidates: list[TrackerResult] | None = None,
 ) -> GrabOrchestrator:
     """Build a grab-ready orchestrator whose search yields the given candidates (one by default)."""
@@ -130,7 +137,9 @@ def _orchestrator(
     registry.transports.return_value = {PROVIDER: MagicMock()}
     # ``scope`` is passed only when set, so the characterisation tests build the
     # orchestrator exactly as every caller did before the parameter existed.
-    extra = {} if scope is None else {"scope": scope}
+    extra: dict[str, object] = {} if scope is None else {"scope": scope}
+    if sandbox_categories:
+        extra["sandbox_categories"] = sandbox_categories
     return GrabOrchestrator(
         tracker_registry=registry,
         torrent_client=client,  # type: ignore[arg-type]
@@ -443,3 +452,86 @@ def test_scope_set_a_client_without_categories_keeps_todays_path() -> None:
     client = _SharedClient()
 
     assert _grab(_orchestrator(client, scope=SCOPE)).disposition == "success"
+
+
+# --- Unscoped instance (prod): never adopt a torrent held under a sandbox category ---
+
+SANDBOXES = ("tm-preprod", "tm-dev")
+
+
+def test_unscoped_grab_of_a_hash_held_by_a_sandbox_is_refused_without_add() -> None:
+    """Prod, hash in a sandbox category -> no add, the decision reason is sandbox_hash."""
+    client = _SharedClient(present={INFO_HASH})
+    client.held = {"tm-dev": {INFO_HASH}}
+    outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
+
+    assert client.add_calls == []
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "sandbox_hash"
+
+
+def test_unscoped_grab_sandbox_hash_comparison_ignores_case() -> None:
+    """A sandbox hash reported in upper case is still the sandbox's."""
+    client = _SharedClient(present={INFO_HASH})
+    client.held = {"tm-preprod": {INFO_HASH.upper()}}
+    _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
+
+    assert client.add_calls == []
+
+
+def test_unscoped_grab_of_a_hash_prod_holds_keeps_todays_add() -> None:
+    """Prod, hash held outside every sandbox category (prod's own) -> the add proceeds as ever."""
+    client = _SharedClient(present={INFO_HASH})
+    client.held = {"tm-dev": {"beef5678"}}
+    outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
+
+    assert outcome.disposition == "success"
+    assert client.add_calls == [{"category": None, "tags": [PROVIDER], "limits": None}]
+
+
+def test_unscoped_grab_without_sandbox_categories_is_unchanged() -> None:
+    """No sandbox category configured -> no listing, the add proceeds as ever."""
+    client = _SharedClient()
+    client.held = {"tm-dev": {INFO_HASH}}
+    outcome = _grab(_orchestrator(client, scope=None))
+
+    assert outcome.disposition == "success"
+    assert len(client.add_calls) == 1
+
+
+def test_unscoped_grab_is_refused_when_the_client_cannot_list_by_category() -> None:
+    """Fail closed: a client that cannot list a category cannot prove the hash is not a sandbox's."""
+
+    class _NoCategories(_SharedClient):
+        get_by_category = None  # type: ignore[assignment]
+
+    client = _NoCategories()
+    outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES))
+
+    assert client.add_calls == []
+    assert outcome.reason == "scope_unverifiable"
+
+
+def test_unscoped_grab_with_an_underivable_hash_is_refused() -> None:
+    """Fail closed: a source yielding no hash cannot be proved free of the sandboxes."""
+    client = _SharedClient()
+    outcome = _grab(_orchestrator(client, scope=None, sandbox_categories=SANDBOXES), _source(ValueError("no hash")))
+
+    assert client.add_calls == []
+    assert outcome.reason == "hash_underivable"
+
+
+def test_unscoped_grab_gives_way_to_the_next_candidate_when_a_sandbox_holds_the_top() -> None:
+    """The top candidate is a sandbox's torrent: the next ranked one is added."""
+    client = _SharedClient()
+    client.held = {"tm-dev": {INFO_HASH}}
+    orch = _orchestrator(
+        client,
+        scope=None,
+        sandbox_categories=SANDBOXES,
+        candidates=[_candidate("t1", INFO_HASH, 50), _candidate("t2", "beef5678", 10)],
+    )
+    outcome = _grab(orch, _source(INFO_HASH), _source("beef5678"))
+
+    assert outcome.disposition == "success"
+    assert len(client.add_calls) == 1

@@ -1214,6 +1214,45 @@ def test_poll_without_scope_counts_every_download(tmp_path: Path) -> None:
     assert inp.downloading_count == 3
 
 
+def test_poll_without_scope_ignores_the_sandboxes_downloads(tmp_path: Path) -> None:
+    """Prod counts only the torrents outside the sandbox categories: a sandbox download holds nothing."""
+    from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig  # noqa: PLC0415
+
+    prod_config = TorrentConfig(active="qbit", clients={"qbit": TorrentClientEntry(sandbox_categories=("tm-preprod",))})
+    inp = _poll_once(tmp_path, prod_config, shared_client(progress=0.5))
+    assert inp.downloading_count == 2  # prod's and the other category's; not the sandbox's
+
+
+def test_poll_without_scope_ignores_a_sandbox_subcategory_download(tmp_path: Path) -> None:
+    """A sandbox torrent in a qBittorrent subcategory (``tm-preprod/x``) is the sandbox's: it holds nothing."""
+    from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig  # noqa: PLC0415
+
+    prod_config = TorrentConfig(active="qbit", clients={"qbit": TorrentClientEntry(sandbox_categories=("tm-preprod",))})
+    client = shared_client(progress=0.5)
+    sub = torrent("d" * 40, "tm-preprod/x", progress=0.5)
+    sibling = torrent("e" * 40, "tm-preprod-other", progress=0.5)
+    items = [*client.get_by_hashes(client.get_all_hashes()), sub, sibling]
+    client.get_all_hashes.return_value = {i.hash for i in items}
+    client.get_by_hashes.side_effect = lambda hs: [i for i in items if i.hash in hs]
+    inp = _poll_once(tmp_path, prod_config, client)
+    # prod's, the other category's and a sibling whose name merely starts with the sandbox's; not the subcategory
+    assert inp.downloading_count == 3
+
+
+@pytest.mark.parametrize(("torrent_config", "popens"), [(SCOPED_TORRENT_CONFIG, 0), (UNSCOPED_TORRENT_CONFIG, 1)])
+def test_watch_builds_a_scoped_service_on_a_scoped_config(tmp_path: Path, torrent_config: Any, popens: int) -> None:
+    """The daemon scopes its decision engine from the config: no safety-net run on a scoped boot, one otherwise."""
+    from personalscraper.commands.watch import watch  # noqa: PLC0415
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+    ctx.obj.config.torrent = torrent_config
+    with _WatchPatches(_make_fake_app_context(), is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+        watch(ctx)
+
+    assert p.mock_subprocess.Popen.call_count == popens
+
+
 def _poll_scoped_items(tmp_path: Path, items: list[Any]) -> Any:
     """Run one scoped poll cycle over completed torrents of the scope's category.
 

@@ -255,6 +255,25 @@ class TestBuildAcquireContext:
 
         assert ctx.delete_authority._scope == SCOPE
 
+    def test_grab_orchestrator_carries_the_configured_sandbox_categories(self, tmp_path: Path) -> None:
+        """An unscoped active client's sandbox categories reach the grab orchestrator, so prod refuses their hashes."""
+        from personalscraper.acquire._factory import build_acquire_context
+        from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig
+
+        config = self._minimal_config(tmp_path)
+        config.torrent = TorrentConfig(
+            active="qbit", clients={"qbit": TorrentClientEntry(sandbox_categories=("tm-dev", "tm-preprod"))}
+        )
+
+        with patch("personalscraper.acquire._factory.build_tracker_registry") as mock_build:
+            mock_build.return_value = MagicMock()
+            ctx = build_acquire_context(
+                config, MagicMock(), event_bus=MagicMock(), cb_policy=MagicMock(), torrent_client=MagicMock()
+            )
+
+        assert ctx.grab is not None
+        assert ctx.grab.orchestrator._sandbox_categories == ("tm-dev", "tm-preprod")
+
     def test_delete_authority_is_unscoped_without_a_client_scope(self, tmp_path: Path) -> None:
         """No scope on the active client: the DeleteAuthority reads the whole client, as before."""
         from personalscraper.acquire._factory import build_acquire_context

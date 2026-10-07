@@ -220,6 +220,17 @@ A scoped instance reads it (`QBitClient.get_categories`) before every add and in
 exists with a `savePath` under the scope's `download_root`; nothing is ever created by the instance.
 `POST /api/v2/torrents/createCategory` → `category` (string), `savePath` (optional).
 
+### Shared client (scoped and unscoped instances)
+
+One client serves prod and the sandboxes (preprod, dev); each sandbox owns its `scope` category and instance tags,
+and a scoped grab refuses a hash the client already holds (`_scope_refusal`, fail-closed). Prod (unscoped) lists the
+sandboxes' categories in `torrent.clients.<name>.sandbox_categories` (default empty = no change; refused on a scoped
+instance), and its grab refuses, with the reason `sandbox_hash` and the same fail-closed reasons, a hash held under
+one of them (R4); a hash prod itself holds keeps today's add. Prod's watcher quiescence gate (product-intent §14.3)
+counts only the torrents outside those categories, so a sandbox download never holds its grace counter (R4). A scoped
+watcher that boots with no recorded successful run starts its safety-net clock at boot instead of firing a run at once
+(R5); an unscoped watcher keeps firing.
+
 ## Tags (`/api/v2/torrents/tags`)
 
 `GET /api/v2/torrents/tags` → `200` — JSON array of strings.
