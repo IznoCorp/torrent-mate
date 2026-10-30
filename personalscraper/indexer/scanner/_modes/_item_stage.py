@@ -193,12 +193,13 @@ def upsert_item_with_attrs(
     Idempotent on ``(kind, title, year)`` via :func:`item_repo.upsert` (the
     repo strips a trailing `` (YYYY)`` from the title and disambiguates
     same-title remakes by year) — unless an item already carries the
-    ``dispatch_path`` in *attrs*: that item owns the folder and is updated. The ``date_created`` /
-    ``date_modified`` placeholders carried in *row* are stamped with *now_s*
-    just before the write. Each ``attrs`` pair is upserted via
-    :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``), then the
-    whole issue set is **replaced**: ``DELETE FROM item_issue WHERE item_id=?``
-    followed by ``INSERT OR IGNORE`` of each issue (parity with
+    ``dispatch_path`` in *attrs*: that item owns the folder and is updated
+    when it is the same work (same kind, year-compatible). The
+    ``date_created`` / ``date_modified`` placeholders carried in *row* are
+    stamped with *now_s* just before the write. Each ``attrs`` pair is
+    upserted via :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``),
+    then the whole issue set is **replaced**: ``DELETE FROM item_issue WHERE
+    item_id=?`` followed by ``INSERT OR IGNORE`` of each issue (parity with
     ``library.scanner._upsert_media_item`` lines 716-721).
 
     Args:
