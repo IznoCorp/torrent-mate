@@ -423,3 +423,49 @@ class TestReadEpisodeNfoRoots:
         nfo.write_text("<episodedetails><title>")
         with pytest.raises(ParseError):
             read_episode_nfo_roots(nfo)
+
+
+_ACCENTED_EPISODE = (
+    "<episodedetails><title>Café été</title><season>1</season><episode>1</episode></episodedetails>"
+)
+
+
+class TestEpisodeNfoEncodings:
+    """A well-formed NFO is usable whatever its encoding; only binary content is not."""
+
+    def test_declared_iso_8859_1_is_usable(self, tmp_path: Path) -> None:
+        """The XML declaration names the encoding the bytes are decoded with."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(('<?xml version="1.0" encoding="ISO-8859-1"?>\n' + _ACCENTED_EPISODE).encode("latin-1"))
+        assert is_episode_nfo_usable(nfo) is True
+        assert read_episode_nfo_roots(nfo)[0].findtext("title") == "Café été"
+
+    def test_undeclared_latin_1_is_usable(self, tmp_path: Path) -> None:
+        """No declaration and not UTF-8: Latin-1 fallback."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(_ACCENTED_EPISODE.encode("latin-1"))
+        assert is_episode_nfo_usable(nfo) is True
+
+    def test_undeclared_utf_8_is_decoded_as_utf_8(self, tmp_path: Path) -> None:
+        """Undeclared valid UTF-8 keeps its accents (no Latin-1 mojibake)."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(_ACCENTED_EPISODE.encode("utf-8"))
+        assert read_episode_nfo_roots(nfo)[0].findtext("title") == "Café été"
+
+    def test_unknown_declared_encoding_is_unusable(self, tmp_path: Path) -> None:
+        """A declaration naming no known codec is unreadable, not a crash."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(b'<?xml version="1.0" encoding="nope-9"?>' + _ACCENTED_EPISODE.encode("ascii", "ignore"))
+        assert is_episode_nfo_usable(nfo) is False
+
+    @pytest.mark.parametrize(
+        "content",
+        [b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X        ", b"<episodedetails>\x00</episodedetails>"],
+        ids=["appledouble", "nul-inside-xml"],
+    )
+    def test_binary_is_unusable(self, tmp_path: Path, content: bytes) -> None:
+        """NUL bytes mean binary content, never decoded as Latin-1 text."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(content)
+        assert is_episode_nfo_usable(nfo) is False
+

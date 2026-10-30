@@ -9,6 +9,7 @@ Also hosts the three NFO helper functions extracted from
 ``parse_title_year``, ``extract_nfo_ids``, and ``extract_nfo_metadata``.
 """
 
+import codecs
 import re
 from pathlib import Path
 from typing import Any
@@ -101,6 +102,7 @@ def is_nfo_complete(nfo_path: Path) -> bool:
 
 
 _XML_DECLARATION_RE = re.compile(r"^\s*<\?xml[^>]*\?>")
+_XML_ENCODING_RE = re.compile(rb"^\s*<\?xml[^>]*?encoding\s*=\s*[\"']([A-Za-z0-9._-]+)[\"']")
 
 # Root element the episode NFO writer produces (NFOGenerator.generate_episode_nfo).
 _EPISODE_NFO_ROOT = "episodedetails"
@@ -109,6 +111,40 @@ _EPISODE_NFO_ROOT = "episodedetails"
 # <uniqueid> is NOT required: it is omitted when no provider id is known, and legacy
 # NFOs get theirs through the scraper's upgrade-in-place.
 _EPISODE_NFO_REQUIRED_FIELDS = ("title", "season", "episode")
+
+
+def _decode_nfo_bytes(raw: bytes) -> str:
+    """Decode NFO bytes with the encoding the XML declaration names.
+
+    With no declaration the content is UTF-8 (BOM dropped), then Latin-1 as a last
+    resort: legacy tools wrote accented NFOs in Latin-1, and a well-formed one must
+    not be judged unusable (and rewritten) for that. NUL bytes mean binary content
+    (AppleDouble sidecar...) which Latin-1 would happily « decode ».
+
+    Args:
+        raw: The file content.
+
+    Returns:
+        The decoded text, BOM excluded.
+
+    Raises:
+        ET.ParseError: Binary content, an unknown declared encoding, or bytes that
+            do not decode with the declared one.
+    """
+    if b"\x00" in raw:
+        raise ET.ParseError("binary content (NUL byte)")
+    raw = raw.removeprefix(codecs.BOM_UTF8)
+    declared = _XML_ENCODING_RE.match(raw)
+    if declared is not None:
+        encoding = declared.group(1).decode("ascii")
+        try:
+            return raw.decode(encoding)
+        except (LookupError, UnicodeDecodeError) as exc:
+            raise ET.ParseError(f"cannot decode as {encoding}: {exc}") from exc
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
 
 
 def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
@@ -130,11 +166,7 @@ def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
         ET.ParseError: The content is not well-formed XML (truncated, binary...).
         OSError: The file cannot be read.
     """
-    # utf-8-sig drops a BOM; undecodable bytes (AppleDouble, binary) surface as ParseError.
-    try:
-        text = nfo_path.read_bytes().decode("utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise ET.ParseError(f"not UTF-8 text: {exc}") from exc
+    text = _decode_nfo_bytes(nfo_path.read_bytes())
     body = _XML_DECLARATION_RE.sub("", text, count=1)
     return list(ET.fromstring(f"<nfo>{body}</nfo>"))  # noqa: S314
 
