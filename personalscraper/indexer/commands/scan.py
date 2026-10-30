@@ -423,8 +423,10 @@ def library_index_command(
                 if scan_mode is ScanMode.full and not result.budget_exhausted:
                     # The strikes above are this run's own writes: committed
                     # here, the ghost pass opens a transaction of its own (it
-                    # refuses to commit or roll back a caller's).
-                    if conn.in_transaction:
+                    # refuses to commit or roll back a caller's). Never on a dry
+                    # run: its transaction holds the rolled-back savepoint, and
+                    # a dry pass writes nothing.
+                    if conn.in_transaction and not dry_run:
                         conn.commit()
                     from personalscraper.indexer.ghost_items import (  # noqa: PLC0415
                         configured_disks,
