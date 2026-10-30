@@ -62,7 +62,7 @@ class MergeReport:
 
     Attributes:
         groups: The duplicate groups found (merged unless ``skipped``).
-        skipped: Groups left alone, with the reason (mixed kinds).
+        skipped: Groups left alone, with the reason (see :func:`_skip_reason`).
         merged: Number of duplicate rows merged (0 on a dry run).
     """
 
@@ -291,6 +291,64 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
     log.info("indexer.merge_items.merged", keeper_id=keeper_id, duplicate_id=duplicate_id)
 
 
+def _provider_ids(raw: str | None) -> dict[str, str]:
+    """Flatten an ``external_ids_json`` to ``"family.key" → id``, empty values dropped.
+
+    Args:
+        raw: The stored JSON, or ``None``.
+
+    Returns:
+        The ids, e.g. ``{"tmdb.series_id": "97546"}``.
+    """
+    try:
+        parsed = json.loads(raw) if raw else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    flat: dict[str, str] = {}
+    for family, value in parsed.items() if isinstance(parsed, dict) else ():
+        if isinstance(value, dict):
+            flat.update({f"{family}.{key}": str(v) for key, v in value.items() if v not in (None, "")})
+        elif value not in (None, ""):
+            flat[str(family)] = str(value)
+    return flat
+
+
+def _skip_reason(conn: sqlite3.Connection, group: DuplicateGroup) -> str | None:
+    """Return why *group* must not be merged, or ``None`` when it is a split of one work.
+
+    A folder shared by two works is not a split the merge can decide; it is
+    left for the operator:
+
+    - ``mixed_kinds``: a movie and a show (seasons cannot hang under a movie);
+    - ``different_years``: two explicit years — a remake and its original;
+    - ``conflicting_provider_ids``: one provider naming two different ids.
+
+    Args:
+        conn: Open SQLite connection.
+        group: The group to judge.
+
+    Returns:
+        The reason, or ``None``.
+    """
+    member_ids = (group.keeper_id, *group.duplicate_ids)
+    placeholders = ",".join("?" for _ in member_ids)
+    rows = conn.execute(
+        f"SELECT id, title, kind, year, external_ids_json FROM media_item WHERE id IN ({placeholders})",  # noqa: S608 — placeholders only
+        member_ids,
+    ).fetchall()
+    if len({row[2] for row in rows}) > 1:
+        return "mixed_kinds"
+    years = {int(row[3]) for row in rows if row[3] is not None}
+    if len(years) > 1:
+        return "different_years"
+    seen: dict[str, str] = {}
+    for row in rows:
+        for key, value in _provider_ids(row[4]).items():
+            if seen.setdefault(key, value) != value:
+                return "conflicting_provider_ids"
+    return None
+
+
 def merge_duplicate_items(conn: sqlite3.Connection, *, dry_run: bool, now_s: int | None = None) -> MergeReport:
     """Merge every group of items sharing a ``dispatch_path`` into its oldest item.
 
@@ -308,22 +366,15 @@ def merge_duplicate_items(conn: sqlite3.Connection, *, dry_run: bool, now_s: int
     """
     report = MergeReport()
     for group in find_duplicate_groups(conn):
-        member_ids = (group.keeper_id, *group.duplicate_ids)
-        placeholders = ",".join("?" for _ in member_ids)
-        kinds = {
-            str(row[0])
-            for row in conn.execute(
-                f"SELECT kind FROM media_item WHERE id IN ({placeholders})",  # noqa: S608 — placeholders only
-                member_ids,
-            )
-        }
-        if len(kinds) > 1:
-            # A movie and a show on one folder is not a split the merge can
-            # decide: seasons cannot hang under a movie. Left for the operator.
+        reason = _skip_reason(conn, group)
+        if reason is not None:
             log.warning(
-                "indexer.merge_items.mixed_kinds_skipped", dispatch_path=group.dispatch_path, ids=list(member_ids)
+                "indexer.merge_items.group_skipped",
+                dispatch_path=group.dispatch_path,
+                ids=[group.keeper_id, *group.duplicate_ids],
+                reason=reason,
             )
-            report.skipped.append((group, "mixed_kinds"))
+            report.skipped.append((group, reason))
             continue
         report.groups.append(group)
 

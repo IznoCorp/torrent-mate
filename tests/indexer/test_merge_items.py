@@ -12,6 +12,8 @@ import sqlite3
 import unicodedata
 from pathlib import Path
 
+import pytest
+
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.merge_items import MERGE_REASON, find_duplicate_groups, merge_duplicate_items
 
@@ -231,3 +233,36 @@ def test_an_nfd_and_a_case_variant_of_one_folder_are_one_group() -> None:
     groups = find_duplicate_groups(conn)
 
     assert [(g.keeper_id, set(g.duplicate_ids)) for g in groups] == [(old, {nfd, upper})]
+
+
+@pytest.mark.parametrize(
+    ("young_year", "young_ids", "reason"),
+    [
+        (2019, '{"tmdb": {"series_id": "1"}}', "different_years"),
+        (2020, '{"tmdb": {"series_id": "2"}}', "conflicting_provider_ids"),
+    ],
+)
+def test_a_remake_and_its_original_on_one_folder_are_left_alone(young_year: int, young_ids: str, reason: str) -> None:
+    """Two explicit years, or two ids of one provider, are two works: the dry run and the run both skip them."""
+    conn = _make_conn()
+    _item(conn, "The Office", "show", SHOW_PATH, created=100, ids='{"tmdb": {"series_id": "1"}}', year=2020)
+    _item(conn, "The Office (2020)", "show", SHOW_PATH, created=200, ids=young_ids, year=young_year)
+
+    dry = merge_duplicate_items(conn, dry_run=True)
+    report = merge_duplicate_items(conn, dry_run=False)
+
+    assert [why for _g, why in dry.skipped] == [reason] and dry.groups == []
+    assert report.merged == 0 and [why for _g, why in report.skipped] == [reason]
+    assert conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0] == 2
+
+
+def test_a_yearless_member_and_complementary_ids_still_merge() -> None:
+    """One year unknown and ids of different providers are no conflict: the split merges."""
+    conn = _make_conn()
+    _item(conn, "Ted Lasso", "show", SHOW_PATH, created=100, ids='{"tvdb": {"series_id": "383203"}}')
+    young = _item(conn, "Ted Lasso (2020)", "show", SHOW_PATH, created=200, ids='{"tmdb": {"series_id": "97546"}}')
+    conn.execute("UPDATE media_item SET year = NULL WHERE id = ?", (young,))
+
+    report = merge_duplicate_items(conn, dry_run=False)
+
+    assert report.merged == 1 and report.skipped == []
