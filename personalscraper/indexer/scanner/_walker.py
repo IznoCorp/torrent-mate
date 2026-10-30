@@ -31,6 +31,7 @@ import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from personalscraper._fs_utils import name_variants
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer.fingerprint import round_mtime_ns
 from personalscraper.indexer.merkle import FileFingerprint
@@ -358,6 +359,7 @@ class ScanVisitor:
         dirs_visited: Single-element mutable counter for directories.
         unreadable_dirs: Paths (relative to the disk mount) of the directories the
             walk could not list, in walk order; the caller reads it after the walk.
+        unreadable_files: ``(parent, filename)`` of the files whose visit was denied.
     """
 
     def __init__(
@@ -376,6 +378,7 @@ class ScanVisitor:
         self.files_visited = files_visited
         self.dirs_visited = dirs_visited
         self.unreadable_dirs: list[str] = []
+        self.unreadable_files: list[tuple[str, str]] = []
 
     def skip_unreadable_dir(self, rel: str) -> None:
         """Record a directory the walk could not list and shelter the files under it.
@@ -384,17 +387,22 @@ class ScanVisitor:
         removal of unseen files) reads « not seen in this generation » as « gone from
         the disk ». For an unreadable directory that is false: its files are there, the
         walk just could not look. They are stamped with the current generation so that
-        reading cannot happen; their strikes are left as they are.
+        reading cannot happen; their strikes are left as they are. Rows are matched in
+        every stored spelling of the path (NFC/NFD, U+F025), like the scoped retire.
 
         Args:
-            rel: The directory's path relative to the disk mount (``"."`` for the root).
+            rel: The directory's path relative to the disk mount (``""`` for the mount
+                itself, as :func:`_relpath` spells it; ``"."`` is accepted too).
         """
         self.unreadable_dirs.append(rel)
         scope = ""
         params: tuple[object, ...] = ()
-        if rel != ".":
-            scope = "AND (rel_path = ? OR substr(rel_path, 1, ?) = ?)"
-            params = (rel, len(rel) + 1, rel + "/")
+        if rel not in ("", "."):
+            clauses: list[str] = []
+            for variant in sorted(name_variants(rel)):
+                clauses.append("rel_path = ? OR substr(rel_path, 1, ?) = ?")
+                params += (variant, len(variant) + 1, variant + "/")
+            scope = "AND (" + " OR ".join(clauses) + ")"
         self.conn.execute(
             f"""
             UPDATE media_file SET scan_generation = ?
@@ -402,6 +410,30 @@ class ScanVisitor:
                AND path_id IN (SELECT id FROM path WHERE disk_id = ? {scope})
             """,  # noqa: S608 — only placeholders are interpolated
             (self.generation, self.generation, self.disk.id, *params),
+        )
+
+    def skip_unreadable_file(self, parent_rel: str, filename: str) -> None:
+        """Shelter one file the walk could not read, like :meth:`skip_unreadable_dir` does a directory.
+
+        Not seen is not gone: the row keeps its strikes and its liveness, and is stamped
+        with the current generation so nothing after the walk reads it as unseen.
+
+        Args:
+            parent_rel: The file's directory relative to the disk mount.
+            filename: The bare file name.
+        """
+        names = sorted(name_variants(filename))
+        parents = sorted(name_variants(parent_rel))
+        marks = ", ".join("?" for _ in names)
+        parent_marks = ", ".join("?" for _ in parents)
+        self.conn.execute(
+            f"""
+            UPDATE media_file SET scan_generation = ?
+             WHERE deleted_at IS NULL AND scan_generation < ?
+               AND filename IN ({marks})
+               AND path_id IN (SELECT id FROM path WHERE disk_id = ? AND rel_path IN ({parent_marks}))
+            """,  # noqa: S608 — only placeholders are interpolated
+            (self.generation, self.generation, *names, self.disk.id, *parents),
         )
 
     def enter_dir(self, entry: os.DirEntry[str], st: os.stat_result, rel: str) -> bool:
@@ -549,7 +581,14 @@ def _walk_subtree(
                 checkpoint.resume_from[0] = None
 
             visitor.files_visited[0] += 1
-            visitor.visit_file(entry, st, parent_rel)
+            try:
+                visitor.visit_file(entry, st, parent_rel)
+            except PermissionError as exc:
+                # One unreadable file must not stop the walk: the rest of the disk, and the
+                # other disks, are still to be looked at. Not seen is not gone, so the file
+                # is sheltered (no strike, no soft-delete) like an unreadable directory.
+                log.warning("indexer.file.permission_denied", path=entry.path, error=str(exc))
+                visitor.skip_unreadable_file(parent_rel, entry.name)
 
             # --- unified checkpoint / budget / shutdown (strictest parity) ---
             checkpoint.files_since_checkpoint[0] += 1
