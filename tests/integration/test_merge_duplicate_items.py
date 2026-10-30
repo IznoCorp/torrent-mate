@@ -82,12 +82,12 @@ def _dump(db_path: Path) -> list[str]:
         conn.close()
 
 
-def test_dry_run_lists_the_pair_and_writes_nothing(split_db: tuple[Path, int, int]) -> None:
-    """``--dry-run`` names the keeper and the merged id; the store is unchanged."""
+def test_without_apply_it_lists_the_pair_and_writes_nothing(split_db: tuple[Path, int, int]) -> None:
+    """With no ``--apply`` (its siblings' default) it names the keeper and the merged id; the store is unchanged."""
     db_path, keeper, duplicate = split_db
     before = _dump(db_path)
 
-    result = run_cli(["--format", "json", "library-merge-duplicate-items", "--db", str(db_path), "--dry-run"])
+    result = run_cli(["--format", "json", "library-merge-duplicate-items", "--db", str(db_path)])
 
     assert result.exit_code == 0, result.output
     payload = json_from_result(result, source_attr="stdout")
@@ -103,7 +103,7 @@ def test_run_merges_into_the_oldest_and_a_second_run_finds_nothing(split_db: tup
     """The run leaves one item holding both files; the next run is a no-op."""
     db_path, keeper, duplicate = split_db
 
-    result = run_cli(["--format", "json", "library-merge-duplicate-items", "--db", str(db_path)])
+    result = run_cli(["--format", "json", "library-merge-duplicate-items", "--db", str(db_path), "--apply"])
 
     assert result.exit_code == 0, result.output
     assert json_from_result(result, source_attr="stdout")["merged"] == 1
@@ -120,7 +120,7 @@ def test_run_merges_into_the_oldest_and_a_second_run_finds_nothing(split_db: tup
     finally:
         conn.close()
 
-    again = run_cli(["--format", "json", "library-merge-duplicate-items", "--db", str(db_path)])
+    again = run_cli(["--format", "json", "library-merge-duplicate-items", "--db", str(db_path), "--apply"])
 
     assert again.exit_code == 0, again.output
     payload = json_from_result(again, source_attr="stdout")

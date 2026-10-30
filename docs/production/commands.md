@@ -1156,31 +1156,33 @@ files (same-signature releases are folded into one), seasons and episodes (colli
 numbers merged), attributes, issues, scan events and item repairs. Provider ids of both
 rows are kept, the keeper's title is made canonical, and each merged item leaves a
 `deleted_item` tombstone with reason `merged_duplicate`. A group that mixes a movie and
-a show is skipped and reported. The merge runs in one transaction.
+a show is skipped and reported. Like its siblings it previews by default; `--apply`
+runs the merge in one transaction.
 
-**Side effects**: `read-only` (with `--dry-run`), `mutate DB` (otherwise)
+**Side effects**: `read-only` (default), `mutate DB` (with `--apply`)
 
 **Pipeline position**: n/a (maintenance — run once after deploying the fix that stops
 the split)
 
 **Args**:
 
-- `--dry-run` : List the groups and the item each merges into; write nothing
+- `--apply` : Merge the groups (default: list them and the item each merges into;
+  write nothing)
 - `--config / -c PATH` : Path to config.json5 or config dir
 - `--db PATH` : Path to library.db (overrides config)
 
 **JSON output keys**:
 
-- `dry_run` (bool)
+- `dry_run` (bool) — `true` without `--apply`
 - `groups` (list) — `dispatch_path`, `keeper_id`, `merged_ids`, `titles` per group
 - `skipped` (list) — `dispatch_path`, `ids`, `reason` (`mixed_kinds`)
-- `merged` / `would_merge` (int) — items merged (`would_merge` with `--dry-run`)
+- `merged` / `would_merge` (int) — items merged (`would_merge` without `--apply`)
 
 **Examples**:
 
-    personalscraper --format json library-merge-duplicate-items --dry-run
     personalscraper --format json library-merge-duplicate-items
-    personalscraper library-merge-duplicate-items --db /custom/path/library.db --dry-run
+    personalscraper --format json library-merge-duplicate-items --apply
+    personalscraper library-merge-duplicate-items --db /custom/path/library.db
 
 **Related**: `library-dedup-titles`, `library-index`
 

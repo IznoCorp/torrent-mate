@@ -6,13 +6,14 @@ duplicate into the oldest item of its folder, re-pointing every child row
 (releases and their files, seasons and episodes, attributes, issues, scan
 events, item repairs) before the duplicate is deleted.
 
-``--dry-run`` lists the groups and writes nothing. Without it the merge runs in
+Like its siblings (``library-dedup-titles``, ``library-fix-*``), it previews by
+default: it lists the groups and writes nothing. ``--apply`` runs the merge in
 one transaction, then checkpoints the WAL.
 
 Examples:
-    personalscraper library-merge-duplicate-items --dry-run
     personalscraper library-merge-duplicate-items
-    personalscraper library-merge-duplicate-items --db /custom/path/library.db --dry-run
+    personalscraper library-merge-duplicate-items --apply
+    personalscraper library-merge-duplicate-items --db /custom/path/library.db
 """
 
 from __future__ import annotations
@@ -34,10 +35,10 @@ log = get_logger("cli")
 @handle_cli_errors
 def library_merge_duplicate_items(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(
+    apply: bool = typer.Option(
         False,
-        "--dry-run",
-        help="List the duplicate groups and the item each merges into; write nothing.",
+        "--apply",
+        help="Merge the groups (default: list them and the item each merges into; write nothing).",
     ),
     config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
     db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
@@ -50,6 +51,8 @@ def library_merge_duplicate_items(
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
     from personalscraper.indexer.merge_items import merge_duplicate_items  # noqa: PLC0415
+
+    dry_run = not apply
 
     if db is not None:
         db_path = db
