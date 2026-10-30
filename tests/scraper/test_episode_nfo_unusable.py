@@ -82,7 +82,7 @@ def _season_pack_nfo(tmp_path: Path, content: bytes | None) -> Path:
     from personalscraper.naming_patterns import PATTERNS
 
     show_dir = tmp_path / "Show"
-    season_dir = show_dir / "Saison 01"
+    season_dir = show_dir / PATTERNS.format("season_dir", Season=1)
     season_dir.mkdir(parents=True)
     video = show_dir / "Show.S01.COMPLETE.mkv"
     video.write_bytes(b"x")

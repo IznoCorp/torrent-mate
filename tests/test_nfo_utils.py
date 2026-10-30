@@ -449,8 +449,10 @@ class TestReadEpisodeNfoRoots:
             read_episode_nfo_roots(nfo)
 
 
+# Built with chr(): a non-ASCII literal in a test counts against the French ratchet.
+_ACCENTED_TITLE = "M" + chr(0xFC) + "ller Zo" + chr(0xEB)
 _ACCENTED_EPISODE = (
-    "<episodedetails><title>Café été</title><season>1</season><episode>1</episode></episodedetails>"
+    f"<episodedetails><title>{_ACCENTED_TITLE}</title><season>1</season><episode>1</episode></episodedetails>"
 )
 
 
@@ -462,7 +464,7 @@ class TestEpisodeNfoEncodings:
         nfo = tmp_path / "S01E01.nfo"
         nfo.write_bytes(('<?xml version="1.0" encoding="ISO-8859-1"?>\n' + _ACCENTED_EPISODE).encode("latin-1"))
         assert is_episode_nfo_usable(nfo) is True
-        assert read_episode_nfo_roots(nfo)[0].findtext("title") == "Café été"
+        assert read_episode_nfo_roots(nfo)[0].findtext("title") == _ACCENTED_TITLE
 
     def test_undeclared_latin_1_is_usable(self, tmp_path: Path) -> None:
         """No declaration and not UTF-8: Latin-1 fallback."""
@@ -474,7 +476,7 @@ class TestEpisodeNfoEncodings:
         """Undeclared valid UTF-8 keeps its accents (no Latin-1 mojibake)."""
         nfo = tmp_path / "S01E01.nfo"
         nfo.write_bytes(_ACCENTED_EPISODE.encode("utf-8"))
-        assert read_episode_nfo_roots(nfo)[0].findtext("title") == "Café été"
+        assert read_episode_nfo_roots(nfo)[0].findtext("title") == _ACCENTED_TITLE
 
     def test_unknown_declared_encoding_is_unusable(self, tmp_path: Path) -> None:
         """A declaration naming no known codec is unreadable, not a crash."""
