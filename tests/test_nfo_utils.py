@@ -9,8 +9,10 @@ from personalscraper.nfo_utils import (
     extract_nfo_ids,
     extract_nfo_metadata,
     glob_nfo_candidates,
+    is_episode_nfo_usable,
     is_nfo_complete,
     parse_title_year,
+    read_episode_nfo_roots,
 )
 
 
@@ -350,3 +352,167 @@ def test_extract_nfo_ids_backward_compatible_with_three_ids(tmp_path: Path) -> N
     )
 
     assert extract_nfo_ids(nfo) == ("603", "tt0133093")
+
+
+class TestIsEpisodeNfoUsable:
+    """is_episode_nfo_usable: the single « can this episode NFO be kept? » rule."""
+
+    def test_single_root_episodedetails_is_usable(self, tmp_path: Path) -> None:
+        """A well-formed single-root episode NFO is kept."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True
+
+    def test_utf8_bom_is_usable(self, tmp_path: Path) -> None:
+        """A UTF-8 BOM before the declaration does not make the NFO unusable."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(
+            b'\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?>'
+            b"<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True
+
+    def test_multi_root_episodedetails_is_usable(self, tmp_path: Path) -> None:
+        """A Kodi multi-episode NFO (several roots) is readable, hence kept."""
+        nfo = tmp_path / "S01E01-E02.nfo"
+        nfo.write_text(
+            '<?xml version="1.0"?>'
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>\n"
+            "<episodedetails><title>B</title><season>1</season><episode>2</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            b"",
+            b"   \n",
+            b"<episodedetails><title>cut",
+            b"<movie><title>X</title></movie>",
+            b"\x00\x05\x16\x07",
+            b"<episodedetails/>",
+            b"<episodedetails><title>A</title><season>1</season><episode></episode></episodedetails>",
+            b"<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+            b"<episodedetails><title>B</title></episodedetails>",
+            b"<episodedetails><season>1</season><episode>1</episode></episodedetails>",
+            b"<episodedetails><title>A</title><episode>1</episode></episodedetails>",
+            b"\xff\xfe\xfd\x00\x01",
+        ],
+        ids=[
+            "empty",
+            "blank",
+            "truncated",
+            "wrong-root",
+            "binary",
+            "root-only",
+            "blank-episode",
+            "one-stub-root",
+            "title-absent",
+            "season-absent",
+            "invalid-bytes",
+        ],
+    )
+    def test_unusable(self, tmp_path: Path, content: bytes) -> None:
+        """Empty, blank, truncated, wrong-root and binary files are not usable."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(content)
+        assert is_episode_nfo_usable(nfo) is False
+
+    def test_absent_is_not_usable(self, tmp_path: Path) -> None:
+        """A missing file is not usable."""
+        assert is_episode_nfo_usable(tmp_path / "nope.nfo") is False
+
+
+class TestReadEpisodeNfoRoots:
+    """read_episode_nfo_roots wraps several roots in one synthetic root."""
+
+    def test_returns_every_root_in_order(self, tmp_path: Path) -> None:
+        """Two roots come back as two elements, declaration tolerated."""
+        nfo = tmp_path / "x.nfo"
+        nfo.write_text(
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>\n"
+            "<episodedetails><title>B</title><season>1</season><episode>2</episode></episodedetails>"
+        )
+        assert [r.findtext("title") for r in read_episode_nfo_roots(nfo)] == ["A", "B"]
+
+    def test_unparseable_raises(self, tmp_path: Path) -> None:
+        """A truncated file raises ParseError for the caller to log."""
+        from xml.etree.ElementTree import ParseError
+
+        nfo = tmp_path / "x.nfo"
+        nfo.write_text("<episodedetails><title>")
+        with pytest.raises(ParseError):
+            read_episode_nfo_roots(nfo)
+
+
+# Built with chr(): a non-ASCII literal in a test counts against the French ratchet.
+_ACCENTED_TITLE = "M" + chr(0xFC) + "ller Zo" + chr(0xEB)
+_ACCENTED_EPISODE = (
+    f"<episodedetails><title>{_ACCENTED_TITLE}</title><season>1</season><episode>1</episode></episodedetails>"
+)
+
+
+class TestEpisodeNfoEncodings:
+    """A well-formed NFO is usable whatever its encoding; only binary content is not."""
+
+    def test_declared_iso_8859_1_is_usable(self, tmp_path: Path) -> None:
+        """The XML declaration names the encoding the bytes are decoded with."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(('<?xml version="1.0" encoding="ISO-8859-1"?>\n' + _ACCENTED_EPISODE).encode("latin-1"))
+        assert is_episode_nfo_usable(nfo) is True
+        assert read_episode_nfo_roots(nfo)[0].findtext("title") == _ACCENTED_TITLE
+
+    def test_undeclared_latin_1_is_usable(self, tmp_path: Path) -> None:
+        """No declaration and not UTF-8: Latin-1 fallback."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(_ACCENTED_EPISODE.encode("latin-1"))
+        assert is_episode_nfo_usable(nfo) is True
+
+    def test_undeclared_utf_8_is_decoded_as_utf_8(self, tmp_path: Path) -> None:
+        """Undeclared valid UTF-8 keeps its accents (no Latin-1 mojibake)."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(_ACCENTED_EPISODE.encode("utf-8"))
+        assert read_episode_nfo_roots(nfo)[0].findtext("title") == _ACCENTED_TITLE
+
+    def test_unknown_declared_encoding_is_unusable(self, tmp_path: Path) -> None:
+        """A declaration naming no known codec is unreadable, not a crash."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(b'<?xml version="1.0" encoding="nope-9"?>' + _ACCENTED_EPISODE.encode("ascii", "ignore"))
+        assert is_episode_nfo_usable(nfo) is False
+
+    @pytest.mark.parametrize(
+        "content",
+        [b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X        ", b"<episodedetails>\x00</episodedetails>"],
+        ids=["appledouble", "nul-inside-xml"],
+    )
+    def test_binary_is_unusable(self, tmp_path: Path, content: bytes) -> None:
+        """NUL bytes mean binary content, never decoded as Latin-1 text."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(content)
+        assert is_episode_nfo_usable(nfo) is False
+
+
+class TestEpisodeNfoDoctype:
+    """A leading DOCTYPE is dropped like the XML declaration (the content is wrapped)."""
+
+    def test_doctype_is_usable(self, tmp_path: Path) -> None:
+        """An NFO starting with a DOCTYPE is parsed, not rewritten."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE episodedetails>\n'
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True
+
+    def test_doctype_with_internal_subset_is_usable(self, tmp_path: Path) -> None:
+        """An internal subset (square brackets) is dropped whole."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_text(
+            "<!DOCTYPE episodedetails [<!ELEMENT episodedetails ANY>]>\n"
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True

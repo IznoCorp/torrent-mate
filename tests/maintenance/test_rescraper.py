@@ -2079,3 +2079,21 @@ class TestInjectDbExternalIds:
         assert '<uniqueid type="tvdb" default="true">459609</uniqueid>' in xml
         assert 'type="tmdb">285084</uniqueid>' in xml
         assert 'type="imdb">tt35629774</uniqueid>' in xml
+
+
+def test_episodes_needing_nfo_leaves_specials_out(tmp_path: Path) -> None:
+    """Season 0 videos are never repaired (no season is fetched for them): not listed to repair."""
+    from personalscraper.maintenance.rescraper import _episodes_needing_nfo
+    from personalscraper.naming_patterns import PATTERNS
+
+    show = tmp_path / "Show (2008)"
+    specials_dir = show / PATTERNS.format("season_dir", Season=0)
+    season_dir = show / PATTERNS.format("season_dir", Season=1)
+    specials_dir.mkdir(parents=True)
+    season_dir.mkdir()
+    special = specials_dir / "Show - S00E01 - Special.mkv"
+    regular = season_dir / "Show - S01E01 - One.mkv"
+    special.write_bytes(b"x")
+    regular.write_bytes(b"x")
+
+    assert _episodes_needing_nfo(show) == [regular]
