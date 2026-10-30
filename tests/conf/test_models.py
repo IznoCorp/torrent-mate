@@ -785,3 +785,27 @@ class TestRankingConfigSizeThresholdsByType:
         cfg = RankingConfig()
         # The field lives on RankingConfig, not inside criteria.
         assert not any(c.field == "size_thresholds_by_type" for c in cfg.criteria)
+
+
+class TestWebPlexForwardUrl:
+    """``web.plex_forward_url``: where plex.tv sends the Plex sign-in window, an absolute web address or none."""
+
+    def test_absent_by_default(self) -> None:
+        """No address: the window stays on Plex."""
+        from personalscraper.conf.models.web import WebConfig
+
+        assert WebConfig().plex_forward_url is None
+
+    def test_an_absolute_https_address_is_kept(self) -> None:
+        """An ``https`` address with a host is kept as written."""
+        from personalscraper.conf.models.web import WebConfig
+
+        assert WebConfig(plex_forward_url="https://tm.example.org/").plex_forward_url == "https://tm.example.org/"
+
+    @pytest.mark.parametrize("value", ["/relative", "tm.example.org", "javascript:alert(1)", "ftp://tm.example.org/"])
+    def test_anything_but_an_absolute_web_address_is_refused(self, value: str) -> None:
+        """A path, a bare host or another scheme never becomes the window's destination."""
+        from personalscraper.conf.models.web import WebConfig
+
+        with pytest.raises(ValidationError):
+            WebConfig(plex_forward_url=value)

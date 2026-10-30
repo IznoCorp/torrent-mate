@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.orchestrator import build_search_query, filter_to_movie
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 
 def _result(title: str, seeders: int = 10) -> TrackerResult:

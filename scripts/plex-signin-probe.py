@@ -7,16 +7,19 @@ None of those answers is public in full, and no session holds a Plex account, so
 the OPERATOR runs this probe: it is both his end-to-end check and the capture of
 the fixtures the client's unit tests read.
 
-What one run does, with raw ``requests`` (the client does not exist yet):
+What one run does — plex.tv through the account client (``personalscraper.api.plex_account``),
+the server's ``/identity`` with raw ``requests`` (its raw answer is a fixture, and the server
+client's fail-soft ``machine_identifier`` would hide why it failed):
 
 1. creates a strong PIN and prints the sign-in URL — he opens it and signs in;
 2. checks the PIN once per second until it is claimed or expired;
 3. reads the identity behind the token and prints ``plex_id`` and ``title`` only;
 4. reads the account's resources and prints its access to THIS server
-   (``owner`` / ``shared`` / ``none``), the server named by ``GET <PLEX_URL>/identity``
+   (``owner`` / ``home`` / ``shared`` / ``none``), the server named by ``GET <PLEX_URL>/identity``
    with the existing ``PLEX_TOKEN``.
 
-With ``--record`` it also writes every answer to ``docs/reference/_samples/plex-account/``
+With ``--record`` it also writes every answer — the RAW answers, kept by a recording session the
+client is handed — to ``docs/reference/_samples/plex-account/``
 after REDACTION, plus a ``user`` 401 (a deliberately invalid token) and an
 expired PIN (``--record-expired``, which waits out a fresh unclaimed PIN).
 
@@ -50,12 +53,16 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
 
 import requests
 
-PLEX_TV = "https://plex.tv"
-PLEX_AUTH_APP = "https://app.plex.tv/auth"
+from personalscraper.api.plex_account import (
+    PlexAccountClient,
+    PlexAccountError,
+    PlexPinExpired,
+    PlexTokenRefused,
+)
+
 PRODUCT = "TorrentMate (probe)"
 SAMPLES_DIR = Path(__file__).resolve().parents[1] / "docs" / "reference" / "_samples" / "plex-account"
 #: The probe's own client identifier, generated once and re-used (Plex's article: one per application).
@@ -73,6 +80,14 @@ _INVALID_TOKEN = "invalid-token-for-the-401-capture"
 
 #: What replaces every leaf outside the kept keys — a constant, so it says nothing about the value.
 DROPPED = "REDACTED"
+
+#: What every recorded timestamp becomes, whichever form plex.tv sent: a fixed epoch, or the same
+#: instant as an ISO-8601 string — a constant, so it says nothing about when the account acted.
+TIME_EPOCH = 1_700_000_000
+TIME_ISO = "2023-11-14T22:13:20Z"
+
+#: The smallest id whose digits the final scan looks for (five digits).
+_MIN_SECRET_INT = 10_000
 
 #: A key path: the dict keys from the body's root, list levels skipped (``("connections", "uri")``).
 KeyPath = tuple[str, ...]
@@ -224,6 +239,10 @@ class Redactor:
         self.mapping[key] = placeholder
         if isinstance(value, str) and len(value) >= 4:
             self.secrets.add(value)
+        elif isinstance(value, int) and value >= _MIN_SECRET_INT:
+            # An account or PIN id may resurface as text — in a URL, a message — so the final
+            # scan looks for its digits too; a shorter int is too common to refuse a file over.
+            self.secrets.add(str(value))
         return placeholder
 
     def redact(self, node: Any, kept: Mapping[KeyPath, str | None], path: KeyPath = ()) -> Any:
@@ -250,7 +269,9 @@ class Redactor:
         if family is None:
             return node
         if family == "time":
-            return 1_700_000_000 if isinstance(node, (int, float)) and not isinstance(node, bool) else node
+            if isinstance(node, str):
+                return TIME_ISO
+            return TIME_EPOCH if isinstance(node, (int, float)) and not isinstance(node, bool) else node
         return self._placeholder(family, node)
 
     def scrub_tree(self, node: Any) -> Any:
@@ -381,34 +402,49 @@ def _call(
         raise ProbeError(f"{method} {url.split('?')[0]} failed: {type(exc).__name__}") from None
 
 
-def sign_in_url(client_id: str, code: str) -> str:
-    """Builds the URL the operator opens to claim the PIN.
+@dataclass
+class RecordingSession:
+    """Hands every request to a real session and keeps its raw answer for the record path.
 
-    Args:
-        client_id: The probe's client identifier.
-        code: The PIN code.
+    The account client parses plex.tv's answers into types and drops the rest; the fixtures
+    need the answers as plex.tv sent them. The client is handed this session, so the probe
+    goes through the client and still records what came back.
 
-    Returns:
-        ``https://app.plex.tv/auth#?clientID=…&code=…&context%5Bdevice%5D%5Bproduct%5D=…``.
+    Attributes:
+        session: The session that really sends.
+        seen: Every answer, in order: method, path (no query string), status, parsed body.
     """
-    query = urlencode({"clientID": client_id, "code": code, "context[device][product]": PRODUCT})
-    return f"{PLEX_AUTH_APP}#?{query}"
 
+    session: Any
+    seen: list[tuple[str, str, int, Any]] = field(default_factory=list)
 
-def access_to(resources: Any, machine_identifier: str) -> str:
-    """Tells what an account is to this server, from its resource list.
+    def request(self, method: str, url: str, **kwargs: Any) -> Any:
+        """Send one request and keep its answer.
 
-    Args:
-        resources: ``GET /api/v2/resources`` body (a list of resources).
-        machine_identifier: This server's ``machineIdentifier``.
+        Args:
+            method: HTTP method.
+            url: Absolute URL (never carrying a token).
+            **kwargs: The request's options, passed through.
 
-    Returns:
-        ``owner``, ``shared`` or ``none``.
-    """
-    for resource in resources if isinstance(resources, list) else []:
-        if isinstance(resource, dict) and resource.get("clientIdentifier") == machine_identifier:
-            return "owner" if resource.get("owned") in (True, 1, "1") else "shared"
-    return "none"
+        Returns:
+            The real response.
+        """
+        response = self.session.request(method, url, **kwargs)
+        self.seen.append((method, url.split("?")[0], response.status_code, _body(response)))
+        return response
+
+    def last(self, name: str, path: str) -> Answer:
+        """The last answer kept, as a named fixture.
+
+        Args:
+            name: The fixture's stem.
+            path: The path as the fixture records it (a template for an id).
+
+        Returns:
+            The answer.
+        """
+        method, _, status, body = self.seen[-1]
+        return Answer(name, method, path, status, body)
 
 
 def run(
@@ -459,79 +495,73 @@ def run(
     except (KeyError, TypeError) as exc:
         raise ProbeError(f"the server's /identity carries no machineIdentifier (HTTP {identity.status_code})") from exc
 
-    created = _call(session, "POST", f"{PLEX_TV}/api/v2/pins", client_id=client_id, params={"strong": "true"})
-    pin = _body(created)
-    answers.append(Answer("pin-created", "POST", "/api/v2/pins?strong=true", created.status_code, pin))
-    if created.status_code not in (200, 201) or not isinstance(pin, dict) or "id" not in pin:
-        raise ProbeError(f"plex.tv refused the PIN (HTTP {created.status_code})")
-    pin_id, code = pin["id"], str(pin["code"])
-    redactor.remember(code)
-    say("Open this URL and sign in with your Plex account:")
-    say(sign_in_url(client_id, code))
+    recorder = RecordingSession(session)
+    client = PlexAccountClient(product=PRODUCT, client_identifier=client_id, session=recorder)  # type: ignore[arg-type]
+    try:
+        pin = client.create_pin()
+        answers.append(recorder.last("pin-created", "/api/v2/pins?strong=true"))
+        redactor.remember(pin.code)
+        say("Open this URL and sign in with your Plex account:")
+        say(client.sign_in_url(pin))
 
-    token: str | None = None
-    pending_recorded = False
-    deadline = clock() + _CLAIM_WAIT_SECONDS
-    while clock() < deadline:
-        polled = _call(session, "GET", f"{PLEX_TV}/api/v2/pins/{pin_id}", client_id=client_id, params={"code": code})
-        body = _body(polled)
-        if polled.status_code != 200 or not isinstance(body, dict):
-            answers.append(Answer("pin-refused", "GET", "/api/v2/pins/{id}", polled.status_code, body))
-            raise ProbeError(f"plex.tv answered the PIN check with HTTP {polled.status_code}")
-        if body.get("authToken"):
-            token = str(body["authToken"])
-            redactor.remember(token)
-            answers.append(Answer("pin-claimed", "GET", "/api/v2/pins/{id}", polled.status_code, body))
-            break
-        if not pending_recorded:
-            answers.append(Answer("pin-pending", "GET", "/api/v2/pins/{id}", polled.status_code, body))
-            pending_recorded = True
-        sleep(_POLL_SECONDS)
-    if token is None:
-        raise ProbeError("the PIN was not claimed in time")
+        token: str | None = None
+        pending_recorded = False
+        deadline = clock() + _CLAIM_WAIT_SECONDS
+        while clock() < deadline:
+            token = client.check_pin(pin.id, pin.code)
+            if token is not None:
+                redactor.remember(token)
+                answers.append(recorder.last("pin-claimed", "/api/v2/pins/{id}"))
+                break
+            if not pending_recorded:
+                answers.append(recorder.last("pin-pending", "/api/v2/pins/{id}"))
+                pending_recorded = True
+            sleep(_POLL_SECONDS)
+        if token is None:
+            raise ProbeError("the PIN was not claimed in time")
 
-    user = _call(session, "GET", f"{PLEX_TV}/api/v2/user", client_id=client_id, token=token)
-    user_body = _body(user)
-    answers.append(Answer("user-200", "GET", "/api/v2/user", user.status_code, user_body))
-    if user.status_code != 200 or not isinstance(user_body, dict):
-        raise ProbeError(f"plex.tv answered the identity read with HTTP {user.status_code}")
-    redactor.remember(str(user_body.get("email") or ""))
-    say(f"plex_id={user_body.get('id')} title={user_body.get('title')}")
+        account = client.account(token)
+        answers.append(recorder.last("user-200", "/api/v2/user"))
+        redactor.remember(account.email)
+        say(f"plex_id={account.plex_id} title={account.title}")
 
-    resources = _call(
-        session, "GET", f"{PLEX_TV}/api/v2/resources", client_id=client_id, token=token, params={"includeHttps": "1"}
-    )
-    resources_body = _body(resources)
-    access = access_to(resources_body, machine_identifier)
-    answers.append(
-        Answer(f"resources-{access}", "GET", "/api/v2/resources?includeHttps=1", resources.status_code, resources_body)
-    )
-    say(f"access={access}")
+        access = client.server_access(token, machine_identifier)
+        answers.append(recorder.last(f"resources-{access.value}", "/api/v2/resources?includeHttps=1"))
+        say(f"access={access.value}")
 
+        if record:
+            try:
+                client.account(_INVALID_TOKEN)
+            except PlexTokenRefused:
+                pass
+            else:
+                raise ProbeError("plex.tv accepted the deliberately invalid token")
+            answers.append(recorder.last("user-401", "/api/v2/user"))
+            if record_expired:
+                answers.append(_wait_out_a_pin(client, recorder, redactor, say=say, sleep=sleep, clock=clock))
+    except PlexAccountError as exc:
+        # The client's text names a path, a status or an exception type — never a token.
+        raise ProbeError(str(exc)) from None
     if record:
-        refused = _call(session, "GET", f"{PLEX_TV}/api/v2/user", client_id=client_id, token=_INVALID_TOKEN)
-        answers.append(Answer("user-401", "GET", "/api/v2/user", refused.status_code, _body(refused)))
-        if record_expired:
-            answers.append(_wait_out_a_pin(session, client_id, redactor, say=say, sleep=sleep, clock=clock))
         write_samples(answers, redactor, out_dir)
         say(f"recorded {len(answers)} redacted answers in {out_dir}")
     return 0
 
 
 def _wait_out_a_pin(
-    session: requests.Session,
-    client_id: str,
+    client: PlexAccountClient,
+    recorder: RecordingSession,
     redactor: Redactor,
     *,
     say: Callable[[str], None],
     sleep: Callable[[float], None],
     clock: Callable[[], float],
 ) -> Answer:
-    """Creates a PIN nobody claims and polls it until plex.tv stops answering it as pending.
+    """Creates a PIN nobody claims and checks it until plex.tv stops answering it as pending.
 
     Args:
-        session: The HTTP session.
-        client_id: The probe's client identifier.
+        client: The account client.
+        recorder: Its recording session — the expired answer is a fixture.
         redactor: Learns the PIN code.
         say: Progress output.
         sleep: Waits between polls.
@@ -543,20 +573,18 @@ def _wait_out_a_pin(
     Raises:
         ProbeError: The PIN was still pending after ``_EXPIRE_WAIT_SECONDS``.
     """
-    created = _call(session, "POST", f"{PLEX_TV}/api/v2/pins", client_id=client_id, params={"strong": "true"})
-    pin = _body(created)
-    if not isinstance(pin, dict) or "id" not in pin:
-        raise ProbeError(f"plex.tv refused the second PIN (HTTP {created.status_code})")
-    redactor.remember(str(pin["code"]))
+    pin = client.create_pin()
+    redactor.remember(pin.code)
     say("Waiting a fresh PIN out (do NOT open it)…")
     deadline = clock() + _EXPIRE_WAIT_SECONDS
     while clock() < deadline:
-        polled = _call(
-            session, "GET", f"{PLEX_TV}/api/v2/pins/{pin['id']}", client_id=client_id, params={"code": pin["code"]}
-        )
-        body = _body(polled)
-        if polled.status_code != 200 or not isinstance(body, dict) or body.get("authToken"):
-            return Answer("pin-expired", "GET", "/api/v2/pins/{id}", polled.status_code, body)
+        # Only plex.tv's own « gone » answer is the expiry: a timeout or a 5xx during the wait
+        # propagates (``PlexAccountUnreachable``), it is never written as ``pin-expired``.
+        try:
+            if client.check_pin(pin.id, pin.code) is not None:
+                raise ProbeError("the PIN meant to expire was claimed; nothing recorded for it")
+        except PlexPinExpired:
+            return recorder.last("pin-expired", "/api/v2/pins/{id}")
         sleep(_EXPIRE_POLL_SECONDS)
     raise ProbeError("the unclaimed PIN was still pending when the wait ended")
 

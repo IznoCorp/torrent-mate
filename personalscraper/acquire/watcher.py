@@ -69,7 +69,9 @@ class WatcherInput:
     Attributes:
         completed_hashes: Set of info-hashes from ``get_completed()``.
         ingested_hashes: Set of already-ingested hashes.
-        seed_pure_hashes: Set of SEED_PURE-tagged hashes (skip these).
+        triage_skipped_hashes: Hashes the triage leaves alone (skip these):
+            SEED_PURE-tagged unscoped; under a scope, the untagged and the
+            own SEED_ONLY ones (``api.torrent._base.triage_skip_reason``).
         sentinel_present: True if ``data_dir/watch.trigger`` exists.
         pipeline_lock_held: True if the lock is held by a live process
             (``is_lock_held`` probe; manual run in progress).
@@ -92,7 +94,7 @@ class WatcherInput:
 
     completed_hashes: frozenset[str]
     ingested_hashes: frozenset[str]
-    seed_pure_hashes: frozenset[str]
+    triage_skipped_hashes: frozenset[str]
     sentinel_present: bool
     pipeline_lock_held: bool
     now: float
@@ -126,12 +128,16 @@ class WatcherService:
     and executes the returned :class:`WatcherOutput`.
     """
 
-    def __init__(self, config_watch: WatchConfig) -> None:
+    def __init__(self, config_watch: WatchConfig, *, scoped: bool = False) -> None:
         """Initialise from watch config.
 
         Args:
             config_watch: ``AppConfig.watch`` (:class:`WatchConfig`).
+            scoped: The instance owns a scope in a shared torrent client. With no recorded
+                successful run, it starts the safety-net clock on its first cycle instead of
+                firing a run at once (an unscoped instance fires, as always).
         """
+        self._scoped: bool = scoped
         self._poll_interval_s: int = config_watch.poll_interval_s
         self._debounce_s: int = config_watch.debounce_s
         self._safety_net_hours: int = config_watch.safety_net_hours
@@ -175,6 +181,12 @@ class WatcherService:
         if not self._enabled:
             return WatcherOutput(decision=WatcherDecision.IDLE, new_state=state)
 
+        # 0. A scoped instance with no recorded run starts its safety-net clock at boot: a fresh
+        # sandbox has no history, and « never ran » must not read as « overdue ». The seed is
+        # in-memory only (never persisted), so only a real successful run is ever recorded.
+        if self._scoped and state.last_successful_run_at is None:
+            state = dataclasses.replace(state, last_successful_run_at=inp.now)
+
         # 1. Sentinel present — manual poke bypasses all windows.
         if inp.sentinel_present:
             if inp.pipeline_lock_held:
@@ -193,7 +205,7 @@ class WatcherService:
         # 2. Cross-seed: new completions not yet dispatched this daemon lifetime.
         # Deferred hashes still belong here — a completed torrent is seedable
         # regardless of why ingest would skip it.
-        work_set = inp.completed_hashes - inp.ingested_hashes - inp.seed_pure_hashes
+        work_set = inp.completed_hashes - inp.ingested_hashes - inp.triage_skipped_hashes
         cross_seed_new = work_set - state.cross_seed_dispatched
         if cross_seed_new:
             new_state = dataclasses.replace(

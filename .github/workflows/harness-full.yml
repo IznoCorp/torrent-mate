@@ -14,6 +14,10 @@ name: Harness full suite
 
 on:
   workflow_dispatch:
+  # develop after every merge, every shard: a PR merges without being up to
+  # date with develop, so develop itself is read (ci.yml says the same).
+  push:
+    branches: [develop]
   pull_request:
     branches: [main, develop, prod]
     types: [opened, synchronize, reopened, ready_for_review, labeled]
@@ -36,18 +40,28 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     outputs:
       # On demand the whole suite runs: there is no file list to filter.
-      maquette: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.maquette }}
+      maquette: ${{ github.event_name != 'pull_request' && 'true' || steps.filter.outputs.maquette }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         if: github.event_name == 'pull_request'
         with:
           filters: |
             maquette:
-              - 'frontend/maquette/**'
+              - 'webui/**'
+              - 'contract/**'
               - '.github/workflows/harness-full.yml'
+              - '.github/actions/locked-install/**'
+              - 'uv.lock'
+              # machine.py (R67) reads the ecosystem's processes (B-686).
+              - 'ecosystem.config.js'
+              # machine.py (« no engine command is forgotten ») imports the
+              # maintenance REGISTRY and compares it with the commands drawn.
+              - 'personalscraper/app/maintenance/registry.py'
+              # pwa.py (R52) compares the icons the host serves with the app's own.
+              - 'frontend/public/**'
 
   shards:
     name: harness-full (shard ${{ matrix.shard }}/4)
@@ -63,23 +77,25 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "22" }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
-      - run: pip install playwright && python -m playwright install --with-deps chromium webkit
-      - run: pip install jsonschema
-      - run: pip install -e .
-      - run: npm ci --prefix frontend/maquette/design
-      - run: frontend/maquette/harness/run.sh --ci --shard ${{ matrix.shard }}/4
+      # jsonschema and the project come from the lock (the `dev` extra carries it);
+      # playwright comes from the lock too, through the `e2e` extra every lane shares.
+      - uses: ./.github/actions/locked-install
+      - run: uv sync --locked --python 3.12 --extra dev --extra e2e
+      - run: python -m playwright install --with-deps chromium webkit
+      - run: npm ci --prefix webui/design
+      - run: webui/harness/run.sh --ci --shard ${{ matrix.shard }}/4
         env:
           TM_HARNESS_LOG_DIR: harness-logs
           # responsive.py's nine passes side by side: its cost is an idle wait per
           # state per pass, and three at a time no longer fit run.sh's 600 s bound.
           TM_RESPONSIVE_PARALLEL: "9"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: harness-full-shard-${{ matrix.shard }}
           path: harness-logs

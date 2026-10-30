@@ -42,7 +42,6 @@ import shlex
 import subprocess
 import tempfile
 import threading
-from datetime import timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -50,26 +49,27 @@ import json5
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError as PydanticValidationError
 
-from personalscraper.conf.envfile import read_env_catalog, write_env_keys
-from personalscraper.conf.loader import (
-    _LOCAL_FILENAME,
-    _MASTER_FILENAME,
-    ConfigLoadError,
-    ConfigValidationError,
-    _load_json5_file,
-    resolve_config_path,
-    validate_candidate,
-)
-from personalscraper.conf.models.config import Config
-from personalscraper.conf.overlay import ConfigConflictError
-from personalscraper.io_utils import atomic_write_text
-from personalscraper.logger import get_logger
-from personalscraper.web.config_service import (  # noqa: F401 — re-export for callers/tests
+from personalscraper.app.config_service import (  # re-export for callers/tests
     _compute_ownership,
     _compute_shadowed_keys,
     _local_keys,
     _sha256,
 )
+from personalscraper.conf.envfile import read_env_catalog, write_env_keys
+from personalscraper.conf.loader import (
+    LOCAL_FILENAME,
+    MASTER_FILENAME,
+    ConfigLoadError,
+    ConfigValidationError,
+    load_json5_file,
+    resolve_config_path,
+    validate_candidate,
+)
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.overlay import ConfigConflictError
+from personalscraper.config import env_file_path
+from personalscraper.io_utils import atomic_write_text
+from personalscraper.logger import get_logger
 from personalscraper.web.deps import is_staging_role, require_x_requested_with
 from personalscraper.web.models.config import (
     ConfigSchemaResponse,
@@ -187,21 +187,21 @@ def capture_boot_hashes(app: FastAPI) -> None:
     hashes: dict[str, str] = {}
 
     # Master.
-    master_path = config_dir / _MASTER_FILENAME
+    master_path = config_dir / MASTER_FILENAME
     if master_path.is_file():
-        hashes[_MASTER_FILENAME] = _sha256(master_path)
+        hashes[MASTER_FILENAME] = _sha256(master_path)
 
     # Overlays.
-    master = _load_json5_file(master_path)
+    master = load_json5_file(master_path)
     for name in master.get("overlays", []):
         overlay_path = config_dir / name
         if overlay_path.is_file():
             hashes[name] = _sha256(overlay_path)
 
     # Local.
-    local_path = config_dir / _LOCAL_FILENAME
+    local_path = config_dir / LOCAL_FILENAME
     if local_path.is_file():
-        hashes[_LOCAL_FILENAME] = _sha256(local_path)
+        hashes[LOCAL_FILENAME] = _sha256(local_path)
 
     app.state.config_boot_hashes = hashes
     logger.debug("config_boot_hashes_captured", count=len(hashes))
@@ -293,13 +293,13 @@ def get_files(request: Request) -> FilesResponse:
     files: list[FileInfo] = []
 
     # Master.
-    master_path = config_dir / _MASTER_FILENAME
-    master = _load_json5_file(master_path)
+    master_path = config_dir / MASTER_FILENAME
+    master = load_json5_file(master_path)
     master_owned = [k for k in master if k != "overlays"]
     master_st = master_path.stat()
     files.append(
         FileInfo(
-            name=_MASTER_FILENAME,
+            name=MASTER_FILENAME,
             owned_keys=master_owned,
             sha256=_sha256(master_path),
             mtime=master_st.st_mtime,
@@ -312,7 +312,7 @@ def get_files(request: Request) -> FilesResponse:
     for name in master.get("overlays", []):
         overlay_path = config_dir / name
         if overlay_path.is_file():
-            overlay = _load_json5_file(overlay_path)
+            overlay = load_json5_file(overlay_path)
             overlay_owned = [k for k in overlay if k != "__source__"]
             overlay_st = overlay_path.stat()
             files.append(
@@ -327,10 +327,10 @@ def get_files(request: Request) -> FilesResponse:
             )
 
     # Local (if present).
-    local_path = config_dir / _LOCAL_FILENAME
+    local_path = config_dir / LOCAL_FILENAME
     if local_path.is_file():
         try:
-            local = _load_json5_file(local_path)
+            local = load_json5_file(local_path)
         except Exception:
             logger.warning("local_json5_unreadable", path=str(local_path))
             local = {}
@@ -338,7 +338,7 @@ def get_files(request: Request) -> FilesResponse:
         local_st = local_path.stat()
         files.append(
             FileInfo(
-                name=_LOCAL_FILENAME,
+                name=LOCAL_FILENAME,
                 owned_keys=local_owned,
                 sha256=_sha256(local_path),
                 mtime=local_st.st_mtime,
@@ -362,10 +362,10 @@ def _valid_file_names(config_dir: Path) -> set[str]:
     Returns:
         Set of basenames that can be requested via ``GET /files/{name}``.
     """
-    names = {_MASTER_FILENAME, _LOCAL_FILENAME}
-    master_path = config_dir / _MASTER_FILENAME
+    names = {MASTER_FILENAME, LOCAL_FILENAME}
+    master_path = config_dir / MASTER_FILENAME
     if master_path.is_file():
-        master = _load_json5_file(master_path)
+        master = load_json5_file(master_path)
         names.update(master.get("overlays", []))
     return names
 
@@ -402,7 +402,7 @@ def get_file(name: str, request: Request) -> FileContent:
         )
 
     try:
-        values = _load_json5_file(file_path)
+        values = load_json5_file(file_path)
     except ConfigValidationError as exc:
         raise HTTPException(
             status_code=422,
@@ -490,10 +490,10 @@ def _writable_file_names(config_dir: Path) -> set[str]:
     Returns:
         Set of basenames that can be targeted by ``PUT /files/{name}``.
     """
-    names: set[str] = {_LOCAL_FILENAME}
-    master_path = config_dir / _MASTER_FILENAME
+    names: set[str] = {LOCAL_FILENAME}
+    master_path = config_dir / MASTER_FILENAME
     if master_path.is_file():
-        master = _load_json5_file(master_path)
+        master = load_json5_file(master_path)
         names.update(master.get("overlays", []))
     return names
 
@@ -686,7 +686,7 @@ def put_file(
             backup_dir.mkdir(parents=True, exist_ok=True)
             # Microsecond granularity: second-level timestamps collide (and
             # silently overwrite) when saves land within the same second.
-            ts = datetime.datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            ts = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%S%fZ")
             backup_path = backup_dir / f"{name}.{ts}.json5"
             backup_path.write_bytes(file_path.read_bytes())
 
@@ -699,7 +699,7 @@ def put_file(
         # Atomic write with header comment.
         header = (
             f"// Written by TorrentMate config editor "
-            f"{datetime.datetime.now(timezone.utc).isoformat()} "
+            f"{datetime.datetime.now(datetime.UTC).isoformat()} "
             f"— hand-written comments are not preserved.\n"
         )
         content = header + json5.dumps(body.values, indent=2) + "\n"
@@ -774,7 +774,7 @@ def get_secrets(request: Request) -> SecretsResponse:
     catalog = read_env_catalog(env_example_path)
 
     # Parse .env for is_set flags — values are never read or returned.
-    env_path = _CLONE_ROOT / ".env"
+    env_path = env_file_path(_CLONE_ROOT / ".env")
     env_set: set[str] = set()
     if env_path.is_file():
         for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -836,7 +836,7 @@ def put_secrets(
             detail={"unknown_keys": unknown_keys},
         )
 
-    env_path = _CLONE_ROOT / ".env"
+    env_path = env_file_path(_CLONE_ROOT / ".env")
     logger.info("config_secrets_write", keys=sorted(body.root.keys()))
     # R10: serialize the .env read-modify-write under the same module lock as
     # PUT /files. write_env_keys reads .env, upserts, and atomically rewrites

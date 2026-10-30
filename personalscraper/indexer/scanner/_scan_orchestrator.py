@@ -370,7 +370,7 @@ def _setup_scan_run(
     spotlight_enabled: bool,
     staging_dir: str | None,
     disk_breaker: DiskCircuitBreaker | None,
-    event_bus: "EventBus",
+    event_bus: EventBus,
     check_mount_flags: Callable[[list[DiskRow]], None],
 ) -> tuple[int, DiskCircuitBreaker, SpotlightChangeDetector, bool]:
     """Insert the ``scan_run`` row, run pre-walk probes, resolve the breaker.
@@ -855,7 +855,7 @@ def _mark_scan_run_failed(conn: sqlite3.Connection, scan_run_id: int) -> None:
 
 
 def _emit_completion(
-    event_bus: "EventBus",
+    event_bus: EventBus,
     source: str,
     mode: ScanMode,
     state: _ScanState,

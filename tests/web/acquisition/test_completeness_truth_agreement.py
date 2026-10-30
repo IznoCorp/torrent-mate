@@ -82,7 +82,7 @@ def test_truth_and_completeness_agree_on_counts(acquire_store):
 
     # 5. Chemin carte (truth.py)
     truth = compute_follow_truth(
-        store._ensure_open(),  # noqa: SLF001 — le test a besoin de la connexion brute
+        store._ensure_open(),  # le test a besoin de la connexion brute
         mock_checker,
         followed_id=followed_id,
         media_ref=media_ref,

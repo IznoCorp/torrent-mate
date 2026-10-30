@@ -19,6 +19,7 @@ __all__ = [
     "SqliteDiskFullError",
     "SqliteFKOrphansError",
     "SqliteMigrationError",
+    "SqliteSchemaNewerError",
 ]
 
 
@@ -44,3 +45,11 @@ class SqliteFKOrphansError(RuntimeError):
 
 class SqliteMigrationError(RuntimeError):
     """Base marker: migration script failed."""
+
+
+class SqliteSchemaNewerError(SqliteMigrationError):
+    """Base marker: the store's schema is newer than the code's highest migration.
+
+    A store migrated by a newer checkout of the code is refused, never migrated nor written:
+    the code that opens it does not know the tables its newer writer relies on.
+    """

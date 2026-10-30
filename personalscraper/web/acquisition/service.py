@@ -171,23 +171,26 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
     Returns:
         One :class:`DeferredTorrent` per deferred hash (possibly empty).
     """
-    from personalscraper.core.tags import SEED_PURE  # noqa: PLC0415
+    from personalscraper.api.torrent._base import scoped, triage_skip_reason  # noqa: PLC0415
+    from personalscraper.app.torrent_session import shared_torrent_client  # noqa: PLC0415
     from personalscraper.ingest.deferral import (  # noqa: PLC0415
         classify_deferrals,
         deferral_probe_dirs,
     )
     from personalscraper.ingest.tracker import IngestTracker  # noqa: PLC0415
-    from personalscraper.web.torrent_session import shared_torrent_client  # noqa: PLC0415
 
     try:
         # Shared cached session — one login per web process (see torrent_session).
         with shared_torrent_client(config.torrent) as client:
             if client is None:
                 return []
-            completed = client.get_completed()
+            # A shared client also completes other instances' torrents: keep the scope's own.
+            scope = config.torrent.active_scope()
+            completed = scoped(client.get_completed(), scope)
         tracker = IngestTracker(tracker_path=config.paths.data_dir / "ingested_torrents.json")
         ingested = frozenset(tracker.load().keys())
-        seed_pure = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
+        # What the ingest skips for good is never « waiting »: seed-pure unscoped, untagged / seed-only scoped.
+        never_ingested = frozenset(t.hash for t in completed if triage_skip_reason(t, scope) is not None)
         dirs = deferral_probe_dirs(config)
         deferred = classify_deferrals(
             completed,
@@ -195,7 +198,7 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
             ingest_dir=dirs[-1],
             min_free_gb=config.thresholds.min_free_space_staging_gb,
             staging_probe_dirs=dirs,
-            exclude_hashes=ingested | seed_pure,
+            exclude_hashes=ingested | never_ingested,
         )
         by_hash = {t.hash: t.name for t in completed}
         return [
@@ -221,7 +224,7 @@ _REQUEST_RETRY = RetryPolicy(max_attempts=1)
 
 
 @contextmanager
-def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]]":
+def scoped_provider_clients(request: Request) -> Iterator[tuple[object, object]]:
     """Yield request-scoped TMDB + TVDB clients, then release the registry.
 
     Mirrors the decisions-search pattern: a fresh AppContext + ProviderRegistry
@@ -249,12 +252,12 @@ def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]
     Raises:
         HTTPException: 502 when the provider registry cannot be built.
     """
-    from personalscraper.cli_helpers import _build_app_context
+    from personalscraper.app.composition import build_app_context
 
     config = request.app.state.config
     settings = request.app.state.settings
     try:
-        app_context = _build_app_context(config, settings, provider_retry=_REQUEST_RETRY)
+        app_context = build_app_context(config, settings, provider_retry=_REQUEST_RETRY)
         tmdb_client = app_context.provider_registry.get("tmdb")
         tvdb_client = app_context.provider_registry.get("tvdb")
     except Exception as exc:
@@ -268,12 +271,12 @@ def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]
         # served response into a 500.
         try:
             app_context.provider_registry.close()
-        except Exception:  # noqa: BLE001 — teardown must not mask the response
+        except Exception:  # teardown must not mask the response
             logger.warning("acquisition_provider_registry_close_failed", exc_info=True)
         if app_context.acquire is not None:
             try:
                 app_context.acquire.close()
-            except Exception:  # noqa: BLE001 — same contract
+            except Exception:  # same contract
                 logger.warning("acquisition_acquire_context_close_failed", exc_info=True)
 
 
@@ -354,11 +357,11 @@ def run_media_search(
         HTTPException: 502 on provider API failure.
     """
     from personalscraper.api.metadata._base import SearchResult
+    from personalscraper.app.acquisition.search_cache import SEARCH_CACHE
     from personalscraper.scraper.search_ranking import (
         gather_tv_candidates,
         rank_search_results,
     )
-    from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
 
     # Paging must not replay the provider sweep. The ranked lot for this exact
     # (query, kind) is cached, so page 2 and beyond cost nothing at the providers
@@ -427,7 +430,7 @@ def run_media_search(
 # ── /api/acquisition/followed (write) ─────────────────────────────────────
 
 
-def _to_search_result(candidate: "RankedResult") -> MediaSearchResult:
+def _to_search_result(candidate: RankedResult) -> MediaSearchResult:
     """Map a scored :class:`RankedResult` to a :class:`MediaSearchResult`.
 
     The ``kind`` tag is read off the candidate's own ``media_type`` rather than
@@ -569,7 +572,7 @@ def _count_wanted_pending(store: Any, followed_id: int) -> int:
 
 
 def run_media_lookup(
-    request: "Request",
+    request: Request,
     *,
     provider: str,
     provider_id: int,
@@ -601,7 +604,7 @@ def run_media_lookup(
         if fn is not None:
             try:
                 details = fn(provider_id)
-            except Exception:  # noqa: BLE001 — an unknown id is a 404, not a 500
+            except Exception:  # an unknown id is a 404, not a 500
                 logger.warning("acquisition_lookup_failed", provider=provider, provider_id=provider_id, exc_info=True)
                 details = None
     if details is None:

@@ -34,6 +34,7 @@ import pathlib
 import re
 import sqlite3
 import sys
+from _repo_paths import DESIGN_SRC
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 # WHERE `FOLLOWS` LIVES SINCE L09. It was an array in the deleted engine, and the
@@ -48,7 +49,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 # and dropped a field in silence. What it guarded against is unchanged and is
 # below: an absent file, an absent array and an unknown title each REFUSE rather
 # than report agreement.
-FIXTURE = (ROOT / "frontend" / "maquette" / "design" / "src" / "mocks" / "seeds"
+FIXTURE = (DESIGN_SRC / "mocks" / "seeds"
            / "follows.json")
 
 # The seed's own names for the two facts the database owns, and for the title

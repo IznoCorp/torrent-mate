@@ -18,9 +18,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
-from personalscraper.web.auth.passwords import hash_password
 from personalscraper.web.routes.config import RESTART_IMPACT, restart_required_for
 
 TEST_USERNAME = "testuser"

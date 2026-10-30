@@ -80,7 +80,7 @@ def _insert_disk(conn: sqlite3.Connection, mount_path: str) -> DiskRow:
     )
 
 
-def test_quick_scan_emits_library_scan_completed(fs: "FakeFilesystem") -> None:
+def test_quick_scan_emits_library_scan_completed(fs: FakeFilesystem) -> None:
     """Quick scan against a fixture emits one event with mode='quick', scanned>0."""
     fs.pause()
     conn = _make_conn_real()
@@ -111,7 +111,7 @@ def test_quick_scan_emits_library_scan_completed(fs: "FakeFilesystem") -> None:
     "mode",
     [ScanMode.quick, ScanMode.incremental, ScanMode.enrich, ScanMode.full, ScanMode.verify],
 )
-def test_each_scan_mode_emits_its_mode_string(fs: "FakeFilesystem", mode: ScanMode) -> None:
+def test_each_scan_mode_emits_its_mode_string(fs: FakeFilesystem, mode: ScanMode) -> None:
     """Every declared scan mode emits exactly one event with the matching ``mode`` field."""
     fs.pause()
     conn = _make_conn_real()
@@ -132,7 +132,7 @@ def test_each_scan_mode_emits_its_mode_string(fs: "FakeFilesystem", mode: ScanMo
     assert collector.received[0].mode == mode.value
 
 
-def test_scan_emits_on_total_exception_before_any_item(fs: "FakeFilesystem") -> None:
+def test_scan_emits_on_total_exception_before_any_item(fs: FakeFilesystem) -> None:
     """A scan that raises inside the main scan body before processing any item still emits.
 
     Asserts the locked-formula lower bound: ``scanned=0``, ``errors>=1``,
@@ -180,7 +180,7 @@ def test_scan_emits_on_total_exception_before_any_item(fs: "FakeFilesystem") -> 
     assert event.mode == "quick"
 
 
-def test_scan_does_not_emit_when_no_event_bus(fs: "FakeFilesystem") -> None:
+def test_scan_does_not_emit_when_no_event_bus(fs: FakeFilesystem) -> None:
     """``event_bus=None`` preserves the legacy contract — no emit, no behavior change."""
     fs.pause()
     conn = _make_conn_real()

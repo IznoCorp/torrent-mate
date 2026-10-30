@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+    <channel>
+        <title>Draupnirr</title>
+        <newznab:response offset="0" total="4"/>
+        <item>
+            <title>The.Office.MULTi.1080p.WEB.DL.EAC3.2.0.H265-FTMVHD</title>
+            <guid isPermaLink="false">ygrasil-d123ced4bade7d0dca7c2e62557f44f0c1797b3c</guid>
+            <link>https://draupnirr.xyz/torznab/download/sIau9cFRMj?apikey=REDACTED</link>
+            <comments>https://draupnirr.xyz/torrents/sIau9cFRMj</comments>
+            <pubDate>Tue, 01 Sep 2026 10:48:29 +0000</pubDate>
+            <size>3069108078</size>
+            <files>6</files>
+            <grabs>1</grabs>
+            <enclosure url="https://draupnirr.xyz/torznab/download/sIau9cFRMj?apikey=REDACTED" length="3069108078" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="2040"/>
+            <torznab:attr name="category" value="2000"/>
+            <torznab:attr name="category" value="100002"/>
+            <torznab:attr name="seeders" value="1"/>
+            <torznab:attr name="leechers" value="0"/>
+            <torznab:attr name="peers" value="1"/>
+            <torznab:attr name="grabs" value="1"/>
+            <torznab:attr name="files" value="6"/>
+            <torznab:attr name="infohash" value="d123ced4bade7d0dca7c2e62557f44f0c1797b3c"/>
+            <torznab:attr name="downloadvolumefactor" value="0"/>
+            <torznab:attr name="uploadvolumefactor" value="1"/>
+            <torznab:attr name="minimumseedtime" value="172800"/>
+            <torznab:attr name="tmdbid" value="2316"/>
+        </item>
+        <item>
+            <title>The Office REPACK (2005-2013) Complete Series - Superfan Episodes 1080p BluRay Rip 10Bit H265 AAC 5.1</title>
+            <guid isPermaLink="false">ygrasil-b3dce667022265011d36c19ed57375f4324f02f2</guid>
+            <link>https://draupnirr.xyz/torznab/download/YVu3VN51Fq?apikey=REDACTED</link>
+            <comments>https://draupnirr.xyz/torrents/YVu3VN51Fq</comments>
+            <pubDate>Fri, 28 Aug 2026 17:26:22 +0000</pubDate>
+            <size>429067584241</size>
+            <files>194</files>
+            <grabs>0</grabs>
+            <enclosure url="https://draupnirr.xyz/torznab/download/YVu3VN51Fq?apikey=REDACTED" length="429067584241" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="5040"/>
+            <torznab:attr name="category" value="5000"/>
+            <torznab:attr name="category" value="100006"/>
+            <torznab:attr name="seeders" value="1"/>
+            <torznab:attr name="leechers" value="0"/>
+            <torznab:attr name="peers" value="1"/>
+            <torznab:attr name="grabs" value="0"/>
+            <torznab:attr name="files" value="194"/>
+            <torznab:attr name="infohash" value="b3dce667022265011d36c19ed57375f4324f02f2"/>
+            <torznab:attr name="downloadvolumefactor" value="0"/>
+            <torznab:attr name="uploadvolumefactor" value="1"/>
+            <torznab:attr name="minimumseedtime" value="172800"/>
+            <torznab:attr name="tmdbid" value="2316"/>
+        </item>
+        <item>
+            <title>The Office.2005.INTEGRALE.MULTI.1080p.WEB-DL.H265-FTMVHD</title>
+            <guid isPermaLink="false">ygrasil-6d65eddb9f2b3cf5803f69d57ab4bff0e0d83c8f</guid>
+            <link>https://draupnirr.xyz/torznab/download/EDLp7B86Lq?apikey=REDACTED</link>
+            <comments>https://draupnirr.xyz/torrents/EDLp7B86Lq</comments>
+            <pubDate>Thu, 27 Aug 2026 18:58:36 +0000</pubDate>
+            <size>102768837348</size>
+            <files>204</files>
+            <grabs>0</grabs>
+            <enclosure url="https://draupnirr.xyz/torznab/download/EDLp7B86Lq?apikey=REDACTED" length="102768837348" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="5040"/>
+            <torznab:attr name="category" value="5000"/>
+            <torznab:attr name="category" value="100006"/>
+            <torznab:attr name="seeders" value="5"/>
+            <torznab:attr name="leechers" value="0"/>
+            <torznab:attr name="peers" value="5"/>
+            <torznab:attr name="grabs" value="0"/>
+            <torznab:attr name="files" value="204"/>
+            <torznab:attr name="infohash" value="6d65eddb9f2b3cf5803f69d57ab4bff0e0d83c8f"/>
+            <torznab:attr name="downloadvolumefactor" value="0"/>
+            <torznab:attr name="uploadvolumefactor" value="1"/>
+            <torznab:attr name="minimumseedtime" value="172800"/>
+            <torznab:attr name="tmdbid" value="2316"/>
+        </item>
+        <item>
+            <title>The Office US</title>
+            <guid isPermaLink="false">ygrasil-49e9b1da729edb60169890c964a655520ea8c66a</guid>
+            <link>https://draupnirr.xyz/torznab/download/FZ7E17HXiy?apikey=REDACTED</link>
+            <comments>https://draupnirr.xyz/torrents/FZ7E17HXiy</comments>
+            <pubDate>Mon, 24 Aug 2026 13:01:03 +0000</pubDate>
+            <size>97781150454</size>
+            <files>188</files>
+            <grabs>0</grabs>
+            <enclosure url="https://draupnirr.xyz/torznab/download/FZ7E17HXiy?apikey=REDACTED" length="97781150454" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="5000"/>
+            <torznab:attr name="category" value="100006"/>
+            <torznab:attr name="seeders" value="1"/>
+            <torznab:attr name="leechers" value="0"/>
+            <torznab:attr name="peers" value="1"/>
+            <torznab:attr name="grabs" value="0"/>
+            <torznab:attr name="files" value="188"/>
+            <torznab:attr name="infohash" value="49e9b1da729edb60169890c964a655520ea8c66a"/>
+            <torznab:attr name="downloadvolumefactor" value="0"/>
+            <torznab:attr name="uploadvolumefactor" value="1"/>
+            <torznab:attr name="minimumseedtime" value="172800"/>
+        </item>
+    </channel>
+</rss>

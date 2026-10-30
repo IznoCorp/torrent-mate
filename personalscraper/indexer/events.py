@@ -20,6 +20,7 @@ consumer calls ``event_from_envelope``.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from personalscraper.core.event_bus import Event
@@ -74,6 +75,32 @@ class LibraryScanCompleted(Event):
     scanned: int
     errors: int
     elapsed_s: float
+
+
+class ScanSkipReason(StrEnum):
+    """Why a disk's post-dispatch index refresh did not happen."""
+
+    DISABLED = "disabled"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, kw_only=True)
+class LibraryScanSkipped(Event):
+    """Emitted when a disk touched by dispatch was NOT re-indexed afterwards.
+
+    The post-dispatch incremental scan is what brings the index up to date with
+    what dispatch just wrote. When it is disabled (flag or config) or fails, the
+    library's counts for that disk are stale; a live consumer must be told rather
+    than show them silently.
+
+    Attributes:
+        disk: Disk label whose index was not refreshed (``DispatchResult.disk``).
+        reason: ``disabled`` (maintenance switched off) or ``failed`` (the
+            incremental scan raised or returned a non-zero exit code).
+    """
+
+    disk: str
+    reason: ScanSkipReason
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -149,6 +176,8 @@ class BackfillCompleted(Event):
 __all__ = [
     "DiskFullWarning",
     "LibraryScanCompleted",
+    "LibraryScanSkipped",
+    "ScanSkipReason",
     "BackfillStarted",
     "BackfillItemCompleted",
     "BackfillSkipped",

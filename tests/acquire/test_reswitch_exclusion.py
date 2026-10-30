@@ -18,7 +18,6 @@ import pytest
 
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import (
     RankingConfig,
@@ -28,6 +27,7 @@ from personalscraper.api.tracker._ranking import (
 )
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 _RANKING = RankingConfig(
     criteria=[RankingCriterion(field="seeders", thresholds=[ThresholdEntry(at=1, score=10)])],

@@ -5,7 +5,9 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
 
+from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.conf.ids import BUILTIN_CATEGORY_IDS
+from personalscraper.conf.isolation import assert_isolated
 from personalscraper.conf.models._base import _StrictModel
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import (
@@ -137,19 +139,33 @@ class Config(_StrictModel):
     def _resolve_derived_paths(self) -> "Config":
         """Resolve derived paths from ``paths.data_dir`` when not explicitly set.
 
-        - ``indexer.db_path`` → ``paths.data_dir / 'library.db'``
-        - ``acquire.db_path`` → ``paths.data_dir / 'acquire.db'``
+        - ``indexer.db_path`` → the library store in ``paths.data_dir``
+        - ``acquire.db_path`` → the acquire store in ``paths.data_dir``
         - ``trailers.state_file`` → ``paths.data_dir / 'trailers_state.json'``
+
+        The store file names follow ``PERSONALSCRAPER_ENV`` (``prod`` keeps the
+        historical ``library.db`` / ``acquire.db``; absent is refused). Then the isolation guard checks
+        that ``paths.data_dir``, the store paths and ``web.stream_key`` belong to this
+        environment.
 
         Returns:
             self with derived paths resolved.
+
+        Raises:
+            EnvironmentSettingError: ``PERSONALSCRAPER_ENV`` is unset or set to an unknown
+                value (a ``ValueError``, so Pydantic wraps it as a load error).
+            EnvironmentIsolationError: ``paths.data_dir`` is marked for another
+                environment or its marker is unreadable, is unmarked outside prod, a
+                store lies outside it outside prod, or, outside prod, the stream key is
+                prod's or an enabled torrent client has no scope (a ``ValueError`` too).
         """
         if self.indexer.db_path is None:
-            object.__setattr__(self.indexer, "db_path", self.paths.data_dir / "library.db")
+            object.__setattr__(self.indexer, "db_path", store_path(self.paths.data_dir, StoreName.LIBRARY))
         if self.acquire.db_path is None:
-            object.__setattr__(self.acquire, "db_path", self.paths.data_dir / "acquire.db")
+            object.__setattr__(self.acquire, "db_path", store_path(self.paths.data_dir, StoreName.ACQUIRE))
         if self.trailers.state_file is None:
             object.__setattr__(self.trailers, "state_file", str(self.paths.data_dir / "trailers_state.json"))
+        assert_isolated(self)
         return self
 
     @property

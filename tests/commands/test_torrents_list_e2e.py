@@ -9,12 +9,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from personalscraper.conf.models.api_config import TorrentConfig
 from tests.commands._e2e_helpers import (
     assert_json_schema,
     assert_no_python_traceback,
+    json_from_result,
     mock_boundary_torrent_client,
     run_cli,
 )
+from tests.fixtures.torrent_scope import SCOPE, shared_client
 
 
 def _fake_torrent(
@@ -123,3 +126,31 @@ def test_torrents_list_format_json_schema(monkeypatch) -> None:
     assert t0["seeding"] is True
     assert data["completed"] == 1
     assert data["tracked"] == 1
+
+
+# ── 5. Client scope ─────────────────────────────────────────────────────────────
+
+
+def test_torrents_list_under_scope_lists_only_its_own_category(monkeypatch) -> None:
+    """Under a scope the other instance's torrent is neither listed nor counted as tracked."""
+    monkeypatch.setattr(TorrentConfig, "active_scope", lambda self: SCOPE)
+    mock = mock_boundary_torrent_client(monkeypatch, shared_client())
+
+    result = run_cli(["--format", "json", "torrents-list"])
+
+    assert result.exit_code == 0, result.output
+    names = [t["name"] for t in json_from_result(result, source_attr="stdout")["torrents"]]
+    assert names == ["Movie.bbbb"]
+    mock.get_completed.assert_called_once_with()
+
+
+def test_torrents_list_without_scope_lists_every_torrent(monkeypatch) -> None:
+    """Characterisation: no scope, every torrent is listed."""
+    monkeypatch.setattr(TorrentConfig, "active_scope", lambda self: None)
+    mock_boundary_torrent_client(monkeypatch, shared_client())
+
+    result = run_cli(["--format", "json", "torrents-list"])
+
+    assert result.exit_code == 0, result.output
+    names = sorted(t["name"] for t in json_from_result(result, source_attr="stdout")["torrents"])
+    assert names == ["Movie.aaaa", "Movie.bbbb", "Movie.cccc"]

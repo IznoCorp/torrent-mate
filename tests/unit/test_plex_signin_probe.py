@@ -376,7 +376,7 @@ def test_redaction_is_consistent_across_files(tmp_path: Path) -> None:
     machine = files["server-identity.json"]["body"]["MediaContainer"]["machineIdentifier"]
     resources = files["resources-owner.json"]["body"]
     assert machine != MACHINE
-    assert probe.access_to(resources, machine) == "owner"
+    assert [r["owned"] for r in resources if r["clientIdentifier"] == machine] == [1]
     pin_ids = {files[n]["body"]["id"] for n in ("pin-created.json", "pin-pending.json", "pin-claimed.json")}
     assert len(pin_ids) == 1 and isinstance(next(iter(pin_ids)), int)
     assert isinstance(files["user-200.json"]["body"]["id"], int)
@@ -459,25 +459,122 @@ def test_missing_server_settings_stop_before_any_call(tmp_path: Path) -> None:
     assert fake.calls == []
 
 
-@pytest.mark.parametrize(
-    ("resources", "expected"),
-    [
-        ([{"clientIdentifier": "m", "owned": 1}], "owner"),
-        ([{"clientIdentifier": "m", "owned": True}], "owner"),
-        ([{"clientIdentifier": "m", "owned": 0}], "shared"),
-        ([{"clientIdentifier": "other", "owned": 1}], "none"),
-        ([], "none"),
-        ({"not": "a list"}, "none"),
-    ],
-)
-def test_access_to(resources: Any, expected: str) -> None:
-    """OWNER / SHARED / NONE from a resource list, NONE when the list is empty or malformed."""
-    assert probe.access_to(resources, "m") == expected
+def test_plex_tv_is_reached_through_the_account_client(tmp_path: Path) -> None:
+    """Every plex.tv request carries the client's headers: the probe no longer speaks raw ``requests`` to it."""
+    fake = _FakePlex()
+    said = _run(tmp_path, fake, record=False)
+    plex_tv = [call for call in fake.calls if call["url"].startswith("https://plex.tv/")]
+    assert plex_tv
+    for call in plex_tv:
+        assert call["headers"]["X-Plex-Product"] == probe.PRODUCT
+    assert any(line.startswith("https://app.plex.tv/auth#?") for line in said)
 
 
-def test_sign_in_url_carries_the_three_parameters() -> None:
-    """The URL Plex's article documents, URL-encoded."""
-    url = probe.sign_in_url("cid", "abc")
-    assert url.startswith("https://app.plex.tv/auth#?")
-    assert "clientID=cid" in url and "code=abc" in url
-    assert "context%5Bdevice%5D%5Bproduct%5D=TorrentMate+%28probe%29" in url
+def test_a_plex_tv_failure_is_a_probe_error_without_a_secret(tmp_path: Path) -> None:
+    """The client's error becomes the probe's, its text free of any planted value."""
+
+    class _DownAfterIdentity(_FakePlex):
+        """plex.tv down once the server has answered its identity: every plex.tv call fails, its text leaky."""
+
+        def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            """Fail every plex.tv call with a transport error carrying the token and the code.
+
+            Args:
+                method: HTTP method.
+                url: Absolute URL.
+                **kwargs: The request's options, ``headers`` among them.
+
+            Returns:
+                The base fake's answer, for the server's own calls.
+
+            Raises:
+                requests.ConnectionError: For every plex.tv call.
+            """
+            if url.startswith("https://plex.tv/"):
+                raise requests.ConnectionError(f"boom {kwargs['headers'].get('X-Plex-Token')} {CODE}")
+            return super().request(method, url, **kwargs)
+
+    with pytest.raises(probe.ProbeError) as caught:
+        _run(tmp_path, _DownAfterIdentity())
+    assert "ConnectionError" in str(caught.value)
+    assert all(secret not in str(caught.value) for secret in PLANTED_STRINGS)
+
+
+def test_an_unreachable_check_while_waiting_a_pin_out_is_not_recorded_as_expired(tmp_path: Path) -> None:
+    """A transport failure or a 5xx during ``--record-expired`` stops the probe: no false ``pin-expired``."""
+
+    class _FlakyExpiry(_FakePlex):
+        """The connection drops on the check of the PIN ``--record-expired`` waits out."""
+
+        def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            """Fail the second PIN's check with a transport error; answer the rest as the base fake.
+
+            Args:
+                method: HTTP method.
+                url: Absolute URL.
+                **kwargs: The request's options.
+
+            Returns:
+                The base fake's answer, for every other call.
+
+            Raises:
+                requests.ConnectionError: For the second PIN's check.
+            """
+            if url.endswith(f"/api/v2/pins/{PIN_ID + 1}"):
+                raise requests.ConnectionError("reset")
+            return super().request(method, url, **kwargs)
+
+    with pytest.raises(probe.ProbeError):
+        _run(tmp_path, _FlakyExpiry())
+    assert not (tmp_path / "plex-account").exists()
+
+    class _ServerErrorExpiry(_FakePlex):
+        """plex.tv answers a 503 to the check of the PIN ``--record-expired`` waits out."""
+
+        def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            """Answer the second PIN's check with a 503; answer the rest as the base fake.
+
+            Args:
+                method: HTTP method.
+                url: Absolute URL.
+                **kwargs: The request's options.
+
+            Returns:
+                A 503 for the second PIN's check, else the base fake's answer.
+            """
+            if url.endswith(f"/api/v2/pins/{PIN_ID + 1}"):
+                return _Response(503, {"errors": []})
+            return super().request(method, url, **kwargs)
+
+    with pytest.raises(probe.ProbeError):
+        _run(tmp_path, _ServerErrorExpiry())
+    assert not (tmp_path / "plex-account").exists()
+
+
+def test_a_string_timestamp_becomes_the_fixed_placeholder() -> None:
+    """plex.tv's ISO-8601 ``createdAt`` / ``lastSeenAt`` say when the account acted: both become one constant."""
+    redactor = probe.Redactor()
+    kept = probe.kept_keys("resources-owner")
+    body = [
+        {"createdAt": "2024-06-22T13:23:39Z", "lastSeenAt": "2026-10-04T02:05:14Z"},
+        {"createdAt": 1712345678, "lastSeenAt": None},
+    ]
+    redacted = redactor.redact(body, kept)
+    assert redacted[0] == {"createdAt": probe.TIME_ISO, "lastSeenAt": probe.TIME_ISO}
+    assert redacted[1] == {"createdAt": probe.TIME_EPOCH, "lastSeenAt": None}
+    text = json.dumps(redacted)
+    assert "2024-06-22" not in text and "2026-10-04" not in text and "1712345678" not in text
+
+
+def test_an_id_of_five_digits_or_more_is_scanned_for_as_text() -> None:
+    """An int id joins the secrets as its digits, so the final scan refuses a file where it resurfaces."""
+    redactor = probe.Redactor()
+    kept = probe.kept_keys("resources-owner")
+    assert redactor.redact({"ownerId": USER_ID}, kept)["ownerId"] != USER_ID
+    assert str(USER_ID) in redactor.secrets
+    with pytest.raises(probe.RedactionLeak):
+        redactor.check(json.dumps({"note": f"https://plex.tv/users/{USER_ID}"}))
+    redactor.redact({"ownerId": 12345}, kept)
+    redactor.redact({"ownerId": 9999}, kept)
+    assert "12345" in redactor.secrets
+    assert "9999" not in redactor.secrets

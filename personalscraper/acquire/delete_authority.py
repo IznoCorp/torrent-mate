@@ -7,19 +7,26 @@ use torrent-client content_path — those two trees never overlap after ingest
 
 Fail-open contract: store absent / unreadable / lock-timeout / no-obligation
 / any lookup error → ALLOW. VETO only on positively-known unmet obligation.
+:class:`StrictDeletePermit` makes the same decision for the library's deletion
+from the interface, and RAISES where this one allows (operator ruling R1).
 
 Logging: personalscraper.logger.get_logger (NOT structlog.get_logger).
 """
 
 from __future__ import annotations
 
+import sqlite3
 import time
+from contextlib import closing
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Final, Protocol
 
 from personalscraper.acquire.domain import SeedObligation
+from personalscraper.acquire.store import _SeedSubStore
+from personalscraper.api.torrent._base import lookup_scoped, scoped
 from personalscraper.core.delete_permit import (
     ALLOW,
+    ObligationsUnreadable,
     PermitDecision,
     veto,
 )
@@ -30,7 +37,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.torrent._contracts import TorrentLister, TorrentStateInspector
-    from personalscraper.conf.models.api_config import TrackerEconomyConfig
+    from personalscraper.conf.models.api_config import TorrentScope, TrackerEconomyConfig
     from personalscraper.core.event_bus import Event
 
     class _ReadOnlyTorrentClient(TorrentLister, TorrentStateInspector, Protocol):
@@ -66,9 +73,10 @@ class DeleteAuthority:
 
     def __init__(
         self,
-        store: "ConcreteAcquireStore | None",
-        torrent_client: "_ReadOnlyTorrentClient | None" = None,
-        economy: "dict[str, TrackerEconomyConfig] | None" = None,
+        store: ConcreteAcquireStore | None,
+        torrent_client: _ReadOnlyTorrentClient | None = None,
+        economy: dict[str, TrackerEconomyConfig] | None = None,
+        scope: TorrentScope | None = None,
     ) -> None:
         """Initialise with the acquire store, torrent client, and economy map.
 
@@ -78,10 +86,14 @@ class DeleteAuthority:
                 TorrentStateInspector) for dispatch-time correlation, or None.
             economy: Tracker-name → TrackerEconomyConfig map for resolving the
                 source tracker from a torrent's tags, or None.
+            scope: The instance's scope in a shared client — ``record_dispatch``
+                then correlates only the torrents of its category; ``None`` =
+                the whole client.
         """
         self._store = store
         self._torrent_client = torrent_client
         self._economy = economy
+        self._scope = scope
 
     def has_active_obligation(self, info_hash: str) -> bool:
         """Return ``True`` when *info_hash* has a live, unmet seed obligation.
@@ -154,7 +166,7 @@ class DeleteAuthority:
 
         Extracted from :meth:`may_delete` so the fail-open ``try/except`` wraps
         BOTH the store lookup and the per-obligation loop (find_active_under +
-        seed-time + path-exists). The VETO/ALLOW logic is unchanged.
+        seed-time + path-exists). The VETO/ALLOW logic is :func:`_decide`'s.
 
         Args:
             path: Absolute path about to be deleted.
@@ -162,48 +174,8 @@ class DeleteAuthority:
         Returns:
             ALLOW if permitted, veto(reason) if a live unmet obligation exists.
         """
-        assert self._store is not None  # noqa: S101 — guarded by the caller
-
-        obligations = self._store.seed.find_active_under(path)
-        if not obligations:
-            return ALLOW
-
-        now = int(time.time())
-
-        for obligation in obligations:
-            # Path-exists guard: a stale obligation (crash before move,
-            # dispatched_path for a file that was never created) is inert.
-            dp = obligation.dispatched_path
-            if dp is not None and not Path(dp).exists():
-                log.debug(
-                    "acquire.delete_authority.stale_obligation_inert",
-                    path=str(path),
-                    info_hash=obligation.info_hash,
-                )
-                continue
-
-            # Seed-time check (ratio deferred to C1).
-            seed_time_elapsed = now - obligation.added_at
-            if seed_time_elapsed >= obligation.min_seed_time_s:
-                continue
-
-            # Positively-known unmet obligation → VETO.
-            reason = (
-                f"seeding obligation not met: tracker={obligation.source_tracker} "
-                f"info_hash={obligation.info_hash[:8]}... "
-                f"elapsed={seed_time_elapsed}s < required={obligation.min_seed_time_s}s"
-            )
-            log.warning(
-                "acquire.delete_authority.veto",
-                path=str(path),
-                info_hash=obligation.info_hash,
-                source_tracker=obligation.source_tracker,
-                seed_time_elapsed=seed_time_elapsed,
-                min_seed_time_s=obligation.min_seed_time_s,
-            )
-            return veto(reason)
-
-        return ALLOW
+        assert self._store is not None  # guarded by the caller
+        return _decide(self._store.seed, path)
 
     def record_dispatch(
         self,
@@ -278,7 +250,7 @@ class DeleteAuthority:
 
         # Single cached get_completed() — fail-soft on any client error.
         try:
-            completed = self._torrent_client.get_completed()
+            completed = scoped(self._torrent_client.get_completed(), self._scope)
         except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt the caller
             log.warning(
                 "acquire.record_dispatch.miss",
@@ -359,7 +331,7 @@ class DeleteAuthority:
     def _correlate_and_record(
         self,
         *,
-        completed: "list[TorrentItem]",
+        completed: list[TorrentItem],
         basename: str,
         size: int,
         dispatched_dest: Path,
@@ -392,8 +364,8 @@ class DeleteAuthority:
         """
         # ``self._store`` is non-None here (guarded by the record_dispatch
         # pre-checks); assert for the type checker.
-        assert self._store is not None  # noqa: S101
-        assert self._torrent_client is not None  # noqa: S101
+        assert self._store is not None
+        assert self._torrent_client is not None
 
         matches = [t for t in completed if t.name == basename and t.size_bytes == size]
 
@@ -493,7 +465,9 @@ class DeleteAuthority:
         an honest MISS: no obligation is invented with made-up floors.
 
         Fail-soft throughout: a client error, a missing store or a store write
-        failure returns ``False`` and never interrupts the sweep.
+        failure returns ``False`` and never interrupts the sweep. Under a scope a
+        hash held in another instance's category is not ours: it is skipped with a
+        log line and gets no obligation.
 
         Args:
             info_hash: Info-hash of the recovered torrent.
@@ -508,7 +482,7 @@ class DeleteAuthority:
         try:
             if self._store.seed.find_active_by_hash(info_hash) is not None:
                 return False  # idempotent: the obligation is already there
-            items = list(self._torrent_client.get_by_hashes({info_hash.lower()}))
+            items, _foreign = lookup_scoped(self._torrent_client, {info_hash.lower()}, self._scope)
             item = next((t for t in items if t.hash.lower() == info_hash.lower()), None)
             if item is None:
                 log.debug("acquire.record_grab_obligation.no_live_torrent", info_hash=info_hash)
@@ -539,7 +513,7 @@ class DeleteAuthority:
         log.info("acquire.record_grab_obligation.recorded", info_hash=info_hash, tracker=tracker_name)
         return True
 
-    def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
+    def _resolve_tracker(self, item: TorrentItem) -> tuple[str, TrackerEconomyConfig] | None:
         """Resolve the source tracker for *item* from its tags and the economy map.
 
         The RP1 acquisition flow tags each torrent with its source tracker.
@@ -585,10 +559,129 @@ class DeleteAuthority:
         log.info("acquire.mark_breach.done", path=str(path), count=count)
 
 
+def _decide(seed: _SeedSubStore, path: Path) -> PermitDecision:
+    """Decide whether *path* may go, from the active obligations under it (raises on any lookup error).
+
+    VETO only when a positively-known unmet obligation exists AND its
+    dispatched_path still exists on disk (the path-exists guard makes stale
+    obligations inert). Seed-time only; ratio is deferred to C1. The veto names
+    the first unmet obligation and carries, as ``owed_until``, the latest moment
+    any of them is met (``added_at + min_seed_time_s``).
+
+    Args:
+        seed: The ``seed_obligation`` sub-store to read.
+        path: Absolute path about to be deleted.
+
+    Returns:
+        ALLOW if permitted, veto(reason) if a live unmet obligation exists.
+    """
+    obligations = seed.find_active_under(path)
+    if not obligations:
+        return ALLOW
+
+    now = int(time.time())
+    unmet: list[SeedObligation] = []
+
+    for obligation in obligations:
+        # Path-exists guard: a stale obligation (crash before move,
+        # dispatched_path for a file that was never created) is inert.
+        dp = obligation.dispatched_path
+        if dp is not None and not Path(dp).exists():
+            log.debug(
+                "acquire.delete_authority.stale_obligation_inert",
+                path=str(path),
+                info_hash=obligation.info_hash,
+            )
+            continue
+
+        # Seed-time check (ratio deferred to C1).
+        if now - obligation.added_at >= obligation.min_seed_time_s:
+            continue
+        unmet.append(obligation)
+
+    if not unmet:
+        return ALLOW
+
+    # Positively-known unmet obligation → VETO.
+    first = unmet[0]
+    seed_time_elapsed = now - first.added_at
+    reason = (
+        f"seeding obligation not met: tracker={first.source_tracker} "
+        f"info_hash={first.info_hash[:8]}... "
+        f"elapsed={seed_time_elapsed}s < required={first.min_seed_time_s}s"
+    )
+    log.warning(
+        "acquire.delete_authority.veto",
+        path=str(path),
+        info_hash=first.info_hash,
+        source_tracker=first.source_tracker,
+        seed_time_elapsed=seed_time_elapsed,
+        min_seed_time_s=first.min_seed_time_s,
+    )
+    return veto(reason, owed_until=max(one.added_at + one.min_seed_time_s for one in unmet))
+
+
+#: How long a read of ``acquire.db`` waits for a writer's lock before it is unreadable.
+_READ_TIMEOUT_S: Final[float] = 5.0
+
+
+class StrictDeletePermit:
+    """The library deletion's permit: the seed obligations read, or the deletion refused (operator ruling R1).
+
+    The same decision as :class:`DeleteAuthority` (:func:`_decide`), with the opposite
+    answer to what cannot be read: where the pipeline's deleters ALLOW (DESIGN § 9,
+    fail-open), a deletion started from the interface is refused, since a medium still
+    owed to a tracker cannot be told apart. ``acquire.db`` is opened READ-ONLY for each
+    decision and closed after it: the web process never creates it, never migrates it,
+    never quarantines it, and holds no connection between two decisions.
+    """
+
+    def __init__(self, db_path: Path) -> None:
+        """Hold the path of ``acquire.db``; nothing is opened yet.
+
+        Args:
+            db_path: Path of ``acquire.db`` (resolved by the config layer).
+        """
+        self._db_path = db_path
+
+    def may_delete(self, path: Path) -> PermitDecision:
+        """Consult the persisted seed obligations, refusing to answer when they cannot be read.
+
+        Args:
+            path: Absolute path about to be deleted.
+
+        Returns:
+            ALLOW if permitted, veto(reason, owed_until=…) if a live unmet obligation exists.
+
+        Raises:
+            ObligationsUnreadable: ``acquire.db`` is absent, corrupt, locked past
+                :data:`_READ_TIMEOUT_S`, of a schema the read does not know, or any
+                lookup failed.
+        """
+        if not self._db_path.is_file():
+            log.warning("acquire.delete_authority.store_absent", path=str(path))
+            raise ObligationsUnreadable("acquire.db is absent")
+        try:
+            with closing(
+                sqlite3.connect(f"{self._db_path.as_uri()}?mode=ro", uri=True, timeout=_READ_TIMEOUT_S)
+            ) as conn:
+                conn.execute("PRAGMA query_only = ON")
+                return _decide(_SeedSubStore(conn), path)
+        except Exception as exc:
+            log.warning(
+                "acquire.delete_authority.store_unreadable",
+                path=str(path),
+                error=type(exc).__name__,
+                detail=str(exc),
+            )
+            raise ObligationsUnreadable(f"acquire.db cannot be read: {type(exc).__name__}") from exc
+
+
 def build_delete_authority(
-    store: "ConcreteAcquireStore | None",
-    torrent_client: "_ReadOnlyTorrentClient | None" = None,
-    economy: "dict[str, TrackerEconomyConfig] | None" = None,
+    store: ConcreteAcquireStore | None,
+    torrent_client: _ReadOnlyTorrentClient | None = None,
+    economy: dict[str, TrackerEconomyConfig] | None = None,
+    scope: TorrentScope | None = None,
 ) -> DeleteAuthority:
     """Build a DeleteAuthority over the given store, torrent client, and economy map.
 
@@ -597,11 +690,12 @@ def build_delete_authority(
         torrent_client: A read-only torrent client (TorrentLister +
             TorrentStateInspector) for dispatch-time correlation, or None.
         economy: Tracker-name → TrackerEconomyConfig map, or None.
+        scope: The instance's scope in a shared client, or None for the whole client.
 
     Returns:
         A DeleteAuthority ready for injection into dispatch/maintenance.
     """
-    return DeleteAuthority(store=store, torrent_client=torrent_client, economy=economy)
+    return DeleteAuthority(store=store, torrent_client=torrent_client, economy=economy, scope=scope)
 
 
-__all__ = ["DeleteAuthority", "build_delete_authority"]
+__all__ = ["DeleteAuthority", "StrictDeletePermit", "build_delete_authority"]

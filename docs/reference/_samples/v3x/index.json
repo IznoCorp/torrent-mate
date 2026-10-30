@@ -1,0 +1,20 @@
+{
+  "error-auth.json": {
+    "auth": "query apikey",
+    "content_type": "application/json; charset=utf-8",
+    "request": "GET /indexer/search?q=The Office&cat=5000&limit=100",
+    "status": 401
+  },
+  "search-movie.json": {
+    "auth": "query apikey",
+    "content_type": "application/json; charset=utf-8",
+    "request": "GET /indexer/search?q=Inception&cat=2000&limit=100",
+    "status": 200
+  },
+  "search-tv.json": {
+    "auth": "query apikey",
+    "content_type": "application/json; charset=utf-8",
+    "request": "GET /indexer/search?q=The Office&cat=5000&limit=100",
+    "status": 200
+  }
+}

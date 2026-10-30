@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import pytest
+
+from personalscraper.conf.environment import Environment
 from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
@@ -71,7 +74,7 @@ class TestCleanActors:
         because the cleaner switched away from ``shutil.rmtree`` to handle
         NFC/NFD ghost dirents — see fix(library-clean) commit history.
         """
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         disk = tmp_path / "medias"
         movie1 = disk / "films" / "Movie1 (2024)" / ".actors"
@@ -449,7 +452,7 @@ class TestInternalHelpers:
 
     def test_dir_size_oserror_returns_zero(self, tmp_path: Path, monkeypatch) -> None:
         """``_dir_size`` should swallow OSError from rglob and return what was counted."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -463,7 +466,7 @@ class TestInternalHelpers:
 
     def test_dir_size_skips_unstattable_files(self, tmp_path: Path, monkeypatch) -> None:
         """``_dir_size`` should skip files whose ``stat()`` raises OSError."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -481,7 +484,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_unlinks_symlink(self, tmp_path: Path) -> None:
         """``_scandir_rmtree`` should ``unlink`` a symlink rather than recurse."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         target = tmp_path / "target"
         target.mkdir()
@@ -494,7 +497,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_unlinks_non_directory(self, tmp_path: Path) -> None:
         """``_scandir_rmtree`` should ``unlink`` a path that is not a directory."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         f = tmp_path / "f.txt"
         f.write_bytes(b"hi")
@@ -505,7 +508,7 @@ class TestInternalHelpers:
         """FileNotFoundError on unlink should be recorded as a ghost dirent."""
         import os as _os
 
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -531,7 +534,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_records_ghost_on_is_dir_oserror(self, tmp_path: Path, monkeypatch) -> None:
         """If ``DirEntry.is_dir`` raises OSError the entry is logged as ghost."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -542,7 +545,7 @@ class TestInternalHelpers:
                 self._real = real
                 self.path = real.path
 
-            def is_dir(self, follow_symlinks=False):  # noqa: ARG002
+            def is_dir(self, follow_symlinks=False):
                 raise OSError("ghost is_dir")
 
         original_scandir = _dc.os.scandir
@@ -611,6 +614,7 @@ class TestInternalHelpers:
 
     def test_delete_dir_records_ghost_summary(self, tmp_path: Path, monkeypatch) -> None:
         """When ``_scandir_rmtree`` reports ghosts, ``_delete_dir`` summarises them."""
+        from personalscraper.indexer import deletion as _deletion
         from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "ghosted"
@@ -622,7 +626,7 @@ class TestInternalHelpers:
                 ghosts.extend(["g1.jpg", "g2.jpg", "g3.jpg", "g4.jpg"])
             raise OSError("ENOTEMPTY")
 
-        monkeypatch.setattr(_dc, "_scandir_rmtree", fake_rmtree)
+        monkeypatch.setattr(_deletion, "_scandir_rmtree", fake_rmtree)
 
         result = _dc.CleanResult(dry_run=False)
         _dc._delete_dir(d, result, dry_run=False, label=".actors", db_path=tmp_path / "db.sqlite")
@@ -901,7 +905,7 @@ class TestDeletePermitHardSkip:
 class _RaisingPermit:
     """A DeletePermit whose may_delete always raises (F2 fail-open consult)."""
 
-    def may_delete(self, path: Path):  # noqa: D102, ANN001
+    def may_delete(self, path: Path):
         raise RuntimeError("permit boom")
 
 
@@ -923,7 +927,8 @@ class TestDeletePermitConsultFailOpen:
         (d / "thumb.jpg").write_bytes(b"\x00" * 100)
 
         result = _dc.CleanResult(dry_run=False)
-        monkeypatch.setattr(_dc, "_publish_deleted", lambda *a, **k: None)
+        # ``_delete_dir`` publishes through the primitive, which resolves it in ``deletion``.
+        monkeypatch.setattr("personalscraper.indexer.deletion._publish_deleted", lambda *a, **k: None)
         with caplog.at_level("WARNING"):
             _dc._delete_dir(
                 d, result, dry_run=False, label=".actors", db_path=tmp_path / "db.sqlite", permit=_RaisingPermit()
@@ -971,3 +976,113 @@ class TestDeletePermitConsultFailOpen:
         assert not actors.exists(), "Raising permit MUST NOT abort cleanup"
         assert result.deleted_count == 1
         assert result.skipped_by_obligation == 0
+
+
+class TestPreprodGuard:
+    """In a sandbox (staging or dev) the cleaner deletes only inside its own marked, mounted roots."""
+
+    @pytest.mark.parametrize("env", [Environment.STAGING, Environment.DEV], ids=str)
+    def test_deletion_outside_the_roots_is_refused_and_counted(
+        self, tmp_path: Path, monkeypatch, env: Environment
+    ) -> None:
+        """A marked root is cleaned; a folder reached through a symlink out of it is refused.
+
+        The refusal is an error entry, never an exception, and the refused folder is
+        neither deleted nor journaled.
+        """
+        from personalscraper.conf import sandbox_guard
+        from personalscraper.conf.sandbox_guard import root_marker
+        from personalscraper.indexer.destructive_journal import list_recent
+        from personalscraper.maintenance import disk_cleaner
+
+        disk = tmp_path / "medias"
+        inside_actors = disk / "films" / "Inside (2024)" / ".actors"
+        inside_actors.mkdir(parents=True)
+        (inside_actors / "Actor.jpg").write_bytes(b"\x00" * 100)
+        (disk / root_marker(env)).write_text("", encoding="utf-8")
+        outside = tmp_path / "prod-media" / "Outside (2024)"
+        outside_actors = outside / ".actors"
+        outside_actors.mkdir(parents=True)
+        (outside_actors / "Actor.jpg").write_bytes(b"\x00" * 100)
+        (disk / "films" / "Outside (2024)").symlink_to(outside, target_is_directory=True)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+        monkeypatch.setattr(disk_cleaner, "is_mounted", lambda path: True)
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", env.value)
+
+        result = clean_library(config, apply=True, only="actors")
+
+        assert not inside_actors.exists()
+        assert outside_actors.exists()
+        assert (outside_actors / "Actor.jpg").exists()
+        assert result.deleted_count == 1
+        assert result.error_count == 1
+        assert len(result.errors) == 1
+        assert "Refused to delete" in result.errors[0]
+        assert str(outside_actors) in result.errors[0] or "Outside (2024)" in result.errors[0]
+        assert config.indexer.db_path is not None
+        journaled = [str(row["path"]) for row in list_recent(config.indexer.db_path)]
+        assert not any("Outside (2024)" in path or "prod-media" in path for path in journaled)
+
+    def test_prod_unchanged_cleans_an_unmarked_root(self, tmp_path: Path, monkeypatch) -> None:
+        """``PERSONALSCRAPER_ENV`` unset: an unmarked, unmounted-for-the-guard root is cleaned with no refusal."""
+        from personalscraper.conf import sandbox_guard
+
+        disk = tmp_path / "medias"
+        actors = disk / "films" / "Movie (2024)" / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "Actor.jpg").write_bytes(b"\x00" * 100)
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
+
+        result = clean_library(config, apply=True, only="actors")
+
+        assert not actors.exists()
+        assert result.deleted_count == 1
+        assert result.error_count == 0
+
+    @pytest.mark.parametrize("env", [Environment.STAGING, Environment.DEV], ids=str)
+    def test_junk_file_outside_the_roots_is_refused_and_counted(
+        self, tmp_path: Path, monkeypatch, env: Environment
+    ) -> None:
+        """A junk file inside a root is unlinked; one reached through a symlink out of it is refused.
+
+        The refusal is an error entry, never an exception, and the refused file is
+        neither unlinked, journaled nor published.
+        """
+        from personalscraper.conf import sandbox_guard
+        from personalscraper.conf.sandbox_guard import root_marker
+        from personalscraper.indexer.destructive_journal import list_recent
+        from personalscraper.maintenance import disk_cleaner
+
+        disk = tmp_path / "medias"
+        inside = disk / "films" / "Inside (2024)"
+        inside.mkdir(parents=True)
+        (inside / ".DS_Store").write_bytes(b"\x00")
+        (disk / root_marker(env)).write_text("", encoding="utf-8")
+        outside = tmp_path / "prod-media" / "Outside (2024)"
+        outside.mkdir(parents=True)
+        (outside / ".DS_Store").write_bytes(b"\x00")
+        (disk / "films" / "Outside (2024)").symlink_to(outside, target_is_directory=True)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        published: list[Path] = []
+        monkeypatch.setattr(disk_cleaner, "_publish_deleted", lambda path, label, db_path: published.append(path))
+        monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
+        monkeypatch.setattr(disk_cleaner, "is_mounted", lambda path: True)
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", env.value)
+
+        result = clean_library(config, apply=True, only="junk")
+
+        assert not (inside / ".DS_Store").exists()
+        assert (outside / ".DS_Store").exists()
+        assert result.deleted_count == 1
+        assert result.error_count == 1
+        assert len(result.errors) == 1
+        assert "Refused to delete" in result.errors[0]
+        assert [path.parent.name for path in published] == ["Inside (2024)"]
+        assert config.indexer.db_path is not None
+        journaled = [str(row["path"]) for row in list_recent(config.indexer.db_path)]
+        assert not any("Outside (2024)" in path or "prod-media" in path for path in journaled)

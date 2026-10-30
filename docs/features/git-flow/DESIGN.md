@@ -169,7 +169,8 @@ with one line saying why, unless ALL hold:
    not yet merged back).
 3. `main` only: every commit of `git rev-list --first-parent origin/main..<sha>` is the commit a merged PR into
    `develop` produced (`gh api repos/:owner/:repo/commits/<c>/pulls`), whose required checks concluded `success` at
-   its head — the strict up-to-date policy on `develop` makes that head's tested tree the merged tree. A backport's
+   its head (a PR listed with its reason in `scripts/promote-exemptions.txt` skips that test and is printed at each
+   promotion; an entry is added by a PR) — the strict up-to-date policy on `develop` makes that head's tested tree the merged tree. A backport's
    merge commit brings, through its second parent, commits already on `prod`; they were checked on their own PR into
    `prod` and are not re-read. A commit with no PR (a bypass push) is refused by name.
 4. `prod` only: `personalscraper/__init__.py`'s `__version__` at `<sha>` has no tag yet.

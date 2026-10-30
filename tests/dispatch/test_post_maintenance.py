@@ -533,7 +533,7 @@ def test_maybe_run_forwards_touched_destinations(mock_config: MagicMock) -> None
     assert mock_run.call_args.kwargs["destinations"] == {"disk_1": {Path("/Volumes/Disk1/medias/A")}}
 
 
-def test_both_paths_route_through_single_owner_identically(test_config) -> None:  # noqa: ANN001
+def test_both_paths_route_through_single_owner_identically(test_config) -> None:
     """Both entry points funnel through the single owner with an identical call shape.
 
     DispatchStep and the CLI ``dispatch`` command each invoke
@@ -603,7 +603,7 @@ def test_both_paths_route_through_single_owner_identically(test_config) -> None:
         captured_cli.update(config=config, results=results, dry_run=dry_run, no_post_maintenance=no_post_maintenance)
 
     @contextmanager
-    def _boundary(*_a: object, **_k: object):  # noqa: ANN202
+    def _boundary(*_a: object, **_k: object):
         yield SimpleNamespace(event_bus=EventBus(), acquire=None)
 
     with (

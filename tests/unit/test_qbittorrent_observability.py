@@ -65,13 +65,14 @@ class TestQBitLogoutFailedLevel:
 class TestQBitLockoutWriteFailedLevel:
     """qbit_lockout_write_failed must be ERROR with an actionable hint."""
 
-    @patch("personalscraper.api.torrent.qbittorrent._LOCKOUT_FILE")
+    @patch("personalscraper.api.torrent.qbittorrent.lockout_path")
     def test_lockout_write_failure_logs_error_with_hint(
         self,
-        mock_lockout: MagicMock,
+        mock_path: MagicMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """OSError writing the lockout file → ERROR with the operator hint."""
+        mock_lockout = mock_path.return_value
         mock_lockout.parent.mkdir.return_value = None
         mock_lockout.write_text.side_effect = OSError("permission denied")
         # Used in the formatted hint string.

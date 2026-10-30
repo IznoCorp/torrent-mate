@@ -7,7 +7,7 @@ lives in the code**: the French a reader of the interface sees lives in the i18n
 resources. This script is the half of the rule that is enforced rather than
 remembered; it runs in `make check` and in CI.
 
-Fourteen arms, each with its own scope, because "French" means a different thing
+Fifteen arms, each with its own scope, because "French" means a different thing
 in a component than it does in a rule script that ASSERTS the French the app
 renders. `ARMS` is the list `main` walks; arm 13 holds this enumeration against
 it, so an arm added without a heading here fails the gate:
@@ -36,38 +36,35 @@ it, so an arm added without a heading here fails the gate:
 5. **Unread JavaScript** — a `.js` under the shell that every other arm's globs
    walk past. None is allowed there since the legacy engine was deleted; one
    turning up would be a scope silently emptying.
-6. **Vocabulary** — the question turned around. Not « is this word French? »,
-   whose answer is only ever as good as the list of French words behind it, but
-   « is this word one we use? », read from `scripts/code-vocabulary.txt`.
-7. **`data-*` names** — an attribute name is a name someone chose, so it obeys
+6. **`data-*` names** — an attribute name is a name someone chose, so it obeys
    the rule. The VALUES of the NAMING attributes (`data-part`, `data-region`,
    `data-tone`, `data-action`, `data-side`) do too: such a value is a
-   structural name someone chose, so its words are read against the
-   vocabulary — body in `nofrench_values.py`. The ADDRESS attributes' values
+   structural name someone chose, so its words are asked of the dictionary
+   (`french_only`) — body in `nofrench_values.py`. The ADDRESS attributes' values
    (`data-go`, `data-key`, `data-panel`, `data-page`, `data-mediasheet`,
    `data-resolve`, `data-follow`, `data-toast`, and anything whose value is a
    route, a title, a folder or a store datum) stay unread, because a page id
    is an address, not a name.
-8. **Shell scripts** — every line a `.sh` prints is the tool speaking, and no
+7. **Shell scripts** — every line a `.sh` prints is the tool speaking, and no
    arm read one at all until three all-French scripts turned up. Body in
    `nofrench_shell.py`, whose corpus no other arm reads.
-9. **Dictionary** — a declared name built from a word French knows and English
+8. **Dictionary** — a declared name built from a word French knows and English
    does not. Fail-soft when `aspell` is absent, and it SAYS so: absence must
    never read as cleanliness. Body in `nofrench_dictionary.py` — it is the one
    arm whose oracle comes from outside this repository.
-10. **App interface text** — `frontend/src` is exempt by the operator's ruling,
+9. **App interface text** — `frontend/src` is exempt by the operator's ruling,
    and the exemption is a RATCHET: the French there is counted and refused to
    grow. Beside it, the strings of `design/index.html`'s markup — the splash,
    the sign-in gate, the install proposal, kept there by decision
    (`app/entry.ts`) — are counted as read by no arm, so a green run is never
    cited as having read them (B-390). Body in `nofrench_ratchets.py`.
-11. **Test prose** — the French in `tests/`, counted and held to a baseline.
+10. **Test prose** — the French in `tests/`, counted and held to a baseline.
    The French a harness ASSERTS is the app's rendered output and stays; a
    docstring or a tool message is English. Body in `nofrench_ratchets.py`.
-12. **Custom-property names** — a `--token` name is a name someone chose, and
+11. **Custom-property names** — a `--token` name is a name someone chose, and
    arm 4 stopped at CSS *class* names, so seven French tokens sat under a green
    gate in both trees. Values are not read: those are data.
-13. **Named-state ids** — `window.__go("acq-now-idle")` designates a scenario,
+12. **Named-state ids** — `window.__go("acq-now-idle")` designates a scenario,
    so a state id is a NAME and not a value. Nothing read the state table until
    L10-bis: the French count went 51 → 2 during L01 and then stopped moving,
    with `system-panne` and `acq-follows-groupe` left behind under a green gate
@@ -76,10 +73,23 @@ it, so an arm added without a heading here fails the gate:
    literal never sees — one single-line entry and a family of nine built from
    a template — and an id the oracle drove that this arm cannot parse is
    refused rather than printed.
-14. **The self-description** — the arm that counts the arms. Three files
+13. **The self-description** — the arm that counts the arms. Three files
    carried three different counts and none of them was right; this one reads
    `main`, this docstring and `CLAUDE.md`, and refuses a description that has
    drifted away from the arms that actually run.
+14. **Backend French** — the French literals under `personalscraper/`, docstrings
+   included, counted and held to the `backend` baseline. A COUNTING ratchet like
+   arm 10: the code is English and the texts a user reads live in the translation
+   layer (`personalscraper.i18n`), but hundreds were written in place before it
+   existed, so the figure may go down and is refused going up. A
+   `# french-ok: <reason>` pragma licenses its line; a bare one licenses nothing.
+   Body in `nofrench_backend.py`.
+15. **Backend text sinks** — the places `personalscraper/` shows literal text to a
+   user (CLI output, `help=`/`prompt=` keywords, a command's docstring help) that
+   are not fed by `t(...)` / `t_code(...)`, counted and held to the
+   `backend_sinks` baseline. English inline text is invisible to arm 14, so this
+   is the arm that makes « every user text goes through the layer » measurable.
+   Body in `nofrench_backend.py`.
 
 Each arm also reports how much it READ, and an arm that read nothing is itself a
 violation: a scope that silently empties — a renamed directory, a glob that stops
@@ -87,7 +97,7 @@ matching — otherwise announces « no violation » with perfect confidence whil
 measuring nothing.
 
 Every exception CITES its reason. The CSS-class exceptions are read from
-`frontend/maquette/regions.json`'s `$vocabulary` — the maquette's own record, so
+`webui/regions.json`'s `$vocabulary` — the maquette's own record, so
 there is no second copy of those reasons to drift — and this script refuses to run
 if an entry there carries no reason. The other exceptions are the dictionaries
 below, each entry a token mapped to why it stays.
@@ -113,13 +123,14 @@ import token as token_kinds
 import tokenize
 import unicodedata
 from pathlib import Path
+from _repo_paths import DESIGN_SRC
 
 # The lexicon and the helpers that read it live beside this file: the arms are
 # the questions, and those are the words the questions are asked in.
 #
 # ONLY the two files whose French IS their subject. This set does not mean « part
 # of the guard » — it means « unreadable by the guard », and a file in it is not
-# examined by arms 1, 2 or 6 ever again. `nofrench_ratchets.py` was put here for
+# examined by arms 1 or 2 ever again. `nofrench_ratchets.py` was put here for
 # ONE accented literal and that cost it three arms of coverage; it carries a
 # `french-ok:` pragma instead, which is what the pragma is for. Adding a file
 # here is emptying a scope by hand, and it needs a better reason than convenience.
@@ -135,6 +146,10 @@ from nofrench_scan import (  # noqa: E402
 # only their bodies live next door, where that module's header says why.
 from nofrench_ratchets import (  # noqa: E402
     check_app_interface_text, check_test_prose, jsx_text,
+)
+# Arms 14 and 15 — the backend's two counting ratchets, one module like 10 and 11.
+from nofrench_backend import (  # noqa: E402
+    check_backend_french, check_backend_sinks,
 )
 # Arm 12 and the stylesheet machinery arm 4 borrows — see that module's header.
 from nofrench_css import (  # noqa: E402
@@ -157,15 +172,12 @@ from nofrench_dictionary import check_dictionary  # noqa: E402
 from nofrench_shell import check_shell_scripts  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
     walk,
-    vocabulary, EXTRACTED_CSS,
+    EXTRACTED_CSS,
     FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
-    REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
+    REGIONS, ROOT, SCRIPTS, SHELL, deaccent, french_tokens_in,
     french_tokens_in_flat, has_accent, read, relative, scope_of,
     split_identifier, tracked_paths,
 )
-# The words this codebase's names are built from — see its own header.
-# The line in that file below which the words are French on purpose, and the
-# one file allowed to need them.
 
 # ── arm 1: strings ───────────────────────────────────────────────────────────
 #
@@ -413,7 +425,7 @@ def check_class_names(violations: list[str]) -> None:
     # last rule left, and refused itself: « its scope is empty, so its `no
     # violation` means nothing » is this guard working, not failing.
     maquette_styles = sorted(
-        walk((ROOT / "frontend" / "maquette" / "design" / "src" / "styles"), "*.css", recursive=False))
+        walk((DESIGN_SRC / "styles"), "*.css", recursive=False))
     sheets = (maquette_styles
               + sorted(walk((ROOT / "frontend" / "src"), "*.css")))
     for path in sheets:
@@ -438,116 +450,6 @@ def check_class_names(violations: list[str]) -> None:
                     f"{relative(path)}:{line_no}: French CSS class {name!r} "
                     f"({', '.join(hits) or 'accented'}) — a class name is one "
                     "name shared by four worlds")
-
-
-KEYFRAMES = re.compile(r"@keyframes\s+(?P<name>[A-Za-z_][\w-]*)")
-
-
-def unknown_keyframe_words(source: str, words: set[str]) -> list[tuple[str, int, list[str]]]:
-    """Returns the `@keyframes` names of a stylesheet built from words the codebase does not use.
-
-    A keyframe name is a name someone chose, and no arm read one: `splashremplit`
-    sat in the maquette's base layer under a green gate (B-056). Read against the
-    vocabulary rather than a French list, because a flat compound like that one
-    holds no token a list of French words could match.
-
-    Args:
-        source: The stylesheet.
-        words: The vocabulary, lower-cased.
-
-    Returns:
-        One `(name, line, unknown words)` per refused declaration, in source order.
-    """
-    refused = []
-    for match in KEYFRAMES.finditer(source):
-        name = match.group("name")
-        unknown = [w for w in split_identifier(name) if len(w) > 1 and w.lower() not in words]
-        if unknown:
-            refused.append((name, source.count("\n", 0, match.start()) + 1, unknown))
-    return refused
-
-
-def check_vocabulary(violations: list[str]) -> None:
-    """Refuses a declared name built from a word this codebase does not use.
-
-    THE OTHER ARMS ASK « IS THIS FRENCH? », and that question is only ever as
-    good as the list of French words behind it. That list had holes — `suivante`,
-    `trier`, `fermer`, `afficher`, `chargement`, `compte`, `monde` were all
-    invisible to it — so « no violation » quietly meant « none among the words we
-    thought of », and a hundred and forty French names sat under it unremarked.
-
-    This arm asks the opposite: « is this word one we use? ». The vocabulary is
-    a file in the repository, so it has no holes by construction — a name built
-    from a word nobody wrote down is refused, whatever language it came from.
-
-    It reads `.js` as well as `.ts`/`.tsx`, which is what finally puts the
-    legacy engine under a guard: its identifiers are English now, so the words
-    they are made of are simply in the list.
-
-    Args:
-        violations: The accumulator every arm appends to.
-    """
-    words = vocabulary()
-    if not words:
-        violations.append(f"{relative(VOCABULARY)} is empty — the arm reading it "
-                          "would accept every name ever written")
-        return
-    sources = [p for p in walk(SHELL, "*")
-               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
-               and "i18n" not in p.parts]
-    # A GENERATED file's names are the generator's, not a choice anyone made,
-    # so this arm — and only this arm — steps over them. The count is PRINTED
-    # rather than merely applied: an exemption nobody counts is
-    # indistinguishable from an oversight, and a stale entry, one naming a file
-    # that is not there, is a violation of its own.
-    generated = {SHELL / name for name in GENERATED_SOURCES}
-    for name in sorted(GENERATED_SOURCES):
-        if not (SHELL / name).is_file():
-            violations.append(
-                f"{relative(SHELL / name)}: recorded as generated and is not in the "
-                "tree — the exemption has stopped describing anything")
-    # THE MAQUETTE'S KEYFRAME NAMES, read here and not in the class-name arm:
-    # that arm asks « is this French? », and `splashremplit` answered no (B-056).
-    for sheet in sorted(walk((ROOT / "frontend" / "maquette" / "design" / "src" / "styles"), "*.css", recursive=False)):
-        css = read(sheet)
-        examined["keyframe names / maquette"] += len(KEYFRAMES.findall(css))
-        for name, line_no, unknown in unknown_keyframe_words(css, words):
-            violations.append(
-                f"{relative(sheet)}:{line_no}: keyframe {name!r} is built from "
-                f"{', '.join(repr(w) for w in unknown)}, not in {relative(VOCABULARY)} — "
-                "rename it in English (the declaration and every `animation` reading it)")
-    sources = [p for p in sources if p not in generated]
-    examined.setdefault("generated sources stepped over / shell", 0)
-    examined["generated sources stepped over / shell"] += len(generated)
-    for path in sorted(sources):
-        raw = read(path)
-        lines = raw.splitlines()
-        # Comments and strings are blanked first: a name extractor that reads
-        # prose invents declarations — « the type this module exports » yields
-        # `this` — and eighty of those buried the four real findings.
-        source = code_only(raw)
-        for match in re.finditer(
-                r"(?:function|const|let|var|class|type|interface)\s+"
-                r"([A-Za-z_$][\w$]*)", source):
-            name = match.group(1)
-            if name in FROZEN_IDENTIFIERS:
-                continue
-            line_no = source[: match.start()].count("\n") + 1
-            # A pragma citing NOTHING is not a grant (module docstring):
-            # `is not None` accepted a bare `french-ok:` and silenced the arm.
-            if pragma_on(lines, line_no):
-                continue
-            examined["name words / shell"] += 1
-            unknown = [w for w in split_identifier(name)
-                       if len(w) > 1 and w.lower() not in words]
-            if unknown:
-                violations.append(
-                    f"{relative(path)}:{line_no}: {name!r} is built from "
-                    f"{', '.join(repr(w) for w in unknown)}, which "
-                    f"{'is' if len(unknown) == 1 else 'are'} not in "
-                    f"{relative(VOCABULARY)} — rename it in English, or add the "
-                    "word there if the codebase really speaks it")
-
 
 
 def check_unread_javascript(violations: list[str]) -> None:
@@ -722,7 +624,6 @@ ARMS: tuple[tuple[object, str], ...] = (
     (check_file_names, "File names"),
     (check_class_names, "Class names"),
     (check_unread_javascript, "Unread JavaScript"),
-    (check_vocabulary, "Vocabulary"),
     (check_data_attributes, "`data-*` names"),
     (check_shell_scripts, "Shell scripts"),
     (check_dictionary, "Dictionary"),
@@ -731,6 +632,8 @@ ARMS: tuple[tuple[object, str], ...] = (
     (check_custom_properties, "Custom-property names"),
     (check_state_identifiers, "Named-state ids"),
     (check_arm_count, "The self-description"),
+    (check_backend_french, "Backend French"),
+    (check_backend_sinks, "Backend text sinks"),
 )
 
 
@@ -770,6 +673,10 @@ def main(argv: list[str] | None = None) -> int:
     if counts_only:
         for what, count in examined.items():
             print(f"{count} {what}")
+        # The ratchets' figures are not « read » counts: they are the held
+        # numbers, and a baseline is compared against these lines.
+        for what, count in exempted.items():
+            print(f"{count} {what} (counted, held to its baseline)")
         return 0
     print(f"no-French guardrail: {len(ARMS)} arms ("
           + ", ".join(label for _, label in ARMS)

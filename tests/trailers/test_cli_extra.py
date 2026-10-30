@@ -12,7 +12,7 @@ Targets the missing line ranges identified during coverage analysis:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -50,7 +50,7 @@ def _fake_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.library_check.tv_shows = True
     cfg.trailers.filters.allowed_extensions = {"mp4", "mkv", "webm"}
     # No torrent client configured (DESIGN D9): keep ``torrent.active`` falsey
-    # so the boot fail-fast in _build_app_context does not trip.
+    # so the boot fail-fast in build_app_context does not trip.
     cfg.torrent.active = ""
     return cfg
 
@@ -267,7 +267,7 @@ class TestPurgeOrphanDetection:
 
         # Entry with non-existent media_path
         entry_orphan = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(tmp_path / "missing-media-dir"),
@@ -277,7 +277,7 @@ class TestPurgeOrphanDetection:
         live_dir = tmp_path / "live-media"
         live_dir.mkdir()
         entry_alive = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(live_dir),
@@ -333,14 +333,14 @@ class TestPurgeDiskFilter:
         cfg.disks = [d1, d2]
 
         e1 = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(tmp_path / "missing1"),
             trailer_path=str(orphan_d1),
         )
         e2 = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(tmp_path / "missing2"),
@@ -374,7 +374,7 @@ class TestPurgeRealDeletion:
         orphan.write_bytes(b"x" * 200000)
 
         entry = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(tmp_path / "missing"),
@@ -404,7 +404,7 @@ class TestPurgeRealDeletion:
         orphan.write_bytes(b"x" * 200000)
 
         entry = TrailerState(
-            last_attempt=datetime.now(timezone.utc).isoformat(),
+            last_attempt=datetime.now(UTC).isoformat(),
             attempts=1,
             status=TrailerStatus.DOWNLOADED,
             media_path=str(tmp_path / "missing"),

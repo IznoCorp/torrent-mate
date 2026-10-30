@@ -24,14 +24,26 @@ import threading
 import time
 import uuid
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from personalscraper.app.maintenance.registry import (
+    REGISTRY,
+    MaintenanceAction,
+    canonical_options_json,
+)
+from personalscraper.app.maintenance.service import (
+    _reserve_run_row,
+    _spawn_runner,
+    _validate_options,
+)
+from personalscraper.app.schedulers.registry import CRON_JOBS, CronJob
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.dispatch.crash_recovery import (
     DISPATCH_TMP_PREFIX,
@@ -64,17 +76,6 @@ from personalscraper.web.maintenance.models import (
     TmpOrphan,
     TmpOrphanSweep,
 )
-from personalscraper.web.maintenance.registry import (
-    REGISTRY,
-    MaintenanceAction,
-    canonical_options_json,
-)
-from personalscraper.web.maintenance.service import (
-    _reserve_run_row,
-    _spawn_runner,
-    _validate_options,
-)
-from personalscraper.web.schedulers.registry import CRON_JOBS, CronJob
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 logger = get_logger(__name__)
@@ -298,7 +299,7 @@ def _sweep_tmp_orphans(config: Config) -> list[TmpOrphan]:
     for entry in config.staging_dirs:
         roots.append(_compute_staging_path(config, entry))
     for disk_cfg in config.disks:
-        if disk_cfg.path.exists():
+        if is_mounted(disk_cfg.path):
             roots.append(disk_cfg.path)
 
     for root in roots:
@@ -604,7 +605,7 @@ def get_index_health(
                 last_scan_mode = scan_row["mode"]
                 last_scan_status = scan_row["status"]
                 if scan_row["started_at"] is not None:
-                    last_scan_started_at = datetime.fromtimestamp(scan_row["started_at"], tz=timezone.utc).isoformat()
+                    last_scan_started_at = datetime.fromtimestamp(scan_row["started_at"], tz=UTC).isoformat()
                     # Stuck detection: running + started > 1 h ago (mirrors
                     # doctor.py _check_no_stuck_scan_run threshold).
                     if (
@@ -613,7 +614,7 @@ def get_index_health(
                     ):
                         last_scan_stuck = True
                 if scan_row["finished_at"] is not None:
-                    last_scan_finished_at = datetime.fromtimestamp(scan_row["finished_at"], tz=timezone.utc).isoformat()
+                    last_scan_finished_at = datetime.fromtimestamp(scan_row["finished_at"], tz=UTC).isoformat()
 
             # ── Soft-deleted files ────────────────────────────────────────
             soft_deleted = conn.execute("SELECT COUNT(*) FROM media_file WHERE deleted_at IS NOT NULL").fetchone()[0]

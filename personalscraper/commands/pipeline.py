@@ -8,21 +8,25 @@ from typing import TYPE_CHECKING
 import typer
 
 from personalscraper import cli_helpers
+from personalscraper.app.supervisor.execution import RunOptions, execute_run
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     CommandContext,
-    _build_app_context,
     boundary,
     handle_cli_errors,
 )
 from personalscraper.cli_state import state
+from personalscraper.commands import run_follow
 from personalscraper.conf.staging import find_ingest_dir, staging_path
+from personalscraper.i18n import t, t_code
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.run_journal import LogTailHandler
+from personalscraper.pipeline_step_codes import StepCode
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
+    from personalscraper.models import StepReport
+    from personalscraper.verify.checks.base import CheckSpec
 
 
 def _journal_lock_conflict(config: Config, *, dry_run: bool) -> None:
@@ -54,10 +58,78 @@ def _journal_lock_conflict(config: Config, *, dry_run: bool) -> None:
         writer.finalize(
             run_uid,
             "error",
+            # Stored in a DB row: a literal, whatever the process language.
             error="Could not acquire pipeline.lock — another run is already active.",
         )
     except Exception:
         log.warning("pipeline_lock_conflict_row_write_failed", run_uid=run_uid, exc_info=True)
+
+
+def _counts(report: StepReport) -> str:
+    """Return the ``N OK, N skipped, N errors`` tally of a step report.
+
+    Args:
+        report: The step report to tally.
+
+    Returns:
+        The tally in the current language.
+    """
+    return t(
+        "cli_core.pipeline.counts",
+        ok=report.success_count,
+        skipped=report.skip_count,
+        errors=report.error_count,
+    )
+
+
+def _step_label(step: StepCode) -> str:
+    """Return a step's summary-line label: its ``cli_core.step`` word, capitalised, then the colon.
+
+    One word per step for the whole CLI (the progress table and the summary lines read the same
+    ``cli_core.step.*`` keys); only the colon's typography is the catalogue's, per language.
+
+    Args:
+        step: The pipeline step.
+
+    Returns:
+        E.g. ``"Ingest:"`` in English.
+    """
+    return t("cli_core.pipeline.step_label", step=t_code("cli_core.step", step).capitalize())
+
+
+def _summary_line(label: str, body: str) -> str:
+    """Return a step summary line: the bold label, then its body.
+
+    Args:
+        label: The step's label, colon included.
+        body: What the step did.
+
+    Returns:
+        The Rich-markup line to print.
+    """
+    return "[bold]" + label + "[/bold] " + body
+
+
+def _check_row(spec: CheckSpec) -> str:
+    """Return one ``--list-checks`` row.
+
+    Args:
+        spec: The check to describe.
+
+    Returns:
+        The row, columns padded as the listing has always been.
+    """
+    fix = t("cli_core.pipeline.check_fixable") if spec.fixable else "-"
+    idx = t("cli_core.pipeline.check_indexable") if spec.indexable else "-"
+    return t(
+        "cli_core.pipeline.check_row",
+        name=f"{spec.name:<34}",
+        group=spec.group,
+        severity=f"{spec.default_severity.value:<7}",
+        fixable=f"{fix:<8}",
+        indexable=f"{idx:<9}",
+        description=spec.description,
+    )
 
 
 def _run_help() -> str:
@@ -74,15 +146,15 @@ def _run_help() -> str:
     from personalscraper.pipeline_steps import DEFAULT_STEPS  # noqa: PLC0415
 
     steps = " → ".join(DEFAULT_STEPS.keys())
-    return f"Run full pipeline ({steps})."
+    return t("cli_core.pipeline.run_help", steps=steps)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.ingest.help"))
 @handle_cli_errors
 @boundary(stream_events=True, build_torrent_client=True)
 def ingest(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_moving")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -112,17 +184,15 @@ def ingest(
         seed_checker=_seed_checker,
         provenance=_provenance,
     )
-    console.print(
-        f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(_step_label(StepCode.INGEST), _counts(report)))
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.sort.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def sort(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_moving")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -140,23 +210,21 @@ def sort(
         config=config,
         event_bus=app_context.event_bus,
     )
-    console.print(
-        f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(_step_label(StepCode.SORT), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.scrape.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def scrape(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
-    movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
-    tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_writing")),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help=t("cli_core.pipeline.opt.interactive")),
+    movies_only: bool = typer.Option(False, "--movies-only", help=t("cli_core.pipeline.opt.movies_only")),
+    tvshows_only: bool = typer.Option(False, "--tvshows-only", help=t("cli_core.pipeline.opt.tvshows_only")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -178,23 +246,21 @@ def scrape(
         event_bus=app_context.event_bus,
         registry=app_context.provider_registry,
     )
-    console.print(
-        f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(_step_label(StepCode.SCRAPE), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.verify.help", marker="**"))
 @handle_cli_errors
 def verify(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
-    movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
-    tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
-    check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
-    list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying_files")),
+    movies_only: bool = typer.Option(False, "--movies-only", help=t("cli_core.pipeline.opt.movies_only")),
+    tvshows_only: bool = typer.Option(False, "--tvshows-only", help=t("cli_core.pipeline.opt.tvshows_only")),
+    check: list[str] = typer.Option(None, "--check", help=t("cli_core.pipeline.opt.check")),
+    list_checks: bool = typer.Option(False, "--list-checks", help=t("cli_core.pipeline.opt.list_checks")),
 ) -> None:
     """Verify and qualify scraped media before dispatch.
 
@@ -211,13 +277,7 @@ def verify(
         from personalscraper.verify.checks.catalog import list_checks as _list
 
         for spec in (s for s in _list() if s.stage == CheckStage.DISPATCH):
-            fix = "fixable" if spec.fixable else "-"
-            idx = "indexable" if spec.indexable else "-"
-            console.print(
-                f"  {spec.name:<34} [{spec.group}] "
-                f"{spec.default_severity.value:<7} {fix:<8} {idx:<9} "
-                f"{spec.description}"
-            )
+            console.print(_check_row(spec))
         raise typer.Exit(0)
     only = frozenset(check) if check else None
     if only is not None:
@@ -228,7 +288,11 @@ def verify(
         _unknown = only - _available
         if _unknown:
             raise typer.BadParameter(
-                f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
+                t(
+                    "cli_core.pipeline.unknown_dispatch_check",
+                    unknown=str(sorted(_unknown)),
+                    available=str(sorted(_available)),
+                )
             )
     _verify_run(ctx, dry_run=dry_run, movies_only=movies_only, tvshows_only=tvshows_only, only=only)
 
@@ -275,20 +339,25 @@ def _verify_run(
         )
     except KeyError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
-    console.print(f"  {len(dispatchable)} ready for dispatch")
+    console.print(
+        _summary_line(
+            _step_label(StepCode.VERIFY),
+            t("cli_core.pipeline.verify_counts", ok=report.success_count, blocked=report.skip_count),
+        )
+    )
+    console.print(t("cli_core.pipeline.verify_ready", ready=len(dispatchable)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.enforce.help", marker="**"))
 @handle_cli_errors
 def enforce(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
-    check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
-    list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying")),
+    check: list[str] = typer.Option(None, "--check", help=t("cli_core.pipeline.opt.check")),
+    list_checks: bool = typer.Option(False, "--list-checks", help=t("cli_core.pipeline.opt.list_checks")),
 ) -> None:
     """Enforce staging conventions: sanitize filenames, validate structure, check coherence.
 
@@ -303,13 +372,7 @@ def enforce(
         from personalscraper.verify.checks.catalog import list_checks as _list
 
         for spec in (s for s in _list() if s.stage == CheckStage.STAGING):
-            fix = "fixable" if spec.fixable else "-"
-            idx = "indexable" if spec.indexable else "-"
-            console.print(
-                f"  {spec.name:<34} [{spec.group}] "
-                f"{spec.default_severity.value:<7} {fix:<8} {idx:<9} "
-                f"{spec.description}"
-            )
+            console.print(_check_row(spec))
         raise typer.Exit(0)
     only = frozenset(check) if check else None
     if only is not None:
@@ -320,7 +383,11 @@ def enforce(
         _unknown = only - _available
         if _unknown:
             raise typer.BadParameter(
-                f"Unknown check(s): {sorted(_unknown)}. Available staging checks: {sorted(_available)}"
+                t(
+                    "cli_core.pipeline.unknown_staging_check",
+                    unknown=str(sorted(_unknown)),
+                    available=str(sorted(_available)),
+                )
             )
     _enforce_run(ctx, dry_run=dry_run, only=only)
 
@@ -355,22 +422,29 @@ def _enforce_run(
         report = run_enforce(bundle.settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
     except KeyError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
+    console.print(
+        t(
+            "cli_core.pipeline.enforce_counts",
+            fixed=report.success_count,
+            ok=report.skip_count,
+            errors=report.error_count,
+        )
+    )
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.dispatch.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def dispatch(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_moving")),
     no_post_maintenance: bool = typer.Option(
         False,
         "--no-post-maintenance",
-        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+        help=t("cli_core.pipeline.opt.no_post_maintenance"),
     ),
     *,
     bundle: CommandContext,
@@ -446,20 +520,18 @@ def dispatch(
         if plex_subscriber is not None:
             plex_subscriber.close()
 
-    console.print(
-        f"[bold]Dispatch:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(_step_label(StepCode.DISPATCH), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.clean.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def clean(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -485,24 +557,24 @@ def clean(
             event_bus=app_context.event_bus,
         )
     except Exception as exc:
-        console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
+        console.print(
+            "[red]" + t("cli_core.pipeline.clean_failed", error_class=type(exc).__name__, error=str(exc)) + "[/red]"
+        )
         get_logger("pipeline").exception("clean_command_failed", error=str(exc))
         raise typer.Exit(1) from exc
 
-    console.print(
-        f"[bold]Clean:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-    )
+    console.print(_summary_line(_step_label(StepCode.CLEAN), _counts(report)))
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.cleanup.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def cleanup(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without deleting"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_deleting")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -530,23 +602,29 @@ def cleanup(
             event_bus=app_context.event_bus,
         )
     except Exception as exc:
-        console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
+        console.print(
+            "[red]" + t("cli_core.pipeline.cleanup_failed", error_class=type(exc).__name__, error=str(exc)) + "[/red]"
+        )
         get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
         raise typer.Exit(1) from exc
 
-    console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
+    console.print(
+        _summary_line(
+            _step_label(StepCode.CLEANUP), t("cli_core.pipeline.cleanup_counts", removed=report.success_count)
+        )
+    )
     if state["verbose"]:
         for detail in report.details:
-            console.print(f"  {detail}")
+            console.print("  " + detail)
 
 
-@command_with_telemetry()
+@command_with_telemetry(help=t("cli_core.pipeline.process.help"))
 @handle_cli_errors
 @boundary(stream_events=True)
 def process(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_modifying")),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help=t("cli_core.pipeline.opt.interactive")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -567,21 +645,25 @@ def process(
             registry=app_context.provider_registry,
         )
     except Exception as exc:
-        console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
+        console.print(
+            "[red]" + t("cli_core.pipeline.process_failed", error_class=type(exc).__name__, error=str(exc)) + "[/red]"
+        )
         get_logger("pipeline").exception("process_command_failed", error=str(exc))
         raise typer.Exit(1) from exc
 
-    for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
-        console.print(
-            f"[bold]{label}:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-        )
+    for label, report in [
+        (_step_label(StepCode.CLEAN), clean),
+        (_step_label(StepCode.SCRAPE), scrape),
+        (_step_label(StepCode.CLEANUP), cleanup),
+    ]:
+        console.print(_summary_line(label, _counts(report)))
         if state["verbose"]:
             for detail in report.details:
-                console.print(f"  {detail}")
+                console.print("  " + detail)
 
 
 #: Valid ``--trigger-reason`` values. MUST include every reason any web-side caller
-#: passes to :func:`~personalscraper.web.pipeline_trigger.spawn_pipeline_run` — in
+#: passes to :func:`~personalscraper.app.pipeline_trigger.spawn_pipeline_run` — in
 #: particular ``"scrape-resolve"`` (the §4 continuation after a manual resolve).
 #: A missing value here makes the spawned continuation ``run`` crash on argv
 #: validation, so the resolved media never dispatches (product-intent.md §4
@@ -603,7 +685,7 @@ def _validate_trigger_reason(value: str) -> str:
     """
     if value not in _VALID_TRIGGER_REASONS:
         allowed = ", ".join(sorted(r for r in _VALID_TRIGGER_REASONS if r))
-        raise typer.BadParameter(f"Must be one of: {allowed} (got '{value}')")
+        raise typer.BadParameter(t("cli_core.pipeline.trigger_reason_invalid", allowed=allowed, value=value))
     return value
 
 
@@ -611,274 +693,111 @@ def _validate_trigger_reason(value: str) -> str:
 @handle_cli_errors
 def run(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_core.pipeline.opt.dry_run_full")),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help=t("cli_core.pipeline.opt.interactive")),
     skip_trailers: bool = typer.Option(
         False,
         "--skip-trailers",
-        help="Skip the trailers pipeline step for this invocation.",
+        help=t("cli_core.pipeline.opt.skip_trailers"),
     ),
     continue_on_trailer_error: bool = typer.Option(
         False,
         "--continue-on-trailer-error",
-        help="Do not abort dispatch when the trailers step crashes.",
+        help=t("cli_core.pipeline.opt.continue_on_trailer_error"),
     ),
     headless: bool = typer.Option(
         False,
         "--headless",
-        help=(
-            "Run with no subscribers (silent mode for cron / CI). "
-            "Disables Rich console output and Telegram notifications."
-        ),
+        help=t("cli_core.pipeline.opt.headless"),
     ),
     no_console: bool = typer.Option(
         False,
         "--no-console",
-        help=(
-            "Disable Rich console output (progress bars, live tables). "
-            "Telegram notifications remain active. "
-            "Used by the Watcher daemon (``personalscraper watch``) when "
-            "spawning pipeline runs; contrast with ``--headless`` which "
-            "disables both Rich and Telegram. If both are passed, "
-            "``--headless`` wins."
-        ),
+        help=t("cli_core.pipeline.opt.no_console"),
     ),
     trigger_reason: str = typer.Option(
         "",
         "--trigger-reason",
         hidden=True,
         callback=_validate_trigger_reason,
-        help="Set by the Watcher daemon to attribute this run.",
+        help=t("cli_core.pipeline.opt.trigger_reason"),
     ),
     no_post_maintenance: bool = typer.Option(
         False,
         "--no-post-maintenance",
-        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+        help=t("cli_core.pipeline.opt.no_post_maintenance"),
+    ),
+    detach: bool = typer.Option(
+        False,
+        "--detach",
+        help=t("cli_core.pipeline.opt.detach"),
     ),
 ) -> None:
     """Execute all pipeline phases via ``Pipeline.run``.
+
+    While a supervisor's lease is live the run is asked through the queue and followed instead
+    (:mod:`personalscraper.commands.run_follow`); with no live lease it runs in this process.
 
     The step list displayed in ``--help`` is generated from
     :data:`~personalscraper.pipeline_steps.DEFAULT_STEPS` at import time via
     :func:`_run_help`, so it always reflects the actual registered steps.
     """
-    from datetime import datetime
-
-    import structlog.contextvars
-
-    from personalscraper.api.notify.healthchecks import HealthcheckClient
-    from personalscraper.api.notify.telegram import TelegramNotifier
-    from personalscraper.api.transport._http import HttpTransport
-    from personalscraper.logger import cleanup_old_logs
-    from personalscraper.pipeline import Pipeline
-    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
-    from personalscraper.subscribers.debug_log import DebugLogSubscriber
-    from personalscraper.subscribers.plex import PlexSubscriber, build_plex_subscriber
-    from personalscraper.subscribers.redis_stream import build_redis_publisher
-    from personalscraper.subscribers.rich_console import RichConsoleSubscriber
-    from personalscraper.subscribers.telegram import TelegramSubscriber
-
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     verbose = state["verbose"]
-    _run_log = get_logger("pipeline")
+    options = RunOptions(
+        dry_run=dry_run,
+        skip_trailers=skip_trailers,
+        continue_on_trailer_error=continue_on_trailer_error,
+        no_post_maintenance=no_post_maintenance,
+    )
+
+    try:
+        supervised = run_follow.lease_live(config)
+    except run_follow.SupervisorStateUnreadable:
+        console.print("[red]" + t("cli_core.run.supervisor_state_unreadable") + "[/red]")
+        raise typer.Exit(1) from None
+    if supervised:
+        if interactive:
+            console.print("[red]" + t("cli_core.run.interactive_needs_direct") + "[/red]")
+            raise typer.Exit(1)
+        services = run_follow.open_services(config, cli_helpers.get_settings())
+        try:
+            code = run_follow.enqueue_and_follow(
+                services, config, console, options=options, trigger_reason=trigger_reason, detach=detach
+            )
+        finally:
+            services.close()
+        if code:
+            raise typer.Exit(code)
+        return
+
+    if detach:
+        console.print(t("cli_core.run.detach_needs_supervisor"), style="yellow", highlight=False)
 
     if not cli_helpers.acquire_pipeline_lock(
         config.paths.data_dir / "pipeline.lock",
         cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
     ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
+        console.print("[red]" + t("cli_core.pipeline.another_instance") + "[/red]")
         _journal_lock_conflict(config, dry_run=dry_run)
         raise typer.Exit(1)
 
     try:
         settings = cli_helpers.get_settings()
-
-        # The :class:`AppContext` is built once per invocation at the CLI
-        # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
-        # rule from DESIGN §Architecture, enforced by the AST allowlist landed
-        # in Sub-phase 2.6). Constructed early so the healthcheck and Telegram
-        # transports built below can plumb ``app_context.event_bus`` into their
-        # circuit breakers (Sub-phase 4.1).
-        # build_torrent_client=True: the full pipeline includes the ingest step,
-        # which consumes ctx.torrent_client, so the client is resolved + validated
-        # at boot here (DESIGN D3 fail-fast for the run path).
-        app_context = _build_app_context(config, settings, build_torrent_client=True)
-
-        # Healthcheck client (None if not configured — pings short-circuit at the call site).
-        healthcheck: HealthcheckClient | None = None
-        if HealthcheckClient.is_configured(settings):
-            hc_transport = HttpTransport(
-                HealthcheckClient.policy(settings.healthcheck_url),
-                event_bus=app_context.event_bus,
-            )
-            healthcheck = HealthcheckClient(hc_transport)
-            healthcheck.ping_start()
-
-        # Pipeline outcome is set to "success" only on the clean-completion path; any other
-        # exit (typer.Exit, TrailerStepFailed, unhandled exception) leaves it None and the
-        # finally block fires healthcheck.ping_fail() — preserves the dead-man's-switch
-        # contract per DESIGN §7.1.
-        pipeline_outcome: str | None = None
-        try:
-            # Clean old logs and bind run context
-            cleanup_old_logs()
-            structlog.contextvars.clear_contextvars()
-            run_id = datetime.now().isoformat(timespec="seconds")
-            structlog.contextvars.bind_contextvars(run_id=run_id)
-
-            _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
-
-            # Resolve flag defaults from config when not explicitly set by the caller.
-            effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
-            effective_continue_on_trailer_error = (
-                continue_on_trailer_error or config.trailers.pipeline.continue_on_error
-            )
-
-            from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
-
-            # Build subscribers — both self-subscribe in their constructors via the
-            # shared AppContext bus. ``--headless`` skips subscriber construction
-            # for silent cron / CI runs.
-            #
-            # ``--no-console`` (used by the Watcher daemon) disables the Rich
-            # console subscriber but keeps Telegram subscribers active.
-            # ``--headless`` disables both; if both flags are passed, ``--headless``
-            # wins (the outer ``not headless`` gate prevents all subscriber
-            # construction).
-            rich_subscriber: RichConsoleSubscriber | None = None
-            telegram_subscriber: TelegramSubscriber | None = None
-            acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
-            plex_subscriber: PlexSubscriber | None = None
-            # ``--verbose`` activates the DebugLogSubscriber which logs every
-            # emitted event at DEBUG. Registered independently of ``--headless``
-            # so verbose log streams work even in cron / CI contexts that
-            # suppress Rich / Telegram output.
-            debug_subscriber: DebugLogSubscriber | None = None
-            # Redis event publisher (gate on web.enabled, fail-soft — Redis down
-            # must never block the pipeline boot).
-            redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
-            # Plex refresh trigger (plex-refresh D3), through the single owner
-            # shared with the standalone ``personalscraper dispatch`` command so
-            # both dispatch entry points behave identically. The token is the
-            # gate, deliberately OUTSIDE ``--headless``: this one makes the
-            # dispatched media visible in Plex rather than producing operator
-            # output, so a cron run needs it exactly as much.
-            plex_subscriber = build_plex_subscriber(app_context.event_bus, settings)
-            if verbose:
-                debug_subscriber = DebugLogSubscriber(app_context.event_bus)
-            if not headless:
-                if not no_console:
-                    rich_subscriber = RichConsoleSubscriber(
-                        app_context.event_bus,
-                        console=console,
-                        verbose=verbose,
-                        dry_run=dry_run,
-                        run_id=run_id,
-                    )
-                if TelegramNotifier.is_configured(settings):
-                    tg_transport = HttpTransport(
-                        TelegramNotifier.policy(settings.telegram_bot_token),
-                        event_bus=app_context.event_bus,
-                    )
-                    tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
-                    telegram_subscriber = TelegramSubscriber(app_context.event_bus, tg_notifier)
-                    acq_telegram_subscriber = AcquisitionTelegramSubscriber(
-                        app_context.event_bus,
-                        notifier=tg_notifier,
-                        enabled=config.notify.acquire_notify_enabled,
-                    )
-
-            # Emit ``WatcherRunTriggered`` before ``PipelineStarted`` when the
-            # run is spawned by the Watcher daemon (``--trigger-reason`` set).
-            # Subscribers (Telegram, Rich console) are already wired at this
-            # point, so they will observe and forward the event.
-            if trigger_reason:
-                from personalscraper.acquire.events import WatcherRunTriggered
-
-                app_context.event_bus.emit(WatcherRunTriggered(reason=trigger_reason))
-
-            # Build run-history writer (pipe-control sub-phase 1.3b).
-            # The writer is an injected dependency — the CLI owns the DB
-            # path resolution.  Fail-soft: if construction fails (missing
-            # library.db, permission error, etc.) the pipeline runs without
-            # history recording.
-            history_writer: PipelineRunWriter | None = None
-            try:
-                from personalscraper.pipeline_history import PipelineRunWriter  # noqa: PLC0415
-
-                history_writer = PipelineRunWriter(
-                    db_path=config.indexer.db_path,
-                )
-            except Exception:
-                _run_log.warning(
-                    "pipeline_history_writer_init_failed",
-                    exc_info=True,
-                )
-
-            # Capture the log tail for the durable run journal (universal run
-            # journal, 2026-07-08): every trigger path — cli, web-spawned,
-            # safety_net — routes through this command, so installing the
-            # handler here gives all of them an ``output_tail``.
-            tail_handler = LogTailHandler()
-            tail_handler.install()
-
-            pipeline = Pipeline(app_context)
-            try:
-                try:
-                    report = pipeline.run(
-                        dry_run=dry_run,
-                        interactive=interactive,
-                        verbose=verbose,
-                        skip_trailers=effective_skip_trailers,
-                        continue_on_trailer_error=effective_continue_on_trailer_error,
-                        no_post_maintenance=no_post_maintenance,
-                        trigger_reason=trigger_reason or "cli",
-                        history_writer=history_writer,
-                        output_tail_provider=tail_handler.tail,
-                    )
-                finally:
-                    tail_handler.uninstall()
-                    if rich_subscriber is not None:
-                        rich_subscriber.close()
-                    if telegram_subscriber is not None:
-                        telegram_subscriber.close()
-                    if acq_telegram_subscriber is not None:
-                        acq_telegram_subscriber.close()
-                    if plex_subscriber is not None:
-                        plex_subscriber.close()
-                    if debug_subscriber is not None:
-                        debug_subscriber.close()
-                    if redis_publisher is not None:
-                        redis_publisher.close()
-            except TrailerStepFailed as exc:
-                # Trailers step failed and --continue-on-trailer-error was not set.
-                # Exit with code 2 (distinct from generic pipeline error exit 1) so
-                # scripts / launchd jobs can handle this case explicitly.
-                console.print(f"[red]ABORTED: {exc}[/red]", highlight=False)
-                _run_log.error("pipeline_aborted_trailer_step_failed", reason=str(exc))
-                raise typer.Exit(code=2) from exc
-
-            dur = report.duration()
-            minutes = int(dur.total_seconds()) // 60
-            seconds = int(dur.total_seconds()) % 60
-            dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
-            _run_log.info("pipeline_finished", duration=dur_str)
-
-            # Mark outcome BEFORE the typer.Exit so the finally block pings the right state.
-            pipeline_outcome = "fail" if report.has_errors() else "success"
-            if report.has_errors():
-                raise typer.Exit(1)
-        finally:
-            # Dead-man's-switch: ping_fail on any non-clean exit (TrailerStepFailed, unexpected
-            # exception, typer.Exit due to report errors). HealthcheckClient is itself fail-soft
-            # so an unreachable hc-ping.com will not abort the lock release below.
-            if healthcheck is not None:
-                if pipeline_outcome == "success":
-                    healthcheck.ping_success()
-                else:
-                    healthcheck.ping_fail()
-
+        code = execute_run(
+            config,
+            settings,
+            options,
+            trigger=trigger_reason,
+            console=console,
+            verbose=verbose,
+            headless=headless,
+            interactive=interactive,
+            no_console=no_console,
+        )
+        if code:
+            raise typer.Exit(code)
     finally:
         cli_helpers.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 

@@ -31,6 +31,7 @@ import typer
 
 from personalscraper import cli_helpers
 from personalscraper.cli_app import command_with_telemetry
+from personalscraper.i18n import t
 from personalscraper.logger import LOGS_DIR, get_logger
 
 if TYPE_CHECKING:
@@ -126,7 +127,7 @@ def _check_recent_errors(lookback_minutes: int) -> list[str]:
     return summary
 
 
-def _check_stuck_lock(state: "AppCtx", max_run_minutes: int) -> list[str]:
+def _check_stuck_lock(state: AppCtx, max_run_minutes: int) -> list[str]:
     """Report a pipeline.lock that has been held longer than a run should take.
 
     Args:
@@ -171,16 +172,16 @@ def _send_alert(config_obj: object, anomalies: list[str]) -> None:
     try:
         transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token), event_bus=EventBus())
         TelegramNotifier(transport, settings.telegram_chat_id).send(body)
-    except Exception as exc:  # noqa: BLE001 - alerting must never crash the check
+    except Exception as exc:  # alerting must never crash the check
         log.warning("health_check_alert_failed", error=str(exc), exc_info=True)
 
 
-@command_with_telemetry("health-check")
+@command_with_telemetry("health-check", help=t("cli_core.health_check.help"))
 def health_check(
     ctx: typer.Context,
-    lookback_minutes: int = typer.Option(90, "--lookback-minutes", help="Recent-error window."),
-    max_run_minutes: int = typer.Option(60, "--max-run-minutes", help="Held-lock age considered stuck."),
-    no_alert: bool = typer.Option(False, "--no-alert", help="Do not send the Telegram alert (check only)."),
+    lookback_minutes: int = typer.Option(90, "--lookback-minutes", help=t("cli_core.health_check.lookback_help")),
+    max_run_minutes: int = typer.Option(60, "--max-run-minutes", help=t("cli_core.health_check.max_run_help")),
+    no_alert: bool = typer.Option(False, "--no-alert", help=t("cli_core.health_check.no_alert_help")),
 ) -> None:
     """Check daemon liveness + recent log errors + stuck lock; alert on anomalies.
 
@@ -202,11 +203,11 @@ def health_check(
 
     if not anomalies:
         log.info("health_check_ok")
-        typer.echo("health-check: OK")
+        typer.echo(t("cli_core.health_check.ok"))
         return
 
     log.warning("health_check_anomalies", count=len(anomalies), anomalies=anomalies)
-    typer.echo("health-check: ANOMALIES\n" + "\n".join(anomalies))
+    typer.echo(t("cli_core.health_check.anomalies", anomalies="\n".join(anomalies)))
     if not no_alert:
         _send_alert(state.config, anomalies)
     raise typer.Exit(1)

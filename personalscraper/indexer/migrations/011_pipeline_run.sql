@@ -19,6 +19,10 @@
 -- Step 1 — create the pipeline_run table.
 -- ---------------------------------------------------------------------------
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 CREATE TABLE pipeline_run (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     run_uid    TEXT    UNIQUE NOT NULL,
@@ -44,3 +48,5 @@ CREATE INDEX idx_pipeline_run_started ON pipeline_run(started_at);
 
 INSERT INTO schema_version (version) VALUES (11);
 PRAGMA user_version = 11;
+
+COMMIT;

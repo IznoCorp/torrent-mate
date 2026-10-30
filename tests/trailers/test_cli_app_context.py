@@ -2,7 +2,7 @@
 
 Verifies that each of the four trailers subcommands (``scan``,
 ``download``, ``verify``, ``purge``) builds an :class:`AppContext` at
-its CLI boundary via ``_build_app_context`` and binds
+its CLI boundary via ``build_app_context`` and binds
 ``current_correlation_id`` for the duration of its body. Only
 ``download`` actually constructs a :class:`TrailersOrchestrator`, so the
 "passes ``event_bus`` to orchestrator" assertion applies only to
@@ -39,7 +39,7 @@ def _stub_top_level_config_loader():
     ``load_config(resolve_config_path(...))`` before any subcommand body
     runs. CI runners have no ``config/`` directory checked in (it's
     gitignored), so without this stub the callback would exit with code 2
-    and ``_build_app_context`` would never be reached — making every
+    and ``build_app_context`` would never be reached — making every
     assertion in this module fail with a misleading ``len(captured) == 0``.
     """
     stub_cfg = MagicMock()
@@ -51,7 +51,7 @@ def _stub_top_level_config_loader():
 
 
 def _capturing_factory() -> tuple:
-    """Build a capturing wrapper around the real ``_build_app_context``.
+    """Build a capturing wrapper around the real ``build_app_context``.
 
     Returns:
         Tuple of (wrapped factory, accumulator list, helper context manager
@@ -75,7 +75,7 @@ def _capturing_factory() -> tuple:
         empty_items: list = []
         stub_orchestrator = object()
         with (
-            patch("personalscraper.trailers.cli._build_app_context", side_effect=_factory),
+            patch("personalscraper.trailers.cli.build_app_context", side_effect=_factory),
             # Trailers scan/download/verify/purge all touch the Scanner;
             # stub it to return zero items so the bodies stay short and
             # deterministic (no real filesystem traversal).
@@ -118,7 +118,7 @@ def _capturing_factory() -> tuple:
 
 @pytest.mark.parametrize("cmd", _ALL_COMMANDS)
 def test_trailers_command_builds_app_context(cmd: str) -> None:
-    """Each trailers subcommand invokes ``_build_app_context`` exactly once.
+    """Each trailers subcommand invokes ``build_app_context`` exactly once.
 
     Args:
         cmd: One of ``scan``, ``download``, ``verify``, ``purge``.
@@ -143,7 +143,7 @@ def test_trailers_command_binds_correlation_id(cmd: str) -> None:
     _, captured, stubs = _capturing_factory()
 
     def _spy_factory(config, settings):  # type: ignore[no-untyped-def]
-        # Capture the ContextVar AFTER ``_build_app_context`` returns but
+        # Capture the ContextVar AFTER ``build_app_context`` returns but
         # before the rest of the body runs. The ContextVar is set
         # ``after`` the AppContext is built (see ``_trailers_boundary``)
         # — to capture during body execution we read it on the next stub
@@ -160,7 +160,7 @@ def test_trailers_command_binds_correlation_id(cmd: str) -> None:
         return []
 
     with (
-        patch("personalscraper.trailers.cli._build_app_context", side_effect=_spy_factory),
+        patch("personalscraper.trailers.cli.build_app_context", side_effect=_spy_factory),
         patch(
             "personalscraper.trailers.cli.Scanner",
             return_value=type(
@@ -241,7 +241,7 @@ def test_trailers_download_passes_event_bus_to_orchestrator() -> None:
         return type("_StubOrch", (), {"run": lambda self, *_a, **_kw: {"ok": 0}})()
 
     with (
-        patch("personalscraper.trailers.cli._build_app_context", side_effect=_factory),
+        patch("personalscraper.trailers.cli.build_app_context", side_effect=_factory),
         patch(
             "personalscraper.trailers.cli.Scanner",
             return_value=type(

@@ -17,6 +17,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper._fs_utils import name_key, name_variants
+from personalscraper.core.sqlite import refuse_newer_schema
+from personalscraper.indexer.events import LibraryScanSkipped, ScanSkipReason
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.indexer.repos.item_repo import _ATTR_DISPATCH_PATH
 from personalscraper.logger import get_logger
 
@@ -170,6 +173,7 @@ def _invalidate_dispatched_subtrees(config: Config, destinations: dict[str, set[
         return 0
     try:
         _apply_pragmas(conn)
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
         conn.execute("BEGIN IMMEDIATE")
         disk_rows = {
             label: (disk_id, Path(mount))
@@ -291,6 +295,7 @@ def _run_relink(config: Config, *, scopes: list[_Scope] | None = None) -> dict[s
     assert db_path is not None, "indexer.db_path must be resolved"
 
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     linked = unmatched = errors = 0
     try:
@@ -369,6 +374,7 @@ def _run_fix_season_counts(config: Config, *, scopes: list[_Scope] | None = None
     assert db_path is not None, "indexer.db_path must be resolved"
 
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -393,7 +399,7 @@ def _run_fix_season_counts(config: Config, *, scopes: list[_Scope] | None = None
                 UNION
                 SELECT ia.item_id FROM item_attribute ia
                  WHERE ia.key = '{_ATTR_DISPATCH_PATH}' AND {abs_sql}
-              )"""
+              )"""  # noqa: S608 — only placeholders are interpolated
             params = [*path_params, *path_params, *abs_params]
         cur = conn.execute(
             f"""
@@ -440,6 +446,7 @@ def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0, scopes: l
     assert db_path is not None, "indexer.db_path must be resolved"
 
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         only_ids: set[int] | None = None
@@ -471,6 +478,24 @@ def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0, scopes: l
         conn.close()
 
 
+def _announce_scan_skipped(event_bus: EventBus, disks: set[str], reason: ScanSkipReason) -> None:
+    """Emit one :class:`LibraryScanSkipped` per disk whose index was not refreshed.
+
+    Fail-soft like the rest of post-dispatch maintenance: an emit problem must
+    never fail the dispatch.
+
+    Args:
+        event_bus: The caller's process bus.
+        disks: Disk labels whose post-dispatch scan did not complete.
+        reason: Why the refresh did not happen.
+    """
+    for disk in sorted(disks):
+        try:
+            event_bus.emit(LibraryScanSkipped(source="dispatch.post_maintenance", disk=disk, reason=reason))
+        except Exception as exc:  # noqa: BLE001 — announcing must not fail dispatch
+            _log.warning("post_maintenance_skip_emit_failed", disk=disk, error=str(exc))
+
+
 def run_post_dispatch_maintenance(
     config: Config,
     touched_disks: set[str],
@@ -484,26 +509,33 @@ def run_post_dispatch_maintenance(
     Sequentially scans each touched disk (incremental mode), then runs
     a global relink pass and season-episode-count repair.  Fail-soft:
     exceptions are caught, logged as warnings, and the manual fallback
-    command is printed — the function never raises.
+    command is printed — the function never raises. A touched disk whose index
+    is NOT refreshed (maintenance disabled, or its scan failed) is announced as
+    one :class:`LibraryScanSkipped` per disk.
 
     Args:
         config: Validated application Config.
         touched_disks: Distinct, non-None disk labels from ``DispatchResult.disk``
             for items whose action was ``moved | merged | replaced``.
         event_bus: The caller's process bus, forwarded to every per-disk scan so
-            ``LibraryScanCompleted`` reaches live subscribers. Required (D4) — a
+            ``LibraryScanCompleted`` reaches live subscribers, and used to emit
+            ``LibraryScanSkipped`` for a disk that was not refreshed. Required (D4) — a
             defaulted bus reaches nobody and silently disables post-dispatch
             reconciliation.
         destinations: Dispatched destination paths per disk
             (:func:`collect_touched_destinations`) — their subtrees are
             invalidated so the incremental scan re-walks them even when the
             filesystem did not bump the parent mtimes (NTFS/macFUSE merge).
-        enabled: Feature toggle. When ``False``, the function is a no-op.
+        enabled: Feature toggle. When ``False``, nothing is scanned, relinked or
+            repaired; the only effect is one ``LibraryScanSkipped(disabled)`` per
+            touched disk.
             Callers should resolve ``flag > config > default(true)`` before
             passing this parameter.
     """
     if not enabled:
         _log.info("post_maintenance_disabled")
+        # The touched disks' index is NOT refreshed: say so, per disk.
+        _announce_scan_skipped(event_bus, touched_disks, ScanSkipReason.DISABLED)
         return
 
     if not touched_disks:
@@ -532,6 +564,7 @@ def run_post_dispatch_maintenance(
         except Exception as exc:
             scan_failures.append(disk)
             _log.warning("post_maintenance_scan_exception", disk=disk, error=str(exc))
+    _announce_scan_skipped(event_bus, set(scan_failures), ScanSkipReason.FAILED)
 
     # Global relink — fast, DB-only.
     relink_failed = False
@@ -812,6 +845,7 @@ def run_scoped_refresh(
 
     with indexer_lock(db_path, timeout=0):
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
         _apply_pragmas(conn)
         try:
             row = conn.execute(

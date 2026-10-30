@@ -28,6 +28,9 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.core.sqlite import refuse_newer_schema
+from personalscraper.i18n import t
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
 
@@ -95,14 +98,22 @@ def _disk_payload(report: GhostReport) -> dict[str, object]:
     }
 
 
-@app.command("library-retire-ghost-items")
+@app.command("library-retire-ghost-items", help=t("cli_library.retire_ghost_items.library_retire_ghost_items_help"))
 @handle_cli_errors
 def library_retire_ghost_items(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="List the ghost items and why; write nothing."),
-    disk: str | None = typer.Option(None, "--disk", help="Only this disk label."),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help=t("cli_library.retire_ghost_items.library_retire_ghost_items_dry_run_help")
+    ),
+    disk: str | None = typer.Option(
+        None, "--disk", help=t("cli_library.retire_ghost_items.library_retire_ghost_items_disk_help")
+    ),
+    config: Path | None = typer.Option(
+        None, "--config", "-c", help=t("cli_library.retire_ghost_items.library_retire_ghost_items_config_help")
+    ),
+    db: Path | None = typer.Option(
+        None, "--db", help=t("cli_library.retire_ghost_items.library_retire_ghost_items_db_help")
+    ),
 ) -> None:
     """Retire the items whose ``dispatch_path`` is gone, on every configured and mounted disk.
 
@@ -123,22 +134,23 @@ def library_retire_ghost_items(
         db_path = db
     else:
         if cfg.indexer.db_path is None:
-            typer.echo("indexer.db_path is not configured", err=True)
+            typer.echo(t("cli_library.retire_ghost_items.db_path_not_configured"), err=True)
             raise typer.Exit(code=1)
         db_path = Path(cfg.indexer.db_path)
 
     if not db_path.exists():
-        typer.echo(f"Database not found: {db_path}", err=True)
+        typer.echo(t("cli_library.retire_ghost_items.database_not_found", path=str(db_path)), err=True)
         raise typer.Exit(code=1)
 
     conn = _sqlite3.connect(str(db_path))
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         disks = configured_disks(filter_disks(_disk_rows(conn), disk), cfg)
         if disk is not None and not disks:
             # The store knows the disk but the configuration does not: its root
             # is mounted by nobody, so none of its folders can be judged.
-            typer.echo(f"Disk {disk!r} is not in the configuration: its ghost items cannot be judged", err=True)
+            typer.echo(t("cli_library.retire_ghost_items.disk_not_configured", disk=repr(disk)), err=True)
             raise typer.Exit(code=1)
         reports: list[GhostReport] = []
         failed: list[dict[str, str]] = []

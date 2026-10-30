@@ -1,6 +1,6 @@
 """Integration tests for tracker-registry composition-root wiring.
 
-Verifies _build_app_context() populates the acquisition lobe handle
+Verifies build_app_context() populates the acquisition lobe handle
 (``ctx.acquire.tracker_registry``), that TrackerConfigError surfaces at boot
 through ``build_acquire_context``, and that per_step_boundary calls
 ``app_context.acquire.close()``. Network is not touched: build_tracker_registry
@@ -17,7 +17,8 @@ from personalscraper.acquire.context import AcquireContext
 from personalscraper.api.tracker._errors import TrackerConfigError, TrackerConfigIssue
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
-from personalscraper.cli_helpers import _build_app_context, per_step_boundary
+from personalscraper.app.composition import build_app_context
+from personalscraper.cli_helpers import per_step_boundary
 from personalscraper.core.app_context import AppContext
 
 
@@ -38,23 +39,23 @@ def _empty_registry() -> TrackerRegistry:
 
 
 class TestBuildAppContextTrackerWiring:
-    """_build_app_context wires the tracker registry via the acquire handle."""
+    """build_app_context wires the tracker registry via the acquire handle."""
 
     def test_tracker_registry_set_from_factory(self) -> None:
-        """_build_app_context must store the factory's return value on ctx.acquire."""
+        """build_app_context must store the factory's return value on ctx.acquire."""
         stub = _empty_registry()
 
         with (
             patch("personalscraper.acquire._factory.build_tracker_registry", return_value=stub),
             patch("personalscraper.api.metadata.registry.ProviderRegistry"),
         ):
-            ctx = _build_app_context(_config(), _settings())
+            ctx = build_app_context(_config(), _settings())
 
         assert ctx.acquire is not None
         assert ctx.acquire.tracker_registry is stub
 
     def test_tracker_config_error_surfaces_at_boot(self) -> None:
-        """TrackerConfigError must propagate out of _build_app_context.
+        """TrackerConfigError must propagate out of build_app_context.
 
         RP5c routes tracker construction through ``build_acquire_context``,
         which delegates to ``build_tracker_registry`` unchanged — so the error
@@ -72,7 +73,7 @@ class TestBuildAppContextTrackerWiring:
             patch("personalscraper.api.metadata.registry.ProviderRegistry"),
         ):
             with pytest.raises(TrackerConfigError) as exc_info:
-                _build_app_context(_config(), _settings())
+                build_app_context(_config(), _settings())
 
         assert exc_info.value.issues[0].code == "missing_credentials"
 
@@ -101,7 +102,7 @@ class TestPerStepBoundaryClose:
         acquire = AcquireContext(tracker_registry=stub_registry)
 
         with (
-            patch("personalscraper.cli_helpers._build_app_context") as mock_build,
+            patch("personalscraper.app.composition.build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
             # The boundary now wires the fail-soft Redis event publisher on
             # the step bus (universal run journal) — isolate it here.
@@ -124,7 +125,7 @@ class TestPerStepBoundaryClose:
         acquire = AcquireContext(tracker_registry=stub_registry)
 
         with (
-            patch("personalscraper.cli_helpers._build_app_context") as mock_build,
+            patch("personalscraper.app.composition.build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
             # The boundary now wires the fail-soft Redis event publisher on
             # the step bus (universal run journal) — isolate it here.
@@ -145,7 +146,7 @@ class TestPerStepBoundaryClose:
     def test_none_acquire_does_not_raise(self) -> None:
         """per_step_boundary must not crash when acquire is None."""
         with (
-            patch("personalscraper.cli_helpers._build_app_context") as mock_build,
+            patch("personalscraper.app.composition.build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
             # The boundary now wires the fail-soft Redis event publisher on
             # the step bus (universal run journal) — isolate it here.
@@ -180,7 +181,7 @@ class TestTr4kerCredGating:
     """tr4ker missing-cred fail-loud test via direct build_tracker_registry call.
 
     CI has no config.json5, so we call build_tracker_registry directly with an
-    injected env dict (not via _build_app_context which loads real config).
+    injected env dict (not via build_app_context which loads real config).
     """
 
     def test_tr4ker_missing_cred_raises_tracker_config_error(self) -> None:

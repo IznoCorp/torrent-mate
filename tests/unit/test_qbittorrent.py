@@ -102,6 +102,19 @@ class TestTorrentItemMapping:
         assert _torrent_item(mock).eta_seconds is None
         assert _torrent_item(MagicMock()).eta_seconds is None
 
+    def test_seeding_time_maps_to_seeding_time_s(self) -> None:
+        """Map qBit `seeding_time` (seconds really seeded) onto seeding_time_s."""
+        mock = MagicMock()
+        mock.seeding_time = 259200
+        assert _torrent_item(mock).seeding_time_s == 259200
+
+    def test_seeding_time_absent_negative_or_non_numeric_is_none(self) -> None:
+        """Absent, negative or duck-typed junk is an honest None, never a guess."""
+        mock = MagicMock()
+        mock.seeding_time = -1
+        assert _torrent_item(mock).seeding_time_s is None
+        assert _torrent_item(MagicMock()).seeding_time_s is None
+
     def test_num_complete_maps_to_swarm_seeds(self) -> None:
         """QBit ``num_complete`` → ``swarm_seeds`` (reswitch #342)."""
         mock = MagicMock()
@@ -275,10 +288,11 @@ class TestBuildClient:
         assert exc_info.value.provider == "qbittorrent"
 
     @patch("personalscraper.api.torrent.qbittorrent.requests.get")
-    @patch("personalscraper.api.torrent.qbittorrent._LOCKOUT_FILE")
-    def test_lockout_blocks_login(self, mock_lockout: MagicMock, mock_get: MagicMock) -> None:
+    @patch("personalscraper.api.torrent.qbittorrent.lockout_path")
+    def test_lockout_blocks_login(self, mock_path: MagicMock, mock_get: MagicMock) -> None:
         """Active lockout file → QBitAuthLockoutError before login."""
         mock_get.return_value.status_code = 200
+        mock_lockout = mock_path.return_value
         mock_lockout.exists.return_value = True
         mock_lockout.stat.return_value.st_mtime = __import__("time").time()
 
@@ -359,6 +373,31 @@ class TestQBitClient:
         assert client.get_by_hashes(set()) == []
         client._client.torrents_info.assert_not_called()  # type: ignore[attr-defined]
 
+    def test_get_by_category_asks_qbit_for_the_category(self) -> None:
+        """get_by_category() sends one category-filtered request and maps the result."""
+        client = self._client()
+        mock_t = MagicMock()
+        mock_t.hash = "abc"
+        mock_t.name = "Robot"
+        mock_t.total_size = 1000
+        mock_t.progress = 1.0
+        mock_t.state = "uploading"
+        mock_t.content_path = "/data"
+        mock_t.category = "scoped"
+        mock_t.added_on = 1712345678
+        client._client.torrents_info.return_value = [mock_t]  # type: ignore[attr-defined]
+
+        items = client.get_by_category("scoped")
+        assert [i.hash for i in items] == ["abc"]
+        client._client.torrents_info.assert_called_once_with(category="scoped")  # type: ignore[attr-defined]
+
+    def test_get_by_category_blank_is_refused(self) -> None:
+        """A blank category is never sent: qBit reads it as « uncategorised »."""
+        client = self._client()
+        with pytest.raises(ValueError, match="category"):
+            client.get_by_category("  ")
+        client._client.torrents_info.assert_not_called()  # type: ignore[attr-defined]
+
     def test_is_seeding_uses_state_enum(self) -> None:
         """is_seeding() delegates to qbittorrentapi state_enum.is_uploading."""
         client = self._client()
@@ -423,25 +462,17 @@ class TestQBitClient:
         client.logout()
         client._client.auth_log_out.assert_called_once()  # type: ignore[attr-defined]
 
-    def test_login_failed_raises_apierror_401(self) -> None:
+    def test_login_failed_raises_apierror_401(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """qbittorrentapi.LoginFailed → ApiError(http_status=401) per DESIGN §1.1."""
-        from personalscraper.api.torrent.qbittorrent import _LOCKOUT_FILE  # noqa: PLC0415
-
+        # The failed login writes a lockout file: keep it out of the real ``~/.cache``.
+        monkeypatch.setenv("HOME", str(tmp_path))
         client = self._client()
         client._client.auth_log_in.side_effect = qbittorrentapi.LoginFailed("bad creds")  # type: ignore[attr-defined]
 
-        # Ensure no stale lockout file from a prior test
-        if _LOCKOUT_FILE.exists():
-            _LOCKOUT_FILE.unlink()
-
-        try:
-            with pytest.raises(ApiError, match="login failed") as exc_info:
-                client.login()
-            assert exc_info.value.http_status == 401
-            assert exc_info.value.provider == "qbittorrent"
-        finally:
-            if _LOCKOUT_FILE.exists():
-                _LOCKOUT_FILE.unlink()
+        with pytest.raises(ApiError, match="login failed") as exc_info:
+            client.login()
+        assert exc_info.value.http_status == 401
+        assert exc_info.value.provider == "qbittorrent"
 
     def test_forbidden_raises_apierror_403(self) -> None:
         """qbittorrentapi.Forbidden403Error → ApiError(http_status=403)."""
@@ -500,6 +531,13 @@ class TestQBitNeutralErrorTranslation:
         client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
         with pytest.raises(TorrentUnreachableError):
             client.get_all_hashes()
+
+    def test_get_by_hashes_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on get_by_hashes → TorrentUnreachableError, never the raw client error."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentUnreachableError):
+            client.get_by_hashes({"abc"})
 
     def test_get_content_path_connection_error_maps_to_unreachable(self) -> None:
         """APIConnectionError on get_content_path → TorrentUnreachableError."""

@@ -116,7 +116,7 @@ def apply_canonical_dir_rename(
     canonical_name: str,
     *,
     dry_run: bool,
-    result: "ScrapeResult",
+    result: ScrapeResult,
 ) -> Path:
     """Rename a media directory to its canonical name (case-safe, NFC-aware).
 

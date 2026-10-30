@@ -496,6 +496,8 @@ def build_registry(monkeypatch: pytest.MonkeyPatch) -> Any:
             cb_policy_arg: object,
             event_bus_arg: object,
             retry_arg: object = None,
+            *,
+            language: str = "fr-FR",
         ) -> dict[str, object]:
             # Only return the fakes that were actually requested by the
             # config, mirroring real factory behaviour.
@@ -514,6 +516,7 @@ def build_registry(monkeypatch: pytest.MonkeyPatch) -> Any:
             event_bus=event_bus,
             cb_policy=cb_policy if cb_policy is not None else SimpleNamespace(),
             providers_config=providers_config,
+            language="fr-FR",
         )
 
     return _factory_impl

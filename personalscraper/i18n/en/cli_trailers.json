@@ -1,0 +1,62 @@
+{
+  "app_help": "Trailer acquisition and management commands.",
+  "since_invalid": "Error: --since {{since}} must be YYYY-MM-DD.",
+  "level_invalid": "Error: --level {{level}} is not valid. Choose from: {{choices}}.",
+  "dry_run_label": "DRY-RUN:",
+  "scan": {
+    "help": "Dry-run: list media items missing trailers.\n\nArgs:\n    ctx: Typer context carrying AppCtx (config available via ctx.obj.config).\n    disk: Optional disk ID filter.\n    category: Optional category ID filter.\n    since: Optional ISO date lower bound for item age.\n    limit: Optional max item count.\n    no_refresh: Skip library cache refresh when True.\n    level: Trailer level filter (show / season / both).\n    season: Specific season number; implies --level=season.",
+    "none": "No media without trailers found.",
+    "table_title": "Media missing trailers ({{items}} items)"
+  },
+  "download": {
+    "help": "Discover and download missing trailers.\n\nArgs:\n    ctx: Typer context carrying AppCtx (config available via ctx.obj.config).\n    disk: Optional disk ID filter.\n    category: Optional category ID filter.\n    since: Optional ISO date lower bound for item age.\n    limit: Optional max item count.\n    dry_run: When True, show candidates without downloading.\n    no_refresh: Skip library cache refresh when True.\n    level: Trailer level filter (show / season / both).\n    season: Specific season number; implies --level=season.",
+    "would_attempt": "Would attempt to download trailers for {{items}} items.",
+    "season_suffix": " (season {{season}})",
+    "summary_title": "Trailer download summary"
+  },
+  "audit": {
+    "help": "Audit existing trailers (canonical command).\n\nRuns four checks per trailer:\n1. Existence - trailer file present at the expected placement path.\n2. Size - file size >= config.trailers.filters.min_file_size_bytes.\n3. Extension - file suffix in config.trailers.filters.allowed_extensions.\n4. Playable (opt-in, --deep) - ffprobe returns non-zero duration.\n\nFailures report a category: missing, undersized, wrong_extension, unplayable.\nExit codes: 0 if all pass, 2 if any functional check fails,\n4 if a --deep ffprobe call errors out (probe itself broken).\n\nArgs:\n    ctx: Typer context carrying AppCtx (config available via ctx.obj.config).\n    disk: Optional disk ID filter.\n    category: Optional category ID filter.\n    since: Optional ISO date lower bound for item age.\n    deep: When True, run ffprobe playability check (expensive).\n    level: Trailer level filter (show / season / both).\n    season: Specific season number; implies --level=season.",
+    "ffprobe_error": "ffprobe error: one or more probes failed (exit 4).",
+    "existing_title": "Existing trailers ({{existing}})",
+    "no_existing": "No existing trailers found.",
+    "issues_title": "Trailer issues ({{found}} found)",
+    "all_ok": "All {{existing}} trailers verified OK."
+  },
+  "purge": {
+    "help": "Remove orphan trailers whose media video is gone; heal index gaps.\n\nA trailer is orphan only when its media directory holds no real media video\n(FS truth) — present media, even if absent from the index, is never touched.\nA present-but-unindexed media dir is instead re-indexed (via the scanner's\nsingle-dir stage), so ``purge`` writes to ``library.db`` on a real run.\n\nWhen --include-state is set, after the filesystem purge completes call\nstate_store.purge_orphans() and log the count in the CLI output.\n\nArgs:\n    ctx: Typer context carrying AppCtx (config available via ctx.obj.config).\n    disk: Optional disk ID filter.\n    since: Optional ISO date lower bound for item age.\n    dry_run: When True, show orphans without deleting.\n    include_state: When True, also call state_store.purge_orphans().\n    level: Trailer level filter (show / season / both).\n    season: Specific season number; implies --level=season.",
+    "would_purge": "Would purge {{orphans}} orphan trailer(s).",
+    "would_reindex": "Would re-index {{gaps}} present media dir(s) missing from the index.",
+    "would_wipe_state": "Would also wipe orphan state entries (--include-state).",
+    "purged": "Purged {{deleted}} orphan trailer(s).",
+    "reindexed": "Re-indexed {{healed}} present media dir(s) that were missing from the index.",
+    "locked": "Another trailers process is running; try again later.",
+    "purged_state": "Purged {{purged}} orphan state entries."
+  },
+  "opt": {
+    "disk": "Restrict to one disk by ID (e.g. Disk1).",
+    "category": "Restrict to one category ID.",
+    "since": "Only items added/modified after YYYY-MM-DD.",
+    "limit_scan": "Max items to scan.",
+    "limit_process": "Max items to process.",
+    "no_refresh_scan": "Use cached library scan even if stale.",
+    "no_refresh_download": "Skip library cache refresh.",
+    "level_list": "Which trailer levels to list: show | season | both. Season-level is silently ignored when seasons.enabled is False.",
+    "level_process": "Which trailer levels to process: show | season | both. Season-level is silently ignored when seasons.enabled is False.",
+    "level_audit": "Which trailer levels to audit: show | season | both. Season-level is silently ignored when seasons.enabled is False.",
+    "level_purge": "Which trailer levels to purge: show | season | both. Season-level is silently ignored when seasons.enabled is False.",
+    "season": "Target a specific season number (1-indexed). Implies --level=season.",
+    "dry_run_download": "Show what would be downloaded without doing it.",
+    "dry_run_purge": "Show what would be purged without doing it.",
+    "deep": "Run ffprobe playability probe (expensive).",
+    "include_state": "Also wipe orphan state entries via state_store.purge_orphans()."
+  },
+  "column": {
+    "title": "Title",
+    "type": "Type",
+    "season": "Season",
+    "path": "Path",
+    "status": "Status",
+    "count": "Count",
+    "issue": "Issue"
+  }
+}

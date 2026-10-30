@@ -60,7 +60,8 @@ without delivering it (the probe's credential check). 200 answers `{"name": "pro
 Source: `https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages`.
 
 The application sends a **data-only** web-push message — the service worker, not the browser,
-composes what is shown, from `fr.json` (no sentence on the wire):
+composes what is shown, from the catalogue of the recipient's language, `fr.json` or `en.json`
+(no sentence on the wire):
 
 ```json
 {
@@ -69,13 +70,20 @@ composes what is shown, from `fr.json` (no sentence on the wire):
     "webpush": {
       "headers": {"TTL": "86400", "Urgency": "normal"},
       "data": {"code": "tracker.ratio_low", "params": "{\"ratio\": 1.12, \"tracker\": \"c411\"}",
-               "link": "/trackers/c411", "tag": "ratio-c411"}
+               "link": "/trackers/c411", "tag": "ratio-c411", "language": "fr"}
     }
   }
 }
 ```
 
 - every `data` value is a STRING (FCM's rule) — `params` is JSON-encoded;
+- `language` is the RECIPIENT ACCOUNT's language (`Account.language`, `"fr"` or `"en"`), filled by
+  the server per account (FG-2 A; the contract's `PushCode`): the worker words the code in it, and in
+  English when it is absent or names a language the interface does not speak (OPEN-2 B).
+  `PushMessage.language` carries it; the sign-in notice (`account.sign_in.*`,
+  `app/accounts/sign_in_notice.py`) fills it from the recipient account. No FCM sender is composed
+  yet: the application's push channel is `UnconfiguredPush`, which logs `push.not_configured` and
+  sends nothing;
 - `link` is a same-origin path (`PushMessage` refuses anything else); the worker's
   `notificationclick` opens or focuses it; `fcm_options.link` is NOT used (it wants an absolute HTTPS
   URL and applies only to notification messages);
@@ -132,14 +140,14 @@ Source: `https://firebase.google.com/docs/cloud-messaging/js/client`.
   worker registration instead (`serviceWorkerRegistration`) — one worker, no second one.
 - The permission is asked from a direct user gesture only.
 - **The token API, settled against the pinned SDK** (`firebase` 12.19.0, exact pin in
-  `frontend/maquette/design/package.json`): `getToken` is marked deprecated there in favour of
+  `webui/design/package.json`): `getToken` is marked deprecated there in favour of
   `register` + `onRegistered`, which deliver a Firebase Installation id (FID), the SDK noting that
   « the backend send API supports FID as a target ». The HTTP v1 reference documents `message.token`
   as an FCM REGISTRATION TOKEN, and that is what `getToken` returns — so the client uses `getToken`.
   The switch to the FID, once Firebase documents it as a v1 target, is confined to
   `src/lib/push-registration.ts`. The SDK is imported lazily, on the device that turns
   notifications on.
-- `frontend/maquette/design/src/lib/push-registration.ts`: `pushSupport()` (`unsupported`,
+- `webui/design/src/lib/push-registration.ts`: `pushSupport()` (`unsupported`,
   `needs-install` — told BEFORE the API check, since a Safari tab on iOS defines no push API —,
   `available` with the permission), `registerPush(config, submit)` (asks first, before any await),
   `refreshPush(config, submit)` (every start, never asks; it re-sends the token only while this
@@ -158,7 +166,7 @@ Source: `https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/`
 `https://firebase.blog/posts/2023/08/fcm-for-safari/`.
 
 - iOS / iPadOS ≥ 16.4, ONLY for a web app added to the home screen with `display: standalone`
-  (the manifest of `frontend/maquette/installable.py` declares it); no Apple developer account.
+  (the manifest of `webui/installable.py` declares it); no Apple developer account.
 - The permission from a direct user gesture — the opening offer's tap (F-3).
 - Every push must SHOW a notification: the worker never stays silent (an unknown code shows the
   catalogue's generic line).
@@ -168,11 +176,12 @@ Source: `https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/`
 
 ## The worker
 
-`frontend/maquette/design/sw.js` — `push` composes the notification from the `push` namespace of
-`fr.json` (written into the worker at build time at `__PUSH_TEXTS__`; the build refuses a catalogue
-without `push.generic` and a worker where a placeholder survived — `worker-source.mjs`): the code
-looked up as a dotted path, `{{param}}` filled from the JSON-encoded `params`, the generic line for
-anything it cannot word. `notificationclick` focuses an open window of the application and sends it
+`webui/design/sw.js` — `push` composes the notification from the `push` namespace of
+`fr.json` and `en.json` (both written into the worker at build time at `__PUSH_TEXTS__`, by
+language; the build refuses a catalogue without `push.generic` and a worker where a placeholder
+survived — `worker-source.mjs`): the catalogue the message's `language` names, else English
+(`PUSH_DEFAULT_LANGUAGE`); the code looked up in it as a dotted path, `{{param}}` filled from the
+JSON-encoded `params`, that language's generic line for anything it cannot word. `notificationclick` focuses an open window of the application and sends it
 to the message's link, or opens one there; any link that is not a same-origin path opens `/`.
 
 ## The dispatcher

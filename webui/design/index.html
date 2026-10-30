@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <base href="/" />
+    <!-- NO maximum scale, AND NO user-scalable refusal, and it is a decision
+         rather than an omission. Those two directives forbid the pinch-zoom
+         WCAG 1.4.4 requires, and axe reported the failure on all 83 named
+         states — the single largest per-state count in the wave's opening
+         measurement. They were there to stop iOS zooming a focused input; iOS
+         Safari has ignored the second since version 10, so what they actually
+         bought was the violation.
+
+         NEITHER IS SPELLED OUT HERE, and that is `check-viewport-directives.py`
+         doing its job: it reads comments too, because a directive commented out
+         is one edit away from being live. The one file allowed to name them is
+         the guard itself. -->
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,interactive-widget=resizes-content"
+    />
+    <title>TorrentMate Design</title>
+    <!-- pwa:start — the document half of installability. The server half
+         (manifest body, sw.js, brand assets, the offline page) stays in
+         serve.py: those are routes, not markup. The login gate EXTRACTS this
+         block rather than restating it, so there is exactly one copy. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b0b0d" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- iOS reads neither the manifest's display nor its short_name:
+         standalone mode and the home-screen label are declared here, or the
+         icon opens a Safari tab instead of an app. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <!-- iOS reads this and never the manifest's short_name: without it the
+         home-screen label falls back to the page title, which once put two
+         identical « TorrentMate » side by side. -->
+    <meta name="apple-mobile-web-app-title" content="TorrentMate Design" />
+    <script src="/boot/service-worker-register.js"></script>
+    <script src="/boot/appearance.js"></script>
+    <!-- pwa:end -->
+  </head>
+  <body>
+    <!-- The strangler shell: the router owns the URL and the history; the
+         legacy engine below keeps every surface not yet migrated. The mount
+         node starts here, a plain sibling of the fragment's phone frame, but
+         shell.tsx relocates it into `.device` before the first render —
+         see that file's own comment — so a screen (`/profile/$title`, `/add`)
+         is contained by the phone frame.
+         ORDERED between the header and the page (`order-1`, `#port` is
+         `order-2`): the one thing it draws IN THE FLOW is the connection
+         notice, which belongs under the header. Last in the frame, it was drawn
+         after the page, under the bottom bar, out of a finger's reach (B-594). -->
+    <div id="shell" class="order-1 desk:ml-[var(--tm-rail-w)]"></div>
+    <script type="module" src="/src/app/shell.tsx"></script>
+    <!-- The application shell. It used to live in the fragment, and it is here
+         now for one reason: the engine captures its containers at module
+         evaluation — `view = F('#view')` and its siblings — and a module
+         evaluates before React has rendered anything. Markup drawn by a
+         component would not exist when the engine looks for it.
+
+         This document's body is parsed before any module runs, which is
+         exactly the order the markup had when the fragment carried it. It sits
+         AFTER the injection marker so the order inside `<body>` is unchanged
+         too: the mount node, then the stylesheet the fragment still carries,
+         then this. -->
+<div class="stage">
+  <!-- harness:start -->
+  <!-- THE WAY OUT OF THE PHONE FRAME, AND BACK. Harness chrome, so it sits
+       OUTSIDE `#device`: the shell is a measured region and must carry nothing
+       that does not exist in the app. It is drawn only where the frame is
+       drawn — `harness.css` turns the device into a 390px phone at 520px, and
+       below that the device already fills the window, so there is nothing to
+       leave and the control is not in the layout at all.
+
+       IT IS DRAWN BY THE STYLESHEET, AND ONLY REMEMBERED BY A SCRIPT. A
+       checkbox and its label, read by `:root:has(#desktop-switch:checked)`,
+       which is why neither the engine nor the shell ever learns this control
+       exists: no handler in either, no import, no line in a module that may
+       only lose lines. The state lives in the checkbox; the one script that
+       touches it is the harness's own, right below, and all it does is keep
+       the checkbox across a reload.
+
+       TWO WORDS, ONE CONTROL. The label carries both, and the stylesheet shows
+       the one that names what the next press will do — so the accessible name
+       is the visible text at all times rather than a second string nobody
+       reads.
+
+       BETWEEN THE `harness:` MARKERS, this note, the control and its script
+       are cut out of the app build (`vite.config.mjs`, `--mode app`): the
+       frame ships nowhere, and neither does its way out. -->
+  <div class="desktop-switch" data-part="harness/desktop-switch">
+    <input class="desktop-switch__control" id="desktop-switch" type="checkbox" />
+    <label
+      class="desktop-switch__label"
+      data-part="harness/desktop-switch-label"
+      for="desktop-switch"
+    >
+      <span class="desktop-switch__leave">Sortir du cadre</span>
+      <span class="desktop-switch__enter">Revenir au cadre</span>
+    </label>
+  </div>
+  <script src="/boot/desktop-switch.js"></script>
+  <!-- harness:end -->
+  <div class="device" id="device" data-part="shell/device">
+    <!-- login:splash:start -->
+    <!-- The startup screen, and it is FIRST on purpose.
+
+         A browser paints what it has parsed so far; anything declared after the
+         embedded artwork would appear only once the wait it exists to cover is
+         already over. Being first, it is on screen within the first frames and
+         stays until the interface has rendered.
+
+         It carries no controls: there is nothing to do yet, and a disabled
+         control would only invite a tap that answers nothing. -->
+    <!-- A NAMED REGION, so what it draws is not content adrift outside every
+         landmark. It is not `<main>`: `#port` already is, and two of them make
+         a landmark list a guessing game exactly as two identical names do. -->
+    <div class="splash" id="splash" role="region" data-words-label="shell.splash.region" aria-label="Démarrage">
+      <div class="brandbig" data-part="brand/large">
+        <svg
+          class="mk w-[28px] h-[28px] text-primary"
+          data-part="brand/mark"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+        </svg>
+        <span
+          class="wm text-5 font-semibold tracking-[-0.025em]"
+          data-part="brand/wordmark"
+          >Torrent<em class="not-italic text-primary-text">Mate</em></span
+        >
+      </div>
+      <div
+        class="splashbar"
+        data-part="splash/progress"
+        role="progressbar"
+        data-words-label="shell.splash.progress" aria-label="Chargement de l'interface"
+      >
+        <i></i>
+      </div>
+      <p class="splashmsg" data-words="shell.splash.message">Chargement de votre médiathèque…</p>
+    </div>
+    <!-- login:splash:end -->
+
+    <!-- FIRST IN THE FRAME, because a skip link that is not the first stop is
+         a skip link nobody reaches. It is off-screen until focused — see
+         `.skip-link` in the stylesheet — so it costs the layout nothing and the
+         oracle measures no difference: an unfocused element is never styled by
+         `:focus-visible`, and this one is out of flow either way. -->
+    <a class="skip-link" href="#port" data-part="shell/skip-link" data-words="shell.skipLink"
+      >Aller au contenu</a
+    >
+
+    <header
+      class="topbar relative z-40 flex shrink-0 items-center gap-7 border-b border-border
+             bg-background pt-[calc(env(safe-area-inset-top)+var(--spacing-6))] px-7 pb-6 md:px-9
+             desk:ml-[var(--tm-rail-w)]"
+      data-part="shell/header"
+    >
+      <button
+        class="burger relative -ml-2 inline-flex w-[44px] h-[44px] shrink-0 items-center justify-center
+               [border:0] rounded-2 bg-transparent text-muted-foreground desk:hidden"
+        data-words-label="shell.menuOpen" aria-label="Ouvrir le menu de navigation"
+        data-drawer="1"
+      >
+        <!-- THE ICON CARRIES ITS OWN SIZE. An `<svg>` sized by its viewBox
+             alone has no intrinsic width, and a centred flex box resolves it
+             to the room left in Chromium and to nothing in WebKit: the menu
+             was invisible on an iPhone (B-579). -->
+        <svg
+          class="w-[20px] h-[20px]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <!-- ON A DESKTOP THE PINNED MENU CARRIES THE BRAND (DECIDED 2); the header draws it again
+           only when the menu is folded to its icons. -->
+      <a
+        class="brand flex items-center gap-4 desk:[:root:not([data-rail=collapsed])_&]:hidden"
+        href="#"
+        onclick="return false;"
+      >
+        <svg
+          class="mk w-[28px] h-[28px] text-primary"
+          data-part="brand/mark"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+        </svg>
+        <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
+      </a>
+      <div class="sp ml-auto flex items-center gap-6">
+        <!-- THE CONNECTION, AND IT USED TO BE A CLAIM RATHER THAN A READING.
+             This span said « Connecté » and carried `title="Temps réel
+             connecté"` written into the markup, with no connection anywhere in
+             the prototype (B-155). §8 of the constitution is « rien en
+             silence », and a permanent green dot over a dead stream is its
+             exact inversion: the interface looked current whatever the truth.
+
+             `display: contents` generates NO BOX, so the flex row above is
+             laid out exactly as it was and the dot React draws inside is the
+             same direct child of `.sp` the static one was. A wrapper with a
+             box would have added a flex item and moved the header. -->
+        <span id="connection" class="contents" data-part="shell/connection"></span>
+        <!-- `p-0` IS LOAD-BEARING AND WAS MISSING. A button keeps the
+             platform's own padding, so `w-full` on the image inside resolved
+             against a CONTENT box of 20x30 rather than the 32x32 the button
+             declares: the avatar rendered as a small oval while every class on
+             it was correct. Measured, not reasoned — B-224. -->
+        <button
+          class="avatar w-[32px] h-[32px] p-0 rounded-full [border:0] bg-muted text-muted-foreground
+                 text-3 font-medium grid place-items-center"
+          data-part="avatar"
+          data-account
+          data-words-label="shell.userMenu" aria-label="Menu utilisateur"
+        >
+          <img class="w-full h-full object-cover rounded-[inherit] block" alt="" />
+        </button>
+      </div>
+    </header>
+
+    <!-- THE MAIN LANDMARK, and it is a substitution rather than a wrapper.
+         `<main>` and `<div>` are both `display: block`, so nothing moves;
+         wrapping `#view` in a new `<main>` would have added a box, and with it
+         a layout risk the oracle would have had to arbitrate. Every selector
+         that reads this element reads it by id — none by tag — so the harness
+         is unaffected.
+
+         It is `#port` rather than `#view` because `#port` is what a « skip to
+         content » link must land on: it is the scroller, and focusing the inner
+         node would leave the viewport scrolled elsewhere.
+
+         `tabindex="-1"` makes it focusable BY SCRIPT ONLY — it does not enter
+         the tab order. Without it the skip link jumps the browser's scroll
+         position but not its focus, and the next Tab resumes from the top of
+         the document, which is the bug that makes most skip links useless. -->
+    <main
+      class="port @container/port order-2 flex-auto min-h-0 overflow-y-auto overflow-x-clip
+             overscroll-y-none [-webkit-overflow-scrolling:touch]
+             pb-[calc(var(--tm-bottom-bar-h,0px)+var(--tm-save-bar-h,0px)+var(--tm-fab-clearance,0px)+var(--spacing-7))]
+             desk:ml-[var(--tm-rail-w)]"
+      id="port"
+      data-part="viewport"
+      tabindex="-1"
+    >
+      <div
+        class="ptr grid place-items-center overflow-hidden h-0
+               transition-[height] duration-200 ease-standard text-muted-foreground"
+        id="ptr"
+      >
+        <!-- The pull's two states are read ON THE SPINNER rather than on
+             `#ptr`, and the reason is now history rather than a constraint: the
+             engine reset `#ptr`'s class list to « ptr » whenever it put the
+             indicator back, so a utility written on `#ptr` did not survive it.
+             The reset removes the two state classes and nothing else since the
+             gesture left the engine, so `#ptr` may carry utilities again — the
+             states stay where they are drawn until a drawing lot moves them.
+
+             The wheel turns from the arming, the finger still down, and keeps
+             turning while the refresh is answered: both states carry the same
+             animation, so the hand-over from one to the other does not restart it. -->
+        <div
+          class="spin w-[16px] h-[16px] rounded-full border-2 border-border border-t-primary
+                 [.ptr.armed_&]:text-primary
+                 [.ptr.armed_&]:[animation:spin_var(--duration-loop-1)_linear_infinite]
+                 [.ptr.loading_&]:[animation:spin_var(--duration-loop-1)_linear_infinite]"
+        ></div>
+      </div>
+      <!-- THE READING COLUMN on a desktop (DECIDED 1 = C): the page is centred and capped, and a
+           page drawing a gallery (`.gallery`, the tile grids) or the deck (`.deck`) keeps the
+           port's whole width — the galleries' columns read the port, never this box. -->
+      <div
+        id="view"
+        class="desk:mx-auto desk:max-w-[var(--tm-column-w)]
+               desk:has-[.gallery]:max-w-none desk:has-[.deck]:max-w-none"
+      ></div>
+    </main>
+
+    <!-- Install proposal. Two paths, because the two platforms do not offer the
+         same thing: Android and desktop fire a native install event the page can
+         trigger, iOS Safari fires nothing at all — so there the banner IS the
+         guide and walks the actual steps rather than saying « installez-moi ».
+         It sits ABOVE the tab bar: anchored to the bottom edge, its close button
+         lands under the fixed bar and cannot be reached. -->
+    <div
+      class="installbar absolute left-0 right-0 bottom-[calc(var(--tm-bottom-bar-h,0px)+12px)]
+             z-[54] flex justify-center py-0 px-7"
+      id="installbar"
+      role="region"
+      data-words-label="shell.install.region" aria-label="Installation de l'application" hidden>
+      <div
+        class="installcard w-full max-w-[420px] flex items-start gap-6 p-7 border border-border
+               rounded-4 bg-card [box-shadow:var(--mq-shadow-card)]"
+      >
+        <div class="installtext flex-auto min-w-0 flex flex-col gap-2">
+          <p class="installtitle m-0 text-4 font-semibold" data-words="shell.install.title">Installer l'application</p>
+          <p class="installsub m-0 text-2 leading-[1.4] text-muted-foreground" id="installsub" data-words="shell.install.subtitle">
+            Ajoutez TorrentMate à votre écran d'accueil pour un accès direct.
+          </p>
+          <ol
+            class="installsteps mt-1 mx-0 mb-0 pl-8 flex flex-col gap-1 text-2 leading-[1.4]
+                   text-muted-foreground"
+            id="installsteps"
+            hidden
+          >
+            <li data-words="shell.install.stepSafari">Ouvrez cette page dans Safari.</li>
+            <li>
+              <span data-words="shell.install.stepTap">Touchez</span>
+              <span class="installkey inline-flex items-center gap-1 font-semibold text-foreground"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 3v13M8 7l4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"
+                  /></svg
+                ><span data-words="shell.install.share">Partager</span></span
+              >
+              <span data-words="shell.install.stepBar">dans la barre du bas.</span>
+            </li>
+            <li data-words="shell.install.stepAdd">
+              Choisissez «&nbsp;Sur l'écran d'accueil&nbsp;», puis
+              «&nbsp;Ajouter&nbsp;».
+            </li>
+          </ol>
+          <button
+            class="installgo self-start mt-4 inline-flex items-center gap-3 py-4 px-6 [border:0]
+                   rounded-3 [font:600_var(--text-3)_'Geist',system-ui,sans-serif]
+                   text-primary-foreground bg-primary"
+            id="installgo"
+            data-part="install/action"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg
+            ><span data-words="shell.install.action">Installer TorrentMate</span>
+          </button>
+        </div>
+        <button class="installclose flex-none grid place-items-center w-[28px] h-[28px] p-0 [border:0] rounded-3 bg-transparent text-muted-foreground" id="installclose" data-words-label="shell.install.dismiss" aria-label="Masquer">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- login:markup:start -->
+    <!-- The unauthenticated entry screen. It covers the shell entirely: before
+         a session exists there is nothing to navigate to, so showing a
+         navigation bar would offer destinations that answer with a redirect.
+         It carries no credentials of its own — the server decides, and a
+         password living in a page anyone can read is not a password.
+         Its words are French here, the fallback of a page without script;
+         each carries its key (`data-words`, `data-words-label`), and the boot
+         — or, on the design host, the server — words it in the reader's
+         language. -->
+    <div class="loginscreen" data-part="login" id="login" role="region"
+      data-words-label="screens.gate.title" aria-label="Connexion" hidden>
+      <div class="brandbig" data-part="brand/large">
+        <svg
+          class="mk"
+          data-part="brand/mark"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+        </svg>
+        <span class="wm" data-part="brand/wordmark">Torrent<em>Mate</em></span>
+      </div>
+      <form class="logincard" id="loginform" data-part="login/form" autocomplete="on">
+        <h1 class="logintitle" data-words="screens.gate.title">Connexion</h1>
+        <p class="loginsub" data-words="screens.gate.subtitle">Accès à votre médiathèque et à vos acquisitions.</p>
+        <label class="loginfield" data-part="login/field">
+          <span>Identifiant</span>
+          <input
+            type="text"
+            name="username"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+          />
+        </label>
+        <label class="loginfield" data-part="login/field">
+          <span data-words="screens.gate.password">Mot de passe</span>
+          <input
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          />
+        </label>
+        <p class="loginerr" data-words="screens.gate.invalid" id="loginerr" hidden>Identifiants invalides</p>
+        <button class="loginsubmit" data-part="login/submit" data-words="screens.gate.submit" type="submit">Se connecter</button>
+      </form>
+    </div>
+    <!-- login:markup:end -->
+
+    <!-- The maquette's own controls — the design notes and the real/dense world — are
+         not here: they are entries of the side menu, contributed by the harness
+         module (`src/harness/panel.ts`) through `src/app/drawer-extras.ts`. -->
+
+    <!-- The action button is rendered by the shell
+         (`src/app/action-button.tsx`), at this same id and these same classes,
+         into `#shell`. Absent here on purpose: two elements answering `#fab` is
+         one of them being measured and the other being shown. -->
+
+    <!-- The tab bar is rendered by the shell (`src/app/tab-bar.tsx`), at this
+         same id and these same classes, into `#shell`, which sits inside this
+         frame. It is absent here on purpose: two elements answering `#nav` is
+         one of them being measured and the other
+         being shown. -->
+
+    <!-- The drawer is rendered by the shell (`src/app/drawer.tsx`, over
+         `src/ui/drawer.tsx`), at this same id and this same identity class,
+         into `#shell`. Absent here on purpose: two elements answering
+         `#drawer` is one of them being measured and the other being shown. -->
+    <!-- The scrim and the bottom sheet are rendered by the shell
+         (`src/components/sheet.tsx`), at these same ids and classes, into
+         `#shell`, which sits inside this frame.
+         They are absent here on purpose: two elements answering `#sheet` is
+         one of them being measured and the other being shown. -->
+    <!-- The confirmation layer is rendered by the shell
+         (`src/ui/dialog/index.tsx`), at this same id and this same identity
+         class, into `#shell`. It declares `role="dialog"` and takes its NAME
+         from the descriptor's heading — not by reading back markup it has just
+         written, which is what an HTML-string layer had to do. Absent here on
+         purpose: two elements answering `#dlg` is one of them being measured
+         and the other being shown. -->
+    <!-- The message is rendered by the shell (`src/ui/toast.tsx`), at these
+         same ids, into `#shell`. ANNOUNCED, not merely shown: it is the
+         interface's one general-purpose « something happened » channel, and
+         `role="status"` with `aria-live="polite"` waits for a pause rather
+         than cutting across what is being read. The region is in the tree from
+         the first render and never inserted with its content — a live region
+         inserted together with what it says announces nothing. -->
+  </div>
+</div>
+  </body>
+</html>

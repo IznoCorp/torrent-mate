@@ -15,7 +15,7 @@ config-driven, never hardcoded (`personalscraper init-config` seeds `config/` fr
 ## Setup (per clone)
 
 ```bash
-pip install -e ".[dev]"
+uv sync --locked --extra dev   # .venv from uv.lock; activate it, or prefix commands with `uv run`
 ./hooks/install.sh   # one-time per clone — sets core.hooksPath to hooks/ (never ~/.gitconfig)
 ```
 
@@ -31,7 +31,7 @@ One page: `docs/reference/method.md`. The generic lifecycle lives in the skills 
 
 The implement skills read these two lines.
 
-- **Phase gate**: `make lint`; `cd frontend/maquette/design && npm run typecheck && npm test`; pytest of
+- **Phase gate**: `make lint`; `cd webui/design && npm run typecheck && npm test`; pytest of
   the touched modules.
 - **Lot-close gate**: `make check`.
 
@@ -43,19 +43,29 @@ pull request touching the maquette), not on this machine. `make harness` runs th
 - `docs/reference/product-intent.md` is the product constitution: an implementation that conflicts
   with it is wrong. A web PR cites the §§ it serves; a pure conversion (nothing observable changes)
   cites none.
-- The maquette `frontend/maquette/design/` is the next version of the app and REPLACES it; it is not
-  transposed into the app surface by surface. Its reference is the tokens and the component
+- The maquette `webui/design/` is the v1 frontend and REPLACES the shipped app; it is not
+  transposed into the app surface by surface. Its design reference is the tokens and the component
   catalogue: `design/src/styles/theme.css`, `design/src/styles/base.css`, and the `variants.ts` of
-  `design/src/ui/` and of each surface. It is changed FIRST, a surface is drawn (named states, a
-  rule that bites) before it is coded, and nothing ships that it does not show.
-- **The mission, dictated 2026-08-19**: EVERY screen is redrawn. (1) No surface is out of scope — a
-  production screen with no maquette page is a page still to draw; `/control` and `/pipeline` are
-  owed. (2) What the maquette already holds is VALIDATED; do not relitigate it. (3) What remains is
-  also the UX, the interaction language and the prototype's architecture — the interface is frozen
-  when that is done. (4) The backend follows the interface, after the freeze: a backend limitation
-  is recorded, never a reason to draw less.
-- What the maquette must become technically, and the lot order: `docs/reference/frontend-architecture.md`
-  (BINDING). Developer reference of the prototype: `frontend/maquette/README.md`.
+  `design/src/ui/` and of each surface.
+- **One development, front and back together**, the client-server separation kept:
+  - **tm-design is the development environment.** It serves `develop`: the interface, with the real
+    v1 server behind it for every operation v1 already serves, and the mocks for the rest until v1
+    serves them. `staging` (preprod) and `prod` move by hand.
+  - **The harness is the frontend's quality control**: its named states and rules check the
+    interface; they freeze nothing.
+  - **The contract (`contract/openapi.json`) is the reference between front and
+    back**: an operation exists when the contract describes it, and the mock simulates it until the
+    server serves it.
+  - **v0 is untouched** (`frontend/src`, `personalscraper/web/` and their tests): v1 never works in
+    its folders and duplicates what it needs; the only work on v0 is the inventory of what will go.
+    Every v0 file goes at once at v1's production release.
+- **Every screen is redrawn.** No surface is out of scope — a production screen with no maquette page
+  is a page still to draw; `/control` and `/pipeline` are owed. What the maquette already holds is
+  VALIDATED; do not relitigate it. An interface change shows on tm-design before it goes to
+  production.
+- What the v1 frontend must become technically, and the lot order:
+  `docs/reference/frontend-architecture.md` (BINDING). Developer reference of the prototype:
+  `webui/README.md`.
 
 ## The machine (IznoServer)
 
@@ -69,6 +79,12 @@ pull request touching the maquette), not on this machine. `make harness` runs th
   prints it); `make test` and `run.sh` default to half the processors. The harness writes its
   profiles, served copy and logs on `/Volumes/TMScratch` when it is mounted. Kill what you start,
   delete what you build. The machine reboots every Monday at 05:00.
+- NEVER deliberate real load on IznoServer (the operator, 2026-10-05: « ça doit plus jamais se
+  reproduire ! »): no parallel runs to « reproduce under load », no CPU burners. A slowness is
+  reproduced with Playwright's emulated CPU throttling (CDP `Emulation.setCPUThrottlingRate`) in one
+  run, or in CI. `.claude/hooks/block_load_generators.py` refuses the generators; `heavy.sh`'s watcher
+  kills a run beyond its class (`~/Library/Logs/heavy.log`); the PM2 machine guard kills an agent's
+  trees after three minutes of saturation (`GUARD KILLED` in `~/Library/Logs/machine-guard.log`).
 - `personalscraper run` and any long pipeline command: foreground only, `timeout=600000` (hook-enforced);
   create TODO tasks before launching; show output step by step; kill on 2 identical consecutive
   errors, then check for orphans, lock files and temp dirs. Or run the steps one by one
@@ -89,12 +105,15 @@ pull request touching the maquette), not on this machine. `make harness` runs th
   operator's word only; any session may run it (`docs/reference/method.md` « The flow's scripts »). A
   hotfix is cut from `prod`, PR into `prod`, then `scripts/promote.sh tag` and
   `scripts/promote.sh backport <c>`, which merges it back into `develop`.
-- Every PR bumps the patch version above its base (CI `version-bump`; a hotfix adds a fourth component
-  to prod's), or carries the label `no-version-bump` when it touches no code under `personalscraper/`,
-  `frontend/maquette/design/src/`, `frontend/maquette/harness/`, `scripts/` or `.github/workflows/`.
+- A PR leaves `__version__` alone: the version rises once per release (`scripts/promote.sh release`
+  opens that one PR); a hotfix into `prod` adds a fourth component to prod's.
 - A DRAFT PR runs no CI: open it READY (or add `run-ci-on-draft`, never both transitions at once).
   Once its diff is verified, arm `gh pr merge <n> --auto --squash --match-head-commit <sha>` (re-arm if
-  the head moves). After `develop` moves, `gh pr update-branch`.
+  the head moves). A PR need not be up to date with `develop` to merge; CI runs on `develop` after
+  every merge, and a red there is reported and fixed at once. A conflicting PR merges `develop` in.
+- An armed PR is not followed to its merge: no polling loop on `gh pr view`/`gh pr checks`, no
+  foreground `--watch`. One background `gh pr checks <n> --watch --fail-fast` per armed PR, which
+  wakes its session only on a red. An agent's delivery ends at « PR open, READY, armed ».
 - Claim a KanbanMate ticket that ALREADY EXISTS (`/kanban-work <ticket>`) before coding it; never
   create one for work this session is about to do.
 - A worktree is removed once its PR is merged (local branch deleted, then `ExitWorktree` remove).
@@ -117,14 +136,14 @@ document; French inside an English one only quotes UI copy, media titles or the 
 
 - The code has no French and no interface text. Names are English everywhere (identifiers, CSS
   classes, file names, `data-*` attribute names, route paths, named-state ids, tool messages).
-- Every UI string lives in `frontend/maquette/design/src/i18n/fr.json` (the `server` namespace for
+- Every UI string lives in `webui/design/src/i18n/fr.json` (the `server` namespace for
   `serve.py`'s pages). Extract strings, never retype them.
 - A literal that must stay French (rendered output a harness asserts, i18n placeholders, form field
   names, settings config keys) carries `# french-ok: <reason>` / `// french-ok: <reason>`; a pragma
   with no reason is a violation.
 - `frontend/src` is exempt (no i18n layer, dies at switchover), under a ratchet
   (`scripts/french-exemption-baseline.json`).
-- Enforced in CI by `scripts/check-no-french.py` (fourteen arms, listed in its docstring).
+- Enforced in CI by `scripts/check-no-french.py` (fifteen arms, listed in its docstring).
 
 ## Domain rules
 
@@ -137,9 +156,11 @@ document; French inside an English one only quotes UI copy, media titles or the 
   staging `~/staging/torrentmate` (tracks `staging`, 8711, read-only role → 403 on writes).
   Canonical config: `~/.torrentmate/config`. Topology and deploy: `docs/production/web-ui.md`.
 - **Web invariants (tests enforce)** — every mutating endpoint is `require_not_staging` and typed
-  (Pydantic `response_model`; a route change ⇒ `make openapi` and commit the generated files); the
+  (Pydantic `response_model`; a route change ⇒ `make openapi` and commit the generated
+  `frontend/openapi.json` and `contract/openapi.generated.json`); the
   auth perimeter is the single `guarded_api` dependency (never a per-route `Depends(require_session)`);
-  maintenance write actions hold `pipeline.lock` for their runner's lifetime; `pipeline_run`
+  a run and a v1 rescrape start only under the supervisor's lease, and their worker holds `pipeline.lock` for its
+  lifetime; maintenance write actions still hold `pipeline.lock` for their runner's lifetime; `pipeline_run`
   timestamps are epoch `time.time()`; `GET /api/version` serves the boot-cached BUILD_COMMIT.
 
 ## Reference index (lazy-load)
@@ -171,7 +192,7 @@ git: a path cited `path@sha` is read with `git show sha:path`.
 | Post-merge operator checklist | `docs/production/runbook-post-merge.md` |
 | Web UI in production | `docs/production/web-ui.md` |
 | Constitution and its surface map | `docs/reference/product-intent.md`, `docs/reference/product-intent-map.md` |
-| Maquette (prototype reference) | `frontend/maquette/README.md` |
+| Maquette (prototype reference) | `webui/README.md` |
 | Frontend target and lots | `docs/reference/frontend-architecture.md` |
 | Frame model and survey | `docs/reference/frame-model.md`, `docs/reference/frame-survey.md` |
 | Backend demands, and the backend brief (draft) | `docs/reference/backend-demands-architecture.md`, `docs/reference/frontend-backend-demands.md`, `docs/reference/backend-brief.md` |

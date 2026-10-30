@@ -279,6 +279,7 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
         raise RuntimeError(f"merge of item {duplicate_id} into {keeper_id}: a member vanished mid-merge")
     fresher = duplicate if duplicate.date_modified > keeper.date_modified else keeper
     older, newer = (keeper, duplicate) if fresher is duplicate else (duplicate, keeper)
+    other = keeper if fresher is duplicate else duplicate
 
     conn.execute(
         "INSERT INTO deleted_item (kind, original_id, deleted_at, reason, payload_json) VALUES ('item', ?, ?, ?, ?)",
@@ -306,7 +307,8 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
         "UPDATE media_item SET category_id = ?, external_ids_json = ?, ratings_json = ?,"
         " canonical_provider = ?, nfo_status = ?, artwork_json = ?, year = COALESCE(year, ?),"
         " date_metadata_refreshed = MAX(COALESCE(date_metadata_refreshed, 0), COALESCE(?, 0)),"
-        " date_modified = MAX(date_modified, ?), is_locked = MAX(is_locked, ?) WHERE id = ?",
+        " date_modified = MAX(date_modified, ?), is_locked = MAX(is_locked, ?),"
+        " overview = ?, poster_url = ?, date_provider_read = ? WHERE id = ?",
         (
             fresher.category_id,
             item_repo._merge_external_ids(older.external_ids_json, newer.external_ids_json),
@@ -318,6 +320,11 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
             duplicate.date_metadata_refreshed,
             duplicate.date_modified,
             duplicate.is_locked,
+            # The NFO facts follow the fresher row, the other filling a gap: a
+            # re-scan that read no NFO leaves them NULL on an otherwise newer row.
+            fresher.overview if fresher.overview is not None else other.overview,
+            fresher.poster_url if fresher.poster_url is not None else other.poster_url,
+            fresher.date_provider_read if fresher.date_provider_read is not None else other.date_provider_read,
             keeper_id,
         ),
     )
@@ -334,28 +341,6 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
         log.warning("indexer.merge_items.title_kept", keeper_id=keeper_id, title=keeper.title, canonical=canonical)
         return keeper.title
     return None
-
-
-def _provider_ids(raw: str | None) -> dict[str, str]:
-    """Flatten an ``external_ids_json`` to ``"family.key" → id``, empty values dropped.
-
-    Args:
-        raw: The stored JSON, or ``None``.
-
-    Returns:
-        The ids, e.g. ``{"tmdb.series_id": "97546"}``.
-    """
-    try:
-        parsed = json.loads(raw) if raw else {}
-    except (json.JSONDecodeError, TypeError):
-        return {}
-    flat: dict[str, str] = {}
-    for family, value in parsed.items() if isinstance(parsed, dict) else ():
-        if isinstance(value, dict):
-            flat.update({f"{family}.{key}": str(v) for key, v in value.items() if v not in (None, "")})
-        elif value not in (None, ""):
-            flat[str(family)] = str(value)
-    return flat
 
 
 def _skip_reason(conn: sqlite3.Connection, group: DuplicateGroup) -> str | None:
@@ -392,7 +377,7 @@ def _skip_reason(conn: sqlite3.Connection, group: DuplicateGroup) -> str | None:
         return "different_years"
     seen: dict[str, str] = {}
     for row in rows:
-        for key, value in _provider_ids(row[4]).items():
+        for key, value in item_repo._provider_ids(row[4]).items():
             if seen.setdefault(key, value) != value:
                 return "conflicting_provider_ids"
     keeper = next(row for row in rows if row[0] == group.keeper_id)

@@ -258,7 +258,13 @@ def test_prod_refuses_a_rewritten_history(origin: Origin) -> None:
 
 
 def _real_deploy(
-    origin: Origin, script: str, branch: str, *, origin_moves: bool = False
+    origin: Origin,
+    script: str,
+    branch: str,
+    *,
+    origin_moves: bool = False,
+    extra_env: dict[str, str] | None = None,
+    files: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Runs the repository's real deploy script from a fresh clone on `branch`.
 
@@ -270,6 +276,8 @@ def _real_deploy(
         script: `deploy.sh` or `deploy-staging.sh`.
         branch: The branch the clone stands on.
         origin_moves: Whether origin's branch advances past the clone before the run.
+        extra_env: Variables added to the run's environment (they win over the defaults).
+        files: Files (relative path to content) committed into the clone beside the script.
 
     Returns:
         The finished process.
@@ -277,7 +285,10 @@ def _real_deploy(
     path = origin.root / f"real-{script}-{branch}"
     origin.run(origin.root, "git", "clone", "-q", "-b", branch, str(origin.origin), str(path))
     shutil.copy(_SCRIPTS / script, path / "scripts" / script)
-    origin.git(path, "commit", "-q", "-am", "the real script")
+    for name, content in (files or {}).items():
+        (path / name).write_text(content, encoding="utf-8")
+    origin.git(path, "add", "-A")
+    origin.git(path, "commit", "-q", "-m", "the real script")
     origin.git(path, "push", "-q", "origin", f"HEAD:refs/heads/{branch}")
     if origin_moves:
         (path / "later.txt").write_text("later", encoding="utf-8")
@@ -285,7 +296,12 @@ def _real_deploy(
         origin.git(path, "commit", "-q", "-m", "pushed later")
         origin.git(path, "push", "-q", "origin", f"HEAD:refs/heads/{branch}")
         origin.git(path, "reset", "-q", "--hard", "HEAD~1")
-    env = {**origin.env, "TM_VENV": str(origin.root / "none"), "TM_STAGING_VENV": str(origin.root / "none")}
+    env = {
+        **origin.env,
+        "TM_VENV": str(origin.root / "none"),
+        "TM_STAGING_VENV": str(origin.root / "none"),
+        **(extra_env or {}),
+    }
     return subprocess.run(["bash", str(path / "scripts" / script)], cwd=path, env=env, capture_output=True, text=True)
 
 
@@ -330,3 +346,73 @@ def test_deploy_refuses_a_clone_behind_origin(origin: Origin) -> None:
     done = _real_deploy(origin, "deploy.sh", "prod", origin_moves=True)
     assert done.returncode == 1
     assert "≠ origin/prod" in done.stderr, done.stderr
+
+
+def _stub_venv(origin: Origin) -> str:
+    """Makes a venv directory that only holds an executable `bin/python`, enough to pass the venv guard.
+
+    Args:
+        origin: The test origin.
+
+    Returns:
+        The venv directory.
+    """
+    python = origin.root / "stub-venv" / "bin" / "python"
+    python.parent.mkdir(parents=True, exist_ok=True)
+    python.write_text("#!/bin/sh\n", encoding="utf-8")
+    python.chmod(0o755)
+    return str(python.parent.parent)
+
+
+@pytest.mark.parametrize(("script", "branch"), [("deploy.sh", "prod"), ("deploy-staging.sh", "staging")])
+def test_deploy_refuses_without_uv_before_any_build(origin: Origin, script: str, branch: str) -> None:
+    """The backend installs from the lock through uv: no uv, no build (nothing is wiped first)."""
+    venv = _stub_venv(origin)
+    done = _real_deploy(
+        origin,
+        script,
+        branch,
+        extra_env={"TM_VENV": venv, "TM_STAGING_VENV": venv, "TM_UV": str(origin.root / "no-uv")},
+    )
+    assert done.returncode == 1
+    assert "uv not found" in done.stderr, done.stderr
+    assert "building the SPA" not in done.stdout, done.stdout
+
+
+@pytest.mark.parametrize(("script", "branch"), [("deploy.sh", "prod"), ("deploy-staging.sh", "staging")])
+def test_deploy_refuses_without_the_lock_before_any_build(origin: Origin, script: str, branch: str) -> None:
+    """With uv present but no uv.lock in the clone, the deploy refuses before the build."""
+    venv = _stub_venv(origin)
+    done = _real_deploy(
+        origin, script, branch, extra_env={"TM_VENV": venv, "TM_STAGING_VENV": venv, "TM_UV": "/usr/bin/true"}
+    )
+    assert done.returncode == 1
+    assert "uv.lock missing" in done.stderr, done.stderr
+    assert "building the SPA" not in done.stdout, done.stdout
+
+
+@pytest.mark.skipif(shutil.which("uv") is None, reason="uv is needed to write a lock")
+@pytest.mark.parametrize(("script", "branch"), [("deploy.sh", "prod"), ("deploy-staging.sh", "staging")])
+def test_deploy_refuses_a_lock_that_disagrees_with_pyproject_before_any_build(
+    origin: Origin, script: str, branch: str
+) -> None:
+    """A pyproject.toml edited without its lock is refused up front: `--frozen` would have installed the old lock."""
+    uv = shutil.which("uv")
+    assert uv is not None
+    project = origin.root / "locked-project"
+    project.mkdir()
+    pyproject = '[project]\nname = "p"\nversion = "0.1"\nrequires-python = ">=3.12"\ndependencies = []\n'
+    (project / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+    subprocess.run([uv, "lock"], cwd=project, check=True, capture_output=True, timeout=120)
+    lock = (project / "uv.lock").read_text(encoding="utf-8")
+    venv = _stub_venv(origin)
+    done = _real_deploy(
+        origin,
+        script,
+        branch,
+        extra_env={"TM_VENV": venv, "TM_STAGING_VENV": venv},
+        files={"pyproject.toml": pyproject.replace(">=3.12", ">=3.13"), "uv.lock": lock},
+    )
+    assert done.returncode == 1
+    assert "out of date with pyproject.toml" in done.stderr, done.stderr
+    assert "building the SPA" not in done.stdout, done.stdout
