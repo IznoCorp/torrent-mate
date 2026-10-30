@@ -1,4 +1,4 @@
-"""Maintenance action registry — typed models for the 26 ``library-*`` CLI commands.
+"""Maintenance action registry — typed models for the 28 ``library-*`` CLI commands.
 
 Each :class:`MaintenanceAction` entry models a single Typer-registered
 ``library-*`` command with its risk classification, dry-run capability,
@@ -20,6 +20,8 @@ Category mapping (from module to registry category):
 * ``fix_orphan_files.py`` → ``"fix"``
 * ``fix_season_counts.py`` → ``"fix"``
 * ``dedup_titles.py`` → ``"fix"``
+* ``merge_duplicate_items.py`` → ``"fix"``
+* ``retire_ghost_items.py`` → ``"fix"``
 """
 
 from __future__ import annotations
@@ -131,7 +133,7 @@ def canonical_options_json(options: dict[str, object]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Registry — 26 library-* commands registered on the Typer app.
+# Registry — 28 library-* commands registered on the Typer app.
 # Ground truth: @app.command decorators in personalscraper/commands/library/*.py
 # (NOT __all__, which is stale at 23 entries).
 # ---------------------------------------------------------------------------
@@ -693,5 +695,34 @@ REGISTRY: list[MaintenanceAction] = [
         long_running=True,
         dry_run="supported",
         options=[],
+    ),
+    # ── merge_duplicate_items.py (1 command) ──────────────────────────────
+    MaintenanceAction(
+        id="library-merge-duplicate-items",
+        title="Fusionner les éléments en double",
+        description="Fusionne les media_item qui partagent un même dossier dans le plus ancien.",
+        category="fix",
+        risk="destructive",
+        long_running=False,
+        dry_run="supported",
+        options=[],
+    ),
+    # ── retire_ghost_items.py (1 command) ─────────────────────────────────
+    MaintenanceAction(
+        id="library-retire-ghost-items",
+        title="Retirer les éléments fantômes",
+        description="Retire les media_item dont le dossier n'existe plus et dont aucun fichier n'est vivant.",
+        category="fix",
+        risk="destructive",
+        long_running=False,
+        dry_run="supported",
+        options=[
+            ActionOption(
+                name="disk",
+                type="str",
+                label="Disque",
+                help="Limiter à ce disque (libellé).",
+            ),
+        ],
     ),
 ]
