@@ -10,14 +10,14 @@ oracle's served-copy stamp reads — followed shell commands rather than code.
 
 WHERE THIS TEST LIVES, AND WHY IT IS PYTHON. The maquette's own vitest suite
 runs nowhere in continuous integration: the `frontend` job runs `npm run test`
-for `frontend/` and only `npm run typecheck` for `frontend/maquette/design`. A
+for `frontend/` and only `npm run typecheck` for `webui/design`. A
 hold added there would never be read. The `test` job, on the other hand, sets up
 Node 22 — so a Python test driving `node` runs exactly where the gate is, and
 `build-identity.mjs` imports nothing but Node's standard library so it needs no
 `node_modules` at all.
 
 Every test builds a synthetic design tree in a `tmp_path` repository: nothing
-here writes into `frontend/maquette/design/`.
+here writes into `webui/design/`.
 """
 
 from __future__ import annotations
@@ -28,9 +28,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from _repo_paths import DESIGN, HARNESS, MAQUETTE
 
 ROOT = Path(__file__).resolve().parents[2]
-MODULE = ROOT / "frontend" / "maquette" / "design" / "build-identity.mjs"
+MODULE = DESIGN / "build-identity.mjs"
 
 ROOT_FILES = ("index.html", "sw.js", "package.json")
 
@@ -168,15 +169,15 @@ def test_the_root_files_are_part_of_the_identity(tmp_path: Path) -> None:
 # `worker-source.mjs` (the push texts the worker build writes) went the same
 # way: switchover.py and serve.py were named here, and `dense_boot.py` and the
 # fresh-build test, which assemble a tree too, were not — the harness went red
-# on the dense build. Every assembler is named, not two.
-HARNESS = ROOT / "frontend" / "maquette" / "harness"
+# on the dense build. Every assembler is named, not two. `app-bundle.mjs` then
+# missed the design-host switches fixture, which went red in CI only.
 ASSEMBLERS = {
     "switchover.py's scratch tree": HARNESS / "switchover.py",
     "dense_boot.py's scratch tree": HARNESS / "dense_boot.py",
     "test_design_fresh_build.py's BUILD_FILES": ROOT / "tests" / "scripts" / "test_design_fresh_build.py",
-    "serve.py's BUILD_INPUTS": ROOT / "frontend" / "maquette" / "serve.py",
+    "test_design_host_switches.py's scratch design root": ROOT / "tests" / "scripts" / "test_design_host_switches.py",
+    "serve.py's BUILD_INPUTS": MAQUETTE / "serve.py",
 }
-DESIGN = ROOT / "frontend" / "maquette" / "design"
 
 
 def test_every_build_input_at_the_design_root_is_known_to_every_assembler() -> None:

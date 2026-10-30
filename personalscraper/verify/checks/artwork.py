@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from personalscraper.verify.checks.base import CheckContext, IndexContext
 
 
-def _parsed_movie_title(ctx: "CheckContext") -> str:
+def _parsed_movie_title(ctx: CheckContext) -> str:
     """Return the movie title parsed from the directory name (``checker.py`` parity).
 
     Args:
@@ -46,7 +46,7 @@ class PosterPresent:
     default_severity = Severity.ERROR
     description = "Poster artwork must be present"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False if poster absent.
 
         Presence is resolved by the ONE canonical detector
@@ -123,7 +123,7 @@ class ArtworkLandscape:
     default_severity = Severity.WARNING
     description = "Landscape artwork should be present"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False if landscape absent.
 
         Presence is resolved by the ONE canonical detector
@@ -198,7 +198,7 @@ class SeasonPosters:
     default_severity = Severity.WARNING
     description = "Each season should have a season poster"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return N missing-poster warnings, or one ``passed=True`` result.
 
         Mirrors ``check_tvshow`` exactly : emit one WARNING per season dir

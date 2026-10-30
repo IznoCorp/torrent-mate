@@ -28,6 +28,7 @@ from pathlib import Path
 # keep in step, and the first to drift would do so with both halves still
 # reporting « no violation » about a value they were reading differently.
 from csstokens_patterns import comma_segments
+from _repo_paths import DESIGN, DESIGN_SRC
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -94,7 +95,7 @@ DISCRETE_TIMING = re.compile(r"(?<![\w-])(steps\s*\([^)]*\)|step-start(?![\w-])|
 MOTION_STEPS = {"150": "--duration-1", "200": "--duration-2", "300": "--duration-3", "450": "--duration-4"}
 
 # The scale block, and the one declaration this file has to agree with.
-THEME = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
+THEME = DESIGN_SRC / "styles" / "theme.css"
 _DURATION_STEP = re.compile(r"(--duration-\d+)\s*:\s*([\d.]+)(m?s)\b")
 
 
@@ -127,12 +128,12 @@ def declared_milliseconds() -> dict[str, str]:
 # hand-written CSS until L13 and receives no utility (D-L07-5) — and it is
 # 34 000 lines whose prose would yield false candidates.
 CLASS_SOURCES = (
-    ROOT / "frontend" / "maquette" / "design" / "index.html",
-    ROOT / "frontend" / "maquette" / "design" / "src" / "app",
-    ROOT / "frontend" / "maquette" / "design" / "src" / "features",
-    ROOT / "frontend" / "maquette" / "design" / "src" / "lib",
-    ROOT / "frontend" / "maquette" / "design" / "src" / "routes",
-    ROOT / "frontend" / "maquette" / "design" / "src" / "ui",
+    DESIGN / "index.html",
+    DESIGN_SRC / "app",
+    DESIGN_SRC / "features",
+    DESIGN_SRC / "lib",
+    DESIGN_SRC / "routes",
+    DESIGN_SRC / "ui",
 )
 
 # A Tailwind duration utility as it is written in markup: an optional variant

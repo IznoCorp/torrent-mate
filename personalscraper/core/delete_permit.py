@@ -11,7 +11,7 @@ composition root. This ensures deleters never import acquire/.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -32,9 +32,17 @@ class _Allow:
 
 @dataclass(frozen=True)
 class _Veto:
-    """A deletion veto with a human-readable reason."""
+    """A deletion veto with a human-readable reason.
+
+    Attributes:
+        reason: Why the deletion is refused.
+        owed_until: When the seeding owed is met, epoch seconds — the latest over the
+            unmet obligations — or ``None`` when the permit does not know it. A datum for
+            the deletion's report (operator ruling R2); it takes no part in equality.
+    """
 
     reason: str
+    owed_until: int | None = field(default=None, compare=False)
 
     def __repr__(self) -> str:
         return f"VETO({self.reason!r})"
@@ -49,16 +57,26 @@ ALLOW: _Allow = _Allow()
 PermitDecision = _Allow | _Veto
 
 
-def veto(reason: str) -> _Veto:
+def veto(reason: str, *, owed_until: int | None = None) -> _Veto:
     """Construct a VETO decision with the given reason string.
 
     Args:
         reason: Human-readable explanation for the veto.
+        owed_until: When the seeding owed is met, epoch seconds, when known.
 
     Returns:
         A _Veto instance carrying the reason.
     """
-    return _Veto(reason=reason)
+    return _Veto(reason=reason, owed_until=owed_until)
+
+
+class ObligationsUnreadable(Exception):
+    """The seed obligations a permit consults could not be read.
+
+    Raised by a permit that must REFUSE rather than allow when it cannot tell (the
+    library's deletion from the interface, operator ruling R1); a fail-open permit
+    (:class:`DeletePermit`'s contract) never raises it.
+    """
 
 
 @runtime_checkable
@@ -214,6 +232,7 @@ __all__ = [
     "ALLOW",
     "AllowAllPermit",
     "DeletePermit",
+    "ObligationsUnreadable",
     "PermitDecision",
     "SeedObligationChecker",
     "SeedObligationRecorder",

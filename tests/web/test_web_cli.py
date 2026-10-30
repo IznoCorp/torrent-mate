@@ -13,17 +13,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from personalscraper.app.accounts.passwords import verify_password
+from personalscraper.app.composition import ONE_ATTEMPT
+
 # Import the fully-wired CLI app so the ``web`` sub-app is mounted via
 # ``add_typer`` (matching the trailers/library sub-app test convention).
 from personalscraper.cli import app as cli_app
 from personalscraper.conf.models.web import WebConfig
 from personalscraper.config import Settings
-from personalscraper.web.auth.passwords import verify_password
 
 # Patch targets for the eager config load in the CLI callback.
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
-_PATCH_BUILD_CTX = "personalscraper.commands.web._build_app_context"
+_PATCH_BUILD_CTX = "personalscraper.commands.web.build_app_context"
 _PATCH_UVICORN_RUN = "personalscraper.commands.web.uvicorn.run"
 
 
@@ -131,6 +133,27 @@ class TestWebHappyPath:
         call_kwargs = mock_run.call_args.kwargs
         assert call_kwargs["host"] == web_cfg.host
         assert call_kwargs["port"] == web_cfg.port
+
+    def test_the_boot_context_makes_one_attempt_and_is_handed_to_the_app(
+        self, cli_runner: CliRunner, test_config
+    ) -> None:
+        """The process's context is built with one provider attempt, and ``create_app`` is handed it."""
+        cfg = test_config.model_copy(update={"web": WebConfig(dev_mode=True)})
+        mock_ctx = MagicMock()
+        mock_ctx.acquire = None
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_BUILD_CTX, return_value=mock_ctx) as mock_build,
+            patch("personalscraper.commands.web.create_app") as mock_create_app,
+            patch(_PATCH_UVICORN_RUN),
+        ):
+            result = cli_runner.invoke(cli_app, ["web"])
+
+        assert result.exit_code == 0
+        assert mock_build.call_args.kwargs["provider_retry"] is ONE_ATTEMPT
+        assert mock_create_app.call_args.kwargs["app_context"] is mock_ctx
 
     def test_cli_host_and_port_override_config(self, cli_runner: CliRunner, test_config) -> None:
         """``web --host 0.0.0.0 --port 8711`` overrides config.web.host/port (staging clone).
@@ -283,3 +306,35 @@ class TestSetPassword:
         match = re.search(r"WEB_PASSWORD_HASH=(scrypt\$[^\s]+)", content)
         assert match is not None, f"No WEB_PASSWORD_HASH line found in: {content}"
         assert verify_password("test-password", match.group(1)) is True
+
+    def test_write_flag_targets_explicit_env_file(
+        self,
+        cli_runner: CliRunner,
+        test_config,
+        tmp_path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With PERSONALSCRAPER_ENV_FILE set, --write fills that file and not the clone's ``.env``."""
+        monkeypatch.delenv("WEB_JWT_SECRET", raising=False)
+        clone_env = tmp_path / ".env"
+        explicit = tmp_path / "explicit.env"
+        monkeypatch.setenv("PERSONALSCRAPER_ENV_FILE", str(explicit))
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.web.get_settings",
+                return_value=Settings(_env_file=None),  # type: ignore[call-arg]
+            ),
+            patch("personalscraper.commands.web._ENV_PATH", clone_env),
+        ):
+            result = cli_runner.invoke(
+                cli_app,
+                ["web", "set-password", "--write"],
+                input="testuser\ntest-password\ntest-password\ny\n",
+            )
+
+        assert result.exit_code == 0, f"stderr: {result.stderr}"
+        assert "WEB_PASSWORD_HASH=scrypt$" in explicit.read_text()
+        assert not clone_env.exists()

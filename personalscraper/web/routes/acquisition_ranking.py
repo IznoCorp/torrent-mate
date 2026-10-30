@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 # ── ranking preview (ranking editor, #18) ─────────────────────────────────
 
 
-def _ranking_preview_samples() -> list["TrackerResult"]:
+def _ranking_preview_samples() -> list[TrackerResult]:
     """Build the fixed, representative release sample set for the ranking preview.
 
     Six synthetic releases spanning every scored axis (resolution, codec,
@@ -38,8 +38,8 @@ def _ranking_preview_samples() -> list["TrackerResult"]:
     Fields are set explicitly (as the trackers would after title-parsing), so
     the preview scores exactly what a real grab would.
     """
-    from personalscraper.api._units import ByteSize
     from personalscraper.api.tracker._base import TrackerResult
+    from personalscraper.core.units import ByteSize
 
     return [
         TrackerResult(

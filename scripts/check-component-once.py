@@ -2,7 +2,7 @@
 """A component is written once — no PascalCase function is declared in two files.
 
 THE DEFECT THIS ENDS. `Icon` — one `<svg>` with six attributes — was written
-out FOUR times under `frontend/maquette/design/src`: once in `ui/icon.tsx`,
+out FOUR times under `webui/design/src`: once in `ui/icon.tsx`,
 where it belonged, and once privately in each of three screens, each copy
 carrying a comment saying the extraction « is a follow-up of its own ». The
 follow-up never came, because nothing counted the copies: a component copied
@@ -54,9 +54,10 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from _repo_paths import DESIGN_SRC
 
 ROOT = Path(__file__).resolve().parent.parent
-DESIGN_ROOT = ROOT / "frontend" / "maquette" / "design" / "src"
+DESIGN_ROOT = DESIGN_SRC
 # The dying engine is only ever subtracted from; the mock layer's doubles may
 # shadow the names they stand in for.
 EXCLUDED_DIRECTORIES = ("engine", "mocks")

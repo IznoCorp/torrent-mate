@@ -34,7 +34,7 @@ from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
-from personalscraper.conf.models.api_config import TrackerEconomyConfig
+from personalscraper.conf.models.api_config import TorrentScope, TrackerEconomyConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 
@@ -314,3 +314,37 @@ class TestObligationRecorder:
         authority = DeleteAuthority(store=store, torrent_client=client, economy=_ECONOMY)
 
         assert authority.record_grab_obligation(_HASH) is False
+
+
+class TestObligationRecorderUnderAScope:
+    """``record_grab_obligation`` never writes an obligation for another instance's torrent."""
+
+    _SCOPE = TorrentScope(category="tm-dev", download_root=Path("/srv/tm-dev"))
+
+    def _authority(self, store: ConcreteAcquireStore, category: str, scope: TorrentScope | None) -> DeleteAuthority:
+        """An authority whose client holds the torrent of ``_HASH`` filed under *category*."""
+        item = _torrent(_HASH, tags=[_TRACKER])
+        item.category = category
+        client = MagicMock()
+        client.get_by_hashes.return_value = [item]
+        return DeleteAuthority(store=store, torrent_client=client, economy=_ECONOMY, scope=scope)
+
+    def test_a_torrent_of_another_category_gets_no_obligation(self, store: ConcreteAcquireStore) -> None:
+        """The hash is held in category ``prod``: nothing is written."""
+        authority = self._authority(store, "prod", self._SCOPE)
+
+        assert authority.record_grab_obligation(_HASH) is False
+        assert store.seed.find_active_by_hash(_HASH) is None
+
+    def test_a_torrent_of_the_scope_category_gets_its_obligation(self, store: ConcreteAcquireStore) -> None:
+        """The hash is held in the scope's category: recorded as before."""
+        authority = self._authority(store, "tm-dev", self._SCOPE)
+
+        assert authority.record_grab_obligation(_HASH) is True
+        assert store.seed.find_active_by_hash(_HASH) is not None
+
+    def test_without_a_scope_the_category_plays_no_part(self, store: ConcreteAcquireStore) -> None:
+        """Unscoped: a torrent of any category gets its obligation."""
+        authority = self._authority(store, "prod", None)
+
+        assert authority.record_grab_obligation(_HASH) is True

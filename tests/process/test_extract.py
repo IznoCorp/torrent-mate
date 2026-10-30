@@ -306,7 +306,7 @@ class TestExtractSymlinkRejection:
             def __init__(self, *a: object, **k: object) -> None:
                 pass
 
-            def __enter__(self) -> "_FakeRar":
+            def __enter__(self) -> _FakeRar:
                 return self
 
             def __exit__(self, *a: object) -> bool:

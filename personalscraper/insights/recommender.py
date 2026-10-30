@@ -7,7 +7,7 @@ Output format is the contract for future auto-download integration.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from personalscraper.conf.models.preferences import LibraryPrefs
 from personalscraper.insights.models import (
@@ -288,7 +288,7 @@ def generate_recommendations(
     total_savings = sum(r.estimated_savings_gb or 0 for r in recommendations)
 
     return LibraryRecommendationResult(
-        generated_at=datetime.now(tz=timezone.utc).isoformat(),
+        generated_at=datetime.now(tz=UTC).isoformat(),
         total_recommendations=len(recommendations),
         estimated_total_savings_gb=round(total_savings, 1),
         items=recommendations,

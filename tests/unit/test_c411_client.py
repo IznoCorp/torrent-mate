@@ -7,7 +7,7 @@ are redacted.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 from unittest.mock import MagicMock
@@ -15,11 +15,11 @@ from unittest.mock import MagicMock
 import pytest
 import xmltodict  # type: ignore[import-untyped]
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._errors import TrackerAuthError
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.transport._auth import ApiKeyAuth
+from personalscraper.core.units import ByteSize
 
 _SAMPLES = Path(__file__).resolve().parents[2] / "docs" / "reference" / "_samples" / "c411"
 
@@ -103,7 +103,7 @@ class TestC411SearchAgainstLiveSamples:
         assert first.is_silverleech is False
         assert first.tmdb_id == 27205  # unpinned field — real value from the capture
         assert isinstance(first.upload_date, datetime)
-        assert first.upload_date.tzinfo == timezone.utc
+        assert first.upload_date.tzinfo == UTC
         assert first.upload_date.year == 2026
 
     def test_quality_fields_extracted_from_title(self) -> None:

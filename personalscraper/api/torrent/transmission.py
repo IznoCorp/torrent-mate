@@ -115,6 +115,7 @@ class TransmissionClient(
                 "labels",
                 "error",
                 "errorString",
+                "secondsSeeding",
             ]
         )
         return [_torrent_item(t) for t in torrents if t.status in _COMPLETED_STATES]
@@ -159,6 +160,7 @@ class TransmissionClient(
                 "error",
                 "errorString",
                 "eta",
+                "secondsSeeding",
             ],
         )
         return [_torrent_item(t) for t in torrents]
@@ -238,8 +240,9 @@ class TransmissionClient(
         :func:`_split_labels` already decodes. The sentinel does NOT lie about a
         category — ``_split_labels`` maps a leading ``""`` back to
         ``category=None``, and EVERY consumer of a torrent's category/tags reads
-        that DECODED value (the ingest ``SEED_PURE`` skip, the sort
-        ``SEED_PURE`` guard, the cross-seed ``SEED_PURE`` skip, the web staging
+        that DECODED value (the ingest, sort-guard and cross-seed triage
+        skips, which apply ``triage_skip_reason`` — ``SEED_PURE`` unscoped, the
+        instance tag and ``SEED_ONLY`` under a scope — and the web staging
         category filter) — none reads raw ``labels[0]``. So ``add`` emits the
         sentinel directly instead of raising; the former
         ``UnsupportedCapabilityError`` for tags-without-category is REJECTED and
@@ -407,7 +410,7 @@ class TransmissionClient(
 # -- Factory entry point -----------------------------------------------------
 
 
-def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> "TransmissionClient":
+def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> TransmissionClient:
     """Construct a TransmissionClient with pre-check.
 
     Args:
@@ -473,8 +476,8 @@ def _split_labels(labels: list[str]) -> tuple[str | None, list[str]]:
     ``labels[0]`` is the no-category sentinel (written by :func:`_labels` when a
     category-less torrent carries tags): in that case ``labels[1:]`` are the
     tags and the category is ``None``. This keeps tags readable as tags on
-    category-less torrents — the property the ingest skip (``SEED_PURE in
-    tags``) depends on.
+    category-less torrents — the property the triage skip
+    (``triage_skip_reason``, which reads the tags) depends on.
 
     Args:
         labels: The torrent's flat labels list.
@@ -566,6 +569,22 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         eta_raw = int(eta_raw.total_seconds())
     eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and eta_raw >= 0 else None
 
+    # secondsSeeding: seconds really seeded; absent or negative is an honest None.
+    # transmission_rpc reads ``fields["secondsSeeding"]``: a reply that did not
+    # request the field raises KeyError (not AttributeError), so getattr's
+    # default would not catch it.
+    try:
+        seeding_raw = t.seconds_seeding
+    except (AttributeError, KeyError):
+        seeding_raw = None
+    if isinstance(seeding_raw, timedelta):
+        seeding_raw = int(seeding_raw.total_seconds())
+    seeding_time_s: int | None = (
+        int(seeding_raw)
+        if isinstance(seeding_raw, (int, float)) and not isinstance(seeding_raw, bool) and seeding_raw >= 0
+        else None
+    )
+
     error_code = getattr(t, "error", 0) or 0
     error_string = str(getattr(t, "error_string", "") or "").strip()
     error_reason: str | None = None
@@ -587,4 +606,5 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         completion_on=completion_on,
         error_reason=error_reason,
         eta_seconds=eta_seconds,
+        seeding_time_s=seeding_time_s,
     )

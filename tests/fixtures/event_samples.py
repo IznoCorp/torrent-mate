@@ -8,9 +8,13 @@ rendering tests can iterate every event class without ``MagicMock``.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
+from personalscraper.app.accounts.events import AccountRightsChanged, PlexSessionOpened, RightsChangeCause
+from personalscraper.app.supervisor.events import RunAdmitted, RunQueued, RunSettled
+from personalscraper.app.supervisor.ids import RunUid
+from personalscraper.app.supervisor.model import RunKind, RunTrigger, Settlement
 from personalscraper.core.circuit import (
     CircuitBreakerClosed,
     CircuitBreakerHalfOpened,
@@ -21,6 +25,8 @@ from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.indexer.events import (
     DiskFullWarning,
     LibraryScanCompleted,
+    LibraryScanSkipped,
+    ScanSkipReason,
 )
 from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
@@ -57,8 +63,8 @@ def register_factory(event_type: type[Event]) -> Callable[[Callable[[], Event]],
 
 
 # Deterministic timestamps so envelope round-trip assertions stay reproducible.
-_T0 = datetime(2026, 5, 12, 10, 0, 0, tzinfo=timezone.utc)
-_T1 = datetime(2026, 5, 12, 10, 5, 0, tzinfo=timezone.utc)
+_T0 = datetime(2026, 5, 12, 10, 0, 0, tzinfo=UTC)
+_T1 = datetime(2026, 5, 12, 10, 5, 0, tzinfo=UTC)
 
 
 def _make_real_step_report() -> StepReport:
@@ -187,6 +193,7 @@ def make_item_dispatched() -> ItemDispatched:
         target_disk=Path("/Volumes/Disk1"),
         category_id="movies",
         action="moved",
+        media_ref=MediaRef(tmdb_id=27205, imdb_id="tt1375666"),
     )
 
 
@@ -206,11 +213,62 @@ def make_library_scan_completed() -> LibraryScanCompleted:
     return LibraryScanCompleted(mode="quick", scanned=12_345, errors=2, elapsed_s=187.42)
 
 
+@register_factory(LibraryScanSkipped)
+def make_library_scan_skipped() -> LibraryScanSkipped:
+    """Realistic :class:`LibraryScanSkipped` factory."""
+    return LibraryScanSkipped(disk="disk_1", reason=ScanSkipReason.FAILED)
+
+
+# ---------------------------------------------------------------------------
+# k1-comptes feature — E8, an account's rights moved
+# ---------------------------------------------------------------------------
+
+
+@register_factory(AccountRightsChanged)
+def make_account_rights_changed() -> AccountRightsChanged:
+    """Realistic :class:`AccountRightsChanged` factory."""
+    return AccountRightsChanged(
+        account_ids=("account-3f2a9c1e", "account-77b04d10"),
+        cause=RightsChangeCause.ROLE_RIGHTS_CHANGED,
+    )
+
+
+@register_factory(PlexSessionOpened)
+def make_plex_session_opened() -> PlexSessionOpened:
+    """Realistic :class:`PlexSessionOpened` factory."""
+    return PlexSessionOpened(account_id="account-3f2a9c1e", device="Firefox · macOS")
+
+
+# ---------------------------------------------------------------------------
+# k4a-queue-model feature — the supervisor's queue of asked runs
+# ---------------------------------------------------------------------------
+
+_SAMPLE_RUN_UID = RunUid("0123456789abcdef0123456789abcdef")
+
+
+@register_factory(RunQueued)
+def make_run_queued() -> RunQueued:
+    """Realistic :class:`RunQueued` factory."""
+    return RunQueued(uid=_SAMPLE_RUN_UID, kind=RunKind.PIPELINE, trigger=RunTrigger.WEB, joined=False)
+
+
+@register_factory(RunAdmitted)
+def make_run_admitted() -> RunAdmitted:
+    """Realistic :class:`RunAdmitted` factory."""
+    return RunAdmitted(uid=_SAMPLE_RUN_UID, kind=RunKind.PIPELINE)
+
+
+@register_factory(RunSettled)
+def make_run_settled() -> RunSettled:
+    """Realistic :class:`RunSettled` factory."""
+    return RunSettled(uid=_SAMPLE_RUN_UID, kind=RunKind.RESCRAPE, settlement=Settlement.SUCCESS)
+
+
 # ---------------------------------------------------------------------------
 # provider-ids feature — sub-phase 8.4 backfill events
 # ---------------------------------------------------------------------------
 
-from personalscraper.indexer.events import (  # noqa: E402, PLC0415
+from personalscraper.indexer.events import (  # noqa: E402
     BackfillCompleted,
     BackfillItemCompleted,
     BackfillSkipped,
@@ -351,7 +409,7 @@ def make_registry_boot_validated() -> RegistryBootValidated:
 # acquire-events feature (RP4) — 10 acquisition event factories
 # ---------------------------------------------------------------------------
 
-from personalscraper.acquire.events import (  # noqa: E402, PLC0415
+from personalscraper.acquire.events import (  # noqa: E402
     CrossSeedInjected,
     CrossSeedRejected,
     DownloadCompleted,
@@ -361,12 +419,14 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     GrabFailed,
     GrabReswitched,
     GrabSucceeded,
+    PreprodPurgeCompleted,
     RatioMeasured,
     SeasonAbsorbedEpisodes,
     SeasonEscalatedAfterEpisodeFailures,
     SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
+    SeedObligationReleased,
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
@@ -375,7 +435,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     WantedEnqueued,
     WatcherRunTriggered,
 )
-from personalscraper.core.identity import MediaRef  # noqa: E402, PLC0415
+from personalscraper.core.identity import MediaRef  # noqa: E402
 
 _BREAKING_BAD_REF = MediaRef(tvdb_id=81189, tmdb_id=1396, imdb_id="tt0903747")
 _INCEPTION_REF = MediaRef(tvdb_id=None, tmdb_id=27205, imdb_id="tt1375666")
@@ -479,6 +539,21 @@ def make_seed_obligation_satisfied() -> SeedObligationSatisfied:
         info_hash="b" * 40,
         source_tracker="c411",
     )
+
+
+@register_factory(SeedObligationReleased)
+def make_seed_obligation_released() -> SeedObligationReleased:
+    """Realistic SeedObligationReleased factory."""
+    return SeedObligationReleased(
+        info_hash="c" * 40,
+        source_tracker="c411",
+    )
+
+
+@register_factory(PreprodPurgeCompleted)
+def make_preprod_purge_completed() -> PreprodPurgeCompleted:
+    """Realistic PreprodPurgeCompleted factory — one purged, three kept."""
+    return PreprodPurgeCompleted(purged=1, kept=3, dry_run=False)
 
 
 @register_factory(RatioMeasured)

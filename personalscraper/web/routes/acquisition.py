@@ -44,6 +44,8 @@ from personalscraper.acquire.desired import cadence_from_config, cadence_from_js
 from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
+from personalscraper.app.acquisition.runner import parse_prime_options
+from personalscraper.app.acquisition.states import WantedFacts, substitute_absorbed_facts
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
@@ -56,7 +58,6 @@ from personalscraper.web.acquisition._helpers import (
     _row_col,
 )
 from personalscraper.web.acquisition.obligation_titles import resolve_obligation_titles
-from personalscraper.web.acquisition.runner import parse_prime_options
 from personalscraper.web.acquisition.service import (
     _build_followed_item,
     _count_wanted_pending,
@@ -68,7 +69,6 @@ from personalscraper.web.acquisition.service import (
     run_media_search,
     scoped_provider_clients,
 )
-from personalscraper.web.acquisition.states import WantedFacts, substitute_absorbed_facts
 from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionDownloadsResponse,
@@ -103,7 +103,7 @@ _MAX_PAGE_SIZE = 200
 
 
 def _write_follow_metadata(
-    store: "ConcreteAcquireStore",
+    store: ConcreteAcquireStore,
     followed_id: int,
     metadata: FollowMetadata,
 ) -> None:
@@ -137,7 +137,7 @@ def _write_follow_metadata(
             title=metadata.title,
             original_title=metadata.original_title,
         )
-    except Exception:  # noqa: BLE001 — fail-soft: the follow already succeeded, metadata is a nicety
+    except Exception:  # fail-soft: the follow already succeeded, metadata is a nicety
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
 
 
@@ -797,7 +797,7 @@ def get_acquisition_downloads(request: Request) -> AcquisitionDownloadsResponse:
 # ── provenance journeys (« parcours » — F1) ───────────────────────────────
 
 
-def _journey_media_ref(ref: "MediaRef | None") -> MediaRefResponse:
+def _journey_media_ref(ref: MediaRef | None) -> MediaRefResponse:
     """Convert a provenance MediaRef to the API response shape (empty when None)."""
     if ref is None:
         return MediaRefResponse()
@@ -978,7 +978,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
     try:
         existing = store.follow.find_by_ref(media_ref)
         if existing is not None:
-            assert existing.id is not None  # noqa: S101 — find_by_ref always sets id
+            assert existing.id is not None  # find_by_ref always sets id
             if existing.active:
                 raise HTTPException(
                     status_code=409,
@@ -1001,7 +1001,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             # they were the day the follow was paused (plan §6 idempotence).
             prime = enqueue_prime_run(config.indexer.db_path, existing.id)
             reactivated = store.follow.get(existing.id)
-            assert reactivated is not None  # noqa: S101 — just wrote it
+            assert reactivated is not None  # just wrote it
             item = _item_from_followed(reactivated)
             item.poster_url = metadata.poster_url
             item.overview = metadata.overview
@@ -1052,7 +1052,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         )
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
-        assert created is not None  # noqa: S101 — just inserted it
+        assert created is not None  # just inserted it
         _write_follow_metadata(store, new_id, metadata)
         # Amorce: catalog + queue + first search run NOW, through the existing
         # run authority — a fresh follow is never left idle until the 03:00
@@ -1107,7 +1107,7 @@ def update_follow(
             store.follow.set_cadence(followed_id, cadence_json)
 
         updated = store.follow.get(followed_id)
-        assert updated is not None  # noqa: S101 — just wrote it
+        assert updated is not None  # just wrote it
 
         # Count wanted pending for accurate response.
         wanted_pending = _count_wanted_pending(store, followed_id)

@@ -102,6 +102,7 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 50. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
 51. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
 52. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
+53. [`schedule`](#personalscraper-schedule) — self-managed cron loop behind the scheduled PM2 jobs
 
 ### Make targets + scheduling (appendix)
 
@@ -406,10 +407,21 @@ Telegram)
 - `--headless` : run with no subscribers (silent mode for cron / CI) — disables Rich console output and Telegram notifications
 - `--no-console` : disable Rich console Live display (useful when stdout is not a TTY, e.g. invoked by the watcher daemon). Unlike `--headless`, structlog file logging and Telegram notifications remain active.
 - `--trigger-reason` : label this run with a human-readable trigger cause (e.g. `"watcher-debounce"`, `"watch-now"`, `"safety-net"`). Emitted as a `WatcherRunTriggered` event for observability.
+- `--detach` : with a live supervisor lease, queue the run and return `0` at once instead of following it. Without a live lease it has no effect (the run executes in this process).
+
+**With a supervisor** (`personalscraper supervise` holds a live lease in `app.db`): nothing but the supervisor's
+worker starts a run, so `run` starts nothing in its own process. It asks the run through the queue (under
+`PERSONALSCRAPER_RUN_UID` when a caller promised one; an equal request already waiting answers it), prints the
+request's uid and position, then follows **the uid the queue answered**: each step as it closes, then the end. The exit
+code is the run's: `0` success, `1` error (`interrupted` and `abandoned` too), `2` when the trailers step aborted the
+run, `130` killed. Ctrl-C (or `--detach`) leaves the follower and keeps the request. `--interactive` is refused in this
+mode (exit `1`): use `personalscraper scrape -i`. With no live lease (no supervisor, or its lease lapsed) the command
+runs in this process exactly as before.
 
 **Examples**:
 
     personalscraper run
+    personalscraper run --detach
     personalscraper run --dry-run
     personalscraper run --skip-trailers
     personalscraper run --continue-on-trailer-error
@@ -1707,12 +1719,16 @@ that `mutate FS` + `mutate BDD` + `network`
 - `watch.debounce_s` (int) : Seconds to wait after a torrent completes before triggering a run [default: 900]
 - `watch.safety_net_hours` (int) : Maximum hours between pipeline runs — triggers a run regardless of torrent activity [default: 24]
 
+**Supervisor**: `personalscraper supervise` runs this same poll and also admits the queued runs (one worker at a
+time, under its lease); with it, a fired run is queued instead of spawned. `watch` stays as the rollback and is
+unchanged.
+
 **Examples**:
 
     personalscraper watch
     personalscraper watch --interval 120
 
-**Related**: `watch-now`, `run`, `cross-seed`
+**Related**: `watch-now`, `run`, `supervise`, `cross-seed`
 
 ---
 
@@ -1876,7 +1892,7 @@ run.
 **Related**: `follow detect`, `grab`
 
 > **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-search` runs
-> `search` at 03:10 and 15:10 daily, between the detect pass (03:00) and each
+> `search` (through [`schedule`](#personalscraper-schedule)) at 03:10 and 15:10 daily, between the detect pass (03:00) and each
 > grab pass (03:20 / 15:20). The second pass catches items that were still
 > in their cadence cooldown during the morning run.
 
@@ -2068,7 +2084,34 @@ surface it too).
 **Related**: `watch`
 
 > **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-health-check` runs
-> `health-check` hourly (#218).
+> `health-check` hourly at :15 through [`schedule`](#personalscraper-schedule) (#218).
+
+## `personalscraper schedule`
+
+**Purpose**: The self-managed cron loop behind every scheduled PM2 job. Runs
+`personalscraper <JOB…>` at each boundary of a 5-field cron expression (local time),
+to its end, forever — one run at a time, never started early, never twice at the same
+boundary; a boundary that falls inside a long run is skipped. Stops on SIGINT/SIGTERM
+and relays the signal to a running job. It replaces PM2's `cron_restart`, whose cron
+(6.0.8) ticks twice around a boundary and kills the run it just started (BUGS B-680).
+
+**Side effects**: none of its own; those of the job it runs (a fresh process each time,
+which loads its own config).
+
+**Args**:
+
+- `--cron EXPR` — required; `minute hour day-of-month month day-of-week` (`*`, `N`, `N-M`,
+  `*/S`, lists; Sunday is `0` or `7`; day-of-month and day-of-week OR when both are restricted).
+- `-- JOB…` — the command and its arguments, after `--`.
+
+**Examples**:
+
+    personalscraper schedule --cron '15 * * * *' -- health-check
+    personalscraper schedule --cron '0 1 * * 1' -- library-index --mode full --no-budget
+
+**Exit code**: `0` once stopped by a signal; `2` on a malformed expression or no job.
+
+**Related**: `watch`, `health-check`, `grab`, `search`
 
 ## Pipeline control flags & sentinels (S2 — `pipe-control`)
 
@@ -2087,7 +2130,8 @@ Records **who started the run** in the `pipeline_run` history table. Values:
 | `manual`     | a manually-labelled run                             |
 | `""` (empty) | default — unlabelled                                |
 
-Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`.
+Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`. With a live supervisor lease the
+value becomes the queued request's trigger (empty means `cli`).
 
 The web route also injects `PERSONALSCRAPER_RUN_UID=<hex>` into the subprocess
 environment so the `run_uid` returned by `POST /api/pipeline/run` equals the
@@ -2101,6 +2145,7 @@ run's history row (`run()` honours the env var, falling back to a fresh
 | `pipeline.pause` | While present, a running pipeline pauses **at the next step boundary** and polls until it is removed (or SIGTERM). Create/remove it manually to pause/resume a run without the web UI. |
 | `watcher.paused` | While present, the Watcher daemon no-ops (does not auto-start runs). Distinct from pausing a run in progress.                                                                          |
 | `pipeline.lock`  | Single trigger authority — holds the running pipeline's pid; `POST /api/pipeline/kill` reads it to SIGTERM the run.                                                                    |
+| `run_lease` (row of `app.db`) | The supervisor's authority: while it is live, a run starts only through the queue and `personalscraper run` follows it (`--detach` to leave). The worker still holds `pipeline.lock` for the run's lifetime. |
 
 Manual example — pause the current run, then resume:
 

@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # NTFS illegal-filename pattern (same source as text_utils._FILENAME_ILLEGAL)
@@ -76,10 +75,10 @@ class FilesystemCapability:
 
     fs_type: str = field(compare=False)
     rsync_flags: tuple[str, ...]
-    illegal_name_regex: Optional[re.Pattern[str]]
+    illegal_name_regex: re.Pattern[str] | None
     tier1_uses_ctime: bool
     mtime_granularity_ns: int
-    dir_mtime_reliable_default: Optional[bool]
+    dir_mtime_reliable_default: bool | None
 
     @property
     def forbids_unix_perms(self) -> bool:

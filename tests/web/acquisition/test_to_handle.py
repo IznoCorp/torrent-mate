@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
-from personalscraper.web.acquisition.to_handle import build_to_handle
+from personalscraper.app.acquisition.to_handle import build_to_handle
 
 
 def _make_indexer(tmp_path: Path, rows: list[tuple]) -> Path:

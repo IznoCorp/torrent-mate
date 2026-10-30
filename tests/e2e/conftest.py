@@ -16,8 +16,8 @@ import pytest
 from personalscraper.logger import configure_logging
 from tests.e2e.registry import TestRegistry
 
-# .torrent files live in assets/torrents/ at the project root
-ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "torrents"
+# .torrent files live in tests/e2e/golden/torrents/, beside their golden files
+ASSETS_DIR = Path(__file__).resolve().parent / "golden" / "torrents"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -90,7 +90,7 @@ def e2e_qbit_client():
 
 @pytest.fixture(scope="session")
 def e2e_torrent_files():
-    """Discover .torrent files in assets/torrents/.
+    """Discover .torrent files in tests/e2e/golden/torrents/.
 
     Skip if no torrent files are found.
 
@@ -98,10 +98,10 @@ def e2e_torrent_files():
         List of Path objects to .torrent files.
     """
     if not ASSETS_DIR.is_dir():
-        pytest.skip(f"assets/torrents/ directory not found at {ASSETS_DIR}")
+        pytest.skip(f"tests/e2e/golden/torrents/ directory not found at {ASSETS_DIR}")
     files = sorted(ASSETS_DIR.glob("*.torrent"))
     if not files:
-        pytest.skip("No .torrent files in assets/torrents/")
+        pytest.skip("No .torrent files in tests/e2e/golden/torrents/")
     return files
 
 

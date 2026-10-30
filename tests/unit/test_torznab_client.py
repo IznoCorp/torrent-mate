@@ -22,7 +22,6 @@ import pytest
 import requests
 
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
@@ -30,6 +29,7 @@ from personalscraper.api.tracker.c411 import C411_DESCRIPTOR
 from personalscraper.api.tracker.torznab import TorznabClient, TorznabDescriptor
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.units import ByteSize
 from tests.unit.test_c411_client import _load_xml  # shared live XML fixtures — never copied
 
 # A second, deliberately different dialect: another host, another endpoint

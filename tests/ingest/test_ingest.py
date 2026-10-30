@@ -266,6 +266,7 @@ def _make_config(tmp_path: Path) -> MagicMock:
     c.ingest.force_copy = False  # a MagicMock attr would be truthy — pin the default
     c.thresholds.min_free_space_staging_gb = 0  # disable disk-space guard in tests
     c.torrent.active = True
+    c.torrent.active_scope.return_value = None  # no client scope: the whole client, as before
     return c
 
 

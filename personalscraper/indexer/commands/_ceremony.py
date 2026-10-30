@@ -79,7 +79,7 @@ def open_indexer_db(
 
     On any of the five ceremony errors — ``IndexerLockError``,
     ``IndexerCorruptError``, ``IndexerDiskFullError``, ``IndexerInvalidPathError``,
-    ``IndexerMigrationError`` (the writer-lock timeout, when
+    ``SqliteMigrationError`` — a failed script or a store newer than the code (the writer-lock timeout, when
     ``writer_lock_timeout`` is set, surfaces as ``IndexerLockError``) — the
     message is echoed to stderr (byte-identical to the pre-refactor
     ``typer.echo(str(exc), err=True)``) and :class:`IndexerCeremonyError` is
@@ -111,13 +111,13 @@ def open_indexer_db(
     # Lazy imports: pulls the SQLite machinery + migrations package. Deferred so
     # importing this helper module stays cheap for command modules that only
     # sometimes reach the ceremony.
+    from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import (  # noqa: PLC0415
         IndexerCorruptError,
         IndexerDiskFullError,
         IndexerInvalidPathError,
         IndexerLockError,
-        IndexerMigrationError,
         apply_migrations,
         indexer_lock,
         open_db,
@@ -128,7 +128,7 @@ def open_indexer_db(
         IndexerCorruptError,
         IndexerDiskFullError,
         IndexerInvalidPathError,
-        IndexerMigrationError,
+        SqliteMigrationError,  # the base: a failed script or a newer schema
     )
     migrations_dir = Path(_migrations_pkg.__file__).parent
 

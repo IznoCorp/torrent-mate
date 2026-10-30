@@ -13,6 +13,10 @@
 -- queue, status-mutated + purged) and ``deleted_item`` (scanner-drift
 -- tombstones only) — neither recorded dispatch/clean destructions.
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 CREATE TABLE destructive_op (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
     ts       REAL    NOT NULL,          -- Unix epoch (time.time()) of the op
@@ -27,3 +31,5 @@ CREATE INDEX idx_destructive_op_ts ON destructive_op(ts);
 
 INSERT INTO schema_version (version) VALUES (15);
 PRAGMA user_version = 15;
+
+COMMIT;
