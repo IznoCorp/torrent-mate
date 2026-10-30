@@ -170,7 +170,7 @@ def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
     """
     text = _decode_nfo_bytes(nfo_path.read_bytes())
     body = _DOCTYPE_RE.sub("", _XML_DECLARATION_RE.sub("", text, count=1), count=1)
-    return list(ET.fromstring(f"<nfo>{body}</nfo>"))  # noqa: S314
+    return list(ET.fromstring(f"<nfo>{body}</nfo>"))
 
 
 def is_episode_nfo_usable(nfo_path: Path) -> bool:
