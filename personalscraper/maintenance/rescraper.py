@@ -776,16 +776,16 @@ def _collect_rescrape_candidates(
             if not media_dir.is_dir():
                 continue
 
-            # Map category_id back to disk_id via config for filter checks.
-            # disk_id (uuid/label) is stored as DiskConfig.id in the scanner.
-            disk_id = ""
-            for disk in config.disks:
-                if disk_filter and disk.id != disk_filter:
-                    continue
-                if item_row.category_id in disk.categories:
-                    disk_id = disk.id
-                    break
+            # The disk is the one the item lives on, as the item_id path reads it:
+            # a disk's categories only gate where NEW media go, so mapping by
+            # category labels a series on a frozen disk with another disk. A row
+            # never stamped with a configured disk falls back to that mapping.
+            configured = {disk.id for disk in config.disks}
+            disk_attr = _item_repo.get_attr(conn, item_row.id, _item_repo._ATTR_DISPATCH_DISK)
+            disk_id = disk_attr.value if disk_attr and disk_attr.value in configured else ""
             if not disk_id:
+                disk_id = next((disk.id for disk in config.disks if item_row.category_id in disk.categories), "")
+            if not disk_id or (disk_filter and disk_id != disk_filter):
                 continue
 
             if category_filter and item_row.category_id != category_filter:
