@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import sqlite3
+import unicodedata
 from pathlib import Path
 from unittest.mock import patch
 
@@ -692,3 +693,68 @@ def test_dry_run_names_the_unreadable_directory_and_does_not_count_its_files(lib
     assert report.files_removed == 0
     assert report.unreadable == [season2]
     assert _rows(db_path, "%") == before
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads every directory")
+def test_a_neighbour_sharing_the_prefix_of_an_unreadable_directory_is_still_retired(library) -> None:
+    """``Season 02`` unreadable must not shelter ``Season 02 Extras``, which is truly gone."""
+    cfg, label, _disk_id, mount, db_path = library
+    show = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    season2 = show / "Season 02"
+    extras = show / "Season 02 Extras"
+    for folder in (season2, extras):
+        folder.mkdir()
+        (folder / f"{folder.name}.mkv").write_bytes(b"x" * 2048)
+    run_scoped_refresh(cfg, label, [show])
+    (extras / "Season 02 Extras.mkv").unlink()
+
+    with _unreadable(season2):
+        dry = run_scoped_refresh(cfg, label, [show], dry_run=True)
+        report = run_scoped_refresh(cfg, label, [show])
+
+    live = {r[1]: r[6] for r in _rows(db_path, "series/Show A%")}
+    assert dry.files_removed == 1
+    assert report.files_removed == 1
+    assert live["Season 02.mkv"] is None
+    assert live["Season 02 Extras.mkv"] is not None
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads every directory")
+def test_a_row_stored_in_the_other_normalisation_is_sheltered_by_the_refresh(library) -> None:
+    """Defect: the shelter compared the disk's spelling only; an NFD-stored row was counted gone or retired."""
+    cfg, label, disk_id, mount, db_path = library
+    name = unicodedata.normalize("NFC", "Björk Season 02")
+    show = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    hidden = show / name
+    hidden.mkdir()
+    (hidden / "Track.mkv").write_bytes(b"x" * 2048)
+    run_scoped_refresh(cfg, label, [show])
+    nfc_rel, nfd_rel = (unicodedata.normalize(f, f"series/Show A (2020)/{name}") for f in ("NFC", "NFD"))
+    conn = sqlite3.connect(db_path)
+    conn.execute("UPDATE path SET rel_path = ? WHERE rel_path = ?", (nfd_rel, nfc_rel))
+    conn.commit()
+    conn.close()
+
+    with _unreadable(hidden):
+        dry = run_scoped_refresh(cfg, label, [show], dry_run=True)
+        report = run_scoped_refresh(cfg, label, [show])
+
+    assert dry.files_removed == 0
+    assert report.files_removed == 0
+    assert [r[6] for r in _rows(db_path, "series/Show A%") if r[1] == "Track.mkv"] == [None]
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads every directory")
+def test_an_unreadable_given_folder_gets_no_path_row(library) -> None:
+    """Defect: the folder the walk could not list was still upserted, so a later scan skipped it as unchanged."""
+    cfg, label, _disk_id, mount, db_path = library
+    show = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    new = mount / "series" / "New (2021)"
+    new.mkdir()
+    (new / "New.mkv").write_bytes(b"x" * 2048)
+
+    with _unreadable(new):
+        report = run_scoped_refresh(cfg, label, [show, new])
+
+    assert report.unreadable == [new]
+    assert _path_rows(db_path, "series/New%") == []

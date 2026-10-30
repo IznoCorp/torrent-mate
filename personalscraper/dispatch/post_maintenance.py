@@ -689,6 +689,12 @@ def _find_unreadable_dirs(root: Path, mount: Path) -> list[str]:
     found: list[str] = []
 
     def _denied(exc: OSError) -> None:
+        """Record the directory an ``os.walk`` listing was denied for.
+
+        Args:
+            exc: The ``OSError`` ``os.walk`` hands to ``onerror``; only a
+                ``PermissionError`` naming a path counts.
+        """
         if isinstance(exc, PermissionError) and exc.filename is not None:
             found.append(os.path.relpath(str(exc.filename), str(mount)))
 
@@ -941,7 +947,10 @@ def run_scoped_refresh(
                     # The walk sheltered the files of every directory it could not list, so the
                     # removal below leaves them alone; the report names the directories.
                     report.unreadable.extend(mount / r for r in visitor.unreadable_dirs)
-                    _upsert_path_row(conn, disk.id, rel, _safe_mtime_ns(located.stat().st_mtime_ns))
+                    # No path row for a directory the walk could not list, as in the scan: its
+                    # mtime must not let a later scan skip it as unchanged.
+                    if rel not in visitor.unreadable_dirs:
+                        _upsert_path_row(conn, disk.id, rel, _safe_mtime_ns(located.stat().st_mtime_ns))
                 # Only now: a file moved between two of the given paths was re-pointed by the
                 # walk above, so what is still unseen is really gone.
                 for _, _, variants in to_scan:
@@ -1024,9 +1033,21 @@ def _count_live_files_under(
     if not only_missing:
         return len(rows)
     assert mount is not None, "only_missing needs the scan root"
-    skipped = tuple(unreadable or ())
+    # Every stored spelling of each directory: a row may be filed in the other normalisation.
+    skipped = {variant for d in unreadable or () for variant in _rel_path_variants(d)}
 
     def _under_unreadable(rel_path: str) -> bool:
+        """Tell whether a stored folder path is, or lies below, a directory that cannot be listed.
+
+        Args:
+            rel_path: The folder path of a ``media_file`` row, relative to the scan root.
+
+        Returns:
+            ``True`` when it equals, or is a descendant of, one of the unreadable
+            directories in any of their stored spellings.
+        """
+        if "" in skipped or "." in skipped:
+            return True
         return any(rel_path == d or rel_path.startswith(d + "/") for d in skipped)
 
     return sum(
