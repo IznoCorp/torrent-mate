@@ -43,6 +43,9 @@ _ENDED_STATUSES = ("ended", "canceled", "cancelled")
 _CONTINUING_AFTER_S = 7 * 86400.0
 _PROVIDERS = ("tvdb", "tmdb")
 
+# How long a read-only open waits on a writer, as the delete permit's read does.
+_READ_TIMEOUT_S = 5.0
+
 
 @dataclass(frozen=True)
 class CatalogueEpisode:
@@ -61,20 +64,44 @@ class CatalogueEpisode:
     title: str | None
 
 
+class CatalogueReadOnlyError(RuntimeError):
+    """Raised when a write path is asked of a :meth:`CatalogueStore.read_only` store."""
+
+
 class CatalogueStore:
     """Reader and writer of the ``catalogue_show`` / ``catalogue_episode`` tables.
 
-    The database is opened (and migrated under a brief lock) on first use.
+    The database is opened (and migrated under a brief lock) on first use, unless the
+    store was built by :meth:`read_only`, which never creates, migrates nor writes it.
     """
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, *, _read_only: bool = False) -> None:
         """Remember the database; nothing is opened yet.
 
         Args:
             db_path: Path of ``acquire.db``.
+            _read_only: Set by :meth:`read_only` only.
         """
         self._db_path = db_path
+        self._read_only = _read_only
         self._conn: sqlite3.Connection | None = None
+
+    @classmethod
+    def read_only(cls, db_path: Path) -> CatalogueStore:
+        """Build a store that only reads ``acquire.db`` as it finds it (the web process's).
+
+        An absent file, or one without the catalogue tables, reads as an empty catalogue
+        (every show « never fetched »); absence is looked for again on each read, so a
+        file the pipeline creates later is read. The write paths raise
+        :class:`CatalogueReadOnlyError`.
+
+        Args:
+            db_path: Path of ``acquire.db``.
+
+        Returns:
+            The read-only store; nothing is opened yet.
+        """
+        return cls(db_path, _read_only=True)
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open and migrate the database once, then reuse the connection.
@@ -83,15 +110,32 @@ class CatalogueStore:
             The open connection.
 
         Raises:
+            CatalogueReadOnlyError: On a read-only store, which never opens for writing.
             AcquireLockError: If the brief migration lock cannot be acquired.
             AcquireCorruptError: If ``acquire.db`` is malformed.
             AcquireMigrationError: If a pending migration fails to apply.
         """
+        if self._read_only:
+            raise CatalogueReadOnlyError("the catalogue store was opened read-only")
         if self._conn is None:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
             with db_lock(self._db_path, timeout=_MIGRATION_LOCK_TIMEOUT_S, error_factory=AcquireLockError):
                 conn = open_db(self._db_path, errors=_OPEN_DB_ERROR_FACTORIES)
                 apply_migrations(conn, _MIGRATIONS_DIR, error_factory=AcquireMigrationError)
+            self._conn = conn
+        return self._conn
+
+    def _reader(self) -> sqlite3.Connection | None:
+        """Open ``acquire.db`` read-only once it exists.
+
+        Returns:
+            The read-only connection, or ``None`` while the file is absent.
+        """
+        if self._conn is None:
+            if not self._db_path.is_file():
+                return None
+            conn = sqlite3.connect(f"{self._db_path.as_uri()}?mode=ro", uri=True, timeout=_READ_TIMEOUT_S)
+            conn.execute("PRAGMA query_only = ON")
             self._conn = conn
         return self._conn
 
@@ -182,8 +226,30 @@ class CatalogueStore:
             The episodes ordered by season then episode, ``[]`` for a fetched show
             with none, and ``None`` when the show was never fetched.
         """
-        conn = self._ensure_open()
         key = (provider, provider_id)
+        if self._read_only:
+            conn = self._reader()
+            if conn is None:
+                return None
+            try:
+                return self._read_episodes(conn, key)
+            except sqlite3.OperationalError as exc:
+                if "no such table" in str(exc):
+                    return None  # a store older than migration 026 holds no catalogue
+                raise
+        return self._read_episodes(self._ensure_open(), key)
+
+    @staticmethod
+    def _read_episodes(conn: sqlite3.Connection, key: tuple[str, str]) -> list[CatalogueEpisode] | None:
+        """Read one show's catalogue on an open connection.
+
+        Args:
+            conn: The open connection.
+            key: ``(provider, provider_id)``.
+
+        Returns:
+            As :meth:`episodes`.
+        """
         fetched = conn.execute(
             "SELECT fetched_at FROM catalogue_show WHERE provider = ? AND provider_id = ?", key
         ).fetchone()

@@ -10,16 +10,20 @@ import pytest
 from personalscraper.acquire.delete_authority import StrictDeletePermit
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.plex import PlexClient
+from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
 from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
+from personalscraper.app.accounts.actor import Actor
+from personalscraper.app.library.listing import LibrarySort
 from personalscraper.app.library.reads import LibraryReads
 from personalscraper.app.services import AppServices
 from personalscraper.conf.environment import Environment
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from tests.unit.app.library.world import FixtureIndex
 
 
 def test_build_app_services_is_inert(test_config: Config) -> None:
@@ -39,6 +43,28 @@ def test_the_library_service_is_built_inert(test_config: Config) -> None:
     assert test_config.acquire.db_path is not None
     assert not test_config.acquire.db_path.exists()
     services.close()
+
+
+def test_the_web_process_never_creates_acquire_db(test_config: Config) -> None:
+    """The « missing » order reads the catalogue of a library show; with no ``acquire.db`` nothing is created."""
+    config = test_config
+    assert config.indexer.db_path is not None and config.acquire.db_path is not None
+    config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    index = FixtureIndex(config.indexer.db_path)
+    index.episodes(index.item("Outer Range", kind="show", year=None, tvdb="404040"), 1, [1, 2])
+    index.conn.close()
+    services = build_app_services(config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
+    try:
+        actor = Actor.system(InstanceCeiling(forbidden=frozenset(), read_only=False), account_id="o", name="Owner")
+        page = services.library.read_items(
+            actor, category=None, sort=LibrarySort.MISSING, reversed_=False, query=None, page=0
+        )
+    finally:
+        services.close()
+
+    assert [entry.title for entry in page.items] == ["Outer Range"]
+    assert not config.acquire.db_path.exists()
+    assert not config.acquire.db_path.with_name(config.acquire.db_path.name + ".lock").exists()
 
 
 def test_the_configured_idle_lifetime_reaches_the_sessions(test_config: Config) -> None:
