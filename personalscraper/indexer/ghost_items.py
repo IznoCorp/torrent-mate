@@ -1,0 +1,261 @@
+"""Retire the ``media_item`` rows whose media folder is gone from its disk.
+
+A file the scan no longer finds is struck, then tombstoned; an item had no such
+end. When its folder was deleted or moved off the disk, its files were
+tombstoned one by one and the item itself stayed forever — a ghost listed by
+every view of the library.
+
+An item is a ghost of a disk when all of these hold:
+
+- the disk is configured and its mount is confirmed
+  (:func:`~personalscraper.indexer.drift.should_apply_drift_for_disk`) — an
+  unmounted disk makes every folder look gone;
+- its ``dispatch_path`` lies on that disk and no longer exists;
+- none of its files is live (every one tombstoned, or none at all). An item
+  whose folder just vanished therefore retires only once the file strikes have
+  tombstoned its files — the same three full scans a file waits;
+- no ``pending`` / ``running`` repair names it (``repair_queue`` scope
+  ``item`` is a soft reference the cascade would leave dangling).
+
+Retiring hard-deletes the item (the ``ON DELETE CASCADE`` removes its
+attributes, seasons, episodes, releases and their tombstoned files) and records
+a ``deleted_item`` tombstone holding a snapshot of the row.
+
+The full scan applies it with a safety cap: when more than
+:data:`MAX_RETIRE_SHARE` of a disk's items would go at once, something is more
+likely wrong with the disk than with the library, and nothing is retired there.
+The ``library-retire-ghost-items`` command applies it with no cap, as an
+explicit operator action.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+import time
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+from personalscraper.indexer.drift import should_apply_drift_for_disk
+from personalscraper.indexer.merkle import DiskMountStatus
+from personalscraper.indexer.schema import DiskRow
+from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
+
+log = get_logger("indexer.ghost_items")
+
+#: ``deleted_item.reason`` of an item retired because its folder is gone.
+GHOST_REASON = "dispatch_path_gone"
+
+#: Largest share of a disk's items one full scan may retire; above it, none go.
+MAX_RETIRE_SHARE = 0.10
+
+_LIVE_FILES_SQL = """
+SELECT COUNT(*) FROM media_file mf
+JOIN media_release mr ON mr.id = mf.release_id
+LEFT JOIN episode e ON e.id = mr.episode_id
+LEFT JOIN season s ON s.id = e.season_id
+WHERE mf.deleted_at IS NULL AND (mr.item_id = ? OR s.item_id = ?)
+"""
+
+
+@dataclass(frozen=True)
+class GhostItem:
+    """An item whose ``dispatch_path`` no longer exists.
+
+    Attributes:
+        item_id: ``media_item.id``.
+        title: Its title, for the report.
+        kind: ``movie`` or ``show``.
+        dispatch_path: The folder that is gone.
+        reason: :data:`GHOST_REASON` for a retirable item, else why it is kept.
+    """
+
+    item_id: int
+    title: str
+    kind: str
+    dispatch_path: str
+    reason: str
+
+
+@dataclass
+class GhostReport:
+    """What one disk's pass found and did.
+
+    Attributes:
+        disk_label: The disk's label.
+        disk_items: Items whose ``dispatch_path`` lies on the disk.
+        ghosts: The items retired (or, on a dry run, that would be).
+        kept: Ghost folders kept: a live file (``live_files``) or an open repair
+            (``pending_repair``).
+        frozen: The mount could not be confirmed; nothing was examined.
+        capped: More than the cap would have gone; nothing was retired.
+        retired: Items actually deleted.
+    """
+
+    disk_label: str
+    disk_items: int = 0
+    ghosts: list[GhostItem] = field(default_factory=list)
+    kept: list[GhostItem] = field(default_factory=list)
+    frozen: bool = False
+    capped: bool = False
+    retired: int = 0
+
+
+def configured_disks(disks: list[DiskRow], config: Config) -> list[DiskRow]:
+    """Keep the disk rows whose scan root is a disk of the configuration.
+
+    A row left behind by a disk since removed from the configuration names a
+    root nobody mounts any more: every folder on it would look gone.
+
+    Args:
+        disks: Rows of the ``disk`` table.
+        config: The loaded configuration.
+
+    Returns:
+        The rows of configured disks, in their given order.
+    """
+    roots = {str(disk_cfg.path).rstrip("/") for disk_cfg in config.disks}
+    return [d for d in disks if d.mount_path is not None and d.mount_path.rstrip("/") in roots]
+
+
+def _items_on_disk(conn: sqlite3.Connection, mount_path: str) -> list[tuple[int, str, str, str]]:
+    """Return ``(id, title, kind, dispatch_path)`` of every item whose folder lies on the disk.
+
+    Args:
+        conn: Open SQLite connection.
+        mount_path: The disk's scan root.
+
+    Returns:
+        The items, by id.
+    """
+    root = mount_path.rstrip("/") + "/"
+    rows = conn.execute(
+        "SELECT mi.id, mi.title, mi.kind, ia.value FROM media_item mi "
+        "JOIN item_attribute ia ON ia.item_id = mi.id AND ia.key = 'dispatch_path' "
+        "ORDER BY mi.id"
+    ).fetchall()
+    # A prefix test in Python, not ``LIKE``: a folder name may hold ``%`` or ``_``.
+    return [(int(r[0]), str(r[1]), str(r[2]), str(r[3])) for r in rows if str(r[3]).startswith(root)]
+
+
+def _has_open_repair(conn: sqlite3.Connection, item_id: int) -> bool:
+    """Return whether a ``pending`` or ``running`` repair names *item_id*.
+
+    Args:
+        conn: Open SQLite connection.
+        item_id: The item.
+
+    Returns:
+        ``True`` when the repair queue still holds work on it.
+    """
+    row = conn.execute(
+        "SELECT 1 FROM repair_queue WHERE scope = 'item' AND scope_id = ? AND status IN ('pending', 'running') LIMIT 1",
+        (item_id,),
+    ).fetchone()
+    return row is not None
+
+
+def _retire(conn: sqlite3.Connection, ghost: GhostItem, now_s: int) -> None:
+    """Tombstone *ghost* with a snapshot of its row, then delete it.
+
+    Args:
+        conn: Open SQLite connection, inside the caller's transaction.
+        ghost: The item to retire.
+        now_s: Epoch seconds stamped on the tombstone.
+    """
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM media_item WHERE id = ?", (ghost.item_id,)).fetchone()
+    snapshot = {key: row[key] for key in row.keys()}
+    conn.row_factory = None
+    snapshot["dispatch_path"] = ghost.dispatch_path
+    conn.execute(
+        "INSERT INTO deleted_item (kind, original_id, deleted_at, reason, payload_json) VALUES ('item', ?, ?, ?, ?)",
+        (ghost.item_id, now_s, GHOST_REASON, json.dumps(snapshot, default=str)),
+    )
+    conn.execute("DELETE FROM media_item WHERE id = ?", (ghost.item_id,))
+
+
+def retire_ghost_items(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    mount_status: DiskMountStatus,
+    *,
+    dry_run: bool,
+    max_share: float | None = MAX_RETIRE_SHARE,
+    now_s: int | None = None,
+) -> GhostReport:
+    """Retire the ghost items of one configured disk.
+
+    Args:
+        conn: Open SQLite connection (autocommit or not; this function commits
+            its own transaction when it writes).
+        disk: The disk, already known to be configured.
+        mount_status: A live :func:`~personalscraper.indexer.merkle.verify_disk_mounted`.
+        dry_run: Report the ghosts and write nothing.
+        max_share: Retire nothing when more than this share of the disk's items
+            would go; ``None`` lifts the cap.
+        now_s: Tombstone timestamp; defaults to now.
+
+    Returns:
+        The disk's :class:`GhostReport`.
+
+    Raises:
+        sqlite3.Error: When a write fails; the transaction is rolled back.
+    """
+    report = GhostReport(disk_label=disk.label)
+    if disk.mount_path is None or not should_apply_drift_for_disk(disk, mount_status):
+        report.frozen = True
+        return report
+
+    items = _items_on_disk(conn, disk.mount_path)
+    report.disk_items = len(items)
+    for item_id, title, kind, dispatch_path in items:
+        if os.path.exists(dispatch_path):
+            continue
+        if conn.execute(_LIVE_FILES_SQL, (item_id, item_id)).fetchone()[0]:
+            report.kept.append(GhostItem(item_id, title, kind, dispatch_path, "live_files"))
+        elif _has_open_repair(conn, item_id):
+            log.info(
+                "indexer.ghost_items.kept_for_repair",
+                item_id=item_id,
+                store="library.db",
+                table="repair_queue",
+            )
+            report.kept.append(GhostItem(item_id, title, kind, dispatch_path, "pending_repair"))
+        else:
+            report.ghosts.append(GhostItem(item_id, title, kind, dispatch_path, GHOST_REASON))
+
+    if max_share is not None and report.ghosts and len(report.ghosts) > max_share * report.disk_items:
+        report.capped = True
+        log.warning(
+            "indexer.ghost_items.capped",
+            disk=disk.label,
+            ghosts=len(report.ghosts),
+            disk_items=report.disk_items,
+            max_share=max_share,
+        )
+        return report
+    if dry_run or not report.ghosts:
+        return report
+
+    stamp = int(time.time()) if now_s is None else now_s
+    row_factory = conn.row_factory
+    if conn.in_transaction:
+        conn.commit()
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        for ghost in report.ghosts:
+            _retire(conn, ghost, stamp)
+        conn.commit()
+    except sqlite3.Error:
+        conn.rollback()
+        raise
+    finally:
+        conn.row_factory = row_factory
+    report.retired = len(report.ghosts)
+    log.info("indexer.ghost_items.retired", disk=disk.label, retired=report.retired)
+    return report

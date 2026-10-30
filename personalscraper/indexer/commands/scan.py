@@ -412,6 +412,46 @@ def library_index_command(
                     if soft_deleted:
                         conn.commit()
 
+                # --- Retire ghost items (full mode, post soft-delete) ---
+                # An item whose folder is gone and whose files are all
+                # tombstoned is deleted, under the 10 % per-disk cap. Asked after
+                # the soft-deletes so the files tombstoned by this very run count.
+                # Same truncation and mount guards as the strikes above; a dry
+                # run reports what would go and writes nothing.
+                ghost_items: list[dict[str, object]] = []
+                ghost_capped: list[str] = []
+                if scan_mode is ScanMode.full and not result.budget_exhausted:
+                    from personalscraper.indexer.ghost_items import (  # noqa: PLC0415
+                        configured_disks,
+                        retire_ghost_items,
+                    )
+                    from personalscraper.indexer.merkle import verify_disk_mounted  # noqa: PLC0415
+
+                    for d in configured_disks(filtered_disks, cfg):
+                        try:
+                            ghost_report = retire_ghost_items(conn, d, verify_disk_mounted(d), dry_run=dry_run)
+                        except sqlite3.Error as ghost_exc:
+                            log.warning(
+                                "indexer.cli.index.ghost_items_failed",
+                                disk_id=d.id,
+                                error=str(ghost_exc),
+                                error_type=type(ghost_exc).__name__,
+                            )
+                            continue
+                        if ghost_report.capped:
+                            ghost_capped.append(d.label)
+                            continue
+                        ghost_items.extend(
+                            {
+                                "disk": d.label,
+                                "item_id": ghost.item_id,
+                                "title": ghost.title,
+                                "dispatch_path": ghost.dispatch_path,
+                                "reason": ghost.reason,
+                            }
+                            for ghost in ghost_report.ghosts
+                        )
+
                 # --- Drain outbox ---
                 drained = drain_if_present(conn, cfg.indexer)
                 log.debug("indexer.cli.index.outbox_drained", count=drained)
@@ -433,6 +473,9 @@ def library_index_command(
                     # claims is the premise of the strike guard above.
                     "budget_exhausted": result.budget_exhausted,
                     "soft_deleted": soft_deleted,
+                    # Retired, or on a dry run the ones that would be.
+                    "ghost_items": ghost_items,
+                    "ghost_items_capped": ghost_capped,
                     "dry_run": dry_run,
                     "rebuild": rebuild,
                 }

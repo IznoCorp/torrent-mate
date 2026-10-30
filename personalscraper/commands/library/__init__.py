@@ -20,6 +20,7 @@ from personalscraper.commands.library.gc import library_gc
 from personalscraper.commands.library.maintenance import library_clean, library_repair, library_validate, library_verify
 from personalscraper.commands.library.merge_duplicate_items import library_merge_duplicate_items
 from personalscraper.commands.library.query import library_search, library_show, library_status
+from personalscraper.commands.library.retire_ghost_items import library_retire_ghost_items
 from personalscraper.commands.library.scan import library_index, library_init_canonical
 
 __all__ = [
@@ -42,6 +43,7 @@ __all__ = [
     "library_repair",
     "library_report",
     "library_rescrape",
+    "library_retire_ghost_items",
     "library_search",
     "library_show",
     "library_status",
