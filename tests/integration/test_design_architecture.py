@@ -20,14 +20,16 @@ class TestPackageContract:
 
         Design: docs/production/architecture.md#package
         Contract: ``import personalscraper`` succeeds and exposes a
-        ``__version__`` attribute matching the SemVer ``X.Y.Z`` pattern.
+        ``__version__`` attribute matching the SemVer ``X.Y.Z`` pattern, or
+        ``X.Y.Z.N`` for a hotfix cut from ``prod`` (a hotfix bumps a fourth
+        component, ``docs/features/git-flow/DESIGN.md``). Every part is numeric.
         This is the single source of truth read by the dynamic version
         in ``pyproject.toml``.
         """
         assert personalscraper.__name__ == "personalscraper"
         version = personalscraper.__version__
         parts = version.split(".")
-        assert len(parts) == 3
+        assert len(parts) in (3, 4)
         for part in parts:
             assert part.isdigit(), f"version segment {part!r} is not numeric"
 
