@@ -28,7 +28,12 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year
+from personalscraper.nfo_utils import (
+    extract_nfo_metadata,
+    is_episode_nfo_usable,
+    is_nfo_complete,
+    parse_title_year,
+)
 from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     match_movie,
@@ -41,6 +46,7 @@ log = get_logger("library.rescraper")
 # --- Rescrape action constants ---
 
 ACTION_NFO_REGENERATED = "nfo_regenerated"
+ACTION_EPISODE_NFO_REGENERATED = "episode_nfo_regenerated"
 ACTION_ARTWORK_DOWNLOADED = "artwork_downloaded"
 ACTION_EPISODES_RENAMED = "episodes_renamed"
 SKIP_LOW_CONFIDENCE = "low_confidence_match"
@@ -409,8 +415,10 @@ def _rescrape_item(
         RescrapeAction or None if item is already OK.
     """
     needs_nfo, needs_artwork, needs_episodes = _detect_needs(media_dir, media_type, only)
+    # ``--only nfo`` and the unfiltered run also repair the episode NFOs.
+    episode_nfo_videos = _episodes_needing_nfo(media_dir) if media_type == "tvshow" and only in (None, "nfo") else []
 
-    if not any([needs_nfo, needs_artwork, needs_episodes]):
+    if not any([needs_nfo, needs_artwork, needs_episodes, episode_nfo_videos]):
         return None  # Already OK
 
     # Resolve TMDB ID
@@ -515,6 +523,21 @@ def _rescrape_item(
             errors.append(f"NFO generation failed: {exc}")
             log.error("library_rescrape_nfo_failed", title=title, exc_info=True, error=str(exc))
 
+    # Fix episode NFOs (absent, empty or unreadable), TV shows only
+    if episode_nfo_videos:
+        _rescrape_episode_nfos(
+            episode_nfo_videos,
+            media_dir,
+            api_data,
+            source or "tmdb",
+            api_id,
+            registry,
+            nfo_gen,
+            dry_run,
+            actions,
+            errors,
+        )
+
     # Fix artwork
     if needs_artwork:
         try:
@@ -576,6 +599,162 @@ def _rescrape_item(
     )
 
 
+def _fetch_episodes(
+    show_dir: Path,
+    source: str,
+    api_id: int,
+    registry: ProviderRegistry,
+    season_nums: list[int],
+) -> dict[tuple[int, int], dict[str, Any]]:
+    """Get the episode catalogue of the seasons from the MATCHED provider.
+
+    Source-aware (TVDB-primary): the shared twins are used, never
+    ``tmdb.get_tv_season`` on a TVDB id (the divergence that caused the 404 abort).
+    A provider failure is logged and yields an empty catalogue.
+
+    Args:
+        show_dir: TV show directory (log context only).
+        source: Matched provider — ``"tvdb"`` or ``"tmdb"``.
+        api_id: Provider id (TVDB series id when source == 'tvdb', else TMDB id).
+        registry: ProviderRegistry to resolve the matched provider's client.
+        season_nums: Season numbers to request.
+
+    Returns:
+        ``{(season, episode): episode_info}``, empty when nothing could be obtained.
+    """
+    from personalscraper.scraper.existing_validator_repair import (  # noqa: PLC0415
+        _fetch_season_episodes,
+        _fetch_season_episodes_tvdb,
+    )
+
+    try:
+        if source == "tvdb":
+            tvdb_client = cast("TVDBClient", registry.get("tvdb"))
+            return _fetch_season_episodes_tvdb(tvdb_client, api_id, season_nums)
+        tmdb_client = cast("TMDBClient", registry.get("tmdb"))
+        return _fetch_season_episodes(tmdb_client, api_id, season_nums)
+    except Exception as exc:
+        log.warning(
+            "library_rescrape_season_fetch_failed",
+            show=show_dir.name,
+            source=source,
+            exc_info=True,
+            error=str(exc),
+        )
+        return {}
+
+
+def _episodes_needing_nfo(show_dir: Path) -> list[Path]:
+    """List the episode videos whose sibling NFO is absent, empty or unreadable.
+
+    Only files named like an episode (``SxxEyy``, season 1 or later) are considered:
+    extras, specials and unrenamed files are not episodes to repair yet (``--only episodes`` handles those).
+    "Conformant" is :func:`personalscraper.nfo_utils.is_episode_nfo_usable`,
+    the same rule the scraper applies before skipping an existing NFO.
+
+    Args:
+        show_dir: TV show directory.
+
+    Returns:
+        Sorted video paths needing an NFO written next to them.
+    """
+    from personalscraper.scraper.episode_manager import _extract_season_episode  # noqa: PLC0415
+
+    return sorted(
+        f
+        for f in show_dir.rglob("*")
+        if f.is_file()
+        and not is_apple_double(f.name)
+        and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+        and re.search(r"S\d+E\d+", f.name, re.IGNORECASE)
+        # Specials (season 0) are not fetched by _rescrape_episode_nfos, so listing them
+        # would only warn on every run without ever repairing them.
+        and (_extract_season_episode(f.name)[0] or 0) > 0
+        and not is_episode_nfo_usable(f.with_suffix(".nfo"))
+    )
+
+
+def _rescrape_episode_nfos(
+    videos: list[Path],
+    show_dir: Path,
+    show_data: Any,
+    source: str,
+    api_id: int,
+    registry: ProviderRegistry,
+    nfo_gen: NFOGenerator,
+    dry_run: bool,
+    actions: list[str],
+    errors: list[str],
+) -> None:
+    """Regenerate the NFO of each given episode video from the matched provider.
+
+    The NFO is written at the video's own stem, so it pairs with the file as it
+    is on disk. ``dry_run`` lists the files that would be written and writes
+    nothing (no directory, no NFO, no stream probe).
+
+    Args:
+        videos: Episode videos needing an NFO (from :func:`_episodes_needing_nfo`).
+        show_dir: TV show directory.
+        show_data: Show metadata returned by the provider.
+        source: Matched provider — ``"tvdb"`` or ``"tmdb"``.
+        api_id: Provider id of the show.
+        registry: ProviderRegistry to resolve the matched provider's client.
+        nfo_gen: NFOGenerator used to render and write.
+        dry_run: Preview without changes.
+        actions: Appended with one ``episode_nfo_regenerated: <relative path>`` per file.
+        errors: Appended with one message per file whose generation failed.
+    """
+    from personalscraper.scraper._movie_convert import _coerce_to_show_data  # noqa: PLC0415
+    from personalscraper.scraper.episode_manager import (  # noqa: PLC0415
+        _extract_season_episode,
+        match_episode_files,
+    )
+    from personalscraper.scraper.mediainfo import extract_stream_info  # noqa: PLC0415
+
+    season_nums = sorted({s for v in videos if (s := _extract_season_episode(v.name)[0]) is not None and s > 0})
+    all_episodes = _fetch_episodes(show_dir, source, api_id, registry, season_nums) if season_nums else {}
+    # allow_synthetic_rename=False: a file with no provider record is left out, never given a made-up title.
+    matched = match_episode_files(videos, all_episodes, allow_synthetic_rename=False) if all_episodes else {}
+
+    show_dict = _coerce_to_show_data(show_data)
+    show_title = show_dict.get("name", "")
+    mpaa = nfo_gen._extract_fr_rating(show_dict, tv=True)
+    networks = show_dict.get("networks", [])
+    studio = networks[0].get("name", "") if networks else ""
+
+    for video in videos:
+        rel = video.relative_to(show_dir).with_suffix(".nfo").as_posix()
+        info = matched.get(video)
+        if info is None or info.get("fallback"):
+            # Not an error: the provider may simply not know the episode, and an error would
+            # re-flag it on every run. The warning names the file for whoever looks.
+            log.warning("library_rescrape_episode_nfo_no_provider_data", show=show_dir.name, nfo=rel)
+            continue
+        try:
+            episode_data = {
+                "name": info["api_title"],
+                "showtitle": show_title,
+                "id": info.get("tmdb_episode_id", ""),
+                "tvdb_id": info.get("tvdb_episode_id", ""),
+                "imdb_id": info.get("imdb_episode_id", ""),
+                "season_number": info["season"],
+                "episode_number": info["episode"],
+                "overview": "",
+                "mpaa": mpaa,
+                "studio": studio,
+                "crew": [],
+                "still_path": info.get("still_path", ""),
+            }
+            if not dry_run:
+                xml = nfo_gen.generate_episode_nfo(episode_data, extract_stream_info(video))
+                nfo_gen.write_nfo(xml, video.with_suffix(".nfo"))
+            actions.append(f"{ACTION_EPISODE_NFO_REGENERATED}: {rel}")
+            log.info("library_rescrape_episode_nfo", show=show_dir.name, nfo=rel, dry_run=dry_run)
+        except Exception as exc:
+            errors.append(f"Episode NFO generation failed for {rel}: {exc}")
+            log.error("library_rescrape_episode_nfo_failed", nfo=rel, exc_info=True, error=str(exc))
+
+
 def _rescrape_episodes(
     show_dir: Path,
     show_data: object,
@@ -608,10 +787,6 @@ def _rescrape_episodes(
         match_episode_files,
         rename_episodes,
     )
-    from personalscraper.scraper.existing_validator_repair import (
-        _fetch_season_episodes,
-        _fetch_season_episodes_tvdb,
-    )
 
     # Discover season numbers from local filesystem (show_data has no seasons array).
     season_nums = sorted(
@@ -625,24 +800,7 @@ def _rescrape_episodes(
     if not season_nums:
         return
 
-    # Source-aware episode fetch (TVDB-primary): use the shared twins, never
-    # tmdb.get_tv_season on a TVDB id (the divergence that caused the 404 abort).
-    try:
-        if source == "tvdb":
-            tvdb_client = cast("TVDBClient", registry.get("tvdb"))
-            all_episodes = _fetch_season_episodes_tvdb(tvdb_client, api_id, season_nums)
-        else:
-            tmdb_client = cast("TMDBClient", registry.get("tmdb"))
-            all_episodes = _fetch_season_episodes(tmdb_client, api_id, season_nums)
-    except Exception as exc:
-        log.warning(
-            "library_rescrape_season_fetch_failed",
-            show=show_dir.name,
-            source=source,
-            exc_info=True,
-            error=str(exc),
-        )
-        all_episodes = {}
+    all_episodes = _fetch_episodes(show_dir, source, api_id, registry, season_nums)
 
     if not all_episodes:
         return

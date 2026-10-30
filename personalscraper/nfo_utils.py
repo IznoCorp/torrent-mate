@@ -9,6 +9,7 @@ Also hosts the three NFO helper functions extracted from
 ``parse_title_year``, ``extract_nfo_ids``, and ``extract_nfo_metadata``.
 """
 
+import codecs
 import re
 from pathlib import Path
 from typing import Any
@@ -98,6 +99,106 @@ def is_nfo_complete(nfo_path: Path) -> bool:
     except OSError as exc:
         log.warning("nfo_read_failed", path=str(nfo_path), error=str(exc))
         return False
+
+
+_XML_DECLARATION_RE = re.compile(r"^\s*<\?xml[^>]*\?>")
+# A DOCTYPE, with or without an internal subset, is as illegal inside the wrapper as the declaration.
+_DOCTYPE_RE = re.compile(r"^\s*<!DOCTYPE(?:[^>\[]|\[.*?\])*>", re.DOTALL)
+_XML_ENCODING_RE = re.compile(rb"^\s*<\?xml[^>]*?encoding\s*=\s*[\"']([A-Za-z0-9._-]+)[\"']")
+
+# Root element the episode NFO writer produces (NFOGenerator.generate_episode_nfo).
+_EPISODE_NFO_ROOT = "episodedetails"
+
+# Fields the writer always emits for an episode; a root lacking any of them is a stub.
+# <uniqueid> is NOT required: it is omitted when no provider id is known, and legacy
+# NFOs get theirs through the scraper's upgrade-in-place.
+_EPISODE_NFO_REQUIRED_FIELDS = ("title", "season", "episode")
+
+
+def _decode_nfo_bytes(raw: bytes) -> str:
+    """Decode NFO bytes with the encoding the XML declaration names.
+
+    With no declaration the content is UTF-8 (BOM dropped), then Latin-1 as a last
+    resort: legacy tools wrote accented NFOs in Latin-1, and a well-formed one must
+    not be judged unusable (and rewritten) for that. NUL bytes mean binary content
+    (AppleDouble sidecar...) which Latin-1 would happily « decode ».
+
+    Args:
+        raw: The file content.
+
+    Returns:
+        The decoded text, BOM excluded.
+
+    Raises:
+        ET.ParseError: Binary content, an unknown declared encoding, or bytes that
+            do not decode with the declared one.
+    """
+    if b"\x00" in raw:
+        raise ET.ParseError("binary content (NUL byte)")
+    raw = raw.removeprefix(codecs.BOM_UTF8)
+    declared = _XML_ENCODING_RE.match(raw)
+    if declared is not None:
+        encoding = declared.group(1).decode("ascii")
+        try:
+            return raw.decode(encoding)
+        except (LookupError, UnicodeDecodeError) as exc:
+            raise ET.ParseError(f"cannot decode as {encoding}: {exc}") from exc
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
+
+
+def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
+    """Parse an episode NFO that may hold several root elements.
+
+    A Kodi multi-episode NFO is a sequence of ``<episodedetails>`` roots, which
+    ``ET.parse`` rejects (« junk after document element »). The content is
+    wrapped in one synthetic root, after dropping the XML declaration and a leading
+    DOCTYPE (both illegal anywhere but the very start), so a single-root file and a multi-root file
+    are read the same way.
+
+    Args:
+        nfo_path: Path to the episode ``.nfo``.
+
+    Returns:
+        The top-level elements, in document order (empty for a blank file).
+
+    Raises:
+        ET.ParseError: The content is not well-formed XML (truncated, binary...).
+        OSError: The file cannot be read.
+    """
+    text = _decode_nfo_bytes(nfo_path.read_bytes())
+    body = _DOCTYPE_RE.sub("", _XML_DECLARATION_RE.sub("", text, count=1), count=1)
+    return list(ET.fromstring(f"<nfo>{body}</nfo>"))  # noqa: S314
+
+
+def is_episode_nfo_usable(nfo_path: Path) -> bool:
+    """Tell whether an existing episode NFO can be kept as it is.
+
+    The ONE definition shared by the TV scraper (which must not skip a
+    non-conformant NFO) and ``library-rescrape`` (which repairs them): the file
+    exists, is well-formed XML and every root element is the
+    ``<episodedetails>`` the writer produces, carrying a non-empty ``<title>``,
+    ``<season>`` and ``<episode>``. A multi-root file is readable and
+    carries data for several episodes, so it is conformant.
+
+    Args:
+        nfo_path: Path to the episode ``.nfo``.
+
+    Returns:
+        True when the NFO is readable and made of ``<episodedetails>`` roots only.
+    """
+    try:
+        roots = read_episode_nfo_roots(nfo_path)
+    except (ET.ParseError, OSError) as exc:
+        log.debug("episode_nfo_unusable", file=nfo_path.name, error=str(exc))
+        return False
+    return bool(roots) and all(
+        root.tag == _EPISODE_NFO_ROOT
+        and all((root.findtext(field) or "").strip() for field in _EPISODE_NFO_REQUIRED_FIELDS)
+        for root in roots
+    )
 
 
 def parse_title_year(dirname: str) -> tuple[str, int | None]:

@@ -399,15 +399,18 @@ def library_rescrape(
                     }
                 )
 
+        # A dry run writes nothing: the report would overwrite the last real run's.
         output_path = config.paths.data_dir / "library_rescrape.json"
-        write_json(result, output_path)
+        if not dry_run:
+            write_json(result, output_path)
 
         total = result.fixed_count + result.skipped_count + result.error_count
+        destination = "(dry run, no report written)" if dry_run else str(output_path)
         console.print(
             f"[green]Fixed:[/green] {result.fixed_count}  "
             f"[yellow]Skipped:[/yellow] {result.skipped_count}  "
             f"[red]Errors:[/red] {result.error_count}  "
-            f"(total: {total}) → {output_path}"
+            f"(total: {total}) → {destination}"
         )
     finally:
         if not dry_run:
