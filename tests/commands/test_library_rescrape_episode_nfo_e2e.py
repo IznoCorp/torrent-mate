@@ -63,25 +63,19 @@ def _run(test_config, *args: str):
         return run_cli(["library-rescrape", "--only", "nfo", *args])
 
 
-def test_dry_run_lists_episode_nfos_and_writes_nothing(tmp_path, test_config, monkeypatch) -> None:
-    """--dry-run: library byte-identical, the three broken episode NFOs listed in the report."""
+def test_dry_run_writes_nothing_anywhere(tmp_path, test_config, monkeypatch) -> None:
+    """--dry-run: the whole tree (library AND data dir, report included) is byte-identical."""
     _mock_providers(monkeypatch, tmp_path)
-    disk_base = tmp_path / "drive_a"
-    _build_show(disk_base)
-    before = fs_snapshot(disk_base)
+    _build_show(tmp_path / "drive_a")
+    before = fs_snapshot(tmp_path)
 
     result = _run(test_config, "--dry-run")
 
     assert result.exit_code == 0, result.output
-    assert fs_snapshot(disk_base) == before
-    data = json.loads((tmp_path / ".data" / "library_rescrape.json").read_text())
-    actions = [a for item in data["items"] for a in item["actions_taken"]]
-    assert sorted(actions) == [
-        "episode_nfo_regenerated: Saison 01/Show - S01E01 - One.nfo",
-        "episode_nfo_regenerated: Saison 01/Show - S01E02 - Two.nfo",
-        "episode_nfo_regenerated: Saison 01/Show - S01E03 - Three.nfo",
-    ]
-    assert data["error_count"] == 0, data
+    assert fs_snapshot(tmp_path) == before
+    assert not (tmp_path / ".data" / "library_rescrape.json").exists()
+    assert "Fixed: 1" in result.output  # one show, three episode NFOs to write
+    assert "Errors: 0" in result.output
 
 
 def test_live_run_regenerates_absent_empty_and_unreadable_only(tmp_path, test_config, monkeypatch) -> None:
@@ -100,7 +94,7 @@ def test_live_run_regenerates_absent_empty_and_unreadable_only(tmp_path, test_co
     assert (season / "Show - S01E04 - Four.nfo").read_text() == _GOOD_EPISODE_NFO
 
     # Idempotent: a second run finds nothing to repair.
-    again = _run(test_config, "--dry-run")
+    again = _run(test_config)
     assert again.exit_code == 0, again.output
     data = json.loads((tmp_path / ".data" / "library_rescrape.json").read_text())
     assert data["items"] == []
