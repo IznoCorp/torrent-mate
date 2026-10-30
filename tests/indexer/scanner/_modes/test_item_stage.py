@@ -1349,3 +1349,48 @@ def test_stage_library_stale_season_with_release_survives(tmp_path: Path) -> Non
 
     numbers = [r[0] for r in conn.execute("SELECT number FROM season ORDER BY number")]
     assert numbers == [2, 9], f"release-backed seasons must survive, got {numbers}"
+
+
+def test_stage_library_indexes_existing_media_whatever_the_disk_categories(tmp_path: Path) -> None:
+    """A disk's existing media are staged even when its categories no longer list them.
+
+    A disk's ``categories`` gate where NEW media go (dispatch eligibility), not
+    what is indexed: a frozen disk configured ``["audiobooks"]`` still holds
+    series whose new episodes land there. Walking only the configured
+    categories left every such item un-refreshed, and a rebuild dropped them.
+    """
+    conn = _make_db()
+    config = Config(
+        paths=PathConfig(
+            torrent_complete_dir=tmp_path / "torrents",
+            staging_dir=tmp_path / "staging",
+            data_dir=tmp_path / ".data",
+        ),
+        disks=[
+            DiskConfig(id="open_disk", path=tmp_path / "open_disk", categories=[CID.MOVIES, CID.TV_SHOWS]),
+            DiskConfig(id="frozen_disk", path=tmp_path / "frozen_disk", categories=[CID.AUDIOBOOKS]),
+        ],
+        categories={
+            CID.MOVIES: CategoryConfig(folder_name="films"),
+            CID.TV_SHOWS: CategoryConfig(folder_name="series"),
+            CID.AUDIOBOOKS: CategoryConfig(folder_name="audiobooks"),
+        },
+        staging_dirs=CANONICAL_STAGING_DIRS,
+    )
+    (tmp_path / "open_disk" / "films").mkdir(parents=True)
+    show = tmp_path / "frozen_disk" / "series" / "Frozen Show (2019)"
+    (show / "Saison 01").mkdir(parents=True)
+    (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tvdb">4242</uniqueid></tvshow>')
+    (show / "Saison 01" / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 100)
+
+    stage_library_items(conn, config, now_s=1000)
+    stage_library_items(conn, config, now_s=2000)
+
+    rows = conn.execute(
+        "SELECT m.id, m.kind, m.category_id, m.date_modified, a.value FROM media_item m "
+        "JOIN item_attribute a ON a.item_id = m.id AND a.key = 'dispatch_disk'"
+    ).fetchall()
+    assert len(rows) == 1, f"the frozen disk's show must be one staged item, got {rows}"
+    _id, kind, category_id, date_modified, dispatch_disk = rows[0]
+    assert (kind, category_id, dispatch_disk) == ("show", CID.TV_SHOWS, "frozen_disk")
+    assert date_modified == 2000, "the second full scan must refresh the item"

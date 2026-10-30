@@ -191,12 +191,14 @@ def upsert_item_with_attrs(
 
     Idempotent on ``(kind, title, year)`` via :func:`item_repo.upsert` (the
     repo strips a trailing `` (YYYY)`` from the title and disambiguates
-    same-title remakes by year). The ``date_created`` /
-    ``date_modified`` placeholders carried in *row* are stamped with *now_s*
-    just before the write. Each ``attrs`` pair is upserted via
-    :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``), then the
-    whole issue set is **replaced**: ``DELETE FROM item_issue WHERE item_id=?``
-    followed by ``INSERT OR IGNORE`` of each issue (parity with
+    same-title remakes by year) — unless an item already carries the
+    ``dispatch_path`` in *attrs*: that item owns the folder and is updated
+    when it is the same work (same kind, year-compatible). The
+    ``date_created`` / ``date_modified`` placeholders carried in *row* are
+    stamped with *now_s* just before the write. Each ``attrs`` pair is
+    upserted via :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``),
+    then the whole issue set is **replaced**: ``DELETE FROM item_issue WHERE
+    item_id=?`` followed by ``INSERT OR IGNORE`` of each issue (parity with
     ``library.scanner._upsert_media_item`` lines 716-721).
 
     Args:
@@ -219,7 +221,11 @@ def upsert_item_with_attrs(
     write_row["date_created"] = stamp
     write_row["date_modified"] = stamp
 
-    item_id = item_repo.upsert(conn, MediaItemRow(**write_row))
+    # The item already carrying this folder's dispatch_path owns it, whatever
+    # its stored title: matching on the title alone split a folder in two.
+    dispatch_path = attrs.get(item_repo._ATTR_DISPATCH_PATH)
+    owner_id = item_repo.find_id_by_dispatch_path(conn, dispatch_path) if dispatch_path else None
+    item_id = item_repo.upsert(conn, MediaItemRow(**write_row), existing_id=owner_id)
 
     # Persist flex attributes (dispatch path/disk/normalized-title, ...) so
     # consumers that INNER JOIN on them (trailers cross-disk index, dispatch
@@ -823,13 +829,52 @@ def _purge_non_video_items(conn: sqlite3.Connection) -> int:
     return int(cursor.rowcount)
 
 
+def _category_dirs_on_disk(config: Config, disk_cfg: DiskConfig) -> list[tuple[str, Path]]:
+    """List the video category folders present on a disk, whatever its ``categories``.
+
+    A disk's ``categories`` gate where NEW media go (dispatch eligibility), not
+    what is indexed: a disk frozen to ``["audiobooks"]`` still holds series whose
+    new episodes land there, and walking only its configured categories left
+    those items un-refreshed by every full scan. Every known category is
+    therefore probed; the disk's own categories come first so that, should two
+    categories share one folder name, the disk's declared one wins. Non-video
+    categories are skipped (audiobooks are never indexed).
+
+    Args:
+        config: Fully-loaded application config.
+        disk_cfg: Config entry for the storage disk being walked.
+
+    Returns:
+        ``(category_id, category_dir)`` pairs for each video category whose
+        folder exists on the disk, each folder listed once.
+    """
+    others = sorted(config.all_category_ids - set(disk_cfg.categories))
+    seen_folders: set[str] = set()
+    found: list[tuple[str, Path]] = []
+    for category_id in [*disk_cfg.categories, *others]:
+        if category_id in NON_VIDEO_CATEGORY_IDS:
+            continue  # audiobooks etc. are not movies/shows — never indexed
+        folder_name = config.category(category_id).folder_name
+        # The storage filesystems are case-insensitive: one folder, one walk.
+        if folder_name.lower() in seen_folders:
+            continue
+        category_dir = disk_cfg.path / folder_name
+        if not category_dir.is_dir():
+            continue
+        seen_folders.add(folder_name.lower())
+        found.append((category_id, category_dir))
+    return found
+
+
 def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | None = None) -> int:
     """Stage rich ``media_item`` rows for every media directory across all configured disks.
 
     Pass-1 of ``library-index --mode full``. Mirrors ``library.scanner.scan_library``'s
     walk (disks × categories × media dirs) but delegates each directory to
     :func:`scan_and_stage_dir` instead of the legacy ``scan_movie_dir`` /
-    ``scan_tvshow_dir``. Every mounted disk gets a guaranteed ``disk`` row
+    ``scan_tvshow_dir``. Every video category folder present on a disk is
+    walked, not only the disk's configured ``categories``
+    (:func:`_category_dirs_on_disk`). Every mounted disk gets a guaranteed ``disk`` row
     (:func:`_ensure_disk_row`) before its directories are iterated. Dotfile
     directories are skipped.
 
@@ -856,13 +901,7 @@ def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | N
             log.warning("item_stage_disk_not_mounted", disk=disk_cfg.id, path=str(disk_cfg.path))
             continue
         _ensure_disk_row(conn, disk_cfg, now_s)
-        for category_id in disk_cfg.categories:
-            if category_id in NON_VIDEO_CATEGORY_IDS:
-                continue  # audiobooks etc. are not movies/shows — never indexed
-            cat_cfg = config.category(category_id)
-            category_dir = disk_cfg.path / cat_cfg.folder_name
-            if not category_dir.is_dir():
-                continue
+        for category_id, category_dir in _category_dirs_on_disk(config, disk_cfg):
             kind: MediaItemKind = "show" if category_id in TV_CATEGORY_IDS else "movie"
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):

@@ -1192,6 +1192,87 @@ class TestCollectRescrapeCandidates:
             result = _collect_rescrape_candidates(config, MagicMock(), None, "other_cat")
         assert result == []
 
+    @staticmethod
+    def _frozen_disk_config(tmp_path: Path) -> Config:
+        """Build a two-disk Config whose second disk is frozen to audiobooks.
+
+        The second disk takes no new media but still holds series whose new
+        episodes land there, as Medias2 does in production.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            A populated Config instance.
+        """
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[
+                DiskConfig(id="medias1", path=tmp_path / "medias1", categories=["tv_shows"]),
+                DiskConfig(id="medias2", path=tmp_path / "medias2", categories=["audiobooks"]),
+            ],
+            categories={
+                "tv_shows": CategoryConfig(folder_name="series"),
+                "audiobooks": CategoryConfig(folder_name="audiobooks"),
+            },
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+
+    def test_db_path_takes_the_disk_from_the_dispatch_attribute(self, tmp_path: Path) -> None:
+        """A show on the frozen disk is labelled with that disk and kept by its --disk filter.
+
+        Mapping the disk by category put it on the first disk accepting its
+        category: a plain run mislabelled it and ``--disk medias2`` dropped it.
+        """
+        from personalscraper.indexer.schema import ItemAttributeRow
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._frozen_disk_config(tmp_path)
+        media_dir = tmp_path / "medias2" / "series" / "Show (2020)"
+        media_dir.mkdir(parents=True)
+        item_row = MagicMock()
+        item_row.id = 7
+        item_row.kind = "show"
+        item_row.category_id = "tv_shows"
+
+        with (
+            patch(
+                "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+                return_value=[(item_row, str(tmp_path / "medias2"), "series/Show (2020)")],
+            ),
+            patch(
+                "personalscraper.indexer.repos.item_repo.get_attr",
+                return_value=ItemAttributeRow(item_id=7, key="dispatch_disk", value="medias2"),
+            ),
+        ):
+            plain = _collect_rescrape_candidates(config, MagicMock(), None, None)
+            filtered = _collect_rescrape_candidates(config, MagicMock(), "medias2", None)
+            other = _collect_rescrape_candidates(config, MagicMock(), "medias1", None)
+
+        assert [(path, disk_id) for path, _t, disk_id, _c, _e in plain] == [(media_dir, "medias2")]
+        assert [(path, disk_id) for path, _t, disk_id, _c, _e in filtered] == [(media_dir, "medias2")]
+        assert other == []
+
+    def test_walk_reaches_a_category_folder_the_disk_does_not_accept(self, tmp_path: Path) -> None:
+        """The filesystem walk finds the series of a disk frozen to audiobooks."""
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._frozen_disk_config(tmp_path)
+        (tmp_path / "medias1").mkdir()
+        (tmp_path / "medias2" / "series" / "Show (2020)").mkdir(parents=True)
+        (tmp_path / "medias2" / "audiobooks" / "Book").mkdir(parents=True)
+
+        candidates = _collect_rescrape_candidates(config, None, "medias2", None)
+
+        assert [(path.name, media_type, disk_id, cat_id) for path, media_type, disk_id, cat_id, _e in candidates] == [
+            ("Show (2020)", "tvshow", "medias2", "tv_shows")
+        ]
+
 
 class TestRescrapeLibraryOrchestrator:
     """End-to-end orchestrator tests for rescrape_library, using mocked components."""
