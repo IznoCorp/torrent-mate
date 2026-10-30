@@ -105,6 +105,11 @@ _XML_DECLARATION_RE = re.compile(r"^\s*<\?xml[^>]*\?>")
 # Root element the episode NFO writer produces (NFOGenerator.generate_episode_nfo).
 _EPISODE_NFO_ROOT = "episodedetails"
 
+# Fields the writer always emits for an episode; a root lacking any of them is a stub.
+# <uniqueid> is NOT required: it is omitted when no provider id is known, and legacy
+# NFOs get theirs through the scraper's upgrade-in-place.
+_EPISODE_NFO_REQUIRED_FIELDS = ("title", "season", "episode")
+
 
 def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
     """Parse an episode NFO that may hold several root elements.
@@ -139,8 +144,9 @@ def is_episode_nfo_usable(nfo_path: Path) -> bool:
 
     The ONE definition shared by the TV scraper (which must not skip a
     non-conformant NFO) and ``library-rescrape`` (which repairs them): the file
-    exists, is non-empty, is well-formed XML and every root element is the
-    ``<episodedetails>`` the writer produces. A multi-root file is readable and
+    exists, is well-formed XML and every root element is the
+    ``<episodedetails>`` the writer produces, carrying a non-empty ``<title>``,
+    ``<season>`` and ``<episode>``. A multi-root file is readable and
     carries data for several episodes, so it is conformant.
 
     Args:
@@ -152,9 +158,13 @@ def is_episode_nfo_usable(nfo_path: Path) -> bool:
     try:
         roots = read_episode_nfo_roots(nfo_path)
     except (ET.ParseError, OSError) as exc:
-        log.debug("episode_nfo_not_conformant", file=nfo_path.name, error=str(exc))
+        log.debug("episode_nfo_unusable", file=nfo_path.name, error=str(exc))
         return False
-    return bool(roots) and all(root.tag == _EPISODE_NFO_ROOT for root in roots)
+    return bool(roots) and all(
+        root.tag == _EPISODE_NFO_ROOT
+        and all((root.findtext(field) or "").strip() for field in _EPISODE_NFO_REQUIRED_FIELDS)
+        for root in roots
+    )
 
 
 def parse_title_year(dirname: str) -> tuple[str, int | None]:

@@ -875,10 +875,12 @@ class TestGenerateEpisodeNfos:
         show = tmp_path / "Show"
         season_dir = show / "Saison 01"
         season_dir.mkdir(parents=True)
-        # Pre-existing NFO that matches the pattern.
+        # Pre-existing conformant NFO that matches the pattern.
         new_stem = mixin_format_episode(1, 1, "Pilot")
         nfo_path = season_dir / f"{new_stem}.nfo"
-        nfo_path.write_text("<x/>")
+        nfo_path.write_text(
+            "<episodedetails><title>Pilot</title><season>1</season><episode>1</episode></episodedetails>"
+        )
         v = show / "Show.S01E01.mkv"
         v.write_bytes(b"x")
         mixin = _make_mixin()
@@ -894,6 +896,31 @@ class TestGenerateEpisodeNfos:
         mixin._generate_episode_nfos(matched, show, {"name": "Show"})
         # NFO generation skipped, but artwork.download_image called for the thumb.
         assert not mixin._nfo.generate_episode_nfo.called  # type: ignore[union-attr]
+
+    def test_existing_foreign_root_nfo_is_regenerated(self, tmp_path: Path) -> None:
+        """An existing NFO with a foreign root is not skipped: it is regenerated."""
+        show = tmp_path / "Show"
+        season_dir = show / "Saison 01"
+        season_dir.mkdir(parents=True)
+        # Pre-existing NFO that matches the pattern but is not an episode NFO.
+        new_stem = mixin_format_episode(1, 1, "Pilot")
+        nfo_path = season_dir / f"{new_stem}.nfo"
+        nfo_path.write_text("<x/>")
+        v = show / "Show.S01E01.mkv"
+        v.write_bytes(b"x")
+        mixin = _make_mixin()
+        matched = {
+            v: {
+                "season": 1,
+                "episode": 1,
+                "api_title": "Pilot",
+                "still_path": "/p.jpg",
+                "fallback": False,
+            }
+        }
+        mixin._nfo.generate_episode_nfo.return_value = "<xml/>"  # type: ignore[union-attr]
+        mixin._generate_episode_nfos(matched, show, {"name": "Show"})
+        assert mixin._nfo.generate_episode_nfo.called  # type: ignore[union-attr]
 
     def test_full_nfo_generation_writes_nfo(self, tmp_path: Path) -> None:
         """Without an existing NFO, NFO is generated and written, thumb downloaded."""

@@ -697,7 +697,7 @@ def _rescrape_episode_nfos(
         nfo_gen: NFOGenerator used to render and write.
         dry_run: Preview without changes.
         actions: Appended with one ``episode_nfo_regenerated: <relative path>`` per file.
-        errors: Appended with one message per file that could not be regenerated.
+        errors: Appended with one message per file whose generation failed.
     """
     from personalscraper.scraper._movie_convert import _coerce_to_show_data  # noqa: PLC0415
     from personalscraper.scraper.episode_manager import (  # noqa: PLC0415
@@ -721,7 +721,9 @@ def _rescrape_episode_nfos(
         rel = video.relative_to(show_dir).with_suffix(".nfo").as_posix()
         info = matched.get(video)
         if info is None or info.get("fallback"):
-            errors.append(f"Episode NFO not regenerated (no provider data): {rel}")
+            # Not an error: the provider may simply not know the episode, and an error would
+            # re-flag it on every run. The warning names the file for whoever looks.
+            log.warning("library_rescrape_episode_nfo_no_provider_data", show=show_dir.name, nfo=rel)
             continue
         try:
             episode_data = {

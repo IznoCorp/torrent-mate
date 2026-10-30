@@ -354,37 +354,51 @@ def test_extract_nfo_ids_backward_compatible_with_three_ids(tmp_path: Path) -> N
     assert extract_nfo_ids(nfo) == ("603", "tt0133093")
 
 
-class TestIsEpisodeNfoConformant:
+class TestIsEpisodeNfoUsable:
     """is_episode_nfo_usable: the single « can this episode NFO be kept? » rule."""
 
-    def test_single_root_episodedetails_is_conformant(self, tmp_path: Path) -> None:
+    def test_single_root_episodedetails_is_usable(self, tmp_path: Path) -> None:
         """A well-formed single-root episode NFO is kept."""
         nfo = tmp_path / "S01E01.nfo"
-        nfo.write_text('<?xml version="1.0" encoding="UTF-8"?><episodedetails><title>A</title></episodedetails>')
+        nfo.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
         assert is_episode_nfo_usable(nfo) is True
 
-    def test_multi_root_episodedetails_is_conformant(self, tmp_path: Path) -> None:
+    def test_multi_root_episodedetails_is_usable(self, tmp_path: Path) -> None:
         """A Kodi multi-episode NFO (several roots) is readable, hence kept."""
         nfo = tmp_path / "S01E01-E02.nfo"
         nfo.write_text(
-            '<?xml version="1.0"?><episodedetails><title>A</title></episodedetails>\n'
-            "<episodedetails><title>B</title></episodedetails>"
+            '<?xml version="1.0"?>'
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>\n"
+            "<episodedetails><title>B</title><season>1</season><episode>2</episode></episodedetails>"
         )
         assert is_episode_nfo_usable(nfo) is True
 
     @pytest.mark.parametrize(
         "content",
-        [b"", b"   \n", b"<episodedetails><title>cut", b"<movie><title>X</title></movie>", b"\x00\x05\x16\x07"],
-        ids=["empty", "blank", "truncated", "wrong-root", "binary"],
+        [
+            b"",
+            b"   \n",
+            b"<episodedetails><title>cut",
+            b"<movie><title>X</title></movie>",
+            b"\x00\x05\x16\x07",
+            b"<episodedetails/>",
+            b"<episodedetails><title>A</title><season>1</season><episode></episode></episodedetails>",
+            b"<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+            b"<episodedetails><title>B</title></episodedetails>",
+        ],
+        ids=["empty", "blank", "truncated", "wrong-root", "binary", "root-only", "blank-episode", "one-stub-root"],
     )
     def test_unusable(self, tmp_path: Path, content: bytes) -> None:
-        """Empty, blank, truncated, wrong-root and binary files are not conformant."""
+        """Empty, blank, truncated, wrong-root and binary files are not usable."""
         nfo = tmp_path / "S01E01.nfo"
         nfo.write_bytes(content)
         assert is_episode_nfo_usable(nfo) is False
 
-    def test_absent_is_not_conformant(self, tmp_path: Path) -> None:
-        """A missing file is not conformant."""
+    def test_absent_is_not_usable(self, tmp_path: Path) -> None:
+        """A missing file is not usable."""
         assert is_episode_nfo_usable(tmp_path / "nope.nfo") is False
 
 
@@ -396,8 +410,8 @@ class TestReadEpisodeNfoRoots:
         nfo = tmp_path / "x.nfo"
         nfo.write_text(
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
-            "<episodedetails><title>A</title></episodedetails>\n"
-            "<episodedetails><title>B</title></episodedetails>"
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>\n"
+            "<episodedetails><title>B</title><season>1</season><episode>2</episode></episodedetails>"
         )
         assert [r.findtext("title") for r in read_episode_nfo_roots(nfo)] == ["A", "B"]
 

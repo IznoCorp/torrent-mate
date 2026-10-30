@@ -22,7 +22,8 @@ _TVSHOW_NFO = (
 )
 _GOOD_EPISODE_NFO = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
-    '<episodedetails><title>Kept</title><uniqueid type="tvdb">1</uniqueid></episodedetails>\n'
+    "<episodedetails><title>Kept</title><season>1</season><episode>4</episode>"
+    '<uniqueid type="tvdb">1</uniqueid></episodedetails>\n'
 )
 _TITLES = {1: "One", 2: "Two", 3: "Three", 4: "Four"}
 

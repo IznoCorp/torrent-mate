@@ -11,7 +11,10 @@ import pytest
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from tests.scraper.test_regression_dev2_episode_ids import _make_mixin
 
-_GOOD = '<?xml version="1.0"?><episodedetails><title>Kept</title><uniqueid type="tvdb">9001</uniqueid></episodedetails>'
+_GOOD = (
+    '<?xml version="1.0"?><episodedetails><title>Kept</title><season>1</season><episode>1</episode>'
+    '<uniqueid type="tvdb">9001</uniqueid></episodedetails>'
+)
 
 
 def _run(tmp_path: Path, content: bytes | None) -> tuple[Path, Any]:
@@ -47,8 +50,8 @@ def _run(tmp_path: Path, content: bytes | None) -> tuple[Path, Any]:
 
 @pytest.mark.parametrize(
     "content",
-    [b"", b"<episodedetails><title>cut", b"<movie><title>X</title></movie>"],
-    ids=["empty", "truncated", "wrong-root"],
+    [b"", b"<episodedetails><title>cut", b"<movie><title>X</title></movie>", b"<episodedetails/>"],
+    ids=["empty", "truncated", "wrong-root", "root-only"],
 )
 def test_unusable_existing_nfo_is_rewritten(tmp_path: Path, content: bytes) -> None:
     """Empty, unparseable and wrong-root NFOs are regenerated like an absent one."""
