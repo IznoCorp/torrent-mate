@@ -14,9 +14,10 @@ An item is a ghost of a disk when all of these hold:
   a hard delete does not;
 - its ``dispatch_path`` lies on that disk and no longer exists (``stat``
   answers ``FileNotFoundError``; any other error freezes the disk's pass);
-- none of its files is live (every one tombstoned, or none at all). An item
-  whose folder just vanished therefore retires only once the file strikes have
-  tombstoned its files — the same three full scans a file waits;
+- none of its files is live (every one tombstoned, or none at all) — its files
+  being those of its releases and those linked to no release under its folder.
+  An item whose folder just vanished therefore retires only once the file
+  strikes have tombstoned its files — the same three full scans a file waits;
 - no ``pending`` / ``running`` repair names it, one of its releases or one of
   their files (``repair_queue.scope_id`` is a soft reference the cascade would
   leave dangling).
@@ -42,6 +43,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from personalscraper.indexer.merkle import DiskMountStatus
+from personalscraper.indexer.repos.item_repo import dispatch_path_key
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
 
@@ -62,6 +64,17 @@ JOIN media_release mr ON mr.id = mf.release_id
 LEFT JOIN episode e ON e.id = mr.episode_id
 LEFT JOIN season s ON s.id = e.season_id
 WHERE mf.deleted_at IS NULL AND (mr.item_id = ? OR s.item_id = ?)
+"""
+
+#: Live files linked to no release whose directory is the item's folder or
+#: lies under it. Paths compare on ``dispatch_path_key`` (registered on the
+#: connection as ``ghost_path_key``): the walk stores what HFS+ answers (NFD),
+#: the dispatch wrote the folder NFC.
+_UNLINKED_LIVE_FILES_SQL = """
+SELECT COUNT(*) FROM media_file mf
+JOIN path p ON p.id = mf.path_id
+WHERE mf.deleted_at IS NULL AND mf.release_id IS NULL AND p.disk_id = ?
+AND (ghost_path_key(p.rel_path) = ? OR substr(ghost_path_key(p.rel_path), 1, ?) = ?)
 """
 
 
@@ -144,6 +157,33 @@ def _items_on_disk(conn: sqlite3.Connection, mount_path: str) -> list[tuple[int,
     ).fetchall()
     # A prefix test in Python, not ``LIKE``: a folder name may hold ``%`` or ``_``.
     return [(int(r[0]), str(r[1]), str(r[2]), str(r[3])) for r in rows if str(r[3]).startswith(root)]
+
+
+def _has_live_files(conn: sqlite3.Connection, item_id: int, disk: DiskRow, dispatch_path: str) -> bool:
+    """Return whether a file of the item is still live.
+
+    A file is the item's when one of its releases holds it, or — linked to no
+    release yet — when it lies under the item's folder: retiring the item
+    before such a file is tombstoned would break the order files-then-item.
+
+    Args:
+        conn: Open SQLite connection.
+        item_id: The item.
+        disk: The disk holding its folder (``mount_path`` set).
+        dispatch_path: The item's folder, under the disk's root.
+
+    Returns:
+        ``True`` when at least one such file has no tombstone.
+    """
+    if conn.execute(_LIVE_FILES_SQL, (item_id, item_id)).fetchone()[0]:
+        return True
+    root = str(disk.mount_path).rstrip("/") + "/"
+    folder_key = dispatch_path_key(dispatch_path[len(root) :])
+    conn.create_function("ghost_path_key", 1, dispatch_path_key, deterministic=True)
+    row = conn.execute(
+        _UNLINKED_LIVE_FILES_SQL, (disk.id, folder_key, len(folder_key) + 1, folder_key + "/")
+    ).fetchone()
+    return bool(row[0])
 
 
 def _folder_gone(path: str) -> bool:
@@ -285,7 +325,7 @@ def retire_ghost_items(
             report.frozen = True
             report.ghosts.clear()
             return report
-        if conn.execute(_LIVE_FILES_SQL, (item_id, item_id)).fetchone()[0]:
+        if _has_live_files(conn, item_id, disk, dispatch_path):
             report.kept.append(GhostItem(item_id, title, kind, dispatch_path, "live_files"))
         elif _has_open_repair(conn, item_id):
             log.info(

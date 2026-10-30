@@ -13,6 +13,7 @@
         "tests/indexer/test_ghost_items.py::test_an_item_on_another_disk_is_not_this_disks_ghost",
         "tests/indexer/test_ghost_items.py::test_an_item_whose_folder_is_present_is_kept",
         "tests/indexer/test_ghost_items.py::test_an_item_with_a_live_file_is_kept",
+        "tests/indexer/test_ghost_items.py::test_an_item_with_a_live_unlinked_file_under_its_folder_is_kept",
         "tests/indexer/test_ghost_items.py::test_an_open_repair_on_a_release_or_a_file_of_the_item_keeps_it",
         "tests/indexer/test_ghost_items.py::test_any_error_while_retiring_rolls_back_and_re_raises",
         "tests/indexer/test_ghost_items.py::test_more_than_the_cap_retires_none_unless_the_cap_is_lifted",

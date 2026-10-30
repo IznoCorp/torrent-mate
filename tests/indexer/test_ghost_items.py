@@ -345,6 +345,30 @@ def test_a_folder_that_cannot_be_stat_ed_freezes_the_disk(
     assert {gone, blocked} <= set(_items(conn))
 
 
+def test_an_item_with_a_live_unlinked_file_under_its_folder_is_kept(
+    library: tuple[sqlite3.Connection, DiskRow, Path],
+) -> None:
+    """A live file with no release, under the item's folder, still waits for its strikes.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a live ``media_file`` whose path lies under the item's
+        ``dispatch_path`` keeps the item, linked to a release or not.
+    """
+    conn, disk, root = library
+    ghost = _item(conn, root / "movies" / "Gone (2020)")
+    path_id = conn.execute("INSERT INTO path (disk_id, rel_path) VALUES (?, 'movies/Gone (2020)/extras')", (disk.id,))
+    conn.execute(
+        "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, oshash, scan_generation,"
+        " last_verified_at) VALUES (NULL, ?, 'poster.jpg', 1, 1, 'h', 1, 1)",
+        (path_id.lastrowid,),
+    )
+
+    report = retire_ghost_items(conn, disk, _MOUNTED, dry_run=False, max_share=None)
+
+    assert [(k.item_id, k.reason) for k in report.kept] == [(ghost, "live_files")]
+    assert ghost in _items(conn)
+
+
 def test_any_error_while_retiring_rolls_back_and_re_raises(
     library: tuple[sqlite3.Connection, DiskRow, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
