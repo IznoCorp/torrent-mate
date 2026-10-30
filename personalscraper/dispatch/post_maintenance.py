@@ -399,7 +399,7 @@ def _run_fix_season_counts(config: Config, *, scopes: list[_Scope] | None = None
                 UNION
                 SELECT ia.item_id FROM item_attribute ia
                  WHERE ia.key = '{_ATTR_DISPATCH_PATH}' AND {abs_sql}
-              )"""
+              )"""  # noqa: S608 — only placeholders are interpolated
             params = [*path_params, *path_params, *abs_params]
         cur = conn.execute(
             f"""

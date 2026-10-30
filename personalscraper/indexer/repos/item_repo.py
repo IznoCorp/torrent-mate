@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-import unicodedata
 from typing import Literal
 
 from personalscraper._fs_utils import name_key, name_variants

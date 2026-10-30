@@ -454,9 +454,8 @@ REGISTRY: list[MaintenanceAction] = [
         id="library-refresh-path",
         title="Rafraîchir un dossier renommé ou supprimé",
         description=(
-            "Réconciliation d'index ciblée après un rename/move/suppression manuel : ne touche "
-            "que le dossier donné (rescan, relink, compteurs, réparations) ; un dossier disparu "
-            "du disque est retiré de l'index."
+            "Réconciliation d'index ciblée après un rename/move/suppression manuel : ne touche que "
+            "le dossier donné (rescan, relink, compteurs, réparations) ; un dossier disparu du disque est retiré."
         ),
         category="fix",
         risk="write",

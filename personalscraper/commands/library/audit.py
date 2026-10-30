@@ -577,13 +577,16 @@ def library_refresh_path(
 
     scan_key = "refresh_path_would_rescan" if dry_run else "refresh_path_rescanned"
     remove_key = "refresh_path_would_remove" if dry_run else "refresh_path_removed"
-    flag = _styled("yellow", t("cli_library.audit.dry_run_label")) if dry_run else _styled(
-        "green", t("cli_library.audit.refresh_path_done_label")
-    )
+    if dry_run:
+        flag = _styled("yellow", t("cli_library.audit.dry_run_label"))
+    else:
+        flag = _styled("green", t("cli_library.audit.refresh_path_done_label"))
     for scanned in report.scanned:
         console.print(t(f"cli_library.audit.{scan_key}", label=flag, target=_styled("bold", str(scanned)), disk=label))
     for removed in report.removed:
-        console.print(t(f"cli_library.audit.{remove_key}", label=flag, target=_styled("bold", str(removed)), disk=label))
+        console.print(
+            t(f"cli_library.audit.{remove_key}", label=flag, target=_styled("bold", str(removed)), disk=label)
+        )
     if dry_run:
         console.print(
             t(
