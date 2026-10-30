@@ -39,7 +39,6 @@ from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
 from personalscraper.api.tracker._contracts import (
     CategoryListable,
@@ -55,6 +54,7 @@ from personalscraper.api.transport._policy import (
     RetryPolicy,
     TransportPolicy,
 )
+from personalscraper.core.units import ByteSize
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -423,7 +423,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
 
     # -- Internal helpers ---------------------------------------------------
 
-    def _request(self, params: dict[str, Any]) -> Any:  # noqa: ANN401 — transport's own return type
+    def _request(self, params: dict[str, Any]) -> Any:  # transport's own return type
         """Call the indexer, classifying an HTTP auth failure as such (D4).
 
         The transport reports every non-2xx as a flat :exc:`ApiError`, which

@@ -80,7 +80,7 @@ Returns `200` + `SID` cookie on success. Returns `403` on bad credentials (count
 | Parameter  | Type   | Required | Description                                                                                                                                                       |
 | ---------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `filter`   | string | no       | One of: `all`, `downloading`, `seeding`, `completed`, `paused`, `active`, `inactive`, `resumed`, `stalled`, `stalled_uploading`, `stalled_downloading`, `errored` |
-| `category` | string | no       | Empty string = no category; absent = any                                                                                                                          |
+| `category` | string | no       | Empty string = no category; absent = any. A category `c` also returns the torrents under its subcategories `c/x` (prefix `c/`, so `cX` never matches) only when the « subcategories » setting is on before 5.2.0, always from 5.2.0 |
 | `tag`      | string | no       | Filter by tag (since API 2.8.3)                                                                                                                                   |
 | `sort`     | string | no       | Field name to sort by                                                                                                                                             |
 | `reverse`  | bool   | no       | Reverse sort order                                                                                                                                                |
@@ -216,7 +216,20 @@ Useful for incremental polling (feed `rid` from the last response to get only ch
 ## Categories (`/api/v2/torrents/categories`)
 
 `GET /api/v2/torrents/categories` → `200` — JSON object: `"name": {name, savePath}`.
+A scoped instance reads it (`QBitClient.get_categories`) before every add and inject, and refuses unless its category
+exists with a `savePath` under the scope's `download_root`; nothing is ever created by the instance.
 `POST /api/v2/torrents/createCategory` → `category` (string), `savePath` (optional).
+
+### Shared client (scoped and unscoped instances)
+
+One client serves prod and the sandboxes (preprod, dev); each sandbox owns its `scope` category and instance tags,
+and a scoped grab refuses a hash the client already holds (`_scope_refusal`, fail-closed). Prod (unscoped) lists the
+sandboxes' categories in `torrent.clients.<name>.sandbox_categories` (default empty = no change; refused on a scoped
+instance), and its grab refuses, with the reason `sandbox_hash` and the same fail-closed reasons, a hash held under
+one of them (R4); a hash prod itself holds keeps today's add. Prod's watcher quiescence gate (product-intent §14.3)
+counts only the torrents outside those categories, so a sandbox download never holds its grace counter (R4). A scoped
+watcher that boots with no recorded successful run starts its safety-net clock at boot instead of firing a run at once
+(R5); an unscoped watcher keeps firing.
 
 ## Tags (`/api/v2/torrents/tags`)
 
@@ -234,8 +247,8 @@ Even hitting API endpoints that return `403` when unauthenticated (e.g. `GET /ap
 (`GET /`) which always returns `200` regardless of auth state — a safe reachability check
 that does NOT increment the ban counter.
 
-Our client wrapper maintains a lockout file (`~/.cache/personalscraper/qbit_auth_lockout`,
-1-hour TTL) to short-circuit further attempts after a credential failure, preventing
+Our client wrapper maintains a lockout file (`~/.cache/personalscraper/qbit_auth_lockout` in prod,
+`qbit_auth_lockout-<env>` in every other environment, resolved by `lockout_path()`; 1-hour TTL) to short-circuit further attempts after a credential failure, preventing
 PM2 cron from accumulating attempts across scheduled runs. This is implemented in
 `build_client` (raw `GET /` pre-check via `requests`) and `QBitClient.login`
 (`_check_lockout` / `_set_lockout`) in `personalscraper/api/torrent/qbittorrent.py`.

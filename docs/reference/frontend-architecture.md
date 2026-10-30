@@ -4,9 +4,9 @@
 stands** — that is `IMPLEMENTATION.md` § « Where the frontend work stands », and it is the only
 file that says it.
 
-The maquette is the next version of the frontend and it REPLACES the shipped one: on switchover
-day `frontend/src` is archived and `frontend/maquette/` takes its place (`product-intent.md`
-§15). So every page and every MECHANISM the shipped app has must eventually exist here. The pages
+The maquette is the v1 frontend, developed together with its backend, and it REPLACES the shipped
+one: at v1's production release every v0 file goes at once and `webui/` takes its place
+(`product-intent.md` §15). So every page and every MECHANISM the shipped app has must eventually exist here. The pages
 are the part that is finished. What remains is most of what makes an application, and this file
 is the plan for it.
 
@@ -30,7 +30,7 @@ The method is `docs/reference/method.md`.
 | **this file** | what the frontend must BECOME technically, and in what order |
 | `IMPLEMENTATION.md` | where the work stands — the only state, with its commands |
 | `docs/features/<codename>/DESIGN.md` · `plan/` | the scope and the steps of ONE wave — deleted at merge, cited by commit |
-| `frontend/maquette/README.md` | how the prototype runs, its named states, the traps already paid for |
+| `webui/README.md` | how the prototype runs, its named states, the traps already paid for |
 
 This file covers items 2, 3 and 4 of `IMPLEMENTATION.md` § THE OBJECTIVE → REMAINS — the visual
 language, the application itself, and the legacy engine — plus the safety net they all need and
@@ -56,7 +56,7 @@ the day it was taken:
 | Section | What exists today | What it is asked for |
 | --- | --- | --- |
 | **§18 — the ratio is a resource, and it is steered** | `min_ratio` and `min_seed_time` per tracker, read at the grab and at the cross-seed; `obligations`, `stalled-grabs` and `downloads` all answering | **wire them** — nothing calls any of the three — plus one write, since setting a tracker's policy from the surface that shows its ratio exists in neither contract |
-| **§19 — cross-seed is seen and decided** | 797 lines of engine injecting at third parties, emitting `CrossSeedInjected` and `CrossSeedRejected` | **everything**: zero routes in either contract, no event relayed to the stream. D7's case — the interface declares what it requires and the backend follows (§15) |
+| **§19 — cross-seed is seen and decided** | 797 lines of engine injecting at third parties, emitting `CrossSeedInjected` and `CrossSeedRejected` | **everything**: zero routes in either contract, no event relayed to the stream. D7's case — the contract declares what the interface requires and the backend serves it (§15) |
 | **§17 — accounts, rights and Plex identity** | one role, one account, `GET /api/auth/me` saying nothing of rights | **a model, then surfaces.** None of the 53 declared operations concerns another user, a role or a permission. And one requirement on existing code: the read-only role must be ABSORBED by the rights model, never sit beside it — two authorisation paths is NE-DOIT-PAS-7 |
 
 **Its mapping is written and its instrument is placed** (2026-08-29): `docs/reference/product-intent-map.md`,
@@ -76,7 +76,7 @@ stays two objects: the bar, and the index that appears when it serves.
 **Item 1 is a lot since 2026-08-29 — L20, the control station.** `/control` (8 panels) and
 `/pipeline` (10 panels), kept outside this file as pageless, could not stay there once the clause
 map found DOIT-1, DOIT-3, DOIT-5 and DOIT-6 each owed a half only those pages serve. They follow the
-existing method (drawn in the maquette first); where their panels land is the operator's open UX
+existing method; where their panels land is the operator's open UX
 question (`IMPLEMENTATION.md`). L20 depends on L15 and L19 — drawn before the producer template,
 they would be drawn twice.
 
@@ -140,12 +140,12 @@ considered and rejected — see rule 4 below.
    on the trail moves to its top, never stacked twice** (the operator's ruling of 2026-09-30). § 16 as
    amended on 2026-09-29 (#635, #643); delivered by the navigation lot: every entry carries its trail
    (`lib/navigation-entry.ts`, `app/trail.ts`), and the verb says how a tap lands
-   (`app/frame-verbs.ts`). Held by R-navigation-a and R-navigation-b (`frontend/maquette/harness/journey.py`).
+   (`app/frame-verbs.ts`). Held by R-navigation-a and R-navigation-b (`webui/harness/journey.py`).
 3. **Where no stack exists, synthesise it from the hierarchy.** A cold link poses the real parent
    under the screen — read off the emitter of the screen's own opener, not guessed — and that
    parent is **rendered**, not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`).
 4. **Up is a separate gesture, and it is drawn.** Back pops; Up climbs one level whatever the
-   path. **NOT delivered** — no lot carries it yet; a surface to be drawn in the maquette first.
+   path. **NOT delivered** — no lot carries it yet; a surface still to be drawn.
 
 **Replaces** the reading under which every screen resolved to the home page (D-8.1) — the
 mechanism behind a reviewed defect where a cold screen address composed a panel's entry over the
@@ -305,25 +305,25 @@ into other lots.
 0 `tabindex`, 13 `role=`. **L03 landed and closed it**: 4 `<main>`, 7 `tabindex`, 32 `role=`, and
 744 axe violations over 7 rules taken to a hard zero across the 83 named states, held by
 `a11y.py` on its own `--a11y` tier.
-<sub>`grep -rho 'tabindex' frontend/maquette/design/src frontend/maquette/design/*.html | wc -l`</sub>
+<sub>`grep -rho 'tabindex' webui/design/src webui/design/*.html | wc -l`</sub>
 It serves the native-feel objective directly (focus management, assistive technology, keyboard
 paths), and — this is what makes it schedulable anywhere — `role`, `aria-*` and `tabindex` are
 **invisible to the oracle**: they change neither a rectangle nor a computed style. Only element
 substitutions and focus rings are visible, and those are handled as such.
 
-### D7 — The data contract is the maquette's, and it touches no backend
+### D7 — The data contract is the reference between front and back
 
 **Decision.** The maquette declares the contract its interface REQUIRES, as its own artefact
-inside `frontend/maquette/`. It starts from the contract that already exists
+inside `webui/`. It starts from the contract that already exists
 (`frontend/openapi.json`, generated FROM the backend) and diverges deliberately where the new
 experience needs more. **Every divergence is recorded as a demand on the backend.**
 
-**No backend work happens until the interface is frozen and validated.** The backend follows the
-interface; starting it earlier means rebuilding against a specification that is still moving.
-The recorded divergences ARE that future specification, delivered as a diff rather than a blank
-page.
+**Front and back are developed together against it.** An operation exists when the contract
+describes it; the v1 server serves it, and until it does the mock layer simulates it. On
+tm-design, the development environment, each served operation reaches the real v1 and each
+unserved one stays mocked; a mock goes when v1 serves its operation.
 
-**What must not happen**: transposing production's 11 API modules. Production is archived, not
+**What must not happen**: transposing production's 11 API modules. Production is removed, not
 harvested. Its data layer is a reference for what the replacement must be able to do — never a
 model to copy.
 
@@ -344,7 +344,7 @@ descendant that carries a function is covered by a named rule instead** — the 
 widened, and a surface relying on one without such a rule is the defect, not the oracle.
 
 **A RULE may read pixels; the ORACLE never does — amended by the steward's L12 audit, 2026-09-01.**
-L12's R118 (`frontend/maquette/harness/chrome_pixels.py`) compares one region with itself at two
+L12's R118 (`webui/harness/chrome_pixels.py`) compares one region with itself at two
 moments of one run (mid-transition against settled, with a control) — a different comparison from
 the oracle's two-runs-of-an-unmodified-page measurement, so it does not widen the oracle. A rule
 that needs a pixel says why in its own file and carries a control. Story:
@@ -453,8 +453,16 @@ its warnings, and a separate « validate » has no surface of its own.
 **What it makes void.** Any future inventory listing these two as missing. The absences already on
 the record stand beside them and are not repeated here: the desktop rail (Q1 — drawer alone, not
 frozen), the Pipeline tab and badge (Q6 — none), per-file configuration editing (settings navigate
-by topic), the trigger legend (the trigger is written in words), push notifications (B-257 —
-declined, consumer L16).
+by topic), the trigger legend (the trigger is written in words).
+
+Push notifications are no longer among the absences: the earlier record (B-257 — declined, consumer
+L16) is superseded by the operator's words of 2026-10-03 — « On peut remplacer le canal Telegram par
+des notifications FCM, parce qu'elles devront être implémentées, et des messages in-app sur le
+torrent en question. » and « il faudra une gestion des canaux, des canaux de notification, de façon
+à pouvoir couper les notifications FCM de certains types tout en gardant les autres. Donc il faut
+créer des types de notifications FCM. » The maquette draws the FCM notification types, their push
+wording and landing, and the in-app obligation message on the torrent's panel; the per-type
+switches follow in Réglages.
 ## 3. Invariants — true at the end of every wave
 
 1. **The URL and the interface never contradict each other.** D1's rule holds in both
@@ -508,8 +516,7 @@ declined, consumer L16).
 13. **Motion is declared, not scripted** (D9). The single exception is a pointer-driven
     interruptible spring, and it is named where it is used.
 14. **Reduced motion is a designed state, not a fallback.** Every transition and every gesture
-    has a defined appearance under `prefers-reduced-motion`, drawn like any other state — the
-    interface being frozen includes it.
+    has a defined appearance under `prefers-reduced-motion`, drawn like any other state.
 15. **No French in the code and no interface text in the code.** Unchanged
     (`scripts/check-no-french.py`), and it applies to everything written here. **It carried the
     number 10 until 2026-08-29**, alongside the invariant about the frame naming the domain, and
@@ -608,8 +615,8 @@ none of the others: no surface is wired to any of it, which is L09's.
 
 Declared by L10-ter on 2026-08-29, ordered by the operator's answers of 2026-08-30. L14 first
 (pulled forward, Q3); then D5 applied to the sheets — the pass « surface by surface » never made;
-then the global levers; then the constitution's three, each drawn in the maquette first like every
-surface — L16 and L17 still blocked on a dictated answer, L18 no longer.
+then the global levers; then the constitution's three —
+L16 and L17 still blocked on a dictated answer, L18 no longer.
 
 **Re-cut on 2026-09-02, on the steward's inventory of every production surface against the
 maquette.** Nine surfaces had no owner — production draws them, the maquette does not, and no lot
@@ -650,7 +657,7 @@ scope (cross-seed) and small enough by § 0's own selection rule to take nobody'
 inside its plan. **Named states (proposed, not built): `settings-save-bar-frame`** (the bar drawn by the frame
 itself, replacing L16's `lib/save-bar-door.tsx` door — C2's own compromise, superseded) **and `settings-leave-confirm`**
 (the three-choice confirmation). **One rule**, holding both. **The existing pending-edits signal is REUSED** — the
-door's `onEditsWritten` / `editsWritten` pair (`frontend/maquette/design/src/lib/save-bar-door.tsx`) already knows
+door's `onEditsWritten` / `editsWritten` pair (`webui/design/src/lib/save-bar-door.tsx`) already knows
 whether a change waits; the leave confirmation reads THAT, never a second dirty-tracker. **Delivered 2026-09-30** on
 `feat/maquette-c1`: the bar is drawn by the frame's bottom slot over the pages whose row says `holdsEdits`
 (`app/navigation.ts`: Réglages, Trackers); the door became `lib/pending-edits-door.ts`, the one table of pending
@@ -914,7 +921,9 @@ the DEFAULT seed values (Household member, Plex guest), not the mechanism. Two r
 system's, indelible: Default (every new account's; its rights are configurable) and Admin (no
 rights list — it bypasses the ACL entirely, including rights created later). A requester on every
 acquisition MAY BE SEVERAL, each with per-requester settings; SSO added, not substituted, with
-e-mail linking and a password right (`auth.password`) rather than a hardcoded Operator check; a
+e-mail linking — the password right `auth.password` this round drew is RETIRED since 2026-10-03:
+how an account signs in is its sign-in kind (`owner | plex | local`), not a right
+(the operator, 2026-10-03: « A, oui on n'a pas le droit de se connecté par mot de passe si on est un compte Plex, on propose forcément le SSO »); a
 rights-less Plex user is a Default-only account, admitted read-only on the library by
 construction, not a distinct mechanism; the Acquisition section absent for an account holding
 neither `acquisition.request` nor `.see.others`; the staging ceiling generalised to a per-instance
@@ -1121,8 +1130,8 @@ temps et en heure quand la maquette sera prête ». It follows every drawn lot, 
 ## 6. The traps that cross lots
 
 Every one of these has already gone off in this repository. They are recorded in full in
-`frontend/maquette/regions.json` → `$adversarialReview.$methodLessons` and in
-`frontend/maquette/README.md`; what is added here is **which lot each one threatens**, so it is
+`webui/regions.json` → `$adversarialReview.$methodLessons` and in
+`webui/README.md`; what is added here is **which lot each one threatens**, so it is
 met before it fires rather than after.
 
 | Trap | Threatens | The short version |

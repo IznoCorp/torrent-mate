@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.domain import WantedItem
 
 
-def build_search_query(item: "WantedItem", title: str | None, year: int | None = None) -> str:
+def build_search_query(item: WantedItem, title: str | None, year: int | None = None) -> str:
     """Build a tracker search query from a wanted item + resolved series title.
 
     This is the Follow D3 title-resolution seam. When the series ``title`` is

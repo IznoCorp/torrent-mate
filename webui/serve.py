@@ -1,0 +1,955 @@
+#!/usr/bin/env python3
+"""Serve the design prototype over HTTP, behind its own login screen.
+
+This server serves the Vite build (`dist/index.html`), rebuilt when its
+inputs are newer. The harness measures the source through its own copy of the
+design root, and R72 is the bridge that keeps the two interchangeable: both
+read from the same inputs, both emit the same bytes.
+
+It serves one document and nothing else. The directory around the prototype
+holds the extraction contract, the harness and its scratch output; none of that
+belongs on a public host.
+
+**The credential check runs here, not in the page.** The prototype carries the
+real library index, the follows and the staging contents. A check written in
+the page it protects is readable by everyone that page reaches, so it protects
+nothing; and the page cannot be sent before the check without giving away what
+the check was for. The gate is therefore built by EXTRACTING the login screen
+from the prototype — markup, styles and typeface, between explicit markers —
+so the screen a visitor meets is the screen the design defines, never a copy of
+it that drifts.
+
+One switch. `TM_DESIGN_REBUILD=off` (`on` by default) stops the host rebuilding a
+tree another process builds. The door is the real v1 session and nothing else: the
+sign-in page is public and posts to v1, and the document is served only to a
+request whose v1 session v1 itself accepts.
+"""
+
+from __future__ import annotations
+
+import html
+import http.server
+import json
+import os
+import re
+import shutil
+import socketserver
+import subprocess
+import sys
+import threading
+import urllib.parse
+from collections.abc import Callable
+from pathlib import Path
+
+# THIS FILE IS LOADED THREE WAYS, and only one of them puts its directory on the
+# import path. Run as a script it is `__main__` and Python adds the directory;
+# imported by a rule that inserted it first, it resolves; but
+# `scripts/csstokens_login.py` loads it by FILE LOCATION to compose the sign-in
+# page and measure it, and a spec-from-file load adds nothing. Without the line
+# below the sibling import raised `ModuleNotFoundError` there — caught by the
+# full rule suite, which is where a guard that reads what nobody else reads
+# earns its place. The directory is this file's own, resolved, never the
+# caller's working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# The v1 door — its own subject, its own file.
+import v1_door  # the path line above must run first
+
+# The identity of the tree this host serves — its own subject, its own file.
+from host_identity import with_served_identity  # the path line above must run first
+
+# What makes the served page installable — its own subject, its own file.
+from installable import (  # the path line above must run first
+    HOST_PAGES_CSS,
+    build_identity,
+    manifest,
+    offline_page,
+    pwa_head,
+    worker,
+)
+
+
+def renamed_env(current: str, former: str) -> str | None:
+    """Returns an environment value, answering to the name it used to have.
+
+    Both of this host's environment names were translated. A caller outside the
+    tree — a shell profile, a launcher — cannot be renamed with the file, and
+    silently falling back to the default is the one behaviour change this wave
+    would otherwise have shipped. The old name still works and says so.
+
+    Args:
+        current: The name to read first.
+        former: The name it used to be.
+
+    Returns:
+        The value, or None when neither name is set.
+    """
+    value = os.environ.get(current)
+    if value:
+        return value
+    value = os.environ.get(former)
+    if value:
+        print(f"{former} is the old name of {current}; still honoured, rename it", file=sys.stderr, flush=True)
+    return value
+
+
+# The design root is overridable so a harness rule can point the server at a
+# SCRATCH copy and mutate it freely: no measurement may ever write into the
+# operator's real source.
+DESIGN_ROOT = Path(
+    renamed_env("TM_DESIGN_ROOT", "TM_DESIGN_RACINE") or Path(__file__).resolve().parent / "design"
+).resolve()
+# The base layer (D3). It carries the `login:font` and `login:socle` regions
+# the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07,
+# and `login:entry`, the sign-in screen's and the startup screen's own rules —
+# hand-written, since a page built by text extraction cannot receive utilities
+# from a stylesheet it never loads.
+BASE_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "base.css"
+# The token layer (D3). It holds the scale inside a Tailwind `@theme` block,
+# which is why the gate wraps what it extracts rather than emitting it as-is.
+THEME_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "theme.css"
+# The document Vite owns, and where the application shell's markup lives — the
+# phone frame, the sign-in card, the startup screen. The login gate clones
+# those from here; its style comes from the two stylesheets above, not from
+# the prototype fragment, which carries no rule.
+SHELL_DOCUMENT = DESIGN_ROOT / "index.html"
+DIST = DESIGN_ROOT / "dist" / "index.html"
+# The build inputs that always exist, at the design root.
+BUILD_INPUTS = (
+    SHELL_DOCUMENT,
+    DESIGN_ROOT / "vite.config.mjs",
+    DESIGN_ROOT / "build-identity.mjs",
+    DESIGN_ROOT / "worker-source.mjs",
+    DESIGN_ROOT / "app-bundle.mjs",
+)
+
+# The shell's own translation resources. Everything this host SERVES — the
+# sign-in gate, the build failure's 503, the offline page, the manifest's
+# description — reads its words here, because the application has exactly one
+# place where its words live and a second copy is a second thing to keep in step.
+# The sign-in gate is worded in the visitor's language; the other pages in French.
+LANGUAGES = ("fr", "en")
+# The language when the visitor's browser names none the interface speaks (OPEN-2 B).
+DEFAULT_LANGUAGE = "en"
+
+
+def texts_file(language: str = "fr") -> Path:
+    """The interface's resource for one language.
+
+    Args:
+        language: One of `LANGUAGES`.
+
+    Returns:
+        The path of its `<language>.json`.
+    """
+    return DESIGN_ROOT / "src" / "i18n" / f"{language}.json"
+
+
+TEXTS = texts_file()
+
+
+def request_language(header: str | None) -> str:
+    """The language a visitor's browser asks for, as the interface speaks it.
+
+    THE FIRST TAG THE INTERFACE SPEAKS, in the browser's order of preference —
+    its `q` weights, then its own order — the same reading the prototype gives
+    `navigator.languages` (`src/i18n/index.ts`), so the sign-in page served here
+    and the prototype's own say the same words to the same browser. A tag
+    weighted `q=0` is refused, never chosen.
+
+    Args:
+        header: The request's `Accept-Language`, or None.
+
+    Returns:
+        French or English; English when it names neither (OPEN-2 B).
+    """
+    ranked: list[tuple[float, int, str]] = []
+    for position, part in enumerate((header or "").split(",")):
+        tag, _, weight = part.strip().partition(";")
+        quality = 1.0
+        if weight.strip().startswith("q="):
+            try:
+                quality = float(weight.strip()[2:])
+            except ValueError:
+                quality = 0.0
+        if quality > 0:
+            ranked.append((-quality, position, tag.split("-")[0].strip().lower()))
+    for _, _, primary in sorted(ranked):
+        if primary in LANGUAGES:
+            return primary
+    return DEFAULT_LANGUAGE
+
+
+def served_texts(language: str = "fr") -> dict[str, dict[str, str]]:
+    """Returns one language's copy of the pages this host serves itself.
+
+    Read on every request, exactly like the login screen's markup below and for
+    the same reason: a copy loaded once at boot drifts away from the file it
+    claims to quote, and the whole point of extracting instead of restating is
+    that there is nothing left to drift.
+
+    Args:
+        language: One of `LANGUAGES`; French by default.
+
+    Returns:
+        The resource's `server` namespace: one entry per served page.
+
+    Raises:
+        ValueError: When the namespace is missing or malformed — a page must
+            fail loudly rather than be served with holes where its words go.
+        FileNotFoundError: When the resource file itself is absent.
+    """
+    document = json.loads(texts_file(language).read_text(encoding="utf-8"))
+    # Every layer is checked, not only the middle one. A document that is not an
+    # object, or a page entry that is not an object, would otherwise raise an
+    # AttributeError or a TypeError — neither of which the callers catch, so the
+    # host would answer NOTHING AT ALL where it promises to answer loudly, and
+    # the front door of a credential gate would be indistinguishable from a
+    # dead host.
+    texts = document.get("server") if isinstance(document, dict) else None
+    if not isinstance(texts, dict) or not all(
+        isinstance(page, dict) and all(isinstance(word, str) for word in page.values()) for page in texts.values()
+    ):
+        raise ValueError(f'no usable "server" namespace in {TEXTS.name}')
+    return texts
+
+
+def mtime_sources() -> int:
+    """Returns the newest mtime among every input the build reads.
+
+    The three roots above, plus every file under `src/` — the shell is a
+    DIRECTORY, and a module added there tomorrow must not be invisible to
+    staleness, or the host would serve yesterday's build saying nothing.
+
+    Returns:
+        The newest modification time, in nanoseconds.
+
+    Raises:
+        FileNotFoundError: When a root build input is missing — the caller
+            turns it into the named build error.
+    """
+    stamps = [source.stat().st_mtime_ns for source in BUILD_INPUTS]
+    shell = DESIGN_ROOT / "src"
+    if shell.is_dir():
+        stamps.extend(file_.stat().st_mtime_ns for file_ in shell.rglob("*") if file_.is_file())
+    return max(stamps)
+
+
+# The operator's own npm when this machine has it (the host runs under PM2,
+# whose PATH need not hold it); any other machine uses the npm on its PATH.
+_OPERATOR_NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
+NPM = _OPERATOR_NPM if os.path.exists(_OPERATOR_NPM) else (shutil.which("npm") or "npm")
+# Overridable so the timeout path itself can be proven live, the same way
+# TM_DESIGN_ROOT lets a rule serve a scratch root.
+BUILD_TIMEOUT = float(renamed_env("TM_DESIGN_BUILD_TIMEOUT", "TM_DESIGN_DELAI_BUILD") or 120)
+
+
+def setting(name: str, choices: tuple[str, ...]) -> str:
+    """Reads one of this host's closed settings, its first choice when unset.
+
+    Args:
+        name: The environment variable.
+        choices: The values it takes, the default first.
+
+    Returns:
+        The value set.
+
+    Raises:
+        SystemExit: For any other value — a setting misspelt into its default
+            would leave the wrong door in place, or a rebuild running, saying
+            nothing.
+    """
+    value = os.environ.get(name, choices[0])
+    if value not in choices:
+        raise SystemExit(f"{name} is {value!r}: it takes {' or '.join(choices)}")
+    return value
+
+
+# THE DOOR IS v1's (the operator, 2026-10-04; round 2 Q1 = A, then Q4 = B once the
+# owner was verified): the application's code never reaches a visitor v1 has not
+# signed in. The sign-in page is public and posts to v1, and the document and its
+# bundle answer only a request carrying a session v1 accepts. The host's own
+# shared password and its user are gone.
+# THE HOST'S OWN REBUILD, switchable off: a host serving a tree another process
+# builds with `--mode design-host` must never rebuild it with plain
+# `npm run build`, which would serve a full-mock, frozen-clock build saying
+# nothing. Off, a missing or stale build is the named 503.
+REBUILD = setting("TM_DESIGN_REBUILD", ("on", "off")) == "on"
+
+ASSETS_DIR = DESIGN_ROOT / "assets"
+
+# The security headers every response carries (see `Handler._send`).
+SECURITY_HEADERS = (
+    ("X-Content-Type-Options", "nosniff"),
+    ("Strict-Transport-Security", "max-age=31536000; includeSubDomains"),
+    # The operator's policy (`personalscraper.http_v1.security_headers.CONTENT_SECURITY_POLICY`).
+    (
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "img-src 'self' https://image.tmdb.org https://artworks.thetvdb.com https://plex.tv "
+        "https://assets.plex.tv https://www.gravatar.com; "
+        "frame-src https://www.youtube.com; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    ),
+)
+
+# The folders served WITHOUT a session, by URL prefix: the classic scripts the documents name
+# (`boot/`) and the typeface the stylesheet names (`fonts/`). They carry no private data, and
+# the sign-in page needs them before a session exists.
+PUBLIC_FILES = (
+    ("/boot/", DESIGN_ROOT / "boot", {".js": "text/javascript"}),
+    ("/fonts/", DESIGN_ROOT / "fonts", {".woff2": "font/woff2"}),
+)
+
+# Where the build writes the shell's module entry (`build.assetsDir` = "vite",
+# kept out of `dist/assets` because a symlink owns that name).
+VITE_DIR = DESIGN_ROOT / "dist" / "vite"
+
+# THE LOTS PROGRESS the `/dev/lots` page draws: `scripts/dev_lots.py` writes it
+# OUTSIDE the repository, at the path this variable names, on this host's
+# schedule and after each redeploy. Unset — every host but the design host —
+# the address answers 404 and the page says there is nothing to show.
+DEV_LOTS_ADDRESS = "/dev/lots.json"
+DEV_LOTS_OUT = os.environ.get("TM_DEV_LOTS_OUT") or None
+
+# Brand assets and the manifest are served WITHOUT a session: they carry no
+# private data, and a `<link rel="manifest">` is fetched without credentials
+# unless asked otherwise — a 401 there costs the install prompt entirely.
+#
+# The DESIGN set, never the app's. A name distinguishes two entries in a list;
+# on a home screen what is seen first is the picture, and two identical pictures
+# with different labels are still two identical pictures. The three sets are one
+# family — the app's icons plain, staging's with a cyan ring, these with a
+# yellow one — and they are generated by `frontend/scripts/make-design-icons.py`
+# rather than drawn by hand, so the ring cannot drift between them.
+ASSETS = {
+    "/pwa-192.png": "image/png",
+    "/pwa-512.png": "image/png",
+    "/maskable-192.png": "image/png",
+    "/maskable-512.png": "image/png",
+    "/apple-touch-icon.png": "image/png",
+    "/favicon.svg": "image/svg+xml",
+}
+
+# The file each path is answered with. The URLs keep the app's names so the
+# manifest reads the same on all three hosts; only what comes back differs.
+ASSET_FILE = {
+    "/pwa-192.png": "pwa-192-design.png",
+    "/pwa-512.png": "pwa-512-design.png",
+    "/maskable-192.png": "maskable-192-design.png",
+    "/maskable-512.png": "maskable-512-design.png",
+    "/apple-touch-icon.png": "apple-touch-icon-design.png",
+    "/favicon.svg": "favicon.svg",
+}
+
+
+def build_failure(error: str, language: str = DEFAULT_LANGUAGE) -> bytes:
+    """Builds the 503 shown when the build fails.
+
+    Serving the PREVIOUS build instead would be a stale reference wearing
+    today's date — the exact failure a design host exists to avoid. The page
+    says what broke, with the build's own last words.
+
+    Args:
+        error: The error message from the failed build, typically stderr output.
+        language: The visitor's language (`request_language`): the page is
+            worded and declared in it; English when none is given.
+
+    Returns:
+        A complete HTML 503 error page as bytes, with the error escaped.
+    """
+    try:
+        texts = served_texts(language)["buildFailure"]
+    except (OSError, ValueError, KeyError) as unreadable:
+        # This page is how every other failure here gets reported, so it is the
+        # one page that may not fail itself. Restating its words here as a
+        # fallback would reintroduce exactly the second copy this indirection
+        # removes, so the last resort is the English diagnostic page and names
+        # the copy as what broke — alongside the error it was called for.
+        return diagnostic_page(f"{error}\n\n{unreadable}")
+    return (
+        f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
+        f"<title>{texts['title']}</title>"
+        '<link rel="stylesheet" href="/host.css"></head><body class="failure">'
+        f"<h1>{texts['heading']}</h1><p>{texts['body']}"
+        "</p><pre>"
+        f"{html.escape(error)}"
+        "</pre></body></html>"
+    ).encode()
+
+
+def diagnostic_page(error: str) -> bytes:
+    """Returns the 503 served when the served copy itself cannot be read.
+
+    Args:
+        error: What was being reported, plus why the copy could not be read.
+
+    Returns:
+        A complete HTML document, in English — nobody but a developer can be
+        looking at it, since a reader of the interface would be looking at the
+        page this one stands in for.
+    """
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
+        "<title>Design host: copy unreadable</title>"
+        '<link rel="stylesheet" href="/host.css"></head><body class="failure">'
+        "<h1>The design host cannot read its own copy</h1><p>The pages this "
+        "host serves read their words from <code>design/src/i18n/fr.json</code>"
+        ", and that read failed. Below is what was being reported when it "
+        "did, followed by the read error itself.</p>"
+        "<pre>"
+        f"{html.escape(error)}"
+        "</pre></body></html>"
+    ).encode()
+
+
+def extract(source: str, marker: str) -> str:
+    """Returns the text between a pair of markers.
+
+    Args:
+        source: The full text of whichever file holds the block.
+        marker: The marker name, without its `login:` prefix or `:start` /
+            `:end` suffix.
+
+    Returns:
+        The text between the two markers.
+
+    Raises:
+        ValueError: When either marker is missing — the gate must fail loudly
+            rather than serve a login screen stripped of its design.
+    """
+    start = source.find(f"login:{marker}:start")
+    end = source.find(f"login:{marker}:end")
+    if start < 0 or end < 0 or end < start:
+        raise ValueError(f"login:{marker} markers not found in the source given")
+    return source[source.index("\n", start) + 1 : source.rindex("\n", start, end) + 1]
+
+
+# Signing in navigates to a document of several megabytes. Until its first
+# frame is painted the browser still shows THIS page, so the wait belongs here:
+# without it, a tap on « Se connecter » answers with nothing at all for as long
+# as the load takes, which reads as a form that did not submit.
+#
+# The screen shown is the prototype's own startup screen, extracted like the
+# rest of the gate, so the wait that follows a sign-in is the same surface the
+# document then keeps showing — not a copy of it that drifts.
+STARTUP_SWITCH = '<script src="/boot/login-startup.js"></script>'
+
+
+def login_styles() -> bytes:
+    """Builds the sign-in page's stylesheet, served at `/login.css`.
+
+    A file and not a `<style>` element: the page is served under a
+    Content-Security-Policy without `'unsafe-inline'`. It is composed on every
+    request, exactly as the page was, from the same regions.
+
+    Returns:
+        The stylesheet, UTF-8.
+    """
+    base_source = BASE_STYLESHEET.read_text()
+    theme_source = THEME_STYLESHEET.read_text()
+    # Everything the screen INHERITS inside the prototype — the palette, the box
+    # model, the typography — is taken from it rather than restated. Both were
+    # retyped here once, and both times the copy rendered correctly while the
+    # reference was broken: the brand colour had been renamed to `--primary` and
+    # the wordmark's line height was `normal` instead of 1.35. A retyped value
+    # does not merely risk drifting; it CONCEALS a defect in the reference,
+    # because the copy is the only place anyone ever looks. The scale block is
+    # emitted first so every step a folded declaration reads resolves on the
+    # composed page.
+    # THE SCALE IS WRAPPED, and the wrapping is the whole reason its markers
+    # sit inside the braces. In the prototype the steps live in a Tailwind
+    # `@theme` block; this page is plain HTML that Tailwind never processes,
+    # and a browser drops an at-rule it does not know — taking every step with
+    # it, silently, leaving a gate that renders in fallback sizes and says
+    # nothing. Extracting the DECLARATIONS and wrapping them here means the
+    # composed page carries the same steps under a selector it understands.
+    # The scale and the DARK palette are both declarations inside the same
+    # `@theme` block, so both are wrapped the same way and for the same reason:
+    # a browser drops an at-rule it does not know, and would take every token
+    # with it. The LIGHT half is already a complete `:root[data-theme]` rule
+    # and is emitted as it stands — it must come after the dark one, exactly as
+    # it does in the stylesheet, or the override would lose to what it overrides.
+    scale = ":root {\n" + extract(theme_source, "scale") + "}\n"
+    palette = ":root {\n" + extract(theme_source, "palette") + "}\n" + extract(theme_source, "palette-light")
+    styles = (
+        scale + extract(base_source, "font") + palette + extract(base_source, "socle") + extract(base_source, "entry")
+    )
+    # After the extract, so they win: inside the prototype the screen covers a
+    # phone frame; here it IS the page.
+    adjustments = """
+  .loginscreen { position: static; min-height: 100vh; }
+  /* No positioned frame to cover here: the startup screen answers to the
+     viewport instead, so it stays put whatever the page does. */
+  .splash { position: fixed; }
+"""
+    return (styles + adjustments).encode()
+
+
+def login_page(refused: bool, reason: str | None = None, return_to: str = "/", language: str = "fr") -> bytes:
+    """Builds the login page out of the prototype's own login screen.
+
+    Args:
+        refused: True to show the rejection state — the « bad credentials »
+            line, unless `reason` says why instead.
+        reason: The key under `server.login` of the words that say why the
+            session ended, or None for a plain visit.
+        return_to: The same-origin path the page returns to once v1 opens the
+            session.
+        language: The visitor's language (`request_language`): the page is
+            worded from its catalogue, as the prototype's boot words its own.
+
+    Returns:
+        A complete HTML document.
+    """
+    resource = texts_file(language).read_text(encoding="utf-8")
+    # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
+    # gate clones — the sign-in card and the startup screen — is the
+    # application shell, in `index.html`. The STYLE comes from two
+    # stylesheets: the scale and the palette from `theme.css`; the typeface,
+    # the reset, the sign-in screen's own style and the splash from `base.css`.
+    # Every `login:*` region left the fragment.
+    #
+    # Each `extract` below names exactly ONE file, which is the shape the login
+    # arm of `scripts/check-css-tokens.py` follows — a concatenated source left
+    # it resolving every chunk to the first file and reporting the rest
+    # missing. `extract` itself raises when a marker is absent, so pointing one
+    # at the wrong file fails loudly instead of serving a screen stripped of
+    # its design.
+    markup_source = SHELL_DOCUMENT.read_text()
+    markup = extract(markup_source, "markup")
+    # The screen is drawn hidden inside the shell and centred against it. Here
+    # it IS the page, so it drops both.
+    #
+    # THE `hidden` IS REMOVED BY PATTERN, NOT BY ADJACENCY. This was
+    # `replace(' id="login" hidden', …)`, which needed the two attributes to
+    # remain neighbours in the markup — and `str.replace` that matches nothing
+    # returns the string unchanged, silently. Adding one attribute between them
+    # served a sign-in screen that was still `hidden`: every element measured
+    # 0x0, six holds in `entry.py` fell at once and `startup.py` timed out
+    # filling a form that was not there. The markup may now carry whatever
+    # attributes it needs, in whatever order.
+    markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup, count=1)
+    # The form posts by script (`v1_door.sign_in_script`), to v1 itself.
+    # WORDED IN THE VISITOR'S LANGUAGE, from the keys the markup carries — the
+    # same the prototype's boot reads; the markup's French is only the fallback.
+    catalogue = json.loads(resource)
+    markup = v1_door.worded(markup, catalogue)
+    markup = v1_door.as_v1_form(markup, v1_door.email_label(resource))
+    if reason is not None:
+        markup = v1_door.with_reason(markup, served_texts(language)["login"][reason])
+    # A refusal v1 explained (`auth.access_disabled`) was not a typing mistake:
+    # the reason line says why, and « bad credentials » under it would contradict it.
+    if refused and reason is None:
+        markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
+    # Inside the prototype the startup screen is what the document opens on;
+    # here it waits for the submit that makes it true — worded in the same
+    # language, or an English visitor's sign-in would load in French.
+    splash = extract(markup_source, "splash").replace(' id="splash"', ' id="splash" hidden', 1)
+    markup += v1_door.worded(splash, catalogue)
+    return (
+        f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
+        f"<title>{served_texts(language)['login']['title']}</title>"
+        f"{pwa_head(DESIGN_ROOT)}"
+        '<link rel="stylesheet" href="/login.css">'
+        f"</head><body>{markup}"
+        f"{STARTUP_SWITCH}{v1_door.sign_in_script(return_to)}</body></html>"
+    ).encode()
+
+
+# The largest form body a stale post may carry and still be read off the
+# connection and discarded: a login form is a few hundred bytes.
+MAX_DRAINED = 65536
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    """Serves the wrapped prototype to a session, the login screen otherwise."""
+
+    # The document is the BUILD, reconstructed on demand: comparing the
+    # newest source mtime against dist's answers « is what I would serve
+    # what the sources say? », and 0.4 s of vite build is cheaper than one
+    # stale judgement. mtime_ns, not mtime: a second-resolution stamp
+    # misses two edits within the same second — the cadence of an editing
+    # session. One lock, or two stale requests race the same build.
+    _cache: tuple[int, bytes] | None = None
+    _build_lock = threading.Lock()
+
+    protocol_version = "HTTP/1.1"
+
+    def _document(self) -> bytes:
+        """Returns the built document, rebuilding it when sources changed.
+
+        Returns:
+            The bytes of `dist/index.html`, freshly rebuilt if any build
+            input was newer.
+
+        Raises:
+            RuntimeError: When the build fails or a build input is missing —
+                the caller answers with the error message, never with a stale
+                document.
+        """
+        try:
+            sources = mtime_sources()
+        except FileNotFoundError as absent:
+            # A missing build INPUT is a build problem, not a missing
+            # prototype: say which file, never the wrong diagnosis.
+            raise RuntimeError(f"missing build input: {absent.filename}")
+        with Handler._build_lock:
+            try:
+                built = DIST.stat().st_mtime_ns
+            except FileNotFoundError:
+                built = -1
+            if built < sources and not REBUILD:
+                raise RuntimeError(
+                    "the build is missing or older than its sources, and this host "
+                    "does not rebuild (TM_DESIGN_REBUILD=off)"
+                )
+            if built < sources:
+                try:
+                    run = subprocess.run(
+                        [NPM, "run", "build"], cwd=DESIGN_ROOT, capture_output=True, text=True, timeout=BUILD_TIMEOUT
+                    )
+                except subprocess.TimeoutExpired:
+                    raise RuntimeError(
+                        f"build aborted after {BUILD_TIMEOUT:g} s — the npm process had stopped answering"
+                    )
+                if run.returncode != 0:
+                    tail = (run.stderr or run.stdout).strip().splitlines()[-12:]
+                    raise RuntimeError("\n".join(tail))
+            try:
+                stamp = DIST.stat().st_mtime_ns
+            except FileNotFoundError:
+                raise RuntimeError("the build succeeded without emitting dist/index.html")
+            cached = Handler._cache
+            if cached is None or cached[0] != stamp:
+                Handler._cache = (stamp, DIST.read_bytes())
+            return Handler._cache[1]  # type: ignore[index]
+
+    def _authenticated(self) -> bool:
+        """Returns True when v1 accepts the session the request carries.
+
+        Raises:
+            v1_door.V1Unreachable: When v1 does not say.
+        """
+        return v1_door.admitted(self.headers.get("Cookie"))
+
+    def _send(
+        self,
+        status: int,
+        body: bytes,
+        extra_headers: list[tuple[str, str]] | None = None,
+        content_type: str = "text/html; charset=utf-8",
+    ) -> None:
+        """Writes one complete response, headers included.
+
+        Args:
+            status: HTTP status code.
+            body: Response body; sent verbatim.
+            extra_headers: Extra headers to add.
+            content_type: The Content-Type to declare.
+        """
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        # The host sets its own security headers, whatever the reverse proxy does. The values are
+        # `personalscraper.http_v1.security_headers.SECURITY_HEADERS`'s: this host imports nothing
+        # of the package, and a test holds the two registers equal.
+        for name, value in SECURITY_HEADERS:
+            self.send_header(name, value)
+        # The design is read to be judged, and a judgement passed on a stale
+        # copy is worse than no judgement. Revalidate every time — except where
+        # a route says otherwise: hash-named assets change URL when they change
+        # content, so they alone may claim immutability.
+        if not any(n.lower() == "cache-control" for n, _ in extra_headers or []):
+            self.send_header("Cache-Control", "no-store")
+        for name, value in extra_headers or []:
+            self.send_header(name, value)
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def _send_public_file(self, folder: Path, name: str, types: dict[str, str]) -> None:
+        """Answers a file of one of the design root's public folders, or 404.
+
+        Args:
+            folder: The folder, under the design root.
+            name: The requested path below it, as the request wrote it.
+            types: The content type of each extension this folder may serve.
+        """
+        # Same backstop as the artwork route: resolve() then containment, so a
+        # traversal cannot leave the folder, and only a known extension is served.
+        file_ = (folder / name).resolve()
+        content_type = types.get(file_.suffix)
+        if content_type is None or not file_.is_file() or not file_.is_relative_to(folder.resolve()):
+            self._send(404, b"")
+            return
+        self._send(200, file_.read_bytes(), content_type=content_type)
+
+    def _send_page(
+        self,
+        status: int,
+        build: Callable[[], bytes],
+        content_type: str = "text/html; charset=utf-8",
+        language: str = DEFAULT_LANGUAGE,
+    ) -> None:
+        """Sends a page built from the served copy, or the 503 that names the break.
+
+        The pages this host builds itself read both their markup (from the
+        prototype) and their words (from the shell's resource) at request time.
+        Both can break under editing, and answering nothing would hide it: say
+        what broke, like every other failure here.
+
+        Args:
+            status: The status the page answers with when it builds.
+            build: The page builder to call.
+            content_type: The Content-Type to declare.
+            language: The visitor's language, for the 503 that names the break.
+        """
+        try:
+            body = build()
+        except KeyError as incomplete:
+            # An entry that is absent is the COPY being incomplete, not a build
+            # that failed: answering « Build en échec » would name the wrong
+            # culprit, and the reader would go looking at the build.
+            self._send(503, diagnostic_page(f"missing entry in the served copy: {incomplete}"))
+            return
+        except (OSError, ValueError) as broken:
+            self._send(503, build_failure(str(broken), language))
+            return
+        self._send(status, body, content_type=content_type)
+
+    def do_GET(self) -> None:  # name imposed by BaseHTTPRequestHandler
+        """Answers a GET, or names v1 when the v1 door cannot ask it."""
+        try:
+            self._get()
+        except v1_door.V1Unreachable as down:
+            # Never the sign-in page: it would send a signed-in person to a
+            # door that cannot open, saying nothing about why.
+            language = request_language(self.headers.get("Accept-Language"))
+            try:
+                texts = served_texts(language)["v1Unreachable"]
+            except (OSError, ValueError, KeyError) as unreadable:
+                # As `build_failure`: the last resort names the copy as what broke.
+                self._send(503, diagnostic_page(f"{down}\n\n{unreadable}"))
+                return
+            self._send(503, v1_door.unreachable_page(str(down), texts, language))
+
+    def _get(self) -> None:
+        """Answers a GET: the prototype to a session, the login screen otherwise."""
+        path_ = self.path.split("?", 1)[0]
+        # Read once for every page built before the sign-in, as the sign-in page does.
+        language = request_language(self.headers.get("Accept-Language"))
+        if path_ == "/manifest.webmanifest":
+            self._send_page(
+                200,
+                lambda: manifest(lambda: served_texts(language), language),
+                "application/manifest+json",
+                language,
+            )
+            return
+        if path_ == "/sw.js":
+            # Through `_send_page`, like the manifest and the offline notice:
+            # the build can be absent or broken, and a host that answered an
+            # empty worker there would install a worker that caches nothing and
+            # say nothing about it. The named build error is the honest answer.
+            self._send_page(200, lambda: worker(DESIGN_ROOT), "text/javascript", language)
+            return
+        # WHAT BUILD IS BEING SERVED — the update discipline's one question. It
+        # sits outside `/api/` deliberately: the mock layer replaces the page's
+        # `fetch`, so a poll under `/api/` would be answered by a fixture and
+        # could never fail. Outside the session like the manifest, because the
+        # worker asks for it before anyone has signed in.
+        if path_ == "/build.json":
+            self._send_page(200, lambda: build_identity(DESIGN_ROOT), "application/json", language)
+            return
+        # Outside the session, like the manifest: the worker caches this page at
+        # install time, and that install happens before anyone has signed in.
+        if path_ == "/offline.html":
+            self._send_page(
+                200,
+                lambda: offline_page(lambda: served_texts(language), language),
+                language=language,
+            )
+            return
+        # The page's own scripts, stylesheets and typeface — no session, because the sign-in
+        # page needs them before there is one, and no inline copy of any of them: the pages
+        # are served under a Content-Security-Policy without `'unsafe-inline'`.
+        if path_ == "/login.css":
+            self._send_page(200, login_styles, "text/css", language)
+            return
+        if path_ == "/host.css":
+            self._send(200, HOST_PAGES_CSS, content_type="text/css")
+            return
+        for prefix, folder, types in PUBLIC_FILES:
+            if path_.startswith(prefix):
+                self._send_public_file(folder, path_[len(prefix) :], types)
+                return
+        if path_ in ASSETS:
+            file_ = ASSETS_DIR / ASSET_FILE[path_]
+            if not file_.is_file():
+                self._send(404, b"")
+                return
+            self._send(200, file_.read_bytes(), content_type=ASSETS[path_])
+            return
+        if path_.startswith("/assets/"):
+            # The library's real artwork: session-gated, unlike the brand set.
+            if not self._authenticated():
+                self._send(401, b"")
+                return
+            # self.path arrives raw: BaseHTTPRequestHandler never percent-decodes
+            # it, so an encoded traversal (%2e%2e%2f) reaches the filesystem as a
+            # literal file name that does not exist. The resolve() + containment
+            # check below is the backstop that must hold if that ever changes.
+            file_ = (ASSETS_DIR / path_[len("/assets/") :]).resolve()
+            types = {".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml"}
+            content_type = types.get(file_.suffix)
+            if content_type is None or not file_.is_file() or not file_.is_relative_to(ASSETS_DIR.resolve()):
+                self._send(404, b"")
+                return
+            self._send(
+                200,
+                file_.read_bytes(),
+                [("Cache-Control", "private, max-age=31536000, immutable")],
+                content_type=content_type,
+            )
+            return
+        if path_.startswith("/vite/"):
+            # The shell's bundle: the module entry the emitted document names,
+            # written there by the build. Session-gated like the artwork — the
+            # document itself is, and a shell served to no one is only weight.
+            if not self._authenticated():
+                self._send(401, b"")
+                return
+            # Same backstop as /assets/ above: resolve() then containment, so a
+            # traversal cannot reach outside the build's own output directory.
+            file_ = (VITE_DIR / path_[len("/vite/") :]).resolve()
+            types = {".js": "text/javascript", ".css": "text/css", ".map": "application/json"}
+            content_type = types.get(file_.suffix)
+            if content_type is None or not file_.is_file() or not file_.is_relative_to(VITE_DIR.resolve()):
+                self._send(404, b"")
+                return
+            self._send(
+                200,
+                file_.read_bytes(),
+                [("Cache-Control", "private, max-age=31536000, immutable")],
+                content_type=content_type,
+            )
+            return
+        if path_ == DEV_LOTS_ADDRESS:
+            # Session-gated like the bundle: what the work stands at is the
+            # owner's to read, and a 401 here carries no page — the address is
+            # read by the page's script, never navigated to.
+            if not self._authenticated():
+                self._send(401, b"")
+                return
+            file_ = Path(DEV_LOTS_OUT).expanduser() if DEV_LOTS_OUT else None
+            if file_ is None or not file_.is_file():
+                self._send(404, b"")
+                return
+            self._send(200, file_.read_bytes(), content_type="application/json")
+            return
+        if path_ == "/login":
+            # The form posts to v1, never here (do_POST below answers a stale
+            # post): a reload or a back-navigation after signing in must not
+            # re-render a form on an address that is no page. Matched BEFORE the
+            # fallback, so it keeps this exact special case rather than falling
+            # into it.
+            self._send(303, b"", [("Location", "/")])
+            return
+        # Every other path — "/", "/index.html", and any address the
+        # client-side router owns (/mediasheet/…, /profile/…, …) — answers the ONE
+        # document, session-gated exactly like "/".
+        #
+        # A 303 here would drop the address bar's path before the router ever
+        # runs, and a 404 would dead-end a reload or a shared link. Both read
+        # as smaller failures than a broken page; neither is: an installed
+        # PWA, whose whole scope is `/`, has no address bar to escape either
+        # one with. The scope must therefore be a place one cannot leave by
+        # accident, at any depth the router grows into.
+        admitted, code = v1_door.check_session(self.headers.get("Cookie"))
+        if not admitted:
+            # The rejection state is signalled by the `refus` QUERY PARAMETER
+            # the sign-in page redirects to (`/?refus=1`), not by the substring
+            # "refus" anywhere in the path — a raw substring match also fired
+            # on any unrelated address merely containing it (e.g.
+            # `/profile/refusé`), showing the rejection banner to someone who
+            # never submitted anything.
+            params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            reason = v1_door.refusal_reason(code, (params.get("why") or [None])[0])
+            self._send_page(
+                401,
+                lambda: login_page("refus" in params, reason, v1_door.return_target(self.path), language),
+                language=language,
+            )
+            return
+        try:
+            body = self._document()
+        except RuntimeError as error:
+            self._send(503, build_failure(str(error), language))
+            return
+        # AFTER the cache, never inside it. `_document()` caches the built bytes
+        # by mtime; the identity is not a property of the build and must not
+        # ride that cache — the branch can change, and the tree can go dirty,
+        # without a single input's mtime moving.
+        self._send(200, with_served_identity(body, DESIGN_ROOT))
+
+    do_HEAD = do_GET
+
+    def do_POST(self) -> None:  # name imposed by BaseHTTPRequestHandler
+        """Answers a stale form post: its body discarded, then a redirect to the sign-in page.
+
+        The form posts to v1 by script, so a post that reaches this host is a
+        stale page's, and its body is a password. It is READ AND DISCARDED:
+        left unread on a kept-alive connection it is parsed as the next
+        request's line, and the error page then echoes it. It is never parsed,
+        never logged, never in an answer.
+        """
+        try:
+            size = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            size = -1
+        # A body this host will not drain, or one it cannot measure (chunked), ends
+        # the connection instead: nothing is left on it to be read as a request.
+        if size < 0 or size > MAX_DRAINED or self.headers.get("Transfer-Encoding"):
+            self.close_connection = True
+            self._send(303, b"", [("Location", "/"), ("Connection", "close")])
+            return
+        self.rfile.read(size)
+        self._send(303, b"", [("Location", "/")])
+
+    def log_message(self, fmt: str, *args: object) -> None:
+        """Silences per-request logging.
+
+        Caddy already writes one access-log line per request; a second copy in
+        the PM2 log buys nothing and grows without bound.
+        """
+
+
+class Server(socketserver.ThreadingTCPServer):
+    """Threaded so a slow client cannot hold the single document hostage."""
+
+    daemon_threads = True
+    allow_reuse_address = True
+
+
+def main() -> int:
+    """Runs the server until interrupted.
+
+    Returns:
+        Process exit status.
+    """
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8712
+    # Bound to the loopback: the reverse proxy is the only intended caller, and
+    # binding wider would publish the prototype on the LAN behind the proxy's
+    # back, outside whatever access control the proxy applies.
+    with Server(("127.0.0.1", port), Handler) as httpd:
+        print(f"prototype served on http://127.0.0.1:{port} from {DESIGN_ROOT}", flush=True)
+        httpd.serve_forever()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

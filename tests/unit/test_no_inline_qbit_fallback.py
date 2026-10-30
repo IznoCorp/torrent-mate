@@ -1,7 +1,7 @@
 """Regression: no inline ``QBitClient()`` construction in ingest or pipeline.
 
 DESIGN D3 promotes the torrent client into :class:`AppContext` (boot-wired by
-``_build_app_context``). Pipeline steps and CLI commands MUST read
+``build_app_context``). Pipeline steps and CLI commands MUST read
 ``ctx.torrent_client`` instead of lazily constructing a ``QBitClient`` inline.
 These AST-based tests guard against a regression that re-introduces an inline
 fallback in either site.

@@ -8,9 +8,12 @@ Returns a list of SortResult for reporting and downstream pipeline steps.
 
 import os
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import folder_name
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
@@ -75,7 +78,7 @@ class Sorter:
         source_dir: Path,
         dest_root: Path | None = None,
         *,
-        skip_names: frozenset[str] = frozenset(),
+        skip_names: Mapping[str, str] = MappingProxyType({}),
         bus: EventBus,
     ) -> list[SortResult]:
         """Sort all items from source_dir into type subdirectories under dest_root.
@@ -88,7 +91,7 @@ class Sorter:
 
         F8 real lifecycle: an ``ItemProgressed(status="started")`` is emitted on
         *bus* for each item BEFORE that item's work runs (the ``sort_item`` move
-        or the seed-pure skip). The terminal ``ItemProgressed`` + report counters
+        or the triage skip). The terminal ``ItemProgressed`` + report counters
         are recorded by ``run_sort`` from the returned results.
 
         Args:
@@ -96,12 +99,14 @@ class Sorter:
             dest_root: Root directory for category subdirectories
                 ({movies_dir}/, {tvshows_dir}/, etc.). Defaults to source_dir
                 for backward compat.
-            skip_names: Item names to genuinely exclude from sorting (seed-pure
-                guard). Any direct child whose ``name`` is in this set is never
-                passed to ``sort_item`` — it is reported as a ``skipped``
-                SortResult (``message="seed_pure"``) and left untouched in the
-                source directory. Default empty frozenset = byte-identical
-                behavior for callers that do not opt into the guard.
+            skip_names: Item name -> triage skip reason (``seed_pure`` unscoped;
+                ``not_own`` or ``seed_only`` under a scope) for the names to
+                genuinely exclude from sorting (triage guard). Any direct child
+                whose ``name`` is a key is never passed to ``sort_item`` — it is
+                reported as a ``skipped`` SortResult carrying its reason as
+                ``message`` and left untouched in the source directory. Default
+                empty mapping = byte-identical behavior for callers that do not
+                opt into the guard.
             bus: Required in-process EventBus. Each processed item emits its
                 ``started`` event here before its work executes.
 
@@ -134,7 +139,8 @@ class Sorter:
             # never called, so the item is not moved — it is reported as a
             # skipped result and left in the source directory for seeding.
             if item.name in skip_names:
-                log.info("sort.seed_pure_skipped", name=item.name)
+                reason = skip_names[item.name]
+                log.info("sort.seed_pure_skipped", name=item.name, reason=reason)
                 results.append(
                     SortResult(
                         source=item,
@@ -145,7 +151,7 @@ class Sorter:
                         season=None,
                         episode=None,
                         status="skipped",
-                        message="seed_pure",
+                        message=reason,
                     )
                 )
                 continue
@@ -238,6 +244,10 @@ class Sorter:
 
         Returns:
             A :class:`SortResult` (``moved`` / ``skipped`` / ``dry-run``).
+
+        Raises:
+            SandboxGuardError: In a sandbox, *item* or its destination is outside
+                the sandbox's marked, mounted roots. Nothing is moved or replaced.
         """
         # Get destination via strategy
         strategy = _get_strategy(file_type)
@@ -287,6 +297,8 @@ class Sorter:
                 message=None,
             )
 
+        # Sandbox guard (a no-op in prod): a move or a replace stays inside the sandbox's own roots.
+        assert_all_within_sandbox(self.config, item, dest_path)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         if is_movie_dir_replace:

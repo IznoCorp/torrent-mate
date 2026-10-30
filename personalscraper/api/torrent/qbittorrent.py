@@ -27,6 +27,8 @@ from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource, _bencode_info_hash
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    CategoryLister,
+    CategoryReader,
     GlobalRateLimiter,
     TorrentAdder,
     TorrentController,
@@ -42,13 +44,35 @@ from personalscraper.api.torrent._errors import (
     TorrentAuthError,
     TorrentUnreachableError,
 )
+from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.models.api_config import TorrentClientEntry
 from personalscraper.logger import get_logger
 
 log = get_logger("api.torrent.qbittorrent")
 
-_LOCKOUT_FILE = Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
 _LOCKOUT_DURATION_SECONDS = 3600
+
+
+def lockout_path(env: Environment | None = None) -> Path:
+    """Locate the auth lockout file of an environment.
+
+    Prod keeps the historical name, so nothing changes in production; every other
+    environment writes its own file, so a preprod lockout never blocks prod's logins.
+
+    Args:
+        env: The environment; ``None`` reads ``PERSONALSCRAPER_ENV``.
+
+    Returns:
+        ``~/.cache/personalscraper/qbit_auth_lockout`` for prod,
+        ``~/.cache/personalscraper/qbit_auth_lockout-<env>`` otherwise.
+
+    Raises:
+        EnvironmentSettingError: ``env`` is ``None`` and the variable is invalid.
+    """
+    env = env if env is not None else current_environment()
+    name = "qbit_auth_lockout" if env is Environment.PROD else f"qbit_auth_lockout-{env.value}"
+    return Path.home() / ".cache" / "personalscraper" / name
+
 
 # The narrow set of qbittorrentapi exceptions that ``add`` / ``inject`` translate
 # to a uniform ApiError (via ``_map_qbit_api_error``). A bare
@@ -72,6 +96,8 @@ _QBIT_ADD_ERRORS: tuple[type[qbittorrentapi.APIError], ...] = (
 
 class QBitClient(
     TorrentLister,
+    CategoryLister,
+    CategoryReader,
     TorrentInspector,
     AuthenticatedClient,
     TorrentStateInspector,
@@ -85,7 +111,8 @@ class QBitClient(
     """qBittorrent client wrapping qbittorrentapi.Client.
 
     Composes the full set of atomic torrent capabilities
-    (:class:`TorrentLister`, :class:`TorrentInspector`,
+    (:class:`TorrentLister`, :class:`CategoryLister`, :class:`CategoryReader`,
+    :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
     :class:`TorrentController`, :class:`TorrentAdder`,
     :class:`TorrentLimiter`, :class:`GlobalRateLimiter`,
@@ -164,10 +191,66 @@ class QBitClient(
         Returns:
             The matching torrents as :class:`TorrentItem` records (order and
             completeness follow whatever qBittorrent returns for the filter).
+
+        Raises:
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
         """
         if not hashes:
             return []
-        return [_torrent_item(t) for t in self._client.torrents_info(torrent_hashes=list(hashes))]
+        try:
+            raw = self._client.torrents_info(torrent_hashes=list(hashes))
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_by_hashes", exc)
+        return [_torrent_item(t) for t in raw]
+
+    def get_by_category(self, category: str) -> list[TorrentItem]:
+        """Return the torrents qBittorrent files under *category*, in any state.
+
+        One ``torrents/info?category=<c>`` request: qBittorrent filters, so the
+        request does not grow with the size of the shared client.
+
+        Args:
+            category: The category to list. qBittorrent treats an empty value as
+                "uncategorised", so a blank one is refused rather than sent.
+
+        Returns:
+            The torrents of that category as :class:`TorrentItem` records.
+
+        Raises:
+            ValueError: *category* is blank.
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
+        """
+        if not category.strip():
+            raise ValueError("category: the category is empty")
+        try:
+            raw = self._client.torrents_info(category=category)
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_by_category", exc)
+        return [_torrent_item(t) for t in raw]
+
+    def get_categories(self) -> dict[str, str]:
+        """Return the categories qBittorrent defines, with their save paths.
+
+        One ``torrents/categories`` request.
+
+        Returns:
+            Category name → ``savePath`` (``""`` when the category has none).
+
+        Raises:
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
+        """
+        try:
+            raw = self._client.torrents_categories()
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_categories", exc)
+        categories: dict[str, str] = {}
+        for name, entry in raw.items():
+            save_path = entry.get("savePath") if isinstance(entry, Mapping) else None
+            categories[name] = save_path if isinstance(save_path, str) else ""
+        return categories
 
     def is_seeding(self, torrent: TorrentItem) -> bool:
         """Check if a torrent is actively seeding.
@@ -395,6 +478,8 @@ class QBitClient(
         save_path: str,
         recheck: bool = True,
         paused: bool = True,
+        category: str | None = None,
+        tags: Sequence[str] = (),
     ) -> str:
         """Inject a .torrent at *save_path*, add paused, optionally recheck.
 
@@ -417,6 +502,8 @@ class QBitClient(
             recheck: Run recheck after adding (default True). Does NOT poll —
                 the caller must verify completion.
             paused: Add in paused state (default True).
+            category: Category to file the torrent under; ``None`` sends none.
+            tags: Tags to add the torrent with; empty sends none.
 
         Returns:
             The torrent's v1 info-hash.
@@ -426,13 +513,19 @@ class QBitClient(
                 (415 / torrent-file), or a ``"Fails."`` result.
         """
         info_hash = _bencode_info_hash(torrent_bytes)
+        kwargs: dict[str, object] = {
+            "torrent_files": torrent_bytes,
+            "save_path": save_path,
+            "is_skip_checking": False,
+            "is_paused": paused,
+        }
+        # Sent only when set, so an unscoped inject is the same request as before.
+        if category is not None:
+            kwargs["category"] = category
+        if tags:
+            kwargs["tags"] = list(tags)
         try:
-            result = self._client.torrents_add(
-                torrent_files=torrent_bytes,
-                save_path=save_path,
-                is_skip_checking=False,
-                is_paused=paused,
-            )
+            result = self._client.torrents_add(**kwargs)  # type: ignore[arg-type,type-var]
         except qbittorrentapi.Conflict409Error:
             # Duplicate — idempotent success (same contract as add() D7).
             log.debug("qbit_inject_duplicate", info_hash=info_hash)
@@ -634,7 +727,7 @@ class QBitClient(
 # -- Factory entry point -----------------------------------------------------
 
 
-def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> "QBitClient":
+def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> QBitClient:
     """Construct and authenticate a QBitClient.
 
     Args:
@@ -814,6 +907,16 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     # restantes » only when the client actually knows).
     eta_raw = getattr(t, "eta", None)
     eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and 0 <= eta_raw < 8640000 else None
+    # seeding_time: seconds really seeded; a negative or non-numeric value is an
+    # honest None, never a guess.
+    seeding_time_raw = getattr(t, "seeding_time", None)
+    seeding_time_s: int | None = (
+        int(seeding_time_raw)
+        if isinstance(seeding_time_raw, (int, float))
+        and not isinstance(seeding_time_raw, bool)
+        and seeding_time_raw >= 0
+        else None
+    )
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -830,41 +933,44 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         error_reason=error_reason,
         swarm_seeds=swarm_seeds,
         eta_seconds=eta_seconds,
+        seeding_time_s=seeding_time_s,
     )
 
 
 def _check_lockout() -> None:
     """Raise QBitAuthLockoutError if a recent auth failure lockout is active."""
-    if not _LOCKOUT_FILE.exists():
+    lockout = lockout_path()
+    if not lockout.exists():
         return
     try:
-        age = time.time() - _LOCKOUT_FILE.stat().st_mtime
+        age = time.time() - lockout.stat().st_mtime
         if age < _LOCKOUT_DURATION_SECONDS:
             remaining = int(_LOCKOUT_DURATION_SECONDS - age)
             log.warning(
                 "qbit_auth_lockout_active",
                 remaining_seconds=remaining,
-                lockout_file=str(_LOCKOUT_FILE),
+                lockout_file=str(lockout),
             )
             raise QBitAuthLockoutError(
-                f"Auth lockout active ({remaining}s remaining). Fix credentials and delete {_LOCKOUT_FILE} to retry."
+                f"Auth lockout active ({remaining}s remaining). Fix credentials and delete {lockout} to retry."
             )
-        _LOCKOUT_FILE.unlink(missing_ok=True)
+        lockout.unlink(missing_ok=True)
     except OSError as e:
         log.warning("qbit_lockout_read_failed", error=str(e))
 
 
 def _set_lockout(reason: str) -> None:
     """Write a lockout file to prevent further auth attempts."""
+    lockout = lockout_path()
     try:
-        _LOCKOUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _LOCKOUT_FILE.write_text(reason)
+        lockout.parent.mkdir(parents=True, exist_ok=True)
+        lockout.write_text(reason)
         log.error(
             "qbit_auth_lockout_set",
             reason=reason,
             duration_seconds=_LOCKOUT_DURATION_SECONDS,
-            lockout_file=str(_LOCKOUT_FILE),
-            hint=f"Fix credentials in .env, then delete {_LOCKOUT_FILE} to retry",
+            lockout_file=str(lockout),
+            hint=f"Fix credentials in .env, then delete {lockout} to retry",
         )
     except OSError as e:
         # Lockout file write failure is a security-control regression: the next
@@ -874,7 +980,7 @@ def _set_lockout(reason: str) -> None:
             "qbit_lockout_write_failed",
             error=str(e),
             hint="Cannot enforce auth lockout — credentials may keep retrying. Check filesystem permissions on "
-            f"{_LOCKOUT_FILE.parent}.",
+            f"{lockout.parent}.",
         )
 
 

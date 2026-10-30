@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/bash_logger.py\" \"$HOME/.claude/hooks/block_disk_destructive.py\" \"$HOME/.claude/hooks/block_ai_attribution.py\" \"$HOME/.claude/hooks/block_background_pipeline.py\" \"$HOME/.claude/hooks/block_curl_without_timeout.py\" \"$D/block_rg_without_filter.py\""
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/bash_logger.py\" \"$HOME/.claude/hooks/block_disk_destructive.py\" \"$HOME/.claude/hooks/block_ai_attribution.py\" \"$HOME/.claude/hooks/block_background_pipeline.py\" \"$HOME/.claude/hooks/block_curl_without_timeout.py\" \"$D/block_rg_without_filter.py\" \"$D/block_load_generators.py\""
           }
         ]
       },
@@ -80,6 +80,24 @@
     ]
   },
   "enabledPlugins": {
-    "greptile@claude-plugins-official": true
+    "greptile@claude-plugins-official": false,
+    "claude-statusbar@lounisbou": false,
+    "commit-commands@claude-plugins-official": false,
+    "pr-review@lounisbou": false
+  },
+  "skillOverrides": {
+    "anthropic-skills:built-in-browser": "off",
+    "anthropic-skills:chrome-browser": "off",
+    "anthropic-skills:computer-use": "off",
+    "anthropic-skills:deep-research": "off",
+    "anthropic-skills:docs": "off",
+    "anthropic-skills:docx": "off",
+    "anthropic-skills:google-workspace": "off",
+    "anthropic-skills:import-memory": "off",
+    "anthropic-skills:morning": "off",
+    "anthropic-skills:pdf": "off",
+    "anthropic-skills:pptx": "off",
+    "anthropic-skills:skill-creator": "off",
+    "anthropic-skills:xlsx": "off"
   }
 }

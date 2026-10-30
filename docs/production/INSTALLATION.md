@@ -212,13 +212,17 @@ pm2 start ecosystem.config.js && pm2 save
 | `torrentmate-web-staging` | `web --port 8711`              | daemon continu | `~/staging/torrentmate` | **Staging**, port 8711, `tm-staging.iznogoudatall.xyz` ; venv de staging                 |
 | `torrentmate-autodeploy`  | `./scripts/autodeploy-poll.sh` | boucle 60 s    | `~/deploy/torrentmate`  | `interpreter: /bin/bash` ; redéploie prod/staging sur avancée de branche                 |
 
-### Jobs planifiés (`cron_restart`)
+### Jobs planifiés (boucle `schedule`)
 
 Tous exécutés depuis le binaire du venv de prod
 (`~/deploy/torrentmate-venv/bin/personalscraper`), cwd `~/deploy/torrentmate`, avec
-`PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config` :
+`PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config`. Chaque job est une app PM2 longue durée
+(`autorestart: true`) qui lance `personalscraper schedule --cron '<expr>' -- <commande>` : la boucle
+dort jusqu'à la prochaine échéance, exécute le job jusqu'au bout, jamais deux fois à la même échéance.
+Pas de `cron_restart` : le cron de PM2 6.0.8 tique deux fois à une frontière et tue le run qu'il vient
+de lancer (BUGS B-680).
 
-| App PM2                         | Commande                                                      | `cron_restart`  | Signification                                                                 |
+| App PM2                         | Commande                                                      | `--cron`        | Signification                                                                 |
 | ------------------------------- | ------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------- |
 | `personalscraper-index-enrich`  | `library-index --mode enrich --budget 1800 --wait-for-lock 0` | `30 4 * * 0`    | Dimanche 04:30 (heures creuses)                                               |
 | `personalscraper-backfill-ids`  | `library-backfill-ids`                                        | `0 5 * * 0`     | Dimanche 05:00 (après enrich)                                                 |

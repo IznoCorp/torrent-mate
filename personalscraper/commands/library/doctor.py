@@ -30,7 +30,6 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -38,6 +37,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 
 # ---------------------------------------------------------------------------
 # Check result model
@@ -631,31 +631,31 @@ def run_doctor(
 # ---------------------------------------------------------------------------
 
 
-@app.command("library-doctor")
+@app.command("library-doctor", help=t("cli_library.doctor.command_help"))
 @handle_cli_errors
 def library_doctor(
     ctx: typer.Context,
     repair_queue_threshold: int = typer.Option(
         100,
         "--repair-queue-threshold",
-        help="Max pending repair_queue rows before WARN.",
+        help=t("cli_library.doctor.repair_queue_threshold_help"),
     ),
     outbox_lag_threshold_s: int = typer.Option(
         3600,
         "--outbox-lag-threshold-s",
-        help="Max age in seconds for oldest pending index_outbox row before WARN.",
+        help=t("cli_library.doctor.outbox_lag_threshold_help"),
     ),
     canonical_threshold_pct: float = typer.Option(
         50.0,
         "--canonical-threshold-pct",
-        help="Min %% of media_item rows that must have canonical_provider set before WARN.",
+        help=t("cli_library.doctor.canonical_threshold_help"),
     ),
     stuck_scan_threshold_s: int = typer.Option(
         3600,
         "--stuck-scan-threshold-s",
-        help="Seconds after which a running scan_run is considered stuck.",
+        help=t("cli_library.doctor.stuck_scan_threshold_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.doctor.config_help")),
 ) -> None:
     """Run health checks on the library indexer database.
 
@@ -681,11 +681,11 @@ def library_doctor(
     from personalscraper.indexer.commands._bootstrap import build_fs_type_overrides  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
 
     if cfg.indexer.db_path is None:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.doctor.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     db_path = Path(cfg.indexer.db_path)
@@ -770,4 +770,12 @@ def _print_table(report: DoctorReport) -> None:
     overall = report.overall_status
     color = _STATUS_COLORS[overall]
     label = _STATUS_LABELS[overall]
-    console.print(f"\nOverall: [{color}]{label}[/{color}]  ({len(report.checks)} checks, {report.elapsed_s:.3f}s)")
+    console.print(
+        "\n"
+        + t(
+            "cli_library.doctor.overall",
+            status=f"[{color}]{label}[/{color}]",
+            checks=len(report.checks),
+            elapsed=f"{report.elapsed_s:.3f}",
+        )
+    )

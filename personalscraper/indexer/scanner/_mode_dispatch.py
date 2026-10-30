@@ -49,13 +49,13 @@ class _DiskDispatch:
     patch ``scanner._scan_disk_*`` / ``scanner._walk_dir`` on the package.
     """
 
-    scanner_pkg: "ModuleType"
+    scanner_pkg: ModuleType
     worker_conn: sqlite3.Connection
     disk: DiskRow
     mount: str
     capability: FilesystemCapability
     dir_mtime_reliable: bool
-    ctx: "_DiskWalkContext"
+    ctx: _DiskWalkContext
     local_files: list[int]
     local_dirs: list[int]
     local_skipped: list[int]

@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -24,8 +24,10 @@ from personalscraper._fs_utils import is_apple_double
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.sandbox_guard import assert_within_sandbox
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import (
@@ -388,6 +390,7 @@ def _rescrape_item(
     dry_run: bool,
     episode_default_name: str = "Episode",
     external_ids_json: str | None = None,
+    force: bool = False,
 ) -> RescrapeAction | None:
     """Rescrape a single media item.
 
@@ -410,16 +413,39 @@ def _rescrape_item(
         external_ids_json: Raw ``media_item.external_ids_json`` for this item,
             consulted when the NFO is absent and merged into the regenerated
             NFO's id families. ``None`` on the filesystem-walk path.
+        force: The item was targeted by id: its NFO is regenerated whatever the
+            detectors find (unless *only* excludes the NFO), and an item left with
+            nothing to do is reported skipped (``SKIP_ALREADY_OK``), never dropped.
 
     Returns:
-        RescrapeAction or None if item is already OK.
+        RescrapeAction, or None if the item is already OK and was not forced.
     """
     needs_nfo, needs_artwork, needs_episodes = _detect_needs(media_dir, media_type, only)
     # ``--only nfo`` and the unfiltered run also repair the episode NFOs.
     episode_nfo_videos = _episodes_needing_nfo(media_dir) if media_type == "tvshow" and only in (None, "nfo") else []
 
+    # A targeted rescrape asks the providers again: a conforming NFO is no reason
+    # to skip it, or the one item the caller named would vanish from the counts.
+    if force and only in (None, "nfo"):
+        needs_nfo = True
+
     if not any([needs_nfo, needs_artwork, needs_episodes, episode_nfo_videos]):
-        return None  # Already OK
+        if not force:
+            return None  # Already OK
+        return RescrapeAction(
+            path=str(media_dir),
+            title=title,
+            media_type=media_type,
+            disk=disk,
+            category=category,
+            actions_taken=[],
+            actions_skipped=[SKIP_ALREADY_OK],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=None,
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
+        )
 
     # Resolve TMDB ID
     provider_id, id_source, confidence, source = _resolve_tmdb_id(
@@ -446,7 +472,7 @@ def _rescrape_item(
             tmdb_id=None,
             id_source=None,
             match_confidence=confidence,
-            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
         )
 
     # Fetch API data once, honouring the source-of-match invariant via the
@@ -486,7 +512,7 @@ def _rescrape_item(
             tmdb_id=report_tmdb_id,
             id_source=id_source,
             match_confidence=confidence,
-            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
         )
 
     actions: list[str] = []
@@ -595,7 +621,7 @@ def _rescrape_item(
         tmdb_id=report_tmdb_id,
         id_source=id_source,
         match_confidence=confidence,
-        rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+        rescraped_at=datetime.now(tz=UTC).isoformat(),
     )
 
 
@@ -956,7 +982,7 @@ def _collect_rescrape_candidates(
         for disk in config.disks:
             if disk_filter and disk.id != disk_filter:
                 continue
-            if not disk.path.exists():
+            if not is_mounted(disk.path):
                 log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
                 continue
 
@@ -1020,7 +1046,8 @@ def rescrape_library(
         disk_filter: Only rescrape this disk (by disk.id). None = all.
         category_filter: Only rescrape this category_id. None = all.
         item_id: Target exactly this item by its indexer DB id, bypassing the
-            needs-rescrape predicate.  Mutually exclusive with *disk_filter* and
+            needs-rescrape predicate and forcing its NFO's regeneration (see
+            ``_rescrape_item``'s *force*).  Mutually exclusive with *disk_filter* and
             *category_filter*.  None = use standard candidate discovery.
         only: Only apply this action: "nfo", "artwork", "episodes". None = all.
         interactive: If True, prompt for low-confidence matches.
@@ -1033,7 +1060,8 @@ def rescrape_library(
             clients (TMDB, TVDB).
 
     Returns:
-        LibraryRescrapeResult with per-item actions.
+        LibraryRescrapeResult with per-item actions. In a sandbox, an item outside
+        the sandbox's marked, mounted roots is refused and reported as an error.
     """
     from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
@@ -1054,7 +1082,7 @@ def rescrape_library(
     skipped_count = 0
     error_count = 0
     items_processed = 0
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
 
     candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter, item_id=item_id)
 
@@ -1065,6 +1093,8 @@ def rescrape_library(
         title, year = parse_title_year(media_dir.name)
 
         try:
+            # Sandbox guard (a no-op in prod): a refusal lands in this item's error branch.
+            assert_within_sandbox(config, media_dir)
             action = _rescrape_item(
                 media_dir=media_dir,
                 media_type=media_type,
@@ -1081,6 +1111,7 @@ def rescrape_library(
                 dry_run=dry_run,
                 episode_default_name=scraper_config.episode_default_name,
                 external_ids_json=external_ids_json,
+                force=item_id is not None,
             )
         except Exception as exc:
             log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))
@@ -1097,7 +1128,7 @@ def rescrape_library(
                     tmdb_id=None,
                     id_source=None,
                     match_confidence=None,
-                    rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+                    rescraped_at=datetime.now(tz=UTC).isoformat(),
                 )
             )
             error_count += 1

@@ -171,7 +171,7 @@ def compute_merkle_root(files: Iterable[FileFingerprint]) -> str:
         A 16-character lowercase hex string (xxh3_64 digest).
     """
     sorted_files = sorted(files, key=lambda f: (f.path_id, f.size, f.mtime_ns, f.oshash))
-    joined = b"".join(f"{f.path_id}|{f.size}|{f.mtime_ns}|{f.oshash}\n".encode("utf-8") for f in sorted_files)
+    joined = b"".join(f"{f.path_id}|{f.size}|{f.mtime_ns}|{f.oshash}\n".encode() for f in sorted_files)
     return xxhash.xxh3_64(joined).hexdigest()
 
 

@@ -69,9 +69,9 @@ class Scraper(
         *,
         event_bus: EventBus,
         registry: ProviderRegistry,
-        follow_tvdb_resolver: "Callable[[Path], int | None] | None" = None,
-        follow_movie_resolver: "Callable[[Path], int | None] | None" = None,
-        provenance: "StagingProvenanceWriter | None" = None,
+        follow_tvdb_resolver: Callable[[Path], int | None] | None = None,
+        follow_movie_resolver: Callable[[Path], int | None] | None = None,
+        provenance: StagingProvenanceWriter | None = None,
         run_uid: str | None = None,
     ):
         """Initialize the scraper with the provider registry and helpers.

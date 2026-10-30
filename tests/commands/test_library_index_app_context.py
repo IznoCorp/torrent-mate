@@ -2,7 +2,7 @@
 
 Verifies that the launchd command boundary in
 ``personalscraper.commands.library.scan`` builds an :class:`AppContext`
-via ``_build_app_context``, binds ``current_correlation_id`` for the
+via ``build_app_context``, binds ``current_correlation_id`` for the
 duration of the scan, and threads the :class:`EventBus` (NOT the full
 ``AppContext``) to ``library_index_command``.
 """
@@ -22,7 +22,7 @@ runner = CliRunner()
 
 
 def _patches():
-    """Build a capturing wrapper around the real ``_build_app_context``.
+    """Build a capturing wrapper around the real ``build_app_context``.
 
     Returns:
         Tuple of (wrapped callable suitable for ``patch(..., side_effect=...)``,
@@ -31,7 +31,7 @@ def _patches():
     real_app: list[AppContext] = []
 
     # Bind the real factory once OUTSIDE the wrapper. Using
-    # ``from personalscraper.cli_helpers import _build_app_context`` inside
+    # ``from personalscraper.app.composition import build_app_context`` inside
     # ``_capturing_build`` would resolve to the patched mock and recurse
     # infinitely, because the ``library_index`` command body re-imports the
     # name on every call.
@@ -52,10 +52,10 @@ class TestLibraryIndexCommandAppContext:
     """The launchd ``library-index`` command builds an AppContext at its boundary."""
 
     def test_library_index_command_builds_app_context(self) -> None:
-        """``_build_app_context`` is invoked exactly once per ``library-index`` run."""
+        """``build_app_context`` is invoked exactly once per ``library-index`` run."""
         capturing, captured = _patches()
         with (
-            patch("personalscraper.cli_helpers._build_app_context", side_effect=capturing),
+            patch("personalscraper.app.composition.build_app_context", side_effect=capturing),
             patch(
                 "personalscraper.indexer.cli.library_index_command",
                 return_value=0,
@@ -72,12 +72,12 @@ class TestLibraryIndexCommandAppContext:
         observed: list[str | None] = []
         capturing, _captured = _patches()
 
-        def _spy_orchestrator(**kwargs) -> int:  # type: ignore[no-untyped-def]  # noqa: ANN003
+        def _spy_orchestrator(**kwargs) -> int:  # type: ignore[no-untyped-def]
             observed.append(current_correlation_id.get())
             return 0
 
         with (
-            patch("personalscraper.cli_helpers._build_app_context", side_effect=capturing),
+            patch("personalscraper.app.composition.build_app_context", side_effect=capturing),
             patch(
                 "personalscraper.indexer.cli.library_index_command",
                 side_effect=_spy_orchestrator,
@@ -98,12 +98,12 @@ class TestLibraryIndexCommandAppContext:
         captured_kwargs: dict = {}
         capturing, _captured = _patches()
 
-        def _spy(**kwargs) -> int:  # type: ignore[no-untyped-def]  # noqa: ANN003
+        def _spy(**kwargs) -> int:  # type: ignore[no-untyped-def]
             captured_kwargs.update(kwargs)
             return 0
 
         with (
-            patch("personalscraper.cli_helpers._build_app_context", side_effect=capturing),
+            patch("personalscraper.app.composition.build_app_context", side_effect=capturing),
             patch(
                 "personalscraper.indexer.cli.library_index_command",
                 side_effect=_spy,
@@ -164,7 +164,7 @@ class TestLibraryIndexCommandBusPassThrough:
             mock_conn.execute.return_value.fetchall.return_value = []
             return mock_conn
 
-        def _spy_scan(request) -> ScanRunResult:  # type: ignore[no-untyped-def]  # noqa: ANN001
+        def _spy_scan(request) -> ScanRunResult:  # type: ignore[no-untyped-def]
             # library_index_command now builds a ScanRequest and calls
             # scan_with(request); capture the request to assert on its bus.
             scan_requests.append(request)
@@ -245,7 +245,7 @@ class TestLibraryBackfillIdsRegistryWiring:
             patch("personalscraper.logger.configure_logging"),
             patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
             patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
-            patch("personalscraper.cli_helpers._build_app_context", return_value=mock_app_ctx),
+            patch("personalscraper.app.composition.build_app_context", return_value=mock_app_ctx),
             patch("personalscraper.cli_helpers.get_settings", return_value=MagicMock()),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
@@ -299,7 +299,7 @@ class TestLibraryBackfillIdsRegistryWiring:
             patch("personalscraper.logger.configure_logging"),
             patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
             patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
-            patch("personalscraper.cli_helpers._build_app_context", return_value=mock_app_ctx),
+            patch("personalscraper.app.composition.build_app_context", return_value=mock_app_ctx),
             patch("personalscraper.cli_helpers.get_settings", return_value=MagicMock()),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),

@@ -168,7 +168,13 @@ def test_no_trigger_reaches_the_condition_without_a_pull_request() -> None:
     event name, and this hold's list is where the decision is recorded.
     """
     declared = set(trigger())
-    foreign = declared - EVENTS_CARRYING_A_PULL_REQUEST
+    # A trigger is let through when every job names it ahead of the draft clause —
+    # « guard the draft clause with the event name », the decision this list records.
+    foreign = {
+        event
+        for event in declared - EVENTS_CARRYING_A_PULL_REQUEST
+        if not all(f"github.event_name == '{event}' ||" in condition(job) for job in job_names())
+    }
     assert not foreign, (
         f"the workflow declares the trigger(s) {sorted(foreign)}, whose payload "
         "carries no `pull_request`. The draft condition on every job reads "
@@ -194,3 +200,11 @@ def test_pull_requests_into_each_base_run_the_checks(name: str) -> None:
     parsed = yaml.safe_load((WORKFLOW.parent / name).read_text(encoding="utf-8"))
     on = parsed.get("on", parsed.get(True))
     assert on["pull_request"]["branches"] == PULL_REQUEST_BASES
+
+
+@pytest.mark.parametrize("name", ["ci.yml", "harness-full.yml"])
+def test_develop_is_read_after_every_merge(name: str) -> None:
+    """A PR merges without being up to date with develop, so develop's own push runs the checks."""
+    parsed = yaml.safe_load((WORKFLOW.parent / name).read_text(encoding="utf-8"))
+    on = parsed.get("on", parsed.get(True))
+    assert on["push"]["branches"] == ["develop"]

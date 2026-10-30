@@ -106,8 +106,8 @@ class DiskCircuitBreaker:
                 # half-swapped ``_event_bus``. ``CircuitBreaker`` keeps
                 # both fields private; the noqa flags are intentional —
                 # the rebind needs them.
-                with breaker._lock:  # noqa: SLF001
-                    breaker._event_bus = event_bus  # noqa: SLF001
+                with breaker._lock:
+                    breaker._event_bus = event_bus
 
     # ------------------------------------------------------------------
     # Public API
@@ -174,13 +174,13 @@ class DiskCircuitBreaker:
             count = self._failure_counts.get(disk_uuid, 0) + 1
             self._failure_counts[disk_uuid] = count
             if count >= self.failure_threshold:
-                previously_closed = breaker._state == CircuitState.CLOSED  # noqa: SLF001
+                previously_closed = breaker._state == CircuitState.CLOSED
                 # Directly open the circuit -- bypass _is_circuit_error which
                 # only handles HTTP provider errors. Both writes happen
                 # under the registry lock; the per-breaker lock is not
                 # acquired (we own the only mutator at this point).
-                breaker._state = CircuitState.OPEN  # noqa: SLF001
-                breaker._opened_at = time.monotonic()  # noqa: SLF001
+                breaker._state = CircuitState.OPEN
+                breaker._opened_at = time.monotonic()
                 if previously_closed:
                     emit_count = count
 

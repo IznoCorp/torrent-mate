@@ -1,0 +1,20 @@
+{
+  "error-auth.json": {
+    "auth": "header X-API-KEY",
+    "content_type": "application/json; charset=utf-8",
+    "request": "GET /api/v1/torrents?limit=100&index=0&page=search&section=all&sort=d&order=desc&dead=false&searchText=The Office&categories[]=[8, 9, 10, 11, 12, 13, 14, 15]",
+    "status": 401
+  },
+  "search-movie.json": {
+    "auth": "header X-API-KEY",
+    "content_type": "application/json; charset=utf-8",
+    "request": "GET /api/v1/torrents?limit=100&index=0&page=search&section=all&sort=d&order=desc&dead=false&searchText=Inception&categories[]=[1, 2, 3, 4, 5, 6, 7, 38]",
+    "status": 200
+  },
+  "search-tv.json": {
+    "auth": "header X-API-KEY",
+    "content_type": "application/json; charset=utf-8",
+    "request": "GET /api/v1/torrents?limit=100&index=0&page=search&section=all&sort=d&order=desc&dead=false&searchText=The Office&categories[]=[8, 9, 10, 11, 12, 13, 14, 15]",
+    "status": 200
+  }
+}

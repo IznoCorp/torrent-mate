@@ -9,6 +9,7 @@ interface :
 | -------------------------------- | ---------------------------- |
 | ``get_completed()``              | :class:`TorrentLister`       |
 | ``get_all_hashes()``             | :class:`TorrentLister`       |
+| ``get_categories()``             | :class:`CategoryReader`      |
 | ``get_content_path()``           | :class:`TorrentInspector`    |
 | ``login()`` (optional)           | :class:`AuthenticatedClient` |
 | ``is_seeding()``                 | :class:`TorrentStateInspector` |
@@ -75,6 +76,52 @@ class TorrentLister(Protocol):
     def get_all_hashes(self) -> set[str]: ...
 
     def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]: ...
+
+
+@runtime_checkable
+class CategoryLister(Protocol):
+    """Capability — list the torrents of one category, filtered by the client.
+
+    Lets a reader scoped to a category ask the client for just those torrents
+    instead of listing every hash and looking them all up. Composed by
+    :class:`~personalscraper.api.torrent.qbittorrent.QBitClient`; a client
+    without categories (Transmission) omits it, and
+    :func:`~personalscraper.api.torrent._base.scoped_hashes` falls back to the
+    hash lookup for it.
+    """
+
+    def get_by_category(self, category: str) -> list[TorrentItem]:
+        """Return the torrents filed under *category*, in any state.
+
+        Args:
+            category: The category to list; never blank.
+
+        Returns:
+            The torrents the client files under that category.
+        """
+        ...
+
+
+@runtime_checkable
+class CategoryReader(Protocol):
+    """Capability — read the categories the client defines, with their save paths.
+
+    Lets a scoped instance prove, before it adds anything, that its category
+    exists and files torrents where the scope says. Composed by
+    :class:`~personalscraper.api.torrent.qbittorrent.QBitClient`; a client
+    without categories (Transmission) omits it, and
+    :func:`~personalscraper.api.torrent._base.category_refusal` then keeps the
+    earlier path for it.
+    """
+
+    def get_categories(self) -> dict[str, str]:
+        """Return the client's categories.
+
+        Returns:
+            Category name → the save path the client files that category under
+            (``""`` when the category has none).
+        """
+        ...
 
 
 @runtime_checkable
@@ -263,6 +310,8 @@ class TorrentInjector(Protocol):
         save_path: str,
         recheck: bool = True,
         paused: bool = True,
+        category: str | None = None,
+        tags: Sequence[str] = (),
     ) -> str:
         """Inject a .torrent into the client, pointed at an existing data path.
 
@@ -272,6 +321,8 @@ class TorrentInjector(Protocol):
                 (the source torrent's ``save_path``).
             recheck: Whether to run a recheck after adding (default True).
             paused: Whether to add in paused state (default True).
+            category: Client category to file the torrent under; ``None`` = none.
+            tags: Tags the torrent is added with (default none).
 
         Returns:
             The info-hash (v1) of the injected torrent.
@@ -306,6 +357,8 @@ class TorrentInjector(Protocol):
 
 __all__ = [
     "AuthenticatedClient",
+    "CategoryLister",
+    "CategoryReader",
     "GlobalRateLimiter",
     "TorrentAdder",
     "TorrentController",

@@ -10,15 +10,15 @@ import asyncio
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from personalscraper.logger import get_logger
-from personalscraper.web.deps import _validate_session_token
-from personalscraper.web.routes.version import _read_build_commit
-from personalscraper.web.ws.relay import (
+from personalscraper.app.relay import (
     PING_INTERVAL,
     ConnectionRegistry,
     _ReplayGuard,
     replay_events,
 )
+from personalscraper.logger import get_logger
+from personalscraper.web.deps import _validate_session_token
+from personalscraper.web.routes.version import _read_build_commit
 
 logger = get_logger(__name__)
 
@@ -109,7 +109,7 @@ async def ws_events(
             try:
                 # Wait for client messages (pong or anything) — ignored.
                 await asyncio.wait_for(websocket.receive_text(), timeout=PING_INTERVAL)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Idle timeout → send keep-alive ping.
                 await websocket.send_json({"type": "ws.ping"})
     except WebSocketDisconnect:

@@ -397,7 +397,7 @@ def mock_boundary_torrent_client(monkeypatch: Any, client: Any) -> Any:
     """Wire *client* as ``AppContext.torrent_client`` for boundary commands.
 
     Since DESIGN D3 the torrent client is boot-wired into ``AppContext`` by
-    ``_build_app_context`` and read by ``torrents-list`` via
+    ``build_app_context`` and read by ``torrents-list`` via
     ``per_step_boundary``.  CLI E2E tests therefore patch the boundary rather
     than the client constructors: this replaces ``per_step_boundary`` (as
     imported into ``commands.torrents``) with a context manager that yields a

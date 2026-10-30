@@ -10,30 +10,39 @@ import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, closing, suppress
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fastapi import APIRouter, Depends, FastAPI
 from starlette.middleware.gzip import GZipMiddleware
 
-from personalscraper.conf.models.config import Config
-from personalscraper.config import Settings
-from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.indexer import migrations as _indexer_migrations
-from personalscraper.indexer.db import apply_migrations
-from personalscraper.logger import get_logger
-from personalscraper.web.auth.routes import router as auth_router
-from personalscraper.web.deps import is_staging_role, require_session
-from personalscraper.web.registry_projection import RegistryHealthProjection
-from personalscraper.web.routes.health import router as health_router
-from personalscraper.web.routes.version import router as version_router
-from personalscraper.web.static import mount_spa
-from personalscraper.web.ws.relay import (
+from personalscraper.app.composition import build_app_services
+from personalscraper.app.relay import (
     ConnectionRegistry,
     _entry_to_message,
     init_redis_pool,
     read_stream_loop,
 )
+from personalscraper.conf.models.config import Config
+from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
+from personalscraper.core.sqlite import SqliteSchemaNewerError
+from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
+from personalscraper.http_v1.deprecations import DeprecationHeaders
+from personalscraper.http_v1.security_headers import SecurityHeaders
+from personalscraper.indexer.db import ensure_library_schema
+from personalscraper.logger import get_logger
+from personalscraper.web.auth.routes import router as auth_router
+from personalscraper.web.deps import is_staging_role, require_session
+from personalscraper.web.refusals import install_refusal_handler
+from personalscraper.web.registry_projection import RegistryHealthProjection
+from personalscraper.web.routes.health import router as health_router
+from personalscraper.web.routes.version import router as version_router
+from personalscraper.web.static import mount_spa
 from personalscraper.web.ws.routes import router as ws_router
+
+if TYPE_CHECKING:
+    from personalscraper.core.app_context import AppContext
 
 logger = get_logger(__name__)
 
@@ -54,9 +63,15 @@ def _apply_pending_indexer_migrations(config: Config) -> None:
     creates + migrates it on first use).  Fail-soft: a migration error is
     logged but never aborts boot — health stays up and only the
     migration-dependent endpoints degrade, exactly as before this guard.
+    The one exception is a store newer than the code: that refusal aborts
+    the boot (fail closed), so the process errors instead of serving it.
 
     Args:
         config: The parsed configuration (provides ``indexer.db_path``).
+
+    Raises:
+        SqliteSchemaNewerError: The store's ``user_version`` is past the code's
+            highest indexer migration.
     """
     if is_staging_role():
         logger.info("web_boot_migrate_skipped", reason="staging role (read-only)")
@@ -65,15 +80,18 @@ def _apply_pending_indexer_migrations(config: Config) -> None:
     if db_path is None or not db_path.exists():
         logger.info("web_boot_migrate_skipped", reason="indexer db absent")
         return
-    migrations_dir = Path(_indexer_migrations.__file__).resolve().parent
     try:
-        with closing(sqlite3.connect(str(db_path), timeout=30)) as conn:
+        # One path, one lock: the indexer's own, shared with the watcher, the runs and the jobs.
+        ensure_library_schema(db_path)
+        # Read-only: ensure_library_schema above is the only writer of this boot.
+        with closing(sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True, timeout=30)) as conn:
             apply_pragmas(conn)
-            apply_migrations(conn, migrations_dir)
-            conn.commit()
             version = conn.execute("PRAGMA user_version").fetchone()[0]
         logger.info("web_boot_migrate_applied", db_version=version)
-    except Exception:  # noqa: BLE001 — fail-soft: never abort boot on a migration error
+    except SqliteSchemaNewerError:
+        # Fail closed: code older than the store must neither serve nor write it.
+        raise
+    except Exception:  # fail-soft: never abort boot on a migration error
         logger.error("web_boot_migrate_failed", db_path=str(db_path), exc_info=True)
 
 
@@ -90,6 +108,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     Shutdown:
         - Cancels the relay task and awaits graceful termination.
         - Closes the Redis connection pool.
+
+    Around the yield:
+        - Enters :func:`~personalscraper.http_v1.app.v1_lifespan`, since Starlette
+          never runs a mounted sub-application's lifespan; where v1 is mounted, its
+          services are closed on exit.
     """
     config = app.state.config
 
@@ -163,7 +186,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("relay_disabled", reason="web.enabled is False")
 
     try:
-        yield
+        # Starlette never runs a mounted application's lifespan: v1's is entered here.
+        async with v1_lifespan(getattr(app.state, "v1_app", None)):
+            yield
     finally:
         if relay_task is not None:
             relay_task.cancel()
@@ -174,7 +199,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("relay_stopped")
 
 
-def create_app(config: Config, settings: Settings) -> FastAPI:
+def create_app(
+    config: Config,
+    settings: Settings,
+    *,
+    app_context: AppContext | None = None,
+) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Stores ``config`` and ``settings`` on ``app.state`` so that route handlers
@@ -183,6 +213,9 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     Args:
         config: The parsed configuration object (config.json5).
         settings: The application settings (secrets from .env).
+        app_context: The process's composition, whose bus and provider registry v1's
+            services are handed, so the process holds one of each; ``None`` gives them a
+            fresh bus and a registry of their own, built on first use.
 
     Returns:
         A fully configured FastAPI application instance.
@@ -196,6 +229,13 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     # rather than the reverse proxy: the compression must survive a proxy
     # reconfiguration, and it is the app that knows what it serves.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # The application sets its own security headers on every response — API, v1 mount and SPA
+    # alike — so they survive a proxy reconfiguration, as the compression above does.
+    app.add_middleware(SecurityHeaders)
+
+    # v0 answers the application layer's refusals as ``{"detail": ...}``.
+    install_refusal_handler(app)
 
     # Store config + settings on app.state for dependency access.
     app.state.config = config
@@ -266,6 +306,23 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
 
     guarded_api.include_router(media_router)
     app.include_router(guarded_api)
+
+    # ── v1 — a mounted sub-application, only where enabled (O-K1-1) ───
+    # Mounted BEFORE mount_spa: its GET catch-all would otherwise answer a v1 GET.
+    # A mount is outside this app's openapi(), so frontend/openapi.json cannot move.
+    if config.web.v1_enabled:
+        services = (
+            build_app_services(config, settings, event_bus=EventBus())
+            if app_context is None
+            else build_app_services(
+                config, settings, event_bus=app_context.event_bus, providers=app_context.provider_registry
+            )
+        )
+        v1_app = create_v1_app(config, settings, services)
+        app.state.v1_app = v1_app
+        app.mount(V1_PREFIX, v1_app)
+        # A successor link to an unmounted v1 would be false: only here.
+        app.add_middleware(DeprecationHeaders)
 
     # Capture config file hashes at startup so /status detects
     # post-boot modifications without a lazy first-access race.

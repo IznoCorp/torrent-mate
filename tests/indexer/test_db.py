@@ -117,17 +117,17 @@ class TestIndexerLockLifecycle:
     """Verify lock acquire / release and lockfile cleanup."""
 
     def test_lock_acquired_and_released(self, tmp_path: Path) -> None:
-        """Lock is held inside the context and both lock files removed after exit."""
+        """Lock is held inside the context; the sidecar goes after exit, the flock file stays."""
         db_path = tmp_path / "library.db"
         lock_path = Path(str(db_path) + ".lock")
         meta_path = Path(str(db_path) + ".lock.json")
 
         with indexer_lock(db_path):
-            # FileLock file and metadata sidecar must exist while held
+            # flock file and metadata sidecar must exist while held
             assert lock_path.exists()
             assert meta_path.exists()
 
-        assert not lock_path.exists()
+        assert lock_path.exists()
         assert not meta_path.exists()
 
     def test_lockfile_contains_pid_and_hostname(self, tmp_path: Path) -> None:
@@ -151,7 +151,7 @@ class TestStaleLockRecovery:
     """A lockfile referencing a dead PID should be recovered transparently."""
 
     def test_stale_lock_recovered(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        """When lockfile PID is dead (os.kill raises OSError), lock is broken and acquired."""
+        """When the sidecar PID is gone (ProcessLookupError), the stale sidecar is dropped and the lock acquired."""
         import logging
 
         db_path = tmp_path / "library.db"
@@ -161,15 +161,15 @@ class TestStaleLockRecovery:
         dead_pid = 99999
         # Write stale metadata sidecar (simulates a previous holder that crashed)
         meta_path.write_text(json.dumps({"pid": dead_pid, "started_at": 0.0, "hostname": "test"}))
-        # Write the FileLock file too so FileLock sees it as held
+        # Write the flock file too, as a crashed holder would have left it
         lock_path.touch()
 
         with caplog.at_level(logging.WARNING):
-            with patch("os.kill", side_effect=OSError("no such process")):
+            with patch("os.kill", side_effect=ProcessLookupError()):
                 with indexer_lock(db_path, timeout=0.1):
                     pass  # Should succeed after stale recovery
 
-        assert not lock_path.exists()
+        assert lock_path.exists()
         assert not meta_path.exists()
 
         # structlog passes a dict as record.msg; check the "event" key

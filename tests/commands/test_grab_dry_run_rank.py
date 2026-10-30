@@ -28,7 +28,6 @@ from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api._contracts import MediaType
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import (
     RankingConfig,
@@ -39,6 +38,7 @@ from personalscraper.api.tracker._ranking import (
 from personalscraper.cli import app
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 runner = CliRunner()
 

@@ -71,3 +71,30 @@ class TestHealthRoute:
 
         assert response.status_code == 200
         assert response.json()["db"] is True
+
+    def test_db_true_when_only_the_environment_store_exists(self, test_config, make_web_client, monkeypatch) -> None:
+        """Env ``staging`` with only ``library-staging.db`` on disk → db: true."""
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / "library-staging.db").write_text("")
+
+        client = make_web_client(test_config)
+
+        response = client.get("/api/health")
+
+        assert response.status_code == 200
+        assert response.json()["db"] is True
+
+    def test_db_false_when_only_the_prod_store_exists_in_staging(
+        self, test_config, make_web_client, monkeypatch
+    ) -> None:
+        """Env ``staging`` never reads prod's ``library.db`` → db: false."""
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / "library.db").write_text("")
+
+        client = make_web_client(test_config)
+
+        assert client.get("/api/health").json()["db"] is False

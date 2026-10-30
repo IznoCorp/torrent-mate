@@ -8,7 +8,7 @@ has been removed — these helpers are now provider-agnostic.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
 import requests.exceptions
@@ -50,8 +50,8 @@ def _parse_retry_after(header_value: str | None) -> float | None:
     if when is None:
         return None
     if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
-    delta = (when - datetime.now(tz=timezone.utc)).total_seconds()
+        when = when.replace(tzinfo=UTC)
+    delta = (when - datetime.now(tz=UTC)).total_seconds()
     return max(0.0, delta)
 
 

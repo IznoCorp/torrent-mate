@@ -11,15 +11,16 @@ Concurrency model (CORRECTED — see DESIGN §6.3):
     an explicit ``BEGIN IMMEDIATE`` on every write (:func:`_write_tx`) +
     ``busy_timeout=5000`` (in the canonical PRAGMA set).  This is exactly the
     model used by the indexer outbox publisher and the Phase-5 lock-free seed-
-    obligation writer.  The store does **NOT** hold a lifetime ``FileLock``.
+    obligation writer.  The store does **NOT** hold a lifetime flock.
 
-    The core ``db_lock`` (FileLock) is taken **only briefly** around
+    The core ``db_lock`` (flock) is taken **only briefly** around
     open + migrate (idempotent ``apply_migrations`` — a no-op once the schema is
     current), then released immediately.  It is a **strict leaf**: never held
     across an FS operation or a qBit/Transmission HTTP call, never acquired with
-    ``timeout=0``, never held for the store's lifetime.  Total lock order
-    (``pipeline.lock > indexer_lock > acquire.db.lock``) is unchanged; the
-    ``acquire.db.lock`` is now only the brief migration lock.
+    ``timeout=0``, never held for the store's lifetime.  The total lock order is
+    ``pipeline.lock > indexer_lock > acquire.db.lock > app.db.lock`` (``app.db.lock`` is a
+    leaf, see ``app/store/store.py``); the ``acquire.db.lock`` is now only the
+    brief migration lock.
 
     **Reads are lock-free** (WAL).  No lock anywhere on the read path — this is
     a hard requirement of the Phase-4/5 fail-open delete-permit reader, which
@@ -59,18 +60,18 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from personalscraper.acquire._aired_store import _AiredSubStore  # noqa: PLC0415
-from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore  # noqa: PLC0415
-from personalscraper.acquire._download_marks import DownloadMarksStore  # noqa: PLC0415
-from personalscraper.acquire._provenance_store import _ProvenanceSubStore  # noqa: PLC0415
+from personalscraper.acquire._aired_store import _AiredSubStore
+from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore
+from personalscraper.acquire._download_marks import DownloadMarksStore
+from personalscraper.acquire._provenance_store import _ProvenanceSubStore
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_followed,
     _row_to_ratio,
     _row_to_seed,
 )
-from personalscraper.acquire._wanted_store import _WantedSubStore  # noqa: PLC0415
-from personalscraper.acquire._watch_store import _WatchSubStore  # noqa: PLC0415
+from personalscraper.acquire._wanted_store import _WantedSubStore
+from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
     FollowedSeries,
     RatioState,
@@ -216,7 +217,7 @@ class _FollowSubStore:
                     series.original_title,
                 ),
             ).fetchone()
-        assert row is not None  # noqa: S101 — RETURNING always yields the affected row
+        assert row is not None  # RETURNING always yields the affected row
         return int(row[0])
 
     def get(self, followed_id: int) -> FollowedSeries | None:
@@ -584,7 +585,7 @@ class _SeedSubStore:
                 ),
             )
             row_id = cur.lastrowid
-        assert row_id is not None  # noqa: S101 — INSERT always sets lastrowid
+        assert row_id is not None  # INSERT always sets lastrowid
         return row_id
 
     def find_active_by_hash(self, info_hash: str) -> SeedObligation | None:
@@ -603,9 +604,9 @@ class _SeedSubStore:
         self._conn.row_factory = sqlite3.Row
         row = self._conn.execute(
             """
-            SELECT info_hash, source_tracker, dispatched_path,
+            SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
-                   satisfied_at, breached_at, released_at
+                   satisfied_at, breached_at, released_at, absent_since
             FROM seed_obligation
             WHERE info_hash = ? AND released_at IS NULL
             LIMIT 1
@@ -649,9 +650,9 @@ class _SeedSubStore:
         self._conn.row_factory = sqlite3.Row
         row = self._conn.execute(
             """
-            SELECT info_hash, source_tracker, dispatched_path,
+            SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
-                   satisfied_at, breached_at, released_at
+                   satisfied_at, breached_at, released_at, absent_since
             FROM seed_obligation
             WHERE dispatched_path = ?
               AND satisfied_at IS NULL
@@ -686,9 +687,9 @@ class _SeedSubStore:
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
             """
-            SELECT info_hash, source_tracker, dispatched_path,
+            SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
-                   satisfied_at, breached_at, released_at
+                   satisfied_at, breached_at, released_at, absent_since
             FROM seed_obligation
             WHERE (dispatched_path = ? OR dispatched_path LIKE ? ESCAPE '\\')
               AND released_at IS NULL
@@ -697,18 +698,117 @@ class _SeedSubStore:
         ).fetchall()
         return [_row_to_seed(r) for r in rows]
 
-    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> None:
-        """Set ``satisfied_at`` on a ``seed_obligation`` row.
+    def list_open(self) -> list[SeedObligation]:
+        """Return every obligation that is neither satisfied nor released.
+
+        Returns:
+            The open :class:`SeedObligation` rows, oldest id first.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, info_hash, source_tracker, dispatched_path,
+                   min_seed_time_s, min_ratio, added_at,
+                   satisfied_at, breached_at, released_at, absent_since
+            FROM seed_obligation
+            WHERE satisfied_at IS NULL AND released_at IS NULL
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_seed(r) for r in rows]
+
+    def list_unreleased(self) -> list[SeedObligation]:
+        """Return every obligation whose ``released_at`` is still NULL, met or not.
+
+        The sweep reads this one: an obligation already satisfied is released
+        when its torrent leaves the client, so it must stay in the sweep's view.
+
+        Returns:
+            The unreleased :class:`SeedObligation` rows, oldest id first.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, info_hash, source_tracker, dispatched_path,
+                   min_seed_time_s, min_ratio, added_at,
+                   satisfied_at, breached_at, released_at, absent_since
+            FROM seed_obligation
+            WHERE released_at IS NULL
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_seed(r) for r in rows]
+
+    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> int:
+        """Set ``satisfied_at`` on an open ``seed_obligation`` row.
+
+        Guarded so a satisfied or released row is never re-stamped.
 
         Args:
             obligation_id: Rowid of the obligation.
             satisfied_at: Unix epoch seconds.
+
+        Returns:
+            The number of rows updated (0 when the row was already closed).
         """
         with _write_tx(self._conn):
-            self._conn.execute(
-                "UPDATE seed_obligation SET satisfied_at = ? WHERE id = ?",
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET satisfied_at = ? "
+                "WHERE id = ? AND satisfied_at IS NULL AND released_at IS NULL",
                 (satisfied_at, obligation_id),
             )
+            return cur.rowcount
+
+    def mark_absent(self, obligation_id: int, seen_at: int) -> int:
+        """Record the first pass that did not find the torrent in the client.
+
+        Args:
+            obligation_id: Rowid of the obligation.
+            seen_at: Unix epoch seconds of that pass.
+
+        Returns:
+            The number of rows updated (0 when already marked absent or released).
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET absent_since = ? "
+                "WHERE id = ? AND absent_since IS NULL AND released_at IS NULL",
+                (seen_at, obligation_id),
+            )
+            return cur.rowcount
+
+    def clear_absent(self, obligation_id: int) -> int:
+        """Forget an absence: the torrent was seen again.
+
+        Args:
+            obligation_id: Rowid of the obligation.
+
+        Returns:
+            The number of rows updated (0 when it was not marked absent).
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET absent_since = NULL WHERE id = ? AND absent_since IS NOT NULL",
+                (obligation_id,),
+            )
+            return cur.rowcount
+
+    def mark_released(self, obligation_id: int, released_at: int) -> int:
+        """Set ``released_at``: the torrent is gone, nothing seeds any more.
+
+        Args:
+            obligation_id: Rowid of the obligation.
+            released_at: Unix epoch seconds.
+
+        Returns:
+            The number of rows updated (0 when already released).
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET released_at = ? WHERE id = ? AND released_at IS NULL",
+                (released_at, obligation_id),
+            )
+            return cur.rowcount
 
     def mark_breached(self, obligation_id: int, breached_at: int) -> None:
         """Set ``breached_at`` on a ``seed_obligation`` row.
@@ -837,7 +937,7 @@ class ConcreteAcquireStore:
     Lazy + lock-free-on-the-read-path.  Construction opens nothing: the
     connection is opened (and migrations applied under a brief leaf lock) on the
     first sub-store access.  Cross-process single-writer is SQLite-native (WAL +
-    ``BEGIN IMMEDIATE`` + ``busy_timeout``); no ``FileLock`` is held for the
+    ``BEGIN IMMEDIATE`` + ``busy_timeout``); no flock is held for the
     store's lifetime.
 
     The six sub-stores are exposed as properties (``follow`` / ``wanted`` /
@@ -879,7 +979,7 @@ class ConcreteAcquireStore:
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
 
-        Takes the core ``db_lock`` (FileLock) with a generous timeout ONLY
+        Takes the core ``db_lock`` (flock) with a generous timeout ONLY
         around ``open_db`` + ``apply_migrations`` and releases it immediately —
         the lock spans a single ``with`` block, never the store's lifetime.
         ``apply_migrations`` is idempotent, so the steady-state path holds the

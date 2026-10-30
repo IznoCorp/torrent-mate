@@ -12,6 +12,7 @@ new (duplicate) folder.
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.sorter.cleaner import NameCleaner
@@ -55,7 +56,7 @@ def _propagate_rename_to_disks(
     """
     touched: list[str] = []
     for disk in config.disks:
-        if not disk.path.exists():
+        if not is_mounted(disk.path):
             continue
         try:
             category_dirs = [p for p in disk.path.iterdir() if p.is_dir()]

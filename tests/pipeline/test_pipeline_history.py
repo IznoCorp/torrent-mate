@@ -13,8 +13,14 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
+from unittest.mock import patch
+
+import pytest
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.library_view import IndexUnavailable
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.pipeline_history import PipelineRunWriter
 
 # ---------------------------------------------------------------------------
@@ -355,6 +361,84 @@ class TestPipelineRunWriterFinalize:
         assert row["outcome"] == "killed"
 
 
+class TestPipelineRunWriterOutcome:
+    """``outcome()`` — the one read, read-only, which raises instead of guessing."""
+
+    @staticmethod
+    def _library(db_path: Path) -> None:
+        """Create a library store the read view accepts: ``pipeline_run`` and its core ``media_item`` table.
+
+        Args:
+            db_path: Where to create it.
+        """
+        _create_db(db_path)
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute("CREATE TABLE media_item (id INTEGER PRIMARY KEY)")
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_outcome_reads_the_row_running_then_final(self, tmp_path: Path) -> None:
+        """A row reads ``running`` until finalized, then its final outcome."""
+        db_path = tmp_path / "library.db"
+        self._library(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-o", trigger="web", dry_run=False, pid=1)
+        assert writer.outcome("uid-o") == "running"
+
+        writer.finalize("uid-o", "killed")
+
+        assert writer.outcome("uid-o") == "killed"
+
+    def test_outcome_of_a_missing_row_is_none(self, tmp_path: Path) -> None:
+        """No row under the uid: ``None``."""
+        db_path = tmp_path / "library.db"
+        self._library(db_path)
+
+        assert PipelineRunWriter(db_path).outcome("absent") is None
+
+    def test_outcome_without_a_store_is_none_and_creates_nothing(self, tmp_path: Path) -> None:
+        """A store that does not exist holds no row; the read does not create it."""
+        db_path = tmp_path / "library.db"
+
+        assert PipelineRunWriter(db_path).outcome("absent") is None
+        assert not db_path.exists()
+
+    def test_outcome_of_an_unreadable_store_raises(self, tmp_path: Path) -> None:
+        """A store without the tables is unreadable: ``IndexUnavailable``, never a guessed ``None``."""
+        db_path = tmp_path / "library.db"
+        sqlite3.connect(str(db_path)).close()
+
+        with pytest.raises(IndexUnavailable):
+            PipelineRunWriter(db_path).outcome("uid")
+
+    def test_outcome_reads_over_a_connection_that_cannot_write(self, tmp_path: Path) -> None:
+        """The read's connection is read-only at the file: a write through it is refused."""
+        db_path = tmp_path / "library.db"
+        self._library(db_path)
+        real_connect = sqlite3.connect
+        refused: list[str] = []
+
+        def probing_connect(*args: Any, **kwargs: Any) -> sqlite3.Connection:  # sqlite3's own
+            conn = real_connect(*args, **kwargs)
+            try:
+                conn.execute("CREATE TABLE probe (x INTEGER)")
+            except sqlite3.OperationalError as exc:
+                refused.append(str(exc))
+            return conn
+
+        with patch("personalscraper.indexer.library_view.sqlite3.connect", side_effect=probing_connect):
+            assert PipelineRunWriter(db_path).outcome("absent") is None
+
+        assert refused and "readonly" in refused[0]
+        conn = real_connect(str(db_path))
+        try:
+            assert conn.execute("SELECT name FROM sqlite_master WHERE name = 'probe'").fetchone() is None
+        finally:
+            conn.close()
+
+
 class TestPipelineRunWriterFailSoft:
     """Fail-soft tests — the writer must never raise."""
 
@@ -416,3 +500,23 @@ class TestPipelineRunWriterFailSoft:
         writer = PipelineRunWriter(not_a_db)
         # Must not raise (sqlite3 will complain but we catch it).
         writer.insert("uid-fs6", trigger="cli", dry_run=False, pid=1)
+
+
+class TestPipelineRunWriterNewerStore:
+    """A ``library.db`` migrated past the code is never written by the run writer."""
+
+    def test_insert_writes_nothing_on_a_newer_store(self, tmp_path: Path) -> None:
+        """``insert()`` on a store past the last library migration adds no row and keeps the version."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        newer = max(int(p.name.split("_")[0]) for p in LIBRARY_MIGRATIONS_DIR.glob("*.sql")) + 1
+        with sqlite3.connect(str(db_path)) as conn:
+            conn.execute(f"PRAGMA user_version = {newer}")
+        conn.close()
+
+        PipelineRunWriter(db_path).insert("uid-newer", trigger="cli", dry_run=False, pid=1234)
+
+        assert _select_row(db_path, "uid-newer") is None
+        with sqlite3.connect(str(db_path)) as check:
+            assert check.execute("PRAGMA user_version").fetchone()[0] == newer
+        check.close()

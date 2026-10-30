@@ -1,0 +1,9 @@
+{
+  "id": "izno",
+  "name": "izno",
+  "email": "demo.user@example.org",
+  "avatar": "assets/avatar.webp",
+  "role": "admin",
+  "signInKind": "owner",
+  "language": "fr"
+}

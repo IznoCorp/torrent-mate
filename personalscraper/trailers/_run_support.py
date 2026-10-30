@@ -16,7 +16,7 @@ and ``..._clear_state_for_item`` mock targets keep resolving.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from personalscraper.api._contracts import CircuitOpenError
@@ -119,7 +119,7 @@ def build_retry_state(
     Returns:
         A populated ``TrailerState`` whose ``next_retry_at`` cooldown is set.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return TrailerState(
         last_attempt=now.isoformat(),
         attempts=1,
@@ -132,7 +132,7 @@ def build_retry_state(
     )
 
 
-def youtube_search_fallback(finder: "TrailerFinder | None", item: Any) -> str | None:
+def youtube_search_fallback(finder: TrailerFinder | None, item: Any) -> str | None:
     """Search YouTube for an alternative trailer URL when the first download fails.
 
     Delegates to ``finder._youtube_search.search(title, year)`` without calling
@@ -162,7 +162,7 @@ def youtube_search_fallback(finder: "TrailerFinder | None", item: Any) -> str | 
     except CircuitOpenError:
         log.warning("trailers_fallback_circuit_open", title=item.title)
         return None
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.warning("trailers_fallback_search_error", title=item.title, exc_info=True)
         return None
 

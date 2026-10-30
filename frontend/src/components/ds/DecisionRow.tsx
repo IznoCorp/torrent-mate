@@ -10,7 +10,7 @@
  * either: it promises no bottom panel, because a decision has no actions of a
  * medium you own, and its poster is never a link, because there is no medium
  * here yet — the same reason a release candidate's is not. Derived from the
- * prototype's `decisionCardHTML`; rule R57, `frontend/maquette/harness/decision.py`.
+ * prototype's `decisionCardHTML`; rule R57, `webui/harness/decision.py`.
  *
  * **It takes FACTS, never markup.** A settled decision shows the poster of the
  * medium it was tied to; a pending one shows the placeholder, because nothing

@@ -107,7 +107,7 @@ def test_every_event_has_factory() -> None:
 
 
 def test_event_registry_has_all_v1_events() -> None:
-    """The catalog is pinned at 48 events.
+    """The catalog is pinned at 50 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
@@ -141,14 +141,26 @@ def test_event_registry_has_all_v1_events() -> None:
     The ``seed-caps`` feature (O4) adds ``DownloadStarted``,
     ``DownloadProgressed`` and ``DownloadCompleted`` — download lifecycle
     observations emitted by the reconcile sweep (→ 47).
+    The ``k0-obligation-sweep`` feature adds ``SeedObligationReleased`` — the
+    sweep found a seeding torrent gone from the client (→ 49). The ``k2-library-events``
+    feature adds ``LibraryScanSkipped`` — a disk touched by dispatch was not re-indexed (→ 50).
+    The ``k1-comptes`` feature adds ``AccountRightsChanged`` (E8) — an account's role or
+    rights moved (→ 51).
+    The ``preprod-purge`` feature adds ``PreprodPurgeCompleted`` — the preprod's
+    nightly purge ran (→ 52).
+    The ``k4a-queue-model`` feature adds ``RunQueued``, ``RunAdmitted`` and ``RunSettled`` —
+    the supervisor's queue of asked runs (→ 55). The ``plex-session-notice`` feature adds
+    ``PlexSessionOpened`` — a Plex sign-in opened a new session (→ 56).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/production/event-bus.md``.
     """
+    import personalscraper.app.accounts.events  # registers E8 (the catalog does not import app)
+    import personalscraper.app.supervisor.events  # registers RunQueued, RunAdmitted, RunSettled
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 48, (
-        f"Expected 48 events (47 existing + acq-escalade SeasonEscalatedAfterEpisodeFailures), "
+    assert len(_EVENT_CLASS_REGISTRY) == 56, (
+        f"Expected 56 events (52 existing + the three run-queue events + PlexSessionOpened), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
@@ -165,3 +177,21 @@ def test_step_completed_elapsed_s_is_float() -> None:
     assert isinstance(event, StepCompleted)
     assert isinstance(event.elapsed_s, float)
     assert event.elapsed_s > 0
+
+
+def test_the_catalogue_doc_states_the_registry_count_and_documents_the_run_events() -> None:
+    """The catalogue doc states the registry's size, the verify exception's "other N", and rows the run events."""
+    import re
+    from pathlib import Path
+
+    import personalscraper.app.accounts.events  # registers E8
+    import personalscraper.app.supervisor.events  # registers the run events
+    import personalscraper.events  # noqa: F401 — eager-import side effect
+
+    doc = (Path(__file__).resolve().parents[2] / "docs" / "production" / "event-bus.md").read_text(encoding="utf-8")
+    total = len(_EVENT_CLASS_REGISTRY)
+    assert f"defines exactly {total} production event classes" in doc
+    assert f"`len(_EVENT_CLASS_REGISTRY) == {total}`" in doc
+    assert f"Unlike the other {total - 1} classes" in doc
+    for name in ("RunQueued", "RunAdmitted", "RunSettled"):
+        assert re.search(rf"^\| `{name}`\s+\| `personalscraper\.app\.supervisor\.events`", doc, re.M), name

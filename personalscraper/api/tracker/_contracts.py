@@ -134,11 +134,11 @@ class TrackerConstructible(Protocol):
     def from_env(
         cls,
         *,
-        env: "Mapping[str, str]",
-        event_bus: "EventBus",
+        env: Mapping[str, str],
+        event_bus: EventBus,
         required: list[str],
-        provider_cfg: "TrackerProviderConfig",
-    ) -> "TorrentSearchable": ...
+        provider_cfg: TrackerProviderConfig,
+    ) -> TorrentSearchable: ...
 
 
 __all__ = [

@@ -1,0 +1,283 @@
+import { useTranslation } from "react-i18next";
+import type { ReactElement } from "react";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
+import { type Follow } from "./types";
+import { useFollows, useGrabCadence } from "./queries";
+import { useUiState } from "../../lib/store-access";
+import { FollowsFilters, followFilterInForce, followSortInForce } from "./follows-filters";
+import { followsInView, orderFollows } from "./follow-order";
+import { body, emptyNote, foldedCards, posterGrid, section as sectionClass, swipeAction } from "../../ui/variants";
+import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
+import { Disclosure } from "../../ui/disclosure";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
+import { mediumCardMarkup } from "./card-markup";
+import { swipeRowMarkup } from "../../ui/rows";
+import { tileMarkup } from "../../ui/tile";
+import { tileBadgeOf } from "./tile-badge";
+import { cadence } from "./variants";
+import { escapeHtml, svgIcon } from "../../lib/markup-text";
+import { useRights } from "../../lib/account";
+import { actOffered } from "./act-rights";
+import {
+  STATUS_TONE,
+  cadenceSentence,
+  followFraction,
+  followGroups,
+  followStatusLabel,
+  gridBadge,
+  nextSearchTime,
+} from "./follow-vocabulary";
+
+// The swipe action a follow that can be searched again reveals. It is a
+// data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
+// with the engine, not copy; the label beside it is the copy, from `fr.json`.
+const SEARCH_AGAIN = "chercher"; // french-ok: a data-attribute value, a contract
+
+// « Suivis » — what one has asked the machine to watch. Three display modes
+// (list, grouped, grid), a filter that ignores case and accents, and the one
+// filter pill and sort pill. The page says out loud, in its own note, that the
+// cadence is printed as the scheduler returns it — a raw cron expression on a
+// phone card, which it names as the defect it is rather than hiding.
+export function FollowsTab(): ReactElement {
+  const state = useUiState();
+  const { t } = useTranslation();
+  const reference = useEngineDrawing();
+  const { icons } = reference;
+  // The schedule, as the scheduler returns it — undefined until the read lands,
+  // and then neither the cadence line nor the next slot says anything.
+  const { data: cadenceExpression } = useGrabCadence();
+  // WHAT THE SWIPE OFFERS IS WHAT THE PANEL OFFERS (§ 17): one table, keyed by
+  // the act's verb, gates both — never an act drawn here the server refuses.
+  const rights = useRights();
+
+  // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
+  // mutations the engine's delegation still calls; their conversion is the
+  // follows panel's own, and this is the read.
+  const { data: followsRead, error: followsError, isError: followsIsError } = useFollows();
+  const follows = followsRead ?? [];
+  // REFUSED AND HOLDING NOTHING: a refused REFETCH keeps the cache's data, which stays drawn.
+  const followsRefused = followsIsError && followsRead === undefined;
+  // A PAUSED FOLLOW WAITS FOR HIM, folded at the end of the list and outside
+  // its counts — the list and its pills are the follows being looked for.
+  const paused = follows.filter((follow) => follow.status === "disabled");
+  // The search typed in the filter zone, which the empty note names.
+  const term = String(state.filter ?? "").trim();
+  // THE ONE PILL (§ 1.9): the filter and the sort in force, ONE derivation for
+  // the list, the pill's count and its panel's (`follow-order.ts`).
+  const visible = orderFollows(followsInView(follows, String(state.filter ?? "")), followFilterInForce(state),
+    followSortInForce(state));
+
+  // Read ONCE for the whole list: every card names the same next slot.
+  const next = cadenceExpression ? nextSearchTime(cadenceExpression, new Date()) : null;
+
+  const seriesState = (follow: Follow) =>
+    follow.kind === "movie"
+      ? null
+      : follow.showStatus === "Continuing"
+        ? t("screens.acquisition.seriesOngoing")
+        : follow.showStatus === "Ended"
+          ? t("screens.acquisition.seriesEnded")
+          : null;
+
+  const descriptorOf = (follow: Follow, showStatus: boolean) => ({
+    title: follow.title,
+    ids: follow.ids,
+    // The row draws the poster the follow carries; without it the card falls
+    // back to the initials, in a box of the poster's size (R177).
+    poster: follow.poster,
+    k: follow.kind,
+    secondaryLine: [
+      String(follow.year),
+      follow.kind === "movie"
+        ? t("screens.acquisition.movie")
+        : t("screens.acquisition.series"),
+      seriesState(follow),
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    reason:
+      follow.status === "pending"
+        ? [
+            t("screens.acquisition.noConformRelease"),
+            next ? t("screens.acquisition.nextSearch", { at: next }) : null,
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : undefined,
+    f: followFraction(follow) ?? undefined,
+    // « NOUVEAU », the tag the card draws for a follow just made: the record
+    // carried it and the row dropped it on the way (B-039), so nothing said
+    // which follow was new but the order.
+    fresh: follow.fresh,
+    chip: showStatus
+      ? { tone: STATUS_TONE[follow.status], text: followStatusLabel(follow) }
+      : undefined,
+    caption:
+      [
+        follow.since
+          ? t("screens.acquisition.followedSince") + follow.since
+          : null,
+        // Zero is a fact worth printing: a follow added and never searched is
+        // exactly what one wants to spot.
+        follow.searches != null
+          ? t(
+              follow.searches > 1
+                ? "screens.acquisition.searchesMany"
+                : "screens.acquisition.searchesOne",
+              { count: follow.searches },
+            )
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || undefined,
+  });
+
+  const rowOf = (follow: Follow, showStatus: boolean) => {
+    const offered = (verb: string, markup: string) => (actOffered(verb, follow, rights) ? markup : "");
+    const title = escapeHtml(follow.title);
+    return swipeRowMarkup(
+      mediumCardMarkup(descriptorOf(follow, showStatus)),
+      offered("pause", `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${title}">${svgIcon(icons.x)}${t(follow.kind === "movie" ? "screens.acquisition.swipeStopSearching" : "screens.acquisition.swipePause")}</button>`)
+        + offered("remove", `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${title}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`),
+      follow.status === "pending" || follow.status === "to_grab"
+        ? offered("search-again", `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}" data-search-again="${title}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`)
+        : "",
+    );
+  };
+
+  // THE PAUSE IS SAID, AND IT USED TO BE SAID ONLY BY HALF THE TILES (B-350,
+  // operator-reported). The subtitle was `followFraction(follow) ?? (disabled ? …)`,
+  // and `followFraction` answers null for a FILM and only for a film: every series
+  // has a fraction, so the `??` never reached its second branch for one. A
+  // paused film therefore read « en pause » and a paused series read « 6/7 » —
+  // the same state, one of them announced and the other left to the dimming
+  // alone, which says « something » and never says what.
+  //
+  // The two are ASSEMBLED rather than chosen between: the fraction is what the
+  // tile is for and the pause is what changes how to read it, so a paused series
+  // keeps its figure AND carries the word. A film has no fraction and the join
+  // leaves it exactly as it was.
+  const tileOf = (follow: Follow) => {
+    const paused = follow.status === "disabled";
+    const said = [
+      followFraction(follow),
+      paused ? t("screens.acquisition.paused") : null,
+    ].filter(Boolean);
+    return tileMarkup({
+      title: follow.title,
+      // The year remains the fallback for a tile with nothing else to say — a
+      // film that is neither paused nor counted.
+      subtitle: said.length ? said.join(" · ") : String(follow.year),
+      artwork: posterArtwork(icons, follow.poster, follow.title, follow.kind),
+      muted: paused,
+      badge: tileBadgeOf(gridBadge(follow)),
+      // THE SHEET IS NAMED FIRST, and the order is load-bearing: the registry
+      // answers the first registered key in ATTRIBUTE order, so `data-panel`
+      // written first would make a tap on the tile open the panel the LONG
+      // PRESS is for. A tap opens the medium; the press opens its panel.
+      attributes: { "data-mediasheet": follow.title, "data-panel": `media:${follow.title}` },
+    });
+  };
+
+  // EACH BRANCH DRAWS ITS OWN CONTAINER and fills it. The legacy interpolated a
+  // complete element here — a `.sec`, a `.gallery`, an `.empty`, a skeleton or an
+  // error surface — and React cannot inject markup without a host, so the host
+  // IS that element rather than a wrapper around it.
+  let content: ReactElement;
+  if (state.phase === "error" || followsRefused) {
+    // BEFORE THE LOADING FACE: a real refused read leaves the phase as it was, since only the harness sets "error".
+    content = (
+      <SurfaceError subject={t("screens.acquisition.errorFollows")} failure={followsError ?? undefined} />
+    );
+  } else if (state.phase === "loading") {
+    content = (
+      <div className={sectionClass()} data-part="section"><Skeletons count={5} shape="card" /></div>
+    );
+  } else if (visible.length === 0) {
+    content = (
+      <Markup
+        className={emptyNote()} data-part="empty-state"
+        html={emptyNoteMarkup(
+      term !== ""
+        ? t("screens.acquisition.emptyFilter", {
+            // ESCAPED, because this string is injected as HTML: i18next
+            // interpolates without escaping — right for a React text node,
+            // wrong here — and the legacy escaped it at exactly this spot.
+            term: escapeHtml(state.filter as string),
+          })
+        : t("screens.acquisition.emptyNoFollows"),
+      term !== ""
+        ? `${t("screens.acquisition.emptyFilterBodyBefore")}<b>${follows.length}</b>${t("screens.acquisition.emptyFilterBodyAfter")}`
+        : `${t("screens.acquisition.emptyNoFollowsBodyBefore")}<b>${t("screens.acquisition.emptyNoFollowsBodyPlus")}</b>${t("screens.acquisition.emptyNoFollowsBodyAfter")}`,
+        )}
+      />
+    );
+  } else if (state.followMode === "grid") {
+    content = (
+      <Markup
+        className={posterGrid()} data-part="grid"
+        html={visible.map(tileOf).join("")}
+      />
+    );
+  } else if (state.followMode === "group") {
+    content = (
+      <>
+        {followGroups().map((group) => {
+          const items = visible.filter((follow) =>
+            group.statuses.includes(follow.status),
+          );
+          if (items.length === 0) return null;
+          // A heterogeneous group KEEPS the chip on its cards: its header
+          // cannot say which of its three values each card carries.
+          const showStatus = group.statuses.length > 1;
+          return (
+            <Markup tag="section"
+              key={group.label}
+              className={sectionClass()} data-part="section"
+              html={sectionInnerMarkup(group.tone, group.label, String(items.length),
+                items.map((item) => rowOf(item, showStatus)).join(""))}
+            />
+          );
+        })}
+      </>
+    );
+  } else {
+    content = (
+      <Markup
+        className={sectionClass()} data-part="section"
+        html={visible.map((follow) => rowOf(follow, true)).join("")}
+      />
+    );
+  }
+
+  return (
+    <>
+      <FollowsFilters shown={visible.length} />
+      <p className={cadence()} data-part="cadence">{cadenceExpression ? cadenceSentence(cadenceExpression) : null}</p>
+      <div className={body()} data-part="surface/body" data-region="acquisition/body">
+        <div className="note" data-part="note">
+          <b>{t("screens.acquisition.followsNoteLead")}</b>
+          {t("screens.acquisition.followsNoteRest")}
+        </div>
+        <div className="note" data-part="note">
+          <b>{t("screens.acquisition.cadenceNoteLead")}</b>
+          {t("screens.acquisition.cadenceNoteBefore")}
+          <code>{t("screens.acquisition.cadenceNoteInner")}</code>
+          {t("screens.acquisition.cadenceNoteAfter")}
+        </div>
+        {content}
+        {paused.length === 0 || state.phase !== "ready" ? null : (
+          <section className={sectionClass()} data-part="section/paused">
+            <Disclosure summary={<Markup html={sectionInnerMarkup(STATUS_TONE.disabled, t("screens.acquisition.followsPaused"), String(paused.length), "")} />}>
+              {state.followMode === "grid" ? (
+                <Markup className={posterGrid()} data-part="grid" html={paused.map(tileOf).join("")} />
+              ) : (
+                <Markup className={foldedCards()} data-part="folded-cards" html={paused.map((follow) => rowOf(follow, true)).join("")} />
+              )}
+            </Disclosure>
+          </section>
+        )}
+      </div>
+    </>
+  );
+}

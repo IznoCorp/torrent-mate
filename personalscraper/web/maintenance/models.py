@@ -17,7 +17,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from personalscraper.web.maintenance.registry import MaintenanceAction
+from personalscraper.app.maintenance.registry import MaintenanceAction
 
 
 class DiskInfo(BaseModel):

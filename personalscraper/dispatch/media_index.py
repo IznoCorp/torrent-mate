@@ -16,13 +16,14 @@ from __future__ import annotations
 import time
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
-from personalscraper.indexer.db import apply_migrations, open_db
+from personalscraper.core.sqlite._fs_probe import is_mounted
+from personalscraper.indexer.db import ensure_library_schema, open_db
 from personalscraper.indexer.repos import item_repo
 from personalscraper.indexer.repos.item_repo import (
     _ATTR_DISPATCH_DISK,
@@ -56,9 +57,6 @@ _SERIES_CATEGORY_IDS = frozenset(
         "tv_programs",
     }
 )
-
-# Path to the migration SQL scripts, relative to this package.
-_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "indexer" / "migrations"
 
 
 def _normalize_key(name: str) -> str:
@@ -149,7 +147,7 @@ class IndexEntry:
     category: str
     path: str
     media_type: str
-    last_updated: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    last_updated: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class MediaIndex:
@@ -206,8 +204,9 @@ class MediaIndex:
             db_path = configured_db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
+        # Migrate under the indexer's lock before opening: one path for every library DB migration.
+        ensure_library_schema(db_path)
         self._conn = open_db(db_path, event_bus=event_bus)
-        apply_migrations(self._conn, _MIGRATIONS_DIR)
 
         log.info("indexer.dispatch.opened", db_path=str(db_path))
 
@@ -244,7 +243,7 @@ class MediaIndex:
         except Exception as exc:  # noqa: BLE001 — defensive; log and swallow
             log.warning("media_index.close_error", error=str(exc), error_type=type(exc).__name__)
 
-    def __enter__(self) -> "MediaIndex":
+    def __enter__(self) -> MediaIndex:
         """Enter the context manager.
 
         Returns:
@@ -345,7 +344,7 @@ class MediaIndex:
                     category=item_row.category_id,
                     path=dispatch_path,
                     media_type=media_type,
-                    last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                    last_updated=datetime.fromtimestamp(item_row.date_modified, tz=UTC).isoformat(),
                 )
             # Stale denormalized target: the stored path's folder year
             # contradicts the matched item's year. Reject and fall through to
@@ -411,7 +410,7 @@ class MediaIndex:
                         category=item_row.category_id,
                         path=dispatch_path,
                         media_type=_kind_to_media_type(item_row.kind),
-                        last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                        last_updated=datetime.fromtimestamp(item_row.date_modified, tz=UTC).isoformat(),
                     )
 
             if best_entry is not None:
@@ -512,7 +511,7 @@ class MediaIndex:
                 category=item_row.category_id,
                 path=dispatch_path,
                 media_type=media_type,
-                last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                last_updated=datetime.fromtimestamp(item_row.date_modified, tz=UTC).isoformat(),
             )
         return None
 
@@ -569,7 +568,16 @@ class MediaIndex:
                 nfo_title, _nfo_year = parse_title_year(media_dir.name)
                 meta, nfo_status = _nfo_metadata_for_dir(media_dir, nfo_title, is_tvshow)
             else:
-                meta = {"tmdb_id": None, "imdb_id": None, "tvdb_id": None, "canonical_provider": None, "ratings": []}
+                meta = {
+                    "tmdb_id": None,
+                    "imdb_id": None,
+                    "tvdb_id": None,
+                    "canonical_provider": None,
+                    "ratings": [],
+                    "overview": None,
+                    "poster_url": None,
+                    "date_provider_read": None,
+                }
                 nfo_status = "missing"
             row = build_item_row(
                 title=entry.name,
@@ -588,10 +596,13 @@ class MediaIndex:
                 nfo_default=meta["canonical_provider"],
                 nfo_status=nfo_status,
                 ratings=meta["ratings"],
+                overview=meta["overview"],
+                poster_url=meta["poster_url"],
+                date_provider_read=meta["date_provider_read"],
             )
             row["date_created"] = now_ts
             row["date_modified"] = now_ts
-            item_id = item_repo.upsert(self._conn, MediaItemRow(**row))
+            item_id = item_repo.upsert(self._conn, MediaItemRow(**row), dispatch_path=entry.path)
 
         # Write dispatch-specific attributes (upsert replaces on conflict).
         for key, value in (
@@ -642,7 +653,7 @@ class MediaIndex:
         now_ts = int(time.time())
         count = 0
         for config in disk_configs:
-            if not config.path.exists():
+            if not is_mounted(config.path):
                 log.info("disk_not_mounted", disk=config.id)
                 continue
 

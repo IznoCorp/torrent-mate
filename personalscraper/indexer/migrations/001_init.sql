@@ -1,5 +1,9 @@
 -- Schema migration 001 — initial indexer database
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 -- ---------------------------------------------------------------------------
 -- Disks: stable identity by volume UUID, never by mount path.
 -- A disk row exists per known volume; mount_path is the *current* mount, NULL
@@ -298,3 +302,5 @@ ALTER TABLE media_item ADD COLUMN has_fanart INTEGER
 CREATE INDEX idx_item_has_fanart ON media_item(has_fanart) WHERE has_fanart = 1;
 
 PRAGMA user_version = 1;
+
+COMMIT;

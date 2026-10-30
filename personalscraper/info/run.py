@@ -12,6 +12,7 @@ from pathlib import Path
 
 from personalscraper import __version__
 from personalscraper.conf.models.config import Config
+from personalscraper.core.sqlite._fs_probe import is_mounted
 
 
 @dataclass(frozen=True)
@@ -73,7 +74,7 @@ def _human_bytes(n: int) -> str:
 def collect_info(config: Config) -> InfoReport:
     """Gather version, config paths, and disk stats from the current environment.
 
-    For each disk in config.disks: checks if the path exists (mounted), then
+    For each disk in config.disks: checks the disk's volume is mounted, then
     calls shutil.disk_usage to get capacity. Non-existent paths are reported
     as NOT MOUNTED with zero byte counts.
 
@@ -86,7 +87,7 @@ def collect_info(config: Config) -> InfoReport:
     disks: list[DiskStatus] = []
     for disk_cfg in config.disks:
         path = disk_cfg.path
-        if not path.exists():
+        if not is_mounted(path):
             disks.append(DiskStatus(name=disk_cfg.id, path=None, mounted=False, total_bytes=0, used_bytes=0))
             continue
 

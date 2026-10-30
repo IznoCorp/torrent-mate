@@ -1,0 +1,132 @@
+"""Proves that actions MUTATE the state, not merely the display.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
+
+RE-AIMED OUT LOUD: the grab is taken from the follow's sheet, where « Récupérer
+maintenant » lives; « En cours » no longer carries it.
+
+HELD OUT LOUD (B-039): the follow just made draws its card in « Suivis »
+wearing its « Nouveau » — this printed the tag's presence and asserted nothing.
+
+RE-AIMED OUT LOUD: « Laisser tel quel » means LATER (ruling 6, placed by ruling
+16) — the folder stays queued, set aside, where this read it leaving the stuck
+list. R226 holds the section it goes to.
+"""
+import asyncio
+
+from common import browser_channel, chrome_launch_args
+from playwright.async_api import async_playwright
+
+
+async def main():
+  async with async_playwright() as p:
+    b=await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
+    c=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
+    pg=await c.new_page(); errs=[]
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.goto("http://127.0.0.1:8899/", wait_until="load")
+    # The startup screen covers the frame for as long as the load it stands
+    # for lasts. Nothing is being fetched here, so the harness closes that
+    # wait through the same seam the app uses, rather than sleeping it out.
+    await pg.evaluate("()=>window.__loadingDone?.()")
+    await pg.evaluate("()=>window.__measure(true)")
+    cnt = """()=>({takeable:(window.__queue?.().takeable||[]).length, inflight:(window.__queue?.().inFlight||[]).length, stuck:(window.__queue?.().stuck||[]).length, blocked:(window.__queue?.().blocked||[]).length,
+                   moving:(window.__queue?.().moving||[]).length, follows:(window.__followActions?.all()||[]).length,
+                   paused:(window.__followActions?.all()||[]).filter(f=>f.status==='disabled').length, lib:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/v1/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),
+                   acqBadge:(document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]')||{}).textContent||null})"""
+
+    await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
+    a=await pg.evaluate(cnt); print("before grabbing      :", a)
+    # RE-AIMED OUT LOUD: « À récupérer » leaves « En cours », so the grab is the
+    # follow's sheet's « Récupérer maintenant », raised on the first release the
+    # queue holds to be taken.
+    await pg.evaluate("""()=>window.__panel.produce('follow', window.__queue().takeable[0].title)""")
+    await pg.wait_for_timeout(600)
+    await pg.evaluate("""()=>[...document.querySelectorAll('#sheetin [data-part="sheet/action"]')].find(x=>'take' in x.dataset).click()""")
+    await pg.wait_for_timeout(400)
+    b1=await pg.evaluate(cnt); print("after grabbing       :", b1)
+    assert b1["takeable"]==a["takeable"]-1 and b1["inflight"]==a["inflight"]+1, "the card did not move"
+    print("  → card moved to En vol, badge", a["acqBadge"], "→", b1["acqBadge"])
+
+    # A folder the providers answered nothing for has NO candidate to pick, and
+    # that is the real state of both stuck folders in the calm scenario. The
+    # way out is « Laisser tel quel », which keeps it for later. RE-AIMED OUT
+    # LOUD: the walk begins at « À traiter » in the dense world, where the
+    # Arrivées page's folders are.
+    await pg.evaluate("()=>window.__go('acq-todo-dense')"); await pg.wait_for_timeout(300)
+    a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('stuck','moving')})
+    # A FOLDER NOBODY IDENTIFIED — `data-nonmedia` — since « À traiter » also
+    # holds the queue's tie, which HAS candidates.
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"][data-nonmedia] [data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
+    await pg.wait_for_timeout(450)
+    assert await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")==0, \
+        "a folder with no provider answer must offer no candidate"
+    await pg.evaluate("()=>document.querySelector('[data-leave]').click()"); await pg.wait_for_timeout(700)
+    b2=await pg.evaluate(cnt); print("after « laisser »    :", {k:b2[k] for k in ('stuck','moving')})
+    assert b2["stuck"]==a["stuck"], "« Laisser tel quel » took the folder out of the queue"
+    print("  → set aside, still queued, nothing re-scraped")
+
+    # And a folder that DOES have candidates is settled by picking one.
+    await pg.evaluate("()=>window.__go('acq-resolution-tie')"); await pg.wait_for_timeout(450)
+    a=await pg.evaluate(cnt); print("\nbefore pick          :", {k:a[k] for k in ('stuck','moving')})
+    nb=await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")
+    assert nb==5, f"expected the five real candidates, got {nb}"
+    # The candidate CARD carries `data-resolve` since B-393, so this click lands
+    # on the card rather than on the pill it replaced; a finger's proof is R161's.
+    await pg.evaluate("()=>document.querySelector('[data-resolve]').click()"); await pg.wait_for_timeout(700)
+    b2b=await pg.evaluate(cnt); print("after pick           :", {k:b2b[k] for k in ('stuck','moving')})
+    # The folder was on « À traiter », the acquisition side of the same queue.
+    # Answering there used to change nothing at all.
+    assert b2b["blocked"]==a["blocked"]-1, "the arbitrated item stayed in the queue"
+    print("  → candidate picked, and the item leaves « À traiter »")
+
+    await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
+    a=await pg.evaluate(cnt)
+    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"][data-action="pause"]').click();}""")
+    await pg.wait_for_timeout(400)
+    b3=await pg.evaluate(cnt); print("\npause                :", a["paused"], "→", b3["paused"])
+    assert b3["paused"]==a["paused"]+1
+    await pg.evaluate("()=>document.querySelector('#toastundo').click()"); await pg.wait_for_timeout(350)
+    b4=await pg.evaluate(cnt); print("  → Annuler restores  :", b4["paused"])
+    assert b4["paused"]==a["paused"]
+
+    await pg.evaluate("""()=>{const w=document.querySelector('#view [data-part="swipe"]');w.querySelector('[data-part="swipe/action"][data-action="remove"]').click();}""")
+    await pg.wait_for_timeout(400)
+    b5=await pg.evaluate(cnt); print("\ndrop a follow        :", a["follows"], "→", b5["follows"])
+    assert b5["follows"]==a["follows"]-1
+
+    await pg.evaluate("()=>window.__go('discover-full')"); await pg.wait_for_timeout(350)
+    a=await pg.evaluate(cnt)
+    await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
+    followed=await pg.evaluate("()=>(window.__store.read().state.panelDescriptor || {}).title || ''")
+    await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(450)
+    b6=await pg.evaluate(cnt); print("\nfollow a suggestion  :", a["follows"], "→", b6["follows"])
+    assert b6["follows"]==a["follows"]+1
+    await pg.evaluate("()=>window.__go('acq-follows-list',{keep:true})"); await pg.wait_for_timeout(350)
+    # THE NEW FOLLOW'S CARD WEARS ITS « Nouveau » (B-039). This PRINTED the
+    # tag's presence at the head of the list and asserted nothing: no state
+    # produced a fresh follow then. One just followed is fresh, and « Suivis »
+    # groups by status, so its own card is read wherever its group puts it.
+    card=await pg.evaluate("""(t)=>{const card = [...document.querySelectorAll('#view [data-part="card/title"]')]
+        .find((title) => title.textContent === t)?.closest('[data-panel]');
+      return {drawn: !!card, fresh: !!card?.querySelector('[data-part="card/fresh-tag"]')};}""", followed)
+    print("  → its card in Suivis   :", followed, card)
+    assert followed and card["drawn"], f"the new follow {followed!r} draws no card in « Suivis »: {card}"
+    assert card["fresh"], f"the new follow {followed!r} carries no « Nouveau »: {card}"
+
+    await pg.evaluate("()=>window.__go('lib-selection')"); await pg.wait_for_timeout(350)
+    a=await pg.evaluate(cnt)
+    await pg.evaluate("()=>document.querySelector('[data-delsel]').click()"); await pg.wait_for_timeout(400)
+    await pg.evaluate("""()=>document.querySelector('[data-part="dialog/button"][data-tone="danger"]').click()"""); await pg.wait_for_timeout(450)
+    b7=await pg.evaluate(cnt); print("\nmultiple deletion    :", a["lib"], "→", b7["lib"])
+    assert b7["lib"]==a["lib"]-3
+
+    print("\nJS errors:", errs or "none")
+    print("VERDICT: all 6 behaviours really mutate the state")
+    await b.close()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

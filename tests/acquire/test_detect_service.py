@@ -761,9 +761,8 @@ def _series_status_of(store: ConcreteAcquireStore, followed_id: int) -> str | No
     Returns:
         The stored ``series_status``, or ``None``.
     """
-    row = store._conn.execute(  # noqa: SLF001 — the column has no reader yet
-        "SELECT series_status FROM followed_series WHERE id = ?", (followed_id,)
-    ).fetchone()
+    # the column has no reader yet
+    row = store._conn.execute("SELECT series_status FROM followed_series WHERE id = ?", (followed_id,)).fetchone()
     return None if row is None else row[0]
 
 
@@ -1036,8 +1035,8 @@ def test_detect_heals_tvdb_only_show_named_in_original_language(store: ConcreteA
     so the query and the guard carry both spellings.
     """
     from personalscraper.acquire._filters import filter_to_season
-    from personalscraper.api._units import ByteSize
     from personalscraper.api.tracker._base import TrackerResult
+    from personalscraper.core.units import ByteSize
 
     fid = _tvdb_only_show(store)
     tvdb = _FakeTvdb(_LOCALIZED_TITLE)

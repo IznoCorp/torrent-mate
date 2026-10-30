@@ -878,7 +878,21 @@ class TestBothDispatchRootsWireIt:
         """Both dispatch composition roots build the subscriber and close it."""
         import inspect
 
+        from personalscraper.app.supervisor import execution
         from personalscraper.commands import pipeline
+
+        if command == "run":
+            # ``run``'s body moved to ``execute_run``, which builds its subscribers in ``_build_subscribers``
+            # and closes them through ``_RunSubscribers.close``: the wiring is asserted where it lives, and
+            # ``execute_run`` must still call both ends.
+            run_source = inspect.getsource(execution.execute_run)
+            assert "_build_subscribers(" in run_source, "run() must build its subscribers"
+            assert "subscribers.close()" in run_source, "run() must close its subscribers"
+            build_source = inspect.getsource(execution._build_subscribers)
+            close_source = inspect.getsource(execution._RunSubscribers.close)
+            assert "build_plex_subscriber(" in build_source, "run() must wire the Plex refresh"
+            assert "self.plex.close()" in close_source, "run() must close the Plex subscriber"
+            return
 
         source = inspect.getsource(getattr(pipeline, command))
 

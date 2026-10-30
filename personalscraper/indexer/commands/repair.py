@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
@@ -60,7 +61,7 @@ def library_repair_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_repair.config_error", error=str(exc)), err=True)
         return 1
 
     db_path = cfg.indexer.db_path

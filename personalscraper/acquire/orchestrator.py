@@ -75,8 +75,8 @@ from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.torrent._base import TorrentLimits
-from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter
+from personalscraper.api.torrent._base import TorrentLimits, category_refusal, in_sandbox
+from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter, TorrentLister
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._ranking import rank
 from personalscraper.core._contracts import CircuitOpenError
@@ -87,11 +87,13 @@ if TYPE_CHECKING:
 
     from personalscraper.acquire.desired import QualityProfile
     from personalscraper.acquire.domain import WantedItem
+    from personalscraper.api.torrent._base import TorrentSource
     from personalscraper.api.torrent._contracts import TorrentAdder
     from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.api.tracker._ranking import RankingConfig
     from personalscraper.api.tracker._registry import TrackerRegistry
     from personalscraper.conf.models.acquire import BandwidthConfig
+    from personalscraper.conf.models.api_config import TorrentScope
     from personalscraper.core.event_bus import EventBus
     from personalscraper.core.identity import MediaRef
 
@@ -194,9 +196,9 @@ class _QueryAttempt:
             ``None`` and the empty list flows on to ``rank_candidates``).
     """
 
-    hard_stop: "_SearchChainResult | None" = None
-    empty_verdict: "_SearchChainResult | None" = None
-    results: "list[TrackerResult]" = field(default_factory=list)
+    hard_stop: _SearchChainResult | None = None
+    empty_verdict: _SearchChainResult | None = None
+    results: list[TrackerResult] = field(default_factory=list)
 
 
 #: High-level bucket a search verdict falls into. Kept as a named alias so the
@@ -241,14 +243,14 @@ class SearchVerdict:
 
 
 def rank_candidates(
-    results: "list[TrackerResult]",
-    profile: "QualityProfile",
-    media_ref: "MediaRef | None",
-    ranking: "RankingConfig",
+    results: list[TrackerResult],
+    profile: QualityProfile,
+    media_ref: MediaRef | None,
+    ranking: RankingConfig,
     *,
-    exclude_hashes: "frozenset[str]" = frozenset(),
-    media_kind: "str | None" = None,
-) -> "tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]":
+    exclude_hashes: frozenset[str] = frozenset(),
+    media_kind: str | None = None,
+) -> tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]:
     """Run the hard-filter → dedup → rank tail of the grab chain (DESIGN §15).
 
     Shared by :meth:`GrabOrchestrator.grab` (the real acquisition path) and the
@@ -345,7 +347,110 @@ class GrabOutcome:
     found: int | None = None
 
 
-def _build_limits(bw: "BandwidthConfig", *, client_is_limiter: bool) -> "TorrentLimits | None":
+def _scope_refusal(client: TorrentAdder, source: TorrentSource, scope: TorrentScope) -> str | None:
+    """Say why a downloaded torrent must not be added under the instance's scope.
+
+    The client is shared with another instance, so the hash is checked before
+    anything is added: a hash already present is never added (the add would be
+    idempotent and the torrent would stay in the other instance's category and
+    tags). Every case that cannot PROVE the hash free refuses (fail-closed).
+    The hash is the payload's own (``source.info_hash``, what the client will
+    compute), never the tracker's, which may be absent or wrong.
+
+    Args:
+        client: The torrent client.
+        source: The resolved torrent.
+        scope: What this instance owns in the client.
+
+    Returns:
+        ``None`` when the add may proceed, else the refusal reason:
+        ``scope_unverifiable`` (the client cannot list its hashes),
+        ``hash_underivable`` (the source yields no hash) or ``shared_hash``
+        (the hash is already in the client).
+    """
+    if not isinstance(client, TorrentLister):
+        log.warning("acquire.grab.scope_unverifiable", client_type=type(client).__name__)
+        return "scope_unverifiable"
+    try:
+        info_hash = source.info_hash.lower()
+    except ValueError:
+        log.warning("acquire.grab.hash_underivable", category=scope.category)
+        return "hash_underivable"
+    if info_hash in {h.lower() for h in client.get_all_hashes()}:
+        log.info("acquire.grab.shared_hash", info_hash=info_hash, category=scope.category)
+        return "shared_hash"
+    return None
+
+
+def _sandbox_refusal(client: TorrentAdder, source: TorrentSource, sandbox_categories: tuple[str, ...]) -> str | None:
+    """Say why an unscoped instance must not add a torrent a sandbox already holds.
+
+    The unscoped counterpart of :func:`_scope_refusal`: an add of a hash a sandbox holds is
+    idempotent, and prod would then treat the sandbox's torrent as its own. Only a hash held under
+    a sandbox category, or a subcategory of one, is refused (a hash prod itself holds keeps today's
+    add). The decision rests on the torrent's own category, looked up by hash: a category filter
+    returns ``c/x`` under ``c`` only when the client's subcategories setting is on. Every case that
+    cannot PROVE the hash is not a sandbox's refuses (fail-closed).
+
+    Args:
+        client: The torrent client.
+        source: The resolved torrent.
+        sandbox_categories: The categories that belong to the sandboxes.
+
+    Returns:
+        ``None`` when the add may proceed, else the refusal reason: ``scope_unverifiable`` (the
+        client cannot look a hash up), ``hash_underivable`` (the source yields no hash) or
+        ``sandbox_hash`` (a sandbox category or subcategory holds the hash).
+    """
+    if not isinstance(client, TorrentLister):
+        log.warning("acquire.grab.scope_unverifiable", client_type=type(client).__name__)
+        return "scope_unverifiable"
+    try:
+        info_hash = source.info_hash.lower()
+    except ValueError:
+        log.warning("acquire.grab.hash_underivable", category=None)
+        return "hash_underivable"
+    for item in client.get_by_hashes({info_hash}):
+        if item.hash.lower() == info_hash and in_sandbox(item.category, sandbox_categories):
+            log.info("acquire.grab.sandbox_hash", info_hash=info_hash, category=item.category)
+            return "sandbox_hash"
+    return None
+
+
+def _add_in_scope(
+    client: TorrentAdder,
+    source: TorrentSource,
+    *,
+    provider: str,
+    scope: TorrentScope | None,
+    limits: TorrentLimits | None,
+) -> str:
+    """Add a torrent, inside the instance's scope when one is configured.
+
+    ``scope`` ``None`` is today's add, verbatim. Under a scope the add carries
+    the scope's category and instance tags; the caller has already passed
+    :func:`_scope_refusal`.
+
+    The check-then-add is not atomic: another instance could add the same hash
+    between the listing and the add. That residue is accepted — one instance
+    per client scope is the supported topology.
+
+    Args:
+        client: The torrent client.
+        source: The resolved torrent.
+        provider: The tracker the release came from (first tag).
+        scope: What this instance owns in the client, or ``None``.
+        limits: Per-torrent limits, or ``None``.
+
+    Returns:
+        The client's info hash.
+    """
+    if scope is None:
+        return client.add(source, category=None, tags=[provider], limits=limits)
+    return client.add(source, category=scope.category, tags=[provider, *scope.grab_tags], limits=limits)
+
+
+def _build_limits(bw: BandwidthConfig, *, client_is_limiter: bool) -> TorrentLimits | None:
     """Build per-torrent limits from bandwidth config (O4).
 
     Returns ``None`` when no caps are configured or the client lacks
@@ -406,10 +511,12 @@ class GrabOrchestrator:
         event_bus: EventBus,
         ranking: RankingConfig,
         title_resolver: Callable[[WantedItem], str | None] | None = None,
-        year_resolver: "Callable[[WantedItem], int | None] | None" = None,
-        original_title_resolver: "Callable[[WantedItem], str | None] | None" = None,
-        episode_count_resolver: "Callable[[WantedItem], int | None] | None" = None,
-        bandwidth: "BandwidthConfig",
+        year_resolver: Callable[[WantedItem], int | None] | None = None,
+        original_title_resolver: Callable[[WantedItem], str | None] | None = None,
+        episode_count_resolver: Callable[[WantedItem], int | None] | None = None,
+        bandwidth: BandwidthConfig,
+        scope: TorrentScope | None = None,
+        sandbox_categories: tuple[str, ...] = (),
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -448,7 +555,16 @@ class GrabOrchestrator:
             bandwidth: Per-torrent and global bandwidth caps for seed safety
                 (O4). Carries per-torrent limits applied at add time and
                 global limits re-asserted at run start.
+            scope: What this instance owns in a shared torrent client. ``None``
+                (the default, prod today) = the whole client: no category, no
+                instance tags, global caps applied. Set = adds land in the
+                scope's category with its tags, a hash already in the client is
+                refused, and the global caps are left to the other instance.
+            sandbox_categories: Unscoped instance only: the categories that belong to the
+                sandboxes sharing the client. A hash held under one is refused, never adopted.
         """
+        self._scope = scope
+        self._sandbox_categories = sandbox_categories if scope is None else ()
         self._tracker_registry = tracker_registry
         self._torrent_client = torrent_client
         self._event_bus = event_bus
@@ -470,6 +586,11 @@ class GrabOrchestrator:
         bw = self._bandwidth
         if bw.global_down is None and bw.global_up is None:
             return
+        if self._scope is not None:
+            # The client is shared: a global cap would throttle the other
+            # instance's torrents too.
+            log.info("acquire.global_limits_skipped", category=self._scope.category)
+            return
         tc = self._torrent_client
         if tc is None or not isinstance(tc, GlobalRateLimiter):
             return
@@ -480,6 +601,40 @@ class GrabOrchestrator:
             )
         except ApiError as exc:
             log.warning("acquire.global_limits.failed", error=str(exc))
+
+    def scope_allows_grab(self) -> bool:
+        """Say whether a grab pass may run: the scope's category is fit to receive adds.
+
+        Checked ONCE per grab run, before any tracker search: under a scope the
+        category must exist and file its torrents under the scope's
+        ``download_root`` (an add under an unknown category lands in the client's
+        default save path, in the other instance's area). A refusal skips the whole
+        pass with one log event naming the cause — checking per item would cost a
+        tracker search and a ``GrabFailed`` per item per tick. Fail closed: a client
+        that cannot be read refuses too. Nothing is created.
+
+        Always ``True`` without a scope, without a client, or with a client that
+        defines no categories (see :func:`category_refusal`).
+
+        Returns:
+            ``True`` when the pass may proceed, ``False`` when it must be skipped.
+        """
+        if self._scope is None or self._torrent_client is None:
+            return True
+        try:
+            reason = category_refusal(self._torrent_client, self._scope)
+            error = None
+        except ApiError as exc:
+            reason, error = "category_check_failed", str(exc)
+        if reason is None:
+            return True
+        log.warning(
+            "acquire.grab_pass.scope_refused",
+            reason=reason,
+            category=self._scope.category,
+            error=error,
+        )
+        return False
 
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
@@ -492,7 +647,7 @@ class GrabOrchestrator:
         title: str | None,
         original_title: str | None,
         year: int | None,
-    ) -> "_QueryAttempt":
+    ) -> _QueryAttempt:
         """Run ONE tracker query and the kind-specific identity narrowing.
 
         The seam that lets :meth:`_search_chain` play the same
@@ -597,7 +752,7 @@ class GrabOrchestrator:
         item: WantedItem,
         profile: QualityProfile,
         *,
-        exclude_hashes: "frozenset[str]" = frozenset(),
+        exclude_hashes: frozenset[str] = frozenset(),
     ) -> _SearchChainResult:
         """Run the shared search→filter→rank pipeline and return the exit path.
 
@@ -748,7 +903,7 @@ class GrabOrchestrator:
         item: WantedItem,
         profile: QualityProfile,
         *,
-        exclude_hashes: "frozenset[str]" = frozenset(),
+        exclude_hashes: frozenset[str] = frozenset(),
     ) -> SearchVerdict:
         """State availability for one wanted item — NEVER downloads.
 
@@ -840,8 +995,8 @@ class GrabOrchestrator:
         item: WantedItem,
         profile: QualityProfile,
         *,
-        on_intent: "Callable[[str], None] | None" = None,
-        exclude_hashes: "frozenset[str]" = frozenset(),
+        on_intent: Callable[[str], None] | None = None,
+        exclude_hashes: frozenset[str] = frozenset(),
     ) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
@@ -929,7 +1084,7 @@ class GrabOrchestrator:
         # The chain only reaches "available" with a non-empty ``ranked`` list, so
         # ``top`` is guaranteed present here; assert it so the invariant is
         # checked rather than implied by the exit-path chain above.
-        assert result.top is not None  # noqa: S101 — "available" always carries a top
+        assert result.top is not None  # "available" always carries a top
         top, _score = result.top
 
         # --- No torrent client → cannot add (search-only / dry-run). RETRYABLE. ---
@@ -954,7 +1109,30 @@ class GrabOrchestrator:
             # tracker has already run its search() in THIS grab, so a
             # login-style tracker's authed transport exists — a transient boot
             # login blip can no longer strand it for the process lifetime.
-            attempt = resolve_first_available(result.ranked, self._tracker_registry.transports(), top=top)
+            # Under a scope (or, unscoped, a sandbox's hash) a candidate whose hash is shared gives way to the
+            # next ranked one within this grab: the next pass would re-pick the
+            # same top (only failed hashes are excluded), starving the item.
+            # The check runs BEFORE ``on_intent``: an intent, once reserved, is
+            # never rewritten, so it must name the candidate that is added.
+            remaining = result.ranked
+            while True:
+                attempt = resolve_first_available(remaining, self._tracker_registry.transports(), top=top)
+                if attempt.source is None:
+                    break
+                if self._scope is not None:
+                    refusal = _scope_refusal(self._torrent_client, attempt.source, self._scope)
+                elif self._sandbox_categories:
+                    refusal = _sandbox_refusal(self._torrent_client, attempt.source, self._sandbox_categories)
+                else:
+                    break
+                if refusal is None:
+                    break
+                if refusal not in ("shared_hash", "sandbox_hash"):
+                    return self._retryable(media_ref, refusal, chosen=attempt.chosen)
+                remaining = [pair for pair in remaining if pair[0] is not attempt.chosen]
+                if not remaining:
+                    return self._retryable(media_ref, refusal, chosen=attempt.chosen)
+                top = remaining[0][0]
             if attempt.source is None:
                 # Nothing resolved: conclude on the candidate the walk blames,
                 # so the operator alert names the tracker that broke rather
@@ -998,7 +1176,14 @@ class GrabOrchestrator:
                     "acquire.grab.limits_unsupported",
                     client_type=type(self._torrent_client).__name__,
                 )
-            info_hash = self._torrent_client.add(source, category=None, tags=[top.provider], limits=limits)
+            added = _add_in_scope(
+                self._torrent_client,
+                source,
+                provider=top.provider,
+                scope=self._scope,
+                limits=limits,
+            )
+            info_hash = added
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.
             return self._retryable(media_ref, "circuit_open", chosen=top)
@@ -1041,8 +1226,8 @@ class GrabOrchestrator:
             disposition="success",
             info_hash=info_hash,
             chosen=top,
-            category=None,
-            tags=(top.provider,),
+            category=None if self._scope is None else self._scope.category,
+            tags=(top.provider,) if self._scope is None else (top.provider, *self._scope.grab_tags),
             found=len(result.ranked),
         )
 
@@ -1112,7 +1297,7 @@ class GrabOrchestrator:
         """
         # WantedAbandoned.media_ref is non-optional; the orchestrator always has
         # one (every WantedItem carries a MediaRef), so the cast is safe.
-        assert media_ref is not None  # noqa: S101 — every WantedItem has a MediaRef
+        assert media_ref is not None  # every WantedItem has a MediaRef
         self._event_bus.emit(WantedAbandoned(media_ref=media_ref, reason=reason))
         log.warning("acquire.grab.terminal", reason=reason)
         return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen, found=None)

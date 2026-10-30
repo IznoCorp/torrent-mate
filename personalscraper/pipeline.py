@@ -93,7 +93,7 @@ class Pipeline:
         self._log = get_logger("pipeline")
 
         # Provider registry: instantiated once per process at boot
-        # (DESIGN §6.1) by ``_build_app_context``. The pipeline reads it
+        # (DESIGN §6.1) by ``build_app_context``. The pipeline reads it
         # from the bundle rather than constructing its own — feat/registry
         # §5.2 / sub-phase 3.1.
         self._registry = app.provider_registry
@@ -220,11 +220,12 @@ class Pipeline:
 
         Args:
             lockout_path: Override lockout file path (for testing).
-                Defaults to ~/.cache/personalscraper/qbit_auth_lockout.
+                Defaults to the current environment's lockout file (``api.torrent.qbittorrent.lockout_path``).
 
         Returns:
             Number of artifacts cleaned.
         """
+        from personalscraper.api.torrent.qbittorrent import lockout_path as qbit_lockout_path
         from personalscraper.dispatch.crash_recovery import (
             DryRunPolicy,
             RootKind,
@@ -233,7 +234,7 @@ class Pipeline:
         )
 
         if lockout_path is None:
-            lockout_path = Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
+            lockout_path = qbit_lockout_path()
 
         roots: list[SweepRoot] = [
             SweepRoot(disk_config.path, RootKind.MEDIA_TREE, DryRunPolicy.REPORT) for disk_config in self.config.disks
@@ -244,7 +245,7 @@ class Pipeline:
 
         # Boot recovery always applies real cleanup (guarded to non-dry-run runs
         # by the caller); dry_run=False.
-        cleaned = sweep_orphans(roots, dry_run=False)
+        cleaned = sweep_orphans(roots, dry_run=False, config=self.config)
         if cleaned:
             self._log.info("crash_recovery_done", cleaned=cleaned)
         return cleaned

@@ -199,8 +199,9 @@ def _register_settings_secrets() -> None:
     send during tests (the "phantom Telegram reports on every git push" incident
     this repo already fixed once).
 
-    Every ``.env`` credential is already in ``os.environ`` by the time this runs
-    — ``personalscraper/__init__.py`` calls ``_load_dotenv()`` at package import,
+    Every env-file credential is already in ``os.environ`` by the time this runs
+    — ``personalscraper/__init__.py`` loads at package import the explicit
+    ``PERSONALSCRAPER_ENV_FILE`` alone when it is set, else the clone's ``.env``,
     so TMDB_API_KEY, TR4KER_API_KEY, TELEGRAM_BOT_TOKEN, QBIT_PASSWORD, and all
     tracker credentials are present under their own names.
 

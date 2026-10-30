@@ -110,7 +110,7 @@ def test_full_emit_path_xadds_envelope_and_type(
 ) -> None:
     """A bus emit flows through the daemon thread and lands one stream entry."""
     publisher = RedisEventPublisher(event_bus, web_config)
-    publisher._redis = fake_redis  # inject before any emit  # noqa: SLF001
+    publisher._redis = fake_redis  # inject before any emit
     try:
         event_bus.emit(_make_event(scope="full", scanned=10))
 
@@ -131,11 +131,11 @@ def test_full_emit_path_xadds_envelope_and_type(
 def test_envelope_round_trip(event_bus: EventBus, web_config: WebConfig, fake_redis: fakeredis.FakeRedis) -> None:
     """A real event survives ``event_from_envelope(event_to_envelope(e))`` intact."""
     publisher = RedisEventPublisher(event_bus, web_config)
-    publisher._redis = fake_redis  # noqa: SLF001
+    publisher._redis = fake_redis
     try:
         original = _make_event(scope="provider_ids", scanned=100)
         # Publish synchronously in the test thread for determinism.
-        publisher._publish(original)  # noqa: SLF001
+        publisher._publish(original)
 
         entries = fake_redis.xrange(STREAM_KEY, min="-", max="+")
         _entry_id, fields = entries[0]
@@ -162,11 +162,11 @@ def test_maxlen_trims_stream(event_bus: EventBus, fake_redis: fakeredis.FakeRedi
     cfg = WebConfig.model_validate({"stream_maxlen": 3})
     publisher = RedisEventPublisher(event_bus, cfg)
     spy = MagicMock(wraps=fake_redis)
-    publisher._redis = spy  # noqa: SLF001
+    publisher._redis = spy
     adds = 20
     try:
         for i in range(adds):
-            publisher._publish(_make_event(scope=f"round_{i}", scanned=i))  # noqa: SLF001
+            publisher._publish(_make_event(scope=f"round_{i}", scanned=i))
 
         assert spy.xadd.call_count == adds
         for call in spy.xadd.call_args_list:
@@ -183,12 +183,12 @@ def test_fail_soft_redis_down_warns_once(event_bus: EventBus, web_config: WebCon
     publisher = RedisEventPublisher(event_bus, web_config)
     broken = MagicMock()
     broken.xadd.side_effect = ConnectionError("redis down")
-    publisher._redis = broken  # noqa: SLF001
+    publisher._redis = broken
     try:
         with patch.object(redis_stream.log, "warning") as mock_warning:
             # Neither call may raise — fail-soft contract.
-            publisher._publish(_make_event())  # noqa: SLF001
-            publisher._publish(_make_event())  # noqa: SLF001
+            publisher._publish(_make_event())
+            publisher._publish(_make_event())
 
         names = _warning_event_names(mock_warning)
         assert names.count("redis_publish_failed") == 1
@@ -201,37 +201,37 @@ def test_queue_full_drops_and_warns_once(
 ) -> None:
     """A saturated in-memory queue drops the event and warns ``redis_publish_queue_full``."""
     publisher = RedisEventPublisher(event_bus, web_config)
-    publisher._redis = fake_redis  # noqa: SLF001
+    publisher._redis = fake_redis
     # Stop the worker cleanly so it cannot drain the (soon-tiny) queue mid-test.
     publisher.close()
 
-    publisher._queue = queue.Queue(maxsize=1)  # noqa: SLF001
-    publisher._queue.put_nowait(object())  # occupy the single slot  # noqa: SLF001
+    publisher._queue = queue.Queue(maxsize=1)
+    publisher._queue.put_nowait(object())  # occupy the single slot
 
     with patch.object(redis_stream.log, "warning") as mock_warning:
         # Must not raise even though the queue is full.
-        publisher._on_event(_make_event())  # noqa: SLF001
+        publisher._on_event(_make_event())
 
     names = _warning_event_names(mock_warning)
     assert names.count("redis_publish_queue_full") == 1
-    assert publisher._queue_full_warned is True  # noqa: SLF001
+    assert publisher._queue_full_warned is True
 
 
 def test_close_stops_worker_thread(event_bus: EventBus, web_config: WebConfig, fake_redis: fakeredis.FakeRedis) -> None:
     """``close()`` joins the daemon worker thread so it is no longer alive."""
     publisher = RedisEventPublisher(event_bus, web_config)
-    publisher._redis = fake_redis  # noqa: SLF001
-    assert publisher._worker.is_alive()  # noqa: SLF001
+    publisher._redis = fake_redis
+    assert publisher._worker.is_alive()
 
     publisher.close()
 
-    assert _poll_until(lambda: not publisher._worker.is_alive(), timeout=6)  # noqa: SLF001
+    assert _poll_until(lambda: not publisher._worker.is_alive(), timeout=6)
 
 
 def test_close_is_idempotent(event_bus: EventBus, web_config: WebConfig, fake_redis: fakeredis.FakeRedis) -> None:
     """Calling ``close()`` twice does not raise."""
     publisher = RedisEventPublisher(event_bus, web_config)
-    publisher._redis = fake_redis  # noqa: SLF001
+    publisher._redis = fake_redis
 
     publisher.close()
     publisher.close()  # second close must be a no-op, not an error

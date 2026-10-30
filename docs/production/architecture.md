@@ -439,11 +439,11 @@ This invariant is enforced by `tests/architecture/test_layering.py`
 (arch-cleanup-2, Phase 2): the prior upward leaks — `core/circuit.py` importing
 `api._contracts`, `conf/classifier.py` and `conf/models/api_config.py` importing
 `api/` — were closed by promoting those contracts to `core/_contracts.py` and
-`conf/models/_ranking.py`. Two upward imports survive as documented exceptions,
-each carried by an inline `# layering: allow` marker honoured by the AST guard:
-`conf/models/_ranking.py → api._units.ByteSize` (config-model byte-size parse)
-and `conf/loader.py → indexer.db._apply_pragmas` (function-local orphan-check
-import). `api/` is consumed by `scraper/` and `trailers/` but never by
+`conf/models/_ranking.py`. One upward import survives as a documented exception,
+carried by an inline `# layering: allow` marker honoured by the AST guard:
+`conf/loader.py → indexer.db._apply_pragmas` (function-local orphan-check
+import). `conf/` never imports `api/` (the former `conf ↔ api` cycle ran
+through `ByteSize`, now `core/units.py`); a marker-proof test pins it. `api/` is consumed by `scraper/` and `trailers/` but never by
 `commands/` directly.
 
 **`acquire/` import-direction invariant**: `acquire/` must import downward only

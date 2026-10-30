@@ -1,0 +1,33 @@
+{
+  "body": {
+    "authToken": null,
+    "clientIdentifier": "REDACTED-machine-2",
+    "code": "REDACTED-code-1",
+    "createdAt": "2026-10-04T12:17:35Z",
+    "expiresAt": "2026-10-04T12:47:35Z",
+    "expiresIn": 1800,
+    "id": 900001,
+    "location": {
+      "city": "REDACTED",
+      "code": "REDACTED",
+      "continent_code": "REDACTED",
+      "coordinates": "REDACTED",
+      "country": "REDACTED",
+      "european_union_member": "REDACTED",
+      "in_privacy_restricted_country": "REDACTED",
+      "in_privacy_restricted_region": "REDACTED",
+      "postal_code": "REDACTED",
+      "subdivisions": "REDACTED",
+      "time_zone": "REDACTED"
+    },
+    "newRegistration": null,
+    "product": "REDACTED",
+    "qr": "REDACTED",
+    "trusted": false
+  },
+  "request": {
+    "method": "GET",
+    "path": "/api/v2/pins/{id}"
+  },
+  "status": 200
+}

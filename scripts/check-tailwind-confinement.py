@@ -30,9 +30,9 @@ import json
 import pathlib
 import re
 import sys
+from _repo_paths import DESIGN
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-DESIGN = ROOT / "frontend" / "maquette" / "design"
 THEME = DESIGN / "src" / "styles" / "theme.css"
 PRODUCTION_ENTRY = ROOT / "frontend" / "src" / "styles" / "globals.css"
 
