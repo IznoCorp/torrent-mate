@@ -361,7 +361,7 @@ class TestMediaIndexRebuild:
         config = DiskConfig(id="drive_a", path=disk, categories=["movies", "audiobooks"])
         categories = {
             "movies": CategoryConfig(folder_name="films"),
-            "audiobooks": CategoryConfig(folder_name="audiobooks"),
+            "audiobooks": CategoryConfig(folder_name="livres audios"),
         }
         idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         count = idx.rebuild([config], categories=categories)
