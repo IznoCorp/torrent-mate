@@ -407,13 +407,17 @@ def merge_duplicate_items(conn: sqlite3.Connection, *, dry_run: bool, now_s: int
     runs in one transaction: either every group is merged or none is.
 
     Args:
-        conn: Open SQLite connection (autocommit or not; the merge opens its
-            own ``BEGIN IMMEDIATE``).
+        conn: Open SQLite connection with no open transaction (autocommit or
+            not; the merge opens its own ``BEGIN IMMEDIATE``).
         dry_run: When ``True``, only report the groups.
         now_s: Epoch seconds stamped on the tombstones; defaults to now.
 
     Returns:
         The :class:`MergeReport`.
+
+    Raises:
+        RuntimeError: When the connection has an open transaction and there is
+            something to merge.
     """
     report = MergeReport()
     for group in find_duplicate_groups(conn):
@@ -434,7 +438,9 @@ def merge_duplicate_items(conn: sqlite3.Connection, *, dry_run: bool, now_s: int
 
     stamp = int(time.time()) if now_s is None else now_s
     if conn.in_transaction:
-        conn.commit()
+        # Committing here would commit the caller's own pending writes along
+        # with the merge; rolling back would lose them. Neither is ours to do.
+        raise RuntimeError("merge_duplicate_items: the connection has an open transaction; commit it first")
     # item_repo.get_by_id switches the connection to sqlite3.Row; the caller's
     # factory is put back so its later reads keep the shape it chose.
     row_factory = conn.row_factory

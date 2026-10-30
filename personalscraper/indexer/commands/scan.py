@@ -421,6 +421,11 @@ def library_index_command(
                 ghost_items: list[dict[str, object]] = []
                 ghost_capped: list[str] = []
                 if scan_mode is ScanMode.full and not result.budget_exhausted:
+                    # The strikes above are this run's own writes: committed
+                    # here, the ghost pass opens a transaction of its own (it
+                    # refuses to commit or roll back a caller's).
+                    if conn.in_transaction:
+                        conn.commit()
                     from personalscraper.indexer.ghost_items import (  # noqa: PLC0415
                         configured_disks,
                         retire_ghost_items,

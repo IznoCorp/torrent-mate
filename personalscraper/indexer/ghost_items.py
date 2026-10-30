@@ -191,8 +191,8 @@ def retire_ghost_items(
     """Retire the ghost items of one configured disk.
 
     Args:
-        conn: Open SQLite connection (autocommit or not; this function commits
-            its own transaction when it writes).
+        conn: Open SQLite connection with no open transaction (autocommit or
+            not; this function opens and commits its own when it writes).
         disk: The disk, already known to be configured.
         mount_status: A live :func:`~personalscraper.indexer.merkle.verify_disk_mounted`.
         dry_run: Report the ghosts and write nothing.
@@ -204,6 +204,8 @@ def retire_ghost_items(
         The disk's :class:`GhostReport`.
 
     Raises:
+        RuntimeError: When the connection has an open transaction and there are
+            ghosts to retire.
         sqlite3.Error: When a write fails; the transaction is rolled back.
     """
     report = GhostReport(disk_label=disk.label)
@@ -245,7 +247,9 @@ def retire_ghost_items(
     stamp = int(time.time()) if now_s is None else now_s
     row_factory = conn.row_factory
     if conn.in_transaction:
-        conn.commit()
+        # Committing here would commit the caller's own pending writes along
+        # with the deletes; rolling back would lose them. Neither is ours to do.
+        raise RuntimeError("retire_ghost_items: the connection has an open transaction; commit it first")
     conn.execute("BEGIN IMMEDIATE")
     try:
         for ghost in report.ghosts:

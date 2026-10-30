@@ -277,3 +277,24 @@ def test_only_configured_disks_are_kept(tmp_path: Path) -> None:
     config: Any = SimpleNamespace(disks=[SimpleNamespace(path=tmp_path / "medias")])
 
     assert configured_disks([kept, stale], config) == [kept]
+
+
+def test_the_pass_refuses_a_connection_with_an_open_transaction(
+    library: tuple[sqlite3.Connection, DiskRow, Path],
+) -> None:
+    """Committing first would commit the caller's own pending writes; the pass raises instead.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``retire_ghost_items`` never commits nor rolls back a transaction
+        it did not open.
+    """
+    conn, disk, root = library
+    _item(conn, root / "movies" / "Gone (2020)")
+    conn.execute("BEGIN")
+    mine = _item(conn, root / "movies" / "Present 0 (2020)", title="Mine")
+
+    with pytest.raises(RuntimeError, match="open transaction"):
+        retire_ghost_items(conn, disk, _MOUNTED, dry_run=False, max_share=None)
+
+    conn.rollback()
+    assert mine not in _items(conn)

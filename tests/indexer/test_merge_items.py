@@ -314,6 +314,23 @@ def test_a_title_the_keeper_cannot_take_is_reported() -> None:
     assert report.titles_kept == [(keeper, "The Gentlemen (2020)")]
 
 
+def test_the_merge_refuses_a_connection_with_an_open_transaction() -> None:
+    """Committing first would commit the caller's own pending writes; the merge raises instead."""
+    conn = _make_conn()
+    _split_show(conn)
+    conn.execute("BEGIN")
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified)"
+        " VALUES ('movie', 'Mine', 'Mine', 'movies', 1, 1)"
+    )
+
+    with pytest.raises(RuntimeError, match="open transaction"):
+        merge_duplicate_items(conn, dry_run=False)
+
+    conn.rollback()
+    assert conn.execute("SELECT COUNT(*) FROM media_item WHERE title = 'Mine'").fetchone() == (0,)
+
+
 def test_a_member_vanished_mid_merge_raises_and_rolls_back(monkeypatch: pytest.MonkeyPatch) -> None:
     """The integrity guard is an explicit raise (an ``assert`` vanishes under ``python -O``)."""
     conn = _make_conn()
