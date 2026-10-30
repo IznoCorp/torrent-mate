@@ -543,8 +543,18 @@ class MediaIndex:
             existing_row, _disk, _path = existing
             item_id = existing_row.id
             self._conn.execute(
-                "UPDATE media_item SET category_id = ?, date_modified = ?, title = ? WHERE id = ?",
-                (entry.category, now_ts, entry.name, item_id),
+                "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
+                (entry.category, now_ts, item_id),
+            )
+            # The stored title is the year-stripped canonical one (what every
+            # scan upserts on). Writing the folder name with its year here made
+            # the next scan of that folder miss this row and insert a second item
+            # on the same dispatch_path. OR IGNORE: should the canonical
+            # (title, kind, year) already belong to another row, that duplicate
+            # is the merge command's to resolve, not the dispatch's to crash on.
+            self._conn.execute(
+                "UPDATE OR IGNORE media_item SET title = ? WHERE id = ?",
+                (item_repo._canonical_title(entry.name), item_id),
             )
         else:
             # Insert a *rich* row via the shared :mod:`_item_stage` primitives

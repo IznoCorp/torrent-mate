@@ -492,3 +492,81 @@ def test_rebuild_tvshow_produces_seasons_episodes_and_tvdb_provider(tvshow_libra
         assert episode_count >= 1, f"rebuild must produce at least one episode row, got {episode_count} (L5)"
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# One item per dispatch_path — a re-dispatch then a scan never splits a folder
+# ---------------------------------------------------------------------------
+
+
+def _gentlemen_folder(tmp_path: Path) -> tuple[Path, DiskConfig]:
+    """Create one on-disk movie folder and the disk config that owns it."""
+    disk = tmp_path / "Disk1" / "medias"
+    folder = disk / "films" / "The Gentlemen (2020)"
+    folder.mkdir(parents=True)
+    (folder / "The Gentlemen.nfo").write_text('<movie><uniqueid type="tmdb">522627</uniqueid></movie>')
+    return folder, DiskConfig(id="disk1", path=disk, categories=["movies"])
+
+
+def _items_on(conn: sqlite3.Connection, folder: Path) -> list[tuple[int, str]]:
+    """Return ``(id, title)`` of every item whose dispatch_path is *folder*."""
+    return conn.execute(
+        "SELECT m.id, m.title FROM media_item m JOIN item_attribute a ON a.item_id = m.id "
+        "WHERE a.key = 'dispatch_path' AND a.value = ? ORDER BY m.id",
+        (str(folder),),
+    ).fetchall()
+
+
+def test_redispatch_then_scan_keeps_one_item_per_folder(tmp_path: Path) -> None:
+    """A re-dispatch into an existing folder, then a scan, leaves ONE item on that folder.
+
+    The re-dispatch (``add()`` finding the item by its full-name key) used to
+    rewrite ``title`` to the folder name WITH its year. The next scan of the
+    folder upserts the year-stripped title, misses that row, and inserted a
+    second item carrying the same ``dispatch_path`` — 17 such pairs in prod.
+    """
+    from personalscraper.indexer.scanner._modes._item_stage import scan_and_stage_dir
+
+    folder, disk_cfg = _gentlemen_folder(tmp_path)
+    entry = IndexEntry(name=folder.name, disk="disk1", category="movies", path=str(folder), media_type="movie")
+    idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+
+    idx.add(entry)  # first dispatch: a new folder
+    idx.add(entry)  # re-dispatch: a better release replaces it
+    scan_and_stage_dir(idx._conn, folder, disk_cfg, "movies", "movie", now_s=2000)
+
+    items = _items_on(idx._conn, folder)
+    assert len(items) == 1, f"one folder must be one item, got {items}"
+    assert items[0][1] == "The Gentlemen", "the stored title stays year-stripped"
+
+
+def test_scan_reuses_the_item_already_on_the_folder(tmp_path: Path) -> None:
+    """A scan updates the item already carrying the folder's dispatch_path, whatever its title.
+
+    A row whose title drifted (written with its year by an older build) must be
+    refreshed and healed in place, not shadowed by a second row.
+    """
+    from personalscraper.indexer.scanner._modes._item_stage import scan_and_stage_dir
+
+    folder, disk_cfg = _gentlemen_folder(tmp_path)
+    idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+    idx.add(IndexEntry(name=folder.name, disk="disk1", category="movies", path=str(folder), media_type="movie"))
+    idx._conn.execute("UPDATE media_item SET title = ?", (folder.name,))  # the drifted title
+
+    scan_and_stage_dir(idx._conn, folder, disk_cfg, "movies", "movie", now_s=2000)
+
+    items = _items_on(idx._conn, folder)
+    assert len(items) == 1, f"the scan must reuse the folder's item, got {items}"
+    assert items[0][1] == "The Gentlemen", "the drifted title is healed"
+
+
+def test_redispatch_keeps_the_title_year_stripped(tmp_path: Path) -> None:
+    """A re-dispatch into an existing folder never writes the folder's year into ``title``."""
+    folder, _disk_cfg = _gentlemen_folder(tmp_path)
+    entry = IndexEntry(name=folder.name, disk="disk1", category="movies", path=str(folder), media_type="movie")
+    idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+
+    idx.add(entry)
+    idx.add(entry)
+
+    assert _items_on(idx._conn, folder)[0][1] == "The Gentlemen"

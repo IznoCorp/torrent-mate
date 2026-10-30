@@ -192,7 +192,8 @@ def upsert_item_with_attrs(
 
     Idempotent on ``(kind, title, year)`` via :func:`item_repo.upsert` (the
     repo strips a trailing `` (YYYY)`` from the title and disambiguates
-    same-title remakes by year). The ``date_created`` /
+    same-title remakes by year) — unless an item already carries the
+    ``dispatch_path`` in *attrs*: that item owns the folder and is updated. The ``date_created`` /
     ``date_modified`` placeholders carried in *row* are stamped with *now_s*
     just before the write. Each ``attrs`` pair is upserted via
     :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``), then the
@@ -220,7 +221,11 @@ def upsert_item_with_attrs(
     write_row["date_created"] = stamp
     write_row["date_modified"] = stamp
 
-    item_id = item_repo.upsert(conn, MediaItemRow(**write_row))
+    # The item already carrying this folder's dispatch_path owns it, whatever
+    # its stored title: matching on the title alone split a folder in two.
+    dispatch_path = attrs.get(item_repo._ATTR_DISPATCH_PATH)
+    owner_id = item_repo.find_id_by_dispatch_path(conn, dispatch_path) if dispatch_path else None
+    item_id = item_repo.upsert(conn, MediaItemRow(**write_row), existing_id=owner_id)
 
     # Persist flex attributes (dispatch path/disk/normalized-title, ...) so
     # consumers that INNER JOIN on them (trailers cross-disk index, dispatch
