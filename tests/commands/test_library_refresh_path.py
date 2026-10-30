@@ -142,19 +142,21 @@ def test_e2e_dry_run_removes_nothing(tmp_path, test_config) -> None:
 
 
 def test_dry_run_touches_nothing(tmp_path, test_config) -> None:
-    """--dry-run prints the plan and never calls the maintenance machinery."""
+    """--dry-run prints the plan and leaves the whole database as it was."""
     db_path = make_synthetic_db(tmp_path)
     cfg = make_test_config_with_db(test_config, db_path)
     disk = cfg.disks[0]
     target = Path(disk.path) / "series" / "Show (2020)"
     target.mkdir(parents=True)
 
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_MAINT) as maint:
+    before = _dump(db_path)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(["library-refresh-path", str(target), "--dry-run"])
 
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
-    maint.assert_not_called()
+    assert _dump(db_path) == before
 
 
 def test_path_outside_disks_exits_2(tmp_path, test_config) -> None:
@@ -203,3 +205,17 @@ def test_failed_step_exits_1(tmp_path, test_config) -> None:
 
     assert result.exit_code == 1, result.output
     assert "relink" in result.output
+
+
+def test_e2e_path_never_on_disk_and_not_indexed_exits_2(tmp_path, test_config) -> None:
+    """A mistyped path is refused with a clear message (exit 2) and nothing is written."""
+    cfg, mount, db_path = _library(tmp_path, test_config)
+    _show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        assert run_cli(["library-refresh-path", str(mount / "series" / "Show A (2020)")]).exit_code == 0
+        before = _dump(db_path)
+        result = run_cli(["library-refresh-path", str(mount / "series" / "Typo (2020)")])
+
+    assert result.exit_code == 2, result.output
+    assert "not indexed" in " ".join(result.output.split())
+    assert _dump(db_path) == before

@@ -789,7 +789,7 @@ def run_scoped_refresh(
     Raises:
         ValueError: The disk is unknown or unmounted, a path is not strictly below the
             disk's scan root, or a vanished path cannot be shown to be really gone (empty
-            scan root, missing parent).
+            scan root, missing parent), or a path is neither on the disk nor in the index.
         ScopedRefreshIncomplete: A walk was stopped before it finished; the transaction
             is rolled back.
     """
@@ -870,6 +870,8 @@ def run_scoped_refresh(
                     to_scan.append((located, rel, variants))
                 else:
                     _require_removable(mount, given, located)
+                    if not stored:
+                        raise ValueError(f"{given} is not on the disk and not indexed; check the path (typo?)")
                     to_remove.append((located, rel, variants))
 
             report.scanned = [p for p, _, _ in to_scan]

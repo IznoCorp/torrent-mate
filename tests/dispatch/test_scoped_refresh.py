@@ -6,6 +6,7 @@ real linker and the real repair drain over a migrated indexer database.
 
 from __future__ import annotations
 
+import json
 import shutil
 import sqlite3
 from pathlib import Path
@@ -143,14 +144,14 @@ def test_dry_run_writes_nothing(library) -> None:
     (show_a / "Season 01").rmdir()
     show_a.rmdir()
     new_show = _make_show(mount, "Show C (2022)", ["Show.C.S01E01.mkv"])
-    before = (_rows(db_path, "%"), _path_rows(db_path, "%"))
+    before = _dump(db_path)
 
     report = run_scoped_refresh(cfg, label, [show_a, new_show], dry_run=True)
 
     assert report.files_removed == 1
     assert report.removed == [show_a]
     assert report.scanned == [new_show]
-    assert (_rows(db_path, "%"), _path_rows(db_path, "%")) == before
+    assert _dump(db_path) == before
 
 
 def test_question_mark_path_finds_its_private_use_twin_on_disk(library) -> None:
@@ -520,3 +521,118 @@ def test_vanished_path_typed_in_another_case_removes_the_stored_rows(library) ->
     assert report.files_removed == 2
     assert all(r[6] is not None for r in _rows(db_path, "series/Show A%"))
     assert all(r[6] is None for r in _rows(db_path, "series/Show B%"))
+
+
+# ---------------------------------------------------------------------------
+# Scenarios the help text announces, and the prefix / strike / unknown-path edges
+# ---------------------------------------------------------------------------
+
+
+def _distinct_show(mount: Path, name: str, episodes: list[str], salt: int = 0) -> Path:
+    """A show whose files differ in size and content, so each has its own OSHash (rename detection)."""
+    season = mount / "series" / name / "Season 01"
+    season.mkdir(parents=True, exist_ok=True)
+    for n, ep in enumerate(episodes, start=1):
+        (season / ep).write_bytes(bytes([n + salt]) * (70_000 + n * 1_000 + salt))
+    return mount / "series" / name
+
+
+def _file_ids(db_path: Path, like: str) -> dict[str, tuple[int, int | None]]:
+    """``rel_path/filename -> (media_file.id, deleted_at)`` for the paths matching *like*."""
+    conn = sqlite3.connect(db_path)
+    try:
+        return {
+            f"{rel}/{name}": (fid, deleted)
+            for rel, name, fid, deleted in conn.execute(
+                "SELECT p.rel_path, mf.filename, mf.id, mf.deleted_at FROM media_file mf "
+                "JOIN path p ON p.id = mf.path_id WHERE p.rel_path LIKE ?",
+                (like,),
+            )
+        }
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("new_first", [True, False])
+def test_rename_given_as_new_and_old_keeps_the_file_rows(library, new_first) -> None:
+    """Both paths given, new existing, old gone: the rows follow the files, whatever the order given."""
+    cfg, label, _disk_id, mount, db_path = library
+    old = _distinct_show(mount, "Old Name (2020)", ["E01.mkv", "E02.mkv"])
+    _distinct_show(mount, "Other (2021)", ["E01.mkv"], salt=50)
+    run_scoped_refresh(cfg, label, [old, mount / "series" / "Other (2021)"])
+    ids_before = {name.rsplit("/", 1)[1]: fid for name, (fid, _) in _file_ids(db_path, "series/Old Name%").items()}
+    assert len(ids_before) == 2
+    new = mount / "series" / "New Name (2020)"
+    old.rename(new)
+
+    run_scoped_refresh(cfg, label, [new, old] if new_first else [old, new])
+
+    moved = _file_ids(db_path, "series/New Name%")
+    assert {name.rsplit("/", 1)[1]: fid for name, (fid, _) in moved.items()} == ids_before
+    assert all(deleted is None for _, deleted in moved.values())
+    assert all(deleted is None for _, deleted in _file_ids(db_path, "series/Other%").values())
+    conn = sqlite3.connect(db_path)
+    tombstones = conn.execute("SELECT COUNT(*) FROM deleted_item").fetchone()[0]
+    conn.close()
+    assert tombstones == 0
+
+
+def test_sibling_prefix_is_not_touched_by_a_refresh_or_a_removal(library) -> None:
+    """« Show » never reaches « Show 2 »; ``_`` and ``%`` in a name are literal, not wildcards."""
+    cfg, label, _disk_id, mount, db_path = library
+    names = ["Show", "Show 2", "Show_A", "ShowXA", "Show%B", "ShowQQB"]
+    shows = {
+        n: _make_show(mount, n, [f"{n.replace(' ', '.')}.S01E01.mkv", f"{n.replace(' ', '.')}.S01E02.mkv"])
+        for n in names
+    }
+    run_scoped_refresh(cfg, label, list(shows.values()))
+    # A file vanishes from every show; only the ones refreshed may notice.
+    for n, show in shows.items():
+        (show / "Season 01" / f"{n.replace(' ', '.')}.S01E02.mkv").unlink()
+    shutil.rmtree(shows["Show_A"])
+    shutil.rmtree(shows["Show%B"])
+
+    run_scoped_refresh(cfg, label, [shows["Show"], shows["Show_A"], shows["Show%B"]])
+
+    live = {name for name, (_, deleted) in _file_ids(db_path, "series/%").items() if deleted is None}
+    assert "series/Show 2/Season 01/Show.2.S01E02.mkv" in live
+    assert "series/ShowXA/Season 01/ShowXA.S01E02.mkv" in live
+    assert "series/ShowQQB/Season 01/ShowQQB.S01E02.mkv" in live
+    assert "series/ShowXA/Season 01/ShowXA.S01E01.mkv" in live
+    assert "series/ShowQQB/Season 01/ShowQQB.S01E01.mkv" in live
+    assert "series/Show 2/Season 01/Show.2.S01E01.mkv" in live
+    assert "series/Show/Season 01/Show.S01E02.mkv" not in live
+    assert "series/Show/Season 01/Show.S01E01.mkv" in live
+    assert not any(n.startswith(("series/Show_A", "series/Show%B")) for n in live)
+
+
+def test_deleted_path_tombstone_records_the_miss_strikes(library) -> None:
+    """The tombstone keeps the strike count the retired row carried, as the helper's docstring promises."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    show_b = _make_show(mount, "Show B (2021)", ["Show.B.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show_a, show_b])
+    conn = sqlite3.connect(db_path)
+    conn.execute("UPDATE media_file SET miss_strikes = 2")
+    conn.commit()
+    conn.close()
+    shutil.rmtree(show_a)
+
+    run_scoped_refresh(cfg, label, [show_a])
+
+    conn = sqlite3.connect(db_path)
+    payloads = [json.loads(r[0]) for r in conn.execute("SELECT payload_json FROM deleted_item WHERE kind = 'file'")]
+    conn.close()
+    assert [p["miss_strikes"] for p in payloads] == [2]
+
+
+def test_path_never_on_disk_and_not_indexed_is_refused(library) -> None:
+    """A typo is not a deletion: nothing to remove is an error naming the path, not a silent « removed »."""
+    cfg, label, _disk_id, mount, db_path = library
+    _indexed_show(library)
+    before = _dump(db_path)
+
+    with pytest.raises(ValueError, match="not indexed"):
+        run_scoped_refresh(cfg, label, [mount / "series" / "Typo (2020)"])
+
+    assert _dump(db_path) == before
