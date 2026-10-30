@@ -24,8 +24,11 @@
         "tests/indexer/test_ghost_items_cli.py::test_a_dry_run_summary_says_its_ghosts_are_a_lower_bound",
         "tests/indexer/test_ghost_items_cli.py::test_a_failed_ghost_pass_is_named_in_the_summary",
         "tests/indexer/test_ghost_items_cli.py::test_a_full_scan_dry_run_reports_the_ghost_and_keeps_it",
+        "tests/indexer/test_ghost_items_cli.py::test_a_full_scan_out_of_budget_retires_no_ghost",
         "tests/indexer/test_ghost_items_cli.py::test_a_full_scan_retires_a_ghost_whose_files_are_tombstoned",
+        "tests/indexer/test_ghost_items_cli.py::test_a_gone_folder_whose_files_are_not_tombstoned_keeps_its_item",
         "tests/indexer/test_ghost_items_cli.py::test_an_error_on_one_disk_reports_the_disks_done_and_exits_1",
+        "tests/indexer/test_ghost_items_cli.py::test_only_a_full_scan_retires_ghosts",
         "tests/indexer/test_ghost_items_cli.py::test_the_scan_cap_holds_and_the_command_clears_the_backlog_with_every_other_guard"
       ]
     },
