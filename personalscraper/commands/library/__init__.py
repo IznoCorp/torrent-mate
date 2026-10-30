@@ -18,6 +18,7 @@ from personalscraper.commands.library.fix_orphan_files import library_fix_orphan
 from personalscraper.commands.library.fix_season_counts import library_fix_season_counts
 from personalscraper.commands.library.gc import library_gc
 from personalscraper.commands.library.maintenance import library_clean, library_repair, library_validate, library_verify
+from personalscraper.commands.library.merge_duplicate_items import library_merge_duplicate_items
 from personalscraper.commands.library.query import library_search, library_show, library_status
 from personalscraper.commands.library.scan import library_index, library_init_canonical
 
@@ -34,6 +35,7 @@ __all__ = [
     "library_ghost_audit",
     "library_index",
     "library_init_canonical",
+    "library_merge_duplicate_items",
     "library_recommend",
     "library_reconcile",
     "library_relink",
