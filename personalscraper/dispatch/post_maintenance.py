@@ -10,10 +10,13 @@ library index is coherent without a manual operator step.
 from __future__ import annotations
 
 import sqlite3
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper._fs_utils import name_variants
+from personalscraper.indexer.repos.item_repo import _ATTR_DISPATCH_PATH
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -68,6 +71,66 @@ def _rel_path_variants(rel_path: str) -> set[str]:
         The distinct spellings.
     """
     return name_variants(rel_path)
+
+
+@dataclass(frozen=True)
+class _Scope:
+    """One subtree a targeted refresh is restricted to.
+
+    Attributes:
+        disk_id: PK of the owning ``disk`` row.
+        mount: The disk's scan root (``disk.mount_path``), to build absolute paths.
+        rel_variants: Every spelling of the subtree root relative to *mount* under which
+            ``path.rel_path`` may be stored (NFC/NFD × « ? »/U+F025).
+    """
+
+    disk_id: int
+    mount: str
+    rel_variants: frozenset[str]
+
+
+def _scope_sql(scopes: list[_Scope], path_alias: str = "p") -> tuple[str, list[object]]:
+    """Build the SQL condition selecting the ``path`` rows at or below any of *scopes*.
+
+    Prefix tests use ``substr`` rather than ``LIKE`` so a ``_`` or ``%`` in a folder name
+    is a plain character.
+
+    Args:
+        scopes: The subtrees; must not be empty.
+        path_alias: The alias of the ``path`` table in the surrounding query.
+
+    Returns:
+        ``(sql, params)`` — a parenthesised condition and its positional parameters.
+    """
+    clauses: list[str] = []
+    params: list[object] = []
+    for scope in scopes:
+        for variant in sorted(scope.rel_variants):
+            clauses.append(
+                f"({path_alias}.disk_id = ? AND ({path_alias}.rel_path = ? OR substr({path_alias}.rel_path, 1, ?) = ?))"
+            )
+            params.extend([scope.disk_id, variant, len(variant) + 1, variant + "/"])
+    return "(" + " OR ".join(clauses) + ")", params
+
+
+def _scope_abs_sql(scopes: list[_Scope], column: str) -> tuple[str, list[object]]:
+    """Build the SQL condition selecting absolute-path values at or below any of *scopes*.
+
+    Args:
+        scopes: The subtrees; must not be empty.
+        column: The qualified column holding an absolute path (``item_attribute.value``).
+
+    Returns:
+        ``(sql, params)`` — a parenthesised condition and its positional parameters.
+    """
+    clauses: list[str] = []
+    params: list[object] = []
+    for scope in scopes:
+        for variant in sorted(scope.rel_variants):
+            absolute = str(Path(scope.mount) / variant)
+            clauses.append(f"({column} = ? OR substr({column}, 1, ?) = ?)")
+            params.extend([absolute, len(absolute) + 1, absolute + "/"])
+    return "(" + " OR ".join(clauses) + ")", params
 
 
 def _invalidate_dispatched_subtrees(config: Config, destinations: dict[str, set[Path]]) -> int:
@@ -205,7 +268,7 @@ def _scan_disk_incremental(config: Config, disk: str, *, event_bus: EventBus) ->
     return rc
 
 
-def _run_relink(config: Config) -> dict[str, int]:
+def _run_relink(config: Config, *, scopes: list[_Scope] | None = None) -> dict[str, int]:
     """Relink ``media_file`` rows with ``release_id IS NULL``.
 
     Opens its own short-lived connection (the scan already released its
@@ -214,6 +277,8 @@ def _run_relink(config: Config) -> dict[str, int]:
 
     Args:
         config: Validated application Config.
+        scopes: When given, only files under these subtrees are considered; ``None``
+            relinks every unlinked file of every mounted disk.
 
     Returns:
         Dict with ``linked``, ``unmatched``, ``errors`` counts.
@@ -234,14 +299,16 @@ def _run_relink(config: Config) -> dict[str, int]:
             _log.info("post_maintenance_relink_no_disks")
             return {"linked": 0, "unmatched": 0, "errors": 0}
 
+        scope_sql, scope_params = _scope_sql(scopes) if scopes else ("1", [])
         rows = list(
             conn.execute(
-                """
+                f"""
                 SELECT mf.id, mf.filename, p.disk_id, p.rel_path
                 FROM media_file mf
                 JOIN path p ON p.id = mf.path_id
-                WHERE mf.release_id IS NULL AND mf.deleted_at IS NULL
-                """
+                WHERE mf.release_id IS NULL AND mf.deleted_at IS NULL AND {scope_sql}
+                """,  # noqa: S608 — only placeholders are interpolated
+                scope_params,
             )
         )
         if not rows:
@@ -280,7 +347,7 @@ def _run_relink(config: Config) -> dict[str, int]:
     return {"linked": linked, "unmatched": unmatched, "errors": errors}
 
 
-def _run_fix_season_counts(config: Config) -> int:
+def _run_fix_season_counts(config: Config, *, scopes: list[_Scope] | None = None) -> int:
     """Repair ``season.episode_count`` drift.
 
     Opens its own short-lived connection. Mirrors the
@@ -288,6 +355,9 @@ def _run_fix_season_counts(config: Config) -> int:
 
     Args:
         config: Validated application Config.
+        scopes: When given, only the seasons of items that own a file under these
+            subtrees, or whose ``dispatch_path`` lies under them, are corrected;
+            ``None`` corrects every season.
 
     Returns:
         Number of season rows whose ``episode_count`` was corrected.
@@ -301,12 +371,36 @@ def _run_fix_season_counts(config: Config) -> int:
     _apply_pragmas(conn)
     try:
         conn.execute("BEGIN IMMEDIATE")
+        item_filter = ""
+        params: list[object] = []
+        if scopes:
+            path_sql, path_params = _scope_sql(scopes)
+            abs_sql, abs_params = _scope_abs_sql(scopes, "ia.value")
+            item_filter = f"""
+              AND season.item_id IN (
+                SELECT mr.item_id FROM media_file mf
+                  JOIN path p ON p.id = mf.path_id
+                  JOIN media_release mr ON mr.id = mf.release_id
+                 WHERE mr.item_id IS NOT NULL AND {path_sql}
+                UNION
+                SELECT s.item_id FROM media_file mf
+                  JOIN path p ON p.id = mf.path_id
+                  JOIN media_release mr ON mr.id = mf.release_id
+                  JOIN episode e ON e.id = mr.episode_id
+                  JOIN season s ON s.id = e.season_id
+                 WHERE {path_sql}
+                UNION
+                SELECT ia.item_id FROM item_attribute ia
+                 WHERE ia.key = '{_ATTR_DISPATCH_PATH}' AND {abs_sql}
+              )"""
+            params = [*path_params, *path_params, *abs_params]
         cur = conn.execute(
-            """
+            f"""
             UPDATE season
             SET episode_count = (SELECT COUNT(*) FROM episode WHERE episode.season_id = season.id)
-            WHERE episode_count != (SELECT COUNT(*) FROM episode WHERE episode.season_id = season.id)
-            """
+            WHERE episode_count != (SELECT COUNT(*) FROM episode WHERE episode.season_id = season.id){item_filter}
+            """,  # noqa: S608 — only placeholders are interpolated
+            params,
         )
         fixed = cur.rowcount if cur.rowcount >= 0 else 0
         conn.commit()
@@ -320,7 +414,7 @@ def _run_fix_season_counts(config: Config) -> int:
     return fixed
 
 
-def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0) -> int:
+def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0, scopes: list[_Scope] | None = None) -> int:
     """Drain the ``repair_queue`` within a small wall-clock budget.
 
     The queue's only historical drainer was the manual ``library-repair``
@@ -332,6 +426,8 @@ def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0) -> int:
     Args:
         config: Validated application Config.
         budget_seconds: Maximum wall-clock seconds to spend draining.
+        scopes: When given, only the pending repairs of files and paths under these
+            subtrees are drained; the rest of the queue is left alone.
 
     Returns:
         Number of rows processed (0 on any failure — fail-soft).
@@ -345,7 +441,23 @@ def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0) -> int:
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
     _apply_pragmas(conn)
     try:
-        stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor)
+        only_ids: set[int] | None = None
+        if scopes:
+            path_sql, path_params = _scope_sql(scopes)
+            only_ids = {
+                row[0]
+                for row in conn.execute(
+                    f"""
+                    SELECT rq.id FROM repair_queue rq
+                     WHERE rq.status = 'pending' AND (
+                       (rq.scope = 'file' AND rq.scope_id IN (
+                          SELECT mf.id FROM media_file mf JOIN path p ON p.id = mf.path_id WHERE {path_sql}))
+                       OR (rq.scope = 'path' AND rq.scope_id IN (SELECT p.id FROM path p WHERE {path_sql})))
+                    """,  # noqa: S608 — only placeholders are interpolated
+                    [*path_params, *path_params],
+                )
+            }
+        stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor, only_ids=only_ids)
         _log.info(
             "post_maintenance_repair_drain_done",
             processed=stats.processed,
@@ -524,3 +636,240 @@ def maybe_run_post_dispatch_maintenance(
             destinations=collect_touched_destinations(results),
             enabled=maintenance_enabled,
         )
+
+
+@dataclass
+class ScopedRefreshReport:
+    """What a targeted refresh did (or, on a dry run, would do).
+
+    Attributes:
+        scanned: Existing paths whose subtree was (or would be) rescanned, as resolved on disk.
+        removed: Paths gone from the disk whose subtree was (or would be) removed from the index.
+        files_scanned: Files visited by the scan (0 on a dry run).
+        files_removed: Live ``media_file`` rows soft-deleted (counted, not written, on a dry run).
+        relinked: Files newly linked to a release by the scoped relink.
+        seasons_fixed: Season rows whose ``episode_count`` was corrected.
+        failed_steps: Names of the DB-only passes that raised (logged; the refresh goes on).
+    """
+
+    scanned: list[Path] = field(default_factory=list)
+    removed: list[Path] = field(default_factory=list)
+    files_scanned: int = 0
+    files_removed: int = 0
+    relinked: int = 0
+    seasons_fixed: int = 0
+    failed_steps: list[str] = field(default_factory=list)
+
+
+def _resolve_on_disk(path: Path) -> Path | None:
+    """Return the spelling of *path* that exists on disk, or ``None`` when none does.
+
+    A path typed with « ? » may exist as its U+F025 twin (and the reverse), and the
+    filesystem may hold either Unicode form; the typed spelling wins when it exists.
+
+    Args:
+        path: The path the operator gave.
+
+    Returns:
+        The existing spelling, or ``None`` when the path is gone.
+    """
+    if path.exists():
+        return path
+    for variant in sorted(name_variants(str(path))):
+        if Path(variant).exists():
+            return Path(variant)
+    return None
+
+
+def run_scoped_refresh(
+    config: Config,
+    disk_label: str,
+    paths: list[Path],
+    *,
+    dry_run: bool = False,
+) -> ScopedRefreshReport:
+    """Reconcile the index with the disk for the given subtrees ONLY.
+
+    Unlike :func:`run_post_dispatch_maintenance`, nothing here is disk-wide:
+
+    * a path that exists is re-walked (every directory, no mtime short-circuit — the
+      point of a manual refresh is that the filesystem's mtimes cannot be trusted),
+      with the incremental visitor, so a rename is detected through the OSHash drift
+      logic; existing paths are processed BEFORE vanished ones so a renamed folder's
+      rows are moved to their new path before the old path is retired;
+    * a path that no longer exists has its live files soft-deleted, with a tombstone,
+      like the scanner does once the strikes are served;
+    * relink, season-count repair and repair-queue drain are restricted to the same
+      subtrees.
+
+    The scan and removals are one transaction under the indexer's writer lock.
+
+    Args:
+        config: Validated application Config.
+        disk_label: Label of the disk that owns every path (``DiskConfig.id``).
+        paths: Absolute paths to refresh, existing or not.
+        dry_run: When ``True`` nothing is written; the report says what would happen.
+
+    Returns:
+        The :class:`ScopedRefreshReport`.
+
+    Raises:
+        ValueError: The disk is unknown or unmounted, a path is not strictly below the
+            disk's scan root.
+    """
+    from personalscraper.indexer._fs_capability import resolve_capability
+    from personalscraper.indexer.commands._bootstrap import build_fs_type_overrides
+    from personalscraper.indexer.db import _apply_pragmas, indexer_lock
+    from personalscraper.indexer.drift import soft_delete_live_files_under
+    from personalscraper.indexer.scanner._db_writes import _safe_mtime_ns, _upsert_path_row
+    from personalscraper.indexer.scanner._modes.incremental import IncrementalVisitor
+    from personalscraper.indexer.scanner._shutdown import is_shutdown_requested
+    from personalscraper.indexer.scanner._walker import WalkBudget, WalkCheckpoint, walk
+    from personalscraper.indexer.schema import DiskRow
+
+    db_path = config.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
+    if not db_path.exists():
+        # sqlite3.connect would create an empty file: a refresh never makes the index.
+        raise ValueError(f"the index {db_path} does not exist; run library-index first")
+    report = ScopedRefreshReport()
+
+    with indexer_lock(db_path, timeout=0):
+        conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+        _apply_pragmas(conn)
+        try:
+            row = conn.execute(
+                "SELECT id, uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes "
+                "FROM disk WHERE label = ?",
+                (disk_label,),
+            ).fetchone()
+            if row is not None and row[3] is not None:
+                disk = DiskRow(
+                    id=row[0],
+                    uuid=row[1],
+                    label=row[2],
+                    mount_path=row[3],
+                    last_seen_at=row[4],
+                    merkle_root=row[5],
+                    is_mounted=row[6],
+                    unreachable_strikes=row[7],
+                )
+            elif dry_run and any(d.id == disk_label for d in config.disks):
+                # Not indexed yet: a dry run can still say what it would do (nothing to remove).
+                configured = next(d for d in config.disks if d.id == disk_label)
+                disk = DiskRow(
+                    id=-1,
+                    uuid="",
+                    label=disk_label,
+                    mount_path=str(configured.path),
+                    last_seen_at=None,
+                    merkle_root=None,
+                    is_mounted=0,
+                    unreachable_strikes=0,
+                )
+            else:
+                raise ValueError(f"disk {disk_label!r} is unknown to the index or has no scan root")
+            mount = Path(str(disk.mount_path))
+
+            # Classify first: every path is validated before anything is written.
+            to_scan: list[tuple[Path, str]] = []
+            to_remove: list[tuple[Path, str]] = []
+            for given in paths:
+                existing = _resolve_on_disk(given)
+                located = existing if existing is not None else given
+                try:
+                    rel = str(located.relative_to(mount))
+                except ValueError:
+                    raise ValueError(f"{given} is not under the scan root of disk {disk_label!r} ({mount})") from None
+                if rel == ".":
+                    raise ValueError(f"{given} is the scan root itself; give a folder below it")
+                (to_scan if existing is not None else to_remove).append((located, rel))
+
+            report.scanned = [p for p, _ in to_scan]
+            report.removed = [p for p, _ in to_remove]
+            scopes = [_Scope(disk.id, str(mount), frozenset(_rel_path_variants(rel))) for _, rel in to_scan]
+
+            if dry_run:
+                for _, rel in to_remove:
+                    report.files_removed += _count_live_files_under(conn, disk.id, _rel_path_variants(rel))
+                return report
+
+            capability = resolve_capability(str(mount), build_fs_type_overrides(config.disks).get(disk.label))
+            generation = int(conn.execute("SELECT COALESCE(MAX(scan_generation), 0) FROM media_file").fetchone()[0]) + 1
+            files_visited = [0]
+            dirs_visited = [0]
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                for located, rel in to_scan:
+                    visitor = IncrementalVisitor(conn, disk, generation, files_visited, dirs_visited, False, capability)
+                    walk(
+                        str(located),
+                        visitor,
+                        budget=WalkBudget(None, time.monotonic()),
+                        shutdown=is_shutdown_requested,
+                        # Never reached: a checkpoint commits mid-walk and would end the transaction.
+                        checkpoint=WalkCheckpoint(scan_run_id=0, checkpoint_every=2**62),
+                    )
+                    _upsert_path_row(conn, disk.id, rel, _safe_mtime_ns(located.stat().st_mtime_ns))
+                for _, rel in to_remove:
+                    report.files_removed += soft_delete_live_files_under(
+                        conn, disk.id, _rel_path_variants(rel), reason="refresh_path"
+                    )
+                # The stored disk fingerprint no longer describes the index.
+                conn.execute("UPDATE disk SET merkle_root = NULL WHERE id = ?", (disk.id,))
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+            report.files_scanned = files_visited[0]
+        finally:
+            conn.close()
+
+    _log.info(
+        "scoped_refresh_scanned",
+        disk=disk_label,
+        scanned=len(report.scanned),
+        removed=len(report.removed),
+        files_scanned=report.files_scanned,
+        files_removed=report.files_removed,
+    )
+    if not scopes:
+        return report
+
+    # The DB-only passes, fail-soft like the post-dispatch ones, over the same subtrees.
+    try:
+        report.relinked = _run_relink(config, scopes=scopes).get("linked", 0)
+    except Exception as exc:  # noqa: BLE001
+        report.failed_steps.append("relink")
+        _log.warning("scoped_refresh_relink_exception", error=str(exc))
+    try:
+        report.seasons_fixed = _run_fix_season_counts(config, scopes=scopes)
+    except Exception as exc:  # noqa: BLE001
+        report.failed_steps.append("fix-season-counts")
+        _log.warning("scoped_refresh_fix_season_counts_exception", error=str(exc))
+    try:
+        _run_repair_drain(config, scopes=scopes)
+    except Exception as exc:  # noqa: BLE001
+        report.failed_steps.append("repair-drain")
+        _log.warning("scoped_refresh_repair_drain_exception", error=str(exc))
+    return report
+
+
+def _count_live_files_under(conn: sqlite3.Connection, disk_id: int, rel_variants: set[str]) -> int:
+    """Count the live ``media_file`` rows of a disk subtree (the dry run's removal count).
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the owning disk.
+        rel_variants: Spellings of the subtree root relative to the disk's scan root.
+
+    Returns:
+        Number of non-deleted files at or below the subtree root.
+    """
+    scope_sql, params = _scope_sql([_Scope(disk_id, "", frozenset(rel_variants))])
+    row = conn.execute(
+        f"SELECT COUNT(*) FROM media_file mf JOIN path p ON p.id = mf.path_id "  # noqa: S608
+        f"WHERE mf.deleted_at IS NULL AND {scope_sql}",
+        params,
+    ).fetchone()
+    return int(row[0])

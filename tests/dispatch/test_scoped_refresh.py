@@ -1,0 +1,298 @@
+"""``run_scoped_refresh``: a targeted refresh touches only the given subtrees.
+
+Every test builds its library in ``tmp_path`` and drives the real scanner visitor, the
+real linker and the real repair drain over a migrated indexer database.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+
+import pytest
+
+from personalscraper.dispatch.post_maintenance import (
+    _run_fix_season_counts,
+    _run_relink,
+    _run_repair_drain,
+    _Scope,
+    run_scoped_refresh,
+)
+from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db, seed_disk
+
+_PUA = ""
+
+
+@pytest.fixture
+def library(tmp_path: Path, test_config):
+    """A migrated indexer DB plus a config whose first disk is rooted in ``tmp_path``."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    disk = cfg.disks[0]
+    mount = Path(disk.path)
+    mount.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    disk_id = seed_disk(conn, disk.id, mount)
+    conn.close()
+    return cfg, disk.id, disk_id, mount, db_path
+
+
+def _make_show(mount: Path, name: str, episodes: list[str]) -> Path:
+    show = mount / "series" / name / "Season 01"
+    show.mkdir(parents=True, exist_ok=True)
+    for ep in episodes:
+        (show / ep).write_bytes(b"x" * 2048)
+    return mount / "series" / name
+
+
+def _rows(db_path: Path, like: str) -> list[tuple]:
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute(
+            "SELECT p.rel_path, mf.filename, mf.size_bytes, mf.mtime_ns, mf.scan_generation, mf.miss_strikes, "
+            "mf.deleted_at FROM media_file mf JOIN path p ON p.id = mf.path_id "
+            "WHERE p.rel_path LIKE ? ORDER BY 1, 2",
+            (like,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def _path_rows(db_path: Path, like: str) -> list[tuple]:
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute(
+            "SELECT rel_path, dir_mtime_ns, last_walked_at FROM path WHERE rel_path LIKE ? ORDER BY 1", (like,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def test_refresh_touches_only_the_given_path(library) -> None:
+    """A second show on the same disk keeps every row; only the given show is rescanned."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    show_b = _make_show(mount, "Show B (2021)", ["Show.B.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show_a, show_b])
+    b_files_before = _rows(db_path, "series/Show B%")
+    b_paths_before = _path_rows(db_path, "series/Show B%")
+    assert b_files_before
+
+    (show_a / "Season 01" / "Show.A.S01E02.mkv").write_bytes(b"y" * 4096)
+    (show_b / "Season 01" / "Show.B.S01E02.mkv").write_bytes(b"y" * 4096)
+    run_scoped_refresh(cfg, label, [show_a])
+
+    assert {r[1] for r in _rows(db_path, "series/Show A%")} == {"Show.A.S01E01.mkv", "Show.A.S01E02.mkv"}
+    assert _rows(db_path, "series/Show B%") == b_files_before
+    assert _path_rows(db_path, "series/Show B%") == b_paths_before
+
+
+def test_refresh_does_not_walk_the_rest_of_the_disk(library, monkeypatch) -> None:
+    """The scan visits only files under the given path (no whole-disk incremental)."""
+    cfg, label, _disk_id, mount, _db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    _make_show(mount, "Show B (2021)", ["Show.B.S01E01.mkv"])
+    seen: list[str] = []
+    from personalscraper.indexer.scanner._modes import incremental
+
+    original = incremental.IncrementalVisitor.visit_file
+
+    def spy(self, entry, st, parent_rel):
+        seen.append(entry.path)
+        return original(self, entry, st, parent_rel)
+
+    monkeypatch.setattr(incremental.IncrementalVisitor, "visit_file", spy)
+    run_scoped_refresh(cfg, label, [show_a])
+
+    assert seen
+    assert all(p.startswith(str(show_a)) for p in seen)
+
+
+def test_deleted_path_is_removed_from_the_index(library) -> None:
+    """A path gone from the disk has its live files soft-deleted with a tombstone; others are untouched."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv", "Show.A.S01E02.mkv"])
+    show_b = _make_show(mount, "Show B (2021)", ["Show.B.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show_a, show_b])
+    b_before = _rows(db_path, "series/Show B%")
+
+    for f in (show_a / "Season 01").iterdir():
+        f.unlink()
+    (show_a / "Season 01").rmdir()
+    show_a.rmdir()
+    report = run_scoped_refresh(cfg, label, [show_a])
+
+    assert report.files_removed == 2
+    assert all(r[6] is not None for r in _rows(db_path, "series/Show A%"))
+    assert _rows(db_path, "series/Show B%") == b_before
+    conn = sqlite3.connect(db_path)
+    reasons = {r[0] for r in conn.execute("SELECT reason FROM deleted_item WHERE kind = 'file'")}
+    conn.close()
+    assert reasons == {"refresh_path"}
+
+
+def test_dry_run_writes_nothing(library) -> None:
+    """--dry-run reports the removal and leaves the database byte-identical."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show_a])
+    (show_a / "Season 01" / "Show.A.S01E01.mkv").unlink()
+    (show_a / "Season 01").rmdir()
+    show_a.rmdir()
+    new_show = _make_show(mount, "Show C (2022)", ["Show.C.S01E01.mkv"])
+    before = (_rows(db_path, "%"), _path_rows(db_path, "%"))
+
+    report = run_scoped_refresh(cfg, label, [show_a, new_show], dry_run=True)
+
+    assert report.files_removed == 1
+    assert report.removed == [show_a]
+    assert report.scanned == [new_show]
+    assert (_rows(db_path, "%"), _path_rows(db_path, "%")) == before
+
+
+def test_question_mark_path_finds_its_private_use_twin_on_disk(library) -> None:
+    """A path typed with « ? » that exists on disk as U+F025 is refreshed, not treated as deleted."""
+    cfg, label, _disk_id, mount, db_path = library
+    real = _make_show(mount, f"What Is It{_PUA} (2020)", ["What.S01E01.mkv"])
+    typed = mount / "series" / "What Is It? (2020)"
+
+    report = run_scoped_refresh(cfg, label, [typed])
+
+    assert report.scanned == [real]
+    assert report.files_removed == 0
+    assert [r[6] for r in _rows(db_path, "series/What%")] == [None]
+
+
+def test_deleted_path_typed_with_question_mark_matches_rows_stored_with_private_use(library) -> None:
+    """Rows stored under U+F025 are removed when the vanished path is typed with « ? »."""
+    cfg, label, _disk_id, mount, db_path = library
+    real = _make_show(mount, f"What Is It{_PUA} (2020)", ["What.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [real])
+    (real / "Season 01" / "What.S01E01.mkv").unlink()
+    (real / "Season 01").rmdir()
+    real.rmdir()
+
+    report = run_scoped_refresh(cfg, label, [mount / "series" / "What Is It? (2020)"])
+
+    assert report.files_removed == 1
+
+
+def test_path_outside_the_disk_is_refused(library) -> None:
+    """A path that is not under the disk's mount raises instead of touching anything."""
+    cfg, label, _disk_id, _mount, _db_path = library
+    with pytest.raises(ValueError, match="not under"):
+        run_scoped_refresh(cfg, label, [Path("/nowhere/at/all")])
+
+
+# ---------------------------------------------------------------------------
+# The DB-only passes, scoped
+# ---------------------------------------------------------------------------
+
+
+def _seed_two_movies(db_path: Path, mount: Path) -> None:
+    """Two unlinked movie files, each with an item + release findable by dispatch_path."""
+    conn = sqlite3.connect(db_path)
+    disk_id = conn.execute("SELECT id FROM disk").fetchone()[0]
+    for n, title in enumerate(("Movie A", "Movie B"), start=1):
+        folder = mount / "movies" / f"{title} (2020)"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{title.replace(' ', '.')}.2020.1080p.mkv").write_bytes(b"x" * 100)
+        conn.execute(
+            "INSERT INTO media_item (id, kind, title, title_sort, year, category_id, date_created, date_modified,"
+            " preferred_lang) VALUES (?, 'movie', ?, ?, 2020, 'movies', 1, 1, 'fr')",
+            (n, title, title),
+        )
+        conn.execute("INSERT INTO media_release (id, item_id) VALUES (?, ?)", (n, n))
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)", (n, str(folder))
+        )
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (?, ?, 0)", (disk_id, f"movies/{title} (2020)")
+        )
+        conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, scan_generation,"
+            " last_verified_at) VALUES (NULL, ?, ?, 100, 1, 1, 1)",
+            (cur.lastrowid, f"{title.replace(' ', '.')}.2020.1080p.mkv"),
+        )
+    conn.commit()
+    conn.close()
+
+
+def _scope_for(db_path: Path, mount: Path, rel: str) -> _Scope:
+    conn = sqlite3.connect(db_path)
+    disk_id = conn.execute("SELECT id FROM disk").fetchone()[0]
+    conn.close()
+    return _Scope(disk_id=disk_id, mount=str(mount), rel_variants=frozenset({rel}))
+
+
+def test_relink_is_restricted_to_the_scope(library) -> None:
+    """Only the scoped folder's unlinked files are linked; the other stays unlinked."""
+    cfg, _label, _disk_id, mount, db_path = library
+    _seed_two_movies(db_path, mount)
+
+    counts = _run_relink(cfg, scopes=[_scope_for(db_path, mount, "movies/Movie A (2020)")])
+
+    conn = sqlite3.connect(db_path)
+    linked = dict(conn.execute("SELECT p.rel_path, mf.release_id FROM media_file mf JOIN path p ON p.id = mf.path_id"))
+    conn.close()
+    assert counts["linked"] == 1
+    assert linked["movies/Movie A (2020)"] is not None
+    assert linked["movies/Movie B (2020)"] is None
+
+
+def test_fix_season_counts_is_restricted_to_the_scope(library) -> None:
+    """Only the seasons of items living under the scope are corrected."""
+    cfg, _label, _disk_id, mount, db_path = library
+    conn = sqlite3.connect(db_path)
+    for n, title in enumerate(("Show A", "Show B"), start=1):
+        folder = mount / "series" / title
+        conn.execute(
+            "INSERT INTO media_item (id, kind, title, title_sort, year, category_id, date_created, date_modified,"
+            " preferred_lang) VALUES (?, 'show', ?, ?, 2020, 'tv_shows', 1, 1, 'fr')",
+            (n, title, title),
+        )
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)", (n, str(folder))
+        )
+        conn.execute("INSERT INTO season (id, item_id, number) VALUES (?, ?, 1)", (n, n))
+        conn.execute("INSERT INTO episode (season_id, number) VALUES (?, 1)", (n,))
+    # The episode triggers keep the counts right; drift is forced afterwards.
+    conn.execute("UPDATE season SET episode_count = 99")
+    conn.commit()
+    conn.close()
+
+    fixed = _run_fix_season_counts(cfg, scopes=[_scope_for(db_path, mount, "series/Show A")])
+
+    conn = sqlite3.connect(db_path)
+    counts = dict(conn.execute("SELECT item_id, episode_count FROM season"))
+    conn.close()
+    assert fixed == 1
+    assert counts == {1: 1, 2: 99}
+
+
+def test_repair_drain_is_restricted_to_the_scope(library) -> None:
+    """Pending repairs of files outside the scope stay pending."""
+    cfg, _label, _disk_id, mount, db_path = library
+    _seed_two_movies(db_path, mount)
+    conn = sqlite3.connect(db_path)
+    ids = {
+        rel: fid
+        for rel, fid in conn.execute("SELECT p.rel_path, mf.id FROM media_file mf JOIN path p ON p.id = mf.path_id")
+    }
+    for fid in ids.values():
+        conn.execute(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status)"
+            " VALUES ('file', ?, 'noop', 1, 'pending')",
+            (fid,),
+        )
+    conn.commit()
+    conn.close()
+
+    processed = _run_repair_drain(cfg, scopes=[_scope_for(db_path, mount, "movies/Movie A (2020)")])
+
+    conn = sqlite3.connect(db_path)
+    status = dict(conn.execute("SELECT scope_id, status FROM repair_queue"))
+    conn.close()
+    assert processed == 1
+    assert status[ids["movies/Movie A (2020)"]] == "done"
+    assert status[ids["movies/Movie B (2020)"]] == "pending"
