@@ -102,7 +102,13 @@ def library(tmp_path: Path) -> tuple[sqlite3.Connection, DiskRow, Path]:
 def test_a_ghost_with_its_files_tombstoned_is_retired_with_a_tombstone(
     library: tuple[sqlite3.Connection, DiskRow, Path],
 ) -> None:
-    """The item, its release and its dead file go; the tombstone keeps a snapshot."""
+    """The item, its release and its dead file go; the tombstone keeps a snapshot.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: an item whose folder is gone and whose files are all tombstoned is
+        hard-deleted with its children, after a ``deleted_item`` tombstone
+        (``reason='dispatch_path_gone'``) holding a snapshot of the row.
+    """
     conn, disk, root = library
     ghost = _item(conn, root / "movies" / "Gone (2020)")
     _file(conn, ghost, disk, deleted_at=100)
@@ -120,7 +126,11 @@ def test_a_ghost_with_its_files_tombstoned_is_retired_with_a_tombstone(
 
 
 def test_a_dry_run_reports_the_ghost_and_writes_nothing(library: tuple[sqlite3.Connection, DiskRow, Path]) -> None:
-    """The dry run names the ghost with its reason; the store is unchanged."""
+    """The dry run names the ghost with its reason; the store is unchanged.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a dry run lists the ghosts and writes nothing.
+    """
     conn, disk, root = library
     ghost = _item(conn, root / "movies" / "Gone (2020)")
     before = list(conn.iterdump())
@@ -135,7 +145,11 @@ def test_a_dry_run_reports_the_ghost_and_writes_nothing(library: tuple[sqlite3.C
 def test_a_disk_whose_mount_is_not_confirmed_retires_nothing(
     library: tuple[sqlite3.Connection, DiskRow, Path], status: DiskMountStatus
 ) -> None:
-    """An unmounted disk makes every folder look gone: the pass freezes."""
+    """An unmounted disk makes every folder look gone: the pass freezes.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a disk whose mount is not confirmed is frozen: nothing is retired.
+    """
     conn, disk, root = library
     ghost = _item(conn, root / "movies" / "Gone (2020)")
 
@@ -145,7 +159,11 @@ def test_a_disk_whose_mount_is_not_confirmed_retires_nothing(
 
 
 def test_an_item_whose_folder_is_present_is_kept(library: tuple[sqlite3.Connection, DiskRow, Path]) -> None:
-    """A present folder is never a ghost, files or not."""
+    """A present folder is never a ghost, files or not.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: an item whose folder exists is never a ghost.
+    """
     conn, disk, _root = library
 
     report = retire_ghost_items(conn, disk, _MOUNTED, dry_run=False, max_share=None)
@@ -155,7 +173,11 @@ def test_an_item_whose_folder_is_present_is_kept(library: tuple[sqlite3.Connecti
 
 @pytest.mark.parametrize("kind", ["movie", "show"])
 def test_an_item_with_a_live_file_is_kept(library: tuple[sqlite3.Connection, DiskRow, Path], kind: str) -> None:
-    """A live file means the strikes have not finished: the item waits for them."""
+    """A live file means the strikes have not finished: the item waits for them.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: an item with a live file is kept until the strikes tombstone it.
+    """
     conn, disk, root = library
     ghost = _item(conn, root / "movies" / "Gone (2020)", kind=kind)
     if kind == "movie":
@@ -181,7 +203,11 @@ def test_an_item_with_a_live_file_is_kept(library: tuple[sqlite3.Connection, Dis
 def test_an_item_an_open_repair_names_is_kept(
     library: tuple[sqlite3.Connection, DiskRow, Path], status: str, kept: bool
 ) -> None:
-    """``repair_queue`` holds item ids with no foreign key: open work keeps the item."""
+    """``repair_queue`` holds item ids with no foreign key: open work keeps the item.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a ``pending`` / ``running`` repair naming the item keeps it.
+    """
     conn, disk, root = library
     ghost = _item(conn, root / "movies" / "Gone (2020)")
     conn.execute(
@@ -197,7 +223,12 @@ def test_an_item_an_open_repair_names_is_kept(
 def test_more_than_the_cap_retires_none_unless_the_cap_is_lifted(
     library: tuple[sqlite3.Connection, DiskRow, Path],
 ) -> None:
-    """Two ghosts out of eleven items is over a tenth: none go, until the cap is lifted."""
+    """Two ghosts out of eleven items is over a tenth: none go, until the cap is lifted.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: over ``MAX_RETIRE_SHARE`` of a disk's items nothing is retired, unless
+        the cap is lifted.
+    """
     conn, disk, root = library
     ghosts = [_item(conn, root / "movies" / f"Gone {n} (2020)", title=f"Gone {n}") for n in range(2)]
 
@@ -212,7 +243,11 @@ def test_more_than_the_cap_retires_none_unless_the_cap_is_lifted(
 
 
 def test_an_item_on_another_disk_is_not_this_disks_ghost(library: tuple[sqlite3.Connection, DiskRow, Path]) -> None:
-    """Only the folders under the disk's root are judged by its pass."""
+    """Only the folders under the disk's root are judged by its pass.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a disk's pass judges only the folders under its root.
+    """
     conn, disk, root = library
     elsewhere = _item(conn, root.parent / "medias-other" / "movies" / "Gone (2020)")
 
@@ -222,7 +257,11 @@ def test_an_item_on_another_disk_is_not_this_disks_ghost(library: tuple[sqlite3.
 
 
 def test_only_configured_disks_are_kept(tmp_path: Path) -> None:
-    """A disk row whose root left the configuration is not a disk to judge."""
+    """A disk row whose root left the configuration is not a disk to judge.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: only the disks of the configuration are judged.
+    """
     conn = _make_conn()
     kept = _disk(conn, tmp_path / "medias")
     stale = DiskRow(

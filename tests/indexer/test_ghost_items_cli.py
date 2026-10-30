@@ -148,7 +148,12 @@ def _command_payload(result: Any) -> dict[str, Any]:
 
 
 def test_a_full_scan_retires_a_ghost_whose_files_are_tombstoned(tmp_path: Path) -> None:
-    """The ghost goes and the summary names it; present folders stay."""
+    """The ghost goes and the summary names it; present folders stay.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-index --mode full`` retires the ghost and lists it under
+        ``ghost_items``.
+    """
     lib = _Library(tmp_path, ["medias1"])
     present = {lib.item("medias1", f"Present {n} (2020)", present=True, file_deleted_at=None) for n in range(10)}
     ghost = lib.item("medias1", "Gone (2020)", present=False)
@@ -161,7 +166,12 @@ def test_a_full_scan_retires_a_ghost_whose_files_are_tombstoned(tmp_path: Path) 
 
 
 def test_a_full_scan_dry_run_reports_the_ghost_and_keeps_it(tmp_path: Path) -> None:
-    """``--dry-run`` names the ghost with its reason and deletes nothing."""
+    """``--dry-run`` names the ghost with its reason and deletes nothing.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-index --mode full --dry-run`` lists the ghost and deletes
+        nothing.
+    """
     lib = _Library(tmp_path, ["medias1"])
     for n in range(10):
         lib.item("medias1", f"Present {n} (2020)", present=True, file_deleted_at=None)
@@ -175,7 +185,13 @@ def test_a_full_scan_dry_run_reports_the_ghost_and_keeps_it(tmp_path: Path) -> N
 
 
 def test_the_scan_cap_holds_and_the_command_clears_the_backlog_with_every_other_guard(tmp_path: Path) -> None:
-    """Over the cap the scan retires none; the command retires only the true ghosts."""
+    """Over the cap the scan retires none; the command retires only the true ghosts.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: over the cap the scan retires nothing and names the disk under
+        ``ghost_items_capped``; ``library-retire-ghost-items`` retires the
+        backlog with every other guard and no cap.
+    """
     lib = _Library(tmp_path, ["medias1", "medias2"])
     present = lib.item("medias1", "Present (2020)", present=True, file_deleted_at=None)
     ghosts = {lib.item("medias1", f"Gone {n} (2020)", present=False) for n in range(3)}
