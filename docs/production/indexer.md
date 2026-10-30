@@ -126,13 +126,27 @@ A `media_item` is retired — hard-deleted, its children going with it by
 `reason='dispatch_path_gone'`, a JSON snapshot of the row) — when all of these
 hold (`personalscraper/indexer/ghost_items.py`):
 
-- its `dispatch_path` lies on a configured disk whose mount is confirmed
-  (`should_apply_drift_for_disk` over a live `verify_disk_mounted`);
-- that folder no longer exists;
-- none of its files is live (all tombstoned, or none at all). An item whose
-  folder vanishes therefore retires only after the file strikes have tombstoned
-  its files — the same N full scans a file waits;
-- no `pending` / `running` `repair_queue` row (`scope='item'`) names it.
+- its `dispatch_path` lies on a configured disk whose mount is verified: a live
+  `verify_disk_mounted` answers `MOUNTED_AND_VERIFIED` (the disk's sentinel
+  names it). Any other answer — unmounted, mismatched, or no readable sentinel —
+  freezes the disk's pass: the strikes go on for a disk with no sentinel, a hard
+  delete does not;
+- that folder no longer exists: `stat` answers `FileNotFoundError`. Any other
+  error (EIO, EACCES…) freezes the disk's pass rather than count the folder gone;
+- none of its files is live (all tombstoned, or none at all) — its files being
+  those of its releases and the files linked to no release under its folder. An
+  item whose folder vanishes therefore retires only after the file strikes have
+  tombstoned its files — the same N full scans a file waits;
+- no `pending` / `running` `repair_queue` row names it, one of its releases or
+  one of their files (`scope` `item`, `release` or `file`): `scope_id` is a soft
+  reference the cascade would leave dangling, so such an item is kept
+  (`pending_repair`).
+
+The guards are judged a first time to list the candidates, then again for each
+ghost inside the pass's `BEGIN IMMEDIATE` transaction, just before its delete: a
+folder or a live file that appeared in between keeps the item. Any error rolls
+the disk's pass back. The pass refuses a connection that already has a
+transaction open rather than commit or roll back its caller's writes.
 
 A `library-index --mode full` that walked to the end applies it per disk, under
 a cap: when more than 10 % of a disk's items (`MAX_RETIRE_SHARE`) would go at

@@ -1157,9 +1157,14 @@ row of the others moves to the keeper before they are deleted: releases and thei
 files (same-signature releases are folded into one), seasons and episodes (colliding
 numbers merged), attributes, issues, scan events and item repairs. Provider ids of both
 rows are kept, the keeper's title is made canonical, and each merged item leaves a
-`deleted_item` tombstone with reason `merged_duplicate`. A group that mixes a movie and
-a show is skipped and reported. Like its siblings it previews by default; `--apply`
-runs the merge in one transaction.
+`deleted_item` tombstone with reason `merged_duplicate`. A folder shared by two works
+is not a split: its group is skipped and reported — a movie and a show
+(`mixed_kinds`), two explicit years such as a remake and its original
+(`different_years`), or one provider naming two ids (`conflicting_provider_ids`). A
+group whose year-less keeper would take a year a third item already holds under the
+same title and kind is skipped too (`year_taken`), alone: the other groups still
+merge. The preview reports the same skips. Like its siblings it previews by default;
+`--apply` runs the merge in one transaction.
 
 **Side effects**: `read-only` (default), `mutate DB` (with `--apply`)
 
@@ -1177,7 +1182,10 @@ the split)
 
 - `dry_run` (bool) — `true` without `--apply`
 - `groups` (list) — `dispatch_path`, `keeper_id`, `merged_ids`, `titles` per group
-- `skipped` (list) — `dispatch_path`, `ids`, `reason` (`mixed_kinds`)
+- `skipped` (list) — `dispatch_path`, `ids`, `reason` (`mixed_kinds`, `different_years`,
+  `conflicting_provider_ids` or `year_taken`)
+- `titles_kept` (list) — `keeper_id`, `title`: keepers merged whose canonical title
+  another row already holds, so their drifted title stays (also logged as a warning)
 - `merged` / `would_merge` (int) — items merged (`would_merge` without `--apply`)
 
 **Examples**:
@@ -1195,11 +1203,14 @@ the split)
 **Purpose**: Retires the `media_item` rows whose `dispatch_path` no longer exists
 (`docs/production/indexer.md` « Ghost items »). The full scan does the same under a
 10 % per-disk cap; this command lifts the cap to clear a backlog, and keeps every
-other guard: the disk is configured and its mount confirmed, the folder is gone,
-no file of the item is live, and no `pending` / `running` item repair names it.
-Each retired item is hard-deleted after a `deleted_item` tombstone
-(`reason='dispatch_path_gone'`, JSON snapshot of the row), in one transaction per
-disk.
+other guard: the disk is configured and its mount verified by its sentinel
+(`MOUNTED_AND_VERIFIED`), the folder is gone (`stat` answers not found), no file of
+the item is live, and no `pending` / `running` repair names the item, one of its
+releases or one of their files. Each retired item is hard-deleted after a
+`deleted_item` tombstone (`reason='dispatch_path_gone'`, JSON snapshot of the row),
+in one transaction per disk; each disk's report is written to stderr as it
+completes. It exits 1 when `--disk` names a disk the configuration does not hold, or
+when any disk's pass failed (the other disks' work stays done).
 
 **Side effects**: `read-only` (with `--dry-run`), `mutate DB` (otherwise)
 
@@ -1215,9 +1226,11 @@ disk.
 **JSON output keys**:
 
 - `dry_run` (bool)
-- `disks` (list) — per disk: `disk`, `frozen` (mount not confirmed, nothing examined),
+- `disks` (list) — per disk: `disk`, `frozen` (mount not verified or a folder
+  unreadable, nothing retired),
   `disk_items`, `ghosts` (`item_id`, `title`, `kind`, `dispatch_path`, `reason`) and
   `kept` (`item_id`, `dispatch_path`, `reason`: `live_files` or `pending_repair`)
+- `failed` (list) — `disk`, `error` for each disk whose pass failed and rolled back
 - `retired` / `would_retire` (int)
 
 **Examples**:
