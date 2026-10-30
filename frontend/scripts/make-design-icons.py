@@ -5,7 +5,7 @@ Three sets of icons exist so that three entries on one home screen can be told
 apart at a glance. Two of them — prod and staging — live in `frontend/public`,
 which Vite copies whole into the bundle. The DESIGN set does not: it dresses a
 host production never serves, and shipping it would put 56 kB of nothing in the
-bundle. It sits beside the prototype, in `frontend/maquette/assets`.
+bundle. It sits beside the prototype, in `webui/assets`.
 
     prod     the icons as drawn — no ring
     staging  the same, with a cyan ring
@@ -41,7 +41,7 @@ from PIL import Image, ImageDraw
 PUBLIC = Path(__file__).resolve().parent.parent / "public"
 # Read from `public` (the app's own icons are the model), written beside the
 # prototype so the bundle never carries them.
-OUTPUT = Path(__file__).resolve().parent.parent / "maquette" / "assets"
+OUTPUT = Path(__file__).resolve().parents[2] / "webui" / "assets"
 
 # The icons' flat background, and the colour staging's ring is drawn in. Both
 # are read back from the files below and only declared here to be checked.

@@ -8,6 +8,7 @@ and ``structural_match`` without any parsing mocks.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Iterator, Sequence
 from pathlib import Path
@@ -21,19 +22,35 @@ from personalscraper.acquire.cross_seed import CrossSeedResult, CrossSeedService
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
-from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentItem, TorrentSource
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.conf.models.acquire import AcquireConfig
-from personalscraper.conf.models.api_config import TrackerConfig, TrackerEconomyConfig, TrackerProviderConfig
+from personalscraper.conf.models.api_config import (
+    TorrentClientEntry,
+    TorrentConfig,
+    TrackerConfig,
+    TrackerEconomyConfig,
+    TrackerProviderConfig,
+)
 from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.watch_seed import CrossSeedConfig
 from personalscraper.core.event_bus import EventBus
-from personalscraper.core.tags import SEED_PURE
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
+from personalscraper.core.units import ByteSize
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
+from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY,
+    OTHER_CATEGORY_HASH,
+    PREPROD_HASH,
+    PROD_HASH,
+    SCOPE,
+    SCOPED_TORRENT_CONFIG,
+    UNSCOPED_TORRENT_CONFIG,
+    torrent,
+)
 
 # ---------------------------------------------------------------------------
 # Bencode helpers — craft minimal valid .torrent bytes
@@ -256,11 +273,13 @@ class FakeTorrentClient:
         self._props: dict[str, dict[str, object]] = {}
         # Call records for assertions.
         self.injected: list[tuple[bytes, str, bool, bool]] = []  # (bytes, save_path, recheck, paused)
+        self.injected_scope: list[tuple[str | None, list[str]]] = []  # (category, tags) per injection
         self.injected_hashes: list[str] = []
         self.resumed: list[str] = []
         self.deleted: list[tuple[str, bool]] = []  # (hash, delete_files)
         self.tags_added: dict[str, set[str]] = {}  # hash -> set of tags
         self.tags_removed: dict[str, set[str]] = {}  # hash -> set of tags
+        self.by_hashes_calls: list[set[str]] = []  # hash sets ``get_by_hashes`` was asked for
 
     # -- Seeding helpers ------------------------------------------------------
 
@@ -286,6 +305,11 @@ class FakeTorrentClient:
         """Return all known hashes."""
         return {t.hash for t in self._completed}
 
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        """Record the request and return the known torrents of those hashes."""
+        self.by_hashes_calls.append(set(hashes))
+        return [t for t in self._completed if t.hash in hashes]
+
     # -- TorrentInjector ------------------------------------------------------
 
     def inject(
@@ -295,6 +319,8 @@ class FakeTorrentClient:
         save_path: str,
         recheck: bool = True,
         paused: bool = True,
+        category: str | None = None,
+        tags: Sequence[str] = (),
     ) -> str:
         """Record the injection and return the derived info-hash.
 
@@ -303,6 +329,8 @@ class FakeTorrentClient:
             save_path: Target save directory.
             recheck: Whether to recheck after add.
             paused: Whether to add in paused state.
+            category: Client category the torrent is filed under.
+            tags: Tags the torrent carries.
 
         Returns:
             The v1 info-hash of the injected torrent.
@@ -310,6 +338,7 @@ class FakeTorrentClient:
         info_hash = _derive_injected_hash(torrent_bytes)
         self.injected.append((torrent_bytes, save_path, recheck, paused))
         self.injected_hashes.append(info_hash)
+        self.injected_scope.append((category, list(tags)))
         # Add a completed entry so _verify_injection can find it.
         name = f"cross-seed-{info_hash[:8]}"
         injected_item = TorrentItem(
@@ -319,7 +348,8 @@ class FakeTorrentClient:
             progress=1.0,  # Immediately "verified" by default.
             state="pausedUP",
             save_path=save_path,
-            tags=[],
+            category=category,
+            tags=list(tags),
         )
         self._completed.append(injected_item)
         # Seed file list + properties for the injected hash so the next
@@ -439,7 +469,7 @@ def make_registry(
     trackers: dict[str, FakeTracker],
     priority: list[str] | None = None,
     priority_by_media_type: dict[str, list[str]] | None = None,
-) -> "FakeRegistry":
+) -> FakeRegistry:
     """Build a fake :class:`TrackerRegistry` from :class:`FakeTracker` instances.
 
     Args:
@@ -699,6 +729,348 @@ def _build_service(
 # ===========================================================================
 # Tests: check()
 # ===========================================================================
+
+
+def _own_grab_tags(torrent_config: Any) -> list[str]:
+    """Return the tags of a torrent the instance grabbed, as its grab path tags it.
+
+    Args:
+        torrent_config: The ``config.torrent`` section of the instance.
+
+    Returns:
+        The provider tag alone unscoped; the provider and the scope's grab tags under a scope.
+    """
+    scope = torrent_config.active_scope()
+    return [_TRACKER_C411] if scope is None else [_TRACKER_C411, *scope.grab_tags]
+
+
+def _scoped_check_scenario(
+    tmp_path: Path,
+    store: ConcreteAcquireStore,
+    torrent_config: Any,
+    source_save_path: str | None = None,
+    source_tags: list[str] | None = None,
+) -> tuple[CrossSeedService, FakeTorrentClient, str]:
+    """Build a service whose source torrent matches one tr4ker candidate, under a given torrent config.
+
+    Args:
+        tmp_path: Pytest temporary directory.
+        store: Real acquire store.
+        torrent_config: The ``config.torrent`` section the service reads its scope from.
+        source_save_path: The source torrent's save directory (default: under the scope's download root,
+            where the injection will write).
+        source_tags: The source torrent's tags (default: a grab of this instance, ``_own_grab_tags``).
+
+    Returns:
+        The service, the fake client, and the info hash the candidate injects as.
+    """
+    source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+    item = dataclasses.replace(
+        _source_item(tags=source_tags if source_tags is not None else _own_grab_tags(torrent_config)),
+        category=SCOPE.category,
+        save_path=source_save_path or str(SCOPE.download_root / "Movie.2024.1080p.BluRay.x264-GROUP"),
+    )
+    candidate_torrent = make_torrent_bytes(name=item.name, files=source_files, piece_length=262144)
+    fake_client = FakeTorrentClient(completed=[item])
+    fake_client.seed_files(_SOURCE_HASH, source_files)
+    fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+    candidate_url = "https://tr4ker.example.com/dl/123"
+    transport = FakeTransport(provider_name=_TRACKER_TR4KER)
+    transport.seed(candidate_url, candidate_torrent)
+    registry = make_registry(
+        {
+            _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
+            _TRACKER_TR4KER: FakeTracker(
+                provider=_TRACKER_TR4KER,
+                transport=transport,
+                results=[_candidate_result(download_url=candidate_url)],
+            ),
+        },
+        priority=[_TRACKER_C411, _TRACKER_TR4KER],
+    )
+    cfg = make_config(tmp_path).model_copy(update={"torrent": torrent_config})
+    svc = _build_service(cfg, store, fake_client, registry)
+    return svc, fake_client, _derive_injected_hash(candidate_torrent)
+
+
+class TestInjectionCarriesScope:
+    """A cross-seed injected under a client scope is filed in the scope's category with its tags."""
+
+    def test_scoped_inject_passes_category_and_cross_seed_tags(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """The injector is handed the scope's category, the instance tags, seed-only and the v0 seed-pure."""
+        svc, client, injected_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        result = svc.check(_SOURCE_HASH)
+        assert result.injected == [injected_hash]
+        assert client.injected_scope == [(SCOPE.category, ["tm-preprod", SEED_ONLY, SEED_PURE])]
+        assert client.tags_added[injected_hash] == {"tm-preprod", SEED_ONLY, SEED_PURE}
+
+    def test_scoped_inject_without_v0_flag_carries_no_seed_pure(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """With v0_seed_pure off a scoped cross-seed carries the instance tags and seed-only, never seed-pure."""
+        scope = SCOPE.model_copy(update={"v0_seed_pure": False})
+        config = TorrentConfig(active="qbit", clients={"qbit": TorrentClientEntry(scope=scope)})
+        svc, client, injected_hash = _scoped_check_scenario(tmp_path, store, config)
+        result = svc.check(_SOURCE_HASH)
+        assert result.injected == [injected_hash]
+        assert client.injected_scope == [(SCOPE.category, ["tm-preprod", SEED_ONLY])]
+        assert SEED_PURE not in client.tags_added[injected_hash]
+
+    def test_unscoped_inject_passes_no_category_and_no_tags(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Characterisation: without a scope the injection is today's, no category and no tags."""
+        svc, client, injected_hash = _scoped_check_scenario(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
+        result = svc.check(_SOURCE_HASH)
+        assert result.injected == [injected_hash]
+        assert client.injected_scope == [(None, [])]
+
+    def test_verification_under_scope_reads_the_scoped_listing(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """Under a scope a completed torrent outside the category does not verify the injection."""
+        svc, client, _ = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        real_inject = client.inject
+
+        def _inject_uncategorised(torrent_bytes: bytes, **kwargs: Any) -> str:
+            """Inject as the client would, but filed in no category."""
+            kwargs.pop("category", None)
+            return real_inject(torrent_bytes, **kwargs)
+
+        client.inject = _inject_uncategorised  # type: ignore[method-assign]
+        ticks = iter([0.0, 2.0, 130.0])
+        svc._clock = lambda: next(ticks)
+        result = svc.check(_SOURCE_HASH)
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["verify_timeout"]
+
+
+class TestScopedSourceSelection:
+    """Under a scope the cross-seed sources are the instance's own grabs, never its seed-only cross-seeds."""
+
+    def test_own_grab_carrying_seed_pure_is_cross_seeded(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """An own grab tagged seed-pure for v0 is a source: a scope does not read seed-pure."""
+        svc, _client, injected_hash = _scoped_check_scenario(
+            tmp_path, store, SCOPED_TORRENT_CONFIG, source_tags=[_TRACKER_C411, "tm-preprod", SEED_PURE]
+        )
+        result = svc.check(_SOURCE_HASH)
+        assert result.skip_reason is None
+        assert result.injected == [injected_hash]
+
+    def test_own_seed_only_cross_seed_is_skipped(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """An own seed-only torrent is a cross-seed already: skipped, nothing injected."""
+        svc, client, _ = _scoped_check_scenario(
+            tmp_path, store, SCOPED_TORRENT_CONFIG, source_tags=list(SCOPE.cross_seed_tags)
+        )
+        result = svc.check(_SOURCE_HASH)
+        assert result.skip_reason == "seed_only"
+        assert client.injected_scope == []
+
+    def test_category_torrent_without_instance_tag_is_skipped(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """A torrent of the category without the instance tag is not this instance's: skipped."""
+        svc, client, _ = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG, source_tags=[_TRACKER_C411])
+        result = svc.check(_SOURCE_HASH)
+        assert result.skip_reason == "not_own"
+        assert client.injected_scope == []
+
+    def test_sweep_checks_own_grabs_only(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """The scoped sweep checks the own grab (seed-pure or not), not the seed-only nor the untagged one."""
+        svc, client, _ = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+
+        def own(hash_: str, tags: list[str]) -> TorrentItem:
+            """Build a completed torrent of the scope's category."""
+            return dataclasses.replace(_source_item(info_hash=hash_, tags=tags), category=SCOPE.category)
+
+        client._completed = [
+            own("1" * 40, ["tm-preprod", SEED_PURE]),
+            own("2" * 40, list(SCOPE.cross_seed_tags)),
+            own("3" * 40, [_TRACKER_C411]),
+            own("4" * 40, ["tm-preprod"]),
+        ]
+        with patch.object(svc, "check", return_value=CrossSeedResult(skipped=True)) as check:
+            svc.sweep()
+        assert [c.args[0] for c in check.call_args_list] == ["1" * 40, "4" * 40]
+
+
+class TestScopedInjectionNeverTakesAnotherInstancesHash:
+    """Under a scope a candidate whose hash the client holds outside the category is refused untouched."""
+
+    def test_hash_held_in_another_category_is_refused_with_no_write(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """No inject, recheck, resume nor delete: the other instance's torrent stays as it is."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        client.seed_item(torrent(candidate_hash, OTHER_CATEGORY))
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["shared_hash"]
+        assert client.injected == []
+        assert client.resumed == []
+        assert client.deleted == []
+
+    def test_hash_held_with_no_category_is_refused(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """An uncategorised torrent belongs to the other instance as well."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        client.seed_item(torrent(candidate_hash, None))
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert [reason for _, _, reason in result.rejected] == ["shared_hash"]
+        assert client.injected == []
+
+    def test_free_hash_is_injected_as_before(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """A hash the client does not hold is injected, after one lookup of that hash."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == [candidate_hash]
+        assert {candidate_hash} in client.by_hashes_calls
+
+    def test_unscoped_inject_asks_the_client_nothing(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Without a scope the injection is today's: no hash lookup, whatever the client holds."""
+        svc, client, candidate_hash = _scoped_check_scenario(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
+        client.seed_item(torrent(candidate_hash, OTHER_CATEGORY))
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == [candidate_hash]
+        assert client.by_hashes_calls == []
+
+
+class _CategoryAwareClient(FakeTorrentClient):
+    """The fake client, defining categories like qBittorrent, counting the reads.
+
+    Attributes:
+        categories: Category name → save path.
+        category_reads: How many times the categories were read.
+    """
+
+    def __init__(self, categories: dict[str, str], completed: list[TorrentItem] | None = None) -> None:
+        """Hold the categories the client defines.
+
+        Args:
+            categories: Category name → save path.
+            completed: Pre-seeded completed torrents.
+        """
+        super().__init__(completed)
+        self.categories = categories
+        self.category_reads = 0
+
+    def get_categories(self) -> dict[str, str]:
+        """Count the read and return the categories."""
+        self.category_reads += 1
+        return dict(self.categories)
+
+
+def _category_aware(client: FakeTorrentClient, categories: dict[str, str]) -> _CategoryAwareClient:
+    """Return a category-defining twin of *client* holding the same state."""
+    twin = _CategoryAwareClient(categories)
+    twin.__dict__.update({k: v for k, v in client.__dict__.items() if k != "categories"})
+    return twin
+
+
+class TestScopedInjectionNeedsItsCategory:
+    """Under a scope the category must exist, filed under the scope's root, before an injection."""
+
+    def _scenario(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        categories: dict[str, str],
+        torrent_config: Any,
+        source_save_path: str | None = None,
+    ) -> tuple[CrossSeedService, _CategoryAwareClient]:
+        """Build the scoped scenario over a client defining *categories*."""
+        svc, plain, _ = _scoped_check_scenario(tmp_path, store, torrent_config, source_save_path)
+        client = _category_aware(plain, categories)
+        svc._lister = client
+        svc._injector = client
+        svc._controller = client
+        svc._tagger = client
+        return svc, client
+
+    def test_missing_category_is_refused_with_no_write(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """The client defines no category of the scope: nothing is injected, rechecked nor deleted."""
+        svc, client = self._scenario(tmp_path, store, {"prod": "/srv/prod"}, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["category_missing"]
+        assert client.injected == []
+        assert client.resumed == []
+        assert client.deleted == []
+
+    def test_category_save_path_is_not_what_decides_the_destination(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """The injection sends an explicit save path, so the category's own save path says nothing."""
+        svc, client = self._scenario(tmp_path, store, {SCOPE.category: "/elsewhere/complete"}, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert len(result.injected) == 1
+
+    def test_source_save_path_outside_the_download_root_is_refused(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """The injection would write where the source lives: outside the scope's root, nothing is sent."""
+        svc, client = self._scenario(
+            tmp_path,
+            store,
+            {SCOPE.category: str(SCOPE.download_root / "complete")},
+            SCOPED_TORRENT_CONFIG,
+            source_save_path="/data/torrents/Movie.2024.1080p.BluRay.x264-GROUP",
+        )
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert result.injected == []
+        assert [reason for _, _, reason in result.rejected] == ["save_path_outside_root"]
+        assert client.injected == []
+        assert client.resumed == []
+        assert client.deleted == []
+
+    def test_source_save_path_climbing_out_of_the_root_is_refused(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """The same normalisation as the grab check: ``..`` cannot climb out of the root."""
+        svc, client = self._scenario(
+            tmp_path,
+            store,
+            {SCOPE.category: str(SCOPE.download_root / "complete")},
+            SCOPED_TORRENT_CONFIG,
+            source_save_path=str(SCOPE.download_root / ".." / "prod"),
+        )
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert [reason for _, _, reason in result.rejected] == ["save_path_outside_root"]
+        assert client.injected == []
+
+    def test_category_under_the_download_root_is_injected(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """The category exists under the scope's root: the injection goes through."""
+        save_path = str(SCOPE.download_root / "complete")
+        svc, client = self._scenario(tmp_path, store, {SCOPE.category: save_path}, SCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert len(result.injected) == 1
+        assert client.category_reads >= 1
+
+    def test_unscoped_inject_never_reads_the_categories(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Without a scope the injection is today's and the categories are not read."""
+        svc, client = self._scenario(tmp_path, store, {}, UNSCOPED_TORRENT_CONFIG)
+
+        result = svc.check(_SOURCE_HASH)
+
+        assert len(result.injected) == 1
+        assert client.category_reads == 0
 
 
 class TestCheckHappyPath:
@@ -3116,3 +3488,97 @@ class TestCheckNotQueryableForMediaType:
         assert second.skip_reason == "not_queryable_for_media_type", (
             f"Expected not_queryable_for_media_type on re-check, got: {second.skip_reason}"
         )
+
+
+# ===========================================================================
+# Client scope — the engine lists only the instance's own category
+# ===========================================================================
+
+
+def _shared_client_service(
+    tmp_path: Path, store: ConcreteAcquireStore, torrent_config: Any
+) -> tuple[CrossSeedService, list[str]]:
+    """Build a service over a client holding a prod, an other-category and a preprod torrent.
+
+    Args:
+        tmp_path: Pytest temporary directory.
+        store: Real acquire store.
+        torrent_config: The ``config.torrent`` section the service reads its scope from.
+
+    Returns:
+        The service and the list recording every hash ``check`` is called with.
+    """
+    client = FakeTorrentClient(
+        completed=[
+            torrent(PROD_HASH, None),
+            torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY),
+            torrent(PREPROD_HASH, "tm-preprod"),
+        ]
+    )
+    cfg = make_config(tmp_path).model_copy(update={"torrent": torrent_config})
+    svc = _build_service(cfg, store, client, make_registry({}, priority=[]))
+    checked: list[str] = []
+
+    def _record(info_hash: str) -> CrossSeedResult:
+        """Record the hash and answer an empty result."""
+        checked.append(info_hash)
+        return CrossSeedResult()
+
+    svc.check = _record  # type: ignore[method-assign]
+    return svc, checked
+
+
+class TestClientScope:
+    """The sweep and the source lookup see only the scope's category."""
+
+    def test_sweep_under_scope_checks_only_its_own_torrent(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Under a scope the sweep never searches for the other instance's torrent."""
+        svc, checked = _shared_client_service(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        svc.sweep()
+        assert checked == [PREPROD_HASH]
+
+    def test_sweep_without_scope_checks_every_torrent(self, tmp_path: Path, store: ConcreteAcquireStore) -> None:
+        """Characterisation: no scope, the sweep checks every torrent as today."""
+        svc, checked = _shared_client_service(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
+        svc.sweep()
+        assert sorted(checked) == sorted([PROD_HASH, OTHER_CATEGORY_HASH, PREPROD_HASH])
+
+    def test_sweep_without_scope_skips_a_seed_pure_torrent_and_checks_an_untagged_one(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """Unscoped, the sweep leaves a ``seed-pure`` torrent alone and checks an untagged one."""
+        seed_pure_item = torrent(PROD_HASH, None)
+        seed_pure_item.tags = [SEED_PURE]
+        untagged_item = torrent(OTHER_CATEGORY_HASH, None)
+        untagged_item.tags = []
+        client = FakeTorrentClient(completed=[seed_pure_item, untagged_item])
+        cfg = make_config(tmp_path).model_copy(update={"torrent": UNSCOPED_TORRENT_CONFIG})
+        svc = _build_service(cfg, store, client, make_registry({}, priority=[]))
+        checked: list[str] = []
+
+        def _record(info_hash: str) -> CrossSeedResult:
+            """Record the hash and answer an empty result."""
+            checked.append(info_hash)
+            return CrossSeedResult()
+
+        svc.check = _record  # type: ignore[method-assign]
+        svc.sweep()
+        assert checked == [OTHER_CATEGORY_HASH]
+
+    def test_source_lookup_under_scope_ignores_the_other_instances_torrent(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """Under a scope a foreign hash is not a source; an own one is."""
+        svc, _ = _shared_client_service(tmp_path, store, SCOPED_TORRENT_CONFIG)
+        assert svc._find_completed(PROD_HASH) is None
+        assert svc._find_completed(OTHER_CATEGORY_HASH) is None
+        assert svc._find_completed(PREPROD_HASH) is not None
+
+    def test_source_lookup_without_scope_finds_either_torrent(
+        self, tmp_path: Path, store: ConcreteAcquireStore
+    ) -> None:
+        """Characterisation: no scope, both hashes are found."""
+        svc, _ = _shared_client_service(tmp_path, store, UNSCOPED_TORRENT_CONFIG)
+        assert svc._find_completed(PROD_HASH) is not None
+        assert svc._find_completed(OTHER_CATEGORY_HASH) is not None
+        assert svc._find_completed(PREPROD_HASH) is not None

@@ -49,7 +49,10 @@ def temp_library_db(tmp_path: Path) -> Path:
             category_id TEXT NOT NULL,
             date_created INTEGER NOT NULL,
             date_modified INTEGER NOT NULL,
-            preferred_lang TEXT NOT NULL DEFAULT 'fr'
+            preferred_lang TEXT NOT NULL DEFAULT 'fr',
+            overview TEXT,
+            poster_url TEXT,
+            date_provider_read REAL
         );
         CREATE TABLE season (
             id INTEGER PRIMARY KEY,

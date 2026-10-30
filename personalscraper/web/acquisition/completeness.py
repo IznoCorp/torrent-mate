@@ -6,7 +6,7 @@ par épisode, pour voir ce qui reste à acquérir".
 
 **One derivation, two surfaces** (acq-states phase 5). The card and this panel
 read the SAME facts through the SAME
-:func:`~personalscraper.web.acquisition.states.derive_episode_state`. There is
+:func:`~personalscraper.app.acquisition.states.derive_episode_state`. There is
 no local re-derivation here and no second catalog source — the two surfaces can
 no longer answer differently about the same episode at the same instant, which
 is exactly what happened on 2026-07-27 (the card said « À jour » from raw wanted
@@ -24,7 +24,7 @@ Sources (each fail-soft, never a 500):
 * Library ownership — :meth:`ownership.owns` per aired episode (indexer
   ``library.db`` by provider id; live files only).
 * Wanted queue — ONE bulk read of the follow's rows, from which
-  :func:`~personalscraper.web.acquisition.states.select_wanted_facts` picks the
+  :func:`~personalscraper.app.acquisition.states.select_wanted_facts` picks the
   governing row exactly as the card does (open rows only, latest wins). Its
   status AND its last search verdict (``last_search_outcome`` /
   ``last_search_found``) are read, because « panne ≠ absence ».
@@ -38,13 +38,13 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from personalscraper.logger import get_logger
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     NO_WANTED_FACTS,
     WantedFacts,
     derive_episode_state,
     governing_facts_by_episode,
 )
+from personalscraper.logger import get_logger
 from personalscraper.web.models.acquisition import (
     CompletenessResponse,
     EpisodeCompleteness,
@@ -66,7 +66,7 @@ def _governing_facts(store: object, followed_id: int) -> dict[tuple[int, int], W
 
     TWO queries for the whole follow (episodes + seasons) rather than a lookup per
     episode, and the closed rows come back too: deciding WHICH row speaks is
-    :func:`~personalscraper.web.acquisition.states.governing_facts_by_episode`'s
+    :func:`~personalscraper.app.acquisition.states.governing_facts_by_episode`'s
     job, never a WHERE clause this module would own alone. The season rows are
     loaded because an absorbed episode's acquisition is carried by its season row —
     this module reads, it does not re-derive.
@@ -124,7 +124,7 @@ def compute_completeness(
     """Compute the per-season / per-episode completeness for one follow.
 
     Every episode's state comes from
-    :func:`~personalscraper.web.acquisition.states.derive_episode_state` — the
+    :func:`~personalscraper.app.acquisition.states.derive_episode_state` — the
     single derivation the followed cards read too — fed with persisted facts
     only: library ownership × the episode's ``wanted`` row × that row's last
     search verdict.

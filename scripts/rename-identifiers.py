@@ -490,7 +490,7 @@ if __name__ == "__main__":
     # so the same nine forms this file knows about protect every tree.
     roots = [pathlib.Path(a.split("=", 1)[1]) for a in sys.argv[2:]
              if a.startswith("--root=")]
-    ROOT = roots[0] if roots else pathlib.Path("frontend/maquette")
+    ROOT = roots[0] if roots else pathlib.Path("webui")
     for path in sorted(ROOT.rglob("*")):
         kinds = ({".js", ".jsx", ".ts", ".tsx", ".py", ".mjs", ".css", ".json", ".html"}
                  if VALUES or CUSTOM_PROPERTIES

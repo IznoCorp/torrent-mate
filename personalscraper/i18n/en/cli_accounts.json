@@ -1,0 +1,66 @@
+{
+  "help": "Accounts of this environment's app.db.",
+  "set_password": {
+    "help": "Set an account's password: typed twice at a hidden prompt, never given as an argument.",
+    "email_help": "The account's e-mail, whatever its case.",
+    "prompt": "New password",
+    "confirm": "Repeat the new password",
+    "mismatch": "The two passwords differ; nothing was changed.",
+    "done": "Password set for {{email}}."
+  },
+  "create_owner": {
+    "help": "Seed the Plex server's owner on this environment's empty app.db: an Admin account with a fallback password (typed twice at a hidden prompt, never given as an argument), linked as the Plex owner. Refused under production.",
+    "email_help": "The owner's e-mail.",
+    "name_help": "The owner's display name.",
+    "plex_id_help": "The owner's plex.tv id.",
+    "plex_uuid_help": "The owner's plex.tv uuid.",
+    "plex_username_help": "The owner's plex.tv username.",
+    "refused_prod": "The owner is never seeded on production stores: set PERSONALSCRAPER_ENV to dev or staging, with a data directory marked for it. Nothing was changed.",
+    "owner_exists": "The server's owner is already an account (an Admin, or an account linked to the owner's Plex identity): nothing was changed.",
+    "environment": "Environment: {{environment}}",
+    "store": "App store: {{path}}",
+    "prompt": "Owner's password",
+    "confirm": "Repeat the owner's password",
+    "done": "Owner {{email}} created: Admin, signing in by password until Plex sign-in is served."
+  },
+  "open_session": {
+    "help": "Open a session for the Plex server's owner with no password and print its token alone on stdout, for the design host's smoke check. Dev only; the token is never logged.",
+    "owner_help": "Open the session of the Plex server's owner.",
+    "owner_required": "Name whose session to open: --owner is the only one. Nothing was opened.",
+    "refused_prod": "A session is never opened from the command line on production: set PERSONALSCRAPER_ENV to dev, with a data directory marked for it. Nothing was opened.",
+    "refused_not_dev": "This command is dev only: set PERSONALSCRAPER_ENV to dev, with a data directory marked for it. Nothing was opened.",
+    "no_owner": "No account is linked as the Plex server's owner: seed it with accounts create-owner. Nothing was opened.",
+    "ambiguous_owner": "Several accounts are linked as the Plex server's owner, so the owner is ambiguous. Nothing was opened."
+  },
+  "token_key": {
+    "help": "The keys sealing the kept Plex tokens, read from PLEX_TOKEN_KEYS in the environment.",
+    "rotate": {
+      "help": "Re-seal every kept Plex token under the first key of PLEX_TOKEN_KEYS (the new key first, the old ones after it); then drop the old keys.",
+      "needs_two": "Rotation needs at least two keys in PLEX_TOKEN_KEYS: the new one first, then the old ones. Nothing was changed.",
+      "done_one": "{{count}} kept token re-sealed under the first key.",
+      "done_other": "{{count}} kept tokens re-sealed under the first key.",
+      "skipped_one": "Warning: {{count}} kept token was skipped, no key opens it; it will not open once the old key is dropped.",
+      "skipped_other": "Warning: {{count}} kept tokens were skipped, no key opens them; they will not open once the old key is dropped."
+    }
+  },
+  "token": {
+    "help": "The Plex tokens kept by Plex sign-ins.",
+    "keys_missing": "PLEX_TOKEN_KEYS is empty: no key to open the kept tokens with. Nothing was changed.",
+    "keys_malformed": "PLEX_TOKEN_KEYS holds a malformed key at position {{position}}. Nothing was changed.",
+    "forget": {
+      "help": "Forget the kept Plex token of one account, or of every account with --all.",
+      "email_help": "The account's e-mail, whatever its case.",
+      "all_help": "Forget every kept token.",
+      "target_required": "Name one EMAIL or pass --all, not both.",
+      "done_one": "{{count}} kept token forgotten.",
+      "done_other": "{{count}} kept tokens forgotten."
+    },
+    "purge": {
+      "help": "Clear every kept Plex token no key of PLEX_TOKEN_KEYS opens (a removed key, a token moved from another account).",
+      "force_help": "Clear the kept tokens even when none opens under the current keys.",
+      "none_opens": "No kept token opens under the current PLEX_TOKEN_KEYS, so they are probably wrong. Nothing was changed; pass --force to clear them anyway.",
+      "done_one": "{{count}} undecryptable kept token cleared.",
+      "done_other": "{{count}} undecryptable kept tokens cleared."
+    }
+  }
+}

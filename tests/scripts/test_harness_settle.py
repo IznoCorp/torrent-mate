@@ -14,14 +14,13 @@ launched it skips and says why.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import pytest
+from _repo_paths import HARNESS
 
-HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
 sys.path.insert(0, str(HARNESS))
 
-import common  # noqa: E402
+import common
 
 # A layer whose exit is drawn longer than any wait a rule ever typed, a
 # visibility delayed by its length, and a spinner that never ends.

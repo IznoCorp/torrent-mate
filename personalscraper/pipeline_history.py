@@ -5,7 +5,10 @@ run with per-step timing data stored as a JSON array in ``steps_json``.
 
 The writer is **fail-soft**: every method wraps its DB work in a try/except,
 logs a warning on failure, and never raises.  A history-write error must
-never abort the pipeline.
+never abort the pipeline.  It never creates an empty DB itself: a missing file is brought to the
+current schema once per process through
+:func:`~personalscraper.indexer.db.ensure_library_schema` (under the indexer's lock), and a store
+that cannot be ensured is the named ``pipeline_history.library_db_unavailable`` error, logged once.
 
 Each method opens a short-lived ``sqlite3`` connection (open → write →
 commit → close), matching the indexer's connection conventions (WAL pragmas
@@ -41,7 +44,11 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.db import IndexerLockError, ensure_library_schema
+from personalscraper.indexer.library_view import IndexUnavailable, LibraryIndex
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger("pipeline_history")
@@ -50,6 +57,14 @@ log = get_logger("pipeline_history")
 #: thousands of per-item warnings would otherwise bloat the row; the raw log
 #: tail (``output_tail``) keeps the exhaustive detail.
 _MAX_PERSISTED_REASONS = 20
+
+
+#: Library DB paths this process failed to ensure: reported once, then every write skips silently.
+_UNENSURABLE: set[Path] = set()
+
+
+class _DbMissing(Exception):
+    """The run-history DB file does not exist: a named condition, never a file created empty."""
 
 
 class PipelineRunWriter:
@@ -70,6 +85,42 @@ class PipelineRunWriter:
             db_path: Path to the indexer SQLite database.
         """
         self._db_path = db_path
+
+    def _connect(self) -> sqlite3.Connection:
+        """Open the existing DB for writing — never create it.
+
+        A missing file is first brought to the current schema, once per process, by
+        :func:`~personalscraper.indexer.db.ensure_library_schema` under the indexer's lock: a
+        plain ``sqlite3.connect`` would create an EMPTY file that every write then fails on. A
+        store that cannot be ensured is logged ONCE as ``pipeline_history.library_db_unavailable``
+        and refused silently afterwards; a lock timeout is not memoised (that write is skipped and logged,
+        the next one tries again). A store already at head is a no-op.
+
+        Returns:
+            An open connection, with the newer-schema guard and the PRAGMAs applied.
+
+        Raises:
+            _DbMissing: The DB file does not exist and could not be ensured.
+            sqlite3.Error: The DB cannot be opened.
+        """
+        if not self._db_path.exists():
+            if self._db_path in _UNENSURABLE:
+                raise _DbMissing(str(self._db_path))
+            try:
+                ensure_library_schema(self._db_path)
+            except Exception as exc:
+                # A lock timeout is transient (a scan holds the lock): skip this write, retry on the next.
+                if not isinstance(exc, IndexerLockError):
+                    _UNENSURABLE.add(self._db_path)
+                log.error(
+                    "pipeline_history.library_db_unavailable", db_path=str(self._db_path), error=str(exc), exc_info=True
+                )
+                raise _DbMissing(str(self._db_path)) from exc
+        # mode=rw: SQLite itself refuses to create the file if it vanishes between the check and here.
+        conn = sqlite3.connect(f"{self._db_path.resolve().as_uri()}?mode=rw", uri=True, isolation_level=None)
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
+        apply_pragmas(conn)
+        return conn
 
     # ------------------------------------------------------------------
     # Public API
@@ -111,8 +162,7 @@ class PipelineRunWriter:
         dry_run_int = 1 if dry_run else 0
         verb = "INSERT OR IGNORE INTO" if if_absent else "INSERT INTO"
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            apply_pragmas(conn)
+            conn = self._connect()
             conn.execute(
                 f"{verb} pipeline_run "
                 "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "
@@ -121,6 +171,8 @@ class PipelineRunWriter:
                 (run_uid, trigger, dry_run_int, started_at, pid, kind, command, options_json),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.insert_failed",
@@ -152,13 +204,14 @@ class PipelineRunWriter:
             pid: OS process ID to store in the row.
         """
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            apply_pragmas(conn)
+            conn = self._connect()
             conn.execute(
                 "UPDATE pipeline_run SET pid = ? WHERE run_uid = ?",
                 (pid, run_uid),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.update_pid_failed",
@@ -251,8 +304,7 @@ class PipelineRunWriter:
             # not every line (the raw log tail keeps the full detail).
             entry["reasons"] = list(reasons[:_MAX_PERSISTED_REASONS])
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            apply_pragmas(conn)
+            conn = self._connect()
             row = conn.execute(
                 "SELECT steps_json FROM pipeline_run WHERE run_uid = ?",
                 (run_uid,),
@@ -280,6 +332,8 @@ class PipelineRunWriter:
                 (json.dumps(steps), run_uid),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.update_step_failed",
@@ -314,13 +368,14 @@ class PipelineRunWriter:
         """
         ended_at = time.time()
         try:
-            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
-            apply_pragmas(conn)
+            conn = self._connect()
             conn.execute(
                 "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ?, output_tail = ? WHERE run_uid = ?",
                 (ended_at, outcome, error, output_tail, run_uid),
             )
             conn.commit()
+        except _DbMissing:
+            pass  # already logged once by _connect as pipeline_history.library_db_unavailable
         except Exception:
             log.warning(
                 "pipeline_history.finalize_failed",
@@ -333,3 +388,28 @@ class PipelineRunWriter:
                 conn.close()
             except Exception:
                 pass
+
+    def outcome(self, run_uid: str) -> str | None:
+        """Read the outcome of one run's row — the one read of this writer, and the one that raises.
+
+        A supervisor settling a silent worker must tell « no row » from « unreadable now »: a
+        locked or broken store is retried, never taken for a missing row, so this read is not
+        fail-soft. It goes through the library's read view (``mode=ro`` and ``query_only``): it
+        can neither write nor create the store, and a store that does not exist holds no row.
+
+        Args:
+            run_uid: Unique run identifier.
+
+        Returns:
+            The row's ``outcome`` (``'running'`` while unfinished); ``None`` when no row has that uid.
+
+        Raises:
+            IndexUnavailable: If the store cannot be read (locked past the busy timeout, corrupt, unmigrated).
+        """
+        if not self._db_path.exists():
+            return None
+        try:
+            with LibraryIndex(self._db_path).reader() as reader:
+                return reader.run_outcome(run_uid)
+        except sqlite3.Error as exc:
+            raise IndexUnavailable(str(exc)) from exc

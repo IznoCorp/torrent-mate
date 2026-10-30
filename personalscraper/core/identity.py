@@ -15,6 +15,10 @@ Import direction: stdlib + typing only (mirror core/_contracts.py).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import NewType
+
+#: A ``media_item`` row's id in ``library.db``: never a provider id.
+ItemId = NewType("ItemId", int)
 
 
 @dataclass(frozen=True)
@@ -46,4 +50,4 @@ class MediaRef:
             raise ValueError("MediaRef requires at least one of tvdb_id, tmdb_id, imdb_id")
 
 
-__all__ = ["MediaRef"]
+__all__ = ["ItemId", "MediaRef"]

@@ -84,7 +84,7 @@ class NfoIdsCoherence:
         if nfo_path is None:
             return []  # nothing to inspect → name absent from CoherenceResult.checks (matches legacy)
         try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314
+            root = ET.parse(nfo_path).getroot()
         except (ET.ParseError, OSError):
             return [CheckResult("nfo_ids", False, Severity.WARNING, f"Cannot parse NFO: {nfo_path.name}")]
         has_tmdb = any(u.get("type") == "tmdb" and (u.text or "").strip() for u in root.findall("uniqueid"))
@@ -94,7 +94,7 @@ class NfoIdsCoherence:
         return [CheckResult("nfo_ids", ok, Severity.WARNING, msg)]
 
     @staticmethod
-    def _coherence_nfo(ctx: CheckContext) -> "Path | None":
+    def _coherence_nfo(ctx: CheckContext) -> Path | None:
         if ctx.media_type == "tvshow":
             p = ctx.media_dir / "tvshow.nfo"
             return p if p.exists() else None

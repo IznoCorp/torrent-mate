@@ -16,6 +16,7 @@ import typer
 from rich.console import Console
 
 from personalscraper import cli_helpers
+from personalscraper.api.torrent._base import lookup_scoped
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     handle_cli_errors,
@@ -23,6 +24,7 @@ from personalscraper.cli_helpers import (
 )
 from personalscraper.cli_state import state
 from personalscraper.commands._cli_run_row import cli_run_row
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.subscribers.redis_stream import build_redis_publisher
 
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.reconcile import ReconcileSummary
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.tracker._base import TrackerResult
+    from personalscraper.conf.models.api_config import TorrentScope
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
@@ -40,10 +43,10 @@ log = get_logger("cli.grab")
 
 
 def _build_acq_telegram_subscriber(
-    config: "Config",
-    settings: "Settings",
-    event_bus: "EventBus",
-) -> "AcquisitionTelegramSubscriber | None":
+    config: Config,
+    settings: Settings,
+    event_bus: EventBus,
+) -> AcquisitionTelegramSubscriber | None:
     """Build the acquisition Telegram subscriber for a grab run (D8).
 
     Mirrors EXACTLY the gates of the ``run`` command's wiring
@@ -80,25 +83,25 @@ def _build_acq_telegram_subscriber(
     )
 
 
-@command_with_telemetry("grab")
+@command_with_telemetry("grab", help=t("cli_acquisition.grab.help"))
 @handle_cli_errors
 def grab(
     ctx: typer.Context,
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Search, filter, rank — print top candidate. No fetch or add.",
+        help=t("cli_acquisition.grab.dry_run_help"),
     ),
     limit: int | None = typer.Option(
         None,
         "--limit",
         "-n",
-        help="Maximum number of wanted items to process. Default: all pending.",
+        help=t("cli_acquisition.grab.limit_help"),
     ),
     followed_id: int | None = typer.Option(
         None,
         "--followed-id",
-        help="Restrict the run to one followed series' pending items (OBJ3 manual trigger).",
+        help=t("cli_acquisition.grab.followed_id_help"),
     ),
 ) -> None:
     """Run the grab loop — search trackers and add top-ranked torrents."""
@@ -117,12 +120,13 @@ def grab(
         # pipeline command wires it, but never calls reconcile_wanted). Built
         # INSIDE the try (pipeline.py pattern) so a construction failure still
         # reaches the finally and closes the redis publisher.
-        acq_telegram_subscriber: "AcquisitionTelegramSubscriber | None" = None
+        acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
         try:
             acq_telegram_subscriber = _build_acq_telegram_subscriber(config, settings, app_context.event_bus)
             acquire = app_context.acquire
             if acquire is None:
-                console.print("[red]AcquireContext not available.[/red]")
+                msg = t("cli_acquisition.grab.no_context")
+                console.print("[red]" + msg + "[/red]")
                 raise typer.Exit(1)
 
             if dry_run:
@@ -130,16 +134,17 @@ def grab(
             else:
                 grab_core = acquire.grab
                 if grab_core is None:
-                    console.print(
-                        "[red]No torrent client configured — cannot run grab. Check config or use --dry-run.[/red]"
-                    )
+                    msg = t("cli_acquisition.grab.no_client")
+                    console.print("[red]" + msg + "[/red]")
                     raise typer.Exit(1)
 
                 # P0-B.3 — reconcile grabbed rows BEFORE searching: rows whose
                 # work the library owns close ``done``; rows whose torrent
                 # vanished from the client (and are unowned) requeue pending
                 # and re-enter this very run's queue.
-                reconcile = _reconcile_before_run(acquire, app_context.event_bus, console)
+                reconcile = _reconcile_before_run(
+                    acquire, app_context.event_bus, console, scope=config.torrent.active_scope()
+                )
 
                 # reswitch #342 — AFTER reconcile (review ordering note): reconcile
                 # closes library-owned rows to ``done`` first, so reswitch only
@@ -148,16 +153,17 @@ def grab(
                 # the dead torrent is removed and the row requeued with the failed
                 # hash remembered, so the next search+grab picks a DIFFERENT
                 # release. A vanished torrent is left to reconcile.
-                _reswitch_before_run(acquire, app_context.event_bus, console)
+                _reswitch_before_run(acquire, app_context.event_bus, console, scope=config.torrent.active_scope())
 
                 summary = grab_core.service.run(limit=limit, followed_id=followed_id, run_uid=run_rec.run_uid)
-                console.print(
-                    f"[green]Grab complete:[/green] "
-                    f"{summary.grabbed} grabbed, "
-                    f"{summary.retried} retried, "
-                    f"{summary.abandoned} abandoned, "
-                    f"{summary.skipped} skipped."
+                counts = t(
+                    "cli_acquisition.grab.complete_counts",
+                    grabbed=summary.grabbed,
+                    retried=summary.retried,
+                    abandoned=summary.abandoned,
+                    skipped=summary.skipped,
                 )
+                console.print("[green]" + t("cli_acquisition.grab.complete_label") + "[/green] " + counts)
                 # §5 « résultat chiffré »: persist the run's numbers on its
                 # pipeline_run row (self-owned for cron/CLI; the web runner's
                 # row when spawned by POST /followed/{id}/search).
@@ -190,7 +196,9 @@ def grab(
                 redis_publisher.close()
 
 
-def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", console: Console) -> "ReconcileSummary":
+def _reconcile_before_run(
+    acquire: AcquireContext, event_bus: EventBus, console: Console, *, scope: TorrentScope | None
+) -> ReconcileSummary:
     """Run the B.3 reconciliation pass ahead of a real grab run (fail-soft).
 
     Gathers the torrent client's live items once for every OPEN row carrying a
@@ -203,6 +211,9 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
         acquire: The live :class:`AcquireContext` (store + ownership + client).
         event_bus: The app event bus (download events fire from the sweep).
         console: Rich console for the operator summary line.
+        scope: What this instance owns in a shared client, or ``None`` (the whole
+            client). Under a scope a stored hash held in another category is left
+            out of the client view, so the sweep never settles it as ours.
 
     Returns:
         The pass summary (zeroes when the store is unavailable or the sweep
@@ -214,7 +225,8 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
     if store is None:
         return ReconcileSummary()
 
-    client_items: "dict[str, TorrentItem] | None" = None
+    client_items: dict[str, TorrentItem] | None = None
+    foreign: set[str] = set()
     torrent_client = acquire.torrent_client
     if torrent_client is not None:
         try:
@@ -225,7 +237,8 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
             # Full items, not bare hashes: the sweep reads ``progress`` to emit
             # the download lifecycle events (seed-caps D9).
             in_flight = store.wanted.hashes_in_flight()
-            client_items = {t.hash.lower(): t for t in torrent_client.get_by_hashes(in_flight)}
+            own, foreign = lookup_scoped(torrent_client, in_flight, scope)
+            client_items = {t.hash.lower(): t for t in own}
         except Exception as exc:  # noqa: BLE001 — fail-soft: skip the requeue half
             log.warning("cli.grab.reconcile_client_unavailable", error=str(exc))
             client_items = None
@@ -238,26 +251,30 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
     ownership = acquire.ownership
 
     try:
-        summary = reconcile_wanted(store, ownership, client_items, event_bus=event_bus, record_obligation=recorder)
+        summary = reconcile_wanted(
+            store, ownership, client_items, event_bus=event_bus, record_obligation=recorder, foreign=foreign
+        )
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
         log.warning("cli.grab.reconcile_failed", error=str(exc))
         return ReconcileSummary()
     if summary.closed_owned or summary.requeued_missing or summary.confirmed_grabbed:
-        console.print(
-            f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (en médiathèque), "
-            f"{summary.requeued_missing} remis en file (torrent disparu), "
-            f"{summary.confirmed_grabbed} confirmés (récupérés après interruption)."
+        reconciled = t(
+            "cli_acquisition.grab.reconcile_summary",
+            closed=summary.closed_owned,
+            requeued=summary.requeued_missing,
+            confirmed=summary.confirmed_grabbed,
         )
+        console.print("[cyan]" + t("cli_acquisition.grab.reconcile_label") + "[/cyan] " + reconciled)
     # Its own line, and only when it happened — see the twin site in search.py.
     if summary.fell_back_to_episodes:
-        console.print(
-            f"[cyan]Réconciliation:[/cyan] {summary.fell_back_to_episodes} "
-            "saison(s) repassée(s) en épisodes (pack incomplet)."
-        )
+        fell_back = t("cli_acquisition.grab.reconcile_fell_back", seasons=summary.fell_back_to_episodes)
+        console.print("[cyan]" + t("cli_acquisition.grab.reconcile_label") + "[/cyan] " + fell_back)
     return summary
 
 
-def _reswitch_before_run(acquire: AcquireContext, event_bus: "EventBus", console: Console) -> None:
+def _reswitch_before_run(
+    acquire: AcquireContext, event_bus: EventBus, console: Console, *, scope: TorrentScope | None
+) -> None:
     """Switch every dead-stalled grabbed release to another one before grabbing (reswitch #342).
 
     A grabbed torrent whose swarm is dead / that broke / that is stuck past the
@@ -270,6 +287,8 @@ def _reswitch_before_run(acquire: AcquireContext, event_bus: "EventBus", console
         acquire: The live :class:`AcquireContext` (store + client).
         event_bus: The app event bus (a ``GrabReswitched`` is a visible trace).
         console: Rich console for the operator line.
+        scope: What this instance owns in a shared client, or ``None``; a hash held
+            in another category is never switched nor deleted.
     """
     from personalscraper.acquire._reswitch import reswitch_stalled
 
@@ -278,15 +297,13 @@ def _reswitch_before_run(acquire: AcquireContext, event_bus: "EventBus", console
     if store is None or torrent_client is None:
         return
     try:
-        summary = reswitch_stalled(store, torrent_client, time.time(), event_bus=event_bus)
+        summary = reswitch_stalled(store, torrent_client, time.time(), event_bus=event_bus, scope=scope)
     except Exception as exc:  # noqa: BLE001 — reswitch must never abort the grab
         log.warning("cli.grab.reswitch_failed", error=str(exc))
         return
     if summary.reswitched:
-        console.print(
-            f"[cyan]Bascule:[/cyan] {summary.reswitched} release(s) bloquée(s) remplacée(s) "
-            f"(sur {summary.checked} en cours)."
-        )
+        switched = t("cli_acquisition.grab.reswitch_summary", reswitched=summary.reswitched, checked=summary.checked)
+        console.print("[cyan]" + t("cli_acquisition.grab.reswitch_label") + "[/cyan] " + switched)
 
 
 def _run_dry(
@@ -309,7 +326,8 @@ def _run_dry(
 
     store = acquire.store
     if store is None:
-        console.print("[yellow]No acquire store — nothing to dry-run.[/yellow]")
+        msg = t("cli_acquisition.grab.dry_run_no_store")
+        console.print("[yellow]" + msg + "[/yellow]")
         return
 
     pending = store.wanted.list_pending()
@@ -319,7 +337,8 @@ def _run_dry(
         pending = pending[:limit]
 
     if not pending:
-        console.print("[yellow]No pending wanted items.[/yellow]")
+        msg = t("cli_acquisition.grab.dry_run_empty")
+        console.print("[yellow]" + msg + "[/yellow]")
         return
 
     from personalscraper.acquire.orchestrator import build_search_query, rank_candidates  # noqa: PLC0415
@@ -327,7 +346,8 @@ def _run_dry(
 
     registry = acquire.tracker_registry
     for item in pending:
-        console.print(f"\n[bold]Item:[/bold] {item.media_ref} ({item.kind})")
+        item_line = f"{item.media_ref} ({item.kind})"
+        console.print("\n[bold]" + t("cli_acquisition.grab.item_label") + "[/bold] " + item_line)
         # A `season` row is TV too — it was classified as MOVIE here while the
         # orchestrator (orchestrator.py) says `in ("episode", "season")`. The
         # preview therefore hit the movie endpoint AND, once the year stopped
@@ -354,7 +374,7 @@ def _run_dry(
         queries = [build_search_query(item, title, year)]
         if original_title and original_title != title:
             queries.append(build_search_query(item, original_title, year))
-        results: "list[TrackerResult] | None" = None
+        results: list[TrackerResult] | None = None
         circuit_open = False
         for attempt_no, attempt_query in enumerate(queries):
             try:
@@ -362,14 +382,20 @@ def _run_dry(
             except CircuitOpenError:
                 # A dead tracker's OPEN circuit must not crash the preview (the
                 # real grab already catches this in the orchestrator).
-                console.print("  [yellow]Tracker circuit open — skipped this item.[/yellow]")
+                console.print("  [yellow]" + t("cli_acquisition.grab.circuit_open") + "[/yellow]")
                 circuit_open = True
                 break
-            label = "Search" if attempt_no == 0 else "Retry (original title)"
-            console.print(
-                f"  {label}: {len(outcome.results)} results "
-                f"({outcome.trackers_queried} queried, {outcome.trackers_errored} errored)"
+            label = (
+                t("cli_acquisition.grab.attempt_search") if attempt_no == 0 else t("cli_acquisition.grab.attempt_retry")
             )
+            attempt = t(
+                "cli_acquisition.grab.attempt_line",
+                label=label,
+                results=len(outcome.results),
+                queried=outcome.trackers_queried,
+                errored=outcome.trackers_errored,
+            )
+            console.print("  " + attempt)
             if not outcome.results:
                 continue
 
@@ -408,7 +434,7 @@ def _run_dry(
         if circuit_open:
             continue
         if not results:
-            console.print("  [yellow]No result matches the wanted item (title/episode/year).[/yellow]")
+            console.print("  [yellow]" + t("cli_acquisition.grab.no_match") + "[/yellow]")
             continue
 
         # Resolve the SAME effective profile the real grab uses (series
@@ -426,14 +452,21 @@ def _run_dry(
         # never make (a lower-seeder / wrong-variant release); the dry-run-first
         # rule needs the Top to be the actual ranked winner, rank[0].
         representatives, ranked = rank_candidates(results, profile, item.media_ref, registry.ranking)
-        console.print(f"  After filter+dedup: {len(representatives)} candidates")
+        console.print("  " + t("cli_acquisition.grab.after_filter", candidates=len(representatives)))
         if not representatives:
-            console.print("  [yellow]All filtered.[/yellow]")
+            console.print("  [yellow]" + t("cli_acquisition.grab.all_filtered") + "[/yellow]")
             continue
         if not ranked:
             # Survivors exist but none meets min_seeders — the real grab returns
             # no_seeders (retryable), so there is no candidate to act on today.
-            console.print("  [yellow]No candidate meets the minimum seeders threshold.[/yellow]")
+            console.print("  [yellow]" + t("cli_acquisition.grab.no_seeders") + "[/yellow]")
             continue
         top, _score = ranked[0]
-        console.print(f"  [green]Top:[/green] [{top.provider}] {top.title} ({top.seeders} seeders, {top.resolution})")
+        top_line = t(
+            "cli_acquisition.grab.top_line",
+            provider=top.provider,
+            title=top.title,
+            seeders=top.seeders,
+            resolution=str(top.resolution),
+        )
+        console.print("  [green]" + t("cli_acquisition.grab.top_label") + "[/green] " + top_line)

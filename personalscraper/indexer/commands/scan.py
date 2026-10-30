@@ -10,11 +10,12 @@ from typing import TYPE_CHECKING
 import typer
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 from personalscraper.indexer import cli as indexer_cli
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from typing import Any  # noqa: F401
+    from typing import Any
 
 log = get_logger("indexer.cli")
 
@@ -31,7 +32,7 @@ def library_index_command(
     config_path: Path | None = None,
     confirm_bulk_change: bool = False,
     rebuild: bool = False,
-    event_bus: "EventBus",
+    event_bus: EventBus,
 ) -> int:
     """Run an indexer scan (full / quick / incremental / enrich) and print a JSON summary.
 
@@ -86,13 +87,13 @@ def library_index_command(
         load_config,
         resolve_config_path,
     )
+    from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import (  # noqa: PLC0415
         IndexerCorruptError,
         IndexerDiskFullError,
         IndexerInvalidPathError,
         IndexerLockError,
-        IndexerMigrationError,
         apply_migrations,
         indexer_lock,
         open_db,
@@ -122,7 +123,7 @@ def library_index_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_scan.config_error", error=str(exc)), err=True)
         return 1
 
     db_path = cfg.indexer.db_path
@@ -134,13 +135,13 @@ def library_index_command(
         scan_mode = ScanMode(mode)
     except ValueError:
         valid_modes = ", ".join(m.value for m in ScanMode)
-        typer.echo(f"Invalid mode '{mode}'. Valid: {valid_modes}", err=True)
+        typer.echo(t("cli_library.indexer_scan.invalid_mode", mode=mode, valid_modes=valid_modes), err=True)
         return 1
 
     # --backfill-streams only makes sense for enrich mode (it targets
     # already-enriched files whose stream rows lack the new columns).
     if backfill_streams and scan_mode != ScanMode.enrich:
-        typer.echo("--backfill-streams requires --mode enrich", err=True)
+        typer.echo(t("cli_library.indexer_scan.backfill_requires_enrich"), err=True)
         return 1
 
     from contextlib import closing  # noqa: PLC0415
@@ -159,7 +160,7 @@ def library_index_command(
                 IndexerCorruptError,
                 IndexerDiskFullError,
                 IndexerInvalidPathError,
-                IndexerMigrationError,
+                SqliteMigrationError,  # the base: a failed script or a newer schema
             ) as exc:
                 typer.echo(str(exc), err=True)
                 return 1
@@ -172,7 +173,7 @@ def library_index_command(
                     IndexerCorruptError,
                     IndexerDiskFullError,
                     IndexerInvalidPathError,
-                    IndexerMigrationError,
+                    SqliteMigrationError,  # the base: a failed script or a newer schema
                 ) as exc:
                     typer.echo(str(exc), err=True)
                     return 1
@@ -279,9 +280,11 @@ def library_index_command(
                     )
                 except DiskBulkChangeDetected as bulk_exc:
                     typer.echo(
-                        f"disk {bulk_exc.disk_uuid!r} looks like a bulk restore "
-                        f"({bulk_exc.delta:.0%} files changed). "
-                        f"Re-run with --confirm-bulk-change to proceed.",
+                        t(
+                            "cli_library.indexer_scan.bulk_restore",
+                            disk=repr(bulk_exc.disk_uuid),
+                            delta=f"{bulk_exc.delta:.0%}",
+                        ),
                         err=True,
                     )
                     if dry_run:
@@ -517,7 +520,7 @@ def library_reconcile_command(
     enqueue_repairs: bool = False,
     clean_fk_orphans: bool = False,
     config_path: Path | None = None,
-    event_bus: "EventBus",
+    event_bus: EventBus,
 ) -> tuple[int, dict[str, Any]]:
     """Detect index ↔ filesystem divergences without a full rescan.
 
@@ -576,7 +579,7 @@ def library_reconcile_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_scan.config_error", error=str(exc)), err=True)
         return 1, {"error": str(exc)}
 
     db_path = cfg.indexer.db_path

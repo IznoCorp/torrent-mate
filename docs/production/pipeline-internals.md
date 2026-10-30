@@ -51,7 +51,7 @@ Uses `-a --no-perms --no-owner --no-group --no-times --omit-dir-times --inplace 
 
 ### Disk selection
 
-The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()` which considers only mounted disks accepting the category. If no disk has both the category and enough space, the item is skipped (INFO log).
+The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()` which considers only mounted disks accepting the category (« mounted » = the disk's volume is a real mount point, not a folder on the system disk: `is_mounted`, see `storage.md`). If no disk has both the category and enough space, the item is skipped (INFO log).
 
 ### Standalone invocation
 

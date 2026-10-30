@@ -22,10 +22,10 @@ from typing import Literal, cast
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from personalscraper.acquire.store import build_acquire_store
+from personalscraper.app.acquisition.runner import grab_options_json, hash_options_json, prime_options_json
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web.acquisition.runner import grab_options_json, hash_options_json, prime_options_json
 from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import GrabTriggerResponse
 
@@ -177,7 +177,7 @@ def _spawn_grab_runner(run_uid: str, followed_id: int) -> int:
     }
     logger.info("grab_trigger_spawned", run_uid=run_uid, followed_id=followed_id)
     proc = subprocess.Popen(
-        [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+        [sys.executable, "-m", "personalscraper.app.acquisition.runner"],
         start_new_session=True,
         env=env,
     )
@@ -205,7 +205,7 @@ def _spawn_prime_runner(run_uid: str, followed_id: int) -> int:
     }
     logger.info("prime_trigger_spawned", run_uid=run_uid, followed_id=followed_id)
     proc = subprocess.Popen(
-        [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+        [sys.executable, "-m", "personalscraper.app.acquisition.runner"],
         start_new_session=True,
         env=env,
     )
@@ -344,7 +344,7 @@ def trigger_detect(request: Request) -> GrabTriggerResponse:
         }
         logger.info("detect_trigger_spawned", run_uid=run_uid)
         subprocess.Popen(
-            [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+            [sys.executable, "-m", "personalscraper.app.acquisition.runner"],
             start_new_session=True,
             env=env,
         )
@@ -547,7 +547,7 @@ def _spawn_hash_runner(run_uid: str, action: str, info_hash: str) -> int:
     }
     logger.info("hash_trigger_spawned", run_uid=run_uid, action=action, info_hash=info_hash)
     proc = subprocess.Popen(
-        [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+        [sys.executable, "-m", "personalscraper.app.acquisition.runner"],
         start_new_session=True,
         env=env,
     )

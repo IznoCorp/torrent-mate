@@ -7,7 +7,7 @@
  * decision that reads « Réglée » on one screen and « Résolue » on another is
  * two answers to one question.
  *
- * Rule R57, `frontend/maquette/harness/decision.py`.
+ * Rule R57, `webui/harness/decision.py`.
  */
 
 import type { DecisionRowProps } from "@/components/ds/DecisionRow";

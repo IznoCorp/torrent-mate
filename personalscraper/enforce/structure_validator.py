@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
@@ -79,12 +80,18 @@ def validate_structure(
 
     Returns:
         One :class:`StructureResult` per media directory scanned.
+
+    Raises:
+        SandboxGuardError: In a sandbox, a category directory is outside the
+            sandbox's marked, mounted roots.
     """
     results: list[StructureResult] = []
     staging = config.paths.staging_dir
 
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     if movies_dir.exists():
+        # Sandbox guard (a no-op in prod): validation repairs and purges under each category dir.
+        assert_all_within_sandbox(config, movies_dir)
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
                 bus.emit(ItemProgressed(step="enforce", item=folder.name, status="started"))
@@ -92,6 +99,7 @@ def validate_structure(
 
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
+        assert_all_within_sandbox(config, tvshows_dir)
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
                 bus.emit(ItemProgressed(step="enforce", item=folder.name, status="started"))

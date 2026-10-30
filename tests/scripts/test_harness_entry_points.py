@@ -24,9 +24,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from _repo_paths import HARNESS
 
 ROOT = Path(__file__).resolve().parents[2]
-HARNESS = ROOT / "frontend" / "maquette" / "harness"
 
 # Three rules of different shapes: one `asyncio.run(main())`, one `main()`, and
 # the one module that runs TWO rules with a definition between them.

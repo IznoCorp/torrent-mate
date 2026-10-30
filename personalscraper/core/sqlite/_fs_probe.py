@@ -16,11 +16,12 @@ Intentional behaviour change vs the pre-consolidation code:
 
 from __future__ import annotations
 
+import os
 import platform
 import subprocess
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
+from pathlib import Path
 
 from personalscraper.logger import get_logger
 
@@ -103,7 +104,7 @@ def canonical_fs_type(raw: str) -> str:
     return "unknown"
 
 
-def _parse_mount_line(line: str) -> Optional[MountInfo]:
+def _parse_mount_line(line: str) -> MountInfo | None:
     """Parse one macOS ``mount`` output line into a :class:`MountInfo`.
 
     macOS format::
@@ -207,7 +208,7 @@ def _build_mount_table(mount_output: str) -> dict[str, MountInfo]:
     return table
 
 
-def probe_mount(path: str) -> Optional[MountInfo]:
+def probe_mount(path: str) -> MountInfo | None:
     """Return the :class:`MountInfo` for the volume containing *path*, or None.
 
     Uses the module-level cached ``mount`` output so the shell-out happens at
@@ -230,10 +231,61 @@ def probe_mount(path: str) -> Optional[MountInfo]:
     table = _build_mount_table(mount_output)
     normalised = path.rstrip("/")
 
-    best: Optional[MountInfo] = None
+    best: MountInfo | None = None
     for mp, info in table.items():
         if normalised == mp or normalised.startswith(mp.rstrip("/") + "/"):
             if best is None or len(mp) > len(best.mount_point):
                 best = info
 
     return best
+
+
+def _is_mount_root(path: str) -> bool:
+    """Return whether *path* is itself the root of a mounted volume.
+
+    The single seam of :func:`is_mounted`: ``os.path.ismount`` read live, so a
+    test can stand in for it without touching the real mount table.
+
+    Args:
+        path: Absolute path to test.
+
+    Returns:
+        True when *path* is a mount point.
+    """
+    return os.path.ismount(path)
+
+
+def is_mounted(path: str | Path) -> bool:
+    """Return True only when *path* exists on a volume that is really mounted.
+
+    A disk path is a folder under ``/Volumes/<Disk>/…``.  When the volume is not
+    mounted, a folder of the same path can still exist on the system disk (left by
+    an earlier write), so ``path.exists()`` cannot tell the two apart.  This walks
+    up from *path* to the nearest mount point and refuses the root filesystem
+    ``/``: a folder on the system SSD resolves to ``/`` (the firmlinked ``/Users``,
+    ``/tmp`` and the like all do), while ``/Volumes/Disk1/medias`` on a mounted
+    NTFS/macFUSE disk resolves to ``/Volumes/Disk1``.
+
+    Read live on every call — unlike :func:`probe_mount`, whose ``mount`` output
+    is cached for the process lifetime and would go stale in a long-lived web
+    process when a disk comes or goes.
+
+    Args:
+        path: Filesystem path of the disk (or any folder on it).
+
+    Returns:
+        True when *path* exists and its nearest mount point is not ``/``.
+    """
+    candidate = Path(path)
+    try:
+        if not candidate.exists():
+            return False
+    except OSError:
+        return False
+    while True:
+        if _is_mount_root(str(candidate)):
+            return candidate != Path(candidate.anchor)
+        parent = candidate.parent
+        if parent == candidate:
+            return False
+        candidate = parent

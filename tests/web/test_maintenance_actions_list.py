@@ -15,7 +15,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from personalscraper.web.maintenance.registry import REGISTRY
+from personalscraper.app.maintenance.registry import REGISTRY
 
 from .test_maintenance_panels import (
     _build_app,

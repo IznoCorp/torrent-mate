@@ -59,7 +59,7 @@ def run_trailers(
     skip_trailers: bool = False,
     *,
     event_bus: EventBus,
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
 ) -> StepReport:
     """Run the trailers pipeline step for all staged media items.
 
@@ -244,7 +244,7 @@ def run_trailers(
             details=[f"state write failed: {exc.strerror}"],
         )
 
-    except Exception as exc:  # noqa: BLE001 — last-resort guard so the pipeline can dispatch
+    except Exception as exc:  # last-resort guard so the pipeline can dispatch
         logger.exception(
             "trailers_step_crashed",
             error=str(exc),

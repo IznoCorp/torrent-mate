@@ -6,6 +6,10 @@ guarantees ``event_from_envelope`` can resolve any production event class even
 if its declaring module has not been touched by the caller's import graph
 (DESIGN §Event catalog).
 
+The catalog sits below the application layer and imports nothing from ``personalscraper.app``:
+``AccountRightsChanged`` (E8) is registered by ``personalscraper.app.accounts.events``, which
+``personalscraper.app.services`` imports in every process that can emit it.
+
 The public re-export surface mirrors the canonical catalog in
 ``docs/features/event-bus/DESIGN.md`` (§Event catalog). Importers should
 prefer the producer module (e.g. ``from personalscraper.pipeline_events
@@ -24,9 +28,11 @@ from personalscraper.acquire.events import (
     CrossSeedRejected,
     GrabFailed,
     GrabSucceeded,
+    PreprodPurgeCompleted,
     RatioMeasured,
     SeedObligationBreached,
     SeedObligationRecorded,
+    SeedObligationReleased,
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
@@ -59,6 +65,7 @@ from personalscraper.indexer.events import (
     BackfillStarted,
     DiskFullWarning,
     LibraryScanCompleted,
+    LibraryScanSkipped,
 )
 from personalscraper.pipeline_events import (
     ItemProgressed,
@@ -91,11 +98,13 @@ __all__ = [
     "ItemDispatched",
     "ItemProgressed",
     "LibraryScanCompleted",
+    "LibraryScanSkipped",
     "LockedCapabilityUnresolved",
     "PipelineEnded",
     "PipelinePaused",
     "PipelineResumed",
     "PipelineStarted",
+    "PreprodPurgeCompleted",
     "ProviderExhaustedEvent",
     "ProviderFallbackTriggered",
     "RatioMeasured",
@@ -103,6 +112,7 @@ __all__ = [
     "RegistryFanOutCompleted",
     "SeedObligationBreached",
     "SeedObligationRecorded",
+    "SeedObligationReleased",
     "SeedObligationSatisfied",
     "SeriesFollowed",
     "SeriesUnfollowed",

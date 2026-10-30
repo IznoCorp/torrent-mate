@@ -1,0 +1,225 @@
+{
+  "x-unseeded": "INVENTED: no account but the Plex owner exists yet (§ 17, demand D). The roles are the five the operator seeded (O-K1-4, 2026-10-03): Admin, Membre du foyer, Invité Plex, Demandeur, Invité. The accounts are read only while a named state dials one of them; an `avatar` is the address the server would resolve (Paul's stands for a Gravatar, Inès's for a Plex picture, Alix's for a picture that fails to load), and an account without one has neither; every account carries its `language`, French as the household speaks it, so the seeded world reads as it always has — an account created here starts in `configuredLanguage`, the project's configured language (French here, as the server's own configuration names it; English only when nothing is configured); the resting maquette is the owner's alone (DESIGN maquette-l18 § 2.2). `testRoles` and `testAccounts` are NOT the seeded world: roles a manager might have created, read only while a harness state turns the test roster on.",
+  "configuredLanguage": "fr",
+  "roles": [
+    {
+      "id": "admin",
+      "kind": "admin",
+      "rights": []
+    },
+    {
+      "id": "household",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.todo.view",
+        "acquisition.pilot.own",
+        "acquisition.pause.own"
+      ],
+      "defaultFor": [
+        "plexHome"
+      ]
+    },
+    {
+      "id": "plex-guest",
+      "kind": "ordinary",
+      "rights": [
+        "library.read"
+      ],
+      "defaultFor": [
+        "plexGuest"
+      ]
+    },
+    {
+      "id": "requester",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.todo.view",
+        "acquisition.pilot.own",
+        "acquisition.pause.own"
+      ]
+    },
+    {
+      "id": "local-guest",
+      "kind": "ordinary",
+      "rights": [
+        "library.read"
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "id": "household-member",
+      "name": "Léa",
+      "email": "lea@example.invalid",
+      "role": "household",
+      "signInKind": "plex",
+      "language": "fr"
+    },
+    {
+      "id": "plex-without-rights",
+      "name": "Tom",
+      "email": "tom@example.invalid",
+      "role": "plex-guest",
+      "signInKind": "plex",
+      "language": "fr"
+    },
+    {
+      "id": "local-account",
+      "name": "Jules",
+      "email": "jules@example.invalid",
+      "role": "requester",
+      "signInKind": "local",
+      "language": "fr"
+    },
+    {
+      "id": "local-guest",
+      "name": "Paul",
+      "email": "paul@example.invalid",
+      "role": "local-guest",
+      "signInKind": "local",
+      "language": "fr",
+      "avatar": "assets/avatar-gravatar-sample.svg"
+    },
+    {
+      "id": "just-linked",
+      "name": "Inès",
+      "email": "ines@example.invalid",
+      "role": "household",
+      "signInKind": "plex",
+      "language": "fr",
+      "demotedFrom": "requester",
+      "avatar": "assets/avatar-plex-sample.svg"
+    }
+  ],
+  "testRoles": [
+    {
+      "id": "household-sees-all",
+      "name": "Membre du foyer (voit tout)",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.todo.view",
+        "acquisition.pilot.own",
+        "acquisition.quality.own",
+        "acquisition.pause.own",
+        "acquisition.see.others"
+      ]
+    },
+    {
+      "id": "guest-requests",
+      "name": "Invité Plex (demandes)",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.pilot.own"
+      ]
+    },
+    {
+      "id": "guest-quality",
+      "name": "Invité Plex (qualité)",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.pilot.own",
+        "acquisition.quality.own",
+        "acquisition.pause.own"
+      ]
+    },
+    {
+      "id": "spectator",
+      "name": "Spectateur",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.see.others"
+      ]
+    }
+  ],
+  "testAccounts": [
+    {
+      "id": "household-member-sees-all",
+      "name": "Sam",
+      "email": "sam@example.invalid",
+      "role": "household-sees-all",
+      "signInKind": "plex",
+      "language": "fr"
+    },
+    {
+      "id": "guest",
+      "name": "Noé",
+      "email": "noe@example.invalid",
+      "role": "guest-requests",
+      "signInKind": "plex",
+      "language": "fr"
+    },
+    {
+      "id": "guest-with-quality",
+      "name": "Alix",
+      "email": "alix@example.invalid",
+      "role": "guest-quality",
+      "signInKind": "plex",
+      "language": "fr",
+      "avatar": "data:image/png;base64,AAAA"
+    },
+    {
+      "id": "see-only",
+      "name": "Eden",
+      "email": "eden@example.invalid",
+      "role": "spectator",
+      "signInKind": "plex",
+      "language": "fr"
+    }
+  ],
+  "requests": {
+    "household-member": [
+      "Wicker",
+      "Kyma, l'onde mystérieuse",
+      "President Curtis",
+      "Star Trek: Strange New Worlds",
+      "Star Trek: Strange New Worlds (2022)"
+    ],
+    "household-member-sees-all": [
+      "Silo",
+      "Star Trek: Strange New Worlds (2022)"
+    ],
+    "guest": [
+      "Lucky",
+      "Kyma, l'onde mystérieuse"
+    ],
+    "guest-with-quality": [
+      "Kyma, l'onde mystérieuse"
+    ]
+  },
+  "preferences": {
+    "Kyma, l'onde mystérieuse": {
+      "household-member": {
+        "quality": "1080p",
+        "paused": true
+      },
+      "guest-with-quality": {
+        "quality": "720p"
+      },
+      "guest": {
+        "quality": "2160p",
+        "paused": true
+      }
+    }
+  },
+  "plexUsers": [
+    "maya@example.invalid"
+  ],
+  "plexSignInUrl": "about:blank",
+  "passwordMinimum": 12
+}

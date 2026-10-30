@@ -127,9 +127,9 @@ def test_season_pack_usable_nfo_is_kept(tmp_path: Path) -> None:
 def test_usable_multi_root_nfo_is_left_alone_without_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """The xref upgrade reads a single root: a multi-root NFO is skipped, no parse warning, file unchanged."""
     content = (
-        "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>\n"
-        "<episodedetails><title>B</title><season>1</season><episode>2</episode></episodedetails>\n"
-    ).encode()
+        b"<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>\n"
+        b"<episodedetails><title>B</title><season>1</season><episode>2</episode></episodedetails>\n"
+    )
     with caplog.at_level("DEBUG"):
         nfo_path, _ = _run(tmp_path, content)
     assert nfo_path.read_bytes() == content

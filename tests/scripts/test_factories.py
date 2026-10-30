@@ -1,6 +1,6 @@
 """Tests for the `cva()` factory reader — pure functions over text, no browser.
 
-`frontend/maquette/harness/factories.py` reads every typed variant's anchor,
+`webui/harness/factories.py` reads every typed variant's anchor,
 base and branches; `resolution_card.py` reads a factory's declaration through
 it. It was R80's reading half, and every defect that rule had lived here.
 
@@ -23,9 +23,8 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from pathlib import Path
 
-HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
+from _repo_paths import HARNESS
 
 
 def load():

@@ -19,7 +19,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerAccountStats
 from personalscraper.api.tracker._contracts import (
     AccountStatsReadable,
@@ -30,6 +29,7 @@ from personalscraper.api.tracker._contracts import (
 )
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.tracker.tr4ker import Tr4kerClient
+from personalscraper.core.units import ByteSize
 
 
 def _c411() -> C411Client:

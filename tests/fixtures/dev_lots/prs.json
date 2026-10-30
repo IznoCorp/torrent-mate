@@ -1,0 +1,7 @@
+[
+  {"number": 11, "title": "feat(alpha-one): the first phase", "state": "MERGED", "headRefName": "feat/alpha-one", "url": "https://github.com/example/repo/pull/11"},
+  {"number": 12, "title": "fix(alpha-one): a correction round", "state": "CLOSED", "headRefName": "fix/alpha-one-round", "url": "https://github.com/example/repo/pull/12"},
+  {"number": 13, "title": "feat(alpha-two): the second phase", "state": "OPEN", "headRefName": "feat/alpha-two", "url": "https://github.com/example/repo/pull/13"},
+  {"number": 14, "title": "feat(alpha-two-extra): a different codename", "state": "MERGED", "headRefName": "feat/alpha-two-extra", "url": "https://github.com/example/repo/pull/14"},
+  {"number": 15, "title": "chore(other): unrelated", "state": "MERGED", "headRefName": "chore/other", "url": "https://github.com/example/repo/pull/15"}
+]

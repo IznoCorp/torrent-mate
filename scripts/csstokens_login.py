@@ -23,13 +23,13 @@ from pathlib import Path
 # pattern is a second thing to keep in step, and this module is only ever
 # imported by it.
 from csstokens_patterns import COMMENT, DECLARATION, HTML_COMMENT, RUNTIME_PREFIX, USE
+from _repo_paths import DESIGN, MAQUETTE
 
 ROOT = Path(__file__).resolve().parent.parent
 
 # The files `serve.py` binds, resolved here rather than imported from the
 # main script: this module is the one that follows those bindings, and a
 # constant defined where it is READ cannot drift from a copy elsewhere.
-DESIGN = ROOT / "frontend" / "maquette" / "design"
 MARKUP = DESIGN / "index.html"
 BASE_LAYER = DESIGN / "src" / "styles" / "base.css"
 THEME_LAYER = DESIGN / "src" / "styles" / "theme.css"
@@ -38,7 +38,7 @@ THEME_LAYER = DESIGN / "src" / "styles" / "theme.css"
 # The composer itself. The sign-in page is whatever IT extracts — a chunk the
 # files offer and `serve.py` never asks for is not on the page, so the arm reads
 # the composition rather than the markers.
-COMPOSER = ROOT / "frontend" / "maquette" / "serve.py"
+COMPOSER = MAQUETTE / "serve.py"
 
 # `styles_source = BASE_STYLESHEET.read_text()`: the local name an `extract()` call
 # passes, bound to the constant that names the file it was read from.
@@ -194,7 +194,7 @@ def served_style() -> str | None:
     left at top level is a token nothing declares.
 
     Returns:
-        The text between the composed page's `<style>` tags, or `None` when the
+        The composed sign-in stylesheet (served at `/login.css`), or `None` when the
         composer cannot be imported or serves no style at all.
     """
     location = importlib.util.spec_from_file_location("_login_composer", COMPOSER)
@@ -204,29 +204,28 @@ def served_style() -> str | None:
     module = importlib.util.module_from_spec(location)
     try:
         location.loader.exec_module(module)
-        page = module.login_page(False)
+        styles = module.login_styles()
     except Exception as failure:  # the composer's own errors, reported as its own
         print(
-            f"check-login: composing the sign-in page raised {failure!r} — "
+            f"check-login: composing the sign-in page's stylesheet raised {failure!r} — "
             "the page this arm measures is the page nobody would be served",
             file=sys.stderr,
         )
         return None
-    # `login_page` returns the bytes it will write on the wire, which is the
+    # `login_styles` returns the bytes it will write on the wire, which is the
     # right shape for a server and the wrong one for a pattern — decoded here
     # rather than changed there, because what this arm must read is exactly
     # what is sent.
-    if isinstance(page, bytes):
-        page = page.decode("utf-8")
-    blocks = re.findall(r"<style[^>]*>(.*?)</style>", page, re.S)
-    if not blocks:
+    if isinstance(styles, bytes):
+        styles = styles.decode("utf-8")
+    if not styles.strip():
         print(
-            "check-login: the composed sign-in page carries no <style> at all — "
+            "check-login: the composed sign-in stylesheet is empty — "
             "an arm that reads no CSS holds nothing",
             file=sys.stderr,
         )
         return None
-    return "\n".join(blocks)
+    return styles
 
 
 def top_level_tokens(css: str) -> list[str]:

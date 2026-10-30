@@ -1,0 +1,32 @@
+[
+  {
+    "label": "TorrentMate",
+    "state": "reachable",
+    "secondaryLine": "depuis ce matin 09 h 36"
+  },
+  {
+    "label": "TorrentMate (staging)",
+    "state": "reachable",
+    "secondaryLine": "depuis ce matin 08 h 25"
+  },
+  {
+    "label": "Veille des téléchargements",
+    "state": "reachable",
+    "secondaryLine": "depuis le 10 août"
+  },
+  {
+    "label": "Veille de la préproduction",
+    "state": "reachable",
+    "secondaryLine": "depuis le 10 août"
+  },
+  {
+    "label": "Déploiement automatique",
+    "state": "reachable",
+    "secondaryLine": "depuis le 10 août"
+  },
+  {
+    "label": "Hôte de la maquette",
+    "state": "reachable",
+    "secondaryLine": "depuis ce matin 08 h 28 · redémarré à la main après chaque édition"
+  }
+]

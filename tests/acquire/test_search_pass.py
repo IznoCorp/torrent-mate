@@ -22,10 +22,10 @@ from personalscraper.acquire.events import SeasonAbsorbedEpisodes, WantedEnqueue
 from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 # ---------------------------------------------------------------------------
 # Reuse the house patterns from test_service.py.

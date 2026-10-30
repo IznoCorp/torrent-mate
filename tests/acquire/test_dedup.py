@@ -41,10 +41,10 @@ from personalscraper.acquire._dedup import (
     normalize_title_core,
 )
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
+from personalscraper.core.units import ByteSize
 
 
 def _make_registry(trackers: dict, priority: list[str]) -> TrackerRegistry:

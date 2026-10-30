@@ -1,0 +1,190 @@
+// The identifiers of a medium and the actions a sheet offers: rescrape and
+// delete for what is owned, follow or add for what is not.
+import { useEngineDrawing } from "../../lib/engine-drawing";
+import { useTranslation } from "react-i18next";
+import { Chip } from "../../ui/chip";
+import { sheetHeadingPlace } from "./variants";
+import { NoInfo } from "./no-info";
+import { Icon } from "../../ui/icon";
+import { SkeletonLine } from "../../ui/state-surfaces";
+import { actionButton, factKey, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
+import { dateLabel } from "./format";
+import { useRights } from "../../lib/account";
+import { mediaRefOf, refKey } from "../../lib/membership";
+
+export function MediaDetails({
+  title,
+  isFilm,
+  owns,
+  followed,
+  prov,
+  inFlight,
+  identified,
+  metadataRefreshedAt,
+}: {
+  title: string;
+  /** True for a film, false for a series, null while the kind is in flight. */
+  isFilm: boolean | null;
+  owns: boolean;
+  followed: boolean;
+  prov: Record<string, string | number>;
+  /** Whether the sheet's read is still out — identifiers not yet known are a skeleton row, never an absence. */
+  inFlight: boolean;
+  /** Whether a medium was identified at all. With none, ownership is unknown, not false. */
+  identified: boolean;
+  /**
+   * When the metadata was last re-read from the providers, or null when it has
+   * not been. The « Métadonnées rafraîchies » row draws it; null keeps the
+   * constant the row showed before this field existed.
+   */
+  metadataRefreshedAt: string | null;
+}) {
+  const { icons } = useEngineDrawing();
+  const { t } = useTranslation();
+  // THE LIBRARY'S WRITES AND THE REQUEST ARE RIGHTS (§ 17): absent, never
+  // greyed, for an account that does not hold them — the library is whole to
+  // read, so nothing missing needs explaining (§ 3.0).
+  const rights = useRights();
+  const rescrape = rights.holds("library.rescrape");
+  const remove = rights.holds("library.delete");
+  // THE REMOVAL IS HANDED THE SHEET'S OWN IDENTITY — the one its address names,
+  // TMDB first for a film — never the title, which two media may share.
+  const removalRef = mediaRefOf(prov, isFilm ? "movie" : "show");
+  const request = rights.holds("acquisition.request");
+  return (
+    <>
+      <div>
+        <h2 className={`${sectionHeading()} ${sheetHeadingPlace()}`} data-part="heading">
+          {t("screens.media.information")}
+        </h2>
+        <div className={factsPanel()} data-part="panel">
+          <div className={keyValueRow()} data-part="key-value">
+            <span>{t("screens.media.follow")}</span>
+            {/* THE SCREEN'S OWN READING, passed down (`followedAs`, B-676): this row
+                had a stricter test of its own (the exact title, or the title cut at
+                « ( »), so a follow recorded under its year read « actif » in the
+                header and « inactif » here. The APP'S ONE ON/OFF PAIR, « actif /
+                inactif », in its chip. */}
+            <span>
+              {followed
+                ? <Chip tone="success" label={t("states.active")} />
+                : <Chip tone="neutral" label={t("states.inactive")} />}
+            </span>
+          </div>
+          {inFlight && Object.keys(prov).length === 0 ? (
+            <div className={keyValueRow()} data-part="key-value">
+              <span><SkeletonLine width="short" /></span>
+              <span><SkeletonLine width="half" /></span>
+            </div>
+          ) : null}
+          {Object.entries(prov).map(([key, value]) => (
+            <div className={keyValueRow()} data-part="key-value" key={key}>
+              <span>{key.toUpperCase()}</span>
+              <span className={factKey()}>
+                {String(value)}
+              </span>
+            </div>
+          ))}
+          {/* THIS DATE WAS A CONSTANT, printed as a fact in every state — in
+              flight, at rest, over a sheet that answered with nothing and over
+              one that failed. The demand it named is SERVED since B-383: the
+              contract carries `metadataRefreshedAt`, the re-scrape verb moves
+              it, and this row reads it. The constant stays as the NULL case and
+              only as that — nothing has been re-read in a session that has just
+              begun, and the row then says what it has always said. Named because
+              this screen's whole subject is what a surface may claim about data
+              it has not got. */}
+          <div className={keyValueRow()} data-part="key-value">
+            <span>{t("screens.media.metadataRefreshed")}</span>
+            <span data-part="media/refreshed">
+              {metadataRefreshedAt
+                ? dateLabel(metadataRefreshedAt) ?? metadataRefreshedAt
+                : t("screens.media.metadataRefreshedValue")}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
+        {!identified ? (
+          // NOTHING IS OFFERED FOR A MEDIUM NOBODY HAS IDENTIFIED. Not the
+          // destructive pair, which would act on an ownership nobody knows, and
+          // not the follow, which would ask the machine to watch a title no
+          // read has confirmed.
+          inFlight ? <SkeletonLine width="half" /> : null
+        ) : owns ? (
+          <>
+            {/* IT SAID A SENTENCE AND SENT NOTHING (B-383). `data-toast` draws a
+                message and does nothing else, so the operator was told the
+                metadata would be re-fetched over a world in which nothing had
+                been asked. `data-rescrape` is the verb both surfaces share —
+                this one and the follow panel's — and it calls the operation. */}
+            {rescrape ? (
+            <button
+              className={actionButton({ kind: "panelAction" })}
+              data-part="sheet/action"
+              data-rescrape={title}
+            >
+              <Icon paths={icons.refresh} />
+              {t("screens.media.rescrape")}
+            </button>
+            ) : null}{" "}
+            {remove && removalRef !== null ? (
+            <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="sheet/action" data-tone="danger" data-del={title} data-del-ref={refKey(removalRef)}>
+              <Icon paths={icons.trash} />
+              {t("screens.media.delete")}
+            </button>
+            ) : null}
+          </>
+        ) : isFilm === null ? (
+          // THE FOLLOW'S VERB IS THE KIND: one word for a series, another for a
+          // film. With the kind still unknown there is no verb to write, and
+          // this branch printed the unknown-word as its label while the
+          // attribute behind it sent the series value to the act. A button that
+          // follows as a series what may be a film is worse than a button
+          // nobody drew. The destructive pair above is untouched: deleting from
+          // the library asks the kind nothing.
+          //
+          // AND AT REST IT SAYS SO. Drawing nothing at all leaves a block that
+          // offered an action silently empty, which reads as a surface that
+          // forgot rather than one that is waiting.
+          inFlight ? (
+            <SkeletonLine width="half" />
+          ) : (
+            <NoInfo>{t("screens.media.followWaitsForKind")}</NoInfo>
+          )
+        ) : followed ? (
+          <button className={actionButton({ kind: "add", tone: "done" })} data-part="media/add" disabled>
+            <Icon paths={icons.check} />
+            {isFilm ? t("screens.media.added") : t("screens.media.followed")}
+          </button>
+        ) : !request ? null : (
+          // No sheet-refresh attribute: the legacy button asked the sheet to
+          // REOPEN itself so the label would flip under the finger. This
+          // screen re-renders from the store instead — the follow act
+          // bumps it, and the button becomes `mediaadd done` in place.
+          <button
+            className={actionButton({ kind: "add" })}
+            data-part="media/add"
+            data-follow={title}
+            // french-ok: a data-* VALUE, frozen with the DOM contract
+            data-fkind={isFilm ? "Film" : "Série"}
+            // THE IDENTITY TRAVELS WITH THE ACT, beside the kind and spelled
+            // the same way. The layer refuses a create it can identify from
+            // nothing (B-366) and otherwise joins the title against what it
+            // serves — a fallback, not an identity: a medium whose title no
+            // list carries would have been refused, and this sheet is the one
+            // surface that reaches such a medium. The identifiers are the
+            // sheet's own read, which is what the rows above print.
+            data-follow-ids={
+              Object.keys(prov).length > 0 ? JSON.stringify(prov) : undefined
+            }
+          >
+            <Icon paths={icons.plus} />
+            {isFilm ? t("screens.media.add") : t("screens.media.followVerb")}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,217 @@
+// THE RIGHT EVERY OPERATION ASKS FOR — the refusal side of § 17, in one table.
+//
+// EVERY OPERATION THE LAYER ANSWERS IS NAMED HERE, a write AND a read (F28,
+// F30): `operation-rights.test.ts` refuses a route this table does not name, so
+// a new operation cannot arrive ungated by forgetting. `null` is a DECISION —
+// the session's own acts, and the reads every account makes — never a default.
+//
+// A LIST IS « ANY OF »: Système's status is read by whoever may open Système or
+// Maintenance, the settings catalogue by whoever opens the configuration or a
+// page that shows a setting. A write names exactly one right, because the
+// forbidden-writes list (ruling 23) subtracts rights and a write must be
+// subtractable by name.
+//
+// THE CONTRACT CARRIES THIS TABLE as `x-rights` on every operation, the words
+// a server refuses by: `npm run stamp-operation-rights` writes it there, the
+// layer refuses by the contract's copy (`declared-rights.ts`), and
+// `operation-rights.test.ts` refuses a contract that drifts from this table.
+//
+// THE ACQUISITION READS ARE NOT REFUSED: an account that may not see another's
+// acquisitions reads its own subset on a 200 (`acquisition.see.others` is a
+// filter, never a 403), and an account with no acquisition right reads an empty
+// one.
+import type { Right } from "../lib/rights";
+
+/** What one operation asks for: a right, any of several, or nothing. */
+export type Asked = Right | readonly Right[] | null;
+
+// The acquisition section's own door: requesting, or seeing everyone's.
+const ACQUISITION: readonly Right[] = ["acquisition.request", "acquisition.see.others"];
+// Piloting a tunnel: one's own, or any.
+const PILOT: readonly Right[] = ["acquisition.pilot.own", "acquisition.pilot.any"];
+
+/** Every operation, and what it asks for. */
+export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
+  // The session's own acts: every identity, under any ceiling (F28).
+  readAccount: null,
+  signIn: null,
+  signOut: null,
+  signInWithPlex: null,
+  startPlexSignIn: null,
+  // A local account's own password (the operator, 2026-10-03): a session act.
+  // The owner's and a Plex-linked account's are refused by their kind, not a right.
+  changeOwnPassword: null,
+  // The account's own language, chosen in Profil (FG-1 B): a session act, no right.
+  setOwnLanguage: null,
+  // The account's own sessions, listed and ended in Profil (ruling Q4 A): a session act, no right.
+  readOwnSessions: null,
+  revokeOwnSession: null,
+  readVersion: null,
+  // The account's own notification choices and its devices' tokens: each
+  // account reads its own, and the read answers only the types its rights
+  // receive (ruling Q1 A). WRITING THEM IS A SESSION ACT, NO RIGHT (the
+  // operator, 2026-10-03: « tout le monde à le droit de changer les
+  // notifications de son propre compte »): the read-only instance refuses
+  // them by its server (`require_not_staging`), not by a right the ceiling
+  // subtracts.
+  readNotificationPreferences: null,
+  updateNotificationPreference: null,
+  registerPushDevice: null,
+  // The account's own in-app notices (a new sign-in): a session act, no right.
+  readNotices: null,
+  markNoticesRead: null,
+  // The roster: « Comptes » manages it; the reassign chooser reads it narrowly (F46).
+  readAccounts: ["accounts.manage", "acquisition.reassign"],
+  createAccount: "accounts.manage",
+  updateAccount: "accounts.manage",
+  // A local account's provisional password, set again by an Admin (the
+  // operator, 2026-10-03: « A »); the owner's and a Plex-linked account's are
+  // refused by their kind.
+  resetAccountPassword: "accounts.manage",
+  // An account's access, cut or given back by an Admin (the operator,
+  // 2026-10-04); the caller's role kind is the handler's check, as the reset's.
+  setAccountAccess: "accounts.manage",
+  createRole: "accounts.manage",
+  updateRole: "accounts.manage",
+  // A role nobody holds and nobody starts on (the operator, 2026-10-04; ruling A);
+  // what it may not be is the handler's check, as the other role writes'.
+  deleteRole: "accounts.manage",
+
+  readLibraryItems: "library.read",
+  readLibraryCategories: "library.read",
+  readLibraryRecent: "library.read",
+  readLibraryIncomplete: "library.read",
+  readLibraryMembership: "library.read",
+  readMediaSheet: "library.read",
+  readMediaSeasons: "library.read",
+  readMediaPoster: "library.read",
+  deleteLibraryItems: "library.delete",
+  rescrapeMedia: "library.rescrape",
+
+  readFollows: null,
+  readFollowCompleteness: null,
+  readAcquisitionQueue: null,
+  readAcquisitionStatus: null,
+  readJourney: null,
+  readDecisions: ACQUISITION,
+  readStaging: ACQUISITION,
+  readStagedMediaCopies: ACQUISITION,
+  readStagingDestinations: ACQUISITION,
+  // SEARCHING SERVES ONLY ADDING, so it asks the right to request: an instance
+  // that cannot add (staging) keeps its « ＋ » closed, search included.
+  readSuggestions: "acquisition.request",
+  searchProviders: "acquisition.request",
+  searchProviderById: "acquisition.request",
+  readReleases: PILOT,
+  createFollow: "acquisition.request",
+  updateFollow: "acquisition.follow",
+  deleteFollow: "acquisition.follow",
+  restoreFollow: "acquisition.follow",
+  searchForFollow: PILOT,
+  grabForFollow: PILOT,
+  grabSeasonForFollow: PILOT,
+  requeueJourney: PILOT,
+  // THE ACCOUNT'S OWN SEEN MARK on a closed tunnel (BK5): a write on the
+  // account's own state, so a session act like the notification writes (the
+  // operator, 2026-10-03) — the read-only instance's server refuses it.
+  dismissClosure: null,
+  rescrapeJourney: PILOT,
+  setAcquisitionQuality: "acquisition.quality.own",
+  setAcquisitionPause: "acquisition.pause.own",
+  reassignRequester: "acquisition.reassign",
+
+  runDetection: "pipeline.control",
+  deleteStagedMedia: "pipeline.control",
+  continueStagedMedia: "pipeline.control",
+  discardStagedMedia: "pipeline.control",
+  reclassifyStagedMedia: "pipeline.control",
+  restoreReclassifiedMedia: "pipeline.control",
+  resolvePlexMatch: "pipeline.control",
+  resolveDecision: "pipeline.control",
+  reopenDecision: "pipeline.control",
+  enqueueForResolution: "pipeline.control",
+  dismissDecision: "pipeline.control",
+  searchForDecision: "pipeline.control",
+  runPipeline: "pipeline.control",
+  pausePipeline: "pipeline.control",
+  resumePipeline: "pipeline.control",
+  killPipeline: "pipeline.control",
+  setWatcher: "pipeline.control",
+  runMaintenanceAction: "pipeline.control",
+
+  readPipeline: "system.view",
+  readPipelineHistory: "system.view",
+  readRun: "system.view",
+  readServices: "system.view",
+  readDependencies: "system.view",
+  readErrors: "system.view",
+  readSchedulers: "system.view",
+  readDisks: "system.view",
+  readIndexHealth: "system.view",
+  readMaintenanceActions: "system.view",
+  readDeletionJournal: "system.view",
+  readLocks: "system.view",
+
+  readTrackers: "trackers.view",
+  readDownloads: "trackers.view",
+  readObligations: "trackers.view",
+  // THE MEDIA SHEET'S BLOCK summarises the Trackers page: the same right (L18 § 1.2).
+  readMediaCrossSeed: "trackers.view",
+  removeDownload: "trackers.control",
+  markBrokenObligationSeen: "trackers.control",
+  cutCrossSeed: "trackers.control",
+  searchCrossSeed: "trackers.control",
+  // PUBLISHING AT A THIRD PARTY is its own right, never implied by `trackers.control` (L23 DESIGN § 0.2).
+  uploadCrossSeed: "trackers.upload",
+  writeCrossSeedExclusion: "trackers.control",
+  undoCrossSeedExclusion: "trackers.control",
+
+  readSettings: ["configuration.view", "trackers.view", "system.view"],
+  readConfigurationStatus: ["configuration.view", "system.view"],
+  readSecrets: "configuration.view",
+  readConfigurationFiles: "configuration.view",
+  readConfigurationFile: "configuration.view",
+  updateSecrets: "configuration.write",
+  updateConfigurationFile: "configuration.write",
+  restartWeb: "configuration.write",
+  previewRanking: "configuration.write",
+};
+
+/**
+ * Whether the signed-in account may call one operation.
+ *
+ * @param asked What the operation asks for.
+ * @param holdsAny The account's own test, from the model.
+ * @returns True when nothing is asked or one asked right is held.
+ */
+export function allowed(asked: Asked, holdsAny: (rights: readonly Right[]) => boolean): boolean {
+  if (asked === null) return true;
+  return holdsAny(typeof asked === "string" ? [asked] : asked);
+}
+
+/**
+ * The operations that act on ONE acquisition and ask it to be the caller's own
+ * (§ 17's own tunnel, F27): `acquisition.pilot.own` opens them on an
+ * acquisition the caller is among the requesters of, `acquisition.pilot.any` on
+ * every one.
+ */
+export const OWN_SCOPED: ReadonlySet<string> = new Set([
+  "searchForFollow",
+  "grabForFollow",
+  "grabSeasonForFollow",
+  "requeueJourney",
+  "rescrapeJourney",
+  "updateFollow",
+  "deleteFollow",
+]);
+
+/**
+ * The acquisition one call acts on, by its title.
+ *
+ * @param parameters What the path template captured.
+ * @param query The request's query.
+ * @returns The title — a follow's id and a journey's subject are its title here.
+ */
+export function subjectOf(parameters: Record<string, string>, query: URLSearchParams): string {
+  return parameters.followedId ?? parameters.infoHash ?? query.get("title") ?? "";
+}

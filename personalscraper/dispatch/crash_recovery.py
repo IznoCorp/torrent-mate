@@ -28,6 +28,9 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from personalscraper.conf.environment import is_sandboxed
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.dispatch._transfer import force_rmtree
 from personalscraper.logger import get_logger
 
@@ -116,6 +119,7 @@ def sweep_orphans(
     *,
     artifacts: Sequence[OrphanArtifact] = ARTIFACT_TABLE,
     dry_run: bool,
+    config: Config | None = None,
 ) -> int:
     """Sweep crash-recovery orphans across *roots* (the single-owner sweep).
 
@@ -131,13 +135,28 @@ def sweep_orphans(
             :data:`ARTIFACT_TABLE`; overridable for tests).
         dry_run: When True, ``SKIP`` roots do nothing and ``REPORT`` roots log
             what they *would* clean (and count it) without deleting.
+        config: Loaded configuration naming the sandbox's roots. Only read in
+            a sandbox, where it is required: a directory-walking root (a storage
+            disk, the staging tree or the ingest dir) outside the marked, mounted
+            roots is skipped with an error log, before anything under it is touched.
 
     Returns:
         Number of orphan artifacts cleaned (or, for ``REPORT`` roots in dry-run,
         that *would* have been cleaned).
+
+    Raises:
+        SandboxGuardError: In a sandbox, no *config* was given. Nothing is removed.
     """
+    if is_sandboxed() and config is None:
+        raise SandboxGuardError("cannot sweep orphans: a sandbox needs the config to know its roots")
     total = 0
     for root in roots:
+        if config is not None and root.kind is not RootKind.LOCKOUT_FILE:
+            try:
+                assert_within_sandbox(config, root.path)
+            except SandboxGuardError as exc:
+                log.error("preprod_orphan_sweep_refused", path=str(root.path), error=str(exc))
+                continue
         rules = tuple(a for a in artifacts if a.root_kind == root.kind)
         if root.kind is RootKind.MEDIA_TREE:
             total += _sweep_media_tree(root, rules, dry_run=dry_run)

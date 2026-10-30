@@ -1,6 +1,6 @@
 """Tests for B-256's lock and stamp — the half that needs no suite running.
 
-`frontend/maquette/harness/served_copy.py` answers two questions about
+`webui/harness/served_copy.py` answers two questions about
 `/tmp/tm-refonte`: who is allowed to rebuild it, and which build is in it. Both
 answers are decided by pure logic over a directory and a JSON file, and both
 have a failure mode that is SILENT by nature — a lock handed to the wrong
@@ -28,11 +28,9 @@ import importlib.util
 import json
 import os
 import sys
-from pathlib import Path
 
 import pytest
-
-HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
+from _repo_paths import HARNESS
 
 
 def load():
@@ -200,3 +198,18 @@ class TestThePublisher:
         monkeypatch.setattr(served_copy, "write_stamp", stamp_after)
         assert served_copy.publish(design) == {"token": "stamped"}
         assert landed == {"document": True, "worker": True, "identity": True}
+
+    def test_the_copy_links_every_folder_the_document_names_by_url(self, copy_at, tmp_path, monkeypatch):
+        """`/assets/`, `/boot/` and `/fonts/` answer from the design root; a missing one folds onto the document."""
+        design = tmp_path / "design"
+        (design / "dist").mkdir(parents=True)
+        for name in ("assets", "boot", "fonts"):
+            (design / name).mkdir()
+        (design / "dist" / "index.html").write_text("<html></html>")
+        monkeypatch.setattr(served_copy, "write_stamp", lambda token=None: {})
+
+        served_copy.publish(design)
+
+        for name in ("assets", "boot", "fonts"):
+            assert (copy_at / name).is_symlink(), name
+            assert (copy_at / name).resolve() == (design / name).resolve(), name

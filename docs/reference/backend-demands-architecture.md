@@ -73,13 +73,17 @@ operator ruled on 2026-09-27; the roles it names are seed VALUES, not a fixed se
   their own role's, never modifies their own role, and never touches an account whose role is Admin (the
   auditor's coherence round, M7). The backend refuses a violation server-side; the frontend greys it, never
   trusting the client alone.
-- **Plex SSO is added, not substituted.** A password sign-in is gated by an ACL right (`auth.password`), held by
-  the Admin role by default and grantable to any account, Plex-linked or not, from Comptes — reconciling the
-  operator's default gloss (« Opérateur seul ») with §17's letter (« l'utilisateur se connecte par l'un ou
-  l'autre »): a linked account without the right still signs in with Plex; the right adds a password as a second
-  way in for the account that holds it. A locally created account carries a mandatory e-mail; an e-mail matching
-  a Plex account LINKS the two. A Plex user admitted with only the Default role's own seed is read-only, library
-  only — not a distinct mechanism, the model's own default falling out of the Default role's rights.
+- **Plex SSO is added, not substituted — and the door is the account's sign-in kind, not a right.** The ACL
+  right `auth.password` first drawn here is RETIRED (the operator, 2026-10-03: « A, oui on n'a pas le droit de se connecté par mot de passe si on est un compte Plex, on propose forcément le SSO »). Every
+  login is an e-mail; an account's `signInKind` says how it signs in: `owner` — the managed Plex server's owner,
+  by Plex SSO and a fallback password replaced only by a command on the server; `plex` — an identity with access
+  to the server, by Plex SSO only; `local` — an e-mail that is no user of the server, by password only, never
+  linked, given a PROVISIONAL password by an Admin in Comptes at creation and on a reset (`resetAccountPassword`),
+  changed by the account itself in Profil (`changeOwnPassword`). A Plex identity without access to the server is
+  refused, and every unauthenticated sign-in failure answers the one code `auth.refused` (O-K1-4,
+  anti-enumeration). `signIn` declares one 403, `request.cross_origin`, for a POST from another origin — it depends
+  on the request's origin, never on the credentials, so no credential failure is a 403. When a local account's e-mail becomes a user of the server it is linked, SSO becomes
+  mandatory and its role drops to its Plex kind's starting role (`Role.defaultFor`) until an Admin promotes it.
 - **The staging read-only role becomes a PER-INSTANCE LIST of forbidden writes, not a single boolean ceiling**
   (ruling 23, superseding the earlier reading): the current `:8711` instance's own list names every write; the
   future PREPROD environment's list names deletion in the library ALONE — preprod files into ITS OWN library (its own
@@ -244,8 +248,9 @@ ownership index, a richer hello). This file adds the decisions those registers c
   and `knownMedium` — engine-held fixture state a title string indexes loosely. L13's b·10-bis
   phase replaces that with an EXACT-TITLE (+ year) membership read against the served library, the
   same identity the media sheet already resolves by (rulings 41, 53). The backend brief inherits the
-  demand this exposes once the fixture is gone: a membership query keyed by the medium's identity
-  (provider + id, or exact title and year when no identity is held yet), not by a fuzzy title match.
+  demand this exposes once the fixture is gone: a membership query keyed by the medium's provider
+  identity (provider + id, TVDB first for a show — Q15), not by a title, exact or fuzzy; the
+  contract carries it (`readLibraryMembership`).
 
 ## 12. The global levers and the history's four gaps — §20, DOIT-6, L20
 

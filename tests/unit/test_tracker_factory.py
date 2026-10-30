@@ -68,7 +68,7 @@ class _StubSearchable:
         return MagicMock()
 
     @classmethod
-    def from_env(cls, *, env: Any, event_bus: Any, required: Any, provider_cfg: Any) -> "_StubSearchable":
+    def from_env(cls, *, env: Any, event_bus: Any, required: Any, provider_cfg: Any) -> _StubSearchable:
         """Build the stub via the uniform TrackerConstructible.from_env contract."""
         return cls(MagicMock())
 
@@ -96,7 +96,7 @@ class _NotSearchable:
         return MagicMock()
 
     @classmethod
-    def from_env(cls, *, env: Any, event_bus: Any, required: Any, provider_cfg: Any) -> "_NotSearchable":
+    def from_env(cls, *, env: Any, event_bus: Any, required: Any, provider_cfg: Any) -> _NotSearchable:
         """Build the stub via the uniform from_env contract (still fails TorrentSearchable)."""
         return cls(MagicMock())
 

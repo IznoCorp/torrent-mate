@@ -2,15 +2,12 @@
 
 import json
 import threading
-from datetime import timezone
 from pathlib import Path
 
 import pytest
 
 from personalscraper.api.metadata._base import Video
 from personalscraper.trailers.discovery.trailers_cache import TrailersCache
-
-UTC = timezone.utc
 
 
 @pytest.fixture()

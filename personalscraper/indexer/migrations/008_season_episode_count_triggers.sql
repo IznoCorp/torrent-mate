@@ -1,5 +1,9 @@
 -- 008 — Auto-maintain season.episode_count via triggers + one-shot backfill of pre-trigger drift.
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 -- Step 1 — one-shot backfill: correct any existing drift before triggers take over.
 -- Mirrors the logic in ``personalscraper commands library fix-season-counts``
 -- but runs once at migration time so that the triggers start from a clean state.
@@ -46,3 +50,5 @@ END;
 -- Step 5 — version bump.
 INSERT INTO schema_version (version) VALUES (8);
 PRAGMA user_version = 8;
+
+COMMIT;

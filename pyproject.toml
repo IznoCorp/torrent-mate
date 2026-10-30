@@ -8,7 +8,6 @@ dynamic = ["version"]
 description = "Media pipeline automation — ingest, sort, scrape, verify, dispatch."
 readme = "README.md"
 requires-python = ">=3.12"
-license = "MIT"
 authors = [
     {name = "LounisBou", email = "LounisBou@users.noreply.github.com"}
 ]
@@ -48,14 +47,16 @@ dependencies = [
     "PyJWT>=2.8",
     # FCM HTTP v1: mints the service account's access token (not firebase-admin, which pulls gRPC).
     "google-auth>=2.40",
+    # Fernet: the Plex tokens a sign-in keeps are encrypted in app.db.
+    "cryptography>=49.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.3.0",
     "pytest-cov>=4.0.0",
-    "ruff>=0.4.0",
-    "mypy>=1.10.0",
+    "ruff==0.16.10",
+    "mypy==2.4.0",
     "types-requests>=2.31.0",
     "pip-audit>=2.7.0",
     "pip-licenses>=4.0.0",
@@ -77,6 +78,12 @@ dev = [
     "jsonschema>=4.20",
 ]
 
+# The app-e2e lane's browser driver (`tests/app_e2e`, `-m app_e2e`). Pinned here so it lands in
+# `uv.lock` like everything else; the browsers themselves are fetched by `playwright install`.
+e2e = [
+    "playwright==1.63.0",
+]
+
 [project.scripts]
 # `torrentmate` is the project's public command name; `personalscraper` is kept
 # as a backward-compatible alias (same entry point). The Python package, config
@@ -92,14 +99,17 @@ include = ["personalscraper*"]
 
 [tool.setuptools.package-data]
 # SQL migration scripts are loaded at runtime by core/sqlite apply_migrations and
-# MUST ship in the wheel (indexer: 15 files, acquire: 7 files = 22 total). Without
+# MUST ship in the wheel (indexer, acquire and app). Without
 # this, a wheel/pip install of the package boots with an empty DB and no schema.
 "personalscraper.indexer.migrations" = ["*.sql"]
 "personalscraper.acquire.migrations" = ["*.sql"]
+"personalscraper.app.store.migrations" = ["*.sql"]
 # The web UI SPA (Vite build output) is served by web/static.py. Ship whatever is
 # present under web/static/: the .gitkeep placeholder in a source checkout, or the
 # real built bundle (index.html + assets/**) after `cd frontend && npm run build`.
 "personalscraper.web" = ["static/*", "static/**/*", "static/.gitkeep"]
+# The backend translation catalogues are read at runtime through importlib.resources.
+"personalscraper.i18n" = ["fr/*.json", "en/*.json", "one_sided/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -120,16 +130,18 @@ markers = [
     "slow: slow tests (perf regression), off by default — run with -m slow",
     "darwin_only: macOS-only smoke tests (skipped on Linux/Windows CI runners)",
     "multifs: filesystem-capability tests using faked mount/stat fixtures (no real disks required)",
+    "real_mount_check: keep the real mount reading (tests that prove a folder on the system disk is not a mounted disk)",
     "integration: cross-module characterization / integration tests (not unit; may build a temp library FS)",
+    "app_e2e: the built client against a seeded v1 server in a browser (needs `npm run build:app` and Playwright)",
 ]
-addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network'"
+addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network and not app_e2e'"
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "D"]
+select = ["E", "F", "I", "W", "D", "BLE", "S608", "PLC0415", "B", "C901", "RUF100", "UP"]
 ignore = ["D104"]  # D104=__init__ docstring
 # D100 was ignored with the note « enforced manually », which is the definition
 # of no arm — CLAUDE.md says docstrings are mandatory on all MODULES too. Three
@@ -143,9 +155,45 @@ ignore = ["D104"]  # D104=__init__ docstring
 # list can only shrink.
 [tool.ruff.lint.per-file-ignores]
 # The living tools keep D103: a new script is held to it from its first line.
-"scripts/*.py" = ["D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
-"frontend/maquette/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
-"frontend/scripts/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "F405", "F841", "I001"]
+"scripts/*.py" = ["D205", "E501", "E701", "E702", "F401", "F405", "F841", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "S608", "RUF100"]
+"webui/harness/*.py" = ["D103", "D205", "D301", "D107", "E501", "E701", "E702", "E741", "F401", "I001", "B023", "B904", "B905", "BLE001", "C901", "PLC0415", "UP031", "RUF100"]
+"webui/*.py" = ["B904", "C901", "PLC0415"]
+
+# BLE, S608, PLC0415, B, C901, RUF100 and UP are held on `personalscraper/app/`, `personalscraper/http_v1/` and
+# `personalscraper/core/` (the v1 trees): a finding there is fixed, or carries a local
+# `# noqa: <code> — <reason>` where the code is right. Every other tree DECLARES below the rules its existing
+# code still breaks, the same way as above: a new file there is held to everything else from its first line,
+# and this list can only shrink. The v0 trees (`personalscraper/web/`, `tests/`, the CLI) are not rewritten for it.
+"personalscraper/cli.py" = ["B008", "PLC0415"]
+"personalscraper/lock.py" = ["PLC0415"]
+"personalscraper/logger.py" = ["PLC0415"]
+"personalscraper/naming_patterns.py" = ["PLC0415"]
+"personalscraper/pause.py" = ["PLC0415"]
+"personalscraper/pipeline.py" = ["BLE001", "C901", "PLC0415", "RUF100"]
+"personalscraper/pipeline_history.py" = ["BLE001", "C901"]
+"personalscraper/pipeline_steps.py" = ["PLC0415"]
+"personalscraper/text_utils.py" = ["PLC0415"]
+"personalscraper/acquire/**/*.py" = ["BLE001", "C901", "PLC0415", "S608", "UP042", "RUF100"]
+"personalscraper/api/**/*.py" = ["B905", "BLE001", "C901", "PLC0415", "UP042", "UP046", "UP047", "RUF100"]
+"personalscraper/cli_helpers/**/*.py" = ["B904"]
+"personalscraper/commands/**/*.py" = ["B008", "BLE001", "C901", "PLC0415", "UP042", "RUF100"]
+"personalscraper/conf/**/*.py" = ["B904", "B905", "C901", "PLC0415", "RUF100"]
+"personalscraper/dispatch/**/*.py" = ["B008", "BLE001", "C901", "PLC0415", "UP036", "RUF100"]
+"personalscraper/enforce/**/*.py" = ["C901"]
+"personalscraper/i18n/**/*.py" = ["UP040"]
+"personalscraper/indexer/**/*.py" = ["B007", "B008", "B904", "BLE001", "C901", "PLC0415", "S608", "UP035", "UP040", "UP042", "RUF100"]
+"personalscraper/ingest/**/*.py" = ["BLE001", "C901", "PLC0415", "RUF100"]
+"personalscraper/insights/**/*.py" = ["C901"]
+"personalscraper/maintenance/**/*.py" = ["B008", "BLE001", "C901", "PLC0415", "RUF100"]
+"personalscraper/process/**/*.py" = ["C901", "PLC0415"]
+"personalscraper/push/**/*.py" = ["S608"]
+"personalscraper/scraper/**/*.py" = ["BLE001", "C901", "PLC0415", "S608", "UP047", "RUF100"]
+"personalscraper/sorter/**/*.py" = ["C901", "PLC0415", "RUF100"]
+"personalscraper/subscribers/**/*.py" = ["BLE001", "PLC0415", "RUF100"]
+"personalscraper/trailers/**/*.py" = ["B904", "C901", "PLC0415", "RUF100"]
+"personalscraper/verify/**/*.py" = ["C901", "PLC0415"]
+"personalscraper/web/**/*.py" = ["B008", "B904", "BLE001", "C901", "PLC0415", "S608", "UP042", "RUF100"]
+"tests/**/*.py" = ["B007", "B017", "B018", "B904", "B905", "BLE001", "C901", "PLC0415", "S608", "UP017", "UP031", "UP045", "UP046", "RUF100"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -175,7 +223,7 @@ exclude = [
 # "could not be resolved" warnings. Anchoring at the repo root makes the
 # package importable regardless of the active interpreter.
 extraPaths = ["."]
-pythonVersion = "3.10"
+pythonVersion = "3.12"
 typeCheckingMode = "basic"
 reportMissingImports = "error"
 reportMissingTypeStubs = "none"
