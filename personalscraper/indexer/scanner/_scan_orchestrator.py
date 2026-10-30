@@ -616,6 +616,9 @@ def _scan_one_disk(
             label=disk.label,
             error=str(perm_exc),
         )
+        # The walk stopped here: what it had not reached is unseen, not gone. Flagged like a
+        # budget stop so the run's miss strikes skip it.
+        local_exhausted[0] = True
         return
     except OSError as io_exc:
         # I/O error: roll back, mark unmounted, increment unreachable strikes,

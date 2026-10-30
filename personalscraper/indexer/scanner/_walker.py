@@ -356,6 +356,8 @@ class ScanVisitor:
         generation: Scan generation stamped on every ``media_file`` row.
         files_visited: Single-element mutable counter for files.
         dirs_visited: Single-element mutable counter for directories.
+        unreadable_dirs: Paths (relative to the disk mount) of the directories the
+            walk could not list, in walk order; the caller reads it after the walk.
     """
 
     def __init__(
@@ -373,6 +375,34 @@ class ScanVisitor:
         self.generation = generation
         self.files_visited = files_visited
         self.dirs_visited = dirs_visited
+        self.unreadable_dirs: list[str] = []
+
+    def skip_unreadable_dir(self, rel: str) -> None:
+        """Record a directory the walk could not list and shelter the files under it.
+
+        Whatever runs after the walk (the scanner's miss strikes, the scoped refresh's
+        removal of unseen files) reads « not seen in this generation » as « gone from
+        the disk ». For an unreadable directory that is false: its files are there, the
+        walk just could not look. They are stamped with the current generation so that
+        reading cannot happen; their strikes are left as they are.
+
+        Args:
+            rel: The directory's path relative to the disk mount (``"."`` for the root).
+        """
+        self.unreadable_dirs.append(rel)
+        scope = ""
+        params: tuple[object, ...] = ()
+        if rel != ".":
+            scope = "AND (rel_path = ? OR substr(rel_path, 1, ?) = ?)"
+            params = (rel, len(rel) + 1, rel + "/")
+        self.conn.execute(
+            f"""
+            UPDATE media_file SET scan_generation = ?
+             WHERE deleted_at IS NULL AND scan_generation < ?
+               AND path_id IN (SELECT id FROM path WHERE disk_id = ? {scope})
+            """,  # noqa: S608 — only placeholders are interpolated
+            (self.generation, self.generation, self.disk.id, *params),
+        )
 
     def enter_dir(self, entry: os.DirEntry[str], st: os.stat_result, rel: str) -> bool:
         """Decide whether to recurse into subdirectory *entry*.
@@ -452,16 +482,19 @@ def _walk_subtree(
     budget: WalkBudget,
     shutdown: Callable[[], bool],
     checkpoint: WalkCheckpoint,
-) -> None:
+) -> bool:
     """Recursive body of :func:`walk` for a single directory *dir_abs*.
 
     See :func:`walk` for the ordering contract. Kept private and separate from
     :func:`walk` so the public entry point does not re-enter itself with a
     changing ``root`` argument.
+
+    Returns:
+        ``False`` when *dir_abs* could not be listed (permission denied), ``True`` otherwise.
     """
     # Bail out early if the budget was already exhausted by a sibling subtree.
     if budget.budget_exhausted[0]:
-        return
+        return True
 
     conn = visitor.conn
     disk = visitor.disk
@@ -471,10 +504,13 @@ def _walk_subtree(
     try:
         entries = sorted(_list_dir_entries(dir_abs), key=lambda e: e.name)
     except PermissionError:
-        # PermissionError is swallowed (skip the unreadable dir); every other
-        # OSError (EIO, ENOTCONN, …) propagates to the per-disk error handling.
-        log.warning("indexer.scan.dir_permission_denied", path=dir_abs)
-        return
+        # PermissionError is not fatal (skip the unreadable dir) but is REPORTED to the
+        # visitor: its files are not gone, so the caller must not read them as unseen.
+        # Every other OSError (EIO, ENOTCONN, …) propagates to the per-disk error handling.
+        rel_unreadable = _relpath(mount, dir_abs)
+        log.warning("indexer.scan.dir_permission_denied", path=dir_abs, rel=rel_unreadable)
+        visitor.skip_unreadable_dir(rel_unreadable)
+        return False
 
     for entry in entries:
         if _should_exclude(entry.name):
@@ -491,13 +527,15 @@ def _walk_subtree(
             visitor.dirs_visited[0] += 1
             rel = _relpath(mount, entry.path)
             if visitor.enter_dir(entry, st, rel):
-                _walk_subtree(entry.path, visitor, budget=budget, shutdown=shutdown, checkpoint=checkpoint)
+                listed = _walk_subtree(entry.path, visitor, budget=budget, shutdown=shutdown, checkpoint=checkpoint)
                 # Stop iterating this directory if budget was exhausted in the
                 # subtree — the parent's path row is intentionally NOT written.
                 if budget.budget_exhausted[0]:
-                    return
-                # Write-through path row after all children have been visited.
-                visitor.leave_dir(entry, st, rel)
+                    return True
+                # Write-through path row after all children have been visited — except an
+                # unlisted directory: its mtime must not let a later scan skip it as unchanged.
+                if listed:
+                    visitor.leave_dir(entry, st, rel)
         else:
             # Both regular files and symlinks land here.
             parent_rel = _relpath(mount, dir_abs)
@@ -527,13 +565,14 @@ def _walk_subtree(
             checkpoint.files_since_checkpoint[0] = new_counter
             if exhausted:
                 budget.budget_exhausted[0] = True
-                return
+                return True
 
             # SIGTERM clean-shutdown bridge (sub-phase 4.9): treat a shutdown
             # request like budget exhaustion so the caller commits + checkpoints.
             if shutdown():
                 budget.budget_exhausted[0] = True
-                return
+                return True
+    return True
 
 
 class SkeletonVisitor(ScanVisitor):
