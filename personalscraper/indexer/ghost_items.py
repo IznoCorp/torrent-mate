@@ -7,9 +7,11 @@ every view of the library.
 
 An item is a ghost of a disk when all of these hold:
 
-- the disk is configured and its mount is confirmed
-  (:func:`~personalscraper.indexer.drift.should_apply_drift_for_disk`) — an
-  unmounted disk makes every folder look gone;
+- the disk is configured and its mount is verified
+  (``MOUNTED_AND_VERIFIED``: its sentinel names it) — an unmounted disk makes
+  every folder look gone. The strikes go on for a disk with no readable
+  sentinel (:func:`~personalscraper.indexer.drift.should_apply_drift_for_disk`);
+  a hard delete does not;
 - its ``dispatch_path`` lies on that disk and no longer exists;
 - none of its files is live (every one tombstoned, or none at all). An item
   whose folder just vanished therefore retires only once the file strikes have
@@ -37,7 +39,6 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from personalscraper.indexer.drift import should_apply_drift_for_disk
 from personalscraper.indexer.merkle import DiskMountStatus
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
@@ -91,7 +92,8 @@ class GhostReport:
         ghosts: The items retired (or, on a dry run, that would be).
         kept: Ghost folders kept: a live file (``live_files``) or an open repair
             (``pending_repair``).
-        frozen: The mount could not be confirmed; nothing was examined.
+        frozen: The mount could not be verified (or a folder could not be
+            read); nothing was retired.
         capped: More than the cap would have gone; nothing was retired.
         retired: Items actually deleted.
     """
@@ -194,7 +196,8 @@ def retire_ghost_items(
         conn: Open SQLite connection with no open transaction (autocommit or
             not; this function opens and commits its own when it writes).
         disk: The disk, already known to be configured.
-        mount_status: A live :func:`~personalscraper.indexer.merkle.verify_disk_mounted`.
+        mount_status: A live :func:`~personalscraper.indexer.merkle.verify_disk_mounted`;
+            anything but ``MOUNTED_AND_VERIFIED`` freezes the disk.
         dry_run: Report the ghosts and write nothing.
         max_share: Retire nothing when more than this share of the disk's items
             would go; ``None`` lifts the cap.
@@ -209,7 +212,10 @@ def retire_ghost_items(
         sqlite3.Error: When a write fails; the transaction is rolled back.
     """
     report = GhostReport(disk_label=disk.label)
-    if disk.mount_path is None or not should_apply_drift_for_disk(disk, mount_status):
+    if disk.mount_path is None or mount_status is not DiskMountStatus.MOUNTED_AND_VERIFIED:
+        # A hard delete needs the disk proven to be this one: ``NO_SENTINEL``
+        # (absent or unreadable sentinel) lets the strikes run, not a retire.
+        log.warning("indexer.ghost_items.frozen", disk=disk.label, mount_status=mount_status.value)
         report.frozen = True
         return report
 

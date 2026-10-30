@@ -298,3 +298,18 @@ def test_the_pass_refuses_a_connection_with_an_open_transaction(
 
     conn.rollback()
     assert mine not in _items(conn)
+
+
+def test_a_disk_with_no_sentinel_retires_nothing(library: tuple[sqlite3.Connection, DiskRow, Path]) -> None:
+    """A mount with no readable sentinel is not a confirmed disk: a hard delete waits for one.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: only ``MOUNTED_AND_VERIFIED`` lets a disk's ghosts retire; any
+        other status, ``NO_SENTINEL`` included, freezes the disk.
+    """
+    conn, disk, root = library
+    ghost = _item(conn, root / "movies" / "Gone (2020)")
+
+    report = retire_ghost_items(conn, disk, DiskMountStatus.NO_SENTINEL, dry_run=False, max_share=None)
+
+    assert report.frozen and report.retired == 0 and ghost in _items(conn)
