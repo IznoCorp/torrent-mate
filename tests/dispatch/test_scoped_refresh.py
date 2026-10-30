@@ -20,7 +20,7 @@ from personalscraper.dispatch.post_maintenance import (
 )
 from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db, seed_disk
 
-_PUA = ""
+_NTFS_QMARK = ""
 
 
 @pytest.fixture
@@ -153,7 +153,7 @@ def test_dry_run_writes_nothing(library) -> None:
 def test_question_mark_path_finds_its_private_use_twin_on_disk(library) -> None:
     """A path typed with « ? » that exists on disk as U+F025 is refreshed, not treated as deleted."""
     cfg, label, _disk_id, mount, db_path = library
-    real = _make_show(mount, f"What Is It{_PUA} (2020)", ["What.S01E01.mkv"])
+    real = _make_show(mount, f"What Is It{_NTFS_QMARK} (2020)", ["What.S01E01.mkv"])
     typed = mount / "series" / "What Is It? (2020)"
 
     report = run_scoped_refresh(cfg, label, [typed])
@@ -166,7 +166,7 @@ def test_question_mark_path_finds_its_private_use_twin_on_disk(library) -> None:
 def test_deleted_path_typed_with_question_mark_matches_rows_stored_with_private_use(library) -> None:
     """Rows stored under U+F025 are removed when the vanished path is typed with « ? »."""
     cfg, label, _disk_id, mount, db_path = library
-    real = _make_show(mount, f"What Is It{_PUA} (2020)", ["What.S01E01.mkv"])
+    real = _make_show(mount, f"What Is It{_NTFS_QMARK} (2020)", ["What.S01E01.mkv"])
     run_scoped_refresh(cfg, label, [real])
     (real / "Season 01" / "What.S01E01.mkv").unlink()
     (real / "Season 01").rmdir()
