@@ -591,6 +591,15 @@ def library_refresh_path(
             console.print(t("cli_library.audit.refresh_path_would_remove", label=flag, target=shown, disk=label))
         else:
             console.print(t("cli_library.audit.refresh_path_removed", label=flag, target=shown, disk=label))
+    for unreadable in report.unreadable:
+        shown = _styled("bold", str(unreadable))
+        console.print(
+            t(
+                "cli_library.audit.refresh_path_unreadable",
+                label=_styled("yellow", t("cli_library.audit.unreadable_label")),
+                target=shown,
+            )
+        )
     if dry_run:
         console.print(
             t(

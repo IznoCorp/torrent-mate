@@ -95,6 +95,7 @@
     "refresh_path_rescanned": "{{label}} rescan {{target}} (disk {{disk}})",
     "refresh_path_several_disks": "The paths span several disks ({{disks}}); refresh one disk at a time.",
     "refresh_path_totals": "files_scanned={{scanned}}, files_removed={{removed}}, relinked={{relinked}}, seasons_fixed={{seasons}}",
+    "refresh_path_unreadable": "{{label}} {{target}} (permission denied; its indexed files are kept as they are)",
     "refresh_path_would_remove": "{{label}} would remove {{target}} from the index (gone from disk, disk {{disk}})",
     "refresh_path_would_rescan": "{{label}} would rescan {{target}} (disk {{disk}})",
     "release_orphans_count": "release_orphans_count: {{value}}",
@@ -110,7 +111,8 @@
     "relink_none": "No orphan media_file rows.",
     "sample_header": "{{label}} (sample {{number}}):",
     "season_count_drift_count": "season_count_drift_count: {{value}}",
-    "total_findings_label": "total_findings:"
+    "total_findings_label": "total_findings:",
+    "unreadable_label": "Skipped, unreadable:"
   },
   "catalogue": {
     "db_paths_not_configured": "acquire.db_path and indexer.db_path must be configured",

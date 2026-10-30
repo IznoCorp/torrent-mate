@@ -7,10 +7,14 @@ given paths (rescan if they exist, removal from the index if they are gone).
 
 from __future__ import annotations
 
+import contextlib
+import os
 import shutil
 import sqlite3
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from personalscraper.dispatch.post_maintenance import ScopedRefreshReport
 from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db, run_cli, seed_disk
@@ -219,3 +223,37 @@ def test_e2e_path_never_on_disk_and_not_indexed_exits_2(tmp_path, test_config) -
     assert result.exit_code == 2, result.output
     assert "not indexed" in " ".join(result.output.split())
     assert _dump(db_path) == before
+
+
+@contextlib.contextmanager
+def _unreadable(path: Path):
+    """Make *path* unlistable for the block, restoring its mode whatever happens."""
+    path.chmod(0o000)
+    try:
+        yield
+    finally:
+        path.chmod(0o755)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads every directory")
+def test_e2e_refresh_keeps_the_files_of_an_unreadable_directory(tmp_path, test_config) -> None:
+    """Defect: files under a directory the walk could not list were soft-deleted. Now they stay live."""
+    cfg, mount, db_path = _library(tmp_path, test_config)
+    show = _show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    season2 = show / "Season 02"
+    season2.mkdir()
+    (season2 / "Show.A.S02E01.mkv").write_bytes(b"x" * 2048)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        assert run_cli(["library-refresh-path", str(show)]).exit_code == 0
+        with _unreadable(season2):
+            dry = run_cli(["library-refresh-path", str(show), "--dry-run"])
+            result = run_cli(["library-refresh-path", str(show)])
+
+    assert dry.exit_code == 0, dry.output
+    # The console wraps long paths: compare without whitespace.
+    squeezed_dry, squeezed = "".join(dry.output.split()), "".join(result.output.split())
+    assert "Skipped,unreadable:" in squeezed_dry and "Season02" in squeezed_dry
+    assert result.exit_code == 0, result.output
+    assert "Skipped,unreadable:" in squeezed and "Season02" in squeezed
+    assert all(r[5] is None for r in _snapshot(db_path, "series/Show A%"))
+    assert len(_snapshot(db_path, "series/Show A%")) == 2

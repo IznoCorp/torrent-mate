@@ -95,6 +95,7 @@
     "refresh_path_rescanned": "{{label}} reparcours de {{target}} (disque {{disk}})",
     "refresh_path_several_disks": "Les chemins couvrent plusieurs disques ({{disks}}) ; rafraîchissez un disque à la fois.",
     "refresh_path_totals": "fichiers_parcourus={{scanned}}, fichiers_retirés={{removed}}, reliés={{relinked}}, saisons_corrigées={{seasons}}",
+    "refresh_path_unreadable": "{{label}} {{target}} (accès refusé ; ses fichiers indexés sont conservés tels quels)",
     "refresh_path_would_remove": "{{label}} retirerait {{target}} de l'index (disparu du disque, disque {{disk}})",
     "refresh_path_would_rescan": "{{label}} reparcourrait {{target}} (disque {{disk}})",
     "release_orphans_count": "release_orphans_count : {{value}}",
@@ -110,7 +111,8 @@
     "relink_none": "Aucune ligne media_file orpheline.",
     "sample_header": "{{label}} (échantillon de {{number}}) :",
     "season_count_drift_count": "season_count_drift_count : {{value}}",
-    "total_findings_label": "total_findings :"
+    "total_findings_label": "total_findings :",
+    "unreadable_label": "Ignoré, illisible :"
   },
   "catalogue": {
     "db_paths_not_configured": "acquire.db_path et indexer.db_path doivent être configurés",
