@@ -34,6 +34,7 @@ def _run(tmp_path: Path, content: bytes | None) -> tuple[Path, Any]:
             "still_path": "",
             "fallback": False,
             "tvdb_episode_id": "9001",
+            "tmdb_episode_id": "5555",
         }
     }
     nfo_path = None
@@ -62,9 +63,12 @@ def test_unusable_existing_nfo_is_rewritten(tmp_path: Path, content: bytes) -> N
 
 
 def test_usable_existing_nfo_is_upgraded_not_rewritten(tmp_path: Path) -> None:
-    """A conformant NFO keeps its content (upgrade-in-place only)."""
+    """A conformant NFO keeps its content and gains the missing xref id (upgrade-in-place)."""
     nfo_path, _ = _run(tmp_path, _GOOD.encode())
-    assert ET.parse(nfo_path).getroot().findtext("title") == "Kept"  # noqa: S314
+    root = ET.parse(nfo_path).getroot()  # noqa: S314
+    assert root.findtext("title") == "Kept"
+    ids = {u.get("type"): u.text for u in root.findall("uniqueid")}
+    assert ids == {"tvdb": "9001", "tmdb": "5555"}
 
 
 def test_absent_nfo_is_written(tmp_path: Path) -> None:

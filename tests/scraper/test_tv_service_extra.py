@@ -921,6 +921,7 @@ class TestGenerateEpisodeNfos:
         mixin._nfo.generate_episode_nfo.return_value = "<xml/>"  # type: ignore[union-attr]
         mixin._generate_episode_nfos(matched, show, {"name": "Show"})
         assert mixin._nfo.generate_episode_nfo.called  # type: ignore[union-attr]
+        mixin._nfo.write_nfo.assert_called_once_with("<xml/>", nfo_path)  # type: ignore[union-attr]
 
     def test_full_nfo_generation_writes_nfo(self, tmp_path: Path) -> None:
         """Without an existing NFO, NFO is generated and written, thumb downloaded."""

@@ -366,6 +366,15 @@ class TestIsEpisodeNfoUsable:
         )
         assert is_episode_nfo_usable(nfo) is True
 
+    def test_utf8_bom_is_usable(self, tmp_path: Path) -> None:
+        """A UTF-8 BOM before the declaration does not make the NFO unusable."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_bytes(
+            b'\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?>'
+            b"<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True
+
     def test_multi_root_episodedetails_is_usable(self, tmp_path: Path) -> None:
         """A Kodi multi-episode NFO (several roots) is readable, hence kept."""
         nfo = tmp_path / "S01E01-E02.nfo"
@@ -388,8 +397,23 @@ class TestIsEpisodeNfoUsable:
             b"<episodedetails><title>A</title><season>1</season><episode></episode></episodedetails>",
             b"<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
             b"<episodedetails><title>B</title></episodedetails>",
+            b"<episodedetails><season>1</season><episode>1</episode></episodedetails>",
+            b"<episodedetails><title>A</title><episode>1</episode></episodedetails>",
+            b"\xff\xfe\xfd\x00\x01",
         ],
-        ids=["empty", "blank", "truncated", "wrong-root", "binary", "root-only", "blank-episode", "one-stub-root"],
+        ids=[
+            "empty",
+            "blank",
+            "truncated",
+            "wrong-root",
+            "binary",
+            "root-only",
+            "blank-episode",
+            "one-stub-root",
+            "title-absent",
+            "season-absent",
+            "invalid-bytes",
+        ],
     )
     def test_unusable(self, tmp_path: Path, content: bytes) -> None:
         """Empty, blank, truncated, wrong-root and binary files are not usable."""
