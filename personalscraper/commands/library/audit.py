@@ -575,18 +575,22 @@ def library_refresh_path(
         console.print(_styled("red", str(exc)))
         raise typer.Exit(1) from exc
 
-    scan_key = "refresh_path_would_rescan" if dry_run else "refresh_path_rescanned"
-    remove_key = "refresh_path_would_remove" if dry_run else "refresh_path_removed"
     if dry_run:
         flag = _styled("yellow", t("cli_library.audit.dry_run_label"))
     else:
-        flag = _styled("green", t("cli_library.audit.refresh_path_done_label"))
+        flag = _styled("green", t("cli_library.audit.done_label"))
     for scanned in report.scanned:
-        console.print(t(f"cli_library.audit.{scan_key}", label=flag, target=_styled("bold", str(scanned)), disk=label))
+        shown = _styled("bold", str(scanned))
+        if dry_run:
+            console.print(t("cli_library.audit.refresh_path_would_rescan", label=flag, target=shown, disk=label))
+        else:
+            console.print(t("cli_library.audit.refresh_path_rescanned", label=flag, target=shown, disk=label))
     for removed in report.removed:
-        console.print(
-            t(f"cli_library.audit.{remove_key}", label=flag, target=_styled("bold", str(removed)), disk=label)
-        )
+        shown = _styled("bold", str(removed))
+        if dry_run:
+            console.print(t("cli_library.audit.refresh_path_would_remove", label=flag, target=shown, disk=label))
+        else:
+            console.print(t("cli_library.audit.refresh_path_removed", label=flag, target=shown, disk=label))
     if dry_run:
         console.print(
             t(

@@ -845,6 +845,7 @@ def run_scoped_refresh(
 
     with indexer_lock(db_path, timeout=0):
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
         _apply_pragmas(conn)
         try:
             row = conn.execute(

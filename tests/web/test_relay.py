@@ -321,7 +321,7 @@ def test_read_stream_loop_logs_the_cause_of_a_read_failure() -> None:
 
     async def _run() -> None:
         registry = ConnectionRegistry()
-        with patch("personalscraper.web.ws.relay.logger") as fake_logger:
+        with patch("personalscraper.app.relay.logger") as fake_logger:
             task = asyncio.create_task(read_stream_loop(_FailingRedis(), registry, STREAM_KEY))  # type: ignore[arg-type]
             assert await _await_until(lambda: fake_logger.warning.called)
             task.cancel()
