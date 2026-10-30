@@ -10,12 +10,12 @@ import pytest
 from personalscraper.acquire.delete_authority import StrictDeletePermit
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.plex import PlexClient
+from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
 from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
-from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.library.listing import LibrarySort
 from personalscraper.app.library.reads import LibraryReads
 from personalscraper.app.services import AppServices
