@@ -722,7 +722,8 @@ def run_scoped_refresh(
       point of a manual refresh is that the filesystem's mtimes cannot be trusted),
       with the incremental visitor, so a rename is detected through the OSHash drift
       logic; existing paths are processed BEFORE vanished ones so a renamed folder's
-      rows are moved to their new path before the old path is retired;
+      rows are moved to their new path before the old path is retired; once every walk
+      is done, the live files under it that no walk saw are soft-deleted (they are gone);
     * a path that no longer exists has its live files soft-deleted, with a tombstone,
       like the scanner does once the strikes are served;
     * relink, season-count repair and repair-queue drain are restricted to the same
@@ -821,6 +822,10 @@ def run_scoped_refresh(
             if dry_run:
                 for _, rel in to_remove:
                     report.files_removed += _count_live_files_under(conn, disk.id, _rel_path_variants(rel))
+                for _, rel in to_scan:
+                    report.files_removed += _count_live_files_under(
+                        conn, disk.id, _rel_path_variants(rel), mount=mount, only_missing=True
+                    )
                 return report
 
             capability = resolve_capability(str(mount), build_fs_type_overrides(config.disks).get(disk.label))
@@ -840,6 +845,12 @@ def run_scoped_refresh(
                         checkpoint=WalkCheckpoint(scan_run_id=0, checkpoint_every=2**62),
                     )
                     _upsert_path_row(conn, disk.id, rel, _safe_mtime_ns(located.stat().st_mtime_ns))
+                # Only now: a file moved between two of the given paths was re-pointed by the
+                # walk above, so what is still unseen is really gone.
+                for _, rel in to_scan:
+                    report.files_removed += soft_delete_live_files_under(
+                        conn, disk.id, _rel_path_variants(rel), reason="refresh_path", unseen_before=generation
+                    )
                 for _, rel in to_remove:
                     report.files_removed += soft_delete_live_files_under(
                         conn, disk.id, _rel_path_variants(rel), reason="refresh_path"
@@ -884,21 +895,34 @@ def run_scoped_refresh(
     return report
 
 
-def _count_live_files_under(conn: sqlite3.Connection, disk_id: int, rel_variants: set[str]) -> int:
+def _count_live_files_under(
+    conn: sqlite3.Connection,
+    disk_id: int,
+    rel_variants: set[str],
+    *,
+    mount: Path | None = None,
+    only_missing: bool = False,
+) -> int:
     """Count the live ``media_file`` rows of a disk subtree (the dry run's removal count).
 
     Args:
         conn: Open SQLite connection.
         disk_id: PK of the owning disk.
         rel_variants: Spellings of the subtree root relative to the disk's scan root.
+        mount: The disk's scan root; required with *only_missing*.
+        only_missing: Count only the files that are no longer on the disk (what a real
+            refresh of a path that still exists would retire).
 
     Returns:
         Number of non-deleted files at or below the subtree root.
     """
     scope_sql, params = _scope_sql([_Scope(disk_id, "", frozenset(rel_variants))])
-    row = conn.execute(
-        f"SELECT COUNT(*) FROM media_file mf JOIN path p ON p.id = mf.path_id "  # noqa: S608
+    rows = conn.execute(
+        f"SELECT p.rel_path, mf.filename FROM media_file mf JOIN path p ON p.id = mf.path_id "  # noqa: S608
         f"WHERE mf.deleted_at IS NULL AND {scope_sql}",
         params,
-    ).fetchone()
-    return int(row[0])
+    ).fetchall()
+    if not only_missing:
+        return len(rows)
+    assert mount is not None, "only_missing needs the scan root"
+    return sum(1 for rel_path, filename in rows if not (mount / rel_path / filename).exists())

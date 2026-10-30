@@ -522,18 +522,22 @@ def soft_delete_live_files_under(
     rel_path_variants: set[str],
     *,
     reason: str,
+    unseen_before: int | None = None,
 ) -> int:
     """Soft-delete every live file of a disk subtree, whatever the scanner's strike count.
 
-    Used when the operator names a folder that is gone from the disk: the answer is
-    known, so no strikes are waited for. The subtree is every ``path`` row equal to
-    or below one of *rel_path_variants* (the spellings the rows may be stored under).
+    Used when the operator names a folder that is gone from the disk, or a folder that
+    was just re-walked in full: the answer is known, so no strikes are waited for. The
+    subtree is every ``path`` row equal to or below one of *rel_path_variants* (the
+    spellings the rows may be stored under).
 
     Args:
         conn: Open SQLite connection.
         disk_id: PK of the disk owning the subtree.
         rel_path_variants: Spellings of the subtree root, relative to the disk mount.
         reason: Tombstone reason.
+        unseen_before: When given, only the files whose ``scan_generation`` is below it —
+            the ones a walk of generation ``unseen_before`` did not see — are retired.
 
     Returns:
         Number of ``media_file`` rows soft-deleted.
@@ -543,6 +547,10 @@ def soft_delete_live_files_under(
     params: list[object] = [disk_id]
     for variant in sorted(rel_path_variants):
         params.extend([variant, len(variant) + 1, variant + "/"])
+    unseen_clause = ""
+    if unseen_before is not None:
+        unseen_clause = " AND mf.scan_generation < ?"
+        params.append(unseen_before)
     conn.row_factory = sqlite3.Row
     try:
         rows = conn.execute(
@@ -550,7 +558,7 @@ def soft_delete_live_files_under(
             SELECT mf.id, mf.path_id, mf.filename, mf.oshash, mf.size_bytes, mf.mtime_ns, mf.miss_strikes
               FROM media_file mf
               JOIN path p ON p.id = mf.path_id
-             WHERE p.disk_id = ? AND mf.deleted_at IS NULL AND ({clauses})
+             WHERE p.disk_id = ? AND mf.deleted_at IS NULL AND ({clauses}){unseen_clause}
             """,  # noqa: S608 — only placeholders are interpolated
             params,
         ).fetchall()

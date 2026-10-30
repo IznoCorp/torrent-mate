@@ -372,3 +372,45 @@ def test_dry_run_is_refused_by_the_same_guard(library) -> None:
 
     with pytest.raises(ValueError, match="empty or missing"):
         run_scoped_refresh(cfg, label, [show], dry_run=True)
+
+
+# ---------------------------------------------------------------------------
+# Files that vanished inside a path that still exists
+# ---------------------------------------------------------------------------
+
+
+def test_file_gone_from_a_refreshed_path_is_soft_deleted(library) -> None:
+    """A file the walk no longer sees under an existing path is tombstoned; its siblings and other shows are not."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv", "Show.A.S01E02.mkv"])
+    show_b = _make_show(mount, "Show B (2021)", ["Show.B.S01E01.mkv", "Show.B.S01E02.mkv"])
+    run_scoped_refresh(cfg, label, [show_a, show_b])
+    b_before = _rows(db_path, "series/Show B%")
+    (show_a / "Season 01" / "Show.A.S01E02.mkv").unlink()
+    (show_b / "Season 01" / "Show.B.S01E02.mkv").unlink()
+
+    report = run_scoped_refresh(cfg, label, [show_a])
+
+    assert report.files_removed == 1
+    deleted = {r[1]: r[6] for r in _rows(db_path, "series/Show A%")}
+    assert deleted["Show.A.S01E01.mkv"] is None
+    assert deleted["Show.A.S01E02.mkv"] is not None
+    assert _rows(db_path, "series/Show B%") == b_before
+    conn = sqlite3.connect(db_path)
+    tombstones = conn.execute("SELECT reason FROM deleted_item WHERE kind = 'file'").fetchall()
+    conn.close()
+    assert tombstones == [("refresh_path",)]
+
+
+def test_dry_run_counts_the_files_gone_from_a_refreshed_path(library) -> None:
+    """The preview reports the same removal and writes nothing."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv", "Show.A.S01E02.mkv"])
+    run_scoped_refresh(cfg, label, [show_a])
+    (show_a / "Season 01" / "Show.A.S01E02.mkv").unlink()
+    before = _dump(db_path)
+
+    report = run_scoped_refresh(cfg, label, [show_a], dry_run=True)
+
+    assert report.files_removed == 1
+    assert _dump(db_path) == before
