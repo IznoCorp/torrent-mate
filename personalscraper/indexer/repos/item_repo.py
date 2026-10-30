@@ -13,7 +13,7 @@ import json
 import re
 import sqlite3
 
-from personalscraper._fs_utils import name_key
+from personalscraper._fs_utils import name_key, name_variants
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
 from personalscraper.logger import get_logger
 
@@ -584,13 +584,16 @@ def get_by_title_kind_year(
         :class:`MediaItemRow` if a year-compatible row exists, ``None`` otherwise.
     """
     canonical = _canonical_title(title)
+    spellings = sorted(name_variants(canonical))
+    placeholders = ", ".join("?" * len(spellings))
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
         "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
         "FROM media_item "
-        "WHERE title = ? AND kind = ? "
+        # Rows stored before the U+F025 fold keep the private-use spelling: match both.
+        f"WHERE title IN ({placeholders}) AND kind = ? "
         # Year-compatible: the incoming year is unknown, the stored year is
         # unknown, or they match exactly.  Two *different explicit* years never
         # match — that is the remake / revival split.
@@ -598,7 +601,7 @@ def get_by_title_kind_year(
         # Prefer an exact-year row, then a year-less row, then the newest.
         "ORDER BY (year IS NOT ?), date_modified DESC "
         "LIMIT 1",
-        (canonical, kind, year, year, year),
+        (*spellings, kind, year, year, year),
     ).fetchone()
     if row is None:
         return None
@@ -633,6 +636,8 @@ def find_by_normalized_name(
         A ``(MediaItemRow, dispatch_disk, dispatch_path)`` triple when found,
         or ``None`` when no matching item exists.
     """
+    spellings = sorted(name_variants(normalized_name))
+    placeholders = ", ".join("?" * len(spellings))
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
@@ -640,13 +645,14 @@ def find_by_normalized_name(
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
         "a1.value AS dispatch_disk, a2.value AS dispatch_path "
         "FROM media_item m "
-        "INNER JOIN item_attribute anorm ON anorm.item_id = m.id AND anorm.key = ? AND anorm.value = ? "
+        # Keys stored before the U+F025 fold keep the private-use spelling: match both.
+        f"INNER JOIN item_attribute anorm ON anorm.item_id = m.id AND anorm.key = ? AND anorm.value IN ({placeholders}) "
         "LEFT JOIN item_attribute a1 ON a1.item_id = m.id AND a1.key = ? "
         "LEFT JOIN item_attribute a2 ON a2.item_id = m.id AND a2.key = ? "
         "WHERE m.kind = ? "
         "ORDER BY m.date_modified DESC "
         "LIMIT 1",
-        (_ATTR_DISPATCH_NORM_TITLE, normalized_name, _ATTR_DISPATCH_DISK, _ATTR_DISPATCH_PATH, kind),
+        (_ATTR_DISPATCH_NORM_TITLE, *spellings, _ATTR_DISPATCH_DISK, _ATTR_DISPATCH_PATH, kind),
     ).fetchone()
     if row is None:
         return None
