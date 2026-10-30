@@ -323,6 +323,10 @@ def _skip_reason(conn: sqlite3.Connection, group: DuplicateGroup) -> str | None:
     - ``different_years``: two explicit years — a remake and its original;
     - ``conflicting_provider_ids``: one provider naming two different ids.
 
+    ``year_taken`` marks a split the merge cannot complete: the keeper is
+    year-less, would take the duplicates' year, and a third item already holds
+    that ``(title, kind, year)`` under the UNIQUE index.
+
     Args:
         conn: Open SQLite connection.
         group: The group to judge.
@@ -346,6 +350,14 @@ def _skip_reason(conn: sqlite3.Connection, group: DuplicateGroup) -> str | None:
         for key, value in _provider_ids(row[4]).items():
             if seen.setdefault(key, value) != value:
                 return "conflicting_provider_ids"
+    keeper = next(row for row in rows if row[0] == group.keeper_id)
+    if keeper[3] is None and years:
+        taken = conn.execute(
+            f"SELECT 1 FROM media_item WHERE title = ? AND kind = ? AND year = ? AND id NOT IN ({placeholders})",  # noqa: S608 — placeholders only
+            (keeper[1], keeper[2], next(iter(years)), *member_ids),
+        ).fetchone()
+        if taken is not None:
+            return "year_taken"
     return None
 
 

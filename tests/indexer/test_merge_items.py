@@ -266,3 +266,21 @@ def test_a_yearless_member_and_complementary_ids_still_merge() -> None:
     report = merge_duplicate_items(conn, dry_run=False)
 
     assert report.merged == 1 and report.skipped == []
+
+
+def test_a_year_the_keeper_cannot_take_skips_its_group_only() -> None:
+    """A third row already holds the keeper's (title, kind, year): that group is reported, the others merge."""
+    conn = _make_conn()
+    keeper = _item(conn, "Dune", "movie", MOVIE_PATH, created=100)
+    conn.execute("UPDATE media_item SET year = NULL WHERE id = ?", (keeper,))
+    _item(conn, "Dune (2021)", "movie", MOVIE_PATH, created=200, year=2021)
+    _item(conn, "Dune", "movie", "/Volumes/Medias1/medias/films/Dune (2021) bis", created=50, year=2021)
+    ids = _split_show(conn)
+
+    dry = merge_duplicate_items(conn, dry_run=True)
+    report = merge_duplicate_items(conn, dry_run=False)
+
+    assert [(g.keeper_id, why) for g, why in dry.skipped] == [(keeper, "year_taken")]
+    assert [(g.keeper_id, why) for g, why in report.skipped] == [(keeper, "year_taken")]
+    assert report.merged == 1, "the other group still merges"
+    assert conn.execute("SELECT COUNT(*) FROM media_item WHERE id = ?", (ids["young"],)).fetchone() == (0,)
