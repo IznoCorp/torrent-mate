@@ -6,7 +6,9 @@ still present, a file still live, an open item repair, and the per-disk cap.
 
 from __future__ import annotations
 
+import errno
 import json
+import os
 import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
@@ -313,3 +315,31 @@ def test_a_disk_with_no_sentinel_retires_nothing(library: tuple[sqlite3.Connecti
     report = retire_ghost_items(conn, disk, DiskMountStatus.NO_SENTINEL, dry_run=False, max_share=None)
 
     assert report.frozen and report.retired == 0 and ghost in _items(conn)
+
+
+def test_a_folder_that_cannot_be_stat_ed_freezes_the_disk(
+    library: tuple[sqlite3.Connection, DiskRow, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only ``FileNotFoundError`` means gone: an I/O or permission error freezes the disk.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a folder whose ``stat`` fails with anything but
+        ``FileNotFoundError`` freezes the disk's pass; nothing is retired.
+    """
+    conn, disk, root = library
+    gone = _item(conn, root / "movies" / "Gone (2020)")
+    unreadable = root / "movies" / "Unreadable (2020)"
+    blocked = _item(conn, unreadable, title="Unreadable")
+    real_stat = os.stat
+
+    def _stat(path: Any, *args: Any, **kwargs: Any) -> os.stat_result:
+        if str(path) == str(unreadable):
+            raise OSError(errno.EIO, "Input/output error", str(path))
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", _stat)
+
+    report = retire_ghost_items(conn, disk, _MOUNTED, dry_run=False, max_share=None)
+
+    assert report.frozen and report.retired == 0
+    assert {gone, blocked} <= set(_items(conn))

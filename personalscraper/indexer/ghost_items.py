@@ -12,7 +12,8 @@ An item is a ghost of a disk when all of these hold:
   every folder look gone. The strikes go on for a disk with no readable
   sentinel (:func:`~personalscraper.indexer.drift.should_apply_drift_for_disk`);
   a hard delete does not;
-- its ``dispatch_path`` lies on that disk and no longer exists;
+- its ``dispatch_path`` lies on that disk and no longer exists (``stat``
+  answers ``FileNotFoundError``; any other error freezes the disk's pass);
 - none of its files is live (every one tombstoned, or none at all). An item
   whose folder just vanished therefore retires only once the file strikes have
   tombstoned its files — the same three full scans a file waits;
@@ -144,6 +145,29 @@ def _items_on_disk(conn: sqlite3.Connection, mount_path: str) -> list[tuple[int,
     return [(int(r[0]), str(r[1]), str(r[2]), str(r[3])) for r in rows if str(r[3]).startswith(root)]
 
 
+def _folder_gone(path: str) -> bool:
+    """Return whether the folder at *path* is gone.
+
+    ``os.path.exists`` answers ``False`` on any ``OSError`` — an I/O error or a
+    permission refused on a live folder would read as gone. Only
+    ``FileNotFoundError`` says so.
+
+    Args:
+        path: The item's ``dispatch_path``.
+
+    Returns:
+        ``True`` when nothing is at *path*.
+
+    Raises:
+        OSError: When the folder cannot be examined (anything but not found).
+    """
+    try:
+        os.stat(path)
+    except FileNotFoundError:
+        return True
+    return False
+
+
 def _has_open_repair(conn: sqlite3.Connection, item_id: int) -> bool:
     """Return whether a ``pending`` or ``running`` repair names *item_id*.
 
@@ -222,8 +246,22 @@ def retire_ghost_items(
     items = _items_on_disk(conn, disk.mount_path)
     report.disk_items = len(items)
     for item_id, title, kind, dispatch_path in items:
-        if os.path.exists(dispatch_path):
-            continue
+        try:
+            if not _folder_gone(dispatch_path):
+                continue
+        except OSError as exc:
+            # The disk answers but cannot be read here: nothing it says about
+            # its folders can justify a hard delete.
+            log.warning(
+                "indexer.ghost_items.folder_unreadable",
+                disk=disk.label,
+                dispatch_path=dispatch_path,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            report.frozen = True
+            report.ghosts.clear()
+            return report
         if conn.execute(_LIVE_FILES_SQL, (item_id, item_id)).fetchone()[0]:
             report.kept.append(GhostItem(item_id, title, kind, dispatch_path, "live_files"))
         elif _has_open_repair(conn, item_id):
