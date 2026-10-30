@@ -264,3 +264,51 @@ def test_a_dry_run_summary_says_its_ghosts_are_a_lower_bound(tmp_path: Path) -> 
 
     assert _summary(dry)["ghost_items_lower_bound"] is True
     assert _summary(real)["ghost_items_lower_bound"] is False
+
+
+def test_a_disk_in_the_store_but_not_configured_is_refused(tmp_path: Path) -> None:
+    """``--disk`` naming a disk the configuration dropped says so and exits 1, never an empty success.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-retire-ghost-items --disk X`` with ``X`` in the store
+        but not in the configuration prints why and exits 1.
+    """
+    lib = _Library(tmp_path, ["medias1", "old"])
+    lib.cfg.disks = [d for d in lib.cfg.disks if d.id == "medias1"]
+    ghost = lib.item("old", "Gone (2020)", present=False)
+
+    result = lib.invoke(["--format", "json", "library-retire-ghost-items", "--disk", "old"])
+
+    assert result.exit_code == 1, result.output
+    assert "not in the configuration" in result.stderr
+    assert ghost in lib.items()
+
+
+def test_an_error_on_one_disk_reports_the_disks_done_and_exits_1(tmp_path: Path) -> None:
+    """Each disk commits on its own: one failing still reports every other, and the run exits 1.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-retire-ghost-items`` reports each disk as it completes;
+        a disk whose pass fails is named with its error and the command exits 1.
+    """
+    from personalscraper.indexer import ghost_items  # noqa: PLC0415
+
+    lib = _Library(tmp_path, ["medias1", "medias2"])
+    done = lib.item("medias1", "Gone (2020)", present=False)
+    kept = lib.item("medias2", "Gone Too (2020)", present=False)
+    real = ghost_items.retire_ghost_items
+
+    def _fail_on_medias2(conn: Any, disk: Any, *args: Any, **kwargs: Any) -> Any:
+        if disk.label == "medias2":
+            raise sqlite3.OperationalError("disk I/O error")
+        return real(conn, disk, *args, **kwargs)
+
+    with patch("personalscraper.indexer.ghost_items.retire_ghost_items", side_effect=_fail_on_medias2):
+        result = lib.invoke(["--format", "json", "library-retire-ghost-items"])
+
+    assert result.exit_code == 1, result.output
+    assert done not in lib.items() and kept in lib.items()
+    payload = _command_payload(result)
+    assert [d["disk"] for d in payload["disks"]] == ["medias1"]
+    assert [f["disk"] for f in payload["failed"]] == ["medias2"]
+    assert '"disk": "medias1"' in result.stderr, "the done disk is reported as it completes"
