@@ -63,45 +63,46 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 26. [`library-fix-orphan-files`](#personalscraper-library-fix-orphan-files) — repair `media_file` rows with `release_id IS NULL` (DEVIATION #8, invariant AO)
 27. [`library-fix-season-counts`](#personalscraper-library-fix-season-counts) — repair `season.episode_count` drift (DEVIATION #9, invariant AP)
 28. [`library-dedup-titles`](#personalscraper-library-dedup-titles) — de-duplicate NFD/NFC media_item twins
-29. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
-30. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
+29. [`library-merge-duplicate-items`](#personalscraper-library-merge-duplicate-items) — merge the media_item rows sharing one dispatch_path
+30. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
+31. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
 ### Library — analysis & query
 
-31. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
-32. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
-33. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
-34. [`library-report`](#personalscraper-library-report) — health statistics
-35. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
-36. [`library-search`](#personalscraper-library-search) — flex-attr query
-37. [`library-show`](#personalscraper-library-show) — pretty-print one item
-38. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
+32. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
+33. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
+34. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
+35. [`library-report`](#personalscraper-library-report) — health statistics
+36. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
+37. [`library-search`](#personalscraper-library-search) — flex-attr query
+38. [`library-show`](#personalscraper-library-show) — pretty-print one item
+39. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
 
 ### Trailers
 
-39. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
-40. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
-41. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
-42. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
-43. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
+40. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
+41. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
+42. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
+43. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
+44. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
 ### Config — sub-commands
 
-44. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
+45. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
 ### Watcher — daemon (PM2)
 
-45. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
-46. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
+46. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
+47. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
 
 ### Acquisition — Follow (auto-download, PM2)
 
-47. [`follow add`](#personalscraper-follow) — follow a TV series by provider ID
-48. [`follow list`](#personalscraper-follow) — list followed series
-49. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
-50. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
-51. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
-52. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
+48. [`follow add`](#personalscraper-follow) — follow a TV series by provider ID
+49. [`follow list`](#personalscraper-follow) — list followed series
+50. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
+51. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
+52. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
+53. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
 
 ### Make targets + scheduling (appendix)
 
@@ -1134,6 +1135,47 @@ macOS `iterdir()` emitting NFD folder names)
     personalscraper library-dedup-titles --db /custom/path/library.db --apply
 
 **Related**: `library-index`
+
+---
+
+## `personalscraper library-merge-duplicate-items`
+
+**Purpose**: Merges the `media_item` rows that share one `dispatch_path`. One media
+folder is one work, but older builds split some folders in two: a re-dispatch stored
+the folder name with its year as the title, and the next scan missed it and inserted a
+second item. Each group keeps its oldest item (smallest `date_created`). Every child
+row of the others moves to the keeper before they are deleted: releases and their
+files (same-signature releases are folded into one), seasons and episodes (colliding
+numbers merged), attributes, issues, scan events and item repairs. Provider ids of both
+rows are kept, the keeper's title is made canonical, and each merged item leaves a
+`deleted_item` tombstone with reason `merged_duplicate`. A group that mixes a movie and
+a show is skipped and reported. The merge runs in one transaction.
+
+**Side effects**: `read-only` (with `--dry-run`), `mutate DB` (otherwise)
+
+**Pipeline position**: n/a (maintenance — run once after deploying the fix that stops
+the split)
+
+**Args**:
+
+- `--dry-run` : List the groups and the item each merges into; write nothing
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `dry_run` (bool)
+- `groups` (list) — `dispatch_path`, `keeper_id`, `merged_ids`, `titles` per group
+- `skipped` (list) — `dispatch_path`, `ids`, `reason` (`mixed_kinds`)
+- `merged` / `would_merge` (int) — items merged (`would_merge` with `--dry-run`)
+
+**Examples**:
+
+    personalscraper --format json library-merge-duplicate-items --dry-run
+    personalscraper --format json library-merge-duplicate-items
+    personalscraper library-merge-duplicate-items --db /custom/path/library.db --dry-run
+
+**Related**: `library-dedup-titles`, `library-index`
 
 ---
 
