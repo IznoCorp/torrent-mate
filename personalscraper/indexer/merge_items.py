@@ -232,6 +232,9 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
     Returns:
         The keeper's title when its canonical form could not be applied
         (another row of the same kind and year holds it), else ``None``.
+
+    Raises:
+        RuntimeError: When the keeper or the duplicate is no longer in the store.
     """
     for (release_id,) in conn.execute("SELECT id FROM media_release WHERE item_id = ?", (duplicate_id,)).fetchall():
         twin = _same_signature_release(conn, release_id, item_id=keeper_id, episode_id=None)
@@ -264,7 +267,10 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
 
     keeper = item_repo.get_by_id(conn, keeper_id)
     duplicate = item_repo.get_by_id(conn, duplicate_id)
-    assert keeper is not None and duplicate is not None  # both read inside the same transaction
+    if keeper is None or duplicate is None:
+        # Both were listed by this transaction's group scan: a missing one means
+        # the store changed under the merge, which must not go on.
+        raise RuntimeError(f"merge of item {duplicate_id} into {keeper_id}: a member vanished mid-merge")
     fresher = duplicate if duplicate.date_modified > keeper.date_modified else keeper
     older, newer = (keeper, duplicate) if fresher is duplicate else (duplicate, keeper)
 

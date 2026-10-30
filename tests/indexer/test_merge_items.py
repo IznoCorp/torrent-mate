@@ -312,3 +312,17 @@ def test_a_title_the_keeper_cannot_take_is_reported() -> None:
 
     assert report.merged == 1
     assert report.titles_kept == [(keeper, "The Gentlemen (2020)")]
+
+
+def test_a_member_vanished_mid_merge_raises_and_rolls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The integrity guard is an explicit raise (an ``assert`` vanishes under ``python -O``)."""
+    conn = _make_conn()
+    ids = _split_show(conn)
+    before = list(conn.iterdump())
+    monkeypatch.setattr("personalscraper.indexer.merge_items.item_repo.get_by_id", lambda _conn, _id: None)
+
+    with pytest.raises(RuntimeError, match="vanished"):
+        merge_duplicate_items(conn, dry_run=False)
+
+    assert ids["young"] in {row[0] for row in conn.execute("SELECT id FROM media_item")}
+    assert list(conn.iterdump()) == before
