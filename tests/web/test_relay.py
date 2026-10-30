@@ -310,6 +310,32 @@ def test_read_stream_loop_skips_malformed_entry() -> None:
     asyncio.run(_run())
 
 
+def test_read_stream_loop_logs_the_cause_of_a_read_failure() -> None:
+    """A failing ``XREAD`` is logged once WITH its traceback, so the cause is not lost."""
+
+    class _FailingRedis:
+        """Fake pool whose every read raises."""
+
+        async def xread(self, *args: Any, **kwargs: Any) -> Any:
+            raise ConnectionError("redis went away")
+
+    async def _run() -> None:
+        registry = ConnectionRegistry()
+        with patch("personalscraper.app.relay.logger") as fake_logger:
+            task = asyncio.create_task(read_stream_loop(_FailingRedis(), registry, STREAM_KEY))  # type: ignore[arg-type]
+            assert await _await_until(lambda: fake_logger.warning.called)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        fake_logger.warning.assert_called_once()
+        args, kwargs = fake_logger.warning.call_args
+        assert args[0] == "redis_stream_read_failed"
+        assert kwargs.get("exc_info") is True
+
+    asyncio.run(_run())
+
+
 def test_replay_events_skips_malformed_entry() -> None:
     """``replay_events`` skips a malformed entry in the range and returns the good ones."""
 

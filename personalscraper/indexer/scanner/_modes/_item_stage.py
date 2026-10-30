@@ -23,12 +23,11 @@ import json
 import re
 import sqlite3
 import time
-import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
 
-from personalscraper._fs_utils import is_apple_double
+from personalscraper._fs_utils import is_apple_double, name_key
 from personalscraper.conf.ids import AUDIOBOOKS, NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -831,8 +830,8 @@ def scan_and_stage_dir(
     )
 
     # Dispatch flex attributes. Normalization mirrors
-    # ``dispatch.media_index._normalize_key``: NFC, lowercase, stripped.
-    norm_title = unicodedata.normalize("NFC", title).lower().strip()
+    # ``dispatch.media_index._normalize_key``: NFC, U+F025 folded, lowercase, stripped.
+    norm_title = name_key(title).lower().strip()
     attrs: dict[str, str | None] = {
         item_repo._ATTR_DISPATCH_PATH: str(media_dir),
         item_repo._ATTR_DISPATCH_DISK: disk_cfg.id,

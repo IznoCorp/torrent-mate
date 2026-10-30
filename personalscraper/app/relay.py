@@ -215,11 +215,11 @@ async def read_stream_loop(
                         last_id = entry_id
         except asyncio.CancelledError:
             raise
-        except Exception:  # noqa: BLE001 — transport loss is retried, never fatal
+        except Exception:  # transport loss is retried, never fatal
             # Reserved for transport errors (Redis unreachable) — NOT per-entry
             # decode failures, which are handled above without wedging the loop.
             if not warned_down:
-                logger.warning("redis_stream_read_failed", stream_key=stream_key)
+                logger.warning("redis_stream_read_failed", stream_key=stream_key, exc_info=True)
                 warned_down = True
             await asyncio.sleep(2)
 

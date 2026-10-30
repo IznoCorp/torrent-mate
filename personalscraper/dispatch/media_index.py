@@ -14,12 +14,12 @@ IndexEntry.category and IndexEntry.disk always store canonical IDs
 from __future__ import annotations
 
 import time
-import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper._fs_utils import name_key
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -62,7 +62,8 @@ _SERIES_CATEGORY_IDS = frozenset(
 def _normalize_key(name: str) -> str:
     """Normalize a media name for index lookup.
 
-    Applies NFC Unicode normalization, lowercases, and strips whitespace.
+    Applies NFC Unicode normalization, folds the NTFS/macFUSE U+F025 stand-in to
+    « ? », lowercases, and strips whitespace.
     NFC is required because staging (APFS/HFS) and NTFS disks may store
     the same visual name with different byte sequences (e.g. ``è`` as
     precomposed U+00E8 vs. decomposed ``e`` + U+0300). Without
@@ -74,7 +75,7 @@ def _normalize_key(name: str) -> str:
     Returns:
         Normalized key string.
     """
-    return unicodedata.normalize("NFC", name).lower().strip()
+    return name_key(name).lower().strip()
 
 
 def _target_year_matches(dispatch_path: str, item_year: int | None) -> bool:
