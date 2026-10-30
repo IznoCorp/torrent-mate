@@ -6,6 +6,7 @@ real linker and the real repair drain over a migrated indexer database.
 
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -296,3 +297,78 @@ def test_repair_drain_is_restricted_to_the_scope(library) -> None:
     assert processed == 1
     assert status[ids["movies/Movie A (2020)"]] == "done"
     assert status[ids["movies/Movie B (2020)"]] == "pending"
+
+
+# ---------------------------------------------------------------------------
+# The mount guard
+# ---------------------------------------------------------------------------
+
+
+def _dump(db_path: Path) -> list[str]:
+    """The whole database as SQL statements: equal dumps mean nothing was written."""
+    conn = sqlite3.connect(db_path)
+    try:
+        return list(conn.iterdump())
+    finally:
+        conn.close()
+
+
+def _indexed_show(library, name: str = "Show A (2020)") -> Path:
+    """Index one show (plus a sibling, so the disk holds more than one folder) and return it."""
+    cfg, label, _disk_id, mount, _db_path = library
+    show = _make_show(mount, name, ["Show.A.S01E01.mkv"])
+    other = _make_show(mount, "Show B (2021)", ["Show.B.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show, other])
+    return show
+
+
+def test_unmounted_disk_root_refuses_to_remove_a_path(library) -> None:
+    """A mount root that is empty (disk not mounted) must not retire the subtree: nothing is written."""
+    cfg, label, _disk_id, mount, db_path = library
+    show = _indexed_show(library)
+    shutil.rmtree(mount / "series")
+    assert not any(mount.iterdir())
+    before = _dump(db_path)
+
+    with pytest.raises(ValueError, match="empty or missing"):
+        run_scoped_refresh(cfg, label, [show])
+
+    assert _dump(db_path) == before
+
+
+def test_missing_disk_root_refuses_to_remove_a_path(library) -> None:
+    """A mount root that is gone altogether is refused the same way."""
+    cfg, label, _disk_id, mount, db_path = library
+    show = _indexed_show(library)
+    shutil.rmtree(mount)
+    before = _dump(db_path)
+
+    with pytest.raises(ValueError, match="empty or missing"):
+        run_scoped_refresh(cfg, label, [show])
+
+    assert _dump(db_path) == before
+
+
+def test_vanished_path_whose_parent_is_gone_is_refused(library) -> None:
+    """The mount is populated but the vanished path's parent folder is gone too: refused, nothing written."""
+    cfg, label, _disk_id, mount, db_path = library
+    show = _indexed_show(library)
+    shutil.rmtree(mount / "series")
+    (mount / "elsewhere").mkdir()
+    (mount / "elsewhere" / "file.bin").write_bytes(b"x")
+    before = _dump(db_path)
+
+    with pytest.raises(ValueError, match="parent"):
+        run_scoped_refresh(cfg, label, [show])
+
+    assert _dump(db_path) == before
+
+
+def test_dry_run_is_refused_by_the_same_guard(library) -> None:
+    """A preview must not announce a removal the real run would refuse."""
+    cfg, label, _disk_id, mount, _db_path = library
+    show = _indexed_show(library)
+    shutil.rmtree(mount / "series")
+
+    with pytest.raises(ValueError, match="empty or missing"):
+        run_scoped_refresh(cfg, label, [show], dry_run=True)

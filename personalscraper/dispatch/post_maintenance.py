@@ -681,6 +681,32 @@ def _resolve_on_disk(path: Path) -> Path | None:
     return None
 
 
+def _require_removable(mount: Path, given: Path, located: Path) -> None:
+    """Refuse to retire a vanished path unless the disk is demonstrably there.
+
+    A disk that is not mounted looks exactly like a disk whose folders were all
+    deleted: the mount point is empty or absent, so every path "vanished". Removing on
+    that evidence would retire the whole subtree of an unmounted disk.
+
+    Args:
+        mount: The disk's scan root.
+        given: The path as the operator typed it (for the message).
+        located: The path that is missing from the disk.
+
+    Raises:
+        ValueError: The scan root is missing or empty, or the vanished path's parent
+            folder does not exist.
+    """
+    try:
+        mounted = any(mount.iterdir())
+    except OSError:
+        mounted = False
+    if not mounted:
+        raise ValueError(f"the scan root {mount} is empty or missing (disk not mounted?); not removing {given}")
+    if not located.parent.is_dir():
+        raise ValueError(f"the parent folder of {given} does not exist; not removing it from the index")
+
+
 def run_scoped_refresh(
     config: Config,
     disk_label: str,
@@ -715,7 +741,8 @@ def run_scoped_refresh(
 
     Raises:
         ValueError: The disk is unknown or unmounted, a path is not strictly below the
-            disk's scan root.
+            disk's scan root, or a vanished path cannot be shown to be really gone (empty
+            scan root, missing parent).
     """
     from personalscraper.indexer._fs_capability import resolve_capability
     from personalscraper.indexer.commands._bootstrap import build_fs_type_overrides
@@ -783,6 +810,8 @@ def run_scoped_refresh(
                     raise ValueError(f"{given} is not under the scan root of disk {disk_label!r} ({mount})") from None
                 if rel == ".":
                     raise ValueError(f"{given} is the scan root itself; give a folder below it")
+                if existing is None:
+                    _require_removable(mount, given, located)
                 (to_scan if existing is not None else to_remove).append((located, rel))
 
             report.scanned = [p for p, _ in to_scan]
