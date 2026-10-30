@@ -369,6 +369,53 @@ def test_an_item_with_a_live_unlinked_file_under_its_folder_is_kept(
     assert ghost in _items(conn)
 
 
+class _LateWriter:
+    """A connection whose ``BEGIN IMMEDIATE`` first runs a write, as another process would."""
+
+    def __init__(self, conn: sqlite3.Connection, write: str, params: tuple[Any, ...]) -> None:
+        object.__setattr__(self, "_conn", conn)
+        object.__setattr__(self, "_write", (write, params))
+
+    def execute(self, sql: str, params: Any = ()) -> sqlite3.Cursor:
+        if sql == "BEGIN IMMEDIATE":
+            self._conn.execute(*self._write)
+        return self._conn.execute(sql, params)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._conn, name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        setattr(self._conn, name, value)
+
+
+def test_a_file_appearing_between_the_check_and_the_write_keeps_the_item(
+    library: tuple[sqlite3.Connection, DiskRow, Path],
+) -> None:
+    """The guards are asked again inside the write transaction, before each delete.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: an item that stops being a ghost between the pass's reading and
+        its write transaction is kept.
+    """
+    conn, disk, root = library
+    ghost = _item(conn, root / "movies" / "Gone (2020)")
+    other = _item(conn, root / "movies" / "Also Gone (2020)", title="Also Gone")
+    release = conn.execute("INSERT INTO media_release (item_id) VALUES (?)", (ghost,)).lastrowid
+    path_id = conn.execute("INSERT INTO path (disk_id, rel_path) VALUES (?, 'movies/x')", (disk.id,)).lastrowid
+    late = _LateWriter(
+        conn,
+        "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, oshash, scan_generation,"
+        " last_verified_at) VALUES (?, ?, 'late.mkv', 1, 1, 'h', 1, 1)",
+        (release, path_id),
+    )
+
+    report = retire_ghost_items(late, disk, _MOUNTED, dry_run=False, max_share=None)  # type: ignore[arg-type]
+
+    assert ghost in _items(conn) and other not in _items(conn)
+    assert report.retired == 1
+    assert [(k.item_id, k.reason) for k in report.kept] == [(ghost, "live_files")]
+
+
 def test_any_error_while_retiring_rolls_back_and_re_raises(
     library: tuple[sqlite3.Connection, DiskRow, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:

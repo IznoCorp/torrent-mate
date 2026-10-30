@@ -267,6 +267,59 @@ def _retire(conn: sqlite3.Connection, ghost: GhostItem, now_s: int) -> None:
     conn.execute("DELETE FROM media_item WHERE id = ?", (ghost.item_id,))
 
 
+def _judge(conn: sqlite3.Connection, disk: DiskRow, dispatch_path: str, item_id: int) -> str | None:
+    """Return what keeps the item, :data:`GHOST_REASON` when nothing does, or ``None`` if its folder is there.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: The disk holding the folder (``mount_path`` set).
+        dispatch_path: The item's folder.
+        item_id: The item.
+
+    Returns:
+        ``None`` (folder present), ``"live_files"``, ``"pending_repair"`` or
+        :data:`GHOST_REASON`.
+
+    Raises:
+        OSError: When the folder cannot be examined.
+    """
+    if not _folder_gone(dispatch_path):
+        return None
+    if _has_live_files(conn, item_id, disk, dispatch_path):
+        return "live_files"
+    if _has_open_repair(conn, item_id):
+        log.info("indexer.ghost_items.kept_for_repair", item_id=item_id, store="library.db", table="repair_queue")
+        return "pending_repair"
+    return GHOST_REASON
+
+
+def _freeze_unreadable(report: GhostReport, disk: DiskRow, dispatch_path: str, exc: OSError) -> GhostReport:
+    """Freeze *report* because a folder of the disk cannot be examined.
+
+    The disk answers but cannot be read there: nothing it says about its
+    folders can justify a hard delete.
+
+    Args:
+        report: The disk's report, emptied of its ghosts.
+        disk: The disk.
+        dispatch_path: The folder that could not be examined.
+        exc: The error.
+
+    Returns:
+        *report*, frozen.
+    """
+    log.warning(
+        "indexer.ghost_items.folder_unreadable",
+        disk=disk.label,
+        dispatch_path=dispatch_path,
+        error=str(exc),
+        error_type=type(exc).__name__,
+    )
+    report.frozen = True
+    report.ghosts.clear()
+    return report
+
+
 def retire_ghost_items(
     conn: sqlite3.Connection,
     disk: DiskRow,
@@ -310,33 +363,13 @@ def retire_ghost_items(
     report.disk_items = len(items)
     for item_id, title, kind, dispatch_path in items:
         try:
-            if not _folder_gone(dispatch_path):
-                continue
+            reason = _judge(conn, disk, dispatch_path, item_id)
         except OSError as exc:
-            # The disk answers but cannot be read here: nothing it says about
-            # its folders can justify a hard delete.
-            log.warning(
-                "indexer.ghost_items.folder_unreadable",
-                disk=disk.label,
-                dispatch_path=dispatch_path,
-                error=str(exc),
-                error_type=type(exc).__name__,
-            )
-            report.frozen = True
-            report.ghosts.clear()
-            return report
-        if _has_live_files(conn, item_id, disk, dispatch_path):
-            report.kept.append(GhostItem(item_id, title, kind, dispatch_path, "live_files"))
-        elif _has_open_repair(conn, item_id):
-            log.info(
-                "indexer.ghost_items.kept_for_repair",
-                item_id=item_id,
-                store="library.db",
-                table="repair_queue",
-            )
-            report.kept.append(GhostItem(item_id, title, kind, dispatch_path, "pending_repair"))
-        else:
-            report.ghosts.append(GhostItem(item_id, title, kind, dispatch_path, GHOST_REASON))
+            return _freeze_unreadable(report, disk, dispatch_path, exc)
+        if reason is None:
+            continue
+        target = report.ghosts if reason == GHOST_REASON else report.kept
+        target.append(GhostItem(item_id, title, kind, dispatch_path, reason))
 
     if max_share is not None and report.ghosts and len(report.ghosts) > max_share * report.disk_items:
         report.capped = True
@@ -358,10 +391,23 @@ def retire_ghost_items(
         # with the deletes; rolling back would lose them. Neither is ours to do.
         raise RuntimeError("retire_ghost_items: the connection has an open transaction; commit it first")
     conn.execute("BEGIN IMMEDIATE")
+    retired: list[GhostItem] = []
     try:
         for ghost in report.ghosts:
+            # Asked again under the write lock: the reading above held none, and
+            # a scan or a dispatch may have brought a file or the folder back.
+            reason = _judge(conn, disk, ghost.dispatch_path, ghost.item_id)
+            if reason != GHOST_REASON:
+                log.info("indexer.ghost_items.no_longer_ghost", item_id=ghost.item_id, reason=reason)
+                if reason is not None:
+                    report.kept.append(GhostItem(ghost.item_id, ghost.title, ghost.kind, ghost.dispatch_path, reason))
+                continue
             _retire(conn, ghost, stamp)
+            retired.append(ghost)
         conn.commit()
+    except OSError as exc:
+        conn.rollback()
+        return _freeze_unreadable(report, disk, ghost.dispatch_path, exc)
     except Exception:
         # Whatever failed (a write, or a row gone under ``_retire``), the
         # ``BEGIN IMMEDIATE`` must not stay open on the caller's connection.
@@ -369,6 +415,7 @@ def retire_ghost_items(
         raise
     finally:
         conn.row_factory = row_factory
-    report.retired = len(report.ghosts)
+    report.ghosts = retired
+    report.retired = len(retired)
     log.info("indexer.ghost_items.retired", disk=disk.label, retired=report.retired)
     return report

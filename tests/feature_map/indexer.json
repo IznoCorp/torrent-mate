@@ -7,6 +7,7 @@
         "tests/indexer/test_ghost_items.py::test_a_disk_whose_mount_is_not_confirmed_retires_nothing",
         "tests/indexer/test_ghost_items.py::test_a_disk_with_no_sentinel_retires_nothing",
         "tests/indexer/test_ghost_items.py::test_a_dry_run_reports_the_ghost_and_writes_nothing",
+        "tests/indexer/test_ghost_items.py::test_a_file_appearing_between_the_check_and_the_write_keeps_the_item",
         "tests/indexer/test_ghost_items.py::test_a_folder_that_cannot_be_stat_ed_freezes_the_disk",
         "tests/indexer/test_ghost_items.py::test_a_ghost_with_its_files_tombstoned_is_retired_with_a_tombstone",
         "tests/indexer/test_ghost_items.py::test_an_item_an_open_repair_names_is_kept",
