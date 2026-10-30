@@ -659,6 +659,8 @@ class ScopedRefreshReport:
         relinked: Files newly linked to a release by the scoped relink.
         seasons_fixed: Season rows whose ``episode_count`` was corrected.
         failed_steps: Names of the DB-only passes that raised (logged; the refresh goes on).
+        unreadable: Directories the walk could not list (permission denied), absolute. Their
+            files are neither rescanned nor removed: the index keeps what it held there.
     """
 
     scanned: list[Path] = field(default_factory=list)
@@ -668,6 +670,31 @@ class ScopedRefreshReport:
     relinked: int = 0
     seasons_fixed: int = 0
     failed_steps: list[str] = field(default_factory=list)
+    unreadable: list[Path] = field(default_factory=list)
+
+
+def _find_unreadable_dirs(root: Path, mount: Path) -> list[str]:
+    """List the directories under *root* (itself included) that cannot be listed.
+
+    The dry run's stand-in for the walk's report: same criterion (``PermissionError`` on
+    the listing), nothing written.
+
+    Args:
+        root: Existing folder to probe.
+        mount: The disk's scan root.
+
+    Returns:
+        The unreadable directories relative to *mount*, in walk order.
+    """
+    found: list[str] = []
+
+    def _denied(exc: OSError) -> None:
+        if isinstance(exc, PermissionError) and exc.filename is not None:
+            found.append(os.path.relpath(str(exc.filename), str(mount)))
+
+    for _ in os.walk(str(root), onerror=_denied):
+        pass
+    return found
 
 
 def _stored_spellings(conn: sqlite3.Connection, disk_id: int, rel: str) -> list[str]:
@@ -881,9 +908,11 @@ def run_scoped_refresh(
             if dry_run:
                 for _, _, variants in to_remove:
                     report.files_removed += _count_live_files_under(conn, disk.id, variants)
-                for _, _, variants in to_scan:
+                for located, _, variants in to_scan:
+                    unreadable = _find_unreadable_dirs(located, mount)
+                    report.unreadable.extend(mount / r for r in unreadable)
                     report.files_removed += _count_live_files_under(
-                        conn, disk.id, variants, mount=mount, only_missing=True
+                        conn, disk.id, variants, mount=mount, only_missing=True, unreadable=unreadable
                     )
                 return report
 
@@ -909,6 +938,9 @@ def run_scoped_refresh(
                         raise ScopedRefreshIncomplete(
                             f"the walk of {located} did not finish (stopped); nothing was written, run it again"
                         )
+                    # The walk sheltered the files of every directory it could not list, so the
+                    # removal below leaves them alone; the report names the directories.
+                    report.unreadable.extend(mount / r for r in visitor.unreadable_dirs)
                     _upsert_path_row(conn, disk.id, rel, _safe_mtime_ns(located.stat().st_mtime_ns))
                 # Only now: a file moved between two of the given paths was re-pointed by the
                 # walk above, so what is still unseen is really gone.
@@ -965,6 +997,7 @@ def _count_live_files_under(
     *,
     mount: Path | None = None,
     only_missing: bool = False,
+    unreadable: list[str] | None = None,
 ) -> int:
     """Count the live ``media_file`` rows of a disk subtree (the dry run's removal count).
 
@@ -975,6 +1008,9 @@ def _count_live_files_under(
         mount: The disk's scan root; required with *only_missing*.
         only_missing: Count only the files that are no longer on the disk (what a real
             refresh of a path that still exists would retire).
+        unreadable: Directories (relative to *mount*) that cannot be listed: with
+            *only_missing*, the files under them are not counted, since they are not known
+            to be gone.
 
     Returns:
         Number of non-deleted files at or below the subtree root.
@@ -988,4 +1024,13 @@ def _count_live_files_under(
     if not only_missing:
         return len(rows)
     assert mount is not None, "only_missing needs the scan root"
-    return sum(1 for rel_path, filename in rows if not (mount / rel_path / filename).exists())
+    skipped = tuple(unreadable or ())
+
+    def _under_unreadable(rel_path: str) -> bool:
+        return any(rel_path == d or rel_path.startswith(d + "/") for d in skipped)
+
+    return sum(
+        1
+        for rel_path, filename in rows
+        if not _under_unreadable(rel_path) and not (mount / rel_path / filename).exists()
+    )

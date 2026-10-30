@@ -556,6 +556,11 @@ def library_refresh_path(
         console.print(f"{prefix} rescan [bold]{scanned}[/bold] (disk {label})")
     for removed in report.removed:
         console.print(f"{prefix} remove [bold]{removed}[/bold] from the index (gone from disk, disk {label})")
+    for unreadable in report.unreadable:
+        console.print(
+            f"[yellow]Skipped, unreadable:[/yellow] [bold]{unreadable}[/bold] "
+            "(permission denied; its indexed files are kept as they are)"
+        )
     if dry_run:
         console.print(
             f"[yellow]DRY-RUN:[/yellow] {report.files_removed} indexed file(s) would be removed. Nothing written."
