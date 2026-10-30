@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from personalscraper.cli import app
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.merkle import DiskMountStatus
@@ -111,12 +113,15 @@ class _Library:
         """Return the ids of the items left."""
         return {r[0] for r in self.conn.execute("SELECT id FROM media_item")}
 
-    def invoke(self, args: list[str], *, unmounted: frozenset[str] = frozenset()) -> Any:
+    def invoke(
+        self, args: list[str], *, unmounted: frozenset[str] = frozenset(), budget_exhausted: bool = False
+    ) -> Any:
         """Run the CLI with the store's config, the walk stubbed and mounts answered.
 
         Args:
             args: CLI arguments.
             unmounted: Labels whose mount check answers ``UNMOUNTED``.
+            budget_exhausted: Whether the stubbed walk reports its time budget spent.
 
         Returns:
             The CliRunner result.
@@ -125,7 +130,14 @@ class _Library:
         def _verify(disk: Any) -> DiskMountStatus:
             return DiskMountStatus.UNMOUNTED if disk.label in unmounted else DiskMountStatus.MOUNTED_AND_VERIFIED
 
-        result_stub = ScanRunResult(scan_run_id=1, files_visited=0, dirs_visited=0, status="ok", disks_skipped=0)
+        result_stub = ScanRunResult(
+            scan_run_id=1,
+            files_visited=0,
+            dirs_visited=0,
+            status="ok",
+            disks_skipped=0,
+            budget_exhausted=budget_exhausted,
+        )
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=self.cfg),
@@ -182,6 +194,64 @@ def test_a_full_scan_dry_run_reports_the_ghost_and_keeps_it(tmp_path: Path) -> N
     assert result.exit_code == 0, result.output
     assert ghost in lib.items()
     assert [(g["item_id"], g["reason"]) for g in _summary(result)["ghost_items"]] == [(ghost, "dispatch_path_gone")]
+
+
+@pytest.mark.parametrize("mode", ["quick", "incremental"])
+def test_only_a_full_scan_retires_ghosts(tmp_path: Path, mode: str) -> None:
+    """Quick and incremental walk part of a disk: they never judge an item gone.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-index --mode quick`` and ``--mode incremental`` retire
+        no ghost and list none.
+    """
+    lib = _Library(tmp_path, ["medias1"])
+    for n in range(10):
+        lib.item("medias1", f"Present {n} (2020)", present=True, file_deleted_at=None)
+    ghost = lib.item("medias1", "Gone (2020)", present=False)
+
+    result = lib.invoke(["library-index", "--mode", mode])
+
+    assert result.exit_code == 0, result.output
+    assert ghost in lib.items()
+    assert _summary(result)["ghost_items"] == []
+
+
+def test_a_full_scan_out_of_budget_retires_no_ghost(tmp_path: Path) -> None:
+    """A walk stopped by its time budget did not see every folder: no ghost is judged.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-index --mode full`` whose walk exhausted its budget
+        retires no ghost and lists none.
+    """
+    lib = _Library(tmp_path, ["medias1"])
+    for n in range(10):
+        lib.item("medias1", f"Present {n} (2020)", present=True, file_deleted_at=None)
+    ghost = lib.item("medias1", "Gone (2020)", present=False)
+
+    result = lib.invoke(["library-index", "--mode", "full"], budget_exhausted=True)
+
+    assert result.exit_code == 0, result.output
+    assert ghost in lib.items()
+    assert _summary(result)["ghost_items"] == []
+
+
+def test_a_gone_folder_whose_files_are_not_tombstoned_keeps_its_item(tmp_path: Path) -> None:
+    """Files retire first, the item after: a live file under a gone folder keeps the item.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-index --mode full`` keeps an item whose folder is gone
+        while any of its files is still live.
+    """
+    lib = _Library(tmp_path, ["medias1"])
+    for n in range(10):
+        lib.item("medias1", f"Present {n} (2020)", present=True, file_deleted_at=None)
+    striking = lib.item("medias1", "Striking (2020)", present=False, file_deleted_at=None)
+
+    result = lib.invoke(["library-index", "--mode", "full"])
+
+    assert result.exit_code == 0, result.output
+    assert striking in lib.items()
+    assert _summary(result)["ghost_items"] == []
 
 
 def test_the_scan_cap_holds_and_the_command_clears_the_backlog_with_every_other_guard(tmp_path: Path) -> None:
