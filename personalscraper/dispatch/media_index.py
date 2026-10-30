@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
+from personalscraper.conf.ids import BUILTIN_CATEGORY_IDS, NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations, open_db
 from personalscraper.indexer.repos import item_repo
@@ -613,6 +613,8 @@ class MediaIndex:
         ``_item_stage.scan_and_stage_dir`` (full rich rows — seasons, episodes,
         ``item_issue``).
 
+        Every category directory present on a disk is walked, whatever the
+        disk's ``categories`` (they gate where NEW media go, not what is indexed).
         Resolves each on-disk category directory to a canonical category ID.
         When ``categories`` is supplied, the reverse map ``folder_name → id``
         is used first — required whenever the disk layout uses configurable
@@ -650,14 +652,17 @@ class MediaIndex:
                 if not category_dir.is_dir() or category_dir.name.startswith("."):
                     continue
 
-                # Resolve dir name → canonical category ID.
+                # Resolve dir name → canonical category ID. The disk's own
+                # ``categories`` are NOT a filter here: they gate where NEW media
+                # go, and a disk frozen to ``["audiobooks"]`` still holds series
+                # whose new episodes land there — dropping them from a rebuild
+                # loses every such item until the next full scan.
                 resolved_id = folder_to_id.get(category_dir.name.lower())
-                if resolved_id is None and category_dir.name in config.categories:
+                if resolved_id is None and (
+                    category_dir.name in config.categories or category_dir.name in BUILTIN_CATEGORY_IDS
+                ):
                     resolved_id = category_dir.name
                 if resolved_id is None:
-                    continue
-
-                if resolved_id not in config.categories:
                     continue
 
                 if resolved_id in NON_VIDEO_CATEGORY_IDS:

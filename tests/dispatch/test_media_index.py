@@ -315,6 +315,32 @@ class TestMediaIndexRebuild:
         assert matrix is not None
         assert matrix.category == "movies"
 
+    def test_rebuild_keeps_existing_media_whatever_the_disk_categories(self, tmp_path: Path) -> None:
+        """rebuild() indexes a disk's existing media even when its categories no longer list them.
+
+        A frozen disk configured ``["audiobooks"]`` still holds series whose new
+        episodes land there: categories gate NEW media only. A rebuild that walked
+        only the configured categories deleted every such item.
+        """
+        from personalscraper.conf.models.categories import CategoryConfig
+        from personalscraper.conf.models.disks import DiskConfig
+
+        disk = tmp_path / "medias2"
+        (disk / "series" / "Frozen Show (2019)" / "Saison 01").mkdir(parents=True)
+        config = DiskConfig(id="frozen_disk", path=disk, categories=["audiobooks"])
+        categories = {
+            "tv_shows": CategoryConfig(folder_name="series"),
+            "audiobooks": CategoryConfig(folder_name="audiobooks"),
+        }
+
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        count = idx.rebuild([config], categories=categories)
+
+        assert count == 1
+        entry = idx.find("Frozen Show (2019)", "tvshow")
+        assert entry is not None
+        assert (entry.disk, entry.category) == ("frozen_disk", "tv_shows")
+
     def test_rebuild_skips_audiobooks(self, tmp_path: Path) -> None:
         """rebuild() must not index non-video (audiobook) categories as movie rows.
 
@@ -335,7 +361,7 @@ class TestMediaIndexRebuild:
         config = DiskConfig(id="drive_a", path=disk, categories=["movies", "audiobooks"])
         categories = {
             "movies": CategoryConfig(folder_name="films"),
-            "audiobooks": CategoryConfig(folder_name="livres audios"),
+            "audiobooks": CategoryConfig(folder_name="audiobooks"),
         }
         idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         count = idx.rebuild([config], categories=categories)
