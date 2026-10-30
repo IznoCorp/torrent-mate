@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.logger import get_logger
+from personalscraper.nfo_utils import is_episode_nfo_conformant
 from personalscraper.scraper.nfo_generator import NFOGenerator
 
 if TYPE_CHECKING:
@@ -85,7 +86,7 @@ class TvServiceNfoMixin:
 
         For each matched episode, creates an NFO file with metadata and
         downloads the TMDB still image as a thumbnail file. Episodes with
-        existing NFOs only get thumbnail recovery (if missing).
+        conformant existing NFOs only get xref upgrade and thumbnail recovery (if missing).
 
         Args:
             matched: Dict from match_episode_files().
@@ -136,7 +137,9 @@ class TvServiceNfoMixin:
             )
             thumb_path = show_dir / season_dir_name / thumb_name
 
-            if nfo_path.exists():
+            # A non-conformant NFO (empty, unparseable, foreign root) is rewritten like an
+            # absent one: skipping it would leave the episode without usable metadata.
+            if is_episode_nfo_conformant(nfo_path):
                 # Phase 5.4 : upgrade-in-place. An NFO already on disk
                 # may have been written by an earlier scrape that did
                 # not yet have the xref IDs available — append the
@@ -207,8 +210,8 @@ class TvServiceNfoMixin:
         with the season-representative metadata and the canonical ``<uniqueid>``.
         A single root is used deliberately: a multi-``<episodedetails>`` file has
         several XML roots and is unparseable by the strict verify/augment readers
-        (``ElementTree``), which would block dispatch. Idempotent: skips when the
-        NFO already exists.
+        (``ElementTree``), which would block dispatch. Idempotent: skips when a
+        conformant NFO already exists.
 
         Args:
             video_path: The season-pack video file (pre-rename path).
@@ -235,7 +238,7 @@ class TvServiceNfoMixin:
             EpisodeTitle=api_title,
         )
         nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
-        if nfo_path.exists():
+        if is_episode_nfo_conformant(nfo_path):
             return warnings
 
         renamed_video = show_dir / season_dir_name / f"{new_stem}{video_path.suffix}"
