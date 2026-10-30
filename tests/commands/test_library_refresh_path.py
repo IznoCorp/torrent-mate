@@ -72,6 +72,15 @@ def _show(mount: Path, name: str, episodes: list[str]) -> Path:
     return mount / "series" / name
 
 
+def _dump(db_path: Path) -> list[str]:
+    """The whole database as SQL statements: equal dumps mean nothing was written."""
+    conn = sqlite3.connect(db_path)
+    try:
+        return list(conn.iterdump())
+    finally:
+        conn.close()
+
+
 def _snapshot(db_path: Path, like: str) -> list[tuple]:
     conn = sqlite3.connect(db_path)
     try:
@@ -161,3 +170,19 @@ def test_path_outside_disks_exits_2(tmp_path, test_config) -> None:
     assert result.exit_code == 2, result.output
     assert "No configured disk" in result.output
     maint.assert_not_called()
+
+
+def test_e2e_stopped_walk_exits_1_and_writes_nothing(tmp_path, test_config) -> None:
+    """A walk stopped by a shutdown request is reported (exit 1), not committed as a success."""
+    cfg, mount, db_path = _library(tmp_path, test_config)
+    show_a = _show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        assert run_cli(["library-refresh-path", str(show_a)]).exit_code == 0
+        (show_a / "Season 01" / "Show.A.S01E02.mkv").write_bytes(b"y" * 4096)
+        before = _dump(db_path)
+        with patch("personalscraper.indexer.scanner._shutdown.is_shutdown_requested", return_value=True):
+            result = run_cli(["library-refresh-path", str(show_a)])
+
+    assert result.exit_code == 1, result.output
+    assert "did not finish" in " ".join(result.output.split())
+    assert _dump(db_path) == before

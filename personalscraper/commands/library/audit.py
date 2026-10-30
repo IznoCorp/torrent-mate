@@ -506,7 +506,10 @@ def library_refresh_path(
         personalscraper library-refresh-path "/Volumes/Disk1/medias/series/Show (2020)" --dry-run
         personalscraper library-refresh-path "/Volumes/Disk1/medias/series/New" "/Volumes/Disk1/medias/series/Old"
     """
-    from personalscraper.dispatch.post_maintenance import run_scoped_refresh  # noqa: PLC0415
+    from personalscraper.dispatch.post_maintenance import (  # noqa: PLC0415
+        ScopedRefreshIncomplete,
+        run_scoped_refresh,
+    )
 
     console = state["console"]
     cfg = ctx.obj.config
@@ -544,6 +547,9 @@ def library_refresh_path(
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(2) from exc
+    except ScopedRefreshIncomplete as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
 
     prefix = "[yellow]DRY-RUN:[/yellow] would" if dry_run else "[green]Done:[/green]"
     for scanned in report.scanned:

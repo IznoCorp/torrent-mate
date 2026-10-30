@@ -638,6 +638,14 @@ def maybe_run_post_dispatch_maintenance(
         )
 
 
+class ScopedRefreshIncomplete(RuntimeError):
+    """A targeted refresh's walk was stopped (shutdown or budget) before it finished.
+
+    Raised after the transaction is rolled back: a half-seen subtree is never committed,
+    since what the walk did not reach would otherwise look gone.
+    """
+
+
 @dataclass
 class ScopedRefreshReport:
     """What a targeted refresh did (or, on a dry run, would do).
@@ -744,6 +752,8 @@ def run_scoped_refresh(
         ValueError: The disk is unknown or unmounted, a path is not strictly below the
             disk's scan root, or a vanished path cannot be shown to be really gone (empty
             scan root, missing parent).
+        ScopedRefreshIncomplete: A walk was stopped before it finished; the transaction
+            is rolled back.
     """
     from personalscraper.indexer._fs_capability import resolve_capability
     from personalscraper.indexer.commands._bootstrap import build_fs_type_overrides
@@ -836,14 +846,20 @@ def run_scoped_refresh(
             try:
                 for located, rel in to_scan:
                     visitor = IncrementalVisitor(conn, disk, generation, files_visited, dirs_visited, False, capability)
+                    walk_budget = WalkBudget(None, time.monotonic())
                     walk(
                         str(located),
                         visitor,
-                        budget=WalkBudget(None, time.monotonic()),
+                        budget=walk_budget,
                         shutdown=is_shutdown_requested,
                         # Never reached: a checkpoint commits mid-walk and would end the transaction.
                         checkpoint=WalkCheckpoint(scan_run_id=0, checkpoint_every=2**62),
                     )
+                    # walk() returns nothing: a stop (shutdown or budget) only sets this flag.
+                    if walk_budget.budget_exhausted[0]:
+                        raise ScopedRefreshIncomplete(
+                            f"the walk of {located} did not finish (stopped); nothing was written, run it again"
+                        )
                     _upsert_path_row(conn, disk.id, rel, _safe_mtime_ns(located.stat().st_mtime_ns))
                 # Only now: a file moved between two of the given paths was re-pointed by the
                 # walk above, so what is still unseen is really gone.

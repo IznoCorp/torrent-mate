@@ -16,6 +16,7 @@ from personalscraper.dispatch.post_maintenance import (
     _run_fix_season_counts,
     _run_relink,
     _run_repair_drain,
+    ScopedRefreshIncomplete,
     _Scope,
     run_scoped_refresh,
 )
@@ -413,4 +414,24 @@ def test_dry_run_counts_the_files_gone_from_a_refreshed_path(library) -> None:
     report = run_scoped_refresh(cfg, label, [show_a], dry_run=True)
 
     assert report.files_removed == 1
+    assert _dump(db_path) == before
+
+
+# ---------------------------------------------------------------------------
+# A walk that did not finish
+# ---------------------------------------------------------------------------
+
+
+def test_stopped_walk_rolls_back_and_is_reported(library, monkeypatch) -> None:
+    """A shutdown request mid-walk must not commit a half-seen subtree as a success."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv", "Show.A.S01E02.mkv"])
+    run_scoped_refresh(cfg, label, [show_a])
+    (show_a / "Season 01" / "Show.A.S01E03.mkv").write_bytes(b"z" * 512)
+    before = _dump(db_path)
+    monkeypatch.setattr("personalscraper.indexer.scanner._shutdown.is_shutdown_requested", lambda: True)
+
+    with pytest.raises(ScopedRefreshIncomplete, match="did not finish"):
+        run_scoped_refresh(cfg, label, [show_a])
+
     assert _dump(db_path) == before
