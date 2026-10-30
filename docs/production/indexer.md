@@ -119,6 +119,13 @@ mtime differs from what it recorded, the file under that name is another one: it
 `release_id`, `xxh3_partial`, `xxh3_full` and `enriched_at` are cleared, to be
 linked and computed again.
 
+A directory the walk cannot list (`PermissionError`) is reported by the walk
+(`ScanVisitor.unreadable_dirs`) and its files are not « unseen »: they are stamped
+with the current generation, so they take no strike and are not soft-deleted, and
+their existing strikes stay as they are. `library-refresh-path` likewise keeps them
+live and names the skipped directories. A walk that stops on a per-file
+`PermissionError` counts as a truncated run (no strikes this run).
+
 ### Ghost items
 
 A `media_item` is retired — hard-deleted, its children going with it by
