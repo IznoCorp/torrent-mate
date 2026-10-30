@@ -97,6 +97,7 @@ def library_merge_duplicate_items(
                     }
                     for group, why in report.skipped
                 ],
+                "titles_kept": [{"keeper_id": keeper_id, "title": title} for keeper_id, title in report.titles_kept],
                 "would_merge" if dry_run else "merged": (
                     sum(len(group.duplicate_ids) for group in report.groups) if dry_run else report.merged
                 ),

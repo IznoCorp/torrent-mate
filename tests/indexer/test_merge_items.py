@@ -299,3 +299,16 @@ def test_a_year_the_keeper_cannot_take_skips_its_group_only() -> None:
     assert [(g.keeper_id, why) for g, why in report.skipped] == [(keeper, "year_taken")]
     assert report.merged == 1, "the other group still merges"
     assert conn.execute("SELECT COUNT(*) FROM media_item WHERE id = ?", (ids["young"],)).fetchone() == (0,)
+
+
+def test_a_title_the_keeper_cannot_take_is_reported() -> None:
+    """The canonical title held by a third row of the same year stays unapplied, and the report says so."""
+    conn = _make_conn()
+    keeper = _item(conn, "The Gentlemen (2020)", "movie", MOVIE_PATH, created=100)
+    _item(conn, "Gentlemen, The", "movie", MOVIE_PATH, created=200)
+    _item(conn, "The Gentlemen", "movie", "/Volumes/Medias1/medias/films/Elsewhere", created=50)
+
+    report = merge_duplicate_items(conn, dry_run=False)
+
+    assert report.merged == 1
+    assert report.titles_kept == [(keeper, "The Gentlemen (2020)")]

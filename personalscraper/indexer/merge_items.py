@@ -64,11 +64,14 @@ class MergeReport:
         groups: The duplicate groups found (merged unless ``skipped``).
         skipped: Groups left alone, with the reason (see :func:`_skip_reason`).
         merged: Number of duplicate rows merged (0 on a dry run).
+        titles_kept: ``(keeper_id, title)`` of the keepers whose canonical
+            title another row already holds: merged, but still drifted.
     """
 
     groups: list[DuplicateGroup] = field(default_factory=list)
     skipped: list[tuple[DuplicateGroup, str]] = field(default_factory=list)
     merged: int = 0
+    titles_kept: list[tuple[int, str]] = field(default_factory=list)
 
 
 def find_duplicate_groups(conn: sqlite3.Connection) -> list[DuplicateGroup]:
@@ -217,7 +220,7 @@ def _merge_season(conn: sqlite3.Connection, season_id: int, keeper_season: int) 
     conn.execute("DELETE FROM season WHERE id = ?", (season_id,))
 
 
-def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now_s: int) -> None:
+def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now_s: int) -> str | None:
     """Re-point every child of *duplicate_id* to *keeper_id*, then delete the duplicate.
 
     Args:
@@ -225,6 +228,10 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
         duplicate_id: The row merged away.
         keeper_id: The row that survives.
         now_s: Epoch seconds stamped on the tombstone.
+
+    Returns:
+        The keeper's title when its canonical form could not be applied
+        (another row of the same kind and year holds it), else ``None``.
     """
     for (release_id,) in conn.execute("SELECT id FROM media_release WHERE item_id = ?", (duplicate_id,)).fetchall():
         twin = _same_signature_release(conn, release_id, item_id=keeper_id, episode_id=None)
@@ -306,11 +313,15 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
         "UPDATE media_item SET date_metadata_refreshed = NULL WHERE id = ? AND date_metadata_refreshed = 0",
         (keeper_id,),
     )
-    conn.execute(
-        "UPDATE OR IGNORE media_item SET title = ? WHERE id = ?",
-        (item_repo._canonical_title(keeper.title), keeper_id),
-    )
+    canonical = item_repo._canonical_title(keeper.title)
+    healed = conn.execute("UPDATE OR IGNORE media_item SET title = ? WHERE id = ?", (canonical, keeper_id))
     log.info("indexer.merge_items.merged", keeper_id=keeper_id, duplicate_id=duplicate_id)
+    if healed.rowcount == 0:
+        # The canonical (title, kind, year) belongs to a third row: the keeper
+        # keeps its drifted title, which the operator must know about.
+        log.warning("indexer.merge_items.title_kept", keeper_id=keeper_id, title=keeper.title, canonical=canonical)
+        return keeper.title
+    return None
 
 
 def _provider_ids(raw: str | None) -> dict[str, str]:
@@ -424,9 +435,12 @@ def merge_duplicate_items(conn: sqlite3.Connection, *, dry_run: bool, now_s: int
     conn.execute("BEGIN IMMEDIATE")
     try:
         for group in report.groups:
+            kept_title = None
             for duplicate_id in group.duplicate_ids:
-                _merge_item(conn, duplicate_id, group.keeper_id, stamp)
+                kept_title = _merge_item(conn, duplicate_id, group.keeper_id, stamp)
                 report.merged += 1
+            if kept_title is not None:
+                report.titles_kept.append((group.keeper_id, kept_title))
         conn.commit()
     except Exception:
         conn.rollback()
