@@ -469,3 +469,24 @@ class TestEpisodeNfoEncodings:
         nfo.write_bytes(content)
         assert is_episode_nfo_usable(nfo) is False
 
+
+class TestEpisodeNfoDoctype:
+    """A leading DOCTYPE is dropped like the XML declaration (the content is wrapped)."""
+
+    def test_doctype_is_usable(self, tmp_path: Path) -> None:
+        """An NFO starting with a DOCTYPE is parsed, not rewritten."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE episodedetails>\n'
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True
+
+    def test_doctype_with_internal_subset_is_usable(self, tmp_path: Path) -> None:
+        """An internal subset (square brackets) is dropped whole."""
+        nfo = tmp_path / "S01E01.nfo"
+        nfo.write_text(
+            "<!DOCTYPE episodedetails [<!ELEMENT episodedetails ANY>]>\n"
+            "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>"
+        )
+        assert is_episode_nfo_usable(nfo) is True

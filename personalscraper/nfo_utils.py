@@ -102,6 +102,8 @@ def is_nfo_complete(nfo_path: Path) -> bool:
 
 
 _XML_DECLARATION_RE = re.compile(r"^\s*<\?xml[^>]*\?>")
+# A DOCTYPE, with or without an internal subset, is as illegal inside the wrapper as the declaration.
+_DOCTYPE_RE = re.compile(r"^\s*<!DOCTYPE(?:[^>\[]|\[.*?\])*>", re.DOTALL)
 _XML_ENCODING_RE = re.compile(rb"^\s*<\?xml[^>]*?encoding\s*=\s*[\"']([A-Za-z0-9._-]+)[\"']")
 
 # Root element the episode NFO writer produces (NFOGenerator.generate_episode_nfo).
@@ -152,8 +154,8 @@ def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
 
     A Kodi multi-episode NFO is a sequence of ``<episodedetails>`` roots, which
     ``ET.parse`` rejects (« junk after document element »). The content is
-    wrapped in one synthetic root, after dropping the XML declaration (illegal
-    anywhere but the very start), so a single-root file and a multi-root file
+    wrapped in one synthetic root, after dropping the XML declaration and a leading
+    DOCTYPE (both illegal anywhere but the very start), so a single-root file and a multi-root file
     are read the same way.
 
     Args:
@@ -167,7 +169,7 @@ def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
         OSError: The file cannot be read.
     """
     text = _decode_nfo_bytes(nfo_path.read_bytes())
-    body = _XML_DECLARATION_RE.sub("", text, count=1)
+    body = _DOCTYPE_RE.sub("", _XML_DECLARATION_RE.sub("", text, count=1), count=1)
     return list(ET.fromstring(f"<nfo>{body}</nfo>"))  # noqa: S314
 
 
