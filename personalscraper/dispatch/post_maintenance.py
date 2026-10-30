@@ -9,13 +9,14 @@ library index is coherent without a manual operator step.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper._fs_utils import name_variants
+from personalscraper._fs_utils import name_key, name_variants
 from personalscraper.indexer.repos.item_repo import _ATTR_DISPATCH_PATH
 from personalscraper.logger import get_logger
 
@@ -669,24 +670,61 @@ class ScopedRefreshReport:
     failed_steps: list[str] = field(default_factory=list)
 
 
-def _resolve_on_disk(path: Path) -> Path | None:
-    """Return the spelling of *path* that exists on disk, or ``None`` when none does.
+def _stored_spellings(conn: sqlite3.Connection, disk_id: int, rel: str) -> list[str]:
+    """Return the spellings under which the index stores the folder *rel* (or its descendants' prefix).
 
-    A path typed with « ? » may exist as its U+F025 twin (and the reverse), and the
-    filesystem may hold either Unicode form; the typed spelling wins when it exists.
+    The filesystem ignores case (and macFUSE hands NFD / U+F025 names back as either), the
+    index does not: a path typed in another case must be matched against what is stored,
+    not against its own spelling. Looked up through every ``path`` row of the disk, whose
+    leading components are compared by :func:`name_key` and case-folded.
 
     Args:
-        path: The path the operator gave.
+        conn: Open SQLite connection.
+        disk_id: PK of the owning disk.
+        rel: The folder relative to the disk's scan root, as typed.
 
     Returns:
-        The existing spelling, or ``None`` when the path is gone.
+        The distinct stored spellings, sorted; empty when the index holds nothing there.
     """
-    if path.exists():
-        return path
-    for variant in sorted(name_variants(str(path))):
-        if Path(variant).exists():
-            return Path(variant)
-    return None
+    target = name_key(rel).casefold()
+    depth = rel.count("/") + 1
+    found: set[str] = set()
+    for (stored,) in conn.execute("SELECT rel_path FROM path WHERE disk_id = ?", (disk_id,)):
+        head = "/".join(stored.split("/")[:depth])
+        if name_key(head).casefold() == target:
+            found.add(head)
+    return sorted(found)
+
+
+def _disk_spelling(mount: Path, rel: str) -> str:
+    """Return *rel* spelled as the filesystem lists it (component by component).
+
+    Used for a folder the index does not know yet, so the path row written for it takes
+    the spelling the walk will give its children, never the typed one. Components that do
+    not exist are kept as typed.
+
+    Args:
+        mount: The disk's scan root.
+        rel: The folder relative to *mount*, as typed.
+
+    Returns:
+        The relative path with each existing component in its on-disk spelling.
+    """
+    current = mount
+    parts: list[str] = []
+    for part in rel.split("/"):
+        try:
+            listed = os.listdir(current)
+        except OSError:
+            listed = []
+        match = (
+            part
+            if part in listed
+            else next((n for n in listed if name_key(n).casefold() == name_key(part).casefold()), part)
+        )
+        parts.append(match)
+        current = current / match
+    return "/".join(parts)
 
 
 def _require_removable(mount: Path, given: Path, located: Path) -> None:
@@ -810,31 +848,40 @@ def run_scoped_refresh(
             mount = Path(str(disk.mount_path))
 
             # Classify first: every path is validated before anything is written.
-            to_scan: list[tuple[Path, str]] = []
-            to_remove: list[tuple[Path, str]] = []
+            to_scan: list[tuple[Path, str, set[str]]] = []
+            to_remove: list[tuple[Path, str, set[str]]] = []
             for given in paths:
-                existing = _resolve_on_disk(given)
-                located = existing if existing is not None else given
                 try:
-                    rel = str(located.relative_to(mount))
+                    typed_rel = str(given.relative_to(mount))
                 except ValueError:
                     raise ValueError(f"{given} is not under the scan root of disk {disk_label!r} ({mount})") from None
-                if rel == ".":
+                if typed_rel == ".":
                     raise ValueError(f"{given} is the scan root itself; give a folder below it")
-                if existing is None:
+                # The stored spelling wins over the typed one; a spelling that is on disk wins over the others.
+                stored = _stored_spellings(conn, disk.id, typed_rel)
+                rel = next((r for r in stored if (mount / r).exists()), None)
+                if rel is None:
+                    rel = stored[0] if stored else _disk_spelling(mount, typed_rel)
+                located = mount / rel
+                variants = {v for spelling in (*stored, rel) for v in _rel_path_variants(spelling)}
+                if located.exists():
+                    if not located.is_dir():
+                        raise ValueError(f"{given} is not a folder; give the media folder, not a file")
+                    to_scan.append((located, rel, variants))
+                else:
                     _require_removable(mount, given, located)
-                (to_scan if existing is not None else to_remove).append((located, rel))
+                    to_remove.append((located, rel, variants))
 
-            report.scanned = [p for p, _ in to_scan]
-            report.removed = [p for p, _ in to_remove]
-            scopes = [_Scope(disk.id, str(mount), frozenset(_rel_path_variants(rel))) for _, rel in to_scan]
+            report.scanned = [p for p, _, _ in to_scan]
+            report.removed = [p for p, _, _ in to_remove]
+            scopes = [_Scope(disk.id, str(mount), frozenset(variants)) for _, _, variants in to_scan]
 
             if dry_run:
-                for _, rel in to_remove:
-                    report.files_removed += _count_live_files_under(conn, disk.id, _rel_path_variants(rel))
-                for _, rel in to_scan:
+                for _, _, variants in to_remove:
+                    report.files_removed += _count_live_files_under(conn, disk.id, variants)
+                for _, _, variants in to_scan:
                     report.files_removed += _count_live_files_under(
-                        conn, disk.id, _rel_path_variants(rel), mount=mount, only_missing=True
+                        conn, disk.id, variants, mount=mount, only_missing=True
                     )
                 return report
 
@@ -844,7 +891,7 @@ def run_scoped_refresh(
             dirs_visited = [0]
             conn.execute("BEGIN IMMEDIATE")
             try:
-                for located, rel in to_scan:
+                for located, rel, _ in to_scan:
                     visitor = IncrementalVisitor(conn, disk, generation, files_visited, dirs_visited, False, capability)
                     walk_budget = WalkBudget(None, time.monotonic())
                     walk(
@@ -863,14 +910,12 @@ def run_scoped_refresh(
                     _upsert_path_row(conn, disk.id, rel, _safe_mtime_ns(located.stat().st_mtime_ns))
                 # Only now: a file moved between two of the given paths was re-pointed by the
                 # walk above, so what is still unseen is really gone.
-                for _, rel in to_scan:
+                for _, _, variants in to_scan:
                     report.files_removed += soft_delete_live_files_under(
-                        conn, disk.id, _rel_path_variants(rel), reason="refresh_path", unseen_before=generation
+                        conn, disk.id, variants, reason="refresh_path", unseen_before=generation
                     )
-                for _, rel in to_remove:
-                    report.files_removed += soft_delete_live_files_under(
-                        conn, disk.id, _rel_path_variants(rel), reason="refresh_path"
-                    )
+                for _, _, variants in to_remove:
+                    report.files_removed += soft_delete_live_files_under(conn, disk.id, variants, reason="refresh_path")
                 # The stored disk fingerprint no longer describes the index.
                 conn.execute("UPDATE disk SET merkle_root = NULL WHERE id = ?", (disk.id,))
                 conn.execute("COMMIT")

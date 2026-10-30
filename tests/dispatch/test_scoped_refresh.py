@@ -462,3 +462,61 @@ def test_failed_pass_is_logged_with_its_traceback(library, monkeypatch, failing,
     calls = [c for c in fake_log.warning.call_args_list if c.args[0] == event]
     assert len(calls) == 1
     assert calls[0].kwargs.get("exc_info") is True
+
+
+# ---------------------------------------------------------------------------
+# Edge inputs: a file, a path typed in another case
+# ---------------------------------------------------------------------------
+
+
+def test_a_file_given_as_path_is_refused(library) -> None:
+    """A file is not a media folder: a clear error, not a raw NotADirectoryError inside the transaction."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show_a])
+    before = _dump(db_path)
+
+    with pytest.raises(ValueError, match="not a folder"):
+        run_scoped_refresh(cfg, label, [show_a / "Season 01" / "Show.A.S01E01.mkv"])
+
+    assert _dump(db_path) == before
+
+
+def _stored_rel_paths(db_path: Path) -> set[str]:
+    conn = sqlite3.connect(db_path)
+    try:
+        return {r[0] for r in conn.execute("SELECT rel_path FROM path")}
+    finally:
+        conn.close()
+
+
+def test_path_typed_in_another_case_is_resolved_to_the_stored_spelling(library) -> None:
+    """The filesystem ignores case, the index does not: the typed spelling must not create or hide rows."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show_a])
+    paths_before = _stored_rel_paths(db_path)
+    files_before = _rows(db_path, "%")
+
+    report = run_scoped_refresh(cfg, label, [mount / "series" / "show a (2020)"])
+
+    assert report.removed == []
+    assert report.scanned == [show_a]
+    assert report.files_removed == 0
+    assert _stored_rel_paths(db_path) == paths_before
+    assert [r[:2] + r[6:] for r in _rows(db_path, "%")] == [r[:2] + r[6:] for r in files_before]
+
+
+def test_vanished_path_typed_in_another_case_removes_the_stored_rows(library) -> None:
+    """A deleted folder typed with another case still retires the rows stored under its real spelling."""
+    cfg, label, _disk_id, mount, db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv", "Show.A.S01E02.mkv"])
+    show_b = _make_show(mount, "Show B (2021)", ["Show.B.S01E01.mkv"])
+    run_scoped_refresh(cfg, label, [show_a, show_b])
+    shutil.rmtree(show_a)
+
+    report = run_scoped_refresh(cfg, label, [mount / "series" / "SHOW A (2020)"])
+
+    assert report.files_removed == 2
+    assert all(r[6] is not None for r in _rows(db_path, "series/Show A%"))
+    assert all(r[6] is None for r in _rows(db_path, "series/Show B%"))
