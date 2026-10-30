@@ -210,6 +210,58 @@ def test_item_level_releases_of_one_signature_fold_into_one() -> None:
     assert conn.execute("SELECT COUNT(*) FROM media_file WHERE release_id = ?", (old_rel,)).fetchone()[0] == 2
 
 
+def test_a_span_ending_on_an_episode_the_keeper_also_has_ends_on_the_keeper_s() -> None:
+    """The duplicate's E2 merges into the keeper's E2: the span's end must follow before E2 is deleted."""
+    conn = _make_conn()
+    ids = _split_show(conn)
+    keeper_e2 = _episode(conn, ids["old_s1"], 2)
+
+    report = merge_duplicate_items(conn, dry_run=False)
+
+    assert report.merged == 1
+    span_end = conn.execute(
+        "SELECT mr.episode_end_id FROM media_release mr JOIN media_file mf ON mf.release_id = mr.id WHERE mf.id = ?",
+        (ids["span"],),
+    ).fetchone()
+    assert span_end == (keeper_e2,)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_an_item_level_release_with_no_twin_moves_to_the_keeper() -> None:
+    """A release of another quality has nothing to fold into: it is handed over whole, files and all."""
+    conn = _make_conn()
+    old = _item(conn, "The Gentlemen", "movie", MOVIE_PATH, created=100)
+    young = _item(conn, "The Gentlemen (2020)", "movie", MOVIE_PATH, created=200)
+    old_rel = int(conn.execute("INSERT INTO media_release (item_id, quality) VALUES (?, '1080p')", (old,)).lastrowid)  # type: ignore[arg-type]
+    young_rel = int(
+        conn.execute("INSERT INTO media_release (item_id, quality) VALUES (?, '2160p')", (young,)).lastrowid  # type: ignore[arg-type]
+    )
+    _file(conn, old_rel, "The Gentlemen.1080p.mkv")
+    young_file = _file(conn, young_rel, "The Gentlemen.2160p.mkv")
+
+    merge_duplicate_items(conn, dry_run=False)
+
+    releases = conn.execute("SELECT id, item_id FROM media_release ORDER BY id").fetchall()
+    assert releases == [(old_rel, old), (young_rel, old)]
+    assert conn.execute("SELECT release_id FROM media_file WHERE id = ?", (young_file,)).fetchone() == (young_rel,)
+
+
+def test_the_duplicate_s_issues_are_copied_to_the_keeper() -> None:
+    """An issue only the duplicate carried survives the merge on the keeper."""
+    conn = _make_conn()
+    ids = _split_show(conn)
+    conn.execute(
+        "INSERT INTO item_issue (item_id, type, detail, detected_at) VALUES (?, 'junk_files', 'sample.mkv', 7)",
+        (ids["young"],),
+    )
+
+    merge_duplicate_items(conn, dry_run=False)
+
+    assert conn.execute("SELECT item_id, type, detail, detected_at FROM item_issue").fetchall() == [
+        (ids["old"], "junk_files", "sample.mkv", 7)
+    ]
+
+
 def test_a_movie_and_a_show_on_one_folder_are_left_alone() -> None:
     """Mixed kinds are not a split the merge can decide; nothing is written."""
     conn = _make_conn()
