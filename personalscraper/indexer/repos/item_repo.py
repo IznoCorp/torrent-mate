@@ -646,7 +646,8 @@ def find_by_normalized_name(
         "a1.value AS dispatch_disk, a2.value AS dispatch_path "
         "FROM media_item m "
         # Keys stored before the U+F025 fold keep the private-use spelling: match both.
-        f"INNER JOIN item_attribute anorm ON anorm.item_id = m.id AND anorm.key = ? AND anorm.value IN ({placeholders}) "
+        "INNER JOIN item_attribute anorm ON anorm.item_id = m.id AND anorm.key = ? "
+        f"AND anorm.value IN ({placeholders}) "
         "LEFT JOIN item_attribute a1 ON a1.item_id = m.id AND a1.key = ? "
         "LEFT JOIN item_attribute a2 ON a2.item_id = m.id AND a2.key = ? "
         "WHERE m.kind = ? "

@@ -7,10 +7,10 @@ import unicodedata
 from pathlib import Path
 
 from personalscraper._fs_utils import fold_ntfs_question_mark, name_key, name_variants
-from personalscraper.dispatch.media_index import _normalize_key
-from personalscraper.dispatch.post_maintenance import _rel_path_variants
 from personalscraper.conf import ids as CID
 from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.dispatch.media_index import _normalize_key
+from personalscraper.dispatch.post_maintenance import _rel_path_variants
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import item_repo
 from personalscraper.indexer.repos.item_repo import _canonical_title
