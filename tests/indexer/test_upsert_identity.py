@@ -18,6 +18,7 @@ import json
 import logging
 import sqlite3
 import time
+import unicodedata
 from dataclasses import asdict
 from pathlib import Path
 
@@ -457,3 +458,149 @@ def test_get_by_canonical_id_filters_on_kind(conn: sqlite3.Connection) -> None:
     )
 
     assert found is None
+
+
+# ---------------------------------------------------------------------------
+# The order: the provider id, then the folder's owner, then the title.
+# ---------------------------------------------------------------------------
+
+# Spelled with escapes: the accent is what the NFC/NFD and case match turns on,
+# and the test-prose ratchet counts an accented literal as French.
+_E_ACUTE = "\N{LATIN SMALL LETTER E WITH ACUTE}"
+
+
+def _in_folder(conn: sqlite3.Connection, row: MediaItemRow, folder: str) -> int:
+    """Insert *row* and record *folder* as its ``dispatch_path``.
+
+    Args:
+        conn: Open connection.
+        row: The row to insert.
+        folder: Its media folder.
+
+    Returns:
+        The inserted row's id.
+    """
+    item_id = item_repo.insert(conn, row)
+    item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=item_repo._ATTR_DISPATCH_PATH, value=folder))
+    return item_id
+
+
+def test_upsert_provider_id_wins_over_the_folder_owner(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The one holder of the incoming id is updated even when another row owns the folder."""
+    folder = "/Volumes/Disk1/series/Severance (2022)"
+    owner_id = _in_folder(conn, _make_item("Severance", year=2022), folder)
+    holder_id = item_repo.insert(
+        conn, _make_item("Severance", year=None, external_ids_json=_ids_json(tvdb="371980"), canonical_provider="tvdb")
+    )
+
+    with caplog.at_level(logging.INFO):
+        result_id = item_repo.upsert(
+            conn,
+            _make_item("Severance", year=2022, external_ids_json=_ids_json(tvdb="371980"), canonical_provider="tvdb"),
+            existing_id=owner_id,
+            dispatch_path=folder,
+        )
+
+    assert result_id == holder_id
+    assert [u["matched_by"] for u in _events(caplog, "indexer.item.upsert_update")] == ["provider_id"]
+
+
+def test_upsert_ambiguous_id_finds_its_holder_on_an_nfd_or_case_variant_of_the_folder(conn: sqlite3.Connection) -> None:
+    """Two holders of one id: the one whose folder matches on the NFC+casefold key wins, not verbatim only."""
+    ids = _ids_json(tvdb="76703")
+    stored = f"/Volumes/Disk1/s{_E_ACUTE}ries/Pok{_E_ACUTE}mon (1997)"
+    holder_id = _in_folder(
+        conn, _make_item("Pokemon (1997)", year=1997, external_ids_json=ids, canonical_provider="tvdb"), stored
+    )
+    _in_folder(
+        conn,
+        _make_item("Pokemon Indigo", year=1997, external_ids_json=ids, canonical_provider="tvdb"),
+        "/Volumes/Disk2/series/Pokemon Indigo",
+    )
+    walked = unicodedata.normalize("NFD", stored).upper()
+
+    result_id = item_repo.upsert(
+        conn,
+        _make_item("Pokemon", year=1997, external_ids_json=ids, canonical_provider="tvdb"),
+        dispatch_path=walked,
+    )
+
+    assert result_id == holder_id
+    assert _count(conn) == 2
+
+
+def test_upsert_without_a_provider_match_reuses_the_folder_owner_and_heals_its_title(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No row holds the id: the folder's owner, whose title drifted, is updated and its title healed."""
+    folder = "/Volumes/Disk1/series/Silo (2023)"
+    owner_id = _in_folder(conn, _make_item("Silo (2023) [MULTi]", year=2023), folder)
+
+    with caplog.at_level(logging.INFO):
+        result_id = item_repo.upsert(
+            conn,
+            _make_item("Silo (2023)", year=2023, external_ids_json=_ids_json(tvdb="361753"), canonical_provider="tvdb"),
+            existing_id=owner_id,
+            dispatch_path=folder,
+        )
+
+    assert result_id == owner_id
+    assert _count(conn) == 1
+    assert conn.execute("SELECT title FROM media_item WHERE id = ?", (owner_id,)).fetchone()[0] == "Silo"
+    assert [u["matched_by"] for u in _events(caplog, "indexer.item.upsert_update")] == ["folder_owner"]
+
+
+def test_upsert_does_not_reuse_a_folder_owner_with_a_conflicting_provider_id(conn: sqlite3.Connection) -> None:
+    """The folder's owner names another id of the same provider: another work, so it is left alone."""
+    folder = "/Volumes/Disk1/series/Dune"
+    owner_id = _in_folder(
+        conn,
+        _make_item("Dune Prophecy", year=2024, external_ids_json=_ids_json(tvdb="1111"), canonical_provider="tvdb"),
+        folder,
+    )
+    owner_ids = conn.execute("SELECT external_ids_json FROM media_item WHERE id = ?", (owner_id,)).fetchone()[0]
+
+    result_id = item_repo.upsert(
+        conn,
+        _make_item("Dune", year=2024, external_ids_json=_ids_json(tvdb="2222"), canonical_provider="tvdb"),
+        existing_id=owner_id,
+        dispatch_path=folder,
+    )
+
+    assert result_id != owner_id
+    row = conn.execute("SELECT title, external_ids_json FROM media_item WHERE id = ?", (owner_id,)).fetchone()
+    assert tuple(row) == ("Dune Prophecy", owner_ids), "the other work's row is untouched"
+
+
+def test_upsert_with_no_id_and_no_folder_owner_falls_back_to_the_title(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No provider id, no folder owner: the title path finds the stored row."""
+    stored_id = item_repo.insert(conn, _make_item("Fargo", year=2014))
+
+    with caplog.at_level(logging.INFO):
+        result_id = item_repo.upsert(
+            conn, _make_item("Fargo (2014)", year=2014), dispatch_path="/Volumes/D/series/Fargo"
+        )
+
+    assert result_id == stored_id
+    assert [u["matched_by"] for u in _events(caplog, "indexer.item.upsert_update")] == ["title"]
+
+
+def test_upsert_by_id_heals_the_title_of_the_folder_owner_only(conn: sqlite3.Connection) -> None:
+    """An id match on the folder's own row heals its title; on a row outside the folder it keeps it."""
+    folder = "/Volumes/Disk1/series/Silo (2023)"
+    owner_id = _in_folder(conn, _make_item("Silo [MULTi]", year=2023), folder)
+    holder_id = item_repo.insert(
+        conn,
+        _make_item("Silo (2023)", year=2023, external_ids_json=_ids_json(tvdb="361753"), canonical_provider="tvdb"),
+    )
+    incoming = _make_item("Silo", year=2023, external_ids_json=_ids_json(tvdb="361753"), canonical_provider="tvdb")
+
+    assert item_repo.upsert(conn, incoming, existing_id=owner_id, dispatch_path=folder) == holder_id
+    assert conn.execute("SELECT title FROM media_item WHERE id = ?", (holder_id,)).fetchone()[0] == "Silo (2023)"
+
+    assert item_repo.upsert(conn, incoming, existing_id=holder_id, dispatch_path=folder) == holder_id
+    assert conn.execute("SELECT title FROM media_item WHERE id = ?", (holder_id,)).fetchone()[0] == "Silo"

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import unicodedata
 from typing import Literal
 
 from personalscraper._fs_utils import name_key, name_variants
@@ -394,7 +395,8 @@ def _get_holder_at_dispatch_path(
     A re-scan of one holder's folder must update that holder: its stored title
     may carry « (YYYY) », which the title path misses, and a phantom row would
     then be inserted in its folder. The folder is the holder's
-    ``item_attribute(dispatch_path)``, compared verbatim.
+    ``item_attribute(dispatch_path)``, compared on :func:`dispatch_path_key`, so
+    an NFD or case variant of the stored path still finds its holder.
 
     Args:
         conn: Open SQLite connection.
@@ -402,7 +404,7 @@ def _get_holder_at_dispatch_path(
         dispatch_path: The incoming media folder, as the caller stores it.
 
     Returns:
-        The one holder whose ``dispatch_path`` equals *dispatch_path*; ``None``
+        The one holder whose ``dispatch_path`` matches *dispatch_path*; ``None``
         when none or several do.
     """
     key = _canonical_series_id(row)
@@ -415,17 +417,18 @@ def _get_holder_at_dispatch_path(
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
         "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
-        "m.overview, m.poster_url, m.date_provider_read "
+        "m.overview, m.poster_url, m.date_provider_read, a.value AS dispatch_path "
         "FROM media_item m "
         "JOIN item_attribute a ON a.item_id = m.id AND a.key = ? "
         f"WHERE CAST(json_extract(m.external_ids_json, '{json_path}') AS TEXT) = CAST(? AS TEXT) "
-        "AND m.kind = ? AND a.value = ? "
-        "LIMIT 2",
-        (_ATTR_DISPATCH_PATH, series_id, row.kind, dispatch_path),
+        "AND m.kind = ?",
+        (_ATTR_DISPATCH_PATH, series_id, row.kind),
     ).fetchall()
-    if len(rows) != 1:
+    path_key = dispatch_path_key(dispatch_path)
+    holders = [r for r in rows if dispatch_path_key(str(r["dispatch_path"])) == path_key]
+    if len(holders) != 1:
         return None
-    return _row_to_item(rows[0])
+    return _row_to_item(holders[0])
 
 
 def delete(conn: sqlite3.Connection, id: int) -> bool:
@@ -557,8 +560,52 @@ def _merge_external_ids(existing_json: str | None, incoming_json: str | None) ->
     return json.dumps({**existing, **incoming})
 
 
-def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | None = None) -> int:
-    """Insert or update a :class:`MediaItemRow`, found by provider id first, then by title.
+def _provider_ids(raw: str | None) -> dict[str, str]:
+    """Flatten an ``external_ids_json`` to ``"family.key" → id``, empty values dropped.
+
+    Args:
+        raw: The stored JSON, or ``None``.
+
+    Returns:
+        The ids, e.g. ``{"tmdb.series_id": "97546"}``.
+    """
+    try:
+        parsed = json.loads(raw) if raw else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    flat: dict[str, str] = {}
+    for family, value in parsed.items() if isinstance(parsed, dict) else ():
+        if isinstance(value, dict):
+            flat.update({f"{family}.{key}": str(v) for key, v in value.items() if v not in (None, "")})
+        elif value not in (None, ""):
+            flat[str(family)] = str(value)
+    return flat
+
+
+def _same_work(owner: MediaItemRow, row: MediaItemRow) -> bool:
+    """Return whether *row* may update *owner*: same kind, year-compatible, no conflicting id.
+
+    Year-compatible is the rule of :func:`get_by_title_kind_year`: equal, or
+    either side unknown. A provider naming one id on *owner* and another on
+    *row* means two works sharing a folder, whatever the kind and year say.
+
+    Args:
+        owner: The stored row.
+        row: The incoming row.
+
+    Returns:
+        ``True`` when both describe the same work.
+    """
+    if owner.kind != row.kind or not (owner.year is None or row.year is None or owner.year == row.year):
+        return False
+    owner_ids = _provider_ids(owner.external_ids_json)
+    return all(owner_ids.get(key, value) == value for key, value in _provider_ids(row.external_ids_json).items())
+
+
+def upsert(
+    conn: sqlite3.Connection, row: MediaItemRow, *, existing_id: int | None = None, dispatch_path: str | None = None
+) -> int:
+    """Insert or update a :class:`MediaItemRow`, found by provider id, then by its folder's owner, then by title.
 
     The existing row is first looked up by the incoming row's canonical provider
     id (:func:`get_by_canonical_id`): when exactly one row of the same kind holds
@@ -566,12 +613,16 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
     updated, whatever its stored title — a stored « Title (YYYY) » no longer lets
     a canonical-title phantom be inserted beside it. When the incoming row
     carries no id, when no row holds it, or when the single holder has another
-    explicit year (logged), the title path below runs unchanged. When two or
+    explicit year (logged), the folder owner then the title path below run. When two or
     more rows hold it (a known duplicate, logged and never merged), the one
     holder whose ``dispatch_path`` attribute equals the caller's *dispatch_path*
     is updated — a re-scan of its own folder, whose stored title may carry
     « (YYYY) » that the title path would miss; with no *dispatch_path*, or none
-    or several holders in that folder, the title path runs.
+    or several holders in that folder, the folder owner then the title path run.
+
+    A row found by id keeps its stored title, unless it is also the caller's
+    folder owner (*existing_id*): the folder's own row is healed to the
+    canonical title whichever lookup found it.
 
     On a row found by id, the year backfill below is skipped when another row
     of the same stored title already holds the incoming year (it would break
@@ -596,14 +647,30 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
     re-scan that read no NFO keeps the facts already stored. Otherwise a new
     row is inserted with the canonicalised title.
 
+    When no provider id matched and *existing_id* names a row (the caller
+    already knows which item owns the media folder — see
+    :func:`find_id_by_dispatch_path`), that row is updated whatever its stored
+    title, and its title is healed to the canonical one. Matching by title
+    alone split a folder in two whenever the stored title had drifted (a
+    year-suffixed title written by the dispatch re-index): the year-stripped
+    lookup missed it and a second row was inserted on the same
+    ``dispatch_path``. The owner is reused only when it is the same work
+    (same kind, year-compatible, no provider naming another id): a remake
+    sharing the path with its original falls back to the title lookup rather
+    than overwrite the other row.
+
     Args:
         conn: Open SQLite connection.
         row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored;
             ``title`` may carry a trailing `` (YYYY)`` suffix which will be
             stripped before storage.  ``year`` disambiguates same-title remakes.
+        existing_id: PK of the row owning the caller's media folder, updated
+            when no provider id matched, bypassing the title lookup; ``None``,
+            an id that no longer exists, or a row of another work (kind,
+            explicit year, provider id) keeps the title lookup.
         dispatch_path: The media folder being written, as the caller stores it
             in ``item_attribute(dispatch_path)``; only consulted when the
-            canonical id is ambiguous. ``None`` when the caller has no folder.
+            canonical id is ambiguous (compared on :func:`dispatch_path_key`). ``None`` when the caller has no folder.
 
     Returns:
         The ``rowid`` (= ``id``) of the inserted or updated row.
@@ -629,9 +696,35 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
         by_id = _get_holder_at_dispatch_path(conn, row, dispatch_path) if dispatch_path else None
         matched_by = "dispatch_path"
     matched_by_id = isinstance(by_id, MediaItemRow)
-    if not matched_by_id:
+    existing = by_id if isinstance(by_id, MediaItemRow) else None
+    if existing is None and existing_id is not None:
+        existing = get_by_id(conn, existing_id)
+        if existing is not None and not _same_work(existing, row):
+            # The folder's owner is another work (another kind, a remake with
+            # another explicit year, or another provider id sharing the path):
+            # updating it would overwrite that row with this one. The title
+            # lookup below decides instead.
+            log.info(
+                "indexer.item.folder_owner_mismatch",
+                owner_id=existing.id,
+                owner_kind=existing.kind,
+                owner_year=existing.year,
+                kind=row.kind,
+                year=row.year,
+            )
+            existing = None
+        if existing is not None:
+            matched_by = "folder_owner"
+    if existing is not None and existing.id == existing_id and existing.title != canonical:
+        # The folder's own row is healed to the canonical title, whichever
+        # lookup found it; a row found by id outside the folder keeps its
+        # stored title. OR IGNORE: a row already holding the canonical (title,
+        # kind, year) is a duplicate the merge command resolves; the update
+        # must not fail.
+        conn.execute("UPDATE OR IGNORE media_item SET title = ? WHERE id = ?", (canonical, existing.id))
+    if existing is None:
         matched_by = "title"
-    existing = by_id if isinstance(by_id, MediaItemRow) else get_by_title_kind_year(conn, canonical, row.kind, row.year)
+        existing = get_by_title_kind_year(conn, canonical, row.kind, row.year)
     if existing is not None:
         # A year-less incoming item is ambiguous only when it matched an
         # *explicit*-year row (no year-less row existed to absorb it) while
@@ -819,6 +912,73 @@ def get_by_title_kind_year(
     if row is None:
         return None
     return _row_to_item(row)
+
+
+def dispatch_path_key(path: str) -> str:
+    """Return the comparison key of a media folder path: NFC, then casefolded.
+
+    The dispatch writes a path NFC; an HFS+ walk reads it back NFD; the volume
+    is case-insensitive, so a case variant names the same folder. Byte-wise,
+    all three differ and the folder's owner is missed.
+
+    Args:
+        path: A ``dispatch_path`` as stored or as walked.
+
+    Returns:
+        The key two spellings of one folder share.
+    """
+    return unicodedata.normalize("NFC", path).casefold()
+
+
+def _like_skeleton(path: str) -> str:
+    r"""Return a ``LIKE`` pattern every spelling of *path* matches (``ESCAPE '\'``).
+
+    ASCII characters stay literal (``LIKE`` already folds ASCII case); each run
+    of non-ASCII characters becomes ``%``, which also covers the base letter
+    plus combining mark an NFD spelling holds. The pattern only narrows the
+    candidates: :func:`dispatch_path_key` decides.
+
+    Args:
+        path: The path looked up.
+
+    Returns:
+        The pattern.
+    """
+    parts: list[str] = []
+    for char in unicodedata.normalize("NFC", path):
+        if not char.isascii():
+            if not parts or parts[-1] != "%":
+                parts.append("%")
+        elif char in "%_\\":
+            parts.append("\\" + char)
+        else:
+            parts.append(char)
+    return "".join(parts)
+
+
+def find_id_by_dispatch_path(conn: sqlite3.Connection, dispatch_path: str) -> int | None:
+    """Return the id of the item that owns a media folder, by its ``dispatch_path``.
+
+    A folder is one work: the item carrying its ``dispatch_path`` is the one a
+    re-scan of that folder must update. Should several rows carry it (a split
+    left by an older build), the oldest wins — the one the merge keeps. Paths
+    compare on :func:`dispatch_path_key`, so an NFD or case variant of the
+    stored path finds its owner.
+
+    Args:
+        conn: Open SQLite connection.
+        dispatch_path: Absolute path of the media folder, in any spelling.
+
+    Returns:
+        The owning ``media_item.id``, or ``None`` when no item carries the path.
+    """
+    key = dispatch_path_key(dispatch_path)
+    rows = conn.execute(
+        "SELECT item_id, value FROM item_attribute WHERE key = ? AND value LIKE ? ESCAPE '\\'",
+        (_ATTR_DISPATCH_PATH, _like_skeleton(dispatch_path)),
+    ).fetchall()
+    owners = [int(row[0]) for row in rows if dispatch_path_key(str(row[1])) == key]
+    return min(owners) if owners else None
 
 
 def find_by_normalized_name(

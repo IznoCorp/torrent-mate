@@ -268,5 +268,23 @@
     "risk": "destructive",
     "long": false,
     "dryRun": true
+  },
+  {
+    "id": "library-merge-duplicate-items",
+    "label": "Fusionner les éléments en double",
+    "description": "Fusionne les media_item qui partagent un même dossier dans le plus ancien.",
+    "group": "fix",
+    "risk": "destructive",
+    "long": false,
+    "dryRun": true
+  },
+  {
+    "id": "library-retire-ghost-items",
+    "label": "Retirer les éléments fantômes",
+    "description": "Retire les media_item dont le dossier n'existe plus et dont aucun fichier n'est vivant.",
+    "group": "fix",
+    "risk": "destructive",
+    "long": false,
+    "dryRun": true
   }
 ]

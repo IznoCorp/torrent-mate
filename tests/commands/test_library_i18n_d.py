@@ -17,6 +17,8 @@ _COMMANDS = [
     ("fix_orphan_files", "library-fix-orphan-files"),
     ("fix_season_counts", "library-fix-season-counts"),
     ("fix_canonical_provider", "library-fix-canonical-provider"),
+    ("merge_duplicate_items", "library-merge-duplicate-items"),
+    ("retire_ghost_items", "library-retire-ghost-items"),
 ]
 
 

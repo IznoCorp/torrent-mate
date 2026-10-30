@@ -891,6 +891,7 @@ def _collect_rescrape_candidates(
             *category_filter* (mutually exclusive options).
     """
     from personalscraper.indexer.repos import item_repo as _item_repo  # noqa: PLC0415
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
 
     candidates: list[tuple[Path, str, str, str, str | None]] = []
 
@@ -960,16 +961,16 @@ def _collect_rescrape_candidates(
             if not media_dir.is_dir():
                 continue
 
-            # Map category_id back to disk_id via config for filter checks.
-            # disk_id (uuid/label) is stored as DiskConfig.id in the scanner.
-            disk_id = ""
-            for disk in config.disks:
-                if disk_filter and disk.id != disk_filter:
-                    continue
-                if item_row.category_id in disk.categories:
-                    disk_id = disk.id
-                    break
+            # The disk is the one the item lives on, as the item_id path reads it:
+            # a disk's categories only gate where NEW media go, so mapping by
+            # category labels a series on a frozen disk with another disk. A row
+            # never stamped with a configured disk falls back to that mapping.
+            configured = {disk.id for disk in config.disks}
+            disk_attr = _item_repo.get_attr(conn, item_row.id, _item_repo._ATTR_DISPATCH_DISK)
+            disk_id = disk_attr.value if disk_attr and disk_attr.value in configured else ""
             if not disk_id:
+                disk_id = next((disk.id for disk in config.disks if item_row.category_id in disk.categories), "")
+            if not disk_id or (disk_filter and disk_id != disk_filter):
                 continue
 
             if category_filter and item_row.category_id != category_filter:
@@ -986,18 +987,10 @@ def _collect_rescrape_candidates(
                 log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
                 continue
 
-            for category_id in disk.categories:
+            # Every video category folder present on the disk, as the full scan
+            # walks it: a disk frozen to audiobooks still holds series.
+            for category_id, category_dir in _category_dirs_on_disk(config, disk):
                 if category_filter and category_id != category_filter:
-                    continue
-
-                cat_cfg = config.category(category_id)
-                category_dir = disk.path / cat_cfg.folder_name
-                if not category_dir.is_dir():
-                    log.debug(
-                        "library_rescrape_category_not_found",
-                        category_dir=str(category_dir),
-                        disk=disk.id,
-                    )
                     continue
 
                 is_series = category_id in TV_CATEGORY_IDS

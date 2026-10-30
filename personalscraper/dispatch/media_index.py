@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper._fs_utils import name_key
-from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
+from personalscraper.conf.ids import BUILTIN_CATEGORY_IDS, NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.indexer.db import ensure_library_schema, open_db
@@ -523,7 +523,9 @@ class MediaIndex:
         kind via :func:`item_repo.find_by_normalized_name`.  If found, updates
         the existing ``media_item`` row in place (preserving its ``id``) so
         that NFC and NFD spellings of the same title converge to a single row.
-        If not found, inserts a new row.
+        If not found, the item already carrying ``entry.path`` as its
+        ``dispatch_path`` is updated when it is the same work; otherwise a new
+        row is inserted (or merged by title).
 
         Writes three ``item_attribute`` rows:
         ``dispatch_normalized_title``, ``dispatch_disk``, and ``dispatch_path``.
@@ -543,8 +545,18 @@ class MediaIndex:
             existing_row, _disk, _path = existing
             item_id = existing_row.id
             self._conn.execute(
-                "UPDATE media_item SET category_id = ?, date_modified = ?, title = ? WHERE id = ?",
-                (entry.category, now_ts, entry.name, item_id),
+                "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
+                (entry.category, now_ts, item_id),
+            )
+            # The stored title is the year-stripped canonical one (what every
+            # scan upserts on). Writing the folder name with its year here made
+            # the next scan of that folder miss this row and insert a second item
+            # on the same dispatch_path. OR IGNORE: should the canonical
+            # (title, kind, year) already belong to another row, that duplicate
+            # is the merge command's to resolve, not the dispatch's to crash on.
+            self._conn.execute(
+                "UPDATE OR IGNORE media_item SET title = ? WHERE id = ?",
+                (item_repo._canonical_title(entry.name), item_id),
             )
         else:
             # Insert a *rich* row via the shared :mod:`_item_stage` primitives
@@ -603,7 +615,13 @@ class MediaIndex:
             )
             row["date_created"] = now_ts
             row["date_modified"] = now_ts
-            item_id = item_repo.upsert(self._conn, MediaItemRow(**row), dispatch_path=entry.path)
+            # The item already carrying this folder owns it, whatever its stored
+            # title, once no provider id has matched: a title-only upsert missed
+            # a drifted row and inserted a second item on the same dispatch_path.
+            # ``upsert`` reuses the owner only when it is the same work (kind,
+            # compatible year, no conflicting provider id).
+            owner_id = item_repo.find_id_by_dispatch_path(self._conn, entry.path)
+            item_id = item_repo.upsert(self._conn, MediaItemRow(**row), existing_id=owner_id, dispatch_path=entry.path)
 
         # Write dispatch-specific attributes (upsert replaces on conflict).
         for key, value in (
@@ -625,6 +643,8 @@ class MediaIndex:
         ``_item_stage.scan_and_stage_dir`` (full rich rows — seasons, episodes,
         ``item_issue``).
 
+        Every category directory present on a disk is walked, whatever the
+        disk's ``categories`` (they gate where NEW media go, not what is indexed).
         Resolves each on-disk category directory to a canonical category ID.
         When ``categories`` is supplied, the reverse map ``folder_name → id``
         is used first — required whenever the disk layout uses configurable
@@ -662,14 +682,17 @@ class MediaIndex:
                 if not category_dir.is_dir() or category_dir.name.startswith("."):
                     continue
 
-                # Resolve dir name → canonical category ID.
+                # Resolve dir name → canonical category ID. The disk's own
+                # ``categories`` are NOT a filter here: they gate where NEW media
+                # go, and a disk frozen to ``["audiobooks"]`` still holds series
+                # whose new episodes land there — dropping them from a rebuild
+                # loses every such item until the next full scan.
                 resolved_id = folder_to_id.get(category_dir.name.lower())
-                if resolved_id is None and category_dir.name in config.categories:
+                if resolved_id is None and (
+                    category_dir.name in config.categories or category_dir.name in BUILTIN_CATEGORY_IDS
+                ):
                     resolved_id = category_dir.name
                 if resolved_id is None:
-                    continue
-
-                if resolved_id not in config.categories:
                     continue
 
                 if resolved_id in NON_VIDEO_CATEGORY_IDS:

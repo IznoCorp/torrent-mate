@@ -112,6 +112,7 @@ _DRY_RUN_STYLE: dict[str, str] = {
     "library-gc": "flag",
     "library-rescrape": "flag",
     "library-refresh-path": "flag",
+    "library-retire-ghost-items": "flag",
     # ── "apply" commands (--apply, absent=dr) ─────────────────────────────
     "library-clean": "apply",
     "library-validate": "apply",
@@ -121,6 +122,7 @@ _DRY_RUN_STYLE: dict[str, str] = {
     "library-dedup-titles": "apply",
     "library-fix-canonical-provider": "apply",
     "library-relink": "apply",
+    "library-merge-duplicate-items": "apply",
     "library-remove-phantom-rows": "apply",
 }
 

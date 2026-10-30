@@ -1,4 +1,4 @@
-"""Maintenance action registry — typed models for the 30 ``library-*`` CLI commands.
+"""Maintenance action registry — typed models for the 32 ``library-*`` CLI commands.
 
 Each :class:`MaintenanceAction` entry models a single Typer-registered
 ``library-*`` command with its risk classification, dry-run capability,
@@ -24,6 +24,8 @@ Category mapping (from module to registry category):
   two rows or two media folders)
 * ``remove_phantom_rows.py`` → ``"fix"`` (removes the 0-file index rows beside a
   row of the same provider id that holds files)
+* ``merge_duplicate_items.py`` → ``"fix"``
+* ``retire_ghost_items.py`` → ``"fix"``
 """
 
 from __future__ import annotations
@@ -135,7 +137,7 @@ def canonical_options_json(options: dict[str, object]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Registry — 30 library-* commands registered on the Typer app.
+# Registry — 32 library-* commands registered on the Typer app.
 # Ground truth: @app.command decorators in personalscraper/commands/library/*.py
 # (NOT __all__, which is stale at 23 entries).
 # ---------------------------------------------------------------------------
@@ -756,5 +758,39 @@ REGISTRY: list[MaintenanceAction] = [
         long_running=False,
         dry_run="supported",
         options=[],
+    ),
+    # ── merge_duplicate_items.py (1 command) ──────────────────────────────
+    MaintenanceAction(
+        id="library-merge-duplicate-items",
+        # french-ok: web maintenance registry copy, the registry has no translation layer
+        title="Fusionner les éléments en double",
+        # french-ok: web maintenance registry copy, the registry has no translation layer
+        description="Fusionne les media_item qui partagent un même dossier dans le plus ancien.",
+        category="fix",
+        risk="destructive",
+        long_running=False,
+        dry_run="supported",
+        options=[],
+    ),
+    # ── retire_ghost_items.py (1 command) ─────────────────────────────────
+    MaintenanceAction(
+        id="library-retire-ghost-items",
+        # french-ok: web maintenance registry copy, the registry has no translation layer
+        title="Retirer les éléments fantômes",
+        # french-ok: web maintenance registry copy, the registry has no translation layer
+        description="Retire les media_item dont le dossier n'existe plus et dont aucun fichier n'est vivant.",
+        category="fix",
+        risk="destructive",
+        long_running=False,
+        dry_run="supported",
+        options=[
+            ActionOption(
+                name="disk",
+                type="str",
+                label="Disque",
+                # french-ok: web maintenance registry copy, the registry has no translation layer
+                help="Limiter à ce disque (libellé).",
+            ),
+        ],
     ),
 ]

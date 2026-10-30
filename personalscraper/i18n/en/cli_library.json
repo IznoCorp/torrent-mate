@@ -277,6 +277,14 @@
     "verify_help": "Re-stat every indexed file and mark mismatches for repair.\n\nRuns a verify-mode scan that re-checks every file's stat metadata against\nthe stored snapshot.  Files that no longer match are escalated to the repair\nqueue — they are NOT soft-deleted.  Use this command to identify drift\nbefore deciding whether to accept or revert changes.\n\nWith ``--budget`` the verify pass exits cleanly when the wall-clock limit\nis reached; the next invocation continues from where it stopped (every\nfile commits ``last_verified_at`` individually so partial progress is\npreserved across runs).\n\nWith ``--no-enqueue`` the scan reports mismatches but does not insert any\nrows into the repair queue (read-only audit mode).\n\nExamples:\n    personalscraper library-verify\n    personalscraper library-verify --disk Disk2\n    personalscraper library-verify --budget 300\n    personalscraper library-verify --no-enqueue",
     "would_delete": "{{label}} Would delete {{items}} items ({{size}} MB)"
   },
+  "merge_duplicate_items": {
+    "database_not_found": "Database not found: {{path}}",
+    "db_path_not_configured": "indexer.db_path is not configured",
+    "library_merge_duplicate_items_apply_help": "Merge the groups (default: list them and the item each merges into; write nothing).",
+    "library_merge_duplicate_items_config_help": "Path to config.json5 or config dir.",
+    "library_merge_duplicate_items_db_help": "Path to library.db (overrides config).",
+    "library_merge_duplicate_items_help": "Merge every group of items sharing a ``dispatch_path`` into its oldest item.\n\nPrints a JSON summary: each group's path, keeper and merged ids, the groups\nskipped (a movie and a show on one folder) and the merged count."
+  },
   "query": {
     "attributes_heading": "\n=== item_attributes ({{total}}) ===",
     "config_help": "Path to config.json5 or config dir",
@@ -363,6 +371,16 @@
     "top_heading": "5. TOP 20 — Largest items",
     "validation_heading": "2. VALIDATION — Metadata conformity",
     "warnings_heading": "Warnings (quality could be improved)"
+  },
+  "retire_ghost_items": {
+    "database_not_found": "Database not found: {{path}}",
+    "db_path_not_configured": "indexer.db_path is not configured",
+    "disk_not_configured": "Disk {{disk}} is not in the configuration: its ghost items cannot be judged",
+    "library_retire_ghost_items_config_help": "Path to config.json5 or config dir.",
+    "library_retire_ghost_items_db_help": "Path to library.db (overrides config).",
+    "library_retire_ghost_items_disk_help": "Only this disk label.",
+    "library_retire_ghost_items_dry_run_help": "List the ghost items and why; write nothing.",
+    "library_retire_ghost_items_help": "Retire the items whose ``dispatch_path`` is gone, on every configured and mounted disk.\n\nPrints a JSON summary: per disk, whether it was frozen (mount not verified),\nthe ghosts retired (or that would be) and the ghost folders kept, each with\nits reason; then the disks whose pass failed. Each disk's report is also\nwritten to stderr as it completes. Exits 1 when ``--disk`` names a disk the\nconfiguration does not hold, or when any disk's pass failed."
   },
   "scan": {
     "config_help": "Path to config.json5 or config dir",

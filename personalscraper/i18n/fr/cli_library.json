@@ -277,6 +277,14 @@
     "verify_help": "Re-stat chaque fichier indexé et marque les écarts pour réparation.\n\nLance un scan en mode vérification qui recontrôle les métadonnées stat de\nchaque fichier par rapport à l'instantané stocké.  Les fichiers qui ne\ncorrespondent plus sont transmis à la file de réparation — ils ne sont PAS\nsupprimés logiquement. Utilisez cette commande pour repérer une dérive avant\nde décider d'accepter ou d'annuler les changements.\n\nAvec ``--budget``, la passe de vérification s'arrête proprement quand la\nlimite de temps réel est atteinte ; l'appel suivant reprend où il s'était\narrêté (chaque fichier valide son ``last_verified_at`` individuellement, la\nprogression partielle est donc conservée d'une exécution à l'autre).\n\nAvec ``--no-enqueue``, le scan rapporte les écarts mais n'insère aucune ligne\ndans la file de réparation (mode d'audit en lecture seule).\n\nExemples :\n    personalscraper library-verify\n    personalscraper library-verify --disk Disk2\n    personalscraper library-verify --budget 300\n    personalscraper library-verify --no-enqueue",
     "would_delete": "{{label}} Supprimerait {{items}} éléments ({{size}} Mo)"
   },
+  "merge_duplicate_items": {
+    "database_not_found": "Base de données introuvable : {{path}}",
+    "db_path_not_configured": "indexer.db_path n'est pas configuré",
+    "library_merge_duplicate_items_apply_help": "Fusionner les groupes (par défaut : les lister avec l'élément où chacun fusionne ; ne rien écrire).",
+    "library_merge_duplicate_items_config_help": "Chemin de config.json5 ou du dossier de configuration.",
+    "library_merge_duplicate_items_db_help": "Chemin de library.db (prioritaire sur la configuration).",
+    "library_merge_duplicate_items_help": "Fusionne chaque groupe d'éléments partageant un ``dispatch_path`` dans son élément le plus ancien.\n\nAffiche un résumé JSON : le chemin de chaque groupe, l'id conservé et les ids\nfusionnés, les groupes écartés (un film et une série dans un même dossier) et\nle nombre de fusions."
+  },
   "query": {
     "attributes_heading": "\n=== item_attributes ({{total}}) ===",
     "config_help": "Chemin de config.json5 ou du dossier de configuration",
@@ -363,6 +371,16 @@
     "top_heading": "5. TOP 20 — Plus gros items",
     "validation_heading": "2. VALIDATION — Conformité des métadonnées",
     "warnings_heading": "Avertissements (qualité améliorable)"
+  },
+  "retire_ghost_items": {
+    "database_not_found": "Base de données introuvable : {{path}}",
+    "db_path_not_configured": "indexer.db_path n'est pas configuré",
+    "disk_not_configured": "Le disque {{disk}} n'est pas dans la configuration : ses éléments fantômes ne peuvent pas être jugés",
+    "library_retire_ghost_items_config_help": "Chemin de config.json5 ou du dossier de configuration.",
+    "library_retire_ghost_items_db_help": "Chemin de library.db (prioritaire sur la configuration).",
+    "library_retire_ghost_items_disk_help": "Seulement ce disque (libellé).",
+    "library_retire_ghost_items_dry_run_help": "Lister les éléments fantômes et pourquoi ; ne rien écrire.",
+    "library_retire_ghost_items_help": "Retire les éléments dont le ``dispatch_path`` a disparu, sur chaque disque configuré et monté.\n\nAffiche un résumé JSON : par disque, s'il a été gelé (montage non vérifié), les\nfantômes retirés (ou qui le seraient) et les dossiers fantômes conservés, chacun\navec sa raison ; puis les disques dont la passe a échoué. Le rapport de chaque\ndisque est aussi écrit sur stderr dès qu'il est fini. Sort en 1 quand ``--disk``\nnomme un disque absent de la configuration, ou quand la passe d'un disque a échoué."
   },
   "scan": {
     "config_help": "Chemin de config.json5 ou du dossier de configuration",
