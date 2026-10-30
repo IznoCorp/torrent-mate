@@ -17,8 +17,9 @@ An item is a ghost of a disk when all of these hold:
 - none of its files is live (every one tombstoned, or none at all). An item
   whose folder just vanished therefore retires only once the file strikes have
   tombstoned its files — the same three full scans a file waits;
-- no ``pending`` / ``running`` repair names it (``repair_queue`` scope
-  ``item`` is a soft reference the cascade would leave dangling).
+- no ``pending`` / ``running`` repair names it, one of its releases or one of
+  their files (``repair_queue.scope_id`` is a soft reference the cascade would
+  leave dangling).
 
 Retiring hard-deletes the item (the ``ON DELETE CASCADE`` removes its
 attributes, seasons, episodes, releases and their tombstoned files) and records
@@ -92,7 +93,7 @@ class GhostReport:
         disk_items: Items whose ``dispatch_path`` lies on the disk.
         ghosts: The items retired (or, on a dry run, that would be).
         kept: Ghost folders kept: a live file (``live_files``) or an open repair
-            (``pending_repair``).
+            on the item, its releases or their files (``pending_repair``).
         frozen: The mount could not be verified (or a folder could not be
             read); nothing was retired.
         capped: More than the cap would have gone; nothing was retired.
@@ -168,21 +169,42 @@ def _folder_gone(path: str) -> bool:
     return False
 
 
+_OPEN_REPAIR_SQL = """
+SELECT 1 FROM repair_queue rq
+WHERE rq.status IN ('pending', 'running') AND (
+  (rq.scope = 'item' AND rq.scope_id = :item)
+  OR (rq.scope = 'release' AND rq.scope_id IN (
+    SELECT mr.id FROM media_release mr
+    LEFT JOIN episode e ON e.id = mr.episode_id
+    LEFT JOIN season s ON s.id = e.season_id
+    WHERE mr.item_id = :item OR s.item_id = :item))
+  OR (rq.scope = 'file' AND rq.scope_id IN (
+    SELECT mf.id FROM media_file mf
+    JOIN media_release mr ON mr.id = mf.release_id
+    LEFT JOIN episode e ON e.id = mr.episode_id
+    LEFT JOIN season s ON s.id = e.season_id
+    WHERE mr.item_id = :item OR s.item_id = :item))
+)
+LIMIT 1
+"""
+
+
 def _has_open_repair(conn: sqlite3.Connection, item_id: int) -> bool:
-    """Return whether a ``pending`` or ``running`` repair names *item_id*.
+    """Return whether a ``pending`` or ``running`` repair names *item_id* or a row it cascades to.
+
+    ``repair_queue.scope_id`` is a soft reference: the cascade that deletes the
+    item's releases and files would leave a repair on them dangling, so such a
+    repair keeps the item exactly as an item repair does.
 
     Args:
         conn: Open SQLite connection.
         item_id: The item.
 
     Returns:
-        ``True`` when the repair queue still holds work on it.
+        ``True`` when the repair queue still holds work on it, its releases or
+        their files.
     """
-    row = conn.execute(
-        "SELECT 1 FROM repair_queue WHERE scope = 'item' AND scope_id = ? AND status IN ('pending', 'running') LIMIT 1",
-        (item_id,),
-    ).fetchone()
-    return row is not None
+    return conn.execute(_OPEN_REPAIR_SQL, {"item": item_id}).fetchone() is not None
 
 
 def _retire(conn: sqlite3.Connection, ghost: GhostItem, now_s: int) -> None:

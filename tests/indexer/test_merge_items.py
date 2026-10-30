@@ -283,6 +283,29 @@ def test_both_items_with_a_pending_repair_merge_and_keep_one_pending_row() -> No
     assert rows == [(ids["old"], "done"), (ids["old"], "pending")]
 
 
+def test_a_folded_release_hands_its_repairs_to_the_release_it_folds_into() -> None:
+    """A repair naming a release the merge deletes follows the files onto the surviving release."""
+    conn = _make_conn()
+    old = _item(conn, "The Gentlemen", "movie", MOVIE_PATH, created=100)
+    young = _item(conn, "The Gentlemen (2020)", "movie", MOVIE_PATH, created=200)
+    old_rel = int(conn.execute("INSERT INTO media_release (item_id) VALUES (?)", (old,)).lastrowid)  # type: ignore[arg-type]
+    young_rel = int(conn.execute("INSERT INTO media_release (item_id) VALUES (?)", (young,)).lastrowid)  # type: ignore[arg-type]
+    for release in (old_rel, young_rel):
+        conn.execute(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at) VALUES ('release', ?, 'r', 1)", (release,)
+        )
+    conn.execute(
+        "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status)"
+        " VALUES ('release', ?, 'r', 1, 'running')",
+        (young_rel,),
+    )
+
+    merge_duplicate_items(conn, dry_run=False)
+
+    rows = conn.execute("SELECT scope_id, status FROM repair_queue ORDER BY id").fetchall()
+    assert rows == [(old_rel, "pending"), (old_rel, "done"), (old_rel, "running")], "no repair names a deleted release"
+
+
 def test_a_year_the_keeper_cannot_take_skips_its_group_only() -> None:
     """A third row already holds the keeper's (title, kind, year): that group is reported, the others merge."""
     conn = _make_conn()

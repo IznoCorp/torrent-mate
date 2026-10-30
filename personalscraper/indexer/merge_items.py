@@ -16,7 +16,9 @@ the ``ON DELETE CASCADE`` that follows removes nothing of value:
   episodes move into the keeper's season, and an episode number both carry
   hands its releases (``episode_id`` and ``episode_end_id``) to the keeper's;
 - ``item_attribute`` / ``item_issue`` — copied where the keeper lacks the key;
-- ``scan_event`` and ``repair_queue`` (``scope='item'``) — re-pointed.
+- ``scan_event`` and ``repair_queue`` (``scope='item'``, and ``'release'``
+  for a folded release) — re-pointed; a pending repair the target already has
+  closes the moved one.
 
 The keeper takes the freshest metadata of the pair (the most recently modified
 row's NFO-derived columns, merged provider ids) and a ``deleted_item``
@@ -164,11 +166,15 @@ def _same_signature_release(
 def _fold_release(conn: sqlite3.Connection, release_id: int, target_id: int) -> None:
     """Move every file of *release_id* onto *target_id*, then drop the emptied release.
 
+    The repairs naming the folded release follow its files: left on a deleted
+    id (``repair_queue.scope_id`` is a soft reference) they would dangle.
+
     Args:
         conn: Open SQLite connection.
         release_id: The release to fold away.
         target_id: The release that receives its files.
     """
+    _repoint_repairs(conn, "release", release_id, target_id)
     conn.execute("UPDATE media_file SET release_id = ? WHERE release_id = ?", (target_id, release_id))
     conn.execute("DELETE FROM media_release WHERE id = ?", (release_id,))
 

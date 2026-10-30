@@ -367,3 +367,31 @@ def test_any_error_while_retiring_rolls_back_and_re_raises(
 
     assert not conn.in_transaction
     assert ghost in _items(conn)
+
+
+@pytest.mark.parametrize("scope", ["release", "file"])
+def test_an_open_repair_on_a_release_or_a_file_of_the_item_keeps_it(
+    library: tuple[sqlite3.Connection, DiskRow, Path], scope: str
+) -> None:
+    """A repair on a row the cascade would delete is open work on the item too.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a ``pending`` / ``running`` repair naming one of the item's
+        releases or files keeps the item, like an item repair.
+    """
+    conn, disk, root = library
+    ghost = _item(conn, root / "movies" / "Gone (2020)")
+    _file(conn, ghost, disk, deleted_at=100)
+    release_id, file_id = conn.execute(
+        "SELECT mr.id, mf.id FROM media_release mr JOIN media_file mf ON mf.release_id = mr.id WHERE mr.item_id = ?",
+        (ghost,),
+    ).fetchone()
+    conn.execute(
+        "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at) VALUES (?, ?, 'r', 1)",
+        (scope, release_id if scope == "release" else file_id),
+    )
+
+    report = retire_ghost_items(conn, disk, _MOUNTED, dry_run=False, max_share=None)
+
+    assert [(k.item_id, k.reason) for k in report.kept] == [(ghost, "pending_repair")]
+    assert ghost in _items(conn)
