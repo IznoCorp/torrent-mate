@@ -566,4 +566,5 @@ def library_refresh_path(
         f"relinked={report.relinked}, seasons_fixed={report.seasons_fixed}"
     )
     if report.failed_steps:
-        console.print(f"[yellow]Steps that failed (see logs):[/yellow] {', '.join(report.failed_steps)}")
+        console.print(f"[red]Steps that failed (see logs):[/red] {', '.join(report.failed_steps)}")
+        raise typer.Exit(1)

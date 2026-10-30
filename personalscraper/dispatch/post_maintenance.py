@@ -897,17 +897,17 @@ def run_scoped_refresh(
         report.relinked = _run_relink(config, scopes=scopes).get("linked", 0)
     except Exception as exc:  # noqa: BLE001
         report.failed_steps.append("relink")
-        _log.warning("scoped_refresh_relink_exception", error=str(exc))
+        _log.warning("scoped_refresh_relink_exception", error=str(exc), exc_info=True)
     try:
         report.seasons_fixed = _run_fix_season_counts(config, scopes=scopes)
     except Exception as exc:  # noqa: BLE001
         report.failed_steps.append("fix-season-counts")
-        _log.warning("scoped_refresh_fix_season_counts_exception", error=str(exc))
+        _log.warning("scoped_refresh_fix_season_counts_exception", error=str(exc), exc_info=True)
     try:
         _run_repair_drain(config, scopes=scopes)
     except Exception as exc:  # noqa: BLE001
         report.failed_steps.append("repair-drain")
-        _log.warning("scoped_refresh_repair_drain_exception", error=str(exc))
+        _log.warning("scoped_refresh_repair_drain_exception", error=str(exc), exc_info=True)
     return report
 
 

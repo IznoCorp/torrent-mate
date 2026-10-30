@@ -186,3 +186,20 @@ def test_e2e_stopped_walk_exits_1_and_writes_nothing(tmp_path, test_config) -> N
     assert result.exit_code == 1, result.output
     assert "did not finish" in " ".join(result.output.split())
     assert _dump(db_path) == before
+
+
+def test_failed_step_exits_1(tmp_path, test_config) -> None:
+    """A DB-only pass that raised is a failure of the command, not a yellow line over exit 0."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    target = Path(cfg.disks[0].path) / "series" / "Show (2020)"
+    target.mkdir(parents=True)
+
+    with (
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch(_PATCH_SCOPED, return_value=ScopedRefreshReport(failed_steps=["relink"])),
+    ):
+        result = run_cli(["library-refresh-path", str(target)])
+
+    assert result.exit_code == 1, result.output
+    assert "relink" in result.output

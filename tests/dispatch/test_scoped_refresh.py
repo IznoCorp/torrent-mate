@@ -9,6 +9,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -435,3 +436,29 @@ def test_stopped_walk_rolls_back_and_is_reported(library, monkeypatch) -> None:
         run_scoped_refresh(cfg, label, [show_a])
 
     assert _dump(db_path) == before
+
+
+@pytest.mark.parametrize(
+    ("failing", "event", "step"),
+    [
+        ("_run_relink", "scoped_refresh_relink_exception", "relink"),
+        ("_run_fix_season_counts", "scoped_refresh_fix_season_counts_exception", "fix-season-counts"),
+        ("_run_repair_drain", "scoped_refresh_repair_drain_exception", "repair-drain"),
+    ],
+)
+def test_failed_pass_is_logged_with_its_traceback(library, monkeypatch, failing, event, step) -> None:
+    """A DB-only pass that raises lands in ``failed_steps`` and is logged with ``exc_info``."""
+    cfg, label, _disk_id, mount, _db_path = library
+    show_a = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("pass failed")
+
+    monkeypatch.setattr(f"personalscraper.dispatch.post_maintenance.{failing}", boom)
+    with patch("personalscraper.dispatch.post_maintenance._log") as fake_log:
+        report = run_scoped_refresh(cfg, label, [show_a])
+
+    assert report.failed_steps == [step]
+    calls = [c for c in fake_log.warning.call_args_list if c.args[0] == event]
+    assert len(calls) == 1
+    assert calls[0].kwargs.get("exc_info") is True
