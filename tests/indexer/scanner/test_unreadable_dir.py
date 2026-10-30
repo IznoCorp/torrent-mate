@@ -159,7 +159,7 @@ def test_strikes_and_soft_deletes_leave_an_unreadable_directory_alone(tmp_path: 
 def test_a_row_stored_in_the_other_normalisation_is_sheltered_too(tmp_path: Path) -> None:
     """Defect: the shelter matched the disk's spelling only; an NFD-stored row was struck."""
     conn = _conn()
-    name = unicodedata.normalize("NFC", "Bj\u00f6rk Season 02")
+    name = unicodedata.normalize("NFC", "Bjo" + chr(0x308) + "rk Season 02")
     hidden = tmp_path / "series" / "Show (2020)" / name
     hidden.mkdir(parents=True)
     (hidden / "Track.E01.mkv").write_bytes(b"x" * 2048)

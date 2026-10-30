@@ -723,7 +723,7 @@ def test_a_neighbour_sharing_the_prefix_of_an_unreadable_directory_is_still_reti
 def test_a_row_stored_in_the_other_normalisation_is_sheltered_by_the_refresh(library) -> None:
     """Defect: the shelter compared the disk's spelling only; an NFD-stored row was counted gone or retired."""
     cfg, label, disk_id, mount, db_path = library
-    name = unicodedata.normalize("NFC", "Björk Season 02")
+    name = unicodedata.normalize("NFC", "Bjo" + chr(0x308) + "rk Season 02")
     show = _make_show(mount, "Show A (2020)", ["Show.A.S01E01.mkv"])
     hidden = show / name
     hidden.mkdir()
