@@ -114,7 +114,10 @@ receives a soft-delete tombstone (`deleted_at` set, `deleted_item` row inserted)
 Only `media_file` rows are soft-deleted. A human-readable `reason` is stored in
 `deleted_item.reason`. A file a later scan sees again is resurrected: any write
 of the walk (full, quick or incremental) sets `deleted_at` back to NULL and
-`miss_strikes` to 0.
+`miss_strikes` to 0. When the full or quick walk resurrects a row whose size or
+mtime differs from what it recorded, the file under that name is another one: its
+`release_id`, `xxh3_partial`, `xxh3_full` and `enriched_at` are cleared, to be
+linked and computed again.
 
 ### Ghost items
 

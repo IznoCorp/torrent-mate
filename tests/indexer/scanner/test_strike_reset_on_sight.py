@@ -391,3 +391,95 @@ def test_the_tombstone_records_why_the_row_was_retired() -> None:
     assert payload["miss_strikes"] == 3, (
         f"the tombstone must record the strike count that caused it, got {payload.get('miss_strikes')!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# A resurrected row whose tier-1 disagrees describes another file
+# ---------------------------------------------------------------------------
+
+
+def _seed_derived(conn: sqlite3.Connection, file_id: int) -> int:
+    """Give the seeded file a release, content hashes and an enrichment stamp.
+
+    Args:
+        conn: Open SQLite connection.
+        file_id: The ``media_file`` row to decorate.
+
+    Returns:
+        The id of the release the file is linked to.
+    """
+    item_id: int = conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified)"
+        " VALUES ('movie', 'Movie', 'movie', 'movies', 1, 1)"
+    ).lastrowid  # type: ignore[assignment]
+    release_id: int = conn.execute("INSERT INTO media_release (item_id) VALUES (?)", (item_id,)).lastrowid  # type: ignore[assignment]
+    conn.execute(
+        "UPDATE media_file SET release_id = ?, xxh3_partial = 'p', xxh3_full = 'f', enriched_at = 1 WHERE id = ?",
+        (release_id, file_id),
+    )
+    return release_id
+
+
+def _derived(conn: sqlite3.Connection, file_id: int) -> tuple[Any, ...]:
+    """Read back the columns derived from the file's content."""
+    row = conn.execute(
+        "SELECT release_id, xxh3_partial, xxh3_full, enriched_at, deleted_at FROM media_file WHERE id = ?",
+        (file_id,),
+    ).fetchone()
+    return tuple(row)
+
+
+def _sight(conn: sqlite3.Connection, path_id: int, *, size_bytes: int, mtime_ns: int, batched: bool) -> None:
+    """Write one sighting of ``Movie.mkv`` through the direct or the batched path."""
+    buffer: list[Any] | None = [] if batched else None
+    _upsert_file_row(
+        conn,
+        path_id=path_id,
+        filename="Movie.mkv",
+        size_bytes=size_bytes,
+        mtime_ns=mtime_ns,
+        ctime_ns=None,
+        generation=2,
+        oshash_value=None,
+        insert_buffer=buffer,
+    )
+    if buffer is not None:
+        _flush_insert_buffer(conn, buffer)
+
+
+@pytest.mark.parametrize("batched", [False, True], ids=["direct", "batched"])
+def test_a_resurrected_row_of_another_size_drops_what_described_the_old_file(batched: bool) -> None:
+    """Tier 1 says the file under the tombstoned name is another one: its hashes, link and enrichment go."""
+    conn = _make_conn()
+    _disk_id, path_id, file_id = _seed(conn, strikes=3, deleted_at=1_700_000_000)
+    _seed_derived(conn, file_id)
+    mtime_ns = conn.execute("SELECT mtime_ns FROM media_file WHERE id = ?", (file_id,)).fetchone()[0]
+
+    _sight(conn, path_id, size_bytes=2048, mtime_ns=mtime_ns, batched=batched)
+
+    assert _derived(conn, file_id) == (None, None, None, None, None)
+
+
+@pytest.mark.parametrize("batched", [False, True], ids=["direct", "batched"])
+def test_a_resurrected_row_of_the_same_size_and_mtime_keeps_them(batched: bool) -> None:
+    """The same file seen again keeps its release, its hashes and its enrichment."""
+    conn = _make_conn()
+    _disk_id, path_id, file_id = _seed(conn, strikes=3, deleted_at=1_700_000_000)
+    release_id = _seed_derived(conn, file_id)
+    mtime_ns = conn.execute("SELECT mtime_ns FROM media_file WHERE id = ?", (file_id,)).fetchone()[0]
+
+    _sight(conn, path_id, size_bytes=1024, mtime_ns=mtime_ns, batched=batched)
+
+    assert _derived(conn, file_id) == (release_id, "p", "f", 1, None)
+
+
+@pytest.mark.parametrize("batched", [False, True], ids=["direct", "batched"])
+def test_a_live_row_of_another_size_keeps_them(batched: bool) -> None:
+    """Only a tombstoned row is judged: a live one's drift is the incremental repair's business."""
+    conn = _make_conn()
+    _disk_id, path_id, file_id = _seed(conn)
+    release_id = _seed_derived(conn, file_id)
+
+    _sight(conn, path_id, size_bytes=2048, mtime_ns=1, batched=batched)
+
+    assert _derived(conn, file_id) == (release_id, "p", "f", 1, None)
