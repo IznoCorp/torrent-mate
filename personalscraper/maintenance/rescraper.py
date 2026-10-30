@@ -707,6 +707,7 @@ def _collect_rescrape_candidates(
             *category_filter* (mutually exclusive options).
     """
     from personalscraper.indexer.repos import item_repo as _item_repo  # noqa: PLC0415
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
 
     candidates: list[tuple[Path, str, str, str, str | None]] = []
 
@@ -802,18 +803,10 @@ def _collect_rescrape_candidates(
                 log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
                 continue
 
-            for category_id in disk.categories:
+            # Every video category folder present on the disk, as the full scan
+            # walks it: a disk frozen to audiobooks still holds series.
+            for category_id, category_dir in _category_dirs_on_disk(config, disk):
                 if category_filter and category_id != category_filter:
-                    continue
-
-                cat_cfg = config.category(category_id)
-                category_dir = disk.path / cat_cfg.folder_name
-                if not category_dir.is_dir():
-                    log.debug(
-                        "library_rescrape_category_not_found",
-                        category_dir=str(category_dir),
-                        disk=disk.id,
-                    )
                     continue
 
                 is_series = category_id in TV_CATEGORY_IDS

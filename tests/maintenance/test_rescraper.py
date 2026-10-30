@@ -1258,6 +1258,21 @@ class TestCollectRescrapeCandidates:
         assert [(path, disk_id) for path, _t, disk_id, _c, _e in filtered] == [(media_dir, "medias2")]
         assert other == []
 
+    def test_walk_reaches_a_category_folder_the_disk_does_not_accept(self, tmp_path: Path) -> None:
+        """The filesystem walk finds the series of a disk frozen to audiobooks."""
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._frozen_disk_config(tmp_path)
+        (tmp_path / "medias1").mkdir()
+        (tmp_path / "medias2" / "series" / "Show (2020)").mkdir(parents=True)
+        (tmp_path / "medias2" / "audiobooks" / "Book").mkdir(parents=True)
+
+        candidates = _collect_rescrape_candidates(config, None, "medias2", None)
+
+        assert [(path.name, media_type, disk_id, cat_id) for path, media_type, disk_id, cat_id, _e in candidates] == [
+            ("Show (2020)", "tvshow", "medias2", "tv_shows")
+        ]
+
 
 class TestRescrapeLibraryOrchestrator:
     """End-to-end orchestrator tests for rescrape_library, using mocked components."""
