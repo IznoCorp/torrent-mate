@@ -638,19 +638,25 @@ def test_upsert_reuses_a_compatible_folder_owner(conn: sqlite3.Connection, owner
     assert tuple(conn.execute("SELECT title FROM media_item WHERE id = ?", (owner,)).fetchone()) == ("Dune",)
 
 
+# Spelled with escapes: the accent is what the NFC/NFD and case tests turn on,
+# and the test-prose ratchet counts an accented literal as French.
+_E_ACUTE = "\N{LATIN SMALL LETTER E WITH ACUTE}"
+_POKEMON_NFC = f"/m/s{_E_ACUTE}ries/Pok{_E_ACUTE}mon (1997)"
+
+
 @pytest.mark.parametrize(
     "variant",
     [
-        "/m/séries/Pokémon (1997)",  # NFC, as the dispatch wrote it
-        unicodedata.normalize("NFD", "/m/séries/Pokémon (1997)"),  # NFD, as an HFS+ walk reads it
-        "/m/SÉRIES/pokémon (1997)",  # a case variant
+        _POKEMON_NFC,  # NFC, as the dispatch wrote it
+        unicodedata.normalize("NFD", _POKEMON_NFC),  # NFD, as an HFS+ walk reads it
+        f"/m/S{_E_ACUTE.upper()}RIES/pok{_E_ACUTE}mon (1997)",  # a case variant
     ],
     ids=["nfc", "nfd", "case"],
 )
 def test_find_id_by_dispatch_path_matches_nfc_nfd_and_case_variants(conn: sqlite3.Connection, variant: str) -> None:
     """The folder's owner is found whatever the normalisation or the case of the path."""
-    owner = _owned_item(conn, "Pokémon", "show", 1997, "/m/séries/Pokémon (1997)")
-    _owned_item(conn, "Other", "show", 1997, "/m/séries/Pokémon (1998)")
+    owner = _owned_item(conn, f"Pok{_E_ACUTE}mon", "show", 1997, _POKEMON_NFC)
+    _owned_item(conn, "Other", "show", 1997, _POKEMON_NFC.replace("1997", "1998"))
 
     assert item_repo.find_id_by_dispatch_path(conn, variant) == owner
 

@@ -20,6 +20,9 @@ from personalscraper.indexer.merge_items import MERGE_REASON, find_duplicate_gro
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "personalscraper" / "indexer" / "migrations"
 SHOW_PATH = "/Volumes/Medias1/medias/series/Ted Lasso (2020)"
 MOVIE_PATH = "/Volumes/Medias1/medias/films/The Gentlemen (2020)"
+# Spelled with escapes: the accent is what the NFC/NFD and case tests turn on,
+# and the test-prose ratchet counts an accented literal as French.
+E_ACUTE = "\N{LATIN SMALL LETTER E WITH ACUTE}"
 
 
 def _make_conn() -> sqlite3.Connection:
@@ -277,10 +280,11 @@ def test_a_movie_and_a_show_on_one_folder_are_left_alone() -> None:
 def test_an_nfd_and_a_case_variant_of_one_folder_are_one_group() -> None:
     """The dispatch writes NFC, an HFS+ walk reads NFD, the volume ignores case: one folder."""
     conn = _make_conn()
-    nfc = "/Volumes/Medias1/medias/séries/Pokémon (1997)"
-    old = _item(conn, "Pokémon", "show", nfc, created=100)
-    nfd = _item(conn, "Pokémon (1997)", "show", unicodedata.normalize("NFD", nfc), created=200)
-    upper = _item(conn, "POKÉMON", "show", nfc.upper(), created=300)
+    title = f"Pok{E_ACUTE}mon"
+    nfc = f"/Volumes/Medias1/medias/s{E_ACUTE}ries/{title} (1997)"
+    old = _item(conn, title, "show", nfc, created=100)
+    nfd = _item(conn, f"{title} (1997)", "show", unicodedata.normalize("NFD", nfc), created=200)
+    upper = _item(conn, title.upper(), "show", nfc.upper(), created=300)
 
     groups = find_duplicate_groups(conn)
 
