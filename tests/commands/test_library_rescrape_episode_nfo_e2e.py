@@ -16,7 +16,10 @@ from tests.commands._e2e_helpers import fs_snapshot, mock_tmdb_client, mock_tvdb
 
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 
-_TVSHOW_NFO = '<?xml version="1.0" encoding="UTF-8"?>\n<tvshow><title>Show</title><uniqueid type="tvdb">121361</uniqueid></tvshow>\n'
+_TVSHOW_NFO = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<tvshow><title>Show</title><uniqueid type="tvdb">121361</uniqueid></tvshow>\n'
+)
 _GOOD_EPISODE_NFO = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
     '<episodedetails><title>Kept</title><uniqueid type="tvdb">1</uniqueid></episodedetails>\n'

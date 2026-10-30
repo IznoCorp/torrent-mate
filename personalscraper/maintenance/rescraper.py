@@ -30,7 +30,7 @@ from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import (
     extract_nfo_metadata,
-    is_episode_nfo_conformant,
+    is_episode_nfo_usable,
     is_nfo_complete,
     parse_title_year,
 )
@@ -649,7 +649,7 @@ def _episodes_needing_nfo(show_dir: Path) -> list[Path]:
 
     Only files named like an episode (``SxxEyy``) are considered: extras and
     unrenamed files are not episodes yet (``--only episodes`` handles those).
-    "Conformant" is :func:`personalscraper.nfo_utils.is_episode_nfo_conformant`,
+    "Conformant" is :func:`personalscraper.nfo_utils.is_episode_nfo_usable`,
     the same rule the scraper applies before skipping an existing NFO.
 
     Args:
@@ -665,14 +665,14 @@ def _episodes_needing_nfo(show_dir: Path) -> list[Path]:
         and not is_apple_double(f.name)
         and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
         and re.search(r"S\d+E\d+", f.name, re.IGNORECASE)
-        and not is_episode_nfo_conformant(f.with_suffix(".nfo"))
+        and not is_episode_nfo_usable(f.with_suffix(".nfo"))
     )
 
 
 def _rescrape_episode_nfos(
     videos: list[Path],
     show_dir: Path,
-    show_data: object,
+    show_data: Any,
     source: str,
     api_id: int,
     registry: ProviderRegistry,
@@ -780,6 +780,7 @@ def _rescrape_episodes(
         match_episode_files,
         rename_episodes,
     )
+
     # Discover season numbers from local filesystem (show_data has no seasons array).
     season_nums = sorted(
         {

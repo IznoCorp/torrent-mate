@@ -50,7 +50,7 @@ def _run(tmp_path: Path, content: bytes | None) -> tuple[Path, Any]:
     [b"", b"<episodedetails><title>cut", b"<movie><title>X</title></movie>"],
     ids=["empty", "truncated", "wrong-root"],
 )
-def test_non_conformant_existing_nfo_is_rewritten(tmp_path: Path, content: bytes) -> None:
+def test_unusable_existing_nfo_is_rewritten(tmp_path: Path, content: bytes) -> None:
     """Empty, unparseable and wrong-root NFOs are regenerated like an absent one."""
     nfo_path, _ = _run(tmp_path, content)
     root = ET.parse(nfo_path).getroot()  # noqa: S314
@@ -58,7 +58,7 @@ def test_non_conformant_existing_nfo_is_rewritten(tmp_path: Path, content: bytes
     assert root.findtext("title") == "Pilot"
 
 
-def test_conformant_existing_nfo_is_upgraded_not_rewritten(tmp_path: Path) -> None:
+def test_usable_existing_nfo_is_upgraded_not_rewritten(tmp_path: Path) -> None:
     """A conformant NFO keeps its content (upgrade-in-place only)."""
     nfo_path, _ = _run(tmp_path, _GOOD.encode())
     assert ET.parse(nfo_path).getroot().findtext("title") == "Kept"  # noqa: S314

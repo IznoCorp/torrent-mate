@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.logger import get_logger
-from personalscraper.nfo_utils import is_episode_nfo_conformant
+from personalscraper.nfo_utils import is_episode_nfo_usable
 from personalscraper.scraper.nfo_generator import NFOGenerator
 
 if TYPE_CHECKING:
@@ -139,7 +139,7 @@ class TvServiceNfoMixin:
 
             # A non-conformant NFO (empty, unparseable, foreign root) is rewritten like an
             # absent one: skipping it would leave the episode without usable metadata.
-            if is_episode_nfo_conformant(nfo_path):
+            if is_episode_nfo_usable(nfo_path):
                 # Phase 5.4 : upgrade-in-place. An NFO already on disk
                 # may have been written by an earlier scrape that did
                 # not yet have the xref IDs available — append the
@@ -238,7 +238,7 @@ class TvServiceNfoMixin:
             EpisodeTitle=api_title,
         )
         nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
-        if is_episode_nfo_conformant(nfo_path):
+        if is_episode_nfo_usable(nfo_path):
             return warnings
 
         renamed_video = show_dir / season_dir_name / f"{new_stem}{video_path.suffix}"

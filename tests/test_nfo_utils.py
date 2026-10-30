@@ -9,7 +9,7 @@ from personalscraper.nfo_utils import (
     extract_nfo_ids,
     extract_nfo_metadata,
     glob_nfo_candidates,
-    is_episode_nfo_conformant,
+    is_episode_nfo_usable,
     is_nfo_complete,
     parse_title_year,
     read_episode_nfo_roots,
@@ -355,13 +355,13 @@ def test_extract_nfo_ids_backward_compatible_with_three_ids(tmp_path: Path) -> N
 
 
 class TestIsEpisodeNfoConformant:
-    """is_episode_nfo_conformant: the single « can this episode NFO be kept? » rule."""
+    """is_episode_nfo_usable: the single « can this episode NFO be kept? » rule."""
 
     def test_single_root_episodedetails_is_conformant(self, tmp_path: Path) -> None:
         """A well-formed single-root episode NFO is kept."""
         nfo = tmp_path / "S01E01.nfo"
         nfo.write_text('<?xml version="1.0" encoding="UTF-8"?><episodedetails><title>A</title></episodedetails>')
-        assert is_episode_nfo_conformant(nfo) is True
+        assert is_episode_nfo_usable(nfo) is True
 
     def test_multi_root_episodedetails_is_conformant(self, tmp_path: Path) -> None:
         """A Kodi multi-episode NFO (several roots) is readable, hence kept."""
@@ -370,22 +370,22 @@ class TestIsEpisodeNfoConformant:
             '<?xml version="1.0"?><episodedetails><title>A</title></episodedetails>\n'
             "<episodedetails><title>B</title></episodedetails>"
         )
-        assert is_episode_nfo_conformant(nfo) is True
+        assert is_episode_nfo_usable(nfo) is True
 
     @pytest.mark.parametrize(
         "content",
         [b"", b"   \n", b"<episodedetails><title>cut", b"<movie><title>X</title></movie>", b"\x00\x05\x16\x07"],
         ids=["empty", "blank", "truncated", "wrong-root", "binary"],
     )
-    def test_non_conformant(self, tmp_path: Path, content: bytes) -> None:
+    def test_unusable(self, tmp_path: Path, content: bytes) -> None:
         """Empty, blank, truncated, wrong-root and binary files are not conformant."""
         nfo = tmp_path / "S01E01.nfo"
         nfo.write_bytes(content)
-        assert is_episode_nfo_conformant(nfo) is False
+        assert is_episode_nfo_usable(nfo) is False
 
     def test_absent_is_not_conformant(self, tmp_path: Path) -> None:
         """A missing file is not conformant."""
-        assert is_episode_nfo_conformant(tmp_path / "nope.nfo") is False
+        assert is_episode_nfo_usable(tmp_path / "nope.nfo") is False
 
 
 class TestReadEpisodeNfoRoots:

@@ -134,7 +134,7 @@ def read_episode_nfo_roots(nfo_path: Path) -> list[ET.Element]:
     return list(ET.fromstring(f"<nfo>{body}</nfo>"))  # noqa: S314
 
 
-def is_episode_nfo_conformant(nfo_path: Path) -> bool:
+def is_episode_nfo_usable(nfo_path: Path) -> bool:
     """Tell whether an existing episode NFO can be kept as it is.
 
     The ONE definition shared by the TV scraper (which must not skip a
