@@ -647,8 +647,8 @@ def _fetch_episodes(
 def _episodes_needing_nfo(show_dir: Path) -> list[Path]:
     """List the episode videos whose sibling NFO is absent, empty or unreadable.
 
-    Only files named like an episode (``SxxEyy``) are considered: extras and
-    unrenamed files are not episodes yet (``--only episodes`` handles those).
+    Only files named like an episode (``SxxEyy``, season 1 or later) are considered:
+    extras, specials and unrenamed files are not episodes to repair yet (``--only episodes`` handles those).
     "Conformant" is :func:`personalscraper.nfo_utils.is_episode_nfo_usable`,
     the same rule the scraper applies before skipping an existing NFO.
 
@@ -658,6 +658,8 @@ def _episodes_needing_nfo(show_dir: Path) -> list[Path]:
     Returns:
         Sorted video paths needing an NFO written next to them.
     """
+    from personalscraper.scraper.episode_manager import _extract_season_episode  # noqa: PLC0415
+
     return sorted(
         f
         for f in show_dir.rglob("*")
@@ -665,6 +667,9 @@ def _episodes_needing_nfo(show_dir: Path) -> list[Path]:
         and not is_apple_double(f.name)
         and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
         and re.search(r"S\d+E\d+", f.name, re.IGNORECASE)
+        # Specials (season 0) are not fetched by _rescrape_episode_nfos, so listing them
+        # would only warn on every run without ever repairing them.
+        and (_extract_season_episode(f.name)[0] or 0) > 0
         and not is_episode_nfo_usable(f.with_suffix(".nfo"))
     )
 
