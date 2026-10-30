@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.commands._e2e_helpers import run_cli
+from tests.commands._e2e_helpers import fs_snapshot, run_cli
 
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 
@@ -97,12 +97,8 @@ def test_rescrape_dry_run_no_writes(tmp_path, test_config, monkeypatch) -> None:
     new_files = post_files - pre_files
     assert not new_files, f"Dry-run created files: {new_files}"
 
-    # JSON output exists and reflects dry_run.
-    json_path = data_dir / "library_rescrape.json"
-    assert json_path.exists(), f"Expected {json_path} to exist"
-    data = json.loads(json_path.read_text())
-    assert data["dry_run"] is True
-    assert data["fixed_count"] == 0, f"Dry-run should not fix anything: {data}"
+    # A dry run writes no report either (it would overwrite the last real run's).
+    assert not (data_dir / "library_rescrape.json").exists()
 
 
 # ── 3. Skip already conforming ──────────────────────────────────────────────────
@@ -124,16 +120,17 @@ def test_rescrape_skips_already_conforming_items(tmp_path, test_config, monkeypa
     cat_dir.mkdir(parents=True, exist_ok=True)
     _make_rescrape_item_dir(cat_dir, "Test Movie (2024)", nfo=True, poster=True)
 
+    before = fs_snapshot(disk_base)
     cfg = test_config
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(
             [
                 "library-rescrape",
-                "--dry-run",
             ]
         )
 
     assert result.exit_code == 0, result.output
+    assert fs_snapshot(disk_base) == before, "the real run must change nothing on this fixture"
     json_path = data_dir / "library_rescrape.json"
     data = json.loads(json_path.read_text())
     assert data["fixed_count"] == 0, f"Conforming item should not be flagged: {data}"
@@ -160,6 +157,7 @@ def test_rescrape_format_json(tmp_path, test_config, monkeypatch) -> None:
     cat_dir.mkdir(parents=True, exist_ok=True)
     _make_rescrape_item_dir(cat_dir, "Test Movie (2024)", nfo=False, poster=False)
 
+    before = fs_snapshot(disk_base)
     cfg = test_config
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(
@@ -167,11 +165,11 @@ def test_rescrape_format_json(tmp_path, test_config, monkeypatch) -> None:
                 "--format",
                 "json",
                 "library-rescrape",
-                "--dry-run",
             ]
         )
 
     assert result.exit_code == 0, result.output
+    assert fs_snapshot(disk_base) == before, "the real run must change nothing on this fixture"
     json_path = data_dir / "library_rescrape.json"
     data = json.loads(json_path.read_text())
     assert "rescraped_at" in data
@@ -220,10 +218,12 @@ def test_rescrape_json_output_schema_valid(tmp_path, test_config, monkeypatch) -
     cat_dir = disk_base / "cat_movies"
     cat_dir.mkdir(parents=True, exist_ok=True)
     _make_rescrape_item_dir(cat_dir, "Test Movie (2024)", nfo=False, poster=False)
+    before = fs_snapshot(disk_base)
     cfg = test_config
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        result = run_cli(["--format", "json", "library-rescrape", "--dry-run"])
+        result = run_cli(["--format", "json", "library-rescrape"])
     assert result.exit_code == 0
+    assert fs_snapshot(disk_base) == before, "the real run must change nothing on this fixture"
     json_path = data_dir / "library_rescrape.json"
     data = json.loads(json_path.read_text())
     for key in ("rescraped_at", "dry_run", "fixed_count", "skipped_count", "error_count", "items"):

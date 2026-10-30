@@ -450,10 +450,11 @@ REGISTRY: list[MaintenanceAction] = [
     ),
     MaintenanceAction(
         id="library-refresh-path",
-        title="Rafraîchir un dossier renommé",
+        title="Rafraîchir un dossier renommé ou supprimé",
         description=(
-            "Réconciliation d'index ciblée après un rename/move manuel : invalide le "
-            "sous-arbre, rescanne le disque propriétaire, relie et répare les compteurs."
+            "Réconciliation d'index ciblée après un rename/move/suppression manuel : ne touche "
+            "que le dossier donné (rescan, relink, compteurs, réparations) ; un dossier disparu "
+            "du disque est retiré de l'index."
         ),
         category="fix",
         risk="write",
@@ -461,11 +462,11 @@ REGISTRY: list[MaintenanceAction] = [
         dry_run="supported",
         options=[
             ActionOption(
-                name="path",
+                name="paths",
                 type="str",
                 required=True,
                 label="Chemin absolu",
-                help="Chemin absolu du dossier média renommé/déplacé.",
+                help="Chemin absolu du dossier média renommé/déplacé/supprimé.",
             ),
         ],
     ),

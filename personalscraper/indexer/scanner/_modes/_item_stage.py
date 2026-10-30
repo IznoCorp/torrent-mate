@@ -23,12 +23,11 @@ import json
 import re
 import sqlite3
 import time
-import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
 
-from personalscraper._fs_utils import is_apple_double
+from personalscraper._fs_utils import is_apple_double, name_key
 from personalscraper.conf.ids import AUDIOBOOKS, NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.release_linker import parse_episode_span
@@ -53,7 +52,7 @@ from personalscraper.indexer.schema import (
 )
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, season_number_from_dir
-from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year
+from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year, read_episode_nfo_roots
 from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES
 
 if TYPE_CHECKING:
@@ -445,7 +444,8 @@ def _read_episode_titles(season_dir: Path) -> dict[int, str | None]:
     ``<title>`` tag; files without a sibling NFO, an unparseable NFO, or an
     empty title map to ``None``. A multi-episode span file (« S09E23-24 »)
     contributes every covered number — the title attaches to the FIRST, the
-    tail numbers map to ``None``.
+    tail numbers map to ``None`` unless the NFO is a multi-episode file with
+    several ``<episodedetails>`` roots, whose Nth root titles the Nth number.
 
     The mapping contains ONLY episode numbers actually evidenced by files on
     disk. The old ``range(1, episode_count+1)`` backfill fabricated phantom
@@ -485,13 +485,15 @@ def _read_episode_titles(season_dir: Path) -> dict[int, str | None]:
             out.setdefault(ep_num, None)
             continue
         try:
-            root = ET.parse(nfo).getroot()  # noqa: S314 — trusted NFO we wrote
+            roots = read_episode_nfo_roots(nfo)
         except (ET.ParseError, OSError) as exc:
             log.debug("indexer_item_stage_episode_nfo_parse_error", nfo=str(nfo), exc_info=True, error=str(exc))
             out.setdefault(ep_num, None)
             continue
-        title_text = (root.findtext("title") or "").strip()
-        out[ep_num] = title_text or None
+        # A multi-episode NFO holds one root per covered episode, in order.
+        out.setdefault(ep_num, None)
+        for offset, root in enumerate(roots[: ep_end - ep_num + 1]):
+            out[ep_num + offset] = (root.findtext("title") or "").strip() or None
     return out
 
 
@@ -778,8 +780,8 @@ def scan_and_stage_dir(
     )
 
     # Dispatch flex attributes. Normalization mirrors
-    # ``dispatch.media_index._normalize_key``: NFC, lowercase, stripped.
-    norm_title = unicodedata.normalize("NFC", title).lower().strip()
+    # ``dispatch.media_index._normalize_key``: NFC, U+F025 folded, lowercase, stripped.
+    norm_title = name_key(title).lower().strip()
     attrs: dict[str, str | None] = {
         item_repo._ATTR_DISPATCH_PATH: str(media_dir),
         item_repo._ATTR_DISPATCH_DISK: disk_cfg.id,

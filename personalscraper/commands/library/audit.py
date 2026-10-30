@@ -476,76 +476,95 @@ def library_relink(
 @handle_cli_errors
 def library_refresh_path(
     ctx: typer.Context,
-    path: str = typer.Argument(..., help="Absolute path of the renamed/moved media folder"),
+    paths: list[str] = typer.Argument(
+        ...,
+        help="Absolute path(s) of the renamed/moved/deleted media folder(s), all on one disk",
+    ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Show the resolved disk + maintenance plan without touching anything.",
+        help="Show what would be rescanned or removed, write nothing.",
     ),
 ) -> None:
-    """Targeted index reconciliation after a MANUAL rename/move of one folder.
+    """Targeted index reconciliation after a MANUAL rename/move/delete of folders.
 
     The incremental scan short-circuits unchanged subtrees, so a folder the
     operator renamed by hand can stay invisible to the index exactly like a
-    dispatched merge (NTFS/macFUSE mtime blindness). This command reuses the
-    post-dispatch maintenance machinery on ONE path: invalidate the subtree
-    (dir_mtime/last_walked_at reset + disk merkle cleared, NFC+NFD variants),
-    incremental scan of the owning disk (rename detection via OSHash drift),
-    then the global relink + season-count repair + repair-queue drain.
+    dispatched merge (NTFS/macFUSE mtime blindness). This command touches ONLY the
+    given paths — nothing else on the disk is walked, relinked, recounted or
+    repaired:
+
+    * a path that exists is re-walked in full (rename detection via OSHash drift),
+      then its files are relinked, its seasons recounted and its repairs drained;
+    * a path that no longer exists is removed from the index (its live files are
+      soft-deleted with a tombstone, like the scanner does).
+
+    Give a rename's NEW path and its OLD path together; the new one is processed first
+    so the rows follow the files instead of being retired.
 
     Examples:
         personalscraper library-refresh-path "/Volumes/Disk1/medias/series/Show (2020)" --dry-run
-        personalscraper library-refresh-path "/Volumes/Disk1/medias/series/Show (2020)"
+        personalscraper library-refresh-path "/Volumes/Disk1/medias/series/New" "/Volumes/Disk1/medias/series/Old"
     """
     from personalscraper.dispatch.post_maintenance import (  # noqa: PLC0415
-        run_post_dispatch_maintenance,
+        ScopedRefreshIncomplete,
+        run_scoped_refresh,
     )
 
     console = state["console"]
     cfg = ctx.obj.config
     assert cfg is not None
 
-    target = Path(path)
-    if not target.is_absolute():
-        console.print("[red]The path must be absolute.[/red]")
-        raise typer.Exit(2)
-    if not target.exists():
-        console.print(f"[red]Path does not exist:[/red] {target}")
-        raise typer.Exit(2)
+    targets = [Path(p) for p in paths]
+    for target in targets:
+        if not target.is_absolute():
+            console.print(f"[red]The path must be absolute:[/red] {target}")
+            raise typer.Exit(2)
 
-    # Resolve the owning disk: the config disk whose root is an ancestor.
-    owning_label: str | None = None
-    for disk_cfg in cfg.disks:
-        try:
-            target.relative_to(disk_cfg.path)
-        except ValueError:
-            continue
-        owning_label = disk_cfg.id
-        break
-    if owning_label is None:
-        console.print(f"[red]No configured disk owns this path.[/red] Disks: {', '.join(d.id for d in cfg.disks)}")
+    # Resolve the owning disk of each path: the config disk whose root is an ancestor.
+    owners: dict[str, str] = {}
+    for target in targets:
+        for disk_cfg in cfg.disks:
+            try:
+                target.relative_to(disk_cfg.path)
+            except ValueError:
+                continue
+            owners[str(target)] = disk_cfg.id
+            break
+        else:
+            console.print(f"[red]No configured disk owns this path.[/red] Disks: {', '.join(d.id for d in cfg.disks)}")
+            raise typer.Exit(2)
+    labels = set(owners.values())
+    if len(labels) != 1:
+        console.print(
+            f"[red]The paths span several disks ({', '.join(sorted(labels))}); refresh one disk at a time.[/red]"
+        )
         raise typer.Exit(2)
+    (label,) = labels
 
+    try:
+        report = run_scoped_refresh(cfg, label, targets, dry_run=dry_run)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2) from exc
+    except ScopedRefreshIncomplete as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    prefix = "[yellow]DRY-RUN:[/yellow] would" if dry_run else "[green]Done:[/green]"
+    for scanned in report.scanned:
+        console.print(f"{prefix} rescan [bold]{scanned}[/bold] (disk {label})")
+    for removed in report.removed:
+        console.print(f"{prefix} remove [bold]{removed}[/bold] from the index (gone from disk, disk {label})")
     if dry_run:
         console.print(
-            f"[yellow]DRY-RUN:[/yellow] would invalidate subtree [bold]{target}[/bold] "
-            f"on disk [bold]{owning_label}[/bold], then incremental scan + relink "
-            "+ fix-season-counts + repair drain."
+            f"[yellow]DRY-RUN:[/yellow] {report.files_removed} indexed file(s) would be removed. Nothing written."
         )
         return
-
-    console.print(f"Refreshing index for [bold]{target}[/bold] (disk {owning_label})…")
-    # This command IS a composition root: it owns its bus, and no acquire subscriber
-    # is wired on this path (a targeted manual re-index must not gain a reconciliation
-    # side effect). Constructing the bus here is therefore correct — the D4 defect was
-    # a bus built INSIDE a call chain that already carried one, hiding live subscribers.
-    from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
-
-    run_post_dispatch_maintenance(
-        cfg,
-        {owning_label},
-        event_bus=EventBus(),
-        destinations={owning_label: {target}},
-        enabled=True,
+    console.print(
+        f"files_scanned={report.files_scanned}, files_removed={report.files_removed}, "
+        f"relinked={report.relinked}, seasons_fixed={report.seasons_fixed}"
     )
-    console.print("[green]Done.[/green] See logs for scan/relink/season-count details.")
+    if report.failed_steps:
+        console.print(f"[red]Steps that failed (see logs):[/red] {', '.join(report.failed_steps)}")
+        raise typer.Exit(1)
