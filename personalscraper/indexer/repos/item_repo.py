@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import unicodedata
 
 from personalscraper._fs_utils import name_key, name_variants
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
