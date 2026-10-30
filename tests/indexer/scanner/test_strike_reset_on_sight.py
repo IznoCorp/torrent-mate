@@ -39,6 +39,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.drift import apply_soft_deletes, mark_missed_files
 from personalscraper.indexer.scanner._db_writes import _flush_insert_buffer, _upsert_file_row
@@ -166,23 +168,53 @@ def test_three_uninterrupted_misses_still_tombstone() -> None:
     assert deleted_at is not None, "three consecutive misses must still tombstone"
 
 
-def test_a_sighting_does_NOT_resurrect_a_tombstoned_row() -> None:
-    """Deliberately NOT changed: clearing ``deleted_at`` is a different decision.
+def test_a_sighting_resurrects_a_tombstoned_row() -> None:
+    """A file the walk stat'd is live: its tombstone is lifted, its history kept.
 
-    ``reset_strikes_on_reappearance`` clears both columns, and restoring tombstoned
-    rows in bulk is exactly what the Merkle bulk-change freeze exists to arbitrate.
-    This change is about the COUNTER — the half both docs describe and the half that
-    can only ever prevent a tombstone, never cause one. Restoration stays where it
-    is until someone decides it on purpose.
+    The former contract left ``deleted_at`` set on a sighting, pending a decision
+    on restoration; the Merkle bulk-change freeze it deferred to never arbitrates
+    a row the walk writes (quick and incremental freeze BEFORE walking, full has
+    no freeze). Two posters tombstoned by a cleanup stayed deleted although every
+    full scan saw them. The ``deleted_item`` row stays as the record of the past
+    retirement.
     """
     conn = _make_conn()
     _disk_id, path_id, file_id = _seed(conn, strikes=3, deleted_at=1_700_000_000)
+    conn.execute(
+        "INSERT INTO deleted_item (kind, original_id, deleted_at, reason) VALUES ('file', ?, 1700000000, 'n_strikes')",
+        (file_id,),
+    )
 
     _walk_the_file(conn, path_id, generation=2)
 
     row = conn.execute("SELECT miss_strikes, deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
     assert row["miss_strikes"] == 0, "the counter resets"
-    assert row["deleted_at"] == 1_700_000_000, "the tombstone is left exactly as it was"
+    assert row["deleted_at"] is None, "a file seen by the walk is live again"
+    tombstones = conn.execute("SELECT COUNT(*) FROM deleted_item WHERE original_id = ?", (file_id,)).fetchone()[0]
+    assert tombstones == 1, "the tombstone stays as history"
+
+
+def test_the_batched_path_resurrects_too() -> None:
+    """Full mode always batches: the sighting it writes must lift the tombstone as well."""
+    conn = _make_conn()
+    _disk_id, path_id, file_id = _seed(conn, strikes=3, deleted_at=1_700_000_000)
+
+    buffer: list = []
+    _upsert_file_row(
+        conn,
+        path_id=path_id,
+        filename="Movie.mkv",
+        size_bytes=1024,
+        mtime_ns=int(time.time()) * 1_000_000_000,
+        ctime_ns=None,
+        generation=2,
+        oshash_value=None,
+        insert_buffer=buffer,
+    )
+    _flush_insert_buffer(conn, buffer)
+
+    row = conn.execute("SELECT miss_strikes, deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert (row["miss_strikes"], row["deleted_at"]) == (0, None)
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +238,7 @@ def _seed_disk_and_file(
     *,
     strikes: int,
     stale_tier1: bool,
+    deleted_at: int | None = None,
 ) -> tuple[Any, int]:
     """Create a real file under *mount* and a row for it carrying *strikes*.
 
@@ -216,6 +249,7 @@ def _seed_disk_and_file(
         stale_tier1: When ``True`` the stored size/mtime deliberately disagree
             with the file on disk, so the visitor takes its drift branches
             instead of the cheap generation-only one.
+        deleted_at: Tombstone epoch to seed on the row, ``None`` for a live row.
 
     Returns:
         ``(disk_row, file_id)``.
@@ -243,8 +277,8 @@ def _seed_disk_and_file(
         " release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,"
         " oshash, xxh3_partial, xxh3_full, scan_generation,"
         " last_verified_at, enriched_at, miss_strikes, deleted_at"
-        ") VALUES (NULL, ?, 'Movie.mkv', ?, ?, ?, NULL, NULL, NULL, 1, ?, NULL, ?, NULL)",
-        (path_id, size, mtime, stat_result.st_ctime_ns, int(time.time()), strikes),
+        ") VALUES (NULL, ?, 'Movie.mkv', ?, ?, ?, NULL, NULL, NULL, 1, ?, NULL, ?, ?)",
+        (path_id, size, mtime, stat_result.st_ctime_ns, int(time.time()), strikes, deleted_at),
     ).lastrowid  # type: ignore[assignment]
     return disk_row, file_id
 
@@ -290,6 +324,20 @@ def test_an_incremental_scan_clears_strikes_on_a_drifted_file(tmp_path: Path) ->
 
     strikes = conn.execute("SELECT miss_strikes FROM media_file WHERE id = ?", (file_id,)).fetchone()[0]
     assert strikes == 0, f"a drifted-but-present file was seen; expected 0 strikes, got {strikes}"
+
+
+@pytest.mark.parametrize("stale_tier1", [False, True], ids=["unchanged", "drifted"])
+def test_an_incremental_scan_resurrects_a_tombstoned_file_it_sees(tmp_path: Path, stale_tier1: bool) -> None:
+    """Incremental routes a known row through its own UPDATEs: each must lift the tombstone."""
+    conn = _make_conn()
+    mount = str(tmp_path / "mnt")
+    Path(mount).mkdir()
+    disk_row, file_id = _seed_disk_and_file(conn, mount, strikes=3, stale_tier1=stale_tier1, deleted_at=1_700_000_000)
+
+    _run_incremental(conn, disk_row, mount)
+
+    row = conn.execute("SELECT miss_strikes, deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert (row[0], row[1]) == (0, None), f"a file incremental just saw must be live, got {tuple(row)}"
 
 
 def test_post_dispatch_incremental_cannot_tombstone_a_file_it_just_saw(tmp_path: Path) -> None:

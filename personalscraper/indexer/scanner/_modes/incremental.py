@@ -330,8 +330,9 @@ class IncrementalVisitor(DirMtimeSkipVisitor):
             if t1_current == t1_stored:
                 # Tier-1 unchanged — bump generation only (cheap skip).
                 conn.execute(
-                    # The sighting resets the strike count — see the module note.
-                    "UPDATE media_file SET scan_generation = ?, miss_strikes = 0 WHERE id = ?",
+                    # The sighting resets the strike count and lifts a tombstone —
+                    # see ``_db_writes._upsert_file_row``.
+                    "UPDATE media_file SET scan_generation = ?, miss_strikes = 0, deleted_at = NULL WHERE id = ?",
                     (generation, existing.id),
                 )
             else:
@@ -346,7 +347,7 @@ class IncrementalVisitor(DirMtimeSkipVisitor):
                         """
                         UPDATE media_file
                            SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                               scan_generation = ?, miss_strikes = 0
+                               scan_generation = ?, miss_strikes = 0, deleted_at = NULL
                          WHERE id = ?
                         """,
                         (st.st_size, mtime_ns_val, ctime_ns_val, generation, existing.id),
@@ -364,7 +365,7 @@ class IncrementalVisitor(DirMtimeSkipVisitor):
                         """
                         UPDATE media_file
                            SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                               oshash = ?, scan_generation = ?, miss_strikes = 0
+                               oshash = ?, scan_generation = ?, miss_strikes = 0, deleted_at = NULL
                          WHERE id = ?
                         """,
                         (st.st_size, mtime_ns_val, ctime_ns_val, new_oshash, generation, existing.id),
@@ -392,7 +393,7 @@ class IncrementalVisitor(DirMtimeSkipVisitor):
                         """
                         UPDATE media_file
                            SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                               scan_generation = ?, miss_strikes = 0
+                               scan_generation = ?, miss_strikes = 0, deleted_at = NULL
                          WHERE id = ?
                         """,
                         (st.st_size, mtime_ns_val, ctime_ns_val, generation, existing.id),

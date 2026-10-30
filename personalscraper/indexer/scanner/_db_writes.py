@@ -189,8 +189,8 @@ def _upsert_file_row(
     #
     # On conflict, we update only the columns the previous UPDATE branch did
     # (size_bytes, mtime_ns, ctime_ns, oshash, scan_generation, last_verified_at)
-    # — plus ``miss_strikes``, see below. Untouched columns (release_id, xxh3_*,
-    # enriched_at, deleted_at) are intentionally preserved.
+    # — plus ``miss_strikes`` and ``deleted_at``, see below. Untouched columns
+    # (release_id, xxh3_*, enriched_at) are intentionally preserved.
     #
     # ``miss_strikes = 0`` because THIS CALL IS THE SIGHTING. Reaching here means
     # the walk stat'd the file and it is there, which is precisely the event both
@@ -213,10 +213,13 @@ def _upsert_file_row(
     # four UPDATEs; all three carry the reset, because a counter that resets on
     # some sightings is not a consecutive counter.
     #
-    # ``deleted_at`` is deliberately NOT cleared. Restoring tombstoned rows in
-    # bulk is what the Merkle bulk-change freeze exists to arbitrate, and it is a
-    # different decision from this one. Resetting the counter can only ever
-    # PREVENT a tombstone, never cause one.
+    # ``deleted_at = NULL`` for the same reason: a file the walk stat'd is live,
+    # so its tombstone is lifted (the ``deleted_item`` row stays as history).
+    # This used to be left set, deferring restoration to the Merkle bulk-change
+    # freeze — but that freeze never arbitrates a row the walk writes: quick and
+    # incremental freeze BEFORE walking (a frozen disk is not walked), full mode
+    # has no freeze. So a tombstoned file seen by every later scan stayed deleted
+    # forever (two posters soft-deleted by a cleanup, then seen by each full scan).
     conn.execute(
         """
         INSERT INTO media_file (
@@ -231,7 +234,8 @@ def _upsert_file_row(
             oshash = COALESCE(excluded.oshash, oshash),
             scan_generation = excluded.scan_generation,
             last_verified_at = excluded.last_verified_at,
-            miss_strikes = 0
+            miss_strikes = 0,
+            deleted_at = NULL
         """,
         row_tuple,
     )
@@ -254,8 +258,9 @@ def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
     still go through the buffered path when ``drop_indexes_during_full_scan`` is
     enabled) do not crash with a UNIQUE-constraint violation.
 
-    « The same shape » includes the ``miss_strikes = 0`` sighting reset, and that
-    is not incidental: which write a walk takes is decided by its MODE — full
+    « The same shape » includes the ``miss_strikes = 0`` / ``deleted_at = NULL``
+    sighting reset, and that is not incidental: which write a walk takes is
+    decided by its MODE — full
     always batches through here (``FullVisitor`` passes ``insert_buffer``
     unconditionally; ``drop_indexes_during_full_scan`` only governs the index
     DDL), while quick, the ``_walk_dir`` fallback and incremental's new-file
@@ -283,7 +288,8 @@ def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
             oshash = COALESCE(excluded.oshash, oshash),
             scan_generation = excluded.scan_generation,
             last_verified_at = excluded.last_verified_at,
-            miss_strikes = 0
+            miss_strikes = 0,
+            deleted_at = NULL
         """,
         buffer,
     )
