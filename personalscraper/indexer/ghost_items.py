@@ -233,7 +233,8 @@ def retire_ghost_items(
     Raises:
         RuntimeError: When the connection has an open transaction and there are
             ghosts to retire.
-        sqlite3.Error: When a write fails; the transaction is rolled back.
+        sqlite3.Error: When a write fails; the transaction is rolled back, as
+            for any exception raised while retiring.
     """
     report = GhostReport(disk_label=disk.label)
     if disk.mount_path is None or mount_status is not DiskMountStatus.MOUNTED_AND_VERIFIED:
@@ -299,7 +300,9 @@ def retire_ghost_items(
         for ghost in report.ghosts:
             _retire(conn, ghost, stamp)
         conn.commit()
-    except sqlite3.Error:
+    except Exception:
+        # Whatever failed (a write, or a row gone under ``_retire``), the
+        # ``BEGIN IMMEDIATE`` must not stay open on the caller's connection.
         conn.rollback()
         raise
     finally:

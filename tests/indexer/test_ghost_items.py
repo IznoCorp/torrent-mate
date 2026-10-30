@@ -343,3 +343,27 @@ def test_a_folder_that_cannot_be_stat_ed_freezes_the_disk(
 
     assert report.frozen and report.retired == 0
     assert {gone, blocked} <= set(_items(conn))
+
+
+def test_any_error_while_retiring_rolls_back_and_re_raises(
+    library: tuple[sqlite3.Connection, DiskRow, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Not only ``sqlite3.Error``: whatever fails mid-pass, the transaction is not left open.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: any exception during the deletes rolls the pass back and is
+        re-raised; no ``BEGIN IMMEDIATE`` is left open.
+    """
+    conn, disk, root = library
+    ghost = _item(conn, root / "movies" / "Gone (2020)")
+
+    def _broken(*_args: Any) -> None:
+        raise TypeError("row is None")
+
+    monkeypatch.setattr("personalscraper.indexer.ghost_items._retire", _broken)
+
+    with pytest.raises(TypeError):
+        retire_ghost_items(conn, disk, _MOUNTED, dry_run=False, max_share=None)
+
+    assert not conn.in_transaction
+    assert ghost in _items(conn)
