@@ -268,6 +268,21 @@ def test_a_yearless_member_and_complementary_ids_still_merge() -> None:
     assert report.merged == 1 and report.skipped == []
 
 
+def test_both_items_with_a_pending_repair_merge_and_keep_one_pending_row() -> None:
+    """The partial UNIQUE(scope, scope_id) WHERE pending admits one pending repair per item."""
+    conn = _make_conn()
+    ids = _split_show(conn)  # the young item carries a pending repair
+    conn.execute(
+        "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at) VALUES ('item', ?, 'r', 1)", (ids["old"],)
+    )
+
+    report = merge_duplicate_items(conn, dry_run=False)
+
+    assert report.merged == 1
+    rows = conn.execute("SELECT scope_id, status FROM repair_queue ORDER BY id").fetchall()
+    assert rows == [(ids["old"], "done"), (ids["old"], "pending")]
+
+
 def test_a_year_the_keeper_cannot_take_skips_its_group_only() -> None:
     """A third row already holds the keeper's (title, kind, year): that group is reported, the others merge."""
     conn = _make_conn()

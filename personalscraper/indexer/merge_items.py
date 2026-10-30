@@ -108,6 +108,31 @@ def find_duplicate_groups(conn: sqlite3.Connection) -> list[DuplicateGroup]:
     return sorted(groups, key=lambda group: group.dispatch_path)
 
 
+def _repoint_repairs(conn: sqlite3.Connection, scope: str, from_id: int, to_id: int) -> None:
+    """Re-point the repairs naming *from_id* to *to_id*, within one *scope*.
+
+    ``repair_queue`` admits one ``pending`` row per ``(scope, scope_id)``
+    (partial UNIQUE index): when *to_id* already has one, the pending row of
+    *from_id* asks for the same work on the same target once merged, so it is
+    closed (``done``) before the re-point instead of failing the whole merge.
+
+    Args:
+        conn: Open SQLite connection.
+        scope: ``repair_queue.scope`` (``item`` or ``release``).
+        from_id: The row merged away.
+        to_id: The row that survives.
+    """
+    target_pending = conn.execute(
+        "SELECT 1 FROM repair_queue WHERE scope = ? AND scope_id = ? AND status = 'pending'", (scope, to_id)
+    ).fetchone()
+    if target_pending is not None:
+        conn.execute(
+            "UPDATE repair_queue SET status = 'done' WHERE scope = ? AND scope_id = ? AND status = 'pending'",
+            (scope, from_id),
+        )
+    conn.execute("UPDATE repair_queue SET scope_id = ? WHERE scope = ? AND scope_id = ?", (to_id, scope, from_id))
+
+
 def _same_signature_release(
     conn: sqlite3.Connection, release_id: int, *, item_id: int | None, episode_id: int | None
 ) -> int | None:
@@ -228,10 +253,7 @@ def _merge_item(conn: sqlite3.Connection, duplicate_id: int, keeper_id: int, now
         (keeper_id, duplicate_id),
     )
     conn.execute("UPDATE scan_event SET item_id = ? WHERE item_id = ?", (keeper_id, duplicate_id))
-    conn.execute(
-        "UPDATE repair_queue SET scope_id = ? WHERE scope = 'item' AND scope_id = ?",
-        (keeper_id, duplicate_id),
-    )
+    _repoint_repairs(conn, "item", duplicate_id, keeper_id)
 
     keeper = item_repo.get_by_id(conn, keeper_id)
     duplicate = item_repo.get_by_id(conn, duplicate_id)
