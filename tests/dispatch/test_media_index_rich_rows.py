@@ -570,3 +570,26 @@ def test_redispatch_keeps_the_title_year_stripped(tmp_path: Path) -> None:
     idx.add(entry)
 
     assert _items_on(idx._conn, folder)[0][1] == "The Gentlemen"
+
+
+def test_dispatch_into_a_folder_whose_item_title_drifted_reuses_that_item(tmp_path: Path) -> None:
+    """``add()`` finding no row by its name key still updates the item already on the folder.
+
+    A row whose stored title drifted (written with its year, and no
+    ``dispatch_normalized_title`` the name lookup could hit) was missed by the
+    title-only insert branch, which then inserted a second item on the path.
+    """
+    folder, _disk_cfg = _gentlemen_folder(tmp_path)
+    idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+    drifted = idx._conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, external_ids_json,"
+        " date_created, date_modified) VALUES ('movie', ?, ?, 2020, 'movies', '{}', 1, 1)",
+        (folder.name, folder.name),
+    ).lastrowid
+    idx._conn.execute(
+        "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)", (drifted, str(folder))
+    )
+
+    idx.add(IndexEntry(name=folder.name, disk="disk1", category="movies", path=str(folder), media_type="movie"))
+
+    assert [item_id for item_id, _title in _items_on(idx._conn, folder)] == [drifted]

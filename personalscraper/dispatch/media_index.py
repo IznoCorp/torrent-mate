@@ -523,7 +523,9 @@ class MediaIndex:
         kind via :func:`item_repo.find_by_normalized_name`.  If found, updates
         the existing ``media_item`` row in place (preserving its ``id``) so
         that NFC and NFD spellings of the same title converge to a single row.
-        If not found, inserts a new row.
+        If not found, the item already carrying ``entry.path`` as its
+        ``dispatch_path`` is updated when it is the same work; otherwise a new
+        row is inserted (or merged by title).
 
         Writes three ``item_attribute`` rows:
         ``dispatch_normalized_title``, ``dispatch_disk``, and ``dispatch_path``.
@@ -601,7 +603,12 @@ class MediaIndex:
             )
             row["date_created"] = now_ts
             row["date_modified"] = now_ts
-            item_id = item_repo.upsert(self._conn, MediaItemRow(**row))
+            # The item already carrying this folder owns it, whatever its stored
+            # title: a title-only upsert missed a drifted row and inserted a
+            # second item on the same dispatch_path. ``upsert`` reuses the owner
+            # only when it is the same work (kind, compatible year).
+            owner_id = item_repo.find_id_by_dispatch_path(self._conn, entry.path)
+            item_id = item_repo.upsert(self._conn, MediaItemRow(**row), existing_id=owner_id)
 
         # Write dispatch-specific attributes (upsert replaces on conflict).
         for key, value in (
