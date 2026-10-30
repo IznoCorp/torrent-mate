@@ -71,3 +71,50 @@ def test_absent_nfo_is_written(tmp_path: Path) -> None:
     """Sanity: an absent NFO is still generated."""
     nfo_path, _ = _run(tmp_path, None)
     assert ET.parse(nfo_path).getroot().findtext("title") == "Pilot"  # noqa: S314
+
+
+def _season_pack_nfo(tmp_path: Path, content: bytes | None) -> Path:
+    """Run the season-pack NFO writer over a show dir holding ``content`` at the range NFO path."""
+    from personalscraper.naming_patterns import PATTERNS
+
+    show_dir = tmp_path / "Show"
+    season_dir = show_dir / "Saison 01"
+    season_dir.mkdir(parents=True)
+    video = show_dir / "Show.S01.COMPLETE.mkv"
+    video.write_bytes(b"x")
+    mixin = _make_mixin()
+    mixin._nfo = NFOGenerator()  # type: ignore[assignment]
+    mixin.dry_run = False
+    info = {
+        "season": 1,
+        "episode": 1,
+        "episode_end": 2,
+        "api_title": "Pilot",
+        "still_path": "",
+        "is_season_pack": True,
+    }
+    stem = PATTERNS.format("episode_video_range", Season=1, EpisodeStart=1, EpisodeEnd=2, EpisodeTitle="Pilot")
+    nfo_path = season_dir / f"{stem}.nfo"
+    if content is not None:
+        nfo_path.write_bytes(content)
+    mixin._generate_season_pack_nfo(video, info, show_dir, "Show", "", "")
+    return nfo_path
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"", b"<movie><title>X</title></movie>"],
+    ids=["empty", "wrong-root"],
+)
+def test_season_pack_unusable_nfo_is_regenerated(tmp_path: Path, content: bytes) -> None:
+    """An empty or foreign-root season-pack NFO is rewritten, not skipped as existing."""
+    nfo_path = _season_pack_nfo(tmp_path, content)
+    root = ET.parse(nfo_path).getroot()  # noqa: S314
+    assert root.tag == "episodedetails"
+    assert root.findtext("title") == "Pilot"
+
+
+def test_season_pack_usable_nfo_is_kept(tmp_path: Path) -> None:
+    """A conformant season-pack NFO is left byte-identical."""
+    nfo_path = _season_pack_nfo(tmp_path, _GOOD.encode())
+    assert nfo_path.read_bytes() == _GOOD.encode()
