@@ -575,8 +575,10 @@ on a disk, whatever its `categories` (they only decide where new media go). A
 full run that reached its end then retires the ghost items — folder gone, files
 all tombstoned — of each mounted disk, unless more than 10 % of the disk's items
 would go (`docs/production/indexer.md` « Ghost items »); the summary lists them
-under `ghost_items` (with `--dry-run`, the ones that would go) and the capped
-disks under `ghost_items_capped`.
+under `ghost_items` (with `--dry-run`, the ones that would go — a lower bound,
+`ghost_items_lower_bound: true`, since a dry run tombstones no file), the capped
+disks under `ghost_items_capped` and the disks whose ghost pass failed under
+`ghost_items_failed`.
 
 **Side effects**: `mutate BDD` (writes media_item, season, episode, item_attribute, media_file, path, scan_run, scan_event rows)
 

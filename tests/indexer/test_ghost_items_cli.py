@@ -226,3 +226,41 @@ def test_the_scan_cap_holds_and_the_command_clears_the_backlog_with_every_other_
     assert run.exit_code == 0, run.output
     assert _command_payload(run)["retired"] == 3
     assert lib.items() == {present, live, repaired, unmounted}
+
+
+def test_a_failed_ghost_pass_is_named_in_the_summary(tmp_path: Path) -> None:
+    """A disk whose ghost pass fails is listed under ``ghost_items_failed``, not only logged.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: a ghost pass that raises a database error on a disk is rolled
+        back, logged with its traceback, and the disk is named under
+        ``ghost_items_failed`` in the summary.
+    """
+    lib = _Library(tmp_path, ["medias1"])
+    lib.item("medias1", "Gone (2020)", present=False)
+
+    with patch(
+        "personalscraper.indexer.ghost_items.retire_ghost_items", side_effect=sqlite3.OperationalError("locked")
+    ):
+        result = lib.invoke(["library-index", "--mode", "full"])
+
+    assert result.exit_code == 0, result.output
+    assert _summary(result)["ghost_items_failed"] == ["medias1"]
+
+
+def test_a_dry_run_summary_says_its_ghosts_are_a_lower_bound(tmp_path: Path) -> None:
+    """A dry run strikes nothing, so its ghost list is a lower bound, and the summary says so.
+
+    Design: docs/production/indexer.md#ghost-items
+    Contract: ``library-index --mode full --dry-run`` reports
+        ``ghost_items_lower_bound: true``; a real run reports ``false``.
+    """
+    lib = _Library(tmp_path, ["medias1"])
+    for n in range(10):
+        lib.item("medias1", f"Present {n} (2020)", present=True, file_deleted_at=None)
+
+    dry = lib.invoke(["library-index", "--mode", "full", "--dry-run"])
+    real = lib.invoke(["library-index", "--mode", "full"])
+
+    assert _summary(dry)["ghost_items_lower_bound"] is True
+    assert _summary(real)["ghost_items_lower_bound"] is False

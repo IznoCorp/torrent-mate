@@ -134,9 +134,13 @@ hold (`personalscraper/indexer/ghost_items.py`):
 A `library-index --mode full` that walked to the end applies it per disk, under
 a cap: when more than 10 % of a disk's items (`MAX_RETIRE_SHARE`) would go at
 once, none go on that disk and `indexer.ghost_items.capped` is logged with the
-count. The summary lists the retired items under `ghost_items` and the capped
-disks under `ghost_items_capped`; with `--dry-run` it lists the items that would
-go and deletes nothing. A backlog over the cap is cleared by
+count. The summary lists the retired items under `ghost_items`, the capped
+disks under `ghost_items_capped` and the disks whose pass failed (rolled back,
+logged with its traceback) under `ghost_items_failed`. With `--dry-run` it lists
+the items that would go and deletes nothing — a lower bound
+(`ghost_items_lower_bound: true`): a dry run applies no strikes nor
+soft-deletes, so an item whose last live files this very run would tombstone is
+not listed yet. A backlog over the cap is cleared by
 `library-retire-ghost-items`, which applies every other guard with no cap.
 `media_release` rows are never deleted on their own.
 
