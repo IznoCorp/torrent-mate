@@ -426,6 +426,22 @@ def _merge_external_ids(existing_json: str | None, incoming_json: str | None) ->
     return json.dumps({**existing, **incoming})
 
 
+def _same_work(owner: MediaItemRow, row: MediaItemRow) -> bool:
+    """Return whether *row* may update *owner*: same kind and year-compatible.
+
+    Year-compatible is the rule of :func:`get_by_title_kind_year`: equal, or
+    either side unknown.
+
+    Args:
+        owner: The stored row.
+        row: The incoming row.
+
+    Returns:
+        ``True`` when both describe the same work.
+    """
+    return owner.kind == row.kind and (owner.year is None or row.year is None or owner.year == row.year)
+
+
 def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, existing_id: int | None = None) -> int:
     """Insert or update a :class:`MediaItemRow`, deduplicating on ``(title, kind, year)``.
 
@@ -452,7 +468,9 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, existing_id: int | No
     one. Matching by title alone split a folder in two whenever the stored
     title had drifted (a year-suffixed title written by the dispatch re-index):
     the year-stripped lookup missed it and a second row was inserted on the
-    same ``dispatch_path``.
+    same ``dispatch_path``. The owner is reused only when it is the same work
+    (same kind, year-compatible): a remake sharing the path with its original
+    falls back to the title lookup rather than overwrite the other row.
 
     Args:
         conn: Open SQLite connection.
@@ -460,13 +478,27 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, existing_id: int | No
             ``title`` may carry a trailing `` (YYYY)`` suffix which will be
             stripped before storage.  ``year`` disambiguates same-title remakes.
         existing_id: PK of the row to update, bypassing the title lookup;
-            ``None`` (or an id that no longer exists) keeps the title lookup.
+            ``None``, an id that no longer exists, or a row of another kind or
+            another explicit year keeps the title lookup.
 
     Returns:
         The ``rowid`` (= ``id``) of the inserted or updated row.
     """
     canonical = _canonical_title(row.title)
     existing = get_by_id(conn, existing_id) if existing_id is not None else None
+    if existing is not None and not _same_work(existing, row):
+        # The folder's owner is another work (another kind, or a remake with
+        # another explicit year sharing the path): updating it would overwrite
+        # that row with this one. The title lookup below decides instead.
+        log.info(
+            "indexer.item.folder_owner_mismatch",
+            owner_id=existing.id,
+            owner_kind=existing.kind,
+            owner_year=existing.year,
+            kind=row.kind,
+            year=row.year,
+        )
+        existing = None
     if existing is not None and existing.title != canonical:
         # OR IGNORE: a row already holding the canonical (title, kind, year) is
         # a duplicate the merge command resolves; the update must not fail.

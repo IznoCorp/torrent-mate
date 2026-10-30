@@ -10,6 +10,7 @@ Focuses on behaviors not covered by the round-trip tests in test_schema.py:
 
 from __future__ import annotations
 
+import dataclasses
 import sqlite3
 import time
 from pathlib import Path
@@ -580,3 +581,57 @@ class TestUpsertUpdatePersistsDateMetadataRefreshed:
             f"UPDATE with None clobbered the existing date_metadata_refreshed: "
             f"expected {epoch} preserved, got {row_after.date_metadata_refreshed}"
         )
+
+
+# ---------------------------------------------------------------------------
+# The folder's owner — find_id_by_dispatch_path and upsert(existing_id=…)
+# ---------------------------------------------------------------------------
+
+
+def _owned_item(conn: sqlite3.Connection, title: str, kind: str, year: int | None, path: str) -> int:
+    """Insert an item carrying *path* as its ``dispatch_path``; return its id."""
+    item_id = conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, external_ids_json,"
+        " date_created, date_modified) VALUES (?, ?, ?, ?, 'movies', '{}', 1, 1)",
+        (kind, title, title, year),
+    ).lastrowid
+    conn.execute("INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)", (item_id, path))
+    return int(item_id)  # type: ignore[arg-type]
+
+
+def _incoming(title: str, kind: Literal["movie", "show"], year: int | None) -> MediaItemRow:
+    """Return the row a scan of a folder upserts."""
+    return dataclasses.replace(_make_item(kind=kind), title=title, year=year)
+
+
+@pytest.mark.parametrize(
+    ("owner_kind", "owner_year"),
+    [("show", 2019), ("movie", 1990)],
+    ids=["other_kind", "other_year"],
+)
+def test_upsert_does_not_take_over_a_folder_owner_of_another_work(
+    conn: sqlite3.Connection, owner_kind: str, owner_year: int
+) -> None:
+    """An owner of another kind or another explicit year is not the incoming work's row.
+
+    ``find_id_by_dispatch_path`` ignores the kind and takes the oldest id: reusing
+    it blindly overwrote that row with the incoming work. The title lookup decides.
+    """
+    owner = _owned_item(conn, "Dune", owner_kind, owner_year, "/m/films/Dune")
+
+    item_id = item_repo.upsert(conn, _incoming("Dune (2021)", "movie", 2021), existing_id=owner)
+
+    assert item_id != owner
+    row = conn.execute("SELECT kind, year FROM media_item WHERE id = ?", (owner,)).fetchone()
+    assert tuple(row) == (owner_kind, owner_year), "the other work's row is untouched"
+
+
+@pytest.mark.parametrize("owner_year", [2021, None], ids=["same_year", "yearless_owner"])
+def test_upsert_reuses_a_compatible_folder_owner(conn: sqlite3.Connection, owner_year: int | None) -> None:
+    """Same kind and an equal (or unknown) year: the owner is updated and its title healed."""
+    owner = _owned_item(conn, "Dune (2021)", "movie", owner_year, "/m/films/Dune (2021)")
+
+    item_id = item_repo.upsert(conn, _incoming("Dune (2021)", "movie", 2021), existing_id=owner)
+
+    assert item_id == owner
+    assert tuple(conn.execute("SELECT title FROM media_item WHERE id = ?", (owner,)).fetchone()) == ("Dune",)
