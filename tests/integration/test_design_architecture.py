@@ -18,12 +18,13 @@ class TestPackageContract:
     def test_package_name_and_version_exposed(self) -> None:
         """Package name is ``personalscraper`` and exposes a numeric ``__version__``.
 
-        Design: docs/production/architecture.md#package,
-        docs/features/git-flow/DESIGN.md § 1 (« A hotfix bumps a fourth component »).
+        Design: docs/production/architecture.md#package
         Contract: ``import personalscraper`` succeeds and exposes a
         ``__version__`` attribute matching ``X.Y.Z``, or ``X.Y.Z.N`` for a
-        hotfix into ``prod``. This is the single source of truth read by the
-        dynamic version in ``pyproject.toml``.
+        hotfix into prod (a hotfix bumps a fourth component, see
+        docs/features/git-flow/DESIGN.md), every part numeric.
+        This is the single source of truth read by the dynamic version
+        in ``pyproject.toml``.
         """
         assert personalscraper.__name__ == "personalscraper"
         version = personalscraper.__version__
