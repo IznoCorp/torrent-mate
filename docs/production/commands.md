@@ -64,45 +64,46 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 27. [`library-fix-season-counts`](#personalscraper-library-fix-season-counts) — repair `season.episode_count` drift (DEVIATION #9, invariant AP)
 28. [`library-dedup-titles`](#personalscraper-library-dedup-titles) — de-duplicate NFD/NFC media_item twins
 29. [`library-merge-duplicate-items`](#personalscraper-library-merge-duplicate-items) — merge the media_item rows sharing one dispatch_path
-30. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
-31. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
+30. [`library-retire-ghost-items`](#personalscraper-library-retire-ghost-items) — retire the items whose folder is gone, with no cap
+31. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
+32. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
 ### Library — analysis & query
 
-32. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
-33. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
-34. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
-35. [`library-report`](#personalscraper-library-report) — health statistics
-36. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
-37. [`library-search`](#personalscraper-library-search) — flex-attr query
-38. [`library-show`](#personalscraper-library-show) — pretty-print one item
-39. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
+33. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
+34. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
+35. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
+36. [`library-report`](#personalscraper-library-report) — health statistics
+37. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
+38. [`library-search`](#personalscraper-library-search) — flex-attr query
+39. [`library-show`](#personalscraper-library-show) — pretty-print one item
+40. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
 
 ### Trailers
 
-40. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
-41. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
-42. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
-43. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
-44. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
+41. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
+42. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
+43. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
+44. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
+45. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
 ### Config — sub-commands
 
-45. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
+46. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
 ### Watcher — daemon (PM2)
 
-46. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
-47. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
+47. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
+48. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
 
 ### Acquisition — Follow (auto-download, PM2)
 
-48. [`follow add`](#personalscraper-follow) — follow a TV series by provider ID
-49. [`follow list`](#personalscraper-follow) — list followed series
-50. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
-51. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
-52. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
-53. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
+49. [`follow add`](#personalscraper-follow) — follow a TV series by provider ID
+50. [`follow list`](#personalscraper-follow) — list followed series
+51. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
+52. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
+53. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
+54. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
 
 ### Make targets + scheduling (appendix)
 
@@ -569,7 +570,13 @@ pass (rich `media_item` rows: title, canonical provider, seasons, artwork
 status, `item_issue` flags) as **pass 1**, then the recursive file walk
 (`media_file` / `media_stream` / `path` rows) as **pass 2**, inside a single
 invocation. No prior `library-scan` step is required (the legacy two-step
-"scan then index" workflow is gone).
+"scan then index" workflow is gone). Both passes walk every media folder present
+on a disk, whatever its `categories` (they only decide where new media go). A
+full run that reached its end then retires the ghost items — folder gone, files
+all tombstoned — of each mounted disk, unless more than 10 % of the disk's items
+would go (`docs/production/indexer.md` « Ghost items »); the summary lists them
+under `ghost_items` (with `--dry-run`, the ones that would go) and the capped
+disks under `ghost_items_capped`.
 
 **Side effects**: `mutate BDD` (writes media_item, season, episode, item_attribute, media_file, path, scan_run, scan_event rows)
 
@@ -1176,6 +1183,46 @@ the split)
     personalscraper library-merge-duplicate-items --db /custom/path/library.db --dry-run
 
 **Related**: `library-dedup-titles`, `library-index`
+
+---
+
+## `personalscraper library-retire-ghost-items`
+
+**Purpose**: Retires the `media_item` rows whose `dispatch_path` no longer exists
+(`docs/production/indexer.md` « Ghost items »). The full scan does the same under a
+10 % per-disk cap; this command lifts the cap to clear a backlog, and keeps every
+other guard: the disk is configured and its mount confirmed, the folder is gone,
+no file of the item is live, and no `pending` / `running` item repair names it.
+Each retired item is hard-deleted after a `deleted_item` tombstone
+(`reason='dispatch_path_gone'`, JSON snapshot of the row), in one transaction per
+disk.
+
+**Side effects**: `read-only` (with `--dry-run`), `mutate DB` (otherwise)
+
+**Pipeline position**: n/a (maintenance)
+
+**Args**:
+
+- `--dry-run` : List the ghost items and why; write nothing
+- `--disk TEXT` : Only this disk label
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `dry_run` (bool)
+- `disks` (list) — per disk: `disk`, `frozen` (mount not confirmed, nothing examined),
+  `disk_items`, `ghosts` (`item_id`, `title`, `kind`, `dispatch_path`, `reason`) and
+  `kept` (`item_id`, `dispatch_path`, `reason`: `live_files` or `pending_repair`)
+- `retired` / `would_retire` (int)
+
+**Examples**:
+
+    personalscraper --format json library-retire-ghost-items --dry-run
+    personalscraper --format json library-retire-ghost-items
+    personalscraper library-retire-ghost-items --disk medias1 --dry-run
+
+**Related**: `library-index`, `library-merge-duplicate-items`
 
 ---
 

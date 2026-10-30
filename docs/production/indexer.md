@@ -111,13 +111,40 @@ kept with distinct `media_file` rows; the collision is logged as
 A file that is not found on disk across **N consecutive scan generations** (N is
 configurable via `indexer.json5: scan.n_strikes_for_softdelete`, default 3)
 receives a soft-delete tombstone (`deleted_at` set, `deleted_item` row inserted).
-The `media_item` and `media_release` rows are **never automatically deleted**;
-only `media_file` rows are soft-deleted. A human-readable `reason` is stored in
-`deleted_item.reason`.
+Only `media_file` rows are soft-deleted. A human-readable `reason` is stored in
+`deleted_item.reason`. A file a later scan sees again is resurrected: any write
+of the walk (full, quick or incremental) sets `deleted_at` back to NULL and
+`miss_strikes` to 0.
+
+### Ghost items
+
+A `media_item` is retired — hard-deleted, its children going with it by
+`ON DELETE CASCADE`, after a `deleted_item` tombstone (`kind='item'`,
+`reason='dispatch_path_gone'`, a JSON snapshot of the row) — when all of these
+hold (`personalscraper/indexer/ghost_items.py`):
+
+- its `dispatch_path` lies on a configured disk whose mount is confirmed
+  (`should_apply_drift_for_disk` over a live `verify_disk_mounted`);
+- that folder no longer exists;
+- none of its files is live (all tombstoned, or none at all). An item whose
+  folder vanishes therefore retires only after the file strikes have tombstoned
+  its files — the same N full scans a file waits;
+- no `pending` / `running` `repair_queue` row (`scope='item'`) names it.
+
+A `library-index --mode full` that walked to the end applies it per disk, under
+a cap: when more than 10 % of a disk's items (`MAX_RETIRE_SHARE`) would go at
+once, none go on that disk and `indexer.ghost_items.capped` is logged with the
+count. The summary lists the retired items under `ghost_items` and the capped
+disks under `ghost_items_capped`; with `--dry-run` it lists the items that would
+go and deletes nothing. A backlog over the cap is cleared by
+`library-retire-ghost-items`, which applies every other guard with no cap.
+`media_release` rows are never deleted on their own.
 
 ### Hard-delete exceptions (SH-4 audit — 2026-05-23)
 
-The only two `DELETE FROM media_item` sites in production code are both justified:
+Besides the ghost retirement above and the `library-merge-duplicate-items`
+merge (both leave a `deleted_item` tombstone), two `DELETE FROM media_item`
+sites exist in production code, both justified:
 
 1. **`item_repo.delete()`** — Test-only utility (zero production callers). Used
    exclusively by test fixtures that insert rows and must clean them up.
@@ -392,6 +419,10 @@ Each transition is triggered by a specific scanner mode or maintenance command.
         | after N strikes (default 3, configurable per-disk)
         v
     tombstoned  (deleted_at set; deleted_item row inserted; file row kept for audit)
+        |
+        | (the file is seen again by any scan)
+        v
+    verified    (deleted_at NULL, miss_strikes 0: resurrected)
 
 Sites in code:
 
@@ -400,14 +431,16 @@ Sites in code:
 - `linked` → `verified` : `personalscraper/indexer/scanner/_walker.py` (mode=full)
 - `verified` → `missed` : `personalscraper/indexer/drift.py::mark_missed_files`
 - `missed` → `tombstoned` : `personalscraper/indexer/drift.py::apply_soft_deletes`
+- `tombstoned` → `verified` : the walk's upsert (`personalscraper/indexer/scanner/_db_writes.py`)
+  and the incremental visitor (`personalscraper/indexer/scanner/_modes/incremental.py`)
 
 A `library-reconcile` run inspects the entire chain and flags inconsistencies
 (e.g. a `linked` row whose `release_id` no longer exists in `media_release`).
 
 The `media_file.miss_strikes` counter is a soft-delete guard: a single missed
 scan must not tombstone, since macFUSE / NTFS can briefly hide files during a
-remount or directory listing. The counter is reset to 0 the moment the file
-is observed again.
+remount or directory listing. The counter is reset to 0, and a tombstone lifted,
+the moment the file is observed again: the walk itself proves it is there.
 
 ---
 
