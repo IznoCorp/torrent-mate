@@ -239,6 +239,8 @@ def _seed_disk_and_file(
     strikes: int,
     stale_tier1: bool,
     deleted_at: int | None = None,
+    filename: str = "Movie.mkv",
+    store_oshash: bool = False,
 ) -> tuple[Any, int]:
     """Create a real file under *mount* and a row for it carrying *strikes*.
 
@@ -250,14 +252,19 @@ def _seed_disk_and_file(
             with the file on disk, so the visitor takes its drift branches
             instead of the cheap generation-only one.
         deleted_at: Tombstone epoch to seed on the row, ``None`` for a live row.
+        filename: Name of the file; a non-video suffix gets no oshash.
+        store_oshash: When ``True`` the row carries the file's real oshash, so a
+            tier-1 mismatch is judged metadata drift only.
 
     Returns:
         ``(disk_row, file_id)``.
     """
+    from personalscraper.indexer import fingerprint
     from personalscraper.indexer.repos import disk_repo
 
-    file_path = Path(mount) / "Movie.mkv"
+    file_path = Path(mount) / filename
     file_path.write_bytes(b"V" * 4096)
+    oshash = fingerprint.oshash(file_path) if store_oshash else None
     stat_result = file_path.stat()
 
     disk_id: int = conn.execute(
@@ -277,8 +284,8 @@ def _seed_disk_and_file(
         " release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,"
         " oshash, xxh3_partial, xxh3_full, scan_generation,"
         " last_verified_at, enriched_at, miss_strikes, deleted_at"
-        ") VALUES (NULL, ?, 'Movie.mkv', ?, ?, ?, NULL, NULL, NULL, 1, ?, NULL, ?, ?)",
-        (path_id, size, mtime, stat_result.st_ctime_ns, int(time.time()), strikes, deleted_at),
+        ") VALUES (NULL, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, ?, NULL, ?, ?)",
+        (path_id, filename, size, mtime, stat_result.st_ctime_ns, oshash, int(time.time()), strikes, deleted_at),
     ).lastrowid  # type: ignore[assignment]
     return disk_row, file_id
 
@@ -338,6 +345,59 @@ def test_an_incremental_scan_resurrects_a_tombstoned_file_it_sees(tmp_path: Path
 
     row = conn.execute("SELECT miss_strikes, deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
     assert (row[0], row[1]) == (0, None), f"a file incremental just saw must be live, got {tuple(row)}"
+
+
+@pytest.mark.parametrize("deleted_at", [None, 1_700_000_000], ids=["struck", "tombstoned"])
+def test_an_incremental_scan_resets_a_file_whose_metadata_alone_drifted(tmp_path: Path, deleted_at: int | None) -> None:
+    """Tier 1 disagrees but the oshash matches: the metadata-only branch is a sighting too."""
+    conn = _make_conn()
+    mount = str(tmp_path / "mnt")
+    Path(mount).mkdir()
+    disk_row, file_id = _seed_disk_and_file(
+        conn, mount, strikes=2, stale_tier1=True, deleted_at=deleted_at, store_oshash=True
+    )
+
+    _run_incremental(conn, disk_row, mount)
+
+    row = conn.execute(
+        "SELECT miss_strikes, deleted_at, size_bytes FROM media_file WHERE id = ?", (file_id,)
+    ).fetchone()
+    assert tuple(row) == (0, None, 4096), f"a file whose metadata alone drifted was seen, got {tuple(row)}"
+    assert conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0] == 0, "same content: no repair"
+
+
+@pytest.mark.parametrize("deleted_at", [None, 1_700_000_000], ids=["struck", "tombstoned"])
+def test_an_incremental_scan_resets_a_drifted_file_with_no_oshash(tmp_path: Path, deleted_at: int | None) -> None:
+    """A non-video file has no oshash: its drift branch enqueues a repair and is still a sighting."""
+    conn = _make_conn()
+    mount = str(tmp_path / "mnt")
+    Path(mount).mkdir()
+    disk_row, file_id = _seed_disk_and_file(
+        conn, mount, strikes=2, stale_tier1=True, deleted_at=deleted_at, filename="Movie.nfo"
+    )
+
+    _run_incremental(conn, disk_row, mount)
+
+    row = conn.execute("SELECT miss_strikes, deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert tuple(row) == (0, None), f"a drifted file with no oshash was seen, got {tuple(row)}"
+    assert [tuple(r) for r in conn.execute("SELECT scope, scope_id FROM repair_queue")] == [("file", file_id)]
+
+
+def test_a_full_walk_resets_and_resurrects_the_files_it_sees(tmp_path: Path) -> None:
+    """The full mode's real walk, buffered and flushed, clears the strikes and lifts the tombstone."""
+    from personalscraper.indexer.scanner._modes.full import _scan_disk_full
+
+    conn = _make_conn()
+    mount = str(tmp_path / "mnt")
+    Path(mount).mkdir()
+    disk_row, file_id = _seed_disk_and_file(conn, mount, strikes=3, stale_tier1=False, deleted_at=1_700_000_000)
+
+    _scan_disk_full(conn, disk_row, mount, [0], [0], 2, False)
+
+    row = conn.execute(
+        "SELECT miss_strikes, deleted_at, scan_generation FROM media_file WHERE id = ?", (file_id,)
+    ).fetchone()
+    assert tuple(row) == (0, None, 2), f"a file the full walk just saw must be live, got {tuple(row)}"
 
 
 def test_post_dispatch_incremental_cannot_tombstone_a_file_it_just_saw(tmp_path: Path) -> None:
