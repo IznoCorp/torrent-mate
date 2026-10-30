@@ -653,25 +653,71 @@ def get_by_title_kind_year(
     return _row_to_item(row)
 
 
+def dispatch_path_key(path: str) -> str:
+    """Return the comparison key of a media folder path: NFC, then casefolded.
+
+    The dispatch writes a path NFC; an HFS+ walk reads it back NFD; the volume
+    is case-insensitive, so a case variant names the same folder. Byte-wise,
+    all three differ and the folder's owner is missed.
+
+    Args:
+        path: A ``dispatch_path`` as stored or as walked.
+
+    Returns:
+        The key two spellings of one folder share.
+    """
+    return unicodedata.normalize("NFC", path).casefold()
+
+
+def _like_skeleton(path: str) -> str:
+    r"""Return a ``LIKE`` pattern every spelling of *path* matches (``ESCAPE '\'``).
+
+    ASCII characters stay literal (``LIKE`` already folds ASCII case); each run
+    of non-ASCII characters becomes ``%``, which also covers the base letter
+    plus combining mark an NFD spelling holds. The pattern only narrows the
+    candidates: :func:`dispatch_path_key` decides.
+
+    Args:
+        path: The path looked up.
+
+    Returns:
+        The pattern.
+    """
+    parts: list[str] = []
+    for char in unicodedata.normalize("NFC", path):
+        if not char.isascii():
+            if not parts or parts[-1] != "%":
+                parts.append("%")
+        elif char in "%_\\":
+            parts.append("\\" + char)
+        else:
+            parts.append(char)
+    return "".join(parts)
+
+
 def find_id_by_dispatch_path(conn: sqlite3.Connection, dispatch_path: str) -> int | None:
     """Return the id of the item that owns a media folder, by its ``dispatch_path``.
 
     A folder is one work: the item carrying its ``dispatch_path`` is the one a
     re-scan of that folder must update. Should several rows carry it (a split
-    left by an older build), the oldest wins — the one the merge keeps.
+    left by an older build), the oldest wins — the one the merge keeps. Paths
+    compare on :func:`dispatch_path_key`, so an NFD or case variant of the
+    stored path finds its owner.
 
     Args:
         conn: Open SQLite connection.
-        dispatch_path: Absolute path of the media folder, as stored.
+        dispatch_path: Absolute path of the media folder, in any spelling.
 
     Returns:
         The owning ``media_item.id``, or ``None`` when no item carries the path.
     """
-    row = conn.execute(
-        "SELECT MIN(item_id) FROM item_attribute WHERE key = ? AND value = ?",
-        (_ATTR_DISPATCH_PATH, dispatch_path),
-    ).fetchone()
-    return int(row[0]) if row is not None and row[0] is not None else None
+    key = dispatch_path_key(dispatch_path)
+    rows = conn.execute(
+        "SELECT item_id, value FROM item_attribute WHERE key = ? AND value LIKE ? ESCAPE '\\'",
+        (_ATTR_DISPATCH_PATH, _like_skeleton(dispatch_path)),
+    ).fetchall()
+    owners = [int(row[0]) for row in rows if dispatch_path_key(str(row[1])) == key]
+    return min(owners) if owners else None
 
 
 def find_by_normalized_name(

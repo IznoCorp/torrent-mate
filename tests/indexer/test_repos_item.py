@@ -13,6 +13,7 @@ from __future__ import annotations
 import dataclasses
 import sqlite3
 import time
+import unicodedata
 from pathlib import Path
 from typing import Literal
 
@@ -635,3 +636,28 @@ def test_upsert_reuses_a_compatible_folder_owner(conn: sqlite3.Connection, owner
 
     assert item_id == owner
     assert tuple(conn.execute("SELECT title FROM media_item WHERE id = ?", (owner,)).fetchone()) == ("Dune",)
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "/m/séries/Pokémon (1997)",  # NFC, as the dispatch wrote it
+        unicodedata.normalize("NFD", "/m/séries/Pokémon (1997)"),  # NFD, as an HFS+ walk reads it
+        "/m/SÉRIES/pokémon (1997)",  # a case variant
+    ],
+    ids=["nfc", "nfd", "case"],
+)
+def test_find_id_by_dispatch_path_matches_nfc_nfd_and_case_variants(conn: sqlite3.Connection, variant: str) -> None:
+    """The folder's owner is found whatever the normalisation or the case of the path."""
+    owner = _owned_item(conn, "Pokémon", "show", 1997, "/m/séries/Pokémon (1997)")
+    _owned_item(conn, "Other", "show", 1997, "/m/séries/Pokémon (1998)")
+
+    assert item_repo.find_id_by_dispatch_path(conn, variant) == owner
+
+
+def test_find_id_by_dispatch_path_takes_like_wildcards_literally(conn: sqlite3.Connection) -> None:
+    """``%`` and ``_`` in a folder name are characters, not patterns."""
+    _owned_item(conn, "A", "movie", 2000, "/m/films/100xA")
+
+    assert item_repo.find_id_by_dispatch_path(conn, "/m/films/100%A") is None
+    assert item_repo.find_id_by_dispatch_path(conn, "/m/films/100_A") is None

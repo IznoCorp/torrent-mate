@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import unicodedata
 from pathlib import Path
 
 from personalscraper.indexer.db import apply_migrations
@@ -217,3 +218,16 @@ def test_a_movie_and_a_show_on_one_folder_are_left_alone() -> None:
 
     assert report.merged == 0 and [why for _g, why in report.skipped] == ["mixed_kinds"]
     assert conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0] == 2
+
+
+def test_an_nfd_and_a_case_variant_of_one_folder_are_one_group() -> None:
+    """The dispatch writes NFC, an HFS+ walk reads NFD, the volume ignores case: one folder."""
+    conn = _make_conn()
+    nfc = "/Volumes/Medias1/medias/séries/Pokémon (1997)"
+    old = _item(conn, "Pokémon", "show", nfc, created=100)
+    nfd = _item(conn, "Pokémon (1997)", "show", unicodedata.normalize("NFD", nfc), created=200)
+    upper = _item(conn, "POKÉMON", "show", nfc.upper(), created=300)
+
+    groups = find_duplicate_groups(conn)
+
+    assert [(g.keeper_id, set(g.duplicate_ids)) for g in groups] == [(old, {nfd, upper})]

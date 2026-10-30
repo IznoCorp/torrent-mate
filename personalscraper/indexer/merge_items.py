@@ -74,32 +74,38 @@ class MergeReport:
 def find_duplicate_groups(conn: sqlite3.Connection) -> list[DuplicateGroup]:
     """List every ``dispatch_path`` carried by more than one item.
 
+    Paths compare on :func:`~personalscraper.indexer.repos.item_repo.dispatch_path_key`
+    (NFC, casefolded).
+
     Args:
         conn: Open SQLite connection.
 
     Returns:
-        One :class:`DuplicateGroup` per shared path, ordered by path.
+        One :class:`DuplicateGroup` per shared path, ordered by the keeper's
+        path; members ordered oldest first.
     """
     rows = conn.execute(
-        "SELECT a.value, m.id, m.title, m.date_created FROM item_attribute a "
+        "SELECT a.value, m.id, m.title FROM item_attribute a "
         "JOIN media_item m ON m.id = a.item_id "
-        "WHERE a.key = ? AND a.value IN ("
-        "  SELECT value FROM item_attribute WHERE key = ? GROUP BY value HAVING COUNT(*) > 1"
-        ") ORDER BY a.value, m.date_created, m.id",
-        (item_repo._ATTR_DISPATCH_PATH, item_repo._ATTR_DISPATCH_PATH),
+        "WHERE a.key = ? ORDER BY m.date_created, m.id",
+        (item_repo._ATTR_DISPATCH_PATH,),
     ).fetchall()
-    by_path: dict[str, list[tuple[int, str]]] = {}
-    for path, item_id, title, _created in rows:
-        by_path.setdefault(str(path), []).append((int(item_id), str(title)))
-    return [
+    # Grouped on the path key, not the bytes: an NFD (HFS+ walk) or case
+    # variant of the NFC path the dispatch wrote is the same folder.
+    by_key: dict[str, list[tuple[str, int, str]]] = {}
+    for path, item_id, title in rows:
+        by_key.setdefault(item_repo.dispatch_path_key(str(path)), []).append((str(path), int(item_id), str(title)))
+    groups = [
         DuplicateGroup(
-            dispatch_path=path,
-            keeper_id=members[0][0],
-            duplicate_ids=tuple(item_id for item_id, _ in members[1:]),
-            titles=dict(members),
+            dispatch_path=members[0][0],
+            keeper_id=members[0][1],
+            duplicate_ids=tuple(item_id for _path, item_id, _title in members[1:]),
+            titles={item_id: title for _path, item_id, title in members},
         )
-        for path, members in by_path.items()
+        for members in by_key.values()
+        if len(members) > 1
     ]
+    return sorted(groups, key=lambda group: group.dispatch_path)
 
 
 def _same_signature_release(
