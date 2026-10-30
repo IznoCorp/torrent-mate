@@ -118,3 +118,15 @@ def test_season_pack_usable_nfo_is_kept(tmp_path: Path) -> None:
     """A conformant season-pack NFO is left byte-identical."""
     nfo_path = _season_pack_nfo(tmp_path, _GOOD.encode())
     assert nfo_path.read_bytes() == _GOOD.encode()
+
+
+def test_usable_multi_root_nfo_is_left_alone_without_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """The xref upgrade reads a single root: a multi-root NFO is skipped, no parse warning, file unchanged."""
+    content = (
+        "<episodedetails><title>A</title><season>1</season><episode>1</episode></episodedetails>\n"
+        "<episodedetails><title>B</title><season>1</season><episode>2</episode></episodedetails>\n"
+    ).encode()
+    with caplog.at_level("DEBUG"):
+        nfo_path, _ = _run(tmp_path, content)
+    assert nfo_path.read_bytes() == content
+    assert "xref_nfo_augment_parse_failed" not in caplog.text

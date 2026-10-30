@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.logger import get_logger
-from personalscraper.nfo_utils import is_episode_nfo_usable
+from personalscraper.nfo_utils import is_episode_nfo_usable, read_episode_nfo_roots
 from personalscraper.scraper.nfo_generator import NFOGenerator
 
 if TYPE_CHECKING:
@@ -146,7 +146,13 @@ class TvServiceNfoMixin:
                 # ``<uniqueid type=xref>`` rows now without touching
                 # the existing canonical (and never overwriting an
                 # already-present xref value).
-                self._augment_episode_nfo_with_xref(nfo_path, info)
+                #
+                # The upgrade parses a single root: a multi-episode NFO (several roots) is
+                # kept as it is, since attributing one episode's ids to it would be wrong.
+                if len(read_episode_nfo_roots(nfo_path)) > 1:
+                    log.debug("episode_nfo_xref_upgrade_skipped_multi_root", nfo=nfo_path.name)
+                else:
+                    self._augment_episode_nfo_with_xref(nfo_path, info)
                 # Still download thumbnail if NFO exists but thumb doesn't
                 self._download_episode_thumb(still_path, thumb_path, season, episode)
                 continue
