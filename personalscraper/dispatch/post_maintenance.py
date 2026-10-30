@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper._fs_utils import name_variants
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -58,17 +59,15 @@ def collect_touched_destinations(results: list) -> dict[str, set[Path]]:  # type
 
 
 def _rel_path_variants(rel_path: str) -> set[str]:
-    """Return the NFC and NFD spellings of *rel_path* (macFUSE stores NFD).
+    """Return every stored spelling of *rel_path*: NFC/NFD (macFUSE stores NFD) × « ? »/U+F025.
 
     Args:
         rel_path: A path string relative to a disk mount.
 
     Returns:
-        The distinct normalization variants (1 or 2 strings).
+        The distinct spellings.
     """
-    import unicodedata
-
-    return {unicodedata.normalize("NFC", rel_path), unicodedata.normalize("NFD", rel_path)}
+    return name_variants(rel_path)
 
 
 def _invalidate_dispatched_subtrees(config: Config, destinations: dict[str, set[Path]]) -> int:
