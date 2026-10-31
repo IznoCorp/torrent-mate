@@ -978,6 +978,31 @@ class TestDeletePermitConsultFailOpen:
         assert result.skipped_by_obligation == 0
 
 
+class TestCleanFrozenDisk:
+    """library-clean reaches a disk's existing media whatever its ``categories``."""
+
+    def test_the_frozen_disks_media_folders_are_cleaned(self, tmp_path: Path) -> None:
+        """The defect: junk in the film and series of a disk frozen to audiobooks was never seen."""
+        from tests._frozen_disk import frozen_disk_config, seed_frozen_library  # noqa: PLC0415
+
+        library = seed_frozen_library(tmp_path)
+        result = clean_library(frozen_disk_config(tmp_path), apply=False, only="junk")
+
+        assert any(str(library.movie_dir / ".DS_Store") in detail for detail in result.details)
+        assert any(str(library.show_dir / ".DS_Store") in detail for detail in result.details)
+        assert (library.movie_dir / ".DS_Store").exists()  # dry-run deletes nothing
+
+    def test_apply_cleans_the_frozen_disk(self, tmp_path: Path) -> None:
+        """``--apply`` removes the junk on the frozen disk."""
+        from tests._frozen_disk import frozen_disk_config, seed_frozen_library  # noqa: PLC0415
+
+        library = seed_frozen_library(tmp_path)
+        clean_library(frozen_disk_config(tmp_path), apply=True, only="junk")
+
+        assert not (library.movie_dir / ".DS_Store").exists()
+        assert not (library.show_dir / ".DS_Store").exists()
+
+
 class TestPreprodGuard:
     """In a sandbox (staging or dev) the cleaner deletes only inside its own marked, mounted roots."""
 

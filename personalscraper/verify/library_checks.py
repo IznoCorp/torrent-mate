@@ -279,6 +279,8 @@ def validate_library(
     Returns:
         LibraryValidationResult with per-item validation status.
     """
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk
+
     patterns = NamingPatterns()
     checker = MediaChecker(patterns, config)
     items: list[ValidationItem] = []
@@ -294,15 +296,10 @@ def validate_library(
             log.warning("library_validate_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
-        for category_id in disk.categories:
+        # A disk's ``categories`` gate where NEW media go, not what exists on it: walk
+        # every video category folder present, as the scan does.
+        for category_id, category_dir in _category_dirs_on_disk(config, disk):
             if category_filter and category_id != category_filter:
-                continue
-
-            # Resolve physical folder name from config
-            cat_cfg = config.category(category_id)
-            category_dir = disk.path / cat_cfg.folder_name
-            if not category_dir.is_dir():
-                log.debug("library_validate_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
 
             is_series = category_id in TV_CATEGORY_IDS

@@ -12,10 +12,13 @@ knows a name written on NTFS by macFUSE carries U+F025 where the real name has �
 from __future__ import annotations
 
 import unicodedata
+from typing import Literal
 
 #: macFUSE maps the characters NTFS forbids into the private-use block; « ? » (U+003F)
 #: becomes U+F025. A name copied off such a disk keeps it on HFS+/APFS.
 NTFS_QUESTION_MARK = "\uf025"
+
+_NORMALIZATION_FORMS: tuple[Literal["NFC", "NFD"], ...] = ("NFC", "NFD")
 
 
 def is_apple_double(name: str) -> bool:
@@ -77,4 +80,4 @@ def name_variants(name: str) -> set[str]:
     """
     folded = fold_ntfs_question_mark(name)
     spellings = {name, folded, folded.replace("?", NTFS_QUESTION_MARK)}
-    return {unicodedata.normalize(form, spelling) for spelling in spellings for form in ("NFC", "NFD")}
+    return {unicodedata.normalize(form, spelling) for spelling in spellings for form in _NORMALIZATION_FORMS}
