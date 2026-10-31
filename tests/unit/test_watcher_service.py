@@ -861,10 +861,20 @@ class TestActiveDownloadPredicate:
         ["downloading", "stalledDL", "metaDL", "queuedDL", "forcedDL", "checkingDL", "downloading (slow)"],
     )
     def test_an_unfinished_active_torrent_counts(self, state: str) -> None:
-        """Tout ce qui n'est pas fini et n'est pas arrêté compte comme en cours."""
+        """With its speed unknown (``None``), an unfinished non-inert torrent still counts.
+
+        ``None`` is what a client that does not report a speed (Transmission) gives: the
+        predicate cannot tell it is stalled, so it keeps the old count.
+        """
         from personalscraper.commands.watch import _is_actively_downloading
 
-        assert _is_actively_downloading(self._item(state, 0.42)) is True
+        assert _is_actively_downloading(self._item(state, 0.42, download_speed=None)) is True
+
+    def test_a_queued_torrent_at_zero_speed_does_not_count(self) -> None:
+        """A queued torrent reporting a 0 B/s speed is not advancing, so it does not count."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item("queuedDL", 0.0, download_speed=0)) is False
 
     @pytest.mark.parametrize("state", ["pausedDL", "stoppedDL", "paused", "stopped", "error", "missingFiles", "moving"])
     def test_a_stopped_or_broken_torrent_never_counts(self, state: str) -> None:

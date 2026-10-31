@@ -261,9 +261,11 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
       ``stalledDL`` at 0 % with no source) would otherwise return IDLE on every cycle,
       before the safety net is reached, and hold the pipeline back indefinitely.
 
-    Anything else that is unfinished counts, including a queued download or one whose
-    speed is unknown (``None``): it may still complete, and the operator asked to wait
-    for the batch to be over.
+    A queued or checking torrent (``queuedDL``, ``checkingDL``, often ``metaDL``) reports a
+    speed of 0 and so does not count either: it is not advancing. A speed of ``None``
+    means the client did not report one (Transmission does not). That case keeps the
+    old count: anything unfinished and not inert counts, since it may still complete,
+    and the operator asked to wait for the batch to be over.
 
     Args:
         item: A torrent as reported by the client.
