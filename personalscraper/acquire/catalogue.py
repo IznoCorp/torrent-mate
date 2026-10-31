@@ -26,7 +26,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Protocol
 
-from personalscraper.acquire.errors import AcquireLockError, AcquireMigrationError
+from personalscraper.acquire.errors import AcquireCorruptError, AcquireLockError, AcquireMigrationError
 from personalscraper.acquire.store import _MIGRATION_LOCK_TIMEOUT_S, _OPEN_DB_ERROR_FACTORIES
 from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails
 from personalscraper.core.sqlite import apply_migrations, db_lock, open_db
@@ -45,6 +45,9 @@ _PROVIDERS = ("tvdb", "tmdb")
 
 # How long a read-only open waits on a writer, as the delete permit's read does.
 _READ_TIMEOUT_S = 5.0
+
+# What SQLite says of a file that is not a database (the writable open path matches the same).
+_CORRUPT_SIGNALS = ("malformed", "file is not a database", "not a database")
 
 
 @dataclass(frozen=True)
@@ -134,7 +137,14 @@ class CatalogueStore:
         if self._conn is None:
             if not self._db_path.is_file():
                 return None
-            conn = sqlite3.connect(f"{self._db_path.as_uri()}?mode=ro", uri=True, timeout=_READ_TIMEOUT_S)
+            # The v1 web serves its routes from a thread pool, so the cached connection must not be
+            # bound to the thread that opened it (as open_db does for the writable path).
+            conn = sqlite3.connect(
+                f"{self._db_path.resolve().as_uri()}?mode=ro",
+                uri=True,
+                timeout=_READ_TIMEOUT_S,
+                check_same_thread=False,
+            )
             conn.execute("PRAGMA query_only = ON")
             self._conn = conn
         return self._conn
@@ -225,6 +235,10 @@ class CatalogueStore:
         Returns:
             The episodes ordered by season then episode, ``[]`` for a fetched show
             with none, and ``None`` when the show was never fetched.
+
+        Raises:
+            AcquireCorruptError: On a read-only store, if ``acquire.db`` is malformed (the
+                file is left as found).
         """
         key = (provider, provider_id)
         if self._read_only:
@@ -233,9 +247,12 @@ class CatalogueStore:
                 return None
             try:
                 return self._read_episodes(conn, key)
-            except sqlite3.OperationalError as exc:
-                if "no such table" in str(exc):
+            except sqlite3.DatabaseError as exc:
+                if isinstance(exc, sqlite3.OperationalError) and "no such table" in str(exc):
                     return None  # a store older than migration 026 holds no catalogue
+                if any(signal in str(exc) for signal in _CORRUPT_SIGNALS):
+                    # Read-only never quarantines: nothing was moved, so the file is its own "quarantine" path.
+                    raise AcquireCorruptError(self._db_path, self._db_path) from exc
                 raise
         return self._read_episodes(self._ensure_open(), key)
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -426,3 +427,48 @@ class TestReadOnly:
         with pytest.raises(CatalogueReadOnlyError):
             reader.due(NOW)
         assert not path.exists()
+
+    def test_a_populated_wal_store_reads_through_the_read_only_store(self, tmp_path: Path) -> None:
+        """A store the writable path built (WAL) reads once closed; a never-fetched show still reads None."""
+        path = tmp_path / "acquire.db"
+        writer = CatalogueStore(path)
+        writer.replace_show("tvdb", "1", "Continuing", [_ep(1, 1), _ep(1, 2)], NOW)
+        writer.close()
+        reader = CatalogueStore.read_only(path)
+        assert reader.episodes("tvdb", "1") == [_ep(1, 1), _ep(1, 2)]
+        assert reader.episodes("tvdb", "never") is None
+        reader.close()
+
+    def test_a_connection_opened_in_one_thread_reads_in_another(self, tmp_path: Path) -> None:
+        """The web serves routes from a thread pool: the cached read connection is not thread-bound."""
+        path = tmp_path / "acquire.db"
+        writer = CatalogueStore(path)
+        writer.replace_show("tvdb", "1", "Continuing", [_ep(1, 1)], NOW)
+        writer.close()
+        reader = CatalogueStore.read_only(path)
+        assert reader.episodes("tvdb", "1") == [_ep(1, 1)]
+        outcome: list[object] = []
+
+        def read_again() -> None:
+            try:
+                outcome.append(reader.episodes("tvdb", "1"))
+            except Exception as exc:  # noqa: BLE001 - the assertion below reports it
+                outcome.append(exc)
+
+        thread = threading.Thread(target=read_again)
+        thread.start()
+        thread.join()
+        reader.close()
+        assert outcome == [[_ep(1, 1)]]
+
+    def test_a_malformed_file_raises_the_acquire_error_and_is_left_untouched(self, tmp_path: Path) -> None:
+        """Read-only reports corruption as the writable path does, but never quarantines nor rewrites the file."""
+        path = tmp_path / "acquire.db"
+        garbage = b"this is not a sqlite database" * 100
+        path.write_bytes(garbage)
+        reader = CatalogueStore.read_only(path)
+        with pytest.raises(AcquireCorruptError):
+            reader.episodes("tvdb", "1")
+        reader.close()
+        assert path.read_bytes() == garbage
+        assert [p.name for p in tmp_path.iterdir()] == ["acquire.db"]
