@@ -89,6 +89,18 @@ class TestTorrentItemMapping:
         mock.eta = 720
         assert _torrent_item(mock).eta_seconds == 720
 
+    def test_dlspeed_maps_to_download_speed(self) -> None:
+        """Map qBit `dlspeed` (bytes/s) onto TorrentItem.download_speed, a genuine 0 included."""
+        mock = MagicMock()
+        mock.dlspeed = 1_500_000
+        assert _torrent_item(mock).download_speed == 1_500_000
+        mock.dlspeed = 0
+        assert _torrent_item(mock).download_speed == 0
+
+    def test_dlspeed_absent_or_non_numeric_is_none(self) -> None:
+        """Duck-typed junk degrades to unknown, never to a false 0."""
+        assert _torrent_item(MagicMock()).download_speed is None
+
     def test_eta_infinity_sentinel_is_none(self) -> None:
         """8640000 is qBit's « infinity/unknown » sentinel — honest None."""
         mock = MagicMock()
