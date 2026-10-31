@@ -8,7 +8,8 @@ by the top-level ``--format`` callback.
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import typer
 
@@ -62,4 +63,4 @@ def emit(
             typer.echo(payload)
         else:
             for key, value in payload.items():
-                typer.echo(f"{key}: {value}")
+                typer.echo(f"{key}: {value}")  # french-ok: layout only, a machine-readable key: value line

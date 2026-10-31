@@ -3,6 +3,8 @@
 > Plex Media Server HTTP API — reference for `api/plex.py` (`PlexClient`) and
 > `subscribers/plex.py` (`PlexSubscriber`).
 > Scope: the post-dispatch library refresh, nothing else.
+> The plex.tv ACCOUNT side (the Plex sign-in: PIN, identity, access to this server) and
+> `PlexClient.machine_identifier()` are in [`plex-account-api.md`](plex-account-api.md).
 > Last updated: 2026-07-28
 
 ---
@@ -301,6 +303,12 @@ move to the shared transport.
   rather than as a wrong scan.
 - **Temporary sections (`097-TEMP`) are out of scope** — the staging area is not
   a Plex library.
+- **A plex.tv user's picture needs no token.** `https://plex.tv/users/<uuid>/avatar`
+  answers a 302 to the picture on `assets.plex.tv` (verified 2026-10-04 on the
+  owner's uuid: 302, then 200 `image/png`). An account linked to Plex shows that
+  address as its avatar (`personalscraper/app/accounts/avatar.py`, B-695); the
+  browser fetches it, the server never does. An unknown uuid answers plex.tv's
+  generic picture rather than a 404.
 
 ---
 

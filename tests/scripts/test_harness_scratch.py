@@ -21,9 +21,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from _repo_paths import HARNESS
 
 ROOT = Path(__file__).resolve().parents[2]
-HARNESS = ROOT / "frontend" / "maquette" / "harness"
 
 
 def load(name: str):

@@ -43,10 +43,10 @@ from personalscraper.acquire.service import (
     RunSummary,
 )
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 
 @pytest.fixture
@@ -635,7 +635,7 @@ def test_section_11d_crash_window_never_double_emits_grab_succeeded(store: Concr
         item: WantedItem,
         profile: object,
         *,
-        on_intent: "Callable[[str], None] | None" = None,
+        on_intent: Callable[[str], None] | None = None,
         exclude_hashes: object = frozenset(),
     ) -> GrabOutcome:
         # Mirrors the real orchestrator: reserve the intent hash (M9/D2) BEFORE
@@ -845,7 +845,7 @@ def test_resolve_profile_follow_lookup_passes_floor_to_orchestrator(store: Concr
         item: WantedItem,
         profile: QualityProfile,
         *,
-        on_intent: "Callable[[str], None] | None" = None,
+        on_intent: Callable[[str], None] | None = None,
         exclude_hashes: object = frozenset(),
     ) -> GrabOutcome:
         captured["profile"] = profile

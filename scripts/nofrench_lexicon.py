@@ -21,9 +21,9 @@ import re
 import subprocess
 import unicodedata
 from pathlib import Path
+from _repo_paths import MAQUETTE
 
 ROOT = Path(__file__).resolve().parent.parent
-MAQUETTE = ROOT / "frontend" / "maquette"
 
 
 def maquette_servers():
@@ -43,7 +43,6 @@ def maquette_servers():
         Every `*.py` directly under the maquette root, in a stable order.
     """
     return sorted(walk(MAQUETTE, "*.py", recursive=False))
-VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
 SHELL = MAQUETTE / "design" / "src"
 HARNESS = MAQUETTE / "harness"
 REGIONS = MAQUETTE / "regions.json"
@@ -102,7 +101,7 @@ FRENCH_TOKENS = {
     # English too, and a gate that flagged them would teach its reader to stop
     # believing it.
     "actifs", "anneau", "apparence", "apparences", "bordees", "calque",
-    "candidats", "cherche", "chercher", "circulaire", "combien", "controle",
+    "candidats", "cherche", "circulaire", "combien", "controle",
     "coupables", "couverture", "denominateur", "depuis", "dessin", "faits",
     "frise", "lignes", "maintenant", "masquables", "masquer", "mots",
     "normaliser", "numerateur", "pilotage", "plages", "prendre", "reglee",
@@ -147,7 +146,7 @@ FRENCH_FUNCTION_WORDS = {
     "aucune", "chaque", "meme", "deja", "encore", "moins", "etre", "avoir",
     "fait", "faire", "vers", "chez", "mais", "donc", "alors", "ainsi", "comme",
     "quand", "lorsque", "depuis", "entre", "sous", "trop", "rien", "jamais",
-    "toujours", "nest", "cest", "un", "aucun", "notre", "votre",
+    "toujours", "nest", "cest", "un", "notre", "votre",
 }
 # `du`, `est` and `et` are NOT here, though they are French: they are also
 # `du -sh`, EST and « et al. » — and a guardrail that flags a shell command
@@ -184,35 +183,7 @@ FROZEN_PATH_SEGMENTS = {
     # wrong rather than merely gone: its reason invoked « the operator's word
     # for the thing » without anyone having asked them. An exemption that
     # borrows an authority it never obtained is indistinguishable from an
-    # oversight. It is in `code-vocabulary.txt` now, like any other word we use.
-}
-
-# Files NOBODY WRITES. The vocabulary arm asks « is this word one we use? »,
-# and that question is about a name someone CHOSE. A generated file's names are
-# the generator's — `paths`, `webhooks`, `components`, `operations`, `$defs` are
-# the OpenAPI and JSON Schema specifications' own words, arriving through
-# `openapi-typescript`.
-#
-# THE ALTERNATIVE WAS WORSE, and it is why this is a file exemption rather than
-# five new words. Adding them to `code-vocabulary.txt` would license them as
-# names EVERYWHERE — including `defs`, which is an abbreviation the naming rule
-# refuses outright. A vocabulary widened to accommodate a generator is a
-# vocabulary that has stopped describing what this codebase writes.
-#
-# NARROW ON PURPOSE: only this arm skips these files. The arms that ask « is
-# this French? » keep reading them, so French arriving through the contract's
-# own descriptions would still be caught.
-#
-# AND IT IS NOT A HOLE SOMEONE MAY WIDEN BY HAND: the value names the command
-# that produces the file and the two checks that hold it. One regenerates it and
-# refuses any difference — the strongest proof, and it needs the generator, so
-# it runs where the generator is. The other holds it against the contract by
-# structure, needs nothing, and runs wherever this guard does. Naming only the
-# first left the exemption unproven on every machine that reads it.
-GENERATED_SOURCES = {
-    "contract/types.d.ts": (
-        "npm run generate-contract-types — from frontend/maquette/contract/openapi.json. Held two ways: `make check-contract-types` regenerates it and refuses any difference, which needs the generator and runs only where it is installed; and `scripts/check-mock-seeds.py --arm generated` holds it against the contract by structure, needs neither node nor the generator, and runs wherever the guards do — which is where THIS exemption is read."
-    ),
+    # oversight. The dictionaries carry it, and no arm refuses it any more.
 }
 
 # Declared NAMES that stay French. Kept apart from the path allowlist above on
@@ -401,8 +372,6 @@ examined: dict[str, int] = {
     "declared CSS classes / maquette": 0,
     "declared CSS classes / app": 0,
     "unread javascript / shell": 0,
-    "name words / shell": 0,
-    "keyframe names / maquette": 0,
     "data-* names / markup": 0,
     "lines / shell scripts": 0,
     "interface text / app (exempt)": 0,
@@ -410,6 +379,8 @@ examined: dict[str, int] = {
     "string literals / tests": 0,
     "custom-property names / css": 0,
     "arms / self-description": 0,
+    "string literals / backend": 0,
+    "sink candidates / backend": 0,
 }
 
 # Counted, reported, and deliberately NOT refused. An exemption nobody counts
@@ -428,11 +399,11 @@ def scope_of(path: Path) -> str:
         itself rather than hidden inside a large total.
     """
     where = relative(path)
-    if where.startswith("frontend/maquette/design/src"):
+    if where.startswith("webui/design/src"):
         return "shell"
-    if where.startswith("frontend/maquette/harness"):
+    if where.startswith("webui/harness"):
         return "harness tools" if path.suffix == ".mjs" else "harness"
-    if where.startswith("frontend/maquette/"):
+    if where.startswith("webui/"):
         return "servers"
     if where.startswith("frontend/src"):
         return "app"
@@ -445,6 +416,7 @@ def scope_of(path: Path) -> str:
 
 
 DICTIONARY_EXCEPTIONS: dict[str, str] = {
+    "px": "the CSS pixel unit (`--space-px`), not a French word",
     "api": "the interface, everywhere",
     "apis": "plural of the above",
     "conf": "configuration, abbreviated",
@@ -525,23 +497,39 @@ def offending_string(body: str, quoting_allowed: bool = False) -> str:
     return ""
 
 
-def vocabulary() -> set[str]:
-    """Returns the words this codebase's names are built from.
+def french_only(words: set[str]) -> set[str]:
+    """Returns the words, among these, that French knows and English does not.
 
-    Until L13r (`@13a66a35b`) this also carried a `debt_only` reading, the
-    words below a banner naming them French on purpose and owed by the
-    engine alone — `check_french_debt`'s arm. The engine and the banner are
-    both gone; the whole vocabulary is now everyone's to borrow.
+    THE ONE QUESTION every name arm asks: « is this word French? », answered by
+    `aspell` — an oracle nobody here wrote — and not by a list of the words this
+    codebase uses. That list refused every new English word (`interface`,
+    `dispose`, `folded`) and caught no French one in its last four days, so the
+    arms that read it ask the dictionary now. A word both languages know
+    (`corps`, `page`) is invisible to it: that limit is recorded in
+    `nofrench_dictionary.py`, and the token list of arm 2 still sees the
+    commonest ones.
+
+    Answers are cached by word, so an arm that asks once per file pays the two
+    `aspell` runs only for the words it has not asked about before.
+
+    Args:
+        words: Lower-cased words.
 
     Returns:
-        The set of words, lower-cased.
+        The French-only words among them, the dictionary arm's exceptions removed.
+        Empty when `aspell` is absent, which `dictionary_suspects` says aloud.
     """
-    words = set()
-    for line in VOCABULARY.read_text(encoding="utf-8").splitlines():
-        if not line.strip() or line.startswith("#"):
-            continue
-        words.add(line.strip().lower())
-    return words
+    from nofrench_dictionary import dictionary_suspects  # late: it imports this module
+
+    fresh = {w for w in words if w not in _FRENCH_ONLY}
+    if fresh:
+        suspects = dictionary_suspects(fresh)
+        for word in fresh:
+            _FRENCH_ONLY[word] = word in suspects
+    return {w for w in words if _FRENCH_ONLY[w]}
+
+
+_FRENCH_ONLY: dict[str, bool] = {}
 
 
 # `docs/` is the ONE tree the file-name arm does not walk: dated records keep

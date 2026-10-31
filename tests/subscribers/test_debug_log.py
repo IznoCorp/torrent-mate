@@ -54,7 +54,7 @@ def test_debug_log_subscriber_subscribes_to_event_base() -> None:
     sub = DebugLogSubscriber(bus)
 
     # The subscription token's event_type is exactly Event (MRO walk does the rest).
-    assert sub._token.event_type is Event  # noqa: SLF001
+    assert sub._token.event_type is Event
 
 
 def test_debug_log_subscriber_logs_at_debug_for_any_event(

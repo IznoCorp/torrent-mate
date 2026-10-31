@@ -27,6 +27,8 @@ from typing import Literal, cast
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
+from personalscraper.app.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
+from personalscraper.app.staging.nfo import read_nfo_metadata
 from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.indexer.destructive_journal import OP_DELETE, list_recent, record_destruction
@@ -45,12 +47,10 @@ from personalscraper.web.models.staging import (
     StagingMediaKind,
     StagingMediaResponse,
 )
-from personalscraper.web.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
 from personalscraper.web.staging.dispatch_preview import (
     build_free_space_by_id,
     preview_dispatch,
 )
-from personalscraper.web.staging.nfo import read_nfo_metadata
 from personalscraper.web.staging.read_model import (
     _title_from_folder,
     _year_from_folder,
@@ -487,11 +487,11 @@ def enqueue_staging_decision(
     # Fail-soft: a provider outage still enqueues the decision, but with
     # candidates_seeded=False so the UI shows an explicit "no automatic proposal"
     # state (+ prefilled manual search) instead of a silently empty grid.
-    from personalscraper.web.decisions.search import ProviderSearchError, search_candidates
+    from personalscraper.app.decisions.search import ProviderSearchError, search_candidates
 
     candidates_seeded = False
     try:
-        candidates = search_candidates(request, media_kind, title, year)
+        candidates = search_candidates(request.app.state.config, request.app.state.settings, media_kind, title, year)
         candidates_seeded = True
     except ProviderSearchError as exc:
         logger.warning(

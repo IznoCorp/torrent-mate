@@ -7,7 +7,7 @@
  * does not exist, and invites a trust the ranking cannot honour — the tie is
  * precisely why a human is being asked.
  *
- * Rule R57, `frontend/maquette/harness/decision.py`.
+ * Rule R57, `webui/harness/decision.py`.
  */
 
 /** The shape both decision surfaces pass in. */

@@ -12,8 +12,9 @@ chercher l'efficacité. »
 
 - `docs/reference/product-intent.md` (constitution), `operator-method.md` § 1 (principles) and
   § 3 (decisions), the lots' `DESIGN.md`: his, amended by him alone. A web PR cites the §§ it serves.
-- The maquette (`frontend/maquette/design/`) is the next version of the app and is changed FIRST;
-  what is in it is validated, the existing is the reference, new work conforms to it.
+- The maquette (`webui/design/`) is the v1 frontend, developed together with its backend
+  (product-intent § 15); what is in it is validated, the existing is the reference, new work conforms
+  to it.
 - He decides the functional; everything else goes on without him: decide, merge, promote to `main`.
   Deploying `staging` and `prod` is his (operator-method § 3, 10-01): they move on his word only. His
   feedback corrects what was expected; it enters the lot in flight, whichever lot caused it.
@@ -41,9 +42,10 @@ forces.
 
 | Step | Invocation | Who, when |
 | --- | --- | --- |
-| Promote a validated lot | `scripts/promote.sh main [<sha>]` — `develop` → `main`; refused unless every commit is a merged PR into `develop` whose required checks were green | the orchestrator, when the lot's reading passed |
+| Promote a validated lot | `scripts/promote.sh main [<sha>]` — `develop` → `main`; refused unless every commit is a merged PR into `develop` whose required checks were green (a PR listed with its reason in `scripts/promote-exemptions.txt` skips that test and is printed at each promotion; an entry is added by a PR) | the orchestrator, when the lot's reading passed |
 | Deploy the preprod | `scripts/promote.sh staging [<sha>]` — `main` → `staging`; the poller deploys it within 60 s (`tm-staging`'s `/api/version` → `staging @ <sha>`) | any session, on his word only (« passe en staging ») |
 | Deploy production | `scripts/promote.sh prod [<sha>]` — `staging` → `prod`, then the tag `v<__version__>`; refused if that tag exists | any session, on his word only (« mets en prod ») |
+| Raise the version | `scripts/promote.sh release` — when `develop`'s version is already tagged, opens the one PR into `develop` that raises it a patch (armed); otherwise says there is nothing to raise | before `promote.sh prod`, when it refuses a version already released |
 | Tag a hotfix | `scripts/promote.sh tag` — tags `prod`'s tip after a hotfix PR merged into `prod` | whoever merged the hotfix |
 | Merge a hotfix back | `scripts/promote.sh backport <c>` — `prod`'s tip merged with `develop` on `backport/<c>`, the `__version__` conflict resolved to `develop`'s plus one patch (any other conflict: it stops, pushes nothing, names the file), its PR into `develop` armed with the MERGE method | whoever merged the hotfix |
 
@@ -52,6 +54,10 @@ forces.
 `.1`, a PR into `prod` (squash, auto-merge), then `tag` and `backport <c>`. Until the backport merges,
 `promote.sh prod` refuses (not a fast-forward) — by design.
 
+Before arming a PR: `git merge-tree --write-tree origin/develop <branch>`. Clean ⇒ arm the verified
+head as it is, no rebase; a conflict ⇒ merge `develop` in. A stacked branch whose base was
+squash-merged keeps its `rebase --onto`.
+
 ## Gates
 
 | Gate | What | Time |
@@ -59,7 +65,7 @@ forces.
 | Phase | `make lint` · maquette `npm run typecheck && npm test` · pytest of the touched modules | 1–2 min |
 | Push (hook) | ruff, mypy | < 1 min |
 | Lot close | `make check`: lint, the cheap guards, frontend (typecheck, eslint, vitest, build, OpenAPI and contract-type drift) | ~2 min |
-| CI | lint, mypy, full pytest, guards + no-French, frontend, version bump, pip-audit, licenses, gitleaks; on a pull request touching the maquette, every harness rule in four shards | 1–10 min |
+| CI | lint, mypy, full pytest, guards + no-French, frontend, pip-audit, licenses, gitleaks; on a pull request touching the maquette, every harness rule in four shards; all of it again on `develop` after every merge | 1–20 min |
 
 The full pytest and the harness run on GitHub, not on IznoServer, which also serves production. A
 rule broken by an intended change is updated or deleted in the same lot. A new rule, guard or check
@@ -73,9 +79,13 @@ comes only from a defect that reached him or the product; rigour comes back when
 ## Code
 
 - Durable text in English; only his two documents are French. UI copy in
-  `frontend/maquette/design/src/i18n/fr.json`, never in code; names in English (checked in CI).
+  `webui/design/src/i18n/fr.json`, never in code; names in English (checked in CI).
 - No backward compatibility (09-29). A route change ⇒ `make openapi`, commit the generated files.
-- Conventional Commits, no version prefix, no AI attribution (`hooks/commit-msg`); patch bump per PR.
+- Conventional Commits, no version prefix, no AI attribution (`hooks/commit-msg`). A PR leaves
+  `__version__` alone; the version rises once per release (`scripts/promote.sh release`).
+- No date or hour is written from memory: briefs and memories are named by their subject,
+  state-journal lines carry no hour, a dispatch record's `opened` is left to its script; git and
+  file times give the rest.
 
 ## The machine (IznoServer)
 

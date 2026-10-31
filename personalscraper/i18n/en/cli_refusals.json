@@ -1,0 +1,81 @@
+{
+  "request": {
+    "invalid": "The request is invalid.",
+    "cross_origin": "The request came from another origin and was refused.",
+    "key_reused": "The idempotency key was already used for another request.",
+    "in_progress": "The request carrying this idempotency key is still running."
+  },
+  "route": {
+    "unknown": "No operation answers this request."
+  },
+  "internal": "The command failed unexpectedly; see the log.",
+  "auth": {
+    "required": "This needs a signed-in session.",
+    "refused": "The sign-in was refused.",
+    "plex_only": "This account signs in with Plex: it has no password here.",
+    "rate_limited": "Too many failed attempts; try again later.",
+    "access_disabled": "This account's access is cut: an Admin gives it back in Accounts."
+  },
+  "right": {
+    "missing": "The account's role lacks the right this needs.",
+    "unknown": "A right named is not one the server knows."
+  },
+  "instance": {
+    "read_only": "This instance is read-only: nothing was changed.",
+    "forbidden_write": "This instance forbids this change: nothing was changed."
+  },
+  "account": {
+    "unknown": "No account has the e-mail given as EMAIL.",
+    "email_invalid": "An account needs a name and a valid e-mail.",
+    "email_taken": "An account already has this e-mail.",
+    "admin_untouchable": "Only an Admin changes an Admin account or gives the Admin role.",
+    "last_admin": "No account would be left on the Admin role: nothing was changed.",
+    "access_admin_only": "Only an Admin cuts or gives back an account's access.",
+    "owner_access": "The server owner's access is never cut.",
+    "own_access": "An Admin cannot cut their own access.",
+    "admin_owner_only": "Only the server's owner gives the Admin role.",
+    "owner_admin": "The server owner's account never leaves the Admin role."
+  },
+  "media": {
+    "not_found": "No media answers this provider id.",
+    "ambiguous": "Several library rows or folders hold this provider id: settle the duplicate before deleting; nothing was deleted."
+  },
+  "provider": {
+    "unavailable": "A metadata provider did not answer; try again later."
+  },
+  "library": {
+    "locked": "The pipeline holds the library: try again when the run ends; nothing was deleted.",
+    "obligations_unreadable": "The seeding obligations cannot be read: nothing was deleted while what a tracker is still owed is unknown.",
+    "unavailable": "The library index (library.db) is unreadable or absent; nothing was read or changed."
+  },
+  "role": {
+    "unknown": "No role has this id.",
+    "system_immutable": "The Admin role cannot be changed.",
+    "own_role": "A manager who is not Admin cannot change their own role.",
+    "escalation": "The role would give rights your own role lacks.",
+    "name_required": "A role needs a name.",
+    "name_taken": "Another role already has this name.",
+    "in_use": "An account holds this role: it cannot be deleted.",
+    "default": "New accounts start on this role: it cannot be deleted."
+  },
+  "password": {
+    "required": "A local account needs a password.",
+    "too_short": "The password needs at least {{minimum}} characters, including an uppercase letter, a digit and a special character.",
+    "current_wrong": "The current password is wrong: nothing was changed.",
+    "held_by_cli": "The server owner's fallback password is changed with \"accounts set-password\" on the server only.",
+    "reset_admin_only": "Only an Admin resets a password; change your own from your profile.",
+    "too_weak": "The password needs at least {{minimum}} characters, including an uppercase letter, a digit and a special character: one of them is missing.",
+    "reset_own": "An Admin changes their own password from their profile, with the current one."
+  },
+  "plex": {
+    "unreachable": "plex.tv did not answer; try again later.",
+    "server_unreachable": "The Plex server did not answer; try again later.",
+    "token_refused": "plex.tv refused the sign-in; start it again.",
+    "pin_unknown": "No Plex sign-in started in this browser answers this request; start it again.",
+    "pin_expired": "The Plex sign-in expired; start it again."
+  },
+  "session": {
+    "unknown": "No session of this account holds that id.",
+    "current": "The current session is ended by signing out, not from this list."
+  }
+}

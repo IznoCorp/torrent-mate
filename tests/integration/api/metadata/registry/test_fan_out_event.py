@@ -41,6 +41,8 @@ def _build_registry(
         cb_policy_arg: Any,
         event_bus_arg: Any,
         retry_arg: Any = None,
+        *,
+        language: str = "fr-FR",
     ) -> dict[str, Any]:
         return {name: fakes[name] for name in provider_names if name in fakes}
 
@@ -54,6 +56,7 @@ def _build_registry(
         event_bus=event_bus,
         cb_policy=SimpleNamespace(),
         providers_config=providers_config,
+        language="fr-FR",
     )
 
 

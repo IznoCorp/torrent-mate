@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, computed_field, model_validator
 
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     EpisodeState,
     FollowStatus,
     derive_follow_status,
@@ -422,7 +422,7 @@ class CreateFollowRequest(BaseModel):
     year: int | None = None
 
     @model_validator(mode="after")
-    def _at_least_one_id(self) -> "CreateFollowRequest":
+    def _at_least_one_id(self) -> CreateFollowRequest:
         """Validate that at least one provider ID is provided.
 
         Returns:

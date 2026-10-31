@@ -27,7 +27,8 @@ def _canonical_env_path() -> Path | None:
     at ``<config-parent>/.env`` — while the clone's OWN root ``.env`` may lack
     some (the recurring bug: the deploy ``.env`` had no ``PLEX_TOKEN``, so the
     post-dispatch Plex refresh was silently disabled and dispatched media never
-    appeared in Plex). ``PERSONALSCRAPER_ENV_FILE`` is an explicit override.
+    appeared in Plex). ``PERSONALSCRAPER_ENV_FILE`` is an explicit override, which
+    :func:`_resolve_env_files` then loads alone.
 
     Returns:
         The canonical ``.env`` path if resolvable and present, else ``None``.
@@ -44,22 +45,67 @@ def _canonical_env_path() -> Path | None:
     return None
 
 
+def _local_env_path() -> Path:
+    """The package-root ``.env`` of this checkout.
+
+    Resolved absolutely from this module, NOT CWD-relative, so a run launched
+    from the staging dir still finds it.
+
+    Returns:
+        The path of the checkout's own ``.env`` (it may not exist).
+    """
+    return Path(__file__).resolve().parent.parent / ".env"
+
+
+def env_file_path(local: Path | None = None) -> Path:
+    """The ``.env`` file this process reads its secrets from and writes them to.
+
+    ``PERSONALSCRAPER_ENV_FILE`` when set (the preprod's whole secret set,
+    loaded alone by the package import and by :class:`Settings`), else the
+    checkout's own ``.env``. Resolved at call time, so a variable set after
+    import is honoured. The secrets surfaces (``/api/config/secrets``,
+    ``web set-password --write``) go through it: a secret written elsewhere
+    would never be loaded, and would recreate a clone ``.env`` the preprod
+    refuses to hold.
+
+    Args:
+        local: The checkout ``.env`` to fall back on; defaults to
+            :func:`_local_env_path`.
+
+    Returns:
+        The path of the env file to read and write (it may not exist).
+    """
+    override = os.environ.get("PERSONALSCRAPER_ENV_FILE")
+    if override:
+        return Path(override)
+    return local if local is not None else _local_env_path()
+
+
 def _resolve_env_files() -> tuple[str, ...]:
     """Resolve the ordered ``.env`` files pydantic-settings loads.
 
-    The package-root ``.env`` (parent of this module — resolved absolutely, NOT
-    CWD-relative, so a run launched from the staging dir still finds it) is the
-    LOCAL one. When a distinct canonical ``.env`` exists (see
-    :func:`_canonical_env_path`) it is prepended so the LOCAL file still wins for
-    every key it defines — deploy/staging keep their own values — and the
-    canonical only FILLS keys the local one omits (e.g. ``PLEX_TOKEN``).
-    pydantic-settings loads a tuple left-to-right with later files taking
-    precedence, so ``(canonical, local)`` gives exactly that.
+    An explicit ``PERSONALSCRAPER_ENV_FILE`` is loaded ALONE: it names an
+    environment's whole secret set (the preprod's ``.env-staging``), and the
+    checkout it runs from may carry another environment's ``.env`` — layering
+    that one on top would hand the preprod prod's secrets. When the named file
+    is missing nothing is loaded rather than falling back to the local one.
+
+    Otherwise the package-root ``.env`` (:func:`_local_env_path`) is the LOCAL
+    one. When a distinct canonical ``.env`` exists beside the
+    ``PERSONALSCRAPER_CONFIG`` dir (see :func:`_canonical_env_path`) it is
+    prepended so the LOCAL file still wins for every key it defines —
+    deploy/staging keep their own values — and the canonical only FILLS keys
+    the local one omits (e.g. ``PLEX_TOKEN``). pydantic-settings loads a tuple
+    left-to-right with later files taking precedence, so ``(canonical, local)``
+    gives exactly that.
 
     Returns:
         A tuple of ``.env`` paths in load order (canonical first when present).
     """
-    local = Path(__file__).resolve().parent.parent / ".env"
+    override = os.environ.get("PERSONALSCRAPER_ENV_FILE")
+    if override:
+        return (override,)
+    local = _local_env_path()
     canonical = _canonical_env_path()
     if canonical is not None and canonical.resolve() != local.resolve():
         return (str(canonical), str(local))
@@ -90,6 +136,8 @@ class Settings(BaseSettings):
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring.
         plex_url: Plex server root for the post-dispatch library refresh.
         plex_token: Plex auth token; empty disables the refresh subscriber.
+        plex_token_keys: Comma-separated Fernet keys sealing the Plex tokens a sign-in keeps
+            in ``app.db``; the first encrypts, all decrypt; empty keeps no token.
         web_password_hash: scrypt-hashed password for web UI login.
         web_jwt_secret: HS256 secret key for JWT session tokens.
     """
@@ -124,6 +172,7 @@ class Settings(BaseSettings):
     # subscriber unwired: no request is ever made and the pipeline logs once why.
     plex_url: str = "http://localhost:32400"
     plex_token: str = ""
+    plex_token_keys: str = ""
 
     # TorrentMate Web UI
     web_password_hash: str = ""
@@ -139,6 +188,7 @@ class Settings(BaseSettings):
             "telegram_bot_token",
             "healthcheck_url",
             "plex_token",
+            "plex_token_keys",
             "web_password_hash",
             "web_jwt_secret",
         }

@@ -1,0 +1,280 @@
+"""R57 — the arbitration screen, and what a decision is.
+
+A scrape decision is a FOLDER the scrape could not name. Everything on this
+screen follows from that, and every check here is one of the ways the drawing
+could quietly stop being true:
+
+  · the card's subject is the folder, set in the mono face and never cleaned
+    up — recognising what is on disk is the whole point;
+  · a decision is not a medium, so it promises neither a sheet nor a panel,
+    the same way a release candidate promises neither;
+  · the reason it is waiting is said in words, never in the engine's token;
+  · the score is printed only when it SEPARATES. « Lucky » is the case that
+    settles it: four of its five candidates came back at exactly the same
+    score, and printing it four times would suggest a ranking that does not
+    exist — which is the opposite of what the screen is asking for;
+  · there are always three ways out, and the third used to be missing: pick a
+    candidate, search by hand, or leave the folder as it is. Without the last,
+    one could only ever disagree with the machine, never agree with it;
+  · a folder with no pending decision borrows nobody's candidates. Showing
+    another folder's would be the worst possible lie on the one screen whose
+    job is to name what is on disk;
+  · and a pick takes the folder out of the queue, on BOTH lists it appears
+    on. « À traiter » on the acquisition side used to keep it forever.
+
+RE-AIMED WITH B-393: the pick is the candidate card itself, so « one can pick a
+candidate » reads `data-resolve` on each card instead of counting the sentence
+« C'est celui-ci » on a pill that no longer exists. The queue hold's `.click()`
+on the first `[data-resolve]` stays true of the card; a finger's proof of the
+tap is R161's (`resolution_card.py`).
+
+RE-AIMED OUT LOUD WITH B-578, three holds. The operator overruled B-393 on the
+POSTER only: « le comportement attendu était ouverture d'une fiche média … Comme
+pour le reste de l'app ». So a candidate's poster is the one control that opens
+a sheet (« no candidate promises a sheet or a panel » → no candidate offers a
+panel, and its sheet only from its poster); « nothing invites leaving the screen
+to decide » → nothing but the poster does (no link, one sheet door); and « one
+can pick a candidate » reads `data-resolve` on the candidate's BODY, which still
+carries the choice. RE-AIMED AGAIN WITH B-578's END, his 09-29 word « toucher
+l'affiche ou la carte d'un candidat OUVRE SA FICHE ; seul le bouton « Choisir »
+choisit »: the sheet's doors are the poster AND the body, and `data-resolve` is
+on « Choisir » alone.
+
+RE-AIMED OUT LOUD: « Suivant » is gone, so the hold that read it opening the
+next folder in place now reads its ABSENCE on a folder among several.
+
+RE-AIMED OUT LOUD, the leave half: « Laisser tel quel » means LATER (ruling 6,
+placed by ruling 16). This hold asserted that leaving a folder emptied the
+Arrivées « stuck » list — the behaviour the ruling reverses. It now walks
+« À traiter » and reads that the folder STAYS queued, set aside; R226 holds the
+rest (the folded section, its reason, the count, the panel).
+"""
+import asyncio
+
+from common import Journal, open_page, screen_arrives, browser_channel, chrome_launch_args
+from playwright.async_api import async_playwright
+
+# The engine's own words. None of them may reach a screen.
+TOKENS = ["below_threshold", "mid_band", "ambiguous", "manual", "dismissed",
+          "superseded", "resolved", "pending", "search_override", "staging_path"]
+
+_journal = None
+
+
+def check(name, condition, detail=""):
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.check(name, condition, detail)
+
+
+async def go(page, state):
+    """Asks for a named state, and holds that it exists rather than crashing.
+
+    A STATE ID THAT MOVED FALLS HERE BY NAME. Called bare, `__go` threw on an
+    unknown id and the rule died as « RULE CRASHED » — proved neither way — which
+    is what ruling 1's mutation met.
+
+    Args:
+        page: The page.
+        state: The state's id.
+    """
+    answer = await page.evaluate(
+        "(id)=>{try{window.__go(id);return null}catch(error){return String(error)}}", state)
+    check(f"the named state {state} exists", answer is None, answer or "")
+
+
+SCREEN = """() => {
+  // The arbitration screen left `#screen` for a real route
+  // (`/resolution/$folder`, rendered inside `#coquille`), so it answers to
+  // its own identity now, the way the mediaSheet and the add screen already do.
+  // The identity rather than a bare `[data-part="screen"][data-open]`: two screens can carry
+  // `open` at once, and this rule must measure THIS one. An absent screen
+  // reads as an empty one, so every check below falls on its own number —
+  // readable — instead of on a TypeError, which is not.
+  const s = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]')
+    ?? document.createElement('div');
+  const cards = [...s.querySelectorAll('[data-part="card"]')];
+  const decisions = cards.filter(c => c.dataset.nonmedia === 'decision');
+  const candidates = cards.filter(c => c.dataset.nonmedia === 'candidat');
+  return {
+    title: (s.querySelector('[data-part="heading"]') || {}).textContent || '',
+    titleMono: !!s.querySelector('[data-part="heading"] code'),
+    candidates: candidates.map(c => ({
+      title: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
+      // The pick is « Choisir » since B-578's end (the body before, the card before that).
+      resolve: (c.matches('[data-resolve]') ? c : c.querySelector('[data-resolve]'))?.dataset.resolve || null,
+      confidence: (c.querySelector('[data-part="chip"]') || {}).textContent || null,
+      posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
+      panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
+      poster: (c.querySelector('[data-part="card/poster"] img') || {}).src || null,
+      noPoster: !!c.querySelector('[data-part="card/poster"] [data-part="card/poster-fallback"]'),
+      plot: (c.querySelector('[data-part="card/overview"]') || {}).textContent || null,
+      link: c.querySelectorAll('a').length,
+      sheetDoors: [...c.querySelectorAll('[data-mediasheet]')].map((door) => door.dataset.part || door.tagName),
+    })),
+    decisions: decisions.map(c => ({
+      folder: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
+      mono: !!c.querySelector('[data-part="card/title"] code'),
+      posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
+      panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
+      chips: [...c.querySelectorAll('[data-part="chip"]')].map(x => x.textContent.trim()),
+    })),
+    exits: [...s.querySelectorAll('[data-part="sheet/action"], [data-part="card/foot"]')].map(x => x.textContent.trim()),
+    text: (s.textContent || '').replace(/\\s+/g, ' '),
+  };
+}"""
+
+
+async def main():
+    global _journal
+    _journal = Journal("R57 — the resolution screen")
+
+    async with async_playwright() as p:
+        b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
+        ctx, pg = await open_page(b)
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        await pg.evaluate("()=>window.__measure(true)")
+
+        # ── with candidates: the tie, and what it forbids ──────────────────
+        await go(pg, "acq-resolution-tie")
+        await pg.wait_for_timeout(420)
+        with_ = await pg.evaluate(SCREEN)
+
+        check("the folder is the subject, in the mono face", with_["titleMono"], with_["title"][:40])
+        check("the five real candidates are there", len(with_["candidates"]) == 5,
+              str(len(with_["candidates"])))
+        check("no candidate offers a panel, and its sheet from its poster and its body",
+              not any(c["panel"] for c in with_["candidates"])
+              and all(c["sheetDoors"] == ["card/poster", "card/body"] for c in with_["candidates"]),
+              str([c["sheetDoors"] for c in with_["candidates"]]))
+
+        # The four that tie carry no percentage; the fifth, which differs, does.
+        without_score = [c for c in with_["candidates"] if not c["confidence"]]
+        with_score = [c for c in with_["candidates"] if c["confidence"]]
+        check("the tied ones show no score", len(without_score) == 4,
+              f"{len(without_score)} without a score")
+        check("the one that stands out shows its own", len(with_score) == 1,
+              str([c["confidence"] for c in with_score]))
+        check("and the screen says why it does not rank",
+              "ne tranche pas" in with_["text"])
+
+        # A candidate wearing a neighbour's poster is the one mistake this
+        # screen cannot make: four of these five are DIFFERENT series with
+        # nearly the same name, and the picture is what tells them apart.
+        # « Lucky (2006) » was showing « Lucky (2026) »'s poster while its own
+        # line said the provider had none.
+        posters = [c["poster"] for c in with_["candidates"] if c["poster"]]
+        check("no candidate wears another's poster",
+              len(posters) == len(set(posters)),
+              f"{len(posters)} posters, {len(set(posters))} distinct")
+        # What actually separates four series with nearly the same name is what
+        # they are about. Without it, the only way to decide was to leave the
+        # screen — and leaving loses the queue.
+        check("every candidate says what it is about",
+              all(c["plot"] for c in with_["candidates"]),
+              str([c["title"] for c in with_["candidates"] if not c["plot"]]))
+        check("and nothing but the sheet's doors invites leaving the screen to decide",
+              not any(c["link"] for c in with_["candidates"]))
+        check("the one the provider does not illustrate shows the substitute",
+              sum(1 for c in with_["candidates"] if c["noPoster"]) == 1,
+              str([c["title"] for c in with_["candidates"] if c["noPoster"]]))
+
+        # ── the three ways out ────────────────────────────────────────────
+        # THE CARD IS THE PICK: each candidate card carries its own title in
+        # `data-resolve`, where this hold used to count the pill's sentence.
+        check("one can pick a candidate",
+              sum(1 for c in with_["candidates"] if c["resolve"] == c["title"]) == 5)
+        check("one can search by hand",
+              any("manuellement" in x for x in with_["exits"]))
+        check("one can leave it as it is",
+              any("Laisser tel quel" in x for x in with_["exits"]))
+
+        # ── the settled ones, and what they are ───────────────────────────
+        check("the settled decisions are recalled", len(with_["decisions"]) >= 5,
+              str(len(with_["decisions"])))
+        check("each one shows the FOLDER, in the mono face",
+              all(d["mono"] for d in with_["decisions"]))
+        check("none promises a sheet or a panel",
+              not any(d["posterButton"] or d["panel"] for d in with_["decisions"]))
+        check("each says its reason AND what became of it",
+              all(len(d["chips"]) >= 2 for d in with_["decisions"]),
+              str([d["chips"] for d in with_["decisions"]][:2]))
+
+        # ── no engine token ever reaches a screen ─────────────────────────
+        leaks = [j for j in TOKENS if j in with_["text"]]
+        check("no engine token on screen", not leaks, ", ".join(leaks))
+
+        # ── without candidates: nothing is borrowed ───────────────────────
+        await go(pg, "acq-resolution-none")
+        await pg.wait_for_timeout(420)
+        without = await pg.evaluate(SCREEN)
+        check("a folder with no decision borrows no candidate",
+              len(without["candidates"]) == 0, str(len(without["candidates"])))
+        check("it says the providers returned nothing",
+              "aucun candidat" in without["text"].lower())
+        check("and it keeps its two other ways out",
+              any("manuellement" in x for x in without["exits"])
+              and any("Laisser tel quel" in x for x in without["exits"]))
+
+        # ── a folder among several offers NO « Suivant » ──────────────────
+        # INVERTED, SAID OUT LOUD: this hold read that « Suivant » opened the
+        # next folder in place. « Suivant » is gone — every exit returns to
+        # « À traiter », whose count carries the number (R205 holds the return)
+        # — so the hold whose subject died reads its absence, never deleted.
+        await go(pg, "acq-resolution-tie")
+        await pg.wait_for_timeout(420)
+        await pg.evaluate("()=>window.__screens.resolution()")
+        await screen_arrives(pg, "resolution:")
+        standing = """()=>{const screen = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]');
+          return {key: screen ? screen.dataset.key : null,
+                  next: !!document.querySelector('[data-next]')};}"""
+        first = await pg.evaluate(standing)
+        check("a folder among several offers no « Suivant »",
+              first["key"] is not None and not first["next"], str(first))
+
+        # ── a pick empties the queue, on BOTH lists ───────────────────────
+        for state_, list_, exit_ in (
+            ("acq-resolution-tie", "blocked", "[data-resolve]"),
+        ):
+            await go(pg, state_)
+            await pg.wait_for_timeout(420)
+            before = await pg.evaluate(f"()=>(window.__queue?.().{list_}||[]).length")
+            # Without the way out there is nothing to click, and clicking
+            # nothing raises instead of naming the defect. A crash is a
+            # failure nobody can read.
+            if not await pg.evaluate("(s)=>document.querySelector(s)!==null", exit_):
+                check(f"answering empties the « {list_} » queue", False,
+                      f"{exit_} absent from the screen")
+                continue
+            await pg.evaluate("(s)=>document.querySelector(s).click()", exit_)
+            await pg.wait_for_timeout(700)
+            after = await pg.evaluate(f"()=>(window.__queue?.().{list_}||[]).length")
+            check(f"answering empties the « {list_} » queue", after == before - 1,
+                  f"{before} → {after}")
+
+        # ── « Laisser tel quel » keeps the folder queued, set aside ───────
+        await pg.evaluate("()=>window.__go('acq-todo-loaded')")
+        await pg.wait_for_timeout(420)
+        # The list « Lucky » is queued in: the staging list is not read on this tab.
+        queued = "()=>(window.__queue?.().blocked||[]).map(c=>c.title)"
+        before = await pg.evaluate(queued)
+        await pg.evaluate("""()=>document.querySelector('#view [data-part="card/foot"][data-resolution="Lucky"]')?.click()""")
+        await pg.wait_for_timeout(420)
+        tapped = await pg.evaluate("()=>{const x=document.querySelector('[data-leave]'); if(!x) return false; x.click(); return true;}")
+        await pg.wait_for_timeout(700)
+        after = await pg.evaluate(queued)
+        aside = await pg.evaluate("""()=>{const a=window.__queries?.getQueryData(["/api/v1/acquisition/to-handle",""])||{};
+          const card=(a.blocked||[]).find(c=>c.title==='Lucky');
+          return !!card && (card.ladder||[]).some(r=>r.state==='aside');}""")
+        check("« Laisser tel quel » keeps the folder queued, set aside",
+              tapped and "Lucky" in before and sorted(after) == sorted(before) and aside,
+              f"tapped {tapped}, {before} → {after}, set aside {aside}")
+
+        check("no JS error", not errors, str(errors))
+        await b.close()
+
+    _journal.summary()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

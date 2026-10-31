@@ -14,19 +14,20 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.api.torrent._base import scoped, scoped_hashes, triage_skip_reason
 from personalscraper.api.torrent._errors import (
     TorrentAuthError,
     TorrentLockoutError,
     TorrentUnreachableError,
 )
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import SeedObligationChecker
 from personalscraper.core.event_bus import EventBus, current_run_uid
 from personalscraper.core.media_types import FileType
 from personalscraper.core.provenance_port import StagingProvenanceWriter
-from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -165,7 +166,9 @@ def _verify_transfer(source: Path, dest: Path) -> bool:
     return _get_dir_size(source) == _get_dir_size(dest)
 
 
-def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: bool) -> int:
+def _sweep_ingest_orphans(
+    ingest_dir: Path, *, dry_run: bool, recover_orphans: bool, config: Config | None = None
+) -> int:
     """Sweep ``.ingest_tmp_*`` orphans via the single-owner crash-recovery sweep.
 
     Standalone ``personalscraper ingest`` (``recover_orphans=True``) owns its
@@ -177,6 +180,8 @@ def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: b
         ingest_dir: The ingest directory to sweep.
         dry_run: Whether the ingest step is a preview (sweep is SKIP-in-dry-run).
         recover_orphans: When False, boot already swept — do nothing.
+        config: Loaded configuration, naming the sandbox's roots for the sweep's guard
+            (required in a sandbox).
 
     Returns:
         Number of orphaned temp directories removed.
@@ -186,7 +191,7 @@ def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: b
     # Imported lazily to avoid a dispatch↔ingest import cycle at module load.
     from personalscraper.dispatch.crash_recovery import RootKind, SweepRoot, sweep_orphans
 
-    return sweep_orphans([SweepRoot(ingest_dir, RootKind.INGEST_DIR)], dry_run=dry_run)
+    return sweep_orphans([SweepRoot(ingest_dir, RootKind.INGEST_DIR)], dry_run=dry_run, config=config)
 
 
 def _check_disk_space(staging_dir: Path, required_bytes: int, min_free_gb: int) -> bool:
@@ -328,13 +333,15 @@ def run_ingest(
     # Resolve ingest_dir + staging_dir up-front so both the orphan-tracker
     # probe and the per-torrent transfer path use the same paths.
     resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else staging_path(config, find_ingest_dir(config))
-    resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
     resolved_staging_dir: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
+    # Sandbox guard (a no-op in prod): nothing is created, swept or moved outside its roots.
+    assert_all_within_sandbox(config, resolved_ingest_dir, resolved_staging_dir)
+    resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
     # Crash-recovery orphan sweep (single owner). Standalone ingest owns its
     # own sweep; inside a full pipeline run boot already swept
     # (``recover_orphans=False`` ⇒ no double-execution).
-    _sweep_ingest_orphans(resolved_ingest_dir, dry_run=dry_run, recover_orphans=recover_orphans)
+    _sweep_ingest_orphans(resolved_ingest_dir, dry_run=dry_run, recover_orphans=recover_orphans, config=config)
 
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured
@@ -351,8 +358,9 @@ def run_ingest(
 
     try:
         try:
-            torrents = client.get_completed()
-            active_hashes = client.get_all_hashes()
+            scope = config.torrent.active_scope()
+            torrents = scoped(client.get_completed(), scope)
+            active_hashes = scoped_hashes(client, scope)
             log.info("torrents_found", completed=len(torrents), total=len(active_hashes))
 
             tracker = IngestTracker(config.paths.data_dir / "ingested_torrents.json")
@@ -436,21 +444,20 @@ def run_ingest(
                         )
                         continue
 
-                    # Skip torrents tagged seed-pure — they were downloaded
-                    # only for ratio seeding and must never enter the media
-                    # library. This check is unconditional (no config gate).
-                    # Check order: already-ingested → ratio → seed-pure →
-                    # content resolution.
-                    # ``tags`` is read defensively (mirroring the ratio guard's
-                    # ``getattr(torrent, "ratio", None)``): a degenerate provider
-                    # response may omit the attribute, in which case the torrent
-                    # simply carries no tags and is never treated as seed-pure.
-                    torrent_tags = getattr(torrent, "tags", None) or []
-                    if SEED_PURE in torrent_tags:
+                    # Skip the torrents the triage leaves alone — unscoped, those
+                    # tagged seed-pure (downloaded only for ratio seeding); under a
+                    # scope, another instance's or untagged torrents and the own
+                    # seed-only cross-seeds (``triage_skip_reason``). They must
+                    # never enter the media library. This check is unconditional
+                    # (no config gate). Check order: already-ingested → ratio →
+                    # triage skip → content resolution.
+                    skip_reason = triage_skip_reason(torrent, scope)
+                    if skip_reason is not None:
                         log.info(
-                            "ingest.seed_pure_skipped",
+                            "ingest.seed_pure_skipped" if skip_reason == "seed_pure" else "ingest.triage_skipped",
                             name=name,
-                            tags=torrent_tags,
+                            reason=skip_reason,
+                            tags=getattr(torrent, "tags", None) or [],
                         )
                         report.skip_count += 1
                         event_bus.emit(
@@ -458,7 +465,7 @@ def run_ingest(
                                 step="ingest",
                                 item=name,
                                 status="skipped",
-                                details={"reason": "seed_pure"},
+                                details={"reason": skip_reason},
                             )
                         )
                         continue
@@ -558,6 +565,8 @@ def run_ingest(
                     force_copy = getattr(config.ingest, "force_copy", False)
                     is_copy = force_copy or client.is_seeding(torrent) or owes_seed
                     action = "copied" if is_copy else "moved"
+                    # A move purges the client's download root: judge both ends (a no-op in prod).
+                    assert_all_within_sandbox(config, source, dest)
                     success = transfer_torrent(source, dest, copy=is_copy, dry_run=dry_run)
 
                     if success:
@@ -699,7 +708,9 @@ def run_ingest(
         log.exception("ingest_qbit_unreachable", error=str(e))
         report.error_count += 1
         report.details.append(e.message)
-    except Exception as e:  # noqa: BLE001 — safety catch-all for tracker I/O and unexpected qbittorrentapi changes; preserves pipeline continuation on unknown failures
+    # safety catch-all for tracker I/O and unexpected qbittorrentapi changes; preserves pipeline continuation on
+    # unknown failures
+    except Exception as e:
         # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
         log.exception("ingest_unexpected_error", error=str(e), error_type=type(e).__name__)
         report.error_count += 1

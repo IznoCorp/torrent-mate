@@ -190,3 +190,67 @@ class TestAbsentFieldsNeverEmptyString:
             "tvdb",
         )
         assert md.director is None
+
+
+class TestTVDBCast:
+    """The cast: Actor characters, in the provider's ``sort``."""
+
+    def test_series_cast_sorted_by_sort(self) -> None:
+        """The series' actors, ordered by ``sort``, portrait from ``image``."""
+        data = _load_unwrapped("series_extended_with_episodes.json")
+        md = parse_media_details(data, "tvdb")
+        assert len(md.cast) == 14
+        assert [member.name for member in md.cast[:4]] == [
+            "Christian Constant",
+            "Cyril Lignac",
+            "Dominique Crenn",
+            "Ghislaine Arabian",
+        ]
+        # The role is the record's own ``name``, read from the capture rather than retyped.
+        record = next(char for char in data["characters"] if char["personName"] == "Ghislaine Arabian")
+        assert md.cast[3].role == record["name"]
+        assert md.cast[3].portrait_url == "https://artworks.thetvdb.com/banners/actors/295200.jpg"
+
+    def test_movie_cast_actors_only_portrait_falls_back_to_person_image(self) -> None:
+        """Directors and writers are not cast; an empty ``image`` falls back to ``personImgURL``."""
+        data = _load_unwrapped("movie_extended.json")
+        md = parse_media_details(data, "tvdb")
+        assert [member.name for member in md.cast] == [
+            "Elias Holmen Sørensen",
+            "Allan Hyde",
+            "Thorbjørn Harr",
+            "Gard B. Eidsvold",
+            "Synnøve Macody Lund",
+            "Robert Skjærstad",
+        ]
+        assert md.cast[0].role == data["characters"][0]["name"]
+        assert md.cast[1].role == "Prince Fredrik"
+        assert md.cast[0].portrait_url is None
+        assert md.cast[1].portrait_url == "https://artworks.thetvdb.com/banners/v4/actor/465388/photo/64d918c2b4d0b.jpg"
+
+    def test_no_characters_is_an_empty_cast(self) -> None:
+        """A series without characters gives an empty cast."""
+        md = parse_media_details(_load_unwrapped("series_extended.json"), "tvdb")
+        assert md.cast == []
+
+    def test_nameless_actor_dropped_missing_role_empty(self) -> None:
+        """An actor with no personName is dropped; a missing character name is an empty role."""
+        md = parse_media_details(
+            {
+                "id": 6,
+                "name": "Show",
+                "firstAired": "2020-01-01",
+                "characters": [
+                    {"peopleType": "Actor", "personName": "", "name": "Ghost", "sort": 0},
+                    {"peopleType": "Actor", "personName": "Kept", "name": None, "sort": 1},
+                ],
+            },
+            "tvdb",
+        )
+        assert [(member.name, member.role) for member in md.cast] == [("Kept", "")]
+
+    def test_trailer_name_and_language_stay_none(self) -> None:
+        """TVDB picks no trailer, so neither its name nor its language."""
+        md = parse_media_details(_load_unwrapped("movie_extended.json"), "tvdb")
+        assert md.trailer_name is None
+        assert md.trailer_language is None

@@ -22,13 +22,13 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nofrench_lexicon import (  # noqa: E402
+from nofrench_lexicon import (
     walk,
     DICTIONARY_EXCEPTIONS, FROZEN_IDENTIFIERS, HARNESS, MAQUETTE, ROOT,
     SCRIPTS, SHELL, examined, maquette_servers, read, relative,
     split_identifier,
 )
-from nofrench_scan import (  # noqa: E402
+from nofrench_scan import (
     TS_DECLARATION, python_declarations,
 )
 
@@ -36,8 +36,8 @@ def dictionary_suspects(words: set[str]) -> set[str]:
     """Returns the words French knows and English does not.
 
     AN ORACLE FROM OUTSIDE THE REPOSITORY. The other arms ask questions whose
-    answers this repository writes itself — a 199-word list of French tokens, a
-    vocabulary of allowed words — and a list is only ever as good as what
+    answers this repository writes itself — a 199-word list of French tokens —
+    and a list is only ever as good as what
     somebody thought to put in it. `aspell` was not written by anyone here, so
     it does not share this codebase's blind spots.
 
@@ -45,8 +45,9 @@ def dictionary_suspects(words: set[str]) -> set[str]:
     that is French AND English is invisible to it. `corps`, `page`, `route`,
     `image`, `message`, `note`, `cause`, `train`, `pays`, `fin`, `son` are all
     known to English, so this arm cannot see them — `corps` is live in
-    `frontend/src` today and no arm catches it. That is what the VOCABULARY arm
-    is for, and why this one is added beside it rather than in place of it.
+    `frontend/src` today and no arm catches it. The allow-list that once saw
+    such words refused every new English word too, and it is gone: this blind
+    spot is the price, accepted.
 
     Args:
         words: The lowercased words the declared names are built from.

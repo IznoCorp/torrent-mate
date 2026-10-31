@@ -70,6 +70,7 @@ from pathlib import Path
 # what a `var()` use looks like — the first copy to drift would do so in
 # silence, both halves still reporting « no violation ».
 from csstokens_patterns import COMMENT, DECLARATION, RUNTIME_PREFIX, USE
+from _repo_paths import DESIGN, DESIGN_SRC
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -83,17 +84,17 @@ SCOPE = ".tm"
 # The markup half of the prototype. The sign-in page's chunks are split across
 # both files — the CSS chunks live in the stylesheet, the markup chunks here —
 # and the composer reads both, so the arm that holds the composition must too.
-MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
+MARKUP = DESIGN / "index.html"
 
 # The base layer (D3), which L07 moved out of the fragment's BLOCK 1. It holds
 # the typeface and the reset the sign-in gate inherits, so it is a third source
 # of the composition and not merely another stylesheet.
-BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "base.css"
+BASE_LAYER = DESIGN_SRC / "styles" / "base.css"
 
 # The token layer (D3), where L07 moved the scale. It is a Tailwind `@theme`
 # block now rather than a `:root` one — the declarations between the markers
 # are unchanged, which is what lets this arm read it the same way it always did.
-THEME_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
+THEME_LAYER = DESIGN_SRC / "styles" / "theme.css"
 
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet
 # excludes the span before it counts anything: a scale that had to answer for

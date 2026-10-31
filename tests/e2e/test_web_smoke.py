@@ -25,11 +25,11 @@ import redis
 import uvicorn
 from websockets.asyncio.client import connect as ws_connect
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import event_to_envelope
 from personalscraper.indexer.events import BackfillCompleted
 from personalscraper.web.app import create_app
-from personalscraper.web.auth.passwords import hash_password
 
 # ── Test constants ────────────────────────────────────────────────────────────
 TEST_USER = "e2e_smoke_user"

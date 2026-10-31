@@ -16,7 +16,7 @@ import os
 import signal
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from personalscraper.app.pipeline_queue import reserve_queued_pipeline_run
+from personalscraper.app.pipeline_trigger import spawn_pipeline_run
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
@@ -50,8 +52,6 @@ from personalscraper.web.models.pipeline import (
     WatcherResponse,
     parse_steps_json,
 )
-from personalscraper.web.pipeline_queue import reserve_queued_pipeline_run
-from personalscraper.web.pipeline_trigger import spawn_pipeline_run
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 logger = get_logger(__name__)
@@ -464,12 +464,12 @@ def _row_to_run_summary(row: sqlite3.Row) -> RunSummary:
     Returns:
         A populated ``RunSummary``.
     """
-    started_at = datetime.fromtimestamp(row["started_at"], tz=timezone.utc).isoformat()
+    started_at = datetime.fromtimestamp(row["started_at"], tz=UTC).isoformat()
     ended_at: str | None = None
     duration_s: float | None = None
 
     if row["ended_at"] is not None:
-        ended_at = datetime.fromtimestamp(row["ended_at"], tz=timezone.utc).isoformat()
+        ended_at = datetime.fromtimestamp(row["ended_at"], tz=UTC).isoformat()
         duration_s = row["ended_at"] - row["started_at"]
 
     outcome: PipelineOutcome | None = None
@@ -627,9 +627,9 @@ def pipeline_history_detail(
             step_elapsed: float | None = None
 
             if s_start is not None:
-                step_started_at = datetime.fromtimestamp(float(s_start), tz=timezone.utc).isoformat()  # type: ignore[arg-type]
+                step_started_at = datetime.fromtimestamp(float(s_start), tz=UTC).isoformat()  # type: ignore[arg-type]
             if s_end is not None:
-                step_ended_at = datetime.fromtimestamp(float(s_end), tz=timezone.utc).isoformat()  # type: ignore[arg-type]
+                step_ended_at = datetime.fromtimestamp(float(s_end), tz=UTC).isoformat()  # type: ignore[arg-type]
             if s_start is not None and s_end is not None:
                 step_elapsed = float(s_end) - float(s_start)  # type: ignore[arg-type]
 
@@ -726,7 +726,7 @@ def _run_processed(steps_by_name: dict[str, dict[str, object]]) -> int | None:
     return best
 
 
-def _matching_split(items: "list[StagingMediaItem]") -> list[StageSplit] | None:
+def _matching_split(items: list[StagingMediaItem]) -> list[StageSplit] | None:
     """Split the Identification station's stock into actionable buckets.
 
     Args:
@@ -807,7 +807,7 @@ def pipeline_stages(request: Request) -> StagesResponse:
     # Current stock per position — the single scan every surface derives from.
     try:
         items = scan_staging_media(config, db_path, live_step=current_step)
-    except Exception:  # noqa: BLE001 — the board must render even if the scan fails.
+    except Exception:  # the board must render even if the scan fails.
         logger.warning("pipeline_stages_scan_failed", exc_info=True)
         items = []
     by_stage: dict[str, list[StagingMediaItem]] = {key: [] for key, _ in STAGE_DEFS}

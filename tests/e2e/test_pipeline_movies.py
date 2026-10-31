@@ -2,7 +2,7 @@
 
 Requires:
 - qBittorrent running and accessible (localhost:8081)
-- .torrent files in assets/torrents/ (at least one movie)
+- .torrent files in tests/e2e/golden/torrents/ (at least one movie)
 - Storage disks mounted (read-only — never modified)
 - TMDB API key configured in .env
 
@@ -54,7 +54,7 @@ class TestMovieFullPipeline:
         # Filter movie torrents (heuristic: no "S01" or "S02" in filename)
         movie_torrents = [f for f in e2e_torrent_files if not any(f"S{s:02d}" in f.name for s in range(1, 30))]
         if not movie_torrents:
-            pytest.skip("No movie .torrent files in assets/torrents/")
+            pytest.skip("No movie .torrent files in tests/e2e/golden/torrents/")
 
         from personalscraper.conf.loader import load_config, resolve_config_path
 

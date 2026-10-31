@@ -5,6 +5,7 @@ Scanner is patched to return controlled ScanItem lists.
 """
 
 import logging
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -186,7 +187,7 @@ class TestTrailersOrchestratorBasic:
             tmdb_id="550",
         )
 
-        def create_trailer_on_find(  # noqa: ARG001
+        def create_trailer_on_find(
             tmdb_id: int, media_type: str, *, title: str, year: int, season_number: int | None = None
         ) -> str:
             # Simulate trailer appearing between scan and the SOT re-check.
@@ -1273,7 +1274,7 @@ class TestYtdlpRetryRoundTrip:
         Args:
             tmp_path: Pytest tmp_path fixture for isolated state file.
         """
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
         from personalscraper.trailers.state import TrailerState, TrailerStatus, make_state_key
@@ -1324,7 +1325,6 @@ class TestYtdlpRetryRoundTrip:
         assert state_entry.attempts == 1
         assert state_entry.next_retry_at is not None
 
-        UTC = timezone.utc
         next_retry_iso = (
             state_entry.next_retry_at
             if isinstance(state_entry.next_retry_at, str)

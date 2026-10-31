@@ -16,6 +16,13 @@
 #   scripts/promote.sh prod    [<sha>] [--dry-run]   # staging → prod, then the tag v<__version__>
 #   scripts/promote.sh tag             [--dry-run]   # tags prod's tip alone (after a hotfix PR)
 #   scripts/promote.sh backport <name> [--dry-run]   # prod's tip + develop → backport/<name>, its merge PR into develop
+#   scripts/promote.sh release         [--dry-run]   # develop's version raised one patch, in its own PR into develop
+#
+# The version rises once per release, never per PR (product-intent § 10-3): a
+# pull request leaves `__version__` alone, so parallel PRs never conflict on it.
+# When develop's version is already tagged, `release` opens the one PR that
+# raises it; that PR then travels main → staging → prod like any other, and prod
+# tags it.
 #
 # <sha> defaults to the source branch's tip. A promotion is a fast-forward of
 # an EXISTING commit, pushed without --force: the branches downstream carry
@@ -27,25 +34,32 @@
 #   3. main only: every first-parent commit it brings is the merge of a PR into
 #      `develop` whose required checks (read from develop's branch rules)
 #      passed at its head — the latest run of each name, as GitHub counts it,
-#      concluded `success`, `skipped` or `neutral`; a commit with no PR is named;
+#      concluded `success`, `skipped` or `neutral`; a commit with no PR is named.
+#      Exemption: a PR listed in scripts/promote-exemptions.txt (`<number> | <reason>`,
+#      added by a PR) skips the required-checks test; each one used is printed as
+#      `promote: #<n> exempt — <reason>`, and an entry with no reason stops the script;
 #   4. prod and tag: the `__version__` at <sha> has no tag `v<version>` yet.
 #
 # `--dry-run` runs every check and prints what would move, pushing nothing.
 # GH overrides the `gh` command (its tests stub it); TM_GIT_NET_TIMEOUT bounds
-# every network git operation (60 s).
+# every network git operation (60 s); TM_PROMOTE_EXEMPTIONS points at another
+# exemption list (its tests).
 #
 set -euo pipefail
 
 GH="${GH:-gh}"
 GIT_NET_TIMEOUT="${TM_GIT_NET_TIMEOUT:-60}"
 INIT_PATH="personalscraper/__init__.py"
+# fd 3 stays promote's stdout inside the command substitutions that capture fd 1.
+exec 3>&1
+EXEMPTIONS_FILE="${TM_PROMOTE_EXEMPTIONS:-$(dirname "${BASH_SOURCE[0]}")/promote-exemptions.txt}"
 
 refuse() { printf 'promote: REFUSED — %s\n' "$*" >&2; exit 1; }
 say() { printf 'promote: %s\n' "$*"; }
 short() { git rev-parse --short "$1"; }
 
 usage() {
-  sed -n '13,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+  sed -n '13,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
   exit 2
 }
 
@@ -85,7 +99,7 @@ check_untagged() {
   version="$(version_at "$sha")"
   [ -n "$version" ] || refuse "no __version__ readable in $INIT_PATH at $(short "$sha")"
   if [ -n "$(timeout "$GIT_NET_TIMEOUT" git ls-remote --tags origin "refs/tags/v$version")" ]; then
-    refuse "tag v$version already exists on origin — $(short "$sha") carries a released version (a no-version-bump change): it ships with the next version bump to develop"
+    refuse "tag v$version already exists on origin — $(short "$sha") carries a released version: run scripts/promote.sh release, then promote its merge"
   fi
   printf '%s' "$version"
 }
@@ -113,10 +127,31 @@ for rule in json.load(sys.stdin):
 '
 }
 
+# exemption_reason <n> <list> — the reason PR <n> is exempt, or nothing. The list is
+# checked whole first, so a malformed entry stops the script whichever PR it names.
+# Ignored: a blank line, or a line whose FIRST character is `#`; an indented `#` line
+# is an entry and refuses.
+exemption_reason() {
+  local number="$1" list="$2" line num reason
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue ;; esac
+    num="$(printf '%s' "${line%%|*}" | tr -d '[:space:]')"
+    reason="$(printf '%s' "${line#*|}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    case "$num" in ''|*[!0-9]*) refuse "exemption entry « $line » in $EXEMPTIONS_FILE has no PR number" ;; esac
+    case "$line" in *'|'*) ;; *) reason="" ;; esac
+    [ -n "$reason" ] || refuse "exemption entry #$num in $EXEMPTIONS_FILE has no reason"
+    [ "$num" != "$number" ] || printf '%s' "$reason"
+  done <<<"$list"
+}
+
 # Rule 3: every first-parent commit from main's tip to <sha> is a merged PR into
 # develop whose required checks passed at its head. Prints the PR numbers.
 check_pull_requests() {
-  local from="$1" to="$2" required commit pr head missing numbers=""
+  local from="$1" to="$2" required commit pr head missing exempt exemptions numbers=""
+  [ -r "$EXEMPTIONS_FILE" ] || refuse "cannot read the exemption list $EXEMPTIONS_FILE"
+  exemptions="$(cat "$EXEMPTIONS_FILE")"
+  # Validate every entry before any PR is looked at.
+  exemption_reason 0 "$exemptions" >/dev/null || exit 1
   required="$(required_checks)" || refuse "cannot read develop's branch rules through $GH"
   [ -n "$required" ] || refuse "develop's branch rules require no status check — nothing to prove a PR passed"
   for commit in $(git rev-list --first-parent --reverse "$from..$to"); do
@@ -129,6 +164,13 @@ for pull in json.load(sys.stdin):
         break
 ' "$commit")" || refuse "cannot read the pull requests of $(short "$commit") through $GH"
     [ -n "$pr" ] || refuse "$(short "$commit") « $(git log -1 --format=%s "$commit") » is no merged PR into develop (a push that bypassed review)"
+    exempt="$(exemption_reason "${pr%% *}" "$exemptions")" || exit 1
+    if [ -n "$exempt" ]; then
+      # fd 3 is promote's stdout: this runs inside a command substitution that captures fd 1.
+      say "#${pr%% *} exempt — $exempt" >&3
+      numbers="$numbers #${pr%% *}"
+      continue
+    fi
     head="${pr#* }"
     missing="$("$GH" api "repos/{owner}/{repo}/commits/$head/check-runs?per_page=100" | python3 -c '
 import json, sys
@@ -235,11 +277,10 @@ merge_version_only() {
 # The hotfix's merge-back (DESIGN § 3.7 step 3): prod's tip merged with develop
 # on backport/<name>, then merged into develop by a MERGE commit so prod becomes
 # an ancestor of develop. Prod's X.Y.Z.1 always conflicts with develop's
-# X.Y.(Z+n) on `__version__`: the merge keeps develop's and bumps its patch, so
-# the PR carries a real bump (CI `version-bump`). Any other conflict is the
-# hand's: nothing is pushed.
+# X.Y.(Z+n) on `__version__`: the merge keeps develop's — the next release
+# raises it. Any other conflict is the hand's: nothing is pushed.
 backport() {
-  local name="$1" prod develop version bumped url
+  local name="$1" prod develop version url
   [ -n "$name" ] || usage
   printf '%s' "$name" | grep -Eq '^[A-Za-z0-9._-]+$' || refuse "backport name '$name' — letters, digits, . _ - only"
   prod="$(remote_tip prod)"
@@ -251,7 +292,6 @@ backport() {
   [ -z "$(remote_tip "backport/$name")" ] || refuse "origin/backport/$name already exists"
   version="$(version_at "$develop")"
   [ -n "$version" ] || refuse "no __version__ readable in $INIT_PATH at develop $(short "$develop")"
-  bumped="$(next_patch "$version")"
 
   # The merge is built in a throwaway worktree: the caller's checkout is never touched.
   # `tree` is global: the EXIT trap runs after this function has returned.
@@ -270,29 +310,74 @@ backport() {
         refuse "backport/$name: $file conflicts beyond __version__ — nothing pushed; merge origin/develop into prod's tip by hand and resolve it"
       fi
     done <<<"$conflicts"
-    sed "s/^__version__[[:space:]]*=.*/__version__ = \"$bumped\"/" "$INIT_PATH" >"$INIT_PATH.new"
+    sed "s/^__version__[[:space:]]*=.*/__version__ = \"$version\"/" "$INIT_PATH" >"$INIT_PATH.new"
     mv "$INIT_PATH.new" "$INIT_PATH"
     git add -A
-    git commit --quiet -m "chore($name): merge prod's hotfix back into develop, version $bumped" \
+    git commit --quiet -m "chore($name): merge prod's hotfix back into develop" \
       || refuse "backport/$name: committing the merge failed — nothing pushed"
   ) || exit 1
-  [ "$(version_at "$(git -C "$tree" rev-parse HEAD)")" = "$bumped" ] \
-    || refuse "backport/$name: the merge does not carry $bumped — nothing pushed"
+  [ "$(version_at "$(git -C "$tree" rev-parse HEAD)")" = "$version" ] \
+    || refuse "backport/$name: the merge does not carry develop's $version — nothing pushed"
 
   if $dry_run; then
-    say "dry run — would push prod $(short "$prod") merged with develop $(short "$develop") (version $version → $bumped) to backport/$name and open its merge PR into develop"
+    say "dry run — would push prod $(short "$prod") merged with develop $(short "$develop") (version $version kept) to backport/$name and open its merge PR into develop"
     return 0
   fi
   timeout "$GIT_NET_TIMEOUT" git push --quiet origin "$(git -C "$tree" rev-parse HEAD):refs/heads/backport/$name" \
     || refuse "git push origin backport/$name failed — nothing pushed"
-  say "backport/$name pushed: prod $(short "$prod") merged with develop $(short "$develop"), version $version → $bumped"
+  say "backport/$name pushed: prod $(short "$prod") merged with develop $(short "$develop"), version $version kept"
   url="$("$GH" pr create --base develop --head "backport/$name" \
     --title "chore($name): merge prod's hotfix back into develop" \
-    --body "Merge-back of prod $(short "$prod") into develop (docs/features/git-flow/DESIGN.md § 3.7). MERGE method, never squash: prod's tip must become an ancestor of develop. The __version__ conflict is resolved to develop's $version bumped to $bumped.")" \
+    --body "Merge-back of prod $(short "$prod") into develop (docs/features/git-flow/DESIGN.md § 3.7). MERGE method, never squash: prod's tip must become an ancestor of develop. The __version__ conflict is resolved to develop's $version.")" \
     || refuse "backport/$name pushed, but opening its PR failed — open it by hand: --base develop, merge method"
   "$GH" pr merge "$url" --auto --merge >/dev/null \
     || refuse "backport/$name pushed and PR $url opened, but arming auto-merge FAILED — arm it: gh pr merge $url --auto --merge"
   say "backport/$name → develop: $url, auto-merge armed (merge commit)"
+}
+
+# The release bump: develop's version raised one patch on release/<version>, in
+# its own PR into develop (squash, auto-merge). Only when develop's version is
+# already tagged — an unreleased version is released as it is.
+release() {
+  local develop version bumped branch url
+  develop="$(remote_tip develop)"
+  [ -n "$develop" ] || refuse "origin/develop does not exist"
+  version="$(version_at "$develop")"
+  [ -n "$version" ] || refuse "no __version__ readable in $INIT_PATH at develop $(short "$develop")"
+  if [ -z "$(timeout "$GIT_NET_TIMEOUT" git ls-remote --tags origin "refs/tags/v$version")" ]; then
+    say "develop carries $version, not released yet — nothing to raise; promote it as it is"
+    return 0
+  fi
+  bumped="$(next_patch "$version")"
+  branch="release/$bumped"
+  [ -z "$(remote_tip "$branch")" ] || refuse "origin/$branch already exists — its PR is the release bump"
+
+  # `tree` is global: the EXIT trap runs after this function has returned.
+  tree="$(mktemp -d)"
+  trap 'git worktree remove --force "$tree" >/dev/null 2>&1 || true; rm -rf "$tree"' EXIT
+  git worktree add --quiet --detach "$tree" "$develop" >/dev/null 2>&1 \
+    || refuse "cannot check out develop $(short "$develop") in a temporary worktree"
+  (
+    cd "$tree"
+    sed "s/^__version__[[:space:]]*=.*/__version__ = \"$bumped\"/" "$INIT_PATH" >"$INIT_PATH.new"
+    mv "$INIT_PATH.new" "$INIT_PATH"
+    git commit --quiet -am "chore(release): version $bumped" \
+      || refuse "$branch: committing the bump failed — nothing pushed"
+  ) || exit 1
+
+  if $dry_run; then
+    say "dry run — would push develop $(short "$develop") with version $version → $bumped to $branch and open its PR into develop"
+    return 0
+  fi
+  timeout "$GIT_NET_TIMEOUT" git push --quiet origin "$(git -C "$tree" rev-parse HEAD):refs/heads/$branch" \
+    || refuse "git push origin $branch failed — nothing pushed"
+  url="$("$GH" pr create --base develop --head "$branch" \
+    --title "chore(release): version $bumped" \
+    --body "The release bump (scripts/promote.sh release): develop's $version is tagged, the next release carries $bumped.")" \
+    || refuse "$branch pushed, but opening its PR failed — open it by hand: --base develop"
+  "$GH" pr merge "$url" --auto --squash >/dev/null \
+    || refuse "$branch pushed and PR $url opened, but arming auto-merge FAILED — arm it: gh pr merge $url --auto --squash"
+  say "$branch → develop: $url, auto-merge armed"
 }
 
 case "$action" in
@@ -307,5 +392,9 @@ case "$action" in
     push_tag "$tip" "$version"
     ;;
   backport) backport "$operand" ;;
+  release)
+    [ -z "$operand" ] || usage
+    release
+    ;;
   *) usage ;;
 esac

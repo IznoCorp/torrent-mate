@@ -6,7 +6,9 @@ converts VerifyResult lists to StepReport.
 
 from dataclasses import asdict
 
+from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
@@ -81,7 +83,22 @@ def run_verify(
 
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).
+
+    Raises:
+        SandboxGuardError: In a sandbox, the staging tree is outside the sandbox's marked,
+            mounted roots. Nothing is touched.
     """
+    # Sandbox guard (a no-op in prod): no write or purge outside the sandbox's own roots.
+    # The category folders are resolved only in a sandbox: in prod the guard must cost
+    # nothing and raise nothing (a production config may have no entry for a category).
+    staging = config.paths.staging_dir
+    if is_sandboxed():
+        assert_all_within_sandbox(
+            config,
+            staging,
+            staging / folder_name(find_by_file_type(config, FileType.MOVIE)),
+            staging / folder_name(find_by_file_type(config, FileType.TVSHOW)),
+        )
     # Fast-skip: no media folders to verify
     if not _has_items_to_verify(settings, config):
         log.info("verify_fast_skip")
@@ -97,7 +114,6 @@ def run_verify(
     )
 
     all_results: list[VerifyResult] = []
-    staging = config.paths.staging_dir
 
     if not tvshows_only:
         movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))

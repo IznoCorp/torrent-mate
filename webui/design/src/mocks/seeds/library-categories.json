@@ -1,0 +1,42 @@
+[
+  {
+    "id": "movies",
+    "count": 717
+  },
+  {
+    "id": "tv_shows",
+    "count": 528
+  },
+  {
+    "id": "movies_animation",
+    "count": 185
+  },
+  {
+    "id": "tv_shows_animation",
+    "count": 197
+  },
+  {
+    "id": "standup",
+    "count": 73
+  },
+  {
+    "id": "movies_documentary",
+    "count": 33
+  },
+  {
+    "id": "tv_shows_documentary",
+    "count": 33
+  },
+  {
+    "id": "anime",
+    "count": 56
+  },
+  {
+    "id": "tv_programs",
+    "count": 31
+  },
+  {
+    "id": "theater",
+    "count": 8
+  }
+]

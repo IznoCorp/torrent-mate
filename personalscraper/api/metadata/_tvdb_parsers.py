@@ -16,6 +16,7 @@ from typing import Any
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.metadata._base import (
     ArtworkItem,
+    CastMember,
     EpisodeInfo,
     MediaDetails,
     SearchResult,
@@ -284,6 +285,55 @@ def parse_artworks(artworks: list[dict[str, Any]], *, season: int | None = None)
     return items
 
 
+# -- Cast parser -------------------------------------------------------------
+
+
+def parse_cast(characters: Any) -> list[CastMember]:
+    """Map TVDB ``characters[]`` → list[CastMember], in TVDB's ``sort``.
+
+    Only ``peopleType == "Actor"`` records are cast (directors and writers
+    share the array). The portrait is the record's ``image``, else the
+    person's ``personImgURL``: the character image is empty for some actors
+    whose photo TVDB still serves. The sort is stable, so ties keep the
+    payload's position and records with no ``sort`` follow the sorted ones.
+
+    Args:
+        characters: Raw ``characters`` value of a series/movie extended response.
+
+    Returns:
+        The cast; actors without a ``personName`` are left out. Empty when TVDB
+        lists none.
+    """
+    if not isinstance(characters, list):
+        return []
+    ranked: list[tuple[float, CastMember]] = []
+    for char in characters:
+        if not isinstance(char, dict):
+            continue
+        person_type = char.get("peopleType") or char.get("personType") or ""
+        if not isinstance(person_type, str) or person_type.lower() != "actor":
+            continue
+        name = char.get("personName")
+        if not isinstance(name, str) or not name:
+            continue
+        role = char.get("name")
+        portrait = char.get("image") or char.get("personImgURL")
+        sort = char.get("sort")
+        rank = float(sort) if isinstance(sort, int) and not isinstance(sort, bool) else float("inf")
+        ranked.append(
+            (
+                rank,
+                CastMember(
+                    name=name,
+                    role=role if isinstance(role, str) else "",
+                    portrait_url=portrait if isinstance(portrait, str) and portrait else None,
+                ),
+            )
+        )
+    ranked.sort(key=lambda entry: entry[0])
+    return [member for _, member in ranked]
+
+
 # -- Media details parser ----------------------------------------------------
 
 
@@ -526,6 +576,7 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         episode_count=episode_count,
         trailer_url=trailer_url,
         creator=None,  # TVDB has no created_by — the sheet endpoint crosses TMDB
+        cast=parse_cast(characters),
     )
 
 

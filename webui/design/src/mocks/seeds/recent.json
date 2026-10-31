@@ -1,0 +1,128 @@
+[
+  {
+    "title": "On l'appelait Robin des Bois",
+    "year": 2026,
+    "kind": "movie",
+    "ids": {
+      "tmdb": "1284465",
+      "imdb": "tt32273171"
+    },
+    "poster": "assets/posters/91d3af04.webp"
+  },
+  {
+    "title": "The Bombing of Pan Am 103",
+    "year": 2025,
+    "kind": "show",
+    "ids": {
+      "tvdb": "456595",
+      "tmdb": "248226",
+      "imdb": "tt13592494"
+    },
+    "poster": "assets/posters/c2b20ac0.webp"
+  },
+  {
+    "title": "Batman Caped Crusader",
+    "year": 2024,
+    "kind": "show",
+    "ids": {
+      "tvdb": "403170",
+      "tmdb": "125909",
+      "imdb": "tt14681596"
+    },
+    "poster": null
+  },
+  {
+    "title": "Ninja Turtles",
+    "year": 2014,
+    "kind": "movie",
+    "ids": {
+      "tmdb": "98566",
+      "imdb": "tt1291150"
+    },
+    "poster": "assets/posters/a4bd5f70.webp"
+  },
+  {
+    "title": "President Curtis",
+    "year": 2026,
+    "kind": "show",
+    "ids": {
+      "tvdb": "466198",
+      "tmdb": "296756",
+      "imdb": "tt37692332"
+    },
+    "poster": "assets/posters/1d48eb5b.webp"
+  },
+  {
+    "title": "Big Chicken",
+    "year": 2026,
+    "kind": "movie",
+    "ids": {
+      "tmdb": "1728056",
+      "imdb": "tt43657327"
+    },
+    "poster": null
+  },
+  {
+    "title": "Marjorie Prime",
+    "year": 2017,
+    "kind": "movie",
+    "ids": {
+      "tmdb": "426254",
+      "imdb": "tt4978710"
+    },
+    "poster": "assets/posters/8c34a93a.webp"
+  },
+  {
+    "title": "Furious",
+    "year": 2026,
+    "kind": "show",
+    "ids": {
+      "tvdb": "468000",
+      "tmdb": "287238",
+      "imdb": "tt36303968"
+    },
+    "poster": "assets/posters/5bb49e46.webp"
+  },
+  {
+    "title": "The Hawk",
+    "year": 2026,
+    "kind": "show",
+    "ids": {
+      "tmdb": "254528",
+      "imdb": "tt27550719",
+      "tvdb": 450088
+    },
+    "poster": "assets/posters/71d10ce4.webp"
+  },
+  {
+    "title": "Margin Call",
+    "year": 2011,
+    "kind": "movie",
+    "ids": {
+      "tmdb": "50839",
+      "imdb": "tt1615147"
+    },
+    "poster": "assets/posters/be927a14.webp"
+  },
+  {
+    "title": "Supergirl",
+    "year": 2026,
+    "kind": "movie",
+    "ids": {
+      "tmdb": "1081003",
+      "imdb": "tt8814476"
+    },
+    "poster": "assets/posters/1767323b.webp"
+  },
+  {
+    "title": "Rick and Morty",
+    "year": 2013,
+    "kind": "show",
+    "ids": {
+      "tmdb": "60625",
+      "imdb": "tt2861424",
+      "tvdb": 275274
+    },
+    "poster": null
+  }
+]

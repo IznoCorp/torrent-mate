@@ -43,9 +43,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.conf import resolver
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_all_within_sandbox
 from personalscraper.core.delete_permit import ALLOW
 from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
 from personalscraper.dispatch import _transfer
+from personalscraper.dispatch._identity import media_ref_from_nfo
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
@@ -89,6 +91,30 @@ class TransferOutcome:
     success: bool
     destroyed: bool
     metadata_refreshed: bool = False
+
+
+def _refused_by_sandbox_guard(dispatcher: Dispatcher, result: DispatchResult, dest: Path) -> bool:
+    """Refuse a destination or source outside the sandbox's marked, mounted roots (a no-op in prod).
+
+    Args:
+        dispatcher: The owning dispatcher (its config names the roots).
+        result: The result to mark as an error when the destination is refused.
+        dest: The destination folder about to receive the transfer. The staging
+            source (``result.source``), purged once the transfer lands, is judged too.
+
+    Returns:
+        True when the guard refused (``result`` is then final), False otherwise —
+        always False in prod.
+    """
+    try:
+        # The transfer purges the staging source on success: judge both ends.
+        assert_all_within_sandbox(dispatcher.config, dest, result.source)
+    except SandboxGuardError as exc:
+        log.error("preprod_destination_refused", destination=str(dest), error=str(exc))
+        result.action = "error"
+        result.reason = f"Sandbox guard refused the destination: {exc}"
+        return True
+    return False
 
 
 #: A transfer strategy: supersede ``dest`` with ``source`` on the ``dest`` disk,
@@ -391,6 +417,8 @@ def _dispatch_item(
         dest = Path(existing.path)
         result.disk = existing.disk
         result.destination = dest
+        if _refused_by_sandbox_guard(dispatcher, result, dest):
+            return result
 
         # Free-space gate for the in-place supersede.
         threshold = max(
@@ -497,6 +525,8 @@ def _dispatch_item(
         dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / src.name
         result.disk = target_disk.id
         result.destination = dest
+        if _refused_by_sandbox_guard(dispatcher, result, dest):
+            return result
 
         cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
         if _is_skipped_for_illegal_names(result, src, cap):
@@ -611,6 +641,9 @@ def _dispatch_item(
                 # it is the same path the index write-through and the outbox
                 # publish just used, so the three records agree by construction.
                 target_path=result.destination,
+                # Which medium, by provider id: the destination's NFO
+                # first (what the index will see), the staging source's second.
+                media_ref=media_ref_from_nfo(spec.media_type, result.destination, src),
             ),
         )
 

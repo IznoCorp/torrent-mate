@@ -3,36 +3,32 @@
 from __future__ import annotations
 
 import json as _json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import typer
 
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 
 
-@app.command("library-gc")
+@app.command("library-gc", help=t("cli_library.gc.command_help", less_than="<"))
 @handle_cli_errors
 def library_gc(
     ctx: typer.Context,
     older_than_days: int = typer.Option(
         30,
         "--older-than-days",
-        help=(
-            "Delete ``index_outbox`` rows with status=done whose "
-            "``processed_at`` timestamp is older than this many days. "
-            "Default: 30."
-        ),
+        help=t("cli_library.gc.older_than_days_help"),
     ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help=("Preview mode: count how many rows would be deleted without actually deleting them. No DB writes occur."),
+        help=t("cli_library.gc.dry_run_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.gc.config_help")),
 ) -> None:
     """Garbage-collect old index_outbox rows (status=done, processed_at < cutoff).
 
@@ -61,11 +57,11 @@ def library_gc(
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
 
     if cfg.indexer.db_path is None:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.gc.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     db_path = Path(cfg.indexer.db_path)  # narrow Any|Path|None → Path for mypy strict mode
@@ -73,7 +69,7 @@ def library_gc(
 
     # Compute cutoff as a UTC Unix timestamp (integer seconds).
     # ``processed_at`` is stored as INTEGER (Unix seconds) in index_outbox.
-    cutoff_dt = datetime.now(tz=timezone.utc) - timedelta(days=older_than_days)
+    cutoff_dt = datetime.now(tz=UTC) - timedelta(days=older_than_days)
     cutoff_ts = int(cutoff_dt.timestamp())
 
     event_bus = EventBus()

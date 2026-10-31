@@ -51,7 +51,7 @@ _VALID_CANONICAL_PROVIDERS = frozenset({"tvdb", "tmdb"})
 _INVALID_CANONICAL_VALUES = frozenset({"0", "none", ""})
 
 
-def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path | None":
+def _resolve_nfo_path(dispatch_path: str, kind: str) -> Path | None:
     """Derive the expected NFO file path from the item's dispatch directory.
 
     For TV shows the NFO is always ``tvshow.nfo`` at the root of the show
@@ -83,7 +83,7 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path | None":
     return nfo_files[0] if nfo_files else None
 
 
-def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str, dict[str, str]]:
+def _parse_canonical_from_nfo(nfo_path: Path) -> tuple[str | None, str, dict[str, str]]:
     """Extract a supported canonical provider type from an NFO file.
 
     Reads the NFO XML and looks for a usable canonical anchor in this order:
@@ -136,7 +136,7 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str, dict[s
     import xml.etree.ElementTree as ET  # noqa: PLC0415
 
     try:
-        tree = ET.parse(nfo_path)  # noqa: S314
+        tree = ET.parse(nfo_path)
         root = tree.getroot()
     except ET.ParseError:
         log.debug("init_canonical_nfo_parse_error", path=str(nfo_path))
@@ -458,7 +458,7 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
                     canonical_provider=canonical,
                     outcome=outcome,
                 )
-        except Exception:  # noqa: BLE001 — fail-soft per-row contract
+        except Exception:  # fail-soft per-row contract
             log.exception(
                 "init_canonical_unexpected_error",
                 item_id=item_id,

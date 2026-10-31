@@ -71,7 +71,7 @@ def _make_config(tmp_path: Path, *, seasons_enabled: bool = False) -> MagicMock:
     return cfg
 
 
-def _copy_fixture_on_download(url: str, output_path: Path) -> DownloadResult:  # noqa: ARG001
+def _copy_fixture_on_download(url: str, output_path: Path) -> DownloadResult:
     """Side-effect for YtdlpDownloader.download -- copies sample fixture to output path.
 
     Simulates a successful yt-dlp download by copying the pre-built mp4 fixture
@@ -290,11 +290,11 @@ class TestHermeticSeasonTrailer:
         )
 
         def _find_side_effect(
-            tmdb_id: int,  # noqa: ARG001
-            media_type: str,  # noqa: ARG001
+            tmdb_id: int,
+            media_type: str,
             *,
-            title: str,  # noqa: ARG001
-            year: int | None,  # noqa: ARG001
+            title: str,
+            year: int | None,
             season_number: int | None = None,
         ) -> str | None:
             """Return URL only for season-level queries."""

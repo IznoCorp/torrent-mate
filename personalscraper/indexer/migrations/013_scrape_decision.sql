@@ -33,6 +33,10 @@
 -- Step 1 — create the scrape_decision table.
 -- ---------------------------------------------------------------------------
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 CREATE TABLE scrape_decision (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     staging_path    TEXT    UNIQUE NOT NULL,   -- NFC-normalized by the writer
@@ -61,3 +65,5 @@ CREATE INDEX idx_scrape_decision_status ON scrape_decision(status);
 
 INSERT INTO schema_version (version) VALUES (13);
 PRAGMA user_version = 13;
+
+COMMIT;

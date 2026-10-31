@@ -120,20 +120,6 @@ class TestSplitIdentifier:
         assert guard.split_identifier(name) == expected
 
 
-class TestKeyframeNames:
-    """A `@keyframes` name is a name someone chose, read against the vocabulary (B-056)."""
-
-    def test_a_keyframe_built_from_an_unknown_word_is_refused(self) -> None:
-        """`splashremplit` sat in a stylesheet no arm read: the vocabulary does not know it."""
-        source = "@keyframes splashremplit {\n  to { width: 100%; }\n}\n"
-        assert guard.unknown_keyframe_words(source, {"splash", "fill"}) == [("splashremplit", 1, ["splashremplit"])]
-
-    def test_a_keyframe_in_the_vocabulary_passes_wherever_it_is_declared(self) -> None:
-        """Kebab names split; a declaration nested in a block is read too."""
-        source = "@media (x) {\n  @keyframes splash-fill { to { width: 1px; } }\n}\n"
-        assert guard.unknown_keyframe_words(source, {"splash", "fill"}) == []
-
-
 class TestDictionaryArm:
     """The oracle from OUTSIDE the repository."""
 
@@ -157,9 +143,9 @@ class TestDictionaryArm:
         """The arm's own blind spot, pinned so nobody mistakes it for coverage.
 
         `corps` is French and lives in `frontend/src` today. English knows the
-        word too, so no dictionary can see it — only the VOCABULARY arm's « is
-        this a word we use? » can. This test exists so that limit is a recorded
-        fact rather than a surprise.
+        word too, so no dictionary can see it, and no arm reads an allow-list
+        any more. This test exists so that limit is a recorded fact rather than
+        a surprise.
         """
         assert dictionary.dictionary_suspects({"corps", "page", "route", "image"}) == set()
 
@@ -325,3 +311,17 @@ class TestTheTrackedTree:
 
         assert violations == []
         assert guard.examined["unread javascript / shell"] == 1
+
+
+class TestNoAllowList:
+    """An English word nobody listed is a name like any other (audit 2026-10-03)."""
+
+    @aspell
+    def test_an_unlisted_english_word_is_not_refused(self) -> None:
+        """`interface`, `dispose`, `folded` and `pretence` each turned CI red; none is French."""
+        assert guard.french_only({"interface", "dispose", "folded", "pretence", "landings"}) == set()
+
+    @aspell
+    def test_a_french_word_still_is(self) -> None:
+        """The dictionary still refuses a French-only word in a name."""
+        assert guard.french_only({"suivante", "folded"}) == {"suivante"}

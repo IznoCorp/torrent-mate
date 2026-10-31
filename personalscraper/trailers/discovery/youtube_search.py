@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import re
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import requests
@@ -388,7 +388,7 @@ class YoutubeSearch:
         Returns:
             Cache key string in the form ``quota:YYYY-MM-DD``.
         """
-        return f"quota:{datetime.now(timezone.utc).date().isoformat()}"
+        return f"quota:{datetime.now(UTC).date().isoformat()}"
 
     def _has_quota_left(self) -> bool:
         """Return True when today's consumed units leave room for one more call.

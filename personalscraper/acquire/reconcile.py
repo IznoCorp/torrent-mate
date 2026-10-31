@@ -86,7 +86,7 @@ log = get_logger("acquire.reconcile")
 _PROGRESS_THRESHOLDS: tuple[int, ...] = (75, 50, 25)
 
 
-def _list_open_rows(store: "AcquireStore") -> "list[WantedItem]":
+def _list_open_rows(store: AcquireStore) -> list[WantedItem]:
     """Return every OPEN wanted row (grabbed / searching / available / pending).
 
     The four statuses of ``OPEN_WANTED_STATUSES``, fetched through the
@@ -121,13 +121,13 @@ class _SeasonOwnership:
     """
 
     aired: int
-    missing: "tuple[int, ...] | None"
+    missing: tuple[int, ...] | None
 
 
 def _season_ownership(
-    store: "AcquireStore",
-    ownership: "OwnershipChecker",
-    row: "WantedItem",
+    store: AcquireStore,
+    ownership: OwnershipChecker,
+    row: WantedItem,
 ) -> _SeasonOwnership:
     """Answer ownership for a SEASON wanted row from the aired catalog.
 
@@ -193,7 +193,7 @@ def _season_ownership(
     return _SeasonOwnership(aired=len(episodes), missing=tuple(missing))
 
 
-def _journey_reached_the_library(store: "AcquireStore", row_hash: str) -> bool:
+def _journey_reached_the_library(store: AcquireStore, row_hash: str) -> bool:
     """Answer whether this grab's journey actually got shelved (fail-soft ``False``).
 
     The one signal that ends a season's bet on a single pack. « The torrent is
@@ -225,7 +225,7 @@ def _journey_reached_the_library(store: "AcquireStore", row_hash: str) -> bool:
     return journey is not None and journey.status in LANDED_JOURNEY_STATUSES
 
 
-def _resolve_provider(store: "AcquireStore", row_hash: str) -> str:
+def _resolve_provider(store: AcquireStore, row_hash: str) -> str:
     """Resolve the tracker a grabbed release came from (truthful, fail-soft).
 
     The wanted row carries no tracker field; the seed obligation recorded at
@@ -250,12 +250,12 @@ def _resolve_provider(store: "AcquireStore", row_hash: str) -> str:
 
 
 def _emit_for_row(
-    store: "AcquireStore",
-    row: "WantedItem",
+    store: AcquireStore,
+    row: WantedItem,
     row_hash: str,
-    item: "TorrentItem",
+    item: TorrentItem,
     title_by_id: dict[int, str],
-    event_bus: "EventBus",
+    event_bus: EventBus,
 ) -> None:
     """Emit the download transitions not yet recorded for one row (D6-D9).
 
@@ -339,9 +339,9 @@ def _emit_for_row(
 
 
 def _emit_download_events(
-    store: "AcquireStore",
-    client_items: "dict[str, TorrentItem]",
-    event_bus: "EventBus",
+    store: AcquireStore,
+    client_items: dict[str, TorrentItem],
+    event_bus: EventBus,
 ) -> None:
     """Emit download events for every open hash-carrying row seen in the client.
 
@@ -418,12 +418,13 @@ class ReconcileSummary:
 
 
 def reconcile_wanted(
-    store: "AcquireStore",
-    ownership: "OwnershipChecker",
-    client_items: "dict[str, TorrentItem] | None",
+    store: AcquireStore,
+    ownership: OwnershipChecker,
+    client_items: dict[str, TorrentItem] | None,
     *,
-    event_bus: "EventBus",
-    record_obligation: "Callable[[str], bool] | None" = None,
+    event_bus: EventBus,
+    record_obligation: Callable[[str], bool] | None = None,
+    foreign: frozenset[str] | set[str] = frozenset(),
 ) -> ReconcileSummary:
     """Reconcile every ``grabbed`` wanted row against library + client truth.
 
@@ -460,6 +461,10 @@ def reconcile_wanted(
             grab-time writer never got to record lands now
             (``DeleteAuthority.record_grab_obligation``). Fail-soft — it returns
             a bool and never raises into the sweep.
+        foreign: Lowercase hashes the client holds OUTSIDE this instance's scope
+            (``lookup_scoped``'s second result). Such a hash is not « vanished »:
+            its row stays in flight with its hash, never requeued nor confirmed,
+            exactly as the obligation sweep leaves a foreign hash alone.
 
     Returns:
         The :class:`ReconcileSummary` counts.
@@ -595,6 +600,10 @@ def reconcile_wanted(
                 reenqueued=fallback.reenqueued,
                 claimed=fallback.claimed,
             )
+            continue
+
+        if client_hashes is not None and row_hash in foreign:
+            in_flight += 1
             continue
 
         if client_hashes is not None and row_hash not in client_hashes:

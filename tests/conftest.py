@@ -27,6 +27,20 @@ for _forced in ("FORCE_COLOR", "CLICOLOR_FORCE"):
     _os.environ.pop(_forced, None)
 _os.environ["NO_COLOR"] = "1"
 
+# The translation layer: strict (a missing key fails the test that reaches it) and pinned to English,
+# because CI's locale is not the machine's and every assertion must read the same everywhere. A test
+# that asserts French uses `use_language(Language.FR)`.
+_os.environ.setdefault("PERSONALSCRAPER_I18N_STRICT", "1")
+_os.environ.setdefault("PERSONALSCRAPER_LANG", "en")
+
+# The environment: production, whatever the shell exports or the checkout's `.env` says. A dev
+# checkout carries `PERSONALSCRAPER_ENV=dev`, and the suite's config is hermetic and unmarked, which
+# the isolation guard refuses to anything but prod. Pinned here, at import time, because fixtures
+# that build a Config can run before `_no_environment_setting`, and set explicitly (an unset variable
+# is refused) so that `load_dotenv` (override=False) — below, and in every child process that
+# imports the package — cannot put `dev` back.
+_os.environ["PERSONALSCRAPER_ENV"] = "prod"
+
 # E402 for the whole file, declared once with its reason rather than eleven
 # times: the block above MUST precede every import, because Rich reads the
 # environment when a Console is constructed and `personalscraper.cli_state`
@@ -35,9 +49,12 @@ _os.environ["NO_COLOR"] = "1"
 # ruff: noqa: E402
 
 import inspect
+import logging
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -116,6 +133,155 @@ _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 
 
 @pytest.fixture(autouse=True)
+def _tmp_dirs_count_as_mounted(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Let a ``tmp_path`` folder stand for a mounted disk, unless the test says otherwise.
+
+    The disk-presence predicate refuses a folder whose volume is the root filesystem,
+    and a ``tmp_path`` folder is exactly that. Most tests only need a disk that is
+    there, so the mount-root seam answers « yes » for any path. A test about the
+    predicate itself carries ``@pytest.mark.real_mount_check`` and keeps the real
+    reading.
+
+    Args:
+        request: The pytest request, read for the ``real_mount_check`` marker.
+        monkeypatch: The test's own monkeypatch. The seam is set through it, not through a
+            ``patch`` context of this fixture: a test that patches the same seam with
+            ``monkeypatch`` is undone by the same stack, in reverse order. With a separate
+            ``patch`` context the fixture exits first and the test's undo then puts the
+            fixture's « yes » back, which leaks to the next test on the worker.
+    """
+    if request.node.get_closest_marker("real_mount_check"):
+        return
+    monkeypatch.setattr("personalscraper.core.sqlite._fs_probe._is_mount_root", lambda path: True)
+
+
+@pytest.fixture(autouse=True)
+def _clean_structlog_contextvars() -> Iterator[None]:
+    """Start and end every test with no structlog context bound.
+
+    structlog contextvars live per worker, not per test: a ``run_id`` (or any key) bound by
+    one test would otherwise ride on every later log record of the same ``-n auto`` worker
+    and break tests that assert a record's exact fields.
+
+    Yields:
+        None, with the context cleared before and after the test.
+    """
+    import structlog
+
+    structlog.contextvars.clear_contextvars()
+    yield
+    structlog.contextvars.clear_contextvars()
+
+
+#: The keys the configured processor chain adds to every event, which ``capture_logs`` never shows.
+_STRUCTLOG_FRAME = frozenset({"level", "logger", "timestamp"})
+
+#: What :func:`logged_events` hands a test: open it around the code whose events it reads.
+LoggedEvents = Callable[[], AbstractContextManager[list[dict[str, Any]]]]
+
+
+@pytest.fixture
+def logged_events(caplog: pytest.LogCaptureFixture) -> LoggedEvents:
+    """Read the structlog events logged inside a block, whatever the order the tests ran in.
+
+    ``structlog.testing.capture_logs`` misses them depending on order. It swaps the capture into
+    the processor list configured NOW, in place; but ``cache_logger_on_first_use`` pins a
+    module-level ``log = get_logger(...)`` to the list that was configured at its first use. A
+    CLI run in the same worker calls ``configure_logging``, which configures a NEW list, and from
+    then on every logger cached before it writes past the capture — an empty capture. Every event
+    still reaches the stdlib logger it is rendered through, so this reads ``caplog``'s records.
+
+    Each event has the ``capture_logs`` shape: the logged keys, ``event`` and ``log_level``,
+    without the frame the processor chain adds (``level``, ``logger``, ``timestamp``). The chain
+    ran, so a value :func:`personalscraper.logger.redact_secrets` masks is masked here too.
+
+    Args:
+        caplog: pytest's log capture.
+
+    Returns:
+        A factory of context managers, each yielding the list of the events logged inside it,
+        filled when the block exits.
+    """
+    caplog.set_level(logging.DEBUG)
+
+    @contextmanager
+    def capture() -> Iterator[list[dict[str, Any]]]:
+        start = len(caplog.records)
+        events: list[dict[str, Any]] = []
+        try:
+            yield events
+            # A CLI run whose logging setup swapped caplog's handler out leaves this capture empty.
+            assert caplog.handler in logging.getLogger().handlers, "caplog left the root logger: kept_log_capture"
+        finally:
+            for record in caplog.records[start:]:
+                if isinstance(record.msg, dict):
+                    event = {key: value for key, value in record.msg.items() if key not in _STRUCTLOG_FRAME}
+                    events.append({**event, "log_level": record.levelname.lower()})
+
+    return capture
+
+
+@pytest.fixture
+def kept_log_capture() -> Iterator[None]:
+    """Keep pytest's log capture attached through a CLI run.
+
+    The CLI's callback runs ``configure_logging``, whose ``dictConfig`` replaces the root
+    logger's handlers, ``caplog``'s among them: every record after it would go unseen, a
+    « never logged » assertion would pass on nothing and a « logged » one would fail for the wrong
+    reason. A test that runs a CLI command and then reads ``caplog`` or :func:`logged_events` uses
+    this fixture. The session's structlog chain, set up above, stays the one in force.
+
+    Yields:
+        Nothing; the patch holds while the test runs.
+    """
+    with patch("personalscraper.cli.configure_logging"):
+        yield
+
+
+#: Sets the project's configured language for one test (``PERSONALSCRAPER_LANG``).
+ConfiguredLanguage = Callable[[str], None]
+
+
+@pytest.fixture
+def configured_language(monkeypatch: pytest.MonkeyPatch) -> Iterator[ConfiguredLanguage]:
+    """Configure the project's language for one test, as ``PERSONALSCRAPER_LANG`` names it.
+
+    The translation layer resolves the process language once and caches it; the cache is
+    cleared when the language is set and again after the test, so no other test inherits it.
+
+    Args:
+        monkeypatch: Pytest's monkeypatch fixture.
+
+    Yields:
+        A setter taking the variable's value (``fr``, ``en``, or ``""`` for none configured).
+    """
+    from personalscraper.i18n import LANGUAGE_VARIABLE, _process_language
+
+    def configure(value: str) -> None:
+        monkeypatch.setenv(LANGUAGE_VARIABLE, value)
+        for variable in ("LC_ALL", "LC_MESSAGES", "LANG"):
+            monkeypatch.delenv(variable, raising=False)
+        _process_language.cache_clear()
+
+    yield configure
+    _process_language.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_environment_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Start every test with ``PERSONALSCRAPER_ENV=prod``, i.e. the production store names.
+
+    The real ``.env`` is loaded into ``os.environ`` by this module, and a developer shell
+    may export the variable; either would rename every derived store file under the tests.
+    The variable is set explicitly rather than deleted: an unset one is refused, and the
+    package calls ``load_dotenv()`` (``override=False``) in every process it is imported in,
+    so a deleted variable would also let a dev checkout's ``.env`` turn a child process into ``dev`` on the
+    hermetic, unmarked test config. A test about the setting sets it itself.
+    """
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
+
+
+@pytest.fixture(autouse=True)
 def _neutralize_external_notify_creds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Force external-notification credentials empty for every test.
 
@@ -138,6 +304,25 @@ def _neutralize_external_notify_creds(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     for _var in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "HEALTHCHECK_URL"):
         monkeypatch.setenv(_var, "")
+
+
+@pytest.fixture(autouse=True)
+def _no_plex_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Leave every test without a Plex server, a Plex token or a token vault key.
+
+    This module loads the repository's ``.env``: its ``PLEX_TOKEN`` would give the Plex door
+    ``build_app_services`` composes — in any suite — a real server and a real plex.tv client,
+    and its ``PLEX_TOKEN_KEYS`` a real vault. Emptied, the door refuses
+    ``plex.server_unreachable`` before asking plex.tv; a test of the door swaps in one over
+    fakes. ``PLEX_URL`` is pinned to the setting's default rather than emptied, so a test of
+    that default still reads it.
+
+    Args:
+        monkeypatch: pytest's monkeypatch.
+    """
+    monkeypatch.setenv("PLEX_TOKEN", "")
+    monkeypatch.setenv("PLEX_TOKEN_KEYS", "")
+    monkeypatch.setenv("PLEX_URL", Settings.model_fields["plex_url"].default)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -536,11 +721,11 @@ def _no_real_acquisition_spawns(monkeypatch: pytest.MonkeyPatch) -> None:
 def _fresh_web_torrent_session() -> None:
     """Drop the web layer's process-wide cached torrent client between tests.
 
-    The shared session cache (``personalscraper.web.torrent_session``) is a
+    The shared session cache (``personalscraper.app.torrent_session``) is a
     module global; without this reset a MagicMock client cached by one test
     would be served to every later test in the same process.
     """
-    from personalscraper.web.torrent_session import invalidate_torrent_session
+    from personalscraper.app.torrent_session import invalidate_torrent_session
 
     invalidate_torrent_session()
 
@@ -557,7 +742,7 @@ def _reset_search_cache() -> "Iterator[None]":
     Clearing on both sides keeps each test honest whether or not it knows the
     cache exists.
     """
-    from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
+    from personalscraper.app.acquisition.search_cache import SEARCH_CACHE
 
     SEARCH_CACHE.clear()
     yield

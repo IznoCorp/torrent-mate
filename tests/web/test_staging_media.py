@@ -17,11 +17,11 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.config import Settings
 from personalscraper.indexer import migrations as _migrations_pkg
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.web.auth.passwords import hash_password
 from tests.web._web_harness import guarded_client
 
 TEST_USERNAME = "staging-test"
@@ -708,7 +708,7 @@ def test_enqueue_seeds_candidates_from_provider(test_config, tmp_path: Path) -> 
     dummy = [DecisionCandidate(provider="tmdb", provider_id=1234, title="Mystery Film", year=2021, score=0.88)]
     # Patch the shared search helper (bypasses the provider stack) — proves enqueue
     # reuses it and persists its result, deterministically.
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy):
         resp = client.post(
             f"/api/staging/media/{media_id}/enqueue",
             headers={"X-Requested-With": "TorrentMate"},
@@ -739,7 +739,7 @@ def test_enqueue_fail_soft_when_provider_unavailable(test_config, tmp_path: Path
     """
     from unittest.mock import patch
 
-    from personalscraper.web.decisions.search import ProviderSearchError
+    from personalscraper.app.decisions.search import ProviderSearchError
     from personalscraper.web.staging.read_model import media_id_for
 
     staging = tmp_path / "staging"
@@ -754,7 +754,7 @@ def test_enqueue_fail_soft_when_provider_unavailable(test_config, tmp_path: Path
 
     media_id = media_id_for("001-MOVIES/Offline Film (2019)")
     with patch(
-        "personalscraper.web.decisions.search.search_candidates",
+        "personalscraper.app.decisions.search.search_candidates",
         side_effect=ProviderSearchError("TMDB down"),
     ):
         resp = client.post(
@@ -830,7 +830,7 @@ def test_enqueue_other_with_kind_reclasses_to_movies_and_seeds(test_config, tmp_
 
     media_id = media_id_for("098-AUTRES/Some.Unsorted.Movie.2021.1080p-GRP")
     dummy = [DecisionCandidate(provider="tmdb", provider_id=42, title="Some Unsorted Movie", year=2021, score=0.9)]
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy):
         resp = client.post(
             f"/api/staging/media/{media_id}/enqueue",
             json={"media_kind": "movie"},
@@ -886,7 +886,7 @@ def test_enqueue_other_seeds_search_with_cleaned_title(test_config, tmp_path: Pa
     client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
 
     dummy = [DecisionCandidate(provider="tmdb", provider_id=42, title="The Wild Robot", year=2024, score=0.9)]
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy) as search_mock:
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy) as search_mock:
         resp = client.post(
             f"/api/staging/media/{media_id_for(f'098-AUTRES/{raw}')}/enqueue",
             json={"media_kind": "movie"},
@@ -896,7 +896,7 @@ def test_enqueue_other_seeds_search_with_cleaned_title(test_config, tmp_path: Pa
     assert resp.status_code == 200, resp.text
     # The search ran on the cleaned title + year, never the raw release name.
     call = search_mock.call_args
-    searched_title, searched_year = call.args[2], call.args[3]
+    searched_title, searched_year = call.args[3], call.args[4]
     assert searched_title == "The Wild Robot", f"search seeded with {searched_title!r}"
     assert searched_year == 2024
 
@@ -951,7 +951,7 @@ def test_enqueue_reopens_a_previously_resolved_item(test_config, tmp_path: Path)
     client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
     media_id = media_id_for("001-MOVIES/Legacy Film (2020)")
     dummy = [DecisionCandidate(provider="tmdb", provider_id=7, title="Legacy Film", year=2020, score=0.9)]
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy):
         resp = client.post(
             f"/api/staging/media/{media_id}/enqueue",
             headers={"X-Requested-With": "TorrentMate"},
@@ -992,7 +992,7 @@ def test_continue_matched_spawns_run(test_config, tmp_path: Path) -> None:
     client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
 
     media_id = media_id_for("001-MOVIES/Fight Club (1999)")
-    with patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as mock_popen:
+    with patch("personalscraper.app.pipeline_trigger.subprocess.Popen") as mock_popen:
         resp = client.post(
             f"/api/staging/media/{media_id}/continue",
             headers={"X-Requested-With": "TorrentMate"},
@@ -1096,8 +1096,8 @@ def test_continue_deferred_when_lock_held(test_config, tmp_path: Path) -> None:
     client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
 
     media_id = media_id_for("001-MOVIES/Fight Club (1999)")
-    with patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=True):
-        with patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as mock_popen:
+    with patch("personalscraper.app.pipeline_trigger.is_lock_held", return_value=True):
+        with patch("personalscraper.app.pipeline_trigger.subprocess.Popen") as mock_popen:
             resp = client.post(
                 f"/api/staging/media/{media_id}/continue",
                 headers={"X-Requested-With": "TorrentMate"},
@@ -1669,8 +1669,8 @@ def test_continue_deferred_writes_marker_and_read_model_exposes_it(
     fight_dir = staging / "001-MOVIES" / "Fight Club (1999)"
 
     # 1. Deferred continue writes the marker.
-    with patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=True):
-        with patch("personalscraper.web.pipeline_trigger.subprocess.Popen"):
+    with patch("personalscraper.app.pipeline_trigger.is_lock_held", return_value=True):
+        with patch("personalscraper.app.pipeline_trigger.subprocess.Popen"):
             resp = client.post(
                 f"/api/staging/media/{media_id}/continue",
                 headers={"X-Requested-With": "TorrentMate"},
@@ -1688,7 +1688,7 @@ def test_continue_deferred_writes_marker_and_read_model_exposes_it(
     assert fight["continuation_requested_at"] == marker_ts
 
     # 3. A SECOND continue (successful this time) unsets the marker.
-    with patch("personalscraper.web.pipeline_trigger.subprocess.Popen"):
+    with patch("personalscraper.app.pipeline_trigger.subprocess.Popen"):
         resp2 = client.post(
             f"/api/staging/media/{media_id}/continue",
             headers={"X-Requested-With": "TorrentMate"},

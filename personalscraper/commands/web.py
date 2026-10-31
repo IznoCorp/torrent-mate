@@ -23,21 +23,26 @@ from typing import TYPE_CHECKING
 import typer
 import uvicorn
 
-from personalscraper.cli_helpers import _build_app_context, handle_cli_errors
+from personalscraper.app.accounts.passwords import hash_password
+from personalscraper.app.composition import ONE_ATTEMPT, build_app_context
+from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.conf.envfile import write_env_keys
-from personalscraper.config import get_settings
+from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.config import env_file_path, get_settings
+from personalscraper.http_v1.standalone import build_standalone_v1_app
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.web.app import create_app
-from personalscraper.web.auth.passwords import hash_password
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 log = get_logger(__name__)
 
-# Repo-root ``.env`` — the LOCAL layer of the credential overlay pydantic-settings
-# reads (see ``personalscraper.config._resolve_env_files`` / ``_ENV_FILES``: a
+# Repo-root ``.env`` — the default target when ``PERSONALSCRAPER_ENV_FILE`` is unset
+# (``env_file_path`` picks the explicit file otherwise). It is the LOCAL layer of
+# the credential overlay pydantic-settings reads (see ``personalscraper.config._resolve_env_files`` / ``_ENV_FILES``: a
 # canonical `.env` may be layered UNDER this one, but the local file wins, so
 # ``web.py set-keys`` correctly writes the authoritative layer). web.py lives two
 # package levels deep (personalscraper/commands/web.py), so the repo root is
@@ -47,11 +52,11 @@ _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
 web_app = typer.Typer(
     name="web",
     invoke_without_command=True,
-    help="TorrentMate web UI daemon and admin commands.",
+    help=t("cli_web.app_help"),
 )
 
 
-@web_app.callback(invoke_without_command=True)
+@web_app.callback(invoke_without_command=True, help=t("cli_web.app_help"))
 @cli_telemetry("web")
 @handle_cli_errors
 def web(
@@ -59,12 +64,12 @@ def web(
     host: str | None = typer.Option(
         None,
         "--host",
-        help="Override config.web.host (bind address). Defaults to config.web.host.",
+        help=t("cli_web.host_help"),
     ),
     port: int | None = typer.Option(
         None,
         "--port",
-        help="Override config.web.port (e.g. 8711 for the staging clone). Defaults to config.web.port.",
+        help=t("cli_web.port_help"),
     ),
 ) -> None:
     """Start the TorrentMate web UI daemon (FastAPI + uvicorn).
@@ -102,7 +107,7 @@ def web(
     assert config is not None
 
     if not config.web.enabled:
-        typer.echo("Web daemon is disabled (config.web.enabled=false).")
+        typer.echo(t("cli_web.disabled"))
         log.info("web_disabled")
         raise typer.Exit(code=1)
 
@@ -112,11 +117,7 @@ def web(
     index_html = static_dir / "index.html"
 
     if not index_html.exists() and not config.web.dev_mode:
-        msg = (
-            "SPA not built — static/index.html is missing. "
-            "Run the deploy script or set web.dev_mode=true in config/web.json5."
-        )
-        typer.echo(msg, err=True)
+        typer.echo(t("cli_web.spa_missing"), err=True)
         log.error("web_boot_refused", reason="spa_missing", static_dir=str(static_dir))
         raise typer.Exit(code=1)
 
@@ -129,13 +130,15 @@ def web(
     bind_port = config.web.port if port is None else port
 
     # Build the AppContext once for process lifetime — no torrent client
-    # (the web process never contacts a torrent daemon).
-    app_context = _build_app_context(config, settings, build_torrent_client=False)
+    # (the web process never contacts a torrent daemon). Its bus and its
+    # registry are the process's: v1 is handed them, so its provider calls
+    # make one attempt (D1).
+    app_context = build_app_context(config, settings, build_torrent_client=False, provider_retry=ONE_ATTEMPT)
 
     try:
         log.info("web_starting", host=bind_host, port=bind_port)
         uvicorn.run(
-            create_app(config, settings),
+            create_app(config, settings, app_context=app_context),
             host=bind_host,
             port=bind_port,
             # ``log_config=None`` keeps uvicorn from installing its OWN logging
@@ -152,14 +155,58 @@ def web(
         log.info("web_shutdown_complete")
 
 
-@web_app.command("set-password")
+@web_app.command("serve-v1", help=t("cli_web.serve_v1.help"))
+@handle_cli_errors
+def serve_v1(
+    ctx: typer.Context,
+    host: str = typer.Option("127.0.0.1", "--host", help=t("cli_web.serve_v1.host_help")),
+    port: int = typer.Option(8713, "--port", help=t("cli_web.serve_v1.port_help")),
+) -> None:
+    """Serve the v1 application alone, at ``/api/v1``, for a reverse proxy on this machine.
+
+    Refused under production: a development server never opens production stores, so the
+    process must run under a named environment (``PERSONALSCRAPER_ENV``) whose marked
+    ``data_dir`` holds its own ``app`` store.
+
+    Args:
+        ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
+        host: The bind address; loopback by default, the reverse proxy being local.
+        port: The bind port.
+
+    Raises:
+        typer.Exit: Code 1 under production.
+    """
+    config: Config = ctx.obj.config
+    assert config is not None
+
+    environment = current_environment()
+    if environment is Environment.PROD:
+        typer.echo(t("cli_web.serve_v1.refused_prod"), err=True)
+        log.error("web_serve_v1_refused", reason="prod_environment")
+        raise typer.Exit(code=1)
+
+    log.info("web_serve_v1_starting", host=host, port=port, environment=environment.value)
+    uvicorn.run(
+        build_standalone_v1_app(config, get_settings()),
+        host=host,
+        port=port,
+        # Same reason as the daemon's: uvicorn's own logging config would route its
+        # records around our handlers, and therefore around the secret redaction.
+        log_config=None,
+        # The app trusts its proxy's headers itself (``build_standalone_v1_app``); uvicorn's
+        # own middleware, widened by ``FORWARDED_ALLOW_IPS``, must not be a second decision.
+        proxy_headers=False,
+    )
+
+
+@web_app.command("set-password", help=t("cli_web.set_password.help"))
 @handle_cli_errors
 def set_password(
     ctx: typer.Context,
     write: bool = typer.Option(
         False,
         "--write",
-        help="Atomically write the generated keys into the repo-root .env (after confirmation).",
+        help=t("cli_web.set_password.write_help"),
     ),
 ) -> None:
     """Generate the web UI password hash (and a JWT secret) for ``.env``.
@@ -185,8 +232,8 @@ def set_password(
     assert config is not None
 
     default_username = config.web.username
-    username = typer.prompt("Web UI username", default=default_username)
-    password = typer.prompt("Password", hide_input=True, confirmation_prompt=True)
+    username = typer.prompt(t("cli_web.set_password.username_prompt"), default=default_username)
+    password = typer.prompt(t("cli_web.set_password.password_prompt"), hide_input=True, confirmation_prompt=True)
 
     password_hash = hash_password(password)
 
@@ -199,17 +246,15 @@ def set_password(
     username_matches_config = username == default_username
 
     if write:
-        confirmed = typer.confirm(f"Write these keys into {_ENV_PATH}?")
+        env_path = env_file_path(_ENV_PATH)
+        confirmed = typer.confirm(t("cli_web.set_password.confirm_write", path=str(env_path)))
         if not confirmed:
-            typer.echo("Aborted; .env left unchanged.")
+            typer.echo(t("cli_web.set_password.aborted"))
             raise typer.Exit(code=0)
-        write_env_keys(keys, _ENV_PATH)
-        typer.echo(f"Updated {_ENV_PATH} (restart the web daemon to apply).")
+        write_env_keys(keys, env_path)
+        typer.echo(t("cli_web.set_password.updated", path=str(env_path)))
         if not username_matches_config:
-            typer.echo(
-                f"Reminder: username '{username}' differs from config.web.username "
-                f"('{default_username}') — update config/web.json5 to match."
-            )
+            typer.echo(t("cli_web.set_password.reminder", username=username, configured=default_username))
         # Never log secret values — only booleans about what changed.
         log.info(
             "web_set_password_written",
@@ -218,12 +263,9 @@ def set_password(
         )
         return
 
-    typer.echo("# Add these lines to your .env file:")
+    typer.echo(t("cli_web.set_password.add_lines"))
     for key, value in keys.items():
-        typer.echo(f"{key}={value}")
+        typer.echo(f"{key}={value}")  # french-ok: layout only, a .env line
     if not username_matches_config:
-        typer.echo(
-            f"# Note: username '{username}' differs from config.web.username "
-            f"('{default_username}') — update config/web.json5 to match."
-        )
+        typer.echo(t("cli_web.set_password.note", username=username, configured=default_username))
     log.info("web_set_password_printed", jwt_secret_generated=jwt_secret_generated)

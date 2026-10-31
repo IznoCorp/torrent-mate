@@ -257,6 +257,7 @@ def _build_chain_registry(
             event_bus=event_bus,
             cb_policy=cb_policy or _make_cb_policy(),
             providers_config=providers_config,
+            language="fr-FR",
         )
     finally:
         _validation._check_empty_chain_sections = _orig_empty_chain

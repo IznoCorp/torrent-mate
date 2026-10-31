@@ -1,6 +1,13 @@
 name: CI
 
 on:
+  # `push` on develop: a PR merges without being up to date with develop (the
+  # branch rule does not ask it), so develop itself is read after every merge —
+  # two green PRs that break each other show here, red, and are fixed at once.
+  # Every job's condition lets the push through by name: its payload carries no
+  # `pull_request`, and the draft clause alone would stand every job down.
+  push:
+    branches: [develop]
   pull_request:
     branches: [main, develop, prod]
     types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
@@ -8,11 +15,10 @@ on:
     # otherwise skip the workflow entirely. Required-status-check rules on a base
     # then leave the PR stuck in "expected" state forever (no run = no result).
     # Running CI on every PR (~3-5 min) is cheaper than diagnosing stuck PRs.
-    # `labeled`/`unlabeled`: `version-bump`'s `no-version-bump` exemption reads
-    # the PR's label set from the EVENT PAYLOAD, frozen at whichever event
-    # dispatched the run — adding the label after `opened` changed nothing until
-    # a new event re-dispatched with it. #488 was refused by its own version-bump
-    # job while correctly carrying the label, because nothing re-triggered.
+    # `labeled`/`unlabeled`: the label exemptions (`coverage-rollback`,
+    # `run-ci-on-draft`) read the PR's label set from the EVENT PAYLOAD, frozen
+    # at whichever event dispatched the run — a label added after `opened`
+    # counts only once a new event re-dispatches with it.
     #
     # `ready_for_review` is NOT optional: it is half of the draft gate below.
     # Every job stands down while the pull request is a draft, so the event
@@ -25,8 +31,14 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+# The engine refuses to run with no environment named (an unset PERSONALSCRAPER_ENV is
+# never read as prod). CI's hermetic config is unmarked, which only prod accepts; pytest
+# pins it in tests/conftest.py, and this covers every other step (make openapi, scripts).
+env:
+  PERSONALSCRAPER_ENV: prod
 
 # ── The draft gate ────────────────────────────────────
 # A draft pull request costs no runner minute: EVERY job carries the same
@@ -56,77 +68,97 @@ jobs:
     name: changes
     runs-on: ubuntu-latest
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
+    # On a push to develop nothing is filtered: every scope is read.
+    # On a pull request every output is a filter verdict, combined here — the
+    # changed-file lists never reach a step's environment: a PR renaming a
+    # directory lists thousands of paths (a rename counts its old path AND its
+    # new one) and overflows the runner's argument limit.
     outputs:
-      python: ${{ steps.raffine.outputs.python }}
-      deps: ${{ steps.filtre.outputs.deps }}
-      frontend_app: ${{ steps.raffine.outputs.frontend_app }}
-      maquette: ${{ steps.filtre.outputs.maquette }}
-      docs: ${{ steps.filtre.outputs.docs }}
-      docs_only: ${{ steps.raffine.outputs.docs_only }}
+      python: >-
+        ${{ github.event_name == 'push' && 'true' ||
+        (steps.filtre.outputs.python == 'true' || steps.refine.outputs.package == 'true') && 'true' || 'false' }}
+      deps: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.deps }}
+      frontend_app: >-
+        ${{ github.event_name == 'push' && 'true' ||
+        (steps.filtre.outputs.frontend_app == 'true' || steps.refine.outputs.package == 'true') && 'true' || 'false' }}
+      maquette: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.maquette }}
+      docs: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.docs }}
+      # Fails safe: a missing `not_docs` verdict reads as "not docs-only".
+      docs_only: >-
+        ${{ github.event_name == 'push' && 'false' ||
+        steps.refine.outputs.not_docs == 'false' && 'true' || 'false' }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
-      - uses: dorny/paths-filter@v3
+      # `personalscraper/**` is not in the `python` and `frontend_app` filters
+      # below: it is read by the `package` filter of the next step, and joined
+      # to both in the job outputs.
+      - uses: dorny/paths-filter@v4
         id: filtre
+        if: github.event_name == 'pull_request'
         with:
-          list-files: json
           filters: |
             python:
-              - 'personalscraper/**'
               - 'tests/**'
               - 'scripts/**'
               - 'config.example/**'
               - 'pyproject.toml'
+              - 'uv.lock'
               - 'Makefile'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             deps:
               - 'pyproject.toml'
+              - 'uv.lock'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             frontend_app:
               - 'frontend/**'
-              - 'personalscraper/**'
+              - 'contract/openapi.generated.json'
               - 'pyproject.toml'
+              - 'uv.lock'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             maquette:
-              - 'frontend/maquette/**'
+              - 'webui/**'
+              - 'contract/**'
               - '.github/workflows/ci.yml'
             docs:
               - 'docs/**'
               - 'IMPLEMENTATION.md'
-            everything:
+      # Refinements that need negation, which only the 'every' quantifier
+      # honours — and 'every' would break the plain filters above, hence a
+      # second filter step. 'every' is per FILE: a file matches a filter when
+      # it matches all of its patterns; the filter is 'true' when at least one
+      # changed file matches.
+      # - `package`: `personalscraper/__init__.py` alone is NOT a python change:
+      #   the release bump (scripts/promote.sh release) changes only the
+      #   version there, and counting it as python code would re-run the full
+      #   suite on a one-line PR. A substantive edit to that file virtually
+      #   always accompanies other python changes.
+      # - `not_docs`: some changed file is neither under `docs/` nor a `.md`.
+      #   Docs-only is its negation — the pre-push hook's own definition
+      #   (`hooks/pre-push`): every changed path is under `docs/` or ends in
+      #   `.md` — `BUGS.md` and every root `*.md` included, a nested
+      #   `webui/README.md` too, on purpose: one definition of "docs-only",
+      #   not a second one that can drift from it.
+      # `webui/**` is NOT a frontend-app change, and no `frontend_app` pattern
+      # matches it: the maquette has its own steps, gated by the `maquette` output.
+      - uses: dorny/paths-filter@v4
+        id: refine
+        if: github.event_name == 'pull_request'
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            package:
+              - 'personalscraper/**'
+              - '!personalscraper/__init__.py'
+            not_docs:
               - '**'
-      # Refinements the filter's glob language cannot express (negation only
-      # works with the global 'every' quantifier, which would break the plain
-      # filters above):
-      # - `personalscraper/__init__.py` alone is NOT a python change: every PR
-      #   bumps the version there (operator rule), and counting the bump as
-      #   python code would re-run the full suite on doc/maquette-only PRs —
-      #   the exact cost this filter exists to remove. A substantive edit to
-      #   that file virtually always accompanies other python changes; the
-      #   local phase gates run the full suite regardless.
-      # - `frontend/maquette/**` is NOT a frontend-app change: the maquette
-      #   has its own steps, gated by the `maquette` output.
-      - id: raffine
-        env:
-          PYTHON_FILES: ${{ steps.filtre.outputs.python_files }}
-          FRONTEND_FILES: ${{ steps.filtre.outputs.frontend_app_files }}
-          ALL_FILES: ${{ steps.filtre.outputs.everything_files }}
-        run: |
-          set -euo pipefail
-          python=$(jq -r 'map(select(. != "personalscraper/__init__.py")) | length > 0' <<< "${PYTHON_FILES}")
-          frontend_app=$(jq -r 'map(select(. != "personalscraper/__init__.py" and (startswith("frontend/maquette/") | not))) | length > 0' <<< "${FRONTEND_FILES}")
-          # The pre-push hook's own definition (`hooks/pre-push`): every changed
-          # path is under `docs/` or ends in `.md` — `BUGS.md` and every root
-          # `*.md` included, a nested `frontend/maquette/README.md` too, on purpose:
-          # one definition of "docs-only", not a second one that can drift from it.
-          docs_only=$(jq -r 'all(.[]; startswith("docs/") or endswith(".md"))' <<< "${ALL_FILES}")
-          echo "python=${python}" >> "$GITHUB_OUTPUT"
-          echo "frontend_app=${frontend_app}" >> "$GITHUB_OUTPUT"
-          echo "docs_only=${docs_only}" >> "$GITHUB_OUTPUT"
-          echo "docs_only=${docs_only}"
-          echo "python=${python} frontend_app=${frontend_app}"
+              - '!docs/**'
+              - '!**/*.md'
 
   # ── Stage 1: Fast checks (parallel) ───────────────────
   lint:
@@ -134,24 +166,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-3.12-
-      - run: pip install ruff
+      # `--locked` already refuses a drifted lock at install; this names the failure on its own line.
+      - run: uv lock --check
         if: needs.changes.outputs.python == 'true'
-      - run: ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
+      - run: ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
         if: needs.changes.outputs.python == 'true'
       - run: ruff format --check personalscraper/ tests/
         if: needs.changes.outputs.python == 'true'
@@ -165,11 +194,11 @@ jobs:
     name: guards
     runs-on: ubuntu-latest
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
@@ -183,7 +212,7 @@ jobs:
       - run: python3 scripts/check-component-once.py
       - run: python3 scripts/check-viewport-directives.py
       - run: python3 scripts/check-poster-box.py
-      - run: cd frontend/maquette/design && npm ci && npm run build
+      - run: cd webui/design && npm ci && npm run build
       - run: python3 scripts/check-tailwind-confinement.py
 
   typecheck:
@@ -191,24 +220,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.python == 'true'
-        with:
-          path: |
-            .venv/
-            .mypy_cache
-          key: venv-mypy-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-mypy-${{ runner.os }}-3.12-
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
       - run: mypy personalscraper/
         if: needs.changes.outputs.python == 'true'
@@ -217,13 +238,13 @@ jobs:
     name: secrets
     runs-on: ubuntu-latest
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         id: cache-gitleaks
         with:
           path: ~/.local/bin/gitleaks
@@ -242,29 +263,23 @@ jobs:
       - name: Scan PR commits for secrets
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          gitleaks detect --source . --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" --verbose
+          gitleaks detect --source . --log-opts="${{ github.event.pull_request.base.sha || github.event.before }}..${{ github.event.pull_request.head.sha || github.sha }}" --verbose
 
   licenses:
     name: licenses
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.deps == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.deps == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      - run: pip install -e . pip-licenses
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.deps == 'true'
       - if: needs.changes.outputs.deps == 'true'
         run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
@@ -275,52 +290,46 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     # config-home (#326): the live config left the repo; fixtures that resolve a config
     # dir (CWD fallback) get the tracked config.example via the resolver's env-first seam.
     env:
       PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.python == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
       # RAR extractor backend for the DEV #1 golden-fixture extraction test
       # (rarfile shells out to it). `unar` is in ubuntu main; without it the
       # real-extraction test skips instead of asserting the happy path (COV-4).
       - run: sudo apt-get update && sudo apt-get install -y unar
         if: needs.changes.outputs.python == 'true'
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
       # The renaming tool reads JS/TS through `scripts/source-spans.mjs`, which
-      # requires `frontend/node_modules/typescript`. Without it, 13 of the 16
+      # requires `webui/design/node_modules/typescript`. Without it, 13 of the 16
       # tests in `tests/scripts/test_rename_identifiers.py` SKIP here — and that
       # tool is the one about to be pointed at 35 000 lines of `legacy.js`, so
       # its proof has to be exercised where the gate is, not only on a developer
       # machine that happens to have run `npm ci`. Installing the ONE package
-      # into an empty prefix keeps this to seconds instead of the frontend's
-      # full dependency tree.
-      - uses: actions/setup-node@v4
+      # into an empty prefix keeps this to seconds instead of the
+      # maquette's full dependency tree (same version as its lockfile).
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.python == 'true'
         with:
           node-version: "22"
       - name: Install the TypeScript compiler the renaming tool parses through
         if: needs.changes.outputs.python == 'true'
         run: |
-          mkdir -p /tmp/tsonly frontend/node_modules
+          mkdir -p /tmp/tsonly webui/design/node_modules
           cd /tmp/tsonly
           npm install --no-save --no-fund --no-audit typescript@6.0.3
-          cp -R /tmp/tsonly/node_modules/typescript "$GITHUB_WORKSPACE/frontend/node_modules/"
-          node -e "console.log('typescript', require('$GITHUB_WORKSPACE/frontend/node_modules/typescript/package.json').version)"
+          cp -R /tmp/tsonly/node_modules/typescript "$GITHUB_WORKSPACE/webui/design/node_modules/"
+          node -e "console.log('typescript', require('$GITHUB_WORKSPACE/webui/design/node_modules/typescript/package.json').version)"
       # Run the full test suite (tests/) — the previous split into
       # tests/unit/ + tests/integration/ only covered 883 of 5521 tests
       # (~16%), yielding 44% combined coverage (well below fail_under=90).
@@ -341,7 +350,7 @@ jobs:
       # (v4 silently skips dotfiles by default).
       - run: mv .coverage coverage.dat
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.changes.outputs.python == 'true'
         with:
           name: coverage
@@ -352,27 +361,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.deps == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.deps == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      # Upgrade pip itself first — the runner ships pip 26.0.1 which carries
-      # CVE-2026-6357 (fixed in 26.1). Auditing with the upgraded pip removes
-      # the finding entirely instead of suppressing it.
-      - run: python -m pip install --upgrade "pip>=26.1"
-        if: needs.changes.outputs.deps == 'true'
-      - run: pip install -e . pip-audit
+      # The audited environment is the lock's: it carries pip >= 26.1 (the runner's
+      # 26.0.1 has CVE-2026-6357), so the finding is gone without suppressing it.
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.deps == 'true'
       # CVE-2026-3219 affects pip; no fix released yet. Ignore until upstream patch.
       # TODO(security): remove --ignore-vuln CVE-2026-3219 once pip ships a fix.
@@ -385,12 +385,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           node-version: "22"
@@ -399,7 +399,8 @@ jobs:
           # stale (slow install, never wrong).
           cache-dependency-path: |
             frontend/package-lock.json
-            frontend/maquette/design/package-lock.json
+            webui/design/package-lock.json
+            webui/design/tools/contract-types/package-lock.json
       # lint:tokens greps with ripgrep; without it the guard used to silently
       # no-op (`rg: command not found` swallowed by `|| true`, 2026-07-15).
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
@@ -412,13 +413,32 @@ jobs:
         working-directory: frontend
       - run: npm ci
         if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
+        working-directory: webui/design
       - run: npm run typecheck
         if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
+        working-directory: webui/design
       - run: npm test -- --run
         if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
+        working-directory: webui/design
+      # THE BUILD THAT SHIPS (`--mode app`): no mock layer, no harness, no phone frame.
+      # Built on every change to what it is built from, and read by the check that
+      # refuses any of the three in the bundle — the switchover's subtraction, proven
+      # on each pull request instead of on the day.
+      - run: npm run build:app
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      - run: npm run check:app-bundle
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      # The contract's types, regenerated and refused on any difference: the proof
+      # the size and vocabulary guards' exemption of `contract/types.d.ts` rests on.
+      # The generator is locked apart (`tools/contract-types`): it peers TypeScript 5,
+      # the maquette runs TypeScript 7.
+      - run: npm ci --prefix tools/contract-types
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      - run: make check-contract-types
+        if: needs.changes.outputs.maquette == 'true'
       - run: npm run lint
         if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
@@ -431,12 +451,14 @@ jobs:
       - run: npm run build
         if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
-      - uses: actions/setup-python@v5
-        if: needs.changes.outputs.frontend_app == 'true'
+      # Python for the OpenAPI export below, and for the conformance test at the end,
+      # which a contract-only (maquette) change must run too.
+      - uses: actions/setup-python@v7
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
-        if: needs.changes.outputs.frontend_app == 'true'
+      - uses: ./.github/actions/locked-install
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
       # config-home (#326): the live config left the repo (config/ untracked, canonical at
       # ~/.torrentmate/config). CI boots the app for OpenAPI generation against the tracked
       # config.example/ via the resolver's env-first seam — never a real config.
@@ -444,8 +466,60 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
-      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts
+      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts contract/openapi.generated.json
         if: needs.changes.outputs.frontend_app == 'true'
+      # The v1 register is computed from two committed documents (the contract and
+      # contract/openapi.generated.json, fresh by the step above) with the standard library
+      # alone: a contract-only PR moves it too, so the maquette's changes run it.
+      - run: python3 scripts/compare-contracts.py --check --have v1
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
+      # The comparer sees names and statuses only; the conformance test judges every served
+      # operation's shapes, enums, types and rights against the contract. A contract-only PR
+      # skips the `test` job (no python change), so it runs here under the comparer's condition.
+      - run: python -m pytest tests/http_v1/test_contract_conformance.py tests/http_v1/test_rights_table.py -q --no-header
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
+        env:
+          PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
+
+  # The built client against a seeded v1 server, in a browser: every operation the
+  # client asks of v1 is answered by v1 itself (tests/app_e2e, one file per surface).
+  # It reads both ends, so a change to either runs it.
+  app-e2e:
+    name: app-e2e
+    runs-on: ubuntu-latest
+    needs: [changes, lint, typecheck]
+    if: >-
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
+    steps:
+      - uses: actions/checkout@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - uses: actions/setup-node@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: webui/design/package-lock.json
+      - run: npm ci
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        working-directory: webui/design
+      - run: npm run build:app
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        working-directory: webui/design
+      - uses: actions/setup-python@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        with:
+          python-version: "3.12"
+      - uses: ./.github/actions/locked-install
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      # The browser driver is the `e2e` extra, pinned in uv.lock like the rest; --locked fails when the
+      # lock and pyproject.toml disagree. Only the browser itself is fetched outside the lock.
+      - run: uv sync --locked --python 3.12 --extra dev --extra e2e
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - run: python -m playwright install --with-deps chromium
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - run: python -m pytest -m app_e2e tests/app_e2e -q --no-header
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
 
   # ── Stage 3: Coverage gate + upload ───────────────────
   coverage-merge:
@@ -453,7 +527,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, test]
     if: >-
-      (github.event.pull_request.draft == false ||
+      (github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')) &&
       always() && !cancelled()
     # EVERY STEP ASKS « DID THE JOB THAT PRODUCES THE ARTEFACT RUN? », not only
@@ -476,15 +550,15 @@ jobs:
     # show `lint` red, `test` skipped, and coverage-merge green-and-idle rather
     # than red-and-misleading.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           name: coverage
@@ -500,12 +574,17 @@ jobs:
           THRESHOLD=$(python3 scripts/get_coverage_threshold.py)
           coverage report --fail-under="${THRESHOLD}"
           coverage xml -o coverage.xml
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
+          # A run without the token (Dependabot's secret store is separate, and
+          # forks get none) is refused by Codecov on a protected branch; that
+          # refusal must not fail the job. Codecov's `fail_ci_if_error` input
+          # ("fail the CI build if Codecov runs into an error during upload")
+          # is therefore true only when the token is present.
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
       - name: Verify fail_under is monotonic against base ref
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success' && github.event_name == 'pull_request'
         env:
@@ -525,49 +604,21 @@ jobs:
             exit 1
           fi
 
-  version-bump:
-    name: version-bump
-    runs-on: ubuntu-latest
-    # Operator rule (constitution §10-3): every PR bumps the version. A
-    # genuinely version-neutral PR opts out with the 'no-version-bump' label.
-    if: >-
-      (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')) &&
-      github.event_name == 'pull_request' &&
-      !contains(github.event.pull_request.labels.*.name, 'no-version-bump')
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Assert version bumped against base
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: python3 scripts/check_version_bump.py --base "origin/${BASE_REF}"
-
   design-gaps:
     name: design-gaps
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
       - name: Map freshness check
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
