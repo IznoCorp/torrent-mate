@@ -37,7 +37,7 @@ from rich.table import Table
 
 from personalscraper import cli_helpers
 from personalscraper.cli_helpers import _build_app_context
-from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
+from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.core.media_types import trailer_folders_in
 from personalscraper.logger import get_logger
@@ -953,6 +953,8 @@ def _discover_fs_orphan_trailers(
     Returns:
         A ``(orphan_trailers, index_gaps)`` tuple, both possibly empty.
     """
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
+
     live_dirs = _live_item_dirs(config, app_context, disk, seasons_enabled=seasons_enabled, min_size=min_size)
     if live_dirs is None:
         # Index unavailable — do NOT purge or heal on FS alone (would flag everything).
@@ -962,7 +964,7 @@ def _discover_fs_orphan_trailers(
     orphans: list[Path] = []
     gaps: list[_HealTarget] = []
 
-    # 1. Storage disks — scanner-parity iteration (disk.categories → folder_name)
+    # 1. Storage disks — scanner-parity iteration (video category folders present)
     #    so each gap carries the correct (disk_cfg, category_id, kind) for healing.
     for disk_cfg in getattr(config, "disks", []):
         if disk is not None and getattr(disk_cfg, "id", None) != disk:
@@ -970,12 +972,9 @@ def _discover_fs_orphan_trailers(
         disk_path = Path(str(disk_cfg.path))
         if not disk_path.exists():
             continue
-        for category_id in getattr(disk_cfg, "categories", []):
-            if category_id in NON_VIDEO_CATEGORY_IDS:
-                continue  # audiobooks etc. never hold movie/show trailers
-            category_dir = disk_path / config.category(category_id).folder_name
-            if not category_dir.is_dir():
-                continue
+        # ``categories`` gate where NEW media go, not what exists: a disk frozen to
+        # ["audiobooks"] still holds films and series (the helper skips non-video ones).
+        for category_id, category_dir in _category_dirs_on_disk(config, disk_cfg):
             kind: MediaItemKind = "show" if category_id in TV_CATEGORY_IDS else "movie"
             try:
                 media_dirs = [m for m in category_dir.iterdir() if m.is_dir() and not m.name.startswith(".")]
