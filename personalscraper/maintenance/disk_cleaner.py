@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 from personalscraper._fs_utils import is_apple_double
+from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
 from personalscraper.logger import get_logger
@@ -515,6 +516,8 @@ def clean_library(
     Returns:
         CleanResult with counts and details.
     """
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
+
     result = CleanResult(dry_run=not apply)
 
     # Orphans is opt-in: only triggered when the user passes --only orphans.
@@ -532,13 +535,19 @@ def clean_library(
             log.warning("library_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
-        for category_id in disk.categories:
+        # A disk's ``categories`` gate where NEW media go, not what exists on it: every
+        # video category folder present is cleaned. Its own non-video categories
+        # (audiobooks) are not video, so the helper skips them; they stay cleaned.
+        category_dirs = _category_dirs_on_disk(config, disk)
+        category_dirs.extend(
+            (category_id, disk.path / config.category(category_id).folder_name)
+            for category_id in disk.categories
+            if category_id in NON_VIDEO_CATEGORY_IDS
+        )
+        for category_id, category_dir in category_dirs:
             if category_filter and category_id != category_filter:
                 continue
 
-            # Resolve physical folder name from config
-            cat_cfg = config.category(category_id)
-            category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
                 log.debug("library_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
