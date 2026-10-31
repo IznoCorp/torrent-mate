@@ -22,6 +22,10 @@ import unicodedata
 from contextlib import closing
 from pathlib import Path
 
+from personalscraper.app.staging.nfo import (
+    NfoMetadata,
+    read_nfo_metadata,
+)
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name, staging_path
 from personalscraper.config import get_settings
@@ -42,10 +46,6 @@ from personalscraper.web.models.staging import (
     StagingMediaItem,
     StagingMediaKind,
     StagingSeason,
-)
-from personalscraper.web.staging.nfo import (
-    NfoMetadata,
-    read_nfo_metadata,
 )
 from personalscraper.web.staging.stages import (
     STAGE_DEFS,
@@ -112,7 +112,7 @@ def media_id_for(relative_path: str) -> str:
         across requests and safe to embed in a URL (the poster route matches on
         it instead of accepting a path).
     """
-    digest = hashlib.sha1(_nfc(relative_path).encode("utf-8")).hexdigest()  # noqa: S324 — id, not security
+    digest = hashlib.sha1(_nfc(relative_path).encode("utf-8")).hexdigest()  # id, not security
     return digest[:16]
 
 

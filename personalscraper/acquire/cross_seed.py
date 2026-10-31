@@ -7,7 +7,8 @@ downward on ``api/`` ports + ``acquire.db``, never importing triage packages.
 from __future__ import annotations
 
 import time as _time_module
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from personalscraper.acquire._cross_seed_support import (
     CrossSeedResult,
@@ -19,7 +20,15 @@ from personalscraper.acquire._cross_seed_support import (
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.api._contracts import ApiError
-from personalscraper.api.torrent._base import TorrentItem, _bencode_info_hash, parse_torrent_layout
+from personalscraper.api.torrent._base import (
+    TorrentItem,
+    _bencode_info_hash,
+    category_refusal,
+    is_under_download_root,
+    parse_torrent_layout,
+    scoped,
+    triage_skip_reason,
+)
 from personalscraper.api.torrent._layout import MatchVerdict, TorrentLayout, structural_match
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
@@ -46,10 +55,28 @@ logger = get_logger(__name__)
 _VERIFY_POLL_INTERVAL_S = 2
 
 
+class _ScopeRefusal(Exception):
+    """A scoped injection refused before anything reached the client.
+
+    Attributes:
+        reason: The rejection reason code: ``category_missing``, ``category_save_path``,
+            ``shared_hash`` or ``hash_underivable``.
+    """
+
+    def __init__(self, reason: str) -> None:
+        """Keep the reason code.
+
+        Args:
+            reason: The rejection reason code.
+        """
+        super().__init__(reason)
+        self.reason = reason
+
+
 class CrossSeedService:
     """Orchestrates cross-seed matching + injection for completed torrents.
 
-    One instance per process lifetime, built in :func:`_build_app_context`.
+    One instance per process lifetime, built in :func:`build_app_context`.
     Depends on *ports* (protocols), not concrete tracker/transport
     implementations — inject fakes for testing.
 
@@ -113,7 +140,9 @@ class CrossSeedService:
 
         1. Global kill-switch check.
         2. Locate source torrent via :meth:`TorrentLister.get_completed`.
-        3. Skip ``SEED_PURE``-tagged torrents.
+        3. Skip a torrent the triage leaves alone (``triage_skip_reason``):
+           ``SEED_PURE`` unscoped; under a scope, another instance's or an
+           untagged torrent and an own ``seed-only`` cross-seed.
         4. Read local layout via :meth:`TorrentInjector.list_files` +
            :meth:`TorrentInjector.properties`.
         5. Determine eligible target trackers (``cross_seed=true``, enabled,
@@ -146,11 +175,12 @@ class CrossSeedService:
             result.skip_reason = "not_found"
             return result
 
-        # 3. Skip SEED_PURE (it IS a cross-seed already).
-        if SEED_PURE in item.tags:
-            logger.info("acquire.cross_seed.skip", info_hash=info_hash, reason="seed_pure")
+        # 3. Skip what the triage leaves alone (a seed-pure / seed-only torrent IS a cross-seed already).
+        skip_reason = triage_skip_reason(item, self._config.torrent.active_scope())
+        if skip_reason is not None:
+            logger.info("acquire.cross_seed.skip", info_hash=info_hash, reason=skip_reason)
             result.skipped = True
-            result.skip_reason = "seed_pure"
+            result.skip_reason = skip_reason
             return result
 
         # 4. Read local layout.
@@ -233,7 +263,7 @@ class CrossSeedService:
         # The registry does not support per-tracker restriction, so we search
         # all managed trackers once and group results by provider.
         search_outcome = self._registry.search_candidates(item.name, media_type)
-        candidates_by_provider: dict[str, list["TrackerResult"]] = {}
+        candidates_by_provider: dict[str, list[TrackerResult]] = {}
         for r in search_outcome.results:
             candidates_by_provider.setdefault(r.provider, []).append(r)
 
@@ -351,12 +381,11 @@ class CrossSeedService:
 
                 # MATCH → inject → verify → resume + tag + obligation.
                 try:
-                    injected_hash = self._injector.inject(
-                        source.file_bytes,
-                        save_path=item.save_path,
-                        recheck=True,
-                        paused=True,
-                    )
+                    injected_hash = self._inject(source.file_bytes, item.save_path)
+                except _ScopeRefusal as refusal:
+                    # Nothing was sent: the client is left exactly as it was.
+                    self._reject(result, _candidate_id(candidate), tracker, refusal.reason, info_hash)
+                    continue
                 except (ValueError, ApiError) as exc:
                     logger.warning(
                         "acquire.cross_seed.rejected",
@@ -377,7 +406,7 @@ class CrossSeedService:
                     # (iii) tag (best-effort); (iv) emit event.
                     try:
                         self._write_obligation(injected_hash, tracker, item)
-                    except Exception as exc:  # noqa: BLE001 — caller handles
+                    except Exception as exc:  # caller handles
                         logger.error(
                             "acquire.cross_seed.obligation_write_failed",
                             info_hash=injected_hash,
@@ -405,7 +434,7 @@ class CrossSeedService:
                         else:
                             try:
                                 self._controller.delete(injected_hash, delete_files=False)
-                            except Exception as del_exc:  # noqa: BLE001 — best-effort cleanup
+                            except Exception as del_exc:  # best-effort cleanup
                                 logger.error(
                                     "acquire.cross_seed.obligation_delete_failed",
                                     info_hash=injected_hash,
@@ -417,7 +446,7 @@ class CrossSeedService:
 
                     try:
                         self._controller.resume(injected_hash)
-                    except Exception as exc:  # noqa: BLE001 — state is recoverable
+                    except Exception as exc:  # state is recoverable
                         logger.error(
                             "acquire.cross_seed.stranded_paused_injection",
                             info_hash=injected_hash,
@@ -428,7 +457,10 @@ class CrossSeedService:
                         )
 
                     try:
-                        self._tagger.add_tags(injected_hash, [SEED_PURE])
+                        # Unscoped, an untagged cross-seed is reprocessed as new work until it is
+                        # tagged. Under a scope it has no instance tag, so the triage predicate
+                        # answers ``not_own`` and skips it: it fails closed, it is not triaged.
+                        self._tagger.add_tags(injected_hash, self._cross_seed_tags())
                     except Exception as exc:  # noqa: BLE001 — best-effort tagging
                         logger.warning(
                             "acquire.cross_seed.tag_failed",
@@ -479,7 +511,7 @@ class CrossSeedService:
                     else:
                         try:
                             self._controller.delete(injected_hash, delete_files=False)
-                        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+                        except Exception as exc:  # best-effort cleanup
                             logger.error(
                                 "acquire.cross_seed.recheck_failed_delete_error",
                                 info_hash=injected_hash,
@@ -530,7 +562,7 @@ class CrossSeedService:
         """Throttled back-catalog sweep over all completed torrents (X2 — D6).
 
         Iterates every completed torrent via :meth:`TorrentLister.get_completed`,
-        skipping ``SEED_PURE``-tagged items.  For each eligible torrent:
+        skipping the items the triage leaves alone (``triage_skip_reason``).  For each eligible torrent:
 
         * **Quota gate** — checks
           :meth:`~personalscraper.acquire.store._CrossSeedSubStore.daily_searches_remaining`
@@ -572,7 +604,7 @@ class CrossSeedService:
         need_sleep = False  # Set after a quota-counted check(); never cleared.
 
         try:
-            completed = self._lister.get_completed()
+            completed = scoped(self._lister.get_completed(), self._config.torrent.active_scope())
         except Exception as exc:  # noqa: BLE001 — fail-soft, logged
             logger.error(
                 "acquire.cross_seed.sweep.lister_error",
@@ -580,9 +612,10 @@ class CrossSeedService:
             )
             return SweepResult(lister_failed=True)
 
+        scope = self._config.torrent.active_scope()
         for item in completed:
-            # Skip SEED_PURE (cheap tag check — avoids wasted check() call).
-            if SEED_PURE in item.tags:
+            # Skip what the triage leaves alone (cheap tag check — avoids wasted check() call).
+            if triage_skip_reason(item, scope) is not None:
                 continue
 
             # Quota gate — stop if no daily searches remain.
@@ -603,7 +636,7 @@ class CrossSeedService:
 
             try:
                 result = self.check(item.hash)
-            except Exception as exc:  # noqa: BLE001 — per-item isolation
+            except Exception as exc:  # per-item isolation
                 logger.error(
                     "acquire.cross_seed.sweep_item_error",
                     info_hash=item.hash,
@@ -657,7 +690,7 @@ class CrossSeedService:
             else ``None``.
         """
         try:
-            completed = self._lister.get_completed()
+            completed = scoped(self._lister.get_completed(), self._config.torrent.active_scope())
         except Exception as exc:  # noqa: BLE001 — fail-soft, logged
             logger.warning(
                 "acquire.cross_seed.lister_error",
@@ -799,6 +832,81 @@ class CrossSeedService:
             eligible.append(name)
         return eligible
 
+    def _inject(self, torrent_bytes: bytes, save_path: str) -> str:
+        """Inject a candidate, filed under the active scope's category and tags when there is one.
+
+        Same convention as a scoped grab: the scope's ``category``, with its ``cross_seed_tags`` (the
+        instance tags, ``seed-only`` so its own triage skips it, ``seed-pure`` per the v0 flag). Without a
+        scope the call is the plain injection, no category and no tags, and the client is not asked
+        about the hash.
+
+        Under a scope the client is shared, and an injection of a hash it already holds is idempotent:
+        the torrent would be rechecked, then deleted if it failed to verify under this instance's
+        category. So the rule of a scoped grab applies (``_scope_refusal``): a hash the client holds
+        outside the scope's category is never injected, rechecked nor deleted.
+
+        A scoped injection also needs the scope's category to exist (``category_refusal``; a client
+        without categories keeps today's path). The category's own save path is not checked: the
+        injection sends an explicit *save_path*, which is what decides where the data lands, so
+        that one must lie under the scope's ``download_root``.
+
+        Args:
+            torrent_bytes: Raw ``.torrent`` bytes of the candidate.
+            save_path: The source torrent's save directory.
+
+        Returns:
+            The info-hash of the injected torrent.
+
+        Raises:
+            _ScopeRefusal: Under a scope, the category is missing (``category_missing``), *save_path*
+                is outside the scope's ``download_root`` (``save_path_outside_root``), the candidate's
+                hash cannot be derived (``hash_underivable``) or is held outside the scope's category
+                (``shared_hash``); nothing was sent to the client.
+        """
+        scope = self._config.torrent.active_scope()
+        if scope is None:
+            return self._injector.inject(torrent_bytes, save_path=save_path, recheck=True, paused=True)
+        category_reason = category_refusal(self._injector, scope, check_save_path=False)
+        if category_reason is not None:
+            raise _ScopeRefusal(category_reason)
+        if not is_under_download_root(save_path, scope):
+            logger.warning(
+                "acquire.cross_seed.save_path_outside_root",
+                save_path=save_path,
+                download_root=str(scope.download_root),
+            )
+            raise _ScopeRefusal("save_path_outside_root")
+        try:
+            candidate_hash = _bencode_info_hash(torrent_bytes).lower()
+        except ValueError:
+            logger.warning("acquire.cross_seed.hash_underivable", category=scope.category)
+            raise _ScopeRefusal("hash_underivable") from None
+        held = self._lister.get_by_hashes({candidate_hash})
+        if any(h.hash.lower() == candidate_hash and h.category != scope.category for h in held):
+            logger.info("acquire.cross_seed.shared_hash", info_hash=candidate_hash, category=scope.category)
+            raise _ScopeRefusal("shared_hash")
+        return self._injector.inject(
+            torrent_bytes,
+            save_path=save_path,
+            recheck=True,
+            paused=True,
+            category=scope.category,
+            tags=scope.cross_seed_tags,
+        )
+
+    def _cross_seed_tags(self) -> list[str]:
+        """Return the tags a verified cross-seed is given.
+
+        Unscoped, ``seed-pure`` (the v0 rule). Under a scope, the scope's cross-seed tags (instance
+        tags, ``seed-only``, and ``seed-pure`` while ``v0_seed_pure`` is on): the injection already
+        carries them, and tagging again covers a client that dropped tags on a duplicate add.
+
+        Returns:
+            The tags to add to the injected torrent.
+        """
+        scope = self._config.torrent.active_scope()
+        return [SEED_PURE] if scope is None else list(scope.cross_seed_tags)
+
     def _verify_injection(self, injected_hash: str) -> str | None:
         """Poll until *injected_hash* appears verified or the configurable timeout.
 
@@ -824,7 +932,7 @@ class CrossSeedService:
         deadline = self._clock() + timeout_s
         while self._clock() < deadline:
             try:
-                completed = self._lister.get_completed()
+                completed = scoped(self._lister.get_completed(), self._config.torrent.active_scope())
             except Exception as exc:  # noqa: BLE001 — fail-soft poll error
                 logger.warning(
                     "acquire.cross_seed.verify_poll_error",

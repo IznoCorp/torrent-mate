@@ -4,7 +4,7 @@
 `docs/reference/frontend-backend-demands.md` is COMPUTED — `scripts/compare-contracts.py`
 diffs the maquette's contract against the backend's, operation by operation, and `--check`
 refuses a committed register that differs. It cannot describe anything here: **OpenAPI does
-not describe a WebSocket**, so neither document declares `/ws/events`, and the computed
+not describe a WebSocket**, so neither document declares the stream, and the computed
 register will go on reporting nothing about the stream. Nothing reads as identical to
 no demands, which is why this file exists beside it rather than as a section inside it.
 
@@ -18,16 +18,20 @@ implements against it exactly: accept-then-close `4401`, one `ws.hello` carrying
 from `?last_id=` with an exclusive lower bound. Every demand below is something the
 interface needs and that protocol does not offer.
 
+**Its address is the first of them.** The interface opens the stream at `/api/v1/events`,
+beside the operations, under the contract's `servers` URL (`design/src/lib/server-base.ts`);
+the backend serves it at `/ws/events`.
+
 ---
 
 ## 1. An event should say WHICH title it is about
 
-**Asked for by** `frontend/maquette/design/src/features/media/live.ts`.
+**Asked for by** `webui/design/src/features/media/live.ts`.
 
 `ItemDispatched`, `SeasonAbsorbedEpisodes` and `FilmAcquired` each change whether we own a
 title, or how much of it — which is half of what a media sheet shows (§11). Their payloads
 carry no provider identity the interface can read, so the sheet's rule invalidates
-`["/api/media"]`: **every open sheet, on every such event.**
+`["/api/v1/media"]`: **every open sheet, on every such event.**
 
 A sheet is keyed per identity (`["/api/media", provider, identifier]`) and that key is the
 narrowest in the whole map. Widening it is the one place this lot knowingly refreshes more
@@ -48,7 +52,7 @@ was given, and the widening goes.
 
 ## 2. A progress event needs somewhere to go that is not a list
 
-**Asked for by** `frontend/maquette/design/src/features/acquisition/live.ts`.
+**Asked for by** `webui/design/src/features/acquisition/live.ts`.
 
 **THIS DEMAND'S PREMISE WAS FALSE AND THE EVENTS ARE MAPPED NOW.** It said `DownloadProgressed`
 "fires per torrent per tick". Its own docstring says the opposite: only the HIGHEST threshold
@@ -85,7 +89,7 @@ name them » reads as a consequence of a known gap rather than as an omission.
 
 ## 4. Nothing says a SERVICE stopped answering
 
-**Asked for by** `frontend/maquette/design/src/features/system/live.ts`, as its exemption —
+**Asked for by** `webui/design/src/features/system/live.ts`, as its exemption —
 and it is the exemption nobody should be happy with.
 
 **HALF OF THIS DEMAND WAS ALREADY BUILT, and an adversarial review is what found that out.**
@@ -135,7 +139,7 @@ an explicit ordering guarantee that `LibraryScanCompleted` always follows a disp
 
 ## 6. A hello that says more than the commit
 
-**Asked for by** `frontend/maquette/design/src/lib/relay.ts`.
+**Asked for by** `webui/design/src/lib/relay.ts`.
 
 `ws.hello` carries `build_commit`, and the relay keeps it. B-079 and B-080 both want it —
 the design host cannot say which commit it serves, and the drawer shows a hard-coded version

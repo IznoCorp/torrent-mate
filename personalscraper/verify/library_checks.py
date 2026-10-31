@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 import personalscraper.verify.checks  # noqa: F401 — trigger plugin registration
 from personalscraper.conf.ids import TV_CATEGORY_IDS
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import parse_title_year
@@ -169,7 +170,7 @@ def validate_from_index(
     Returns:
         :class:`LibraryValidationResult` populated from the index.
     """
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
     conn.row_factory = sqlite3.Row
 
     rows = conn.execute(
@@ -278,7 +279,7 @@ def validate_library(
     Returns:
         LibraryValidationResult with per-item validation status.
     """
-    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk
 
     patterns = NamingPatterns()
     checker = MediaChecker(patterns, config)
@@ -286,12 +287,12 @@ def validate_library(
     valid_count = 0
     fixed_count = 0
     issues_count = 0
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
 
     for disk in config.disks:
         if disk_filter and disk.id != disk_filter:
             continue
-        if not disk.path.exists():
+        if not is_mounted(disk.path):
             log.warning("library_validate_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 

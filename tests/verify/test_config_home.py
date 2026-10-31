@@ -104,15 +104,15 @@ def test_check_config_home_handles_nonexistent_dir() -> None:
 # ── Integration: composition-root wiring ────────────────────────────────────
 
 
-def test_build_app_context_warns_when_config_in_worktree(
+def test_app_context_build_warns_when_config_in_worktree(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``_build_app_context`` logs a warning when config dir is inside a worktree.
+    """``build_app_context`` logs a warning when config dir is inside a worktree.
 
     End-to-end integration test for the DESIGN §3.4 boot guard: the TRUE
-    composition root (:func:`personalscraper.cli_helpers._build_app_context`)
+    composition root (:func:`personalscraper.app.composition.build_app_context`)
     calls :func:`check_config_home` at context-build time and logs every
     warning via the module logger.  Config dir inside an ancestor git worktree
     → warning emitted; clean dir → silent.
@@ -126,7 +126,7 @@ def test_build_app_context_warns_when_config_in_worktree(
     (cfg_dir / "config.json5").write_text('{"config_version":"0.0.0","overlays":[]}')
     monkeypatch.setenv("PERSONALSCRAPER_CONFIG", str(cfg_dir))
 
-    from personalscraper.cli_helpers import _build_app_context
+    from personalscraper.app.composition import build_app_context
     from personalscraper.core.ownership import NullOwnershipChecker
 
     cfg = MagicMock()
@@ -138,11 +138,11 @@ def test_build_app_context_warns_when_config_in_worktree(
         patch("personalscraper.api.metadata.registry.ProviderRegistry"),
         patch("personalscraper.acquire._factory.build_acquire_context"),
         patch(
-            "personalscraper.cli_helpers._build_ownership_checker",
+            "personalscraper.app.composition.build_ownership_checker",
             return_value=NullOwnershipChecker(),
         ),
     ):
-        _build_app_context(cfg, MagicMock())
+        build_app_context(cfg, MagicMock())
 
     # The warning must mention "config_home" and "inside a git working tree".
     warnings = [r for r in caplog.records if "config_home" in r.getMessage()]
@@ -154,12 +154,12 @@ def test_build_app_context_warns_when_config_in_worktree(
     )
 
 
-def test_build_app_context_silent_when_config_clean(
+def test_app_context_build_silent_when_config_clean(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``_build_app_context`` does NOT log a warning for a clean config dir.
+    """``build_app_context`` does NOT log a warning for a clean config dir.
 
     When the config directory is NOT inside any ancestor git working tree,
     the composition root must not emit any ``config_home`` warning.
@@ -172,7 +172,7 @@ def test_build_app_context_silent_when_config_clean(
     (cfg_dir / "config.json5").write_text('{"config_version":"0.0.0","overlays":[]}')
     monkeypatch.setenv("PERSONALSCRAPER_CONFIG", str(cfg_dir))
 
-    from personalscraper.cli_helpers import _build_app_context
+    from personalscraper.app.composition import build_app_context
     from personalscraper.core.ownership import NullOwnershipChecker
 
     cfg = MagicMock()
@@ -184,11 +184,11 @@ def test_build_app_context_silent_when_config_clean(
         patch("personalscraper.api.metadata.registry.ProviderRegistry"),
         patch("personalscraper.acquire._factory.build_acquire_context"),
         patch(
-            "personalscraper.cli_helpers._build_ownership_checker",
+            "personalscraper.app.composition.build_ownership_checker",
             return_value=NullOwnershipChecker(),
         ),
     ):
-        _build_app_context(cfg, MagicMock())
+        build_app_context(cfg, MagicMock())
 
     # No config_home warning.
     warnings = [r for r in caplog.records if "config_home" in r.getMessage()]

@@ -42,7 +42,7 @@ class DispatchAuthorityKW(TypedDict, total=False):
     recorder: SeedObligationRecorder
 
 
-def resolve_dispatch_authority(app: Any) -> DispatchAuthorityKW:  # noqa: ANN401
+def resolve_dispatch_authority(app: Any) -> DispatchAuthorityKW:
     """Resolve the delete permit + seed-obligation recorder for a dispatch call.
 
     Single owner of the acquire→dispatch injection so BOTH the full-run
@@ -422,7 +422,7 @@ class LegacyCallableStep:
         self.name = name
         self._fn = fn
 
-    def __call__(self, ctx: StepContext) -> Any:  # noqa: ANN401
+    def __call__(self, ctx: StepContext) -> Any:
         """Execute the legacy step, unpacking context to positional args.
 
         Args:

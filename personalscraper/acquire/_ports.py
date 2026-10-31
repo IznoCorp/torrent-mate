@@ -13,7 +13,7 @@ exposed as attribute namespaces:
 
 All five sub-stores share a single ``acquire.db`` connection.  Cross-process
 single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
-no ``FileLock`` is held for the store's lifetime, and reads are lock-free.  The
+no flock is held for the store's lifetime, and reads are lock-free.  The
 concrete store opens lazily (on first sub-store access).  See
 :mod:`personalscraper.acquire.store` for the concrete implementation.
 
@@ -377,8 +377,28 @@ class SeedSubStore(Protocol):
         """
         ...
 
-    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> None:
-        """Set ``satisfied_at`` on an obligation row."""
+    def list_open(self) -> list[SeedObligation]:
+        """Return every obligation neither satisfied nor released."""
+        ...
+
+    def list_unreleased(self) -> list[SeedObligation]:
+        """Return every obligation not yet released, satisfied or not."""
+        ...
+
+    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> int:
+        """Set ``satisfied_at`` on an open obligation row; return the row count."""
+        ...
+
+    def mark_absent(self, obligation_id: int, seen_at: int) -> int:
+        """Record the first sweep that did not find the torrent; return the row count."""
+        ...
+
+    def clear_absent(self, obligation_id: int) -> int:
+        """Forget an absence (the torrent was seen again); return the row count."""
+        ...
+
+    def mark_released(self, obligation_id: int, released_at: int) -> int:
+        """Set ``released_at`` (the torrent is gone); return the row count."""
         ...
 
     def mark_breached(self, obligation_id: int, breached_at: int) -> None:
@@ -420,7 +440,7 @@ class WatchSubStore(Protocol):
         """Persist the ``last_successful_run_at`` timestamp (upsert)."""
         ...
 
-    def get_pending_run(self) -> "PendingRun | None":
+    def get_pending_run(self) -> PendingRun | None:
         """Return the watcher's last published wait, or None (§8 / DOIT-2)."""
         ...
 
@@ -596,19 +616,19 @@ class ProvenanceSubStore(Protocol):
         """Snapshot ``{current_path: media_ref}`` for tracked, identified rows (#30)."""
         ...
 
-    def list_journeys(self, limit: int = 200) -> "list[ProvenanceRow]":
+    def list_journeys(self, limit: int = 200) -> list[ProvenanceRow]:
         """Return provenance rows most-recent first (F1 journey view; fail-soft)."""
         ...
 
-    def list_journeys_for_run(self, run_uid: str, limit: int = 500) -> "list[ProvenanceRow]":
+    def list_journeys_for_run(self, run_uid: str, limit: int = 500) -> list[ProvenanceRow]:
         """Return acquisitions a run advanced at any stage (F3 converse view; fail-soft)."""
         ...
 
-    def list_stuck(self, older_than: int, exists_fn: Callable[[str], bool], limit: int = 500) -> "list[ProvenanceRow]":
+    def list_stuck(self, older_than: int, exists_fn: Callable[[str], bool], limit: int = 500) -> list[ProvenanceRow]:
         """Return in-flight items stuck past *older_than* whose folder still exists (F4; fail-soft)."""
         ...
 
-    def stage_counts(self) -> "dict[str, int]":
+    def stage_counts(self) -> dict[str, int]:
         """Return ``{status: count}`` over the registry (F5 overview, uncapped; fail-soft)."""
         ...
 

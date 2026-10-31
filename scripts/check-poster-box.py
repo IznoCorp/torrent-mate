@@ -39,9 +39,10 @@ from __future__ import annotations
 import pathlib
 import re
 import sys
+from _repo_paths import DESIGN_SRC
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DESIGN = ROOT / "frontend" / "maquette" / "design" / "src"
+DESIGN = DESIGN_SRC
 
 # A declared box: an aspect ratio, or a height paired with a width. Written to
 # match the CSS declaration and the Tailwind utility both, because the

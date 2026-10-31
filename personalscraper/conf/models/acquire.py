@@ -12,12 +12,9 @@ from pathlib import Path
 
 from pydantic import Field, field_validator, model_validator
 
-# Intentional, documented upward dependency: BandwidthConfig parses byte-size
-# strings (e.g. "5MB") at validation time and reuses the canonical ByteSize
-# parser from api/_units — same boundary as conf/models/_ranking.py (D10).
-from personalscraper.api._units import ByteSize  # layering: allow
 from personalscraper.conf.models import paths as _paths_model
 from personalscraper.conf.models._base import _StrictModel
+from personalscraper.core.units import ByteSize
 
 
 class CadenceTierConfig(_StrictModel):
@@ -178,7 +175,7 @@ class AcquireConfig(_StrictModel):
     """Configuration for the acquire lobe SQLite store.
 
     The ``db_path`` defaults to ``None``; ``Config._resolve_derived_paths``
-    fills it as ``paths.data_dir / 'acquire.db'`` when unset.
+    fills it as ``paths.data_dir / <store>[-<env>].db`` (see ``conf/environment.py``) when unset.
 
     Attributes:
         db_path: Path to the acquire SQLite database. ``None`` = auto-derive.
@@ -195,7 +192,9 @@ class AcquireConfig(_StrictModel):
     db_path: Path | None = Field(
         default=None,
         validate_default=True,
-        description="Path to acquire.db. None = auto-derive from paths.data_dir.",
+        description=(
+            "Path to acquire.db. None = auto-derive: paths.data_dir / <store>[-<env>].db (see conf/environment.py)."
+        ),
     )
     cadence: CadenceConfig = Field(default_factory=CadenceConfig)
     bandwidth: BandwidthConfig = Field(default_factory=BandwidthConfig)

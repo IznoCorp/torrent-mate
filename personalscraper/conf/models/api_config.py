@@ -8,8 +8,9 @@ ranking share one source of truth.
 """
 
 import math
+from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from personalscraper.conf.models._base import _StrictModel
 from personalscraper.conf.models._duration import parse_duration
@@ -19,6 +20,7 @@ from personalscraper.conf.models._ranking import (
     RankingCriterion,
     ThresholdEntry,
 )
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 
 __all__ = [
     "MetadataConfig",
@@ -35,6 +37,7 @@ __all__ = [
     "ThresholdEntry",
     "TorrentClientEntry",
     "TorrentConfig",
+    "TorrentScope",
     "TrackerConfig",
     "TrackerEconomyConfig",
     "TrackerProviderConfig",
@@ -182,6 +185,135 @@ class MetadataConfig(_StrictModel):
 # ---------------------------------------------------------------------------
 
 
+class TorrentScope(_StrictModel):
+    """What this instance owns in a shared client. Absent = the whole client (today).
+
+    Two instances may share one client: each keeps to its own category and save
+    path, and tags every torrent it adds with its instance tags. Its triage
+    (ingest, sort, watcher, cross-seed) takes a torrent of its category that
+    carries every instance tag, and skips one also tagged ``seed-only`` (its
+    cross-seeds); it never reads ``seed-pure``. An unscoped instance (v0 prod)
+    keeps skipping ``seed-pure``, which every torrent added here also carries
+    while ``v0_seed_pure`` is on.
+
+    Attributes:
+        category: Client category of every torrent this instance adds and reads.
+        download_root: Save path root of this instance's torrents.
+        instance_tags: Tags naming this instance, added to every torrent it adds.
+        v0_seed_pure: Deprecated: add seed-pure so v0 prod skips this torrent; set
+            false, then remove, once v1 replaces v0 in prod.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    category: str = Field(min_length=1)
+    download_root: Path
+    instance_tags: tuple[str, ...] = ("tm-preprod",)
+    v0_seed_pure: bool = Field(
+        default=True,
+        description=(
+            "Deprecated: add seed-pure so v0 prod skips this torrent; "
+            "set false, then remove, once v1 replaces v0 in prod"
+        ),
+    )
+
+    @property
+    def grab_tags(self) -> tuple[str, ...]:
+        """Return the tags of a torrent this instance grabs (the provider tag aside).
+
+        Returns:
+            The instance tags, then ``seed-pure`` while ``v0_seed_pure`` is on.
+        """
+        return (*self.instance_tags, *self._v0_tags())
+
+    @property
+    def cross_seed_tags(self) -> tuple[str, ...]:
+        """Return the tags of a torrent this instance cross-seeds.
+
+        Returns:
+            The instance tags, ``seed-only``, then ``seed-pure`` while ``v0_seed_pure`` is on.
+        """
+        return (*self.instance_tags, SEED_ONLY, *self._v0_tags())
+
+    def _v0_tags(self) -> tuple[str, ...]:
+        """Return the tag v0 prod needs to skip this instance's torrents.
+
+        Returns:
+            ``(seed-pure,)`` while ``v0_seed_pure`` is on, else ``()``.
+        """
+        return (SEED_PURE,) if self.v0_seed_pure else ()
+
+    @field_validator("category")
+    @classmethod
+    def _category_not_blank(cls, v: str) -> str:
+        """Refuse a whitespace-only category, as a blank tag is refused.
+
+        ``min_length`` counts spaces, so ``"   "`` would pass it and scope nothing.
+
+        Args:
+            v: The category as configured.
+
+        Returns:
+            The category, unchanged.
+
+        Raises:
+            ValueError: The category is blank.
+        """
+        if not v.strip():
+            raise ValueError("category: the category is empty")
+        return v
+
+    @field_validator("download_root")
+    @classmethod
+    def _download_root_absolute(cls, v: Path) -> Path:
+        """Refuse a relative download root.
+
+        A relative path would resolve against each process's working directory,
+        and the web server and the cron jobs do not share one.
+
+        Args:
+            v: The download root as configured.
+
+        Returns:
+            The download root, unchanged.
+
+        Raises:
+            ValueError: The download root is relative.
+        """
+        if not v.is_absolute():
+            raise ValueError(f"download_root: {v} is not an absolute path")
+        return v
+
+    @field_validator("instance_tags")
+    @classmethod
+    def _instance_tags_valid(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        """Refuse no instance tag, an empty tag, and a triage tag among the instance tags.
+
+        An empty tag filter lists every torrent of the client, so one empty tag
+        would put the whole client in scope. Without a tag the instance would own
+        no torrent. A triage tag (``seed-pure``, ``seed-only``) on every grab would
+        hide the grabs from this instance's or prod's triage: those tags are added
+        per kind of torrent (``grab_tags``, ``cross_seed_tags``), never configured.
+
+        Args:
+            v: The instance tags as configured.
+
+        Returns:
+            The tags, unchanged.
+
+        Raises:
+            ValueError: No tag, a tag is empty, or a tag is ``seed-pure`` or ``seed-only``.
+        """
+        if not v:
+            raise ValueError("instance_tags: an instance tag is required")
+        if any(not tag.strip() for tag in v):
+            raise ValueError("instance_tags: a tag is empty")
+        for triage_tag in (SEED_PURE, SEED_ONLY):
+            if triage_tag in v:
+                raise ValueError(f"instance_tags: {triage_tag!r} is a triage tag, not an instance tag")
+        return v
+
+
 class TorrentClientEntry(_StrictModel):
     """Configuration for a single torrent client.
 
@@ -189,11 +321,40 @@ class TorrentClientEntry(_StrictModel):
         enabled: Whether this client is available.
         host: Hostname or IP address.
         port: WebUI port number.
+        scope: The part of the client this instance owns; ``None`` = the whole client.
+        sandbox_categories: For an UNSCOPED instance (prod) sharing the client with sandboxes: the
+            categories that belong to them. Prod refuses to grab a hash held there and does not
+            count their downloads in its watcher's quiescence gate. Empty = today's behaviour.
     """
 
     enabled: bool = True
     host: str = "localhost"
     port: int = 8080
+    scope: TorrentScope | None = None
+    sandbox_categories: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _sandbox_categories_valid(self) -> "TorrentClientEntry":
+        """Refuse a blank or padded sandbox category, and the key on a scoped instance.
+
+        A blank category would match every uncategorised torrent, i.e. prod's own; a padded one
+        (``" tm-dev"``) matches nothing, qBittorrent categories being exact, so prod would fail open. A scoped
+        instance is itself a sandbox: it owns one category and skips its seed-pure ones, so the
+        key belongs to the unscoped instance only.
+
+        Returns:
+            The entry, unchanged.
+
+        Raises:
+            ValueError: A category is blank or padded, or the entry has both a scope and sandbox categories.
+        """
+        if any(not category.strip() for category in self.sandbox_categories):
+            raise ValueError("sandbox_categories: a category is empty")
+        if any(category != category.strip() for category in self.sandbox_categories):
+            raise ValueError("sandbox_categories: a category has surrounding whitespace")
+        if self.scope is not None and self.sandbox_categories:
+            raise ValueError("sandbox_categories: only an unscoped instance lists the sandboxes' categories")
+        return self
 
 
 class TorrentConfig(_StrictModel):
@@ -206,6 +367,40 @@ class TorrentConfig(_StrictModel):
 
     active: str = ""
     clients: dict[str, TorrentClientEntry] = Field(default_factory=dict)
+
+    def active_scope(self) -> TorrentScope | None:
+        """Return the scope of the active client.
+
+        Returns:
+            The active client's ``scope``; ``None`` when no client is active, the active one is not
+            configured, or it has no scope (the whole client, as today).
+        """
+        entry = self.clients.get(self.active)
+        return entry.scope if entry is not None else None
+
+    def active_sandbox_categories(self) -> tuple[str, ...]:
+        """Return the sandbox categories an unscoped instance keeps out of.
+
+        Returns:
+            The active client's ``sandbox_categories``; empty when no client is active or the
+            active one is not configured.
+        """
+        entry = self.clients.get(self.active)
+        return entry.sandbox_categories if entry is not None else ()
+
+    def active_client_disabled(self) -> bool:
+        """Tell whether the active client is configured but switched off.
+
+        The one decision behind « a disabled active client means no client »: the composition root
+        builds no client for it, so the supervisor admits runs without its watcher and a worker
+        starts. An empty or unknown ``active`` is not « disabled »: the first is no client already,
+        the second stays the factory's loud misconfiguration.
+
+        Returns:
+            True when ``active`` names a configured client whose ``enabled`` is false.
+        """
+        entry = self.clients.get(self.active)
+        return entry is not None and not entry.enabled
 
 
 # ---------------------------------------------------------------------------

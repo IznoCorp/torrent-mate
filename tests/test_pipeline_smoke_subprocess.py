@@ -102,6 +102,7 @@ def fresh_env(tmp_path: Path) -> Iterator[tuple[Path, dict[str, str]]]:
     - ``config_dir`` is a temp dir holding a complete ``config/`` tree
       from ``config.example/`` with paths/disks rewritten to tmp_path.
     - ``env_dict`` is a minimal env (PATH, HOME, PYTHONPATH only) plus
+      ``PERSONALSCRAPER_ENV=prod`` (an unset environment is refused) and
       the bare-minimum credentials any provider activation step needs.
     """
     config_dir = _make_minimal_config(tmp_path)
@@ -114,6 +115,7 @@ def fresh_env(tmp_path: Path) -> Iterator[tuple[Path, dict[str, str]]]:
         "PATH": os.environ.get("PATH", "/usr/bin:/bin:/usr/local/bin"),
         "PYTHONPATH": _python_path(),
         "HOME": str(tmp_path),
+        "PERSONALSCRAPER_ENV": "prod",
         "TMDB_API_KEY": "fake-tmdb-key",
         "TVDB_API_KEY": "fake-tvdb-key",
         "QBIT_USERNAME": "fake",
@@ -171,6 +173,7 @@ class TestFreshShellSmoke:
             encoding="utf-8",
         )
         env_no_creds = {k: v for k, v in env.items() if k in {"PATH", "PYTHONPATH", "HOME"}}
+        env_no_creds["PERSONALSCRAPER_ENV"] = "prod"
 
         result = _run(
             ["--config", str(config_dir), "info"],
@@ -180,6 +183,20 @@ class TestFreshShellSmoke:
         assert result.returncode == 0, f"info failed:\nstdout={result.stdout}\nstderr={result.stderr}"
         # ``info`` always prints the disk lines if config loaded.
         assert "Disks" in result.stdout
+
+    def test_an_empty_environment_is_refused_by_name(self, fresh_env: tuple[Path, dict[str, str]]) -> None:
+        """An empty ``PERSONALSCRAPER_ENV`` is refused: non-zero exit, the variable named.
+
+        An empty value never reads as prod: the config load fails before any store opens.
+        """
+        config_dir, env = fresh_env
+        env["PERSONALSCRAPER_ENV"] = ""
+
+        result = _run(["--config", str(config_dir), "info"], env=env, cwd=config_dir.parent)
+
+        assert result.returncode != 0, f"info ran:\nstdout={result.stdout}"
+        assert "PERSONALSCRAPER_ENV" in result.stderr
+        assert "Disks" not in result.stdout
 
     def test_version_command_runs_without_config(self, fresh_env: tuple[Path, dict[str, str]]) -> None:
         """``--version`` doesn't load config; must succeed with empty env."""

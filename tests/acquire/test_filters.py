@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from personalscraper.acquire._filters import apply_hard_filters
 from personalscraper.acquire.desired import QualityProfile, Resolution
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 
 def _result(

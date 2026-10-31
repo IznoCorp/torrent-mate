@@ -16,7 +16,19 @@ import pytest
 from typer.testing import CliRunner
 
 from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent.qbittorrent import QBitClient
 from personalscraper.conf.models.watch_seed import CrossSeedConfig, WatchConfig
+from personalscraper.core.tags import SEED_PURE
+from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY_HASH,
+    PREPROD_HASH,
+    PROD_HASH,
+    SCOPE,
+    SCOPED_TORRENT_CONFIG,
+    UNSCOPED_TORRENT_CONFIG,
+    shared_client,
+    torrent,
+)
 
 # ---------------------------------------------------------------------------
 # autouse — reset the module-global _shutdown_requested before/after each test
@@ -80,6 +92,7 @@ def _make_watch_config(
         cross_seed=cross_seed_cfg,
         paths=SimpleNamespace(data_dir=tmp_path),
         web=SimpleNamespace(enabled=False),
+        torrent=UNSCOPED_TORRENT_CONFIG,
     )
 
 
@@ -174,12 +187,12 @@ class _WatchPatches:
     Attributes:
         mock_time: Patched ``personalscraper.commands.watch.time`` mock.
         mock_subprocess: Patched ``personalscraper.commands.watch.subprocess`` mock.
-        mock_build: Patched ``_build_app_context`` mock.
+        mock_build: Patched ``build_app_context`` mock.
         mock_tracker_cls: Patched ``IngestTracker`` mock.
         mock_is_lock_held: Patched ``is_lock_held`` mock.
         mock_get_settings: Patched ``cli_helpers.get_settings`` mock.
         mock_signal: Patched ``signal.signal`` mock.
-        fake_app: The fake AppContext returned by ``_build_app_context``.
+        fake_app: The fake AppContext returned by ``build_app_context``.
     """
 
     def __init__(
@@ -192,7 +205,7 @@ class _WatchPatches:
         """Create the patch bundle (does NOT activate patches).
 
         Args:
-            fake_app: Returned by ``_build_app_context``.
+            fake_app: Returned by ``build_app_context``.
             is_lock_held: Return value for the patched ``is_lock_held``.
             ingested: Dict returned by ``IngestTracker.load()``.
         """
@@ -217,12 +230,12 @@ class _WatchPatches:
 
         self._patches: list[Any] = []
 
-    def _enter(self) -> "_WatchPatches":
+    def _enter(self) -> _WatchPatches:
         """Activate all patches.  Returns self for use as a context manager."""
         self._patches = [
             patch("personalscraper.commands.watch.time", self.mock_time),
             patch("personalscraper.commands.watch.subprocess", self.mock_subprocess),
-            patch("personalscraper.commands.watch._build_app_context", self.mock_build),
+            patch("personalscraper.commands.watch.build_app_context", self.mock_build),
             patch("personalscraper.commands.watch.IngestTracker", self.mock_tracker_cls),
             patch("personalscraper.commands.watch.is_lock_held", self.mock_is_lock_held),
             patch("personalscraper.commands.watch.cli_helpers.get_settings", self.mock_get_settings),
@@ -237,7 +250,7 @@ class _WatchPatches:
         for p in self._patches:
             p.stop()
 
-    def __enter__(self) -> "_WatchPatches":
+    def __enter__(self) -> _WatchPatches:
         return self._enter()
 
     def __exit__(self, *exc_info: Any) -> None:
@@ -1177,3 +1190,132 @@ def test_watch_now_help(tmp_path: Path) -> None:
         result = runner.invoke(app, ["watch-now", "--help"])
 
     assert result.exit_code == 0, f"watch-now --help failed:\n{result.output}"
+
+
+# ---------------------------------------------------------------------------
+# Client scope — one poll cycle reads only the instance's own category
+# ---------------------------------------------------------------------------
+
+
+def _poll_once(tmp_path: Path, torrent_config: Any, client: Any) -> Any:
+    """Run one poll cycle against *client* under the given ``config.torrent``.
+
+    Args:
+        tmp_path: Pytest temporary directory (the daemon data dir; no tracker file).
+        torrent_config: The ``config.torrent`` section the poll reads its scope from.
+        client: The torrent client to poll.
+
+    Returns:
+        The cycle's ``WatcherInput``.
+    """
+    from personalscraper.commands.watch import _poll  # noqa: PLC0415
+
+    config = MagicMock()
+    config.torrent = torrent_config
+    inp, _ = _poll(client, config, tmp_path, [], None, {})
+    assert inp is not None
+    return inp
+
+
+def test_poll_under_scope_sees_only_its_own_completed_torrent(tmp_path: Path) -> None:
+    """Under a scope the other instance's completed torrent is not in the cycle's input."""
+    inp = _poll_once(tmp_path, SCOPED_TORRENT_CONFIG, shared_client())
+    assert inp.completed_hashes == {PREPROD_HASH}
+
+
+def test_poll_without_scope_sees_every_completed_torrent(tmp_path: Path) -> None:
+    """Characterisation: no scope, every completed torrent is in the input."""
+    inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, shared_client())
+    assert inp.completed_hashes == {PREPROD_HASH, PROD_HASH, OTHER_CATEGORY_HASH}
+
+
+def test_poll_under_scope_counts_only_its_own_downloads(tmp_path: Path) -> None:
+    """Under a scope the other instance's running download does not hold the quiescence gate."""
+    inp = _poll_once(tmp_path, SCOPED_TORRENT_CONFIG, shared_client(progress=0.5))
+    assert inp.downloading_count == 1
+
+
+def test_poll_without_scope_counts_every_download(tmp_path: Path) -> None:
+    """Characterisation: no scope, every running download counts."""
+    inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, shared_client(progress=0.5))
+    assert inp.downloading_count == 3
+
+
+def test_poll_without_scope_ignores_the_sandboxes_downloads(tmp_path: Path) -> None:
+    """Prod counts only the torrents outside the sandbox categories: a sandbox download holds nothing."""
+    from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig  # noqa: PLC0415
+
+    prod_config = TorrentConfig(active="qbit", clients={"qbit": TorrentClientEntry(sandbox_categories=("tm-preprod",))})
+    inp = _poll_once(tmp_path, prod_config, shared_client(progress=0.5))
+    assert inp.downloading_count == 2  # prod's and the other category's; not the sandbox's
+
+
+def test_poll_without_scope_ignores_a_sandbox_subcategory_download(tmp_path: Path) -> None:
+    """A sandbox torrent in a qBittorrent subcategory (``tm-preprod/x``) is the sandbox's: it holds nothing."""
+    from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig  # noqa: PLC0415
+
+    prod_config = TorrentConfig(active="qbit", clients={"qbit": TorrentClientEntry(sandbox_categories=("tm-preprod",))})
+    client = shared_client(progress=0.5)
+    sub = torrent("d" * 40, "tm-preprod/x", progress=0.5)
+    sibling = torrent("e" * 40, "tm-preprod-other", progress=0.5)
+    items = [*client.get_by_hashes(client.get_all_hashes()), sub, sibling]
+    client.get_all_hashes.return_value = {i.hash for i in items}
+    client.get_by_hashes.side_effect = lambda hs: [i for i in items if i.hash in hs]
+    inp = _poll_once(tmp_path, prod_config, client)
+    # prod's, the other category's and a sibling whose name merely starts with the sandbox's; not the subcategory
+    assert inp.downloading_count == 3
+
+
+@pytest.mark.parametrize(("torrent_config", "popens"), [(SCOPED_TORRENT_CONFIG, 0), (UNSCOPED_TORRENT_CONFIG, 1)])
+def test_watch_builds_a_scoped_service_on_a_scoped_config(tmp_path: Path, torrent_config: Any, popens: int) -> None:
+    """The daemon scopes its decision engine from the config: no safety-net run on a scoped boot, one otherwise."""
+    from personalscraper.commands.watch import watch  # noqa: PLC0415
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+    ctx.obj.config.torrent = torrent_config
+    with _WatchPatches(_make_fake_app_context(), is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+        watch(ctx)
+
+    assert p.mock_subprocess.Popen.call_count == popens
+
+
+def _poll_scoped_items(tmp_path: Path, items: list[Any]) -> Any:
+    """Run one scoped poll cycle over completed torrents of the scope's category.
+
+    Args:
+        tmp_path: Pytest temporary directory.
+        items: The completed torrents the client lists.
+
+    Returns:
+        The cycle's ``WatcherInput``.
+    """
+    client = MagicMock(spec=QBitClient)
+    client.get_completed.return_value = items
+    client.get_by_category.return_value = items
+    client.get_by_hashes.side_effect = lambda hs: [i for i in items if i.hash in hs]
+    return _poll_once(tmp_path, SCOPED_TORRENT_CONFIG, client)
+
+
+def test_poll_under_scope_works_own_grab_and_skips_seed_only_and_untagged(tmp_path: Path) -> None:
+    """Under a scope an own grab (seed-pure for v0) is work; an own seed-only and an untagged one are skipped."""
+    grab, cross_seed, untagged = "1" * 40, "2" * 40, "3" * 40
+    inp = _poll_scoped_items(
+        tmp_path,
+        [
+            torrent(grab, SCOPE.category, tags=["c411", *SCOPE.grab_tags]),
+            torrent(cross_seed, SCOPE.category, tags=list(SCOPE.cross_seed_tags)),
+            torrent(untagged, SCOPE.category, tags=["c411"]),
+        ],
+    )
+    assert inp.triage_skipped_hashes == {cross_seed, untagged}
+
+
+def test_poll_without_scope_skips_seed_pure_only(tmp_path: Path) -> None:
+    """Characterisation: no scope, a seed-pure torrent is skipped and an untagged one is work."""
+    items = [torrent(PROD_HASH, None, tags=[SEED_PURE]), torrent(OTHER_CATEGORY_HASH, None, tags=[])]
+    client = MagicMock(spec=QBitClient)
+    client.get_completed.return_value = items
+    client.get_all_hashes.return_value = {i.hash for i in items}
+    inp = _poll_once(tmp_path, UNSCOPED_TORRENT_CONFIG, client)
+    assert inp.triage_skipped_hashes == {PROD_HASH}

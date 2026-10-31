@@ -394,7 +394,7 @@ def _result(
     Returns:
         A populated TrackerResult.
     """
-    from personalscraper.api._units import ByteSize
+    from personalscraper.core.units import ByteSize
 
     return TrackerResult(
         provider=provider,

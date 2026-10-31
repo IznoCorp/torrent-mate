@@ -402,7 +402,7 @@ class IndexerOwnershipChecker:
             )
             return False
 
-    def owned_pairs(self, media_ref: "MediaRef") -> set[tuple[int, int]]:
+    def owned_pairs(self, media_ref: MediaRef) -> set[tuple[int, int]]:
         """Return every owned ``(season, episode)`` pair for one show — fail-soft.
 
         Bulk counterpart of :meth:`owns` for the §5 truth-table status: one

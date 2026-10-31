@@ -1378,7 +1378,7 @@ export interface paths {
          *         A dict with:
          *         - **status**: Always ``"ok"`` if this handler is reachable.
          *         - **redis**: ``True`` if the configured Redis instance responds to PING.
-         *         - **db**: ``True`` if ``library.db`` exists at the configured data_dir path.
+         *         - **db**: ``True`` if the environment's library store exists at the configured data_dir path.
          */
         get: operations["health_api_health_get"];
         put?: never;
@@ -3331,7 +3331,7 @@ export interface components {
          *     Attributes:
          *         status: Always ``"ok"`` if the handler is reachable.
          *         redis: ``True`` if the configured Redis instance responds to PING.
-         *         db: ``True`` if ``library.db`` exists at the configured data_dir path.
+         *         db: ``True`` if the environment's library store exists at the configured data_dir path.
          */
         HealthResponse: {
             /** Db */

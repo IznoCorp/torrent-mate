@@ -15,6 +15,7 @@ from typing import Any
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,
+    CastMember,
     EpisodeInfo,
     MediaDetails,
     SearchResult,
@@ -24,6 +25,8 @@ from personalscraper.api.metadata._base import (
 )
 
 IMAGE_BASE = "https://image.tmdb.org/t/p/"
+# TMDB serves profiles only at w45 / w185 / h632 / original (not the posters' w780).
+PROFILE_SIZE = "w185"
 
 
 def _optional_float(value: Any) -> float | None:
@@ -77,6 +80,64 @@ def _build_image_url(path: str | None, size: str) -> str:
     if not path:
         return ""
     return f"{IMAGE_BASE}{size}{path}"
+
+
+def _optional_text(value: Any) -> str | None:
+    """Return a non-empty string as is, anything else as None.
+
+    Args:
+        value: Raw value from the provider payload.
+
+    Returns:
+        The string, or None when absent, empty or not a string.
+    """
+    return value if isinstance(value, str) and value else None
+
+
+def parse_cast(raw: dict[str, Any]) -> list[CastMember]:
+    """Map a details response's cast → list[CastMember], in TMDB's ``order``.
+
+    Movies carry ``credits.cast[*].character``; shows (fetched with
+    ``aggregate_credits``) carry ``aggregate_credits.cast[*].roles[*].character``,
+    of which the first role is kept. The sort is stable, so members TMDB gives
+    no ``order`` keep their payload position after the ordered ones.
+
+    Args:
+        raw: Full movie or TV details response.
+
+    Returns:
+        The cast; members without a name are left out. Empty when TMDB lists none.
+    """
+    credits = raw.get("credits") or raw.get("aggregate_credits") or {}
+    people = credits.get("cast") if isinstance(credits, dict) else None
+    if not isinstance(people, list):
+        return []
+    ranked: list[tuple[float, CastMember]] = []
+    for person in people:
+        if not isinstance(person, dict):
+            continue
+        name = _optional_text(person.get("name"))
+        if name is None:
+            continue
+        role = person.get("character")
+        if role is None:
+            roles = person.get("roles") or []
+            first = roles[0] if isinstance(roles, list) and roles else None
+            role = first.get("character") if isinstance(first, dict) else None
+        order = person.get("order")
+        rank = float(order) if isinstance(order, int) and not isinstance(order, bool) else float("inf")
+        ranked.append(
+            (
+                rank,
+                CastMember(
+                    name=name,
+                    role=role if isinstance(role, str) else "",
+                    portrait_url=_build_image_url(person.get("profile_path"), PROFILE_SIZE) or None,
+                ),
+            )
+        )
+    ranked.sort(key=lambda entry: entry[0])
+    return [member for _, member in ranked]
 
 
 def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
@@ -303,6 +364,8 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
 
     # Trailer URL: first YouTube trailer from videos.results.
     trailer_url: str | None = None
+    trailer_name: str | None = None
+    trailer_language: str | None = None
     videos_raw = raw.get("videos") or {}
     for video in videos_raw.get("results") or []:
         if (
@@ -312,6 +375,8 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
             and video.get("key")
         ):
             trailer_url = f"https://www.youtube.com/watch?v={video['key']}"
+            trailer_name = _optional_text(video.get("name"))
+            trailer_language = _optional_text(video.get("iso_639_1"))
             break
 
     return MediaDetails(
@@ -336,6 +401,9 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         episode_count=episode_count,
         trailer_url=trailer_url,
         creator=creator,
+        cast=parse_cast(raw),
+        trailer_name=trailer_name,
+        trailer_language=trailer_language,
     )
 
 

@@ -26,7 +26,7 @@ from __future__ import annotations
 import subprocess
 import unicodedata
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -36,10 +36,13 @@ from rich.console import Console
 from rich.table import Table
 
 from personalscraper import cli_helpers
-from personalscraper.cli_helpers import _build_app_context
+from personalscraper.app.composition import build_app_context
 from personalscraper.conf.ids import TV_CATEGORY_IDS
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.core.media_types import trailer_folders_in
+from personalscraper.core.sqlite._fs_probe import is_mounted
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.purge_fs import (
@@ -74,7 +77,7 @@ def _trailers_boundary(config: Any):  # type: ignore[no-untyped-def]
         ``settings``, and a fresh :class:`EventBus`.
     """
     settings = cli_helpers.get_settings()
-    app_context = _build_app_context(config, settings)
+    app_context = build_app_context(config, settings)
     token = current_correlation_id.set(str(uuid4()))
     try:
         yield app_context
@@ -84,7 +87,7 @@ def _trailers_boundary(config: Any):  # type: ignore[no-untyped-def]
 
 log = get_logger("trailers.cli")
 
-app = typer.Typer(name="trailers", help="Trailer acquisition and management commands.")
+app = typer.Typer(name="trailers", help=t("cli_trailers.app_help"))
 
 _VALID_LEVELS = {"show", "season", "both"}
 
@@ -109,9 +112,9 @@ def _parse_since(since: str | None) -> datetime | None:
     if since is None:
         return None
     try:
-        return datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=UTC)
     except ValueError:
-        typer.echo(f"Error: --since {since!r} must be YYYY-MM-DD.", err=True)
+        typer.echo(t("cli_trailers.since_invalid", since=repr(since)), err=True)
         raise typer.Exit(code=2)
 
 
@@ -131,8 +134,8 @@ def _item_added_at(item: ScanItem) -> datetime:
     try:
         mtime = source.stat().st_mtime
     except OSError:
-        return datetime.fromtimestamp(0, tz=timezone.utc)
-    return datetime.fromtimestamp(mtime, tz=timezone.utc)
+        return datetime.fromtimestamp(0, tz=UTC)
+    return datetime.fromtimestamp(mtime, tz=UTC)
 
 
 def _filter_since(items: list[ScanItem], since_dt: datetime | None) -> list[ScanItem]:
@@ -178,7 +181,7 @@ def _resolve_level_and_season(
     """
     if level not in _VALID_LEVELS:
         typer.echo(
-            f"Error: --level {level!r} is not valid. Choose from: {', '.join(sorted(_VALID_LEVELS))}.",
+            t("cli_trailers.level_invalid", level=repr(level), choices=", ".join(sorted(_VALID_LEVELS))),
             err=True,
         )
         raise typer.Exit(code=2)
@@ -359,26 +362,23 @@ def _apply_filters(
 # ---------------------------------------------------------------------------
 
 
-@app.command()
+@app.command(help=t("cli_trailers.scan.help"))
 def scan(
     ctx: typer.Context,
-    disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID (e.g. Disk1)."),
-    category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
-    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
-    limit: int | None = typer.Option(None, "--limit", help="Max items to scan."),
-    no_refresh: bool = typer.Option(False, "--no-refresh", help="Use cached library scan even if stale."),
+    disk: str | None = typer.Option(None, "--disk", help=t("cli_trailers.opt.disk")),
+    category: str | None = typer.Option(None, "--category", help=t("cli_trailers.opt.category")),
+    since: str | None = typer.Option(None, "--since", help=t("cli_trailers.opt.since")),
+    limit: int | None = typer.Option(None, "--limit", help=t("cli_trailers.opt.limit_scan")),
+    no_refresh: bool = typer.Option(False, "--no-refresh", help=t("cli_trailers.opt.no_refresh_scan")),
     level: str = typer.Option(
         "both",
         "--level",
-        help=(
-            "Which trailer levels to list: show | season | both. "
-            "Season-level is silently ignored when seasons.enabled is False."
-        ),
+        help=t("cli_trailers.opt.level_list"),
     ),
     season: int | None = typer.Option(
         None,
         "--season",
-        help="Target a specific season number (1-indexed). Implies --level=season.",
+        help=t("cli_trailers.opt.season"),
     ),
 ) -> None:
     """Dry-run: list media items missing trailers.
@@ -422,14 +422,14 @@ def scan(
         log.info("trailers_scan_complete", count=len(items), disk=disk, category=category)
 
         if not items:
-            console.print("[green]No media without trailers found.[/green]")
+            console.print("[green]" + t("cli_trailers.scan.none") + "[/green]")
             return
 
-        table = Table(title=f"Media missing trailers ({len(items)} items)", show_header=True)
-        table.add_column("Title")
-        table.add_column("Type")
-        table.add_column("Season", justify="right")
-        table.add_column("Path")
+        table = Table(title=t("cli_trailers.scan.table_title", items=len(items)), show_header=True)
+        table.add_column(t("cli_trailers.column.title"))
+        table.add_column(t("cli_trailers.column.type"))
+        table.add_column(t("cli_trailers.column.season"), justify="right")
+        table.add_column(t("cli_trailers.column.path"))
 
         for item in items:
             season_col = str(item.season_number) if item.season_number is not None else "-"
@@ -443,27 +443,24 @@ def scan(
 # ---------------------------------------------------------------------------
 
 
-@app.command()
+@app.command(help=t("cli_trailers.download.help"))
 def download(
     ctx: typer.Context,
-    disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID (e.g. Disk1)."),
-    category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
-    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
-    limit: int | None = typer.Option(None, "--limit", help="Max items to process."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be downloaded without doing it."),
-    no_refresh: bool = typer.Option(False, "--no-refresh", help="Skip library cache refresh."),
+    disk: str | None = typer.Option(None, "--disk", help=t("cli_trailers.opt.disk")),
+    category: str | None = typer.Option(None, "--category", help=t("cli_trailers.opt.category")),
+    since: str | None = typer.Option(None, "--since", help=t("cli_trailers.opt.since")),
+    limit: int | None = typer.Option(None, "--limit", help=t("cli_trailers.opt.limit_process")),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_trailers.opt.dry_run_download")),
+    no_refresh: bool = typer.Option(False, "--no-refresh", help=t("cli_trailers.opt.no_refresh_download")),
     level: str = typer.Option(
         "both",
         "--level",
-        help=(
-            "Which trailer levels to process: show | season | both. "
-            "Season-level is silently ignored when seasons.enabled is False."
-        ),
+        help=t("cli_trailers.opt.level_process"),
     ),
     season: int | None = typer.Option(
         None,
         "--season",
-        help="Target a specific season number (1-indexed). Implies --level=season.",
+        help=t("cli_trailers.opt.season"),
     ),
 ) -> None:
     """Discover and download missing trailers.
@@ -510,10 +507,19 @@ def download(
         )
 
         if dry_run:
-            console.print(f"[yellow]DRY-RUN:[/yellow] Would attempt to download trailers for {len(items)} items.")
+            console.print(
+                "[yellow]"
+                + t("cli_trailers.dry_run_label")
+                + "[/yellow] "
+                + t("cli_trailers.download.would_attempt", items=len(items))
+            )
             for item in items:
-                season_col = f" (season {item.season_number})" if item.season_number is not None else ""
-                console.print(f"  - {item.title}{season_col}  [dim]{item.path}[/dim]")
+                season_col = (
+                    t("cli_trailers.download.season_suffix", season=item.season_number)
+                    if item.season_number is not None
+                    else ""
+                )
+                console.print("  - " + item.title + season_col + "  [dim]" + str(item.path) + "[/dim]")
             return
 
         orchestrator = TrailersOrchestrator(
@@ -526,9 +532,9 @@ def download(
 
         error_count = counts.get("error", 0)
 
-        table = Table(title="Trailer download summary", show_header=True)
-        table.add_column("Status")
-        table.add_column("Count", justify="right")
+        table = Table(title=t("cli_trailers.download.summary_title"), show_header=True)
+        table.add_column(t("cli_trailers.column.status"))
+        table.add_column(t("cli_trailers.column.count"), justify="right")
         for status, count in counts.items():
             table.add_row(status.replace("_", " ").capitalize(), str(count))
         console.print(table)
@@ -692,52 +698,51 @@ def _audit_impl(
             existing.append((item.title, str(found)))
 
         if ffprobe_error:
-            console.print("[red]ffprobe error: one or more probes failed (exit 4).[/red]")
+            console.print("[red]" + t("cli_trailers.audit.ffprobe_error") + "[/red]")
             raise typer.Exit(code=4)
 
         # F6 / §8: always SHOW what exists on disk, not only what is missing.
         if existing:
-            existing_table = Table(title=f"Existing trailers ({len(existing)})", show_header=True)
-            existing_table.add_column("Title")
-            existing_table.add_column("Path")
+            existing_table = Table(
+                title=t("cli_trailers.audit.existing_title", existing=len(existing)), show_header=True
+            )
+            existing_table.add_column(t("cli_trailers.column.title"))
+            existing_table.add_column(t("cli_trailers.column.path"))
             for title, path in existing:
                 existing_table.add_row(title, path)
             console.print(existing_table)
         else:
-            console.print("[dim]No existing trailers found.[/dim]")
+            console.print("[dim]" + t("cli_trailers.audit.no_existing") + "[/dim]")
 
         if issues:
-            table = Table(title=f"Trailer issues ({len(issues)} found)", show_header=True)
-            table.add_column("Title")
-            table.add_column("Issue")
-            table.add_column("Path")
+            table = Table(title=t("cli_trailers.audit.issues_title", found=len(issues)), show_header=True)
+            table.add_column(t("cli_trailers.column.title"))
+            table.add_column(t("cli_trailers.column.issue"))
+            table.add_column(t("cli_trailers.column.path"))
             for title, path, issue in issues:
                 table.add_row(title, issue, path)
             console.print(table)
             raise typer.Exit(code=2)
 
-        console.print(f"[green]All {len(existing)} trailers verified OK.[/green]")
+        console.print("[green]" + t("cli_trailers.audit.all_ok", existing=len(existing)) + "[/green]")
 
 
-@app.command("audit")
+@app.command("audit", help=t("cli_trailers.audit.help"))
 def audit(
     ctx: typer.Context,
-    disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID (e.g. Disk1)."),
-    category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
-    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
-    deep: bool = typer.Option(False, "--deep", help="Run ffprobe playability probe (expensive)."),
+    disk: str | None = typer.Option(None, "--disk", help=t("cli_trailers.opt.disk")),
+    category: str | None = typer.Option(None, "--category", help=t("cli_trailers.opt.category")),
+    since: str | None = typer.Option(None, "--since", help=t("cli_trailers.opt.since")),
+    deep: bool = typer.Option(False, "--deep", help=t("cli_trailers.opt.deep")),
     level: str = typer.Option(
         "both",
         "--level",
-        help=(
-            "Which trailer levels to audit: show | season | both. "
-            "Season-level is silently ignored when seasons.enabled is False."
-        ),
+        help=t("cli_trailers.opt.level_audit"),
     ),
     season: int | None = typer.Option(
         None,
         "--season",
-        help="Target a specific season number (1-indexed). Implies --level=season.",
+        help=t("cli_trailers.opt.season"),
     ),
 ) -> None:
     """Audit existing trailers (canonical command).
@@ -970,7 +975,7 @@ def _discover_fs_orphan_trailers(
         if disk is not None and getattr(disk_cfg, "id", None) != disk:
             continue
         disk_path = Path(str(disk_cfg.path))
-        if not disk_path.exists():
+        if not is_mounted(disk_path):
             continue
         # ``categories`` gate where NEW media go, not what exists: a disk frozen to
         # ["audiobooks"] still holds films and series (the helper skips non-video ones).
@@ -1016,29 +1021,26 @@ def _discover_fs_orphan_trailers(
 # ---------------------------------------------------------------------------
 
 
-@app.command()
+@app.command(help=t("cli_trailers.purge.help"))
 def purge(
     ctx: typer.Context,
-    disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID (e.g. Disk1)."),
-    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be purged without doing it."),
+    disk: str | None = typer.Option(None, "--disk", help=t("cli_trailers.opt.disk")),
+    since: str | None = typer.Option(None, "--since", help=t("cli_trailers.opt.since")),
+    dry_run: bool = typer.Option(False, "--dry-run", help=t("cli_trailers.opt.dry_run_purge")),
     include_state: bool = typer.Option(
         False,
         "--include-state",
-        help="Also wipe orphan state entries via state_store.purge_orphans().",
+        help=t("cli_trailers.opt.include_state"),
     ),
     level: str = typer.Option(
         "both",
         "--level",
-        help=(
-            "Which trailer levels to purge: show | season | both. "
-            "Season-level is silently ignored when seasons.enabled is False."
-        ),
+        help=t("cli_trailers.opt.level_purge"),
     ),
     season: int | None = typer.Option(
         None,
         "--season",
-        help="Target a specific season number (1-indexed). Implies --level=season.",
+        help=t("cli_trailers.opt.season"),
     ),
 ) -> None:
     """Remove orphan trailers whose media video is gone; heal index gaps.
@@ -1114,43 +1116,59 @@ def purge(
             ]
 
         if dry_run:
-            console.print(f"[yellow]DRY-RUN:[/yellow] Would purge {len(orphan_trailer_paths)} orphan trailer(s).")
+            console.print(
+                "[yellow]"
+                + t("cli_trailers.dry_run_label")
+                + "[/yellow] "
+                + t("cli_trailers.purge.would_purge", orphans=len(orphan_trailer_paths))
+            )
             # §8 (rien en silence): show WHICH trailers, not just a count.
             # ``soft_wrap`` keeps long paths on one line (no width-dependent crop).
             for trailer_p in orphan_trailer_paths:
-                console.print(f"  - {trailer_p}", soft_wrap=True)
+                console.print("  - " + str(trailer_p), soft_wrap=True)
             if index_gaps:
                 console.print(
-                    f"[yellow]DRY-RUN:[/yellow] Would re-index {len(index_gaps)} present media dir(s) "
-                    "missing from the index."
+                    "[yellow]"
+                    + t("cli_trailers.dry_run_label")
+                    + "[/yellow] "
+                    + t("cli_trailers.purge.would_reindex", gaps=len(index_gaps))
                 )
                 for target in index_gaps:
-                    console.print(f"  ~ {target.media_dir}", soft_wrap=True)
+                    console.print("  ~ " + str(target.media_dir), soft_wrap=True)
             if include_state:
-                console.print("[yellow]DRY-RUN:[/yellow] Would also wipe orphan state entries (--include-state).")
+                console.print(
+                    "[yellow]"
+                    + t("cli_trailers.dry_run_label")
+                    + "[/yellow] "
+                    + t("cli_trailers.purge.would_wipe_state")
+                )
             return
 
         deleted = 0
         for trailer_p in orphan_trailer_paths:
             try:
+                # Sandbox guard (a no-op in prod): a purge stays inside the sandbox's own roots.
+                assert_within_sandbox(config, trailer_p)
                 trailer_p.unlink()
                 deleted += 1
                 log.info("trailers_purge_deleted", path=str(trailer_p))
+            except SandboxGuardError as exc:
+                log.error("preprod_trailer_purge_refused", path=str(trailer_p), error=str(exc))
             except OSError as exc:
                 log.warning("trailers_purge_delete_failed", path=str(trailer_p), error=str(exc))
 
-        console.print(f"[green]Purged {deleted} orphan trailer(s).[/green]")
+        console.print("[green]" + t("cli_trailers.purge.purged", deleted=deleted) + "[/green]")
 
         # Heal the index for present-but-unindexed media dirs (writes to library.db).
         healed = _heal_index_gaps(config, app_context, index_gaps)
         if healed:
-            console.print(f"[green]Re-indexed {healed} present media dir(s) that were missing from the index.[/green]")
+            console.print("[green]" + t("cli_trailers.purge.reindexed", healed=healed) + "[/green]")
 
         if include_state:
             try:
                 purged_state = state_store.purge_orphans()
             except TrailerStateLocked:
-                console.print("[red]Another trailers process is running; try again later.[/red]")
+                console.print("[red]" + t("cli_trailers.purge.locked") + "[/red]")
                 raise typer.Exit(1)
-            console.print(f"[green]Purged {purged_state} orphan state entries.[/green]")
+            console.print("[green]" + t("cli_trailers.purge.purged_state", purged=purged_state) + "[/green]")
             log.info("trailers_purge_state_entries", count=purged_state)

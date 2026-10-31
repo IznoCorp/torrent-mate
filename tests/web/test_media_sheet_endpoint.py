@@ -12,8 +12,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.config import Settings
-from personalscraper.web.auth.passwords import hash_password
 from tests.web._web_harness import guarded_client
 
 TEST_USERNAME = "testuser"

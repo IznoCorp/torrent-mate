@@ -107,7 +107,7 @@ python -m pytest -m roundtrip -v -s    # 2 tests (movie + tvshow roundtrip match
   Produces a minimal in-memory Config without touching disk.
 - **`tests/fixtures/settings_stub.py`** — a real, typed `Settings` stub carrying
   dummy credential values, used by CLI E2E tests so `ProviderRegistry` boots
-  through `_build_app_context` without a `MagicMock` (which is not
+  through `build_app_context` without a `MagicMock` (which is not
   JSON-serialisable and breaks `TransportPolicy`).
 
 When writing a new test, import fixtures from the nearest `conftest.py` in the hierarchy rather
@@ -124,7 +124,7 @@ The files are **generated, never hand-edited**: the pre-commit hook runs
 ## Golden Files
 
 Each golden file lives in its own per-torrent subdirectory under
-`assets/torrents/expected/<slug>/` (e.g. `jumanji_1995/`,
+`tests/e2e/golden/torrents/expected/<slug>/` (e.g. `jumanji_1995/`,
 `malcolm_in_the_middle_s01/`). A subdirectory holds up to four JSON documents,
 each adding exact validation on top of the smoke-test assertions:
 

@@ -25,7 +25,6 @@ from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import TrackerAuthFailed, WantedAbandoned
 from personalscraper.acquire.orchestrator import GrabOrchestrator
 from personalscraper.api._contracts import ApiError
-from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.torrent._contracts import TorrentAdder
 from personalscraper.api.tracker._base import TrackerResult
@@ -34,6 +33,7 @@ from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 _RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 

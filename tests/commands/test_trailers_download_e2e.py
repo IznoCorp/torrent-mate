@@ -377,7 +377,7 @@ def test_trailers_download_emits_trailer_downloaded(
     mock_orch = MagicMock()
 
     # Simulate the real orchestrator emitting on its bus after download.
-    def _run_and_emit(items=None):  # noqa: ANN202
+    def _run_and_emit(items=None):
         bus = EventBus()
         bus.emit(
             TrailerDownloaded(

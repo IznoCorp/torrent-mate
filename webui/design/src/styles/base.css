@@ -1,0 +1,1325 @@
+/* THE BASE LAYER — D3's second layer, and the only global CSS the application
+   has. Reset, typeface, the accessibility surfaces L03 delivered, and every
+   declaration the COMPOSITOR reads.
+
+   IT CAME OUT OF BLOCK 1, AND THAT IS THE POINT. `refonte.html@60530dbd8` splits into
+   BLOCK 1 — the prototype's harness, which stops existing at switchover — and
+   BLOCK 2, the application's own stylesheet. The split was right about its
+   purpose and wrong about its contents: six regions of BLOCK 1 were the
+   APPLICATION's, and deleting the block as the lot instructs would have taken
+   the typeface, the reset, the focus ring, the screen-reader surface and the
+   skip link with it. They are here now, so BLOCK 1 can die without them.
+
+   ORDER. This file is imported first by the shell, so it lands in <head> while
+   the prototype fragment's <style> sits in <body> — base before components,
+   which is the cascade D3 asks for.
+
+   THE MARKERS TRAVEL WITH THE CSS. `serve.py` composes the sign-in gate by
+   extracting `login:*` regions as raw text, so a marker that moves file must
+   still be findable: the gate reads this file alongside the fragment. Removing
+   one of these comments serves a screen stripped of its design, and `extract`
+   raises rather than returning nothing, which is what makes that loud.
+
+   WHAT IS STILL WRONG HERE, AND IS DELIBERATELY LEFT: `body`'s background is
+   the PROTOTYPE's page, behind the phone frame, and it is not `--background`.
+   In the application the body IS the surface. That is a decision for the phase
+   that removes the frame, not for the phase that moves the file — and it is
+   written here rather than left for someone to rediscover. */
+
+/* Everything below is the BASE layer — see the order declared in
+   `theme.css`. Unlayered, these rules would beat every utility. */
+@layer base {
+  /* login:font:start */
+  /* A file, never an inlined URL: the pages are served under a
+     Content-Security-Policy whose `font-src` is the origin alone. The sign-in
+     page is public, so the host serves `/fonts/` without a session. */
+  @font-face {
+    font-family: "Geist";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: block;
+    src: url(/fonts/geist-variable.woff2) format("woff2");
+  }
+  /* login:font:end */
+
+
+  /* login:socle:start */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    /* P11 — the frame tracks the DYNAMIC viewport.
+
+       `height: 100%` resolves against the initial containing block, which on a
+       phone is the LARGE viewport: the one that assumes the browser's own bars
+       are retracted. So the document was always as tall as the page is with no
+       toolbar, and the last row of a list sat under the toolbar whenever there
+       was one. `100dvh` is the same number when nothing is overlaying and the
+       right one when something is.
+
+       `100vh` is the trap this replaces and it is refused everywhere: it is
+       the LARGE viewport by definition, which is the bug with a shorter name.
+       The only `100svh` in the tree is `styles/harness.css` — the phone frame
+       the oracle measures inside, which ships nowhere. */
+    height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+  /* P25 — no tap flash. Chrome paints a grey wash over whatever a tap lands
+     on, which reads as a browser rendering a document rather than as an
+     application answering a finger.
+
+     DECLARED ONCE, ON THE ROOT, because `-webkit-tap-highlight-color` is an
+     INHERITED property: one declaration reaches every interactive element that
+     will ever exist, and no component has to remember to carry it. A per
+     component spelling would be the modifier class the `:has()` note below
+     refuses for the same reason.
+
+     It replaces nothing — the prototype has never declared this property, and
+     the compositor manifest floored it at ZERO on purpose so the day one
+     appeared would be noticeable. This is that day. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: oklch(0.12 0.004 286);
+    color: var(--color-foreground);
+    font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+    /* The step, not the literal it happens to equal. `--text-5` IS 14px, so
+       the computed value does not move; what moves is that the next edit to
+       the ramp reaches here too. */
+    font-size: var(--text-5);
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  :root[data-theme="light"] body {
+    background: oklch(0.93 0.002 286);
+  }
+  /* login:socle:end */
+  /* THE DESKTOP'S THREE MEASURES (the desktop milestone, DECIDED 1–2). The menu's width when it is
+     pinned beside the content, open or collapsed to its icons (`data-rail`, written by
+     `app/rail.ts` and by the envelope's pre-paint script); the reading column's cap. Read only
+     under the `desk:` variant (`styles/theme.css`), so a phone never spends them.
+     `--tm-desk` says whether that variant holds, for a script: the same condition, spelt once
+     more here because a custom property is the one thing a script can read of a media query AND
+     a selector together. */
+  :root {
+    --tm-rail-w: 288px;
+    --tm-column-w: 760px;
+    --tm-desk: 0;
+  }
+  :root[data-rail="collapsed"] {
+    --tm-rail-w: 72px;
+  }
+  @media (min-width: 64rem) {
+    :root:not(:has(#desktop-switch:not(:checked))) {
+      --tm-desk: 1;
+    }
+  }
+  /* The app inherits this from the Tailwind preflight; the prototype must
+     declare it, otherwise the brand link renders as underlined blue. */
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* Present to an assistive technology, absent from the layout.
+     `clip-path` rather than `display: none` or `visibility: hidden`: those two
+     remove the element from the accessibility tree as well, which would hide
+     the very thing this exists to expose. The 1px box with `overflow: hidden`
+     is what keeps a screen reader reading it while nothing is painted, and
+     `white-space: nowrap` stops a long label wrapping into a tall invisible
+     column that a stray scrollbar would then reveal. */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The skip link. Out of flow at all times, so it adds no box and the oracle
+     measures no difference; it simply comes back on screen when focused.
+     Positioned against the phone frame rather than the viewport, because in
+     this prototype the frame IS the application — the same reason the bottom
+     bar is repositioned in the declared harness deviation above. */
+  .skip-link {
+    position: absolute;
+    z-index: 60;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    padding: var(--spacing-5) var(--spacing-8);
+    border-radius: 0 0 var(--radius-4) var(--radius-4);
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .skip-link:focus-visible {
+    transform: translate(-50%, 0);
+  }
+
+  /* The spinner's rotation. A keyframe is a NAME the document defines once, so
+     it belongs to the base layer rather than to whichever component happens to
+     spin first. */
+  /* The live strip's pulse. Under a reduced-motion guard because motion is a
+   DESIGNED state here rather than a fallback (invariant 14) — and it lives in
+   the base layer for the same reason `spin` does: a keyframe is a name the
+   document defines once. */
+@media (prefers-reduced-motion: no-preference) {
+  .live .d {
+    animation: pulse var(--duration-loop-2) var(--ease-standard) infinite;
+  }
+}
+
+/* The hero's entrance. */
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* A skeleton's shimmer: the gradient walks across the box once per loop. */
+  @keyframes shimmer {
+    to {
+      background-position: -400% 0;
+    }
+  }
+}
+
+/* `hidden` HIDES, WHATEVER ELSE THE ELEMENT WEARS — one rule, in place of the
+   hand-maintained list this used to be.
+
+   THE COLLISION. `hidden` is styled by the user-agent stylesheet, which every
+   author rule beats. So an element carrying both the attribute and a `display`
+   — a utility, a class, or an inline style — is not hidden at all: it is laid
+   out, painted and TAPPABLE while the markup says it is gone. The list that
+   stood here answered that one class at a time (`.fab[hidden]`,
+   `.installbar[hidden]`, …), which worked for the twelve names somebody had
+   thought of and for no other: `#nav` — the bottom tab bar — and `#ptr` were
+   never on it, so the attribute was inert on both. Measured, not deduced —
+   and measured further: neither is ever GIVEN the attribute today, in the
+   markup or at run time, so nothing was appearing on screen. What was true is
+   that the remedy depended on somebody remembering to extend a list, and a
+   list only ever covers the names somebody already thought of.
+
+   THE FORM IS TAILWIND'S PREFLIGHT REMEDY, AND ONLY IT. This prototype
+   deliberately does not import preflight (`theme.css`): a second reset landing
+   on the one this application already has changes a dozen elements, and that
+   is a lot with its own proof, not a side effect of a bug fix. What is taken
+   is the single declaration, verbatim — the `:where()` keeps its specificity
+   at zero so any rule may still override it deliberately, `until-found` is
+   spared because a browser sets it to reveal content it is scrolling to, and
+   the `!important` is what beats an inline `display`, which nothing else can.
+
+   UNLAYERED, for the reason the list before it was: inside `@layer base` this
+   would sit BELOW the utilities and below the dying stylesheet, and an
+   override that must win cannot live under what it overrides. */
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none !important;
+}
+
+/* R8, and the reason is worth keeping: `#sugitems` carried its display as an
+   INLINE style, which beats the `[hidden]` attribute — the list stayed visible
+   UNDER the loading skeletons. Its display lives here; its hidden case is the
+   rule above, whose `!important` is what reaches an inline declaration.
+
+   The list format stacks; the poster format takes the shared gallery grid,
+   which is a CLASS. An id rule would beat it by specificity alone, and one of
+   the two would then have to be written twice — the one written twice is the
+   one that drifts. */
+#sugitems:not(.gallery) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-7);
+}
+
+/* ── SELECTORS TAILWIND CANNOT EXPRESS FROM THE ELEMENT'S SIDE ─────────
+   D3 names these as base-layer residents. Each says why it cannot be a
+   utility, because « it was easier » is not a reason that survives. */
+
+/* THE ICONS' SIZES, AND WHY THEY ARE RULES. `<Icon>` renders an `<svg>` and
+   takes no class of its own, so the surface that HOSTS an icon is the only
+   thing that can size it — a descendant selector by necessity rather than by
+   habit. Extending the component to accept a class was the alternative and it
+   is a change to every one of its call sites; that belongs to the wave that
+   has a reason to open them.
+
+   `.more svg` and `.fback svg` are here because phase 9 deleted them with
+   their regions and the oracle did not see it: neither element sits in one of
+   the 33 measured regions. A gate proves what it reads. */
+.search svg,
+.search .searchclear svg,
+.vsw svg,
+.more svg {
+  width: 15px;
+  height: 15px;
+}
+.more svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* THE BROWSER'S OWN SEARCH CROSS, and its decoration, are not drawn. Every
+   search field offers its own clear cross (`searchClear`) once a word is typed,
+   and Chrome drew a second one beside it — blue, in no token of ours (B-610,
+   C1's reader, 2026-09-30). A pseudo-element of the field is out of any
+   utility's reach, hence a rule; it holds for the whole family of fields. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  appearance: none;
+}
+.hero .hn svg {
+  width: 13px;
+  height: 13px;
+}
+.trailer .pl svg {
+  width: 14px;
+  height: 14px;
+}
+.tsrc svg {
+  width: 12px;
+  height: 12px;
+}
+/* The list field's two controls. An `<svg>` with no size is not merely
+   unstyled — it falls back to the replaced-element default of 300x150, and the
+   « add » button came out 313px tall. */
+.installkey svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+.installgo svg {
+  width: 15px;
+  height: 15px;
+}
+.installclose svg {
+  width: 16px;
+  height: 16px;
+}
+.ladd svg,
+.lremove svg {
+  width: 15px;
+  height: 15px;
+}
+.countline svg {
+  width: 13px;
+  height: 13px;
+}
+.fback svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* The action buttons' icon, at one size everywhere. A DESCENDANT selector:
+   the button cannot size a child it does not know it has, and the icons come
+   from a shared component that must not learn about every button that hosts
+   it. Deleting this rule without replacing it cost 47 oracle divergences —
+   the sheet's content grew by 8.9px because an SVG fell back to its natural
+   size. */
+.sact svg,
+.cfoot svg,
+.mediaadd svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+/* A button carrying a direct icon child is left-aligned — the icon anchors
+   the start of the row and the label follows it; centred, the pair floated.
+   `:has()` makes the rule follow STRUCTURE, so nobody has to remember to add
+   a modifier class, and that is exactly what a variant cannot do. */
+.sact:has(> svg),
+.cfoot:has(> svg),
+.mediaadd:has(> svg) {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* The « Chercher » button keeps its own width: it shares its line with the
+   type segment, so it cannot be full width. A CONTEXTUAL override — the
+   element cannot know what contains it. */
+.addrow .btnprimary {
+  width: auto;
+  padding-inline: var(--spacing-7);
+}
+
+/* A submit button that cannot be pressed yet reads as unavailable. Unlayered,
+   like the rest of this group, so the hover feedback further down — unlayered
+   too, and less specific — cannot lift it back towards full strength. */
+.btnprimary:disabled {
+  opacity: 0.5;
+}
+
+/* The tab bar sits above a screen (z-50), so a screen must reserve its
+   height, or its last action is stuck underneath. R4 — anchor to what you
+   belong to. Contextual for the same reason: the scrollport cannot know it is
+   inside a screen. */
+.screen .port {
+  padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
+}
+
+/* THE FLOATING « + » FLOATS OVER THE PAGE, so the page scrolls clear of it: while the
+   button is shown, the scroller's bottom padding (`#port`, `index.html`) gains the
+   button's own box, its offset above the bar and the catalogue's gap — so at full
+   scroll the last card, and its « Résoudre », sit entirely above it (B-683). Derived
+   from the button's tokens, never a distance; absent while the button is hidden
+   (a page without an action, a message on screen), so those pages gain nothing. */
+:root:has(#fab:not([hidden])) {
+  --tm-fab-clearance: calc(var(--mq-fab-size) + var(--mq-fab-offset) + var(--spacing-4));
+}
+
+/* THE SCROLLBAR IS STYLED, NEVER REPLACED — D11 (operator, 2026-08-26), and
+   nothing had implemented it until L10-bis (B-146). It is declarative and it is
+   here, so it is under the oracle, which is the whole reason the decision reads
+   « styled » rather than « rebuilt »: a bar rebuilt in JavaScript loses the
+   keyboard (PageUp/Down, Home/End, the gutter click), the middle-click and the
+   native role, and its thumb would be positioned by a `scroll` handler — D9's
+   first rule exactly, motion written in JavaScript, which leaves the field of
+   measurement.
+
+   TWO SPELLINGS, AND BOTH ARE NEEDED. `scrollbar-width`/`scrollbar-color` is
+   the standard property and is what Firefox reads; `::-webkit-scrollbar` is
+   what Chrome reads, and Chrome is what the oracle, the harness and the
+   operator's phone all run. Writing one alone styles the bar in the browser
+   nobody here measures.
+
+   WHAT THIS DOES NOT SOLVE, and D11 records it so it is not rediscovered as a
+   defect: on a desktop the bar still occupies its gutter. That is the platform
+   behaving correctly. The phone frame the operator compares against is
+   `harness.css`, which is the measuring apparatus and ships nowhere — a
+   declared deviation, not the target. A real phone paints an overlay bar that
+   fades on its own. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+/* The bar answers the pointer, which is the half a rebuilt one always forgets
+   and the half the platform gives for nothing. */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+}
+
+/* A corner with no colour paints the platform's own grey, which on a dark
+   ground is a light square in the angle of two bars. */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* P5 / P20 — THE PAGE TRANSITION, drawn here because motion is DECLARED and
+   never scripted (invariant 13, D9 rule 1). `lib/navigate.ts` decides WHEN a
+   page switch is a transition; these rules are what it looks like, which keeps
+   the decision in the design reference and under the oracle.
+
+   The default the browser gives is a cross-fade of the whole document. What is
+   wanted is the same fade with this interface's own timing, so the durations
+   read the motion scale rather than the platform's default. */
+@media (prefers-reduced-motion: no-preference) {
+  /* RE-TUNED 2026-08-31 after the operator watched it on his own phone: « je
+     vois pas vraiment de transition, ça a l'air toujours brut ». It was
+     `--duration-2`, and 200ms of a flat cross-fade while the finger is still
+     leaving the glass is below the threshold at which an eye registers a
+     transition at all. A transition nobody perceives is not a subtle
+     transition; it is a cut with a cost. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: var(--duration-3);
+    animation-timing-function: var(--ease-standard);
+  }
+}
+
+/* REDUCED MOTION IS A DESIGNED STATE, NOT AN ABSENCE (invariant 14).
+
+   The transition still HAPPENS — the switch is still a switch, and the URL, the
+   focus and the ladder behave identically — it simply does not animate. Without
+   this the browser applies its own cross-fade regardless of the preference,
+   because `startViewTransition` animates by default and a reader who asked for
+   no motion would get one anyway. That is the defect this block exists for, and
+   it is invisible to anything that only reads the `no-preference` case. */
+@media (prefers-reduced-motion: reduce) {
+  /* ALL FOUR PSEUDO-ELEMENTS, not the two obvious ones. A view transition is
+     drawn as a GROUP containing an image PAIR of the old and new snapshots, and
+     the browser animates the group as well — its size and position morph — so
+     silencing `-old` and `-new` alone leaves one animation running. Measured:
+     R115 read exactly 1 under `reduce` with the two-selector version, which is
+     how this block came to have four. */
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}
+
+/* THE PERSISTENT CHROME IS ITS OWN GROUP — the standard shape, and the fix for
+   a defect the operator saw and the steward reproduced in frames: « la bottom
+   barre passe par une phase transparente ». The entering screen's cast row
+   showed THROUGH the bar for the whole crossing, ghost icons over faces.
+
+   THE MECHANISM. Un-named, the bar is baked into the ROOT group's snapshots.
+   `screen-body` is a NAMED group, extracted from that same snapshot, and named
+   groups paint ABOVE the root group in the `::view-transition` tree — so the
+   body literally rises over the bar while the root pair cross-fades beneath it.
+   Nothing was transparent; the bar was simply underneath.
+
+   NAMING IT MAKES IT A GROUP OF ITS OWN, and it exists at BOTH ends of every
+   page switch, so the browser pairs it: same content, stable group, no
+   cross-fade of its own. Its paint order then puts it above the body group and
+   it stays opaque and in front for the whole transition.
+
+   WHY THE TAB CHANGE WAS ALREADY HEALTHY, which is the observation that
+   identified the mechanism: a tab switch runs no view transition at all —
+   measured, zero calls — so what plays is the root pair or nothing, with no
+   named group to paint over anything, so the bar was stable there. The defect
+   needed a named group to exist, and transition A is what introduced one. */
+@media (prefers-reduced-motion: no-preference) {
+  #nav {
+    view-transition-name: shell-tab-bar;
+  }
+}
+
+/* AND ITS PAIRING DOES NOT CROSS-FADE. Giving the bar a group of its own fixes
+   the covering and introduces a second defect if left there: the browser pairs
+   old and new and cross-fades them by default, so a bar that WAS covered becomes
+   a bar that BLINKS. Its own rule caught that the moment it was written.
+
+   The bar is identical at both ends, so there is nothing to fade between: the
+   old snapshot is hidden and the new one painted flat. The GROUP still morphs
+   if the bar ever moves, which is what a group is for — what is silenced is the
+   dissolve between two pictures of the same thing. */
+@media (prefers-reduced-motion: no-preference) {
+  /* `mix-blend-mode: normal` IS THE HALF THAT MAKES IT OPAQUE, and leaving it
+     out is what let the defect survive a fix that looked complete.
+
+     Chrome's user-agent stylesheet sets `mix-blend-mode: plus-lighter` on
+     `::view-transition-old` and `-new`, because that is what makes the DEFAULT
+     cross-fade hold its brightness through the middle. For a pair that is not
+     cross-fading it is wrong: the bar's snapshot is ADDED to what is underneath
+     instead of covering it, so the casting showed through and only the labels
+     read as painted.
+
+     Measured: the bar's region averaged [29, 27, 26] at rest and [81, 70, 64]
+     mid-transition — LIGHTER, which is additive blending's own signature and
+     the reason this was not a paint-order problem. */
+  /* THE GROUP IS ORDERED EXPLICITLY. The `::view-transition-*` groups are
+     SIBLINGS in one stacking context, and their paint order follows the order
+     their names were encountered — not the `z-index` the elements carry in the
+     page. The bar sits at z-50 at rest and that buys it nothing here.
+
+     MEASURED, and the measurement is why this is the right line. The bar's
+     region averaged [29, 27, 26] at rest and [81, 70, 64] mid-transition —
+     LIGHTER, which reads like additive blending, and Chrome's user-agent
+     stylesheet does set `mix-blend-mode: plus-lighter` on the old/new pair. So
+     `mix-blend-mode: normal` was tried FIRST and changed nothing at all; it was
+     then removed rather than left in, because a line that fixes nothing is
+     machinery the next reader has to disprove. The lightening was the casting
+     showing through a bar painted UNDER it, and ordering the group is what
+     covers it: drift 52.1 before, 0.0 after. */
+  ::view-transition-group(shell-tab-bar) {
+    z-index: 10;
+  }
+
+  /* AND THE DEPARTING PANEL OUTRANKS THE BAR, because it does at rest.
+     A bottom layer covers the tab bar (P31, the operator's own ruling): the
+     sheet is `z-[52]` against the bar's `z-50`, bottom-aligned, its action row
+     over the bar's own footprint. Ordering the bar's group at 10 and leaving
+     the panel's at `auto` INVERTS that for the length of the crossing: the
+     first frame shows the bar surfacing over the leaving panel's action row,
+     and the panel then slides out from under it. The rest order is the one to
+     preserve, so the panel's group ranks above the bar's. */
+  ::view-transition-group(leaving-panel) {
+    z-index: 20;
+  }
+
+  ::view-transition-old(shell-tab-bar),
+  ::view-transition-new(shell-tab-bar) {
+    animation: none;
+  }
+
+  ::view-transition-old(shell-tab-bar) {
+    opacity: 0;
+  }
+
+  ::view-transition-new(shell-tab-bar) {
+    opacity: 1;
+  }
+}
+
+/* THE THREE NAMES THE TRANSITIONS BELOW ANIMATE, declared here and nowhere
+   else (D9 rule 1). No source file is touched to place them: each is keyed on a
+   naming attribute the surface already emits, which is also how the media
+   screen keeps its name without a line being added to
+   `features/media/media-screen.tsx` — the media screen, which this lot may not
+   extend.
+
+   A NAME MUST BE UNIQUE IN THE DOCUMENT, and each of these resolves to at most
+   one element: one hero, one media body, one open sheet. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-part="hero"] {
+    view-transition-name: screen-banner;
+  }
+
+  [data-region="screen-media/body"] {
+    view-transition-name: screen-body;
+  }
+
+  #sheet[data-open] {
+    view-transition-name: leaving-panel;
+  }
+}
+
+/* NOTHING ELSE ANIMATES WHILE A VIEW TRANSITION IS RUNNING — measured at the
+   bench by the steward on 2026-08-31, and both findings are defects rather than
+   tuning.
+
+   1. THE HERO'S DOUBLE ENTRY IS NOT FIXED HERE, AND THIS SELECTOR CANNOT FIX
+      IT — the honest correction of what this block first claimed.
+
+      A CSS animation on a tree mounted under `startViewTransition` does not
+      START until the transition ENDS: rendering is frozen for the capture. So
+      by the moment `heroin` began, `:active-view-transition` no longer matched,
+      and listing the hero here silenced nothing. Measured by the steward at
+      25ms intervals: the transition drew the hero full for 315ms, it went to
+      opacity 0 in ONE FRAME when the transition ended, then replayed its 450ms
+      entry — appear, flash, reappear.
+
+      The fix is that an entry has ONE OWNER: `features/media/variants.ts` no
+      longer carries `animate-hero-in`, and the transition is the entry.
+
+   2. THE SHIMMER RAN THROUGH THE CAPTURE. Three skeleton shimmers (1 400ms
+      loops) were live while the 300ms transition played, so the arrival was
+      animated over placeholders that were themselves moving.
+
+   `:active-view-transition` is the platform's own answer — a state on the root
+   for exactly the span a transition owns — so this is a declared rule and not a
+   script reaching in to pause things.
+
+   WHAT THIS ALONE DOES NOT FIX — and the answer is two blocks below rather than
+   pending. Content arriving AFTER the transition has ended would snap in with no
+   transition of its own, because the data lands when it lands. Transitioning on
+   the ARRIVAL instead of on the navigation was a design decision rather than a
+   tuning; it was taken, and it is what the fanart's entry and the content's
+   entry below are. */
+:root:active-view-transition .sk,
+:root:active-view-transition .sh {
+  animation: none;
+}
+
+/* THE CONTENT'S OWN ENTRY — the second half of « A généralisé ».
+
+   A query already served arrives WITH the transition and nothing extra plays.
+   A slow one used to snap its blocks in after the transition had finished over
+   skeletons; they enter as they arrive now.
+
+   `@starting-style` IS THE WHOLE MECHANISM, and it is why this needs no module
+   and no line in `features/media/media-screen.tsx`. It
+   declares the style an element has for the frame it is INSERTED in, so the
+   transition beside it runs from there to the resting value.
+
+   THE EXCLUSION IS WRITTEN IN THE SELECTOR, and it used to be an argument.
+   « An element that was already present when the screen mounted never had a
+   starting style, so the two cases are exclusive by construction » — false, and
+   the opposite of construction: the WHOLE SCREEN is inserted inside the view
+   transition's callback, so every one of these blocks has a starting style on
+   the arrival itself. Measured at 16ms on 2026-09-01: the blocks ran `opacity`
+   and `translate` from 0 and 16px in the very frames `body-rise` was lifting
+   the same snapshot 24px — two owners, forty pixels, a double fade, in the
+   drawing whose own heading is « one entry, one owner ».
+
+   So the rule does not apply while the page's own transition is running. What
+   is left is exactly what it was written for: a block that arrives LATER, when
+   a slow read lands after the transition has finished, entering instead of
+   snapping in.
+
+   SCOPED TO THE BODY'S DIRECT CHILDREN, deliberately. Deeper, every re-render
+   would animate a leaf; shallower, the whole screen would move and that is the
+   view transition's job. The blocks are the pieces a reader watches for. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-region="screen-media/body"] > * {
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity var(--duration-3) var(--ease-standard),
+      translate var(--duration-3) var(--ease-emphasized);
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 16px;
+    }
+  }
+
+  /* AND THE EXCLUSION ITSELF: while the page's own transition is running, the
+     blocks have no entry of their own, because the snapshot the transition is
+     lifting already contains them.
+
+     THE TRANSITION IS SILENCED RATHER THAN THE RULE, and the difference is
+     measurable. Scoping the whole rule away with `:not(:active-view-transition)`
+     leaves the blocks at `translate: none` for the arrival and at `0 0`
+     afterwards — equivalent to the eye, a real transition to the engine, which
+     starts the moment the selector begins to match: a second owner again, one
+     frame later, found by the hold below on its first run. A starting style is
+     only ever observable THROUGH a transition, so silencing the transition
+     silences the entry and changes nothing else. */
+  :root:active-view-transition [data-region="screen-media/body"] > * {
+    transition: none;
+  }
+}
+
+/* THE WINDOW'S SPACERS — the rows it is not drawing.
+
+   A windowed list renders what is near the viewport and stands spacers in for
+   the rest, so the scrollbar and the scroll position are those of the whole
+   list. A spacer displaces LINES, not cells: it spans every column, whatever
+   the container's container query has resolved to.
+
+   Its HEIGHT is written inline by `ui/virtual-rows.tsx` and cannot be here — it
+   is recomputed on every range change. Its SPAN is a drawing decision and was
+   inline beside it, which is a rule the stylesheet did not have. */
+[data-part="window/spacer"] {
+  grid-column: 1 / -1;
+}
+
+/* THE FANART'S OWN ENTRY — « A généralisé » (operator, 2026-08-31).
+
+   The arrival animates its pieces WHEN THEY ARRIVE. The fanart is a
+   `background-image` with no load event, so `app/artwork-arrival.ts` decodes the
+   file and marks the element with how it got here; this decides what that looks
+   like.
+
+   ONE ENTRY, ONE OWNER, and the two cases are exclusive by construction:
+   `immediate` means the file was cached and decoded before the first frame, so
+   the view transition already carried the picture and nothing else may animate
+   it — queueing a fade there is the `heroin` flash exactly. `faded` means the
+   transition finished over a hero with no picture in it, and this fade IS that
+   picture's entry.
+
+   WHAT FADES IS A COVER OVER THE PICTURE, NOT THE ELEMENT THAT HOLDS IT — and
+   the difference is a defect, not a preference.
+
+   This element IS the placeholder: `bg-muted` is its background colour and the
+   melt gradient is its `::after`. Fading the ELEMENT from zero therefore takes
+   the placeholder and the gradient with it — at the moment the picture decodes,
+   the muted block and the melt vanish for a frame and come back with the image.
+   Appear, flash, reappear, in miniature, in the rule written to remove that very
+   shape from the hero.
+
+   So a `::before` the colour of the placeholder covers the picture and fades
+   OUT. The element never changes opacity, the melt never blinks, and the
+   picture is revealed from the placeholder rather than the whole hero being
+   revealed from nothing.
+
+   IT ALSO ANSWERS THE CASE NOBODY MEASURED: a file that decodes DURING the
+   450ms transition. A CSS animation on a tree mounted under
+   `startViewTransition` does not start until the transition ends, so an
+   element-side fade from zero blanks the hero one frame AFTER a snapshot that
+   showed it. A cover starting from the placeholder colour is continuous with
+   that snapshot, which showed the placeholder.
+
+   `forwards`, because the cover must stay gone. A hero re-marked for a new
+   picture (media to media) has the attribute removed first, which takes the
+   pseudo-element and its animation with it. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-part="hero/background"][data-arrival="faded"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--color-muted);
+    animation: banner-cover var(--duration-4) var(--ease-standard) forwards;
+  }
+}
+
+/* THE `from` IS DECLARED, and what that is and is not known to have fixed is
+   written out, because a cause that stops reproducing is not a cause.
+
+   MEASURED, AND ON RECORD: at 16ms on a cold arrival, this cover ran 1 → 0.002
+   by 167ms, BACK to 0.996 by 300ms, and to 0 at 450 — inside ONE run of ONE
+   animation, `currentTime` monotone throughout. The picture appeared, was
+   covered again, and appeared once more: the operator's flash, in the rule
+   written to remove it. Declaring `from` was tried and the same run then read
+   0.896, 0.701, 0.456, 0.239 — the standard curve exactly.
+
+   NOT ESTABLISHED: removing the `from` again, hours later, did NOT bring the
+   rebound back — the curve stayed monotone. Other things had changed in
+   between, so the A/B that convinced twice cannot be re-run against the same
+   page. The rebound is real and recorded; its cause is not settled.
+
+   The declaration stays because an implicit `from` means « whatever the value
+   happens to be at the time », which is not a drawing anybody chose — and
+   because the shape is what the rule holds: `harness/transition.py` refuses a
+   cover that ever comes back over the picture, whatever makes it. */
+@keyframes banner-cover {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* TRANSITION « A » — THE LIST OPENS ONTO A MEDIA SCREEN (operator, 2026-08-31).
+
+   NO SHARED ELEMENT HERE, and that is the decision rather than a shortfall.
+   The media screen leads with a WIDE fanart and keeps it definitively; there is
+   nothing honest to share between a 2:3 poster and a wide banner, and morphing
+   one into the other would be an animation pretending two pictures are one.
+
+   What the surface already says is a fade — the fanart's own language — so the
+   arrival says it too: the banner fades up while the content block rises a
+   little under it. Two properties, both declared, neither scripted.
+
+   The screen is named separately from the root so the fanart and the body can
+   be given different curves; the root keeps the plain cross-fade above. */
+/* THE FILL MODE IS WRITTEN OUT, and an `animation:` SHORTHAND on one of these
+   pseudo-elements is a trap.
+
+   The user-agent stylesheet gives every `::view-transition-*` pseudo-element
+   `animation-fill-mode: both`, and a shorthand RESETS it to `none`. So a
+   snapshot animated through the shorthand snaps back to its UN-ANIMATED state
+   the moment its animation ends, and is drawn there — above the root — until
+   the browser tears the transition down a frame later.
+
+   FOR A NEW SNAPSHOT the un-animated state happens to be the final one, so
+   nothing shows: the two arrivals below carried this and got away with it.
+   FOR AN OLD SNAPSHOT it is the image as it was CAPTURED, and that is B-310 —
+   the panel the reader has just watched leave, painted again, open and opaque,
+   at rest, for one frame. Three rules of one species, declared alike, so the
+   next reader of this file does not have to work out which of them is safe.
+
+   `both` and not `forwards`, because `both` is what the user agent had and the
+   shorthand took away. `banner-cover` above spells its own fill mode inside the
+   shorthand, which is the other honest way to write it. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-new(screen-banner) {
+    animation: banner-in var(--duration-4) var(--ease-standard);
+    animation-fill-mode: both;
+  }
+
+
+  ::view-transition-new(screen-body) {
+    animation: body-rise var(--duration-4) var(--ease-emphasized);
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 24px, not 12 (operator, 2026-08-31). Twelve pixels over 300ms is a movement
+   that exists on a timeline and not in the eye; the point of the rise is that
+   the body ARRIVES rather than that it was technically animated. */
+@keyframes body-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+}
+
+/* TRANSITION « A-EXTENDED » — ARRIVING FROM THE PANEL (operator, 2026-08-31).
+
+   « Voir la fiche » opens the media screen from the panel, so the panel is what
+   the reader is leaving. It carries its own name and its OLD snapshot slides
+   DOWN — its natural closing gesture — while transition A plays underneath.
+
+   AND BACK DRAWS THE RETURN. The panel's entry stays under the screen's, so a
+   Back lands on it and the ladder puts the panel back inside a view transition:
+   the open panel is captured NEW under the same name, and
+   `::view-transition-new(leaving-panel)` plays `panel-down` in REVERSE — the
+   departure's own curve read backwards, so the gesture that took the panel away
+   is the one that brings it back.
+
+   FOR THE DEPARTURE TO EXIST AT ALL the panel has to be captured OPEN, which is
+   why the seam closes it inside the navigation's commit (`lib/navigate.ts`'s
+   `during`). Closed before the call — which is what the engine did, then waited
+   260ms — the snapshot holds an already-shut panel and this rule paints
+   nothing. It painted nothing for a day. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(leaving-panel) {
+    animation: panel-down var(--duration-4) var(--ease-standard);
+    /* The fill mode, for the reason written above the screen's arrival — and
+       here it is the one a reader SEES. Without it `panel-down` ends and the
+       snapshot returns to the panel as it was captured, open and at rest, over
+       a media screen that is already fully in (B-310). */
+    animation-fill-mode: both;
+  }
+
+  ::view-transition-new(leaving-panel) {
+    animation: panel-down var(--duration-4) var(--ease-standard) reverse;
+    /* Held at the panel's hidden end before the return starts, for the reason
+       the departure holds its own end after it finishes. */
+    animation-fill-mode: both;
+  }
+}
+
+/* ONE OWNER OF THE DEPARTURE, and the live panel is not it.
+
+   The seam closes the panel inside the navigation's commit, which is what gives
+   the transition something to capture. That same close removes `data-open` from
+   the LIVE `#sheet`, and the live sheet has a slide of its own in
+   `ui/variants/layout.ts` — 450ms, `--ease-emphasized`, `translateY(100%)`,
+   with its visibility delayed by the same length. That element is captured
+   inside `::view-transition-new(root)` and fades IN there while
+   `::view-transition-old(leaving-panel)` plays `panel-down` above it: two
+   panels sliding down on two different curves, one fading out, one fading in.
+
+   « One entry, one owner » — the rule two blocks up, and the rule the hero was
+   repaired under twice. The live sheet's transition is silenced for the length
+   of the crossing; `panel-down` is the departure. */
+:root:active-view-transition #sheet {
+  /* ONLY THE MOVEMENT IS SILENCED — the visibility stays, and cutting it is a
+     regression this caught the same hour it was written. `transition: none`
+     took `visibility` with `transform`, and B-249's idiom IS the delayed
+     visibility: the layer must stay hit-testable until it has finished leaving
+     or the screen behind it flashes. `exits.py` read `hidden` on every sample
+     of a leaving sheet within minutes of the shorthand landing.
+
+     HOW IT HOLDS HERE, precisely, because the obvious reading is wrong: the
+     surface's `[transition-delay:0s,450ms]` is a list of TWO, and with one
+     property left in the list it truncates to `0s` — the delay is gone. What
+     keeps the layer visible is that `visibility` interpolates DISCRETELY: it
+     holds its old value for the whole duration and flips at the end. It comes
+     to the same 450ms only because `--duration-4` is both numbers. Under
+     `reduce` this path snaps, where the other closings still take their
+     450ms — not measured, and named here rather than left to be discovered. */
+  transition-property: visibility;
+}
+
+@keyframes panel-down {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+/* ON A DESKTOP THE PANEL IS A SIDE SHEET (DECIDED 3), so it leaves — and comes back — by the right
+   edge it is anchored to, under the `desk:` condition (`styles/theme.css`). */
+@keyframes panel-aside {
+  to {
+    opacity: 0;
+    transform: translate3d(100%, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (min-width: 64rem) {
+  :root:not(:has(#desktop-switch:not(:checked)))::view-transition-old(leaving-panel),
+  :root:not(:has(#desktop-switch:not(:checked)))::view-transition-new(leaving-panel) {
+    animation-name: panel-aside;
+  }
+}
+
+/* REDUCED MOTION, for all three: the arrivals still HAPPEN and nothing moves.
+   Silencing the named parts as well as the root, because a name the stylesheet
+   gives is a name the browser animates by default — the same lesson the root
+   transition paid for, where `-old` and `-new` were silenced and the GROUP went
+   on animating. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(screen-banner),
+  ::view-transition-group(screen-body),
+  ::view-transition-group(leaving-panel),
+  ::view-transition-old(leaving-panel),
+  ::view-transition-new(screen-banner),
+  ::view-transition-new(screen-body) {
+    animation: none;
+  }
+}
+
+/* THE PRESS ACKNOWLEDGEMENT — the tile answers while the press arms (operator,
+   2026-08-31).
+
+   IT REPLACES THE POSTER'S FLIGHT. The carry from tile to panel was withdrawn
+   after the operator watched it in slow motion — « pas fluide du tout, même
+   très dérangeante » — and what it was FOR survives: binding the panel to the
+   card that summoned it. Played in place, moving nothing across the screen.
+
+   THREE MOMENTS, AND THEY DO NOT OVERLAP. `:active` below is the finger being
+   down at all; `[data-feedback]` is the acknowledgement AFTER a gesture
+   commits; this is the span between them — a press ARMING, marked by
+   `lib/press-arbitration.ts`, which is the only thing that knows one is.
+
+   WHEN IT RUNS, and it is shorter than the press: the mark is placed after the
+   compositor's settle — about 120ms in, so that a flick beginning on a tile
+   never lights it — and removed when the panel arrives, at the press delay. So
+   the sink plays over the REMAINDER of the arming, not over all of it, and the
+   return is instant because the attribute goes rather than the value: the tile
+   the panel replaces is gone by then, and on a surface it does not replace the
+   snap is what « the gesture is over » looks like.
+
+   `--duration-4` is the step the sink runs on, and it is a DRAWING the operator
+   validates on video rather than a constant with a proof. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-pressing] {
+    transition:
+      scale var(--duration-4) var(--ease-standard),
+      filter var(--duration-4) var(--ease-standard);
+    scale: 0.97;
+    filter: brightness(0.88);
+  }
+}
+
+/* REDUCED MOTION: the acknowledgement is still MADE and it does not move — the
+   darkening stays, the scale does not (invariant 14). A press that said nothing
+   under this preference would be a different interface, not a calmer one. */
+@media (prefers-reduced-motion: reduce) {
+  [data-pressing] {
+    filter: brightness(0.88);
+  }
+}
+
+/* THE PRESSED STATE — `:active`, and NO JAVASCRIPT (D9).
+
+   `onTouchStart` is REFUSED, and the reason is measured rather than stylistic:
+   it lights the pressed state when the finger is starting a SCROLL, so a list
+   flickers as it is scrolled past. `:active` is cancelled by the browser the
+   moment the gesture becomes a scroll — which is the wanted behaviour, for
+   free, and no listener reproduces it without re-implementing the compositor's
+   own decision.
+
+   It reaches what the interface says is interactive rather than a list of
+   class names, for the reason the `:has()` rules above give: the rule follows
+   STRUCTURE, so nobody has to remember to add a modifier. A pressable surface
+   that answers a long press is included by `[data-panel]` — the same anchor the
+   arbitration resolves on, so the pressed state and the press agree by
+   construction rather than by two lists kept in step.
+
+   IT IS SEPARATE FROM THE ACKNOWLEDGEMENT ABOVE, and the two are not the same
+   moment: `:active` is WHILE the finger is down, `data-feedback` is AFTER a
+   gesture committed. A press shows both, in that order. */
+:where(button, a, [role="button"], [data-panel], summary):active {
+  opacity: 0.7;
+}
+
+/* HOVER IS BEHIND `@media (hover: hover)` — D9 adopts this, and the sticky-hover
+   problem is why. A touch device with no hover reports the LAST tapped element
+   as hovered until something else is tapped, so a hover style applied without
+   this query leaves a phantom highlight behind every tap. This is its
+   declarative remedy, and there is no scripted alternative worth having. */
+@media (hover: hover) {
+  :where(button, a, [role="button"], summary):hover {
+    opacity: 0.85;
+  }
+}
+
+/* THE GESTURE ACKNOWLEDGEMENT — what `lib/feedback.ts` marks, drawn here.
+
+   The seam decides WHEN a gesture is acknowledged; this decides what that
+   looks like. Rule 1: what is declarative lives in the stylesheet, therefore in
+   the design reference, therefore under the oracle. Motion written in
+   JavaScript leaves the field of measurement.
+
+   REDUCED MOTION IS A DESIGNED STATE HERE, not a fallback and not a branch in
+   the module (invariant 14). Under `reduce` the acknowledgement is still MADE —
+   the mark still lands and the surface still answers — it simply does not
+   move: the opacity step remains, the scale does not. A gesture that went
+   unacknowledged under a motion preference would be a different interface, not
+   a calmer one. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-feedback] {
+    animation: feedback-pulse var(--duration-1) var(--ease-standard);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-feedback] {
+    opacity: 0.82;
+  }
+}
+
+/* `scale`, NEVER `transform: scale()`. An animation on `transform` REPLACES the
+   element's own transform for its whole duration, and on a layer whose
+   position IS its transform — the menu, the panel — the pulse interpolated the
+   closing layer from off-screen toward a bare scale and back: painted open again
+   for 150 ms while every attribute said closed (B-530). The individual property
+   composes with `transform` instead, so a surface that is not moved scales
+   exactly as before and a surface that is moved keeps its place. */
+@keyframes feedback-pulse {
+  50% {
+    opacity: 0.82;
+    scale: 0.985;
+  }
+}
+
+/* P26 — A LONG PRESS SELECTS NO TEXT, and the selector is derived from the
+   arbitration rather than from a list of class names.
+
+   A long press opens the panel. The browser's own answer to the same gesture
+   is to start selecting text, and the two run at once: the selection swallows
+   the gesture, and on iOS the callout menu appears over the panel that press
+   was opening.
+
+   WHERE IT APPLIES IS EXACTLY WHERE A PRESS IS ARMED. `armPress` resolves its
+   target through `panelUnderFinger`, which answers `[data-panel]`, or the
+   `[data-panel]` inside the `.card` or `.commitrow` the finger is in. So the
+   refusal follows that structure — `:has()` makes the rule follow STRUCTURE,
+   the reason the icon rule above gives — and a card that answers no press
+   keeps its text selectable.
+
+   THAT LAST CLAUSE IS THE POINT, not a detail. `compositor-css.json` records
+   why `user-select` is declared « on the pressable surfaces only, NEVER on the
+   scrollport: it must stay possible to select the text of a synopsis or a
+   release name ». A resolution card IS a `.card` and carries `data-nonmedia`,
+   not `data-panel` — it arms no press, so a rule written on `.card` alone
+   would have made every release name unselectable to satisfy a property about
+   long press. Measured before it was written. */
+[data-panel],
+.card:has([data-panel]),
+.commitrow:has([data-panel]) {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── THE ENTRY — the sign-in screen and the startup screen ─────────────
+   The document's own markup, drawn before any module has run, so its rules
+   are base rules — and they stay HAND-WRITTEN, not utilities, because
+   `serve.py` composes the host's sign-in page by extracting this block as RAW
+   TEXT into a page Tailwind never processes: a utility would arrive there as a
+   class name with no stylesheet behind it. UNLAYERED, as they were when they
+   were written: inside `@layer base` a utility on the same element would win.
+
+   B-056 lives in here — the startup bar's keyframe name is French. It moved
+   as it was: the fix needs both ends moved in one step and an arm of the
+   no-French guard. */
+/* login:entry:start */
+/* Login — the unauthenticated entry screen.
+   It covers the shell rather than sitting inside it: the top bar shows a
+   session that does not exist yet, and the tab bar offers pages that would
+   only answer with a redirect. Centred, one column, and it stays reachable
+   with the on-screen keyboard open — which is why it scrolls rather than
+   centring by absolute offsets. */
+.loginscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  overflow-y: auto;
+  background: var(--color-background);
+}
+
+.loginscreen[hidden] {
+  display: none;
+}
+
+/* The tall brand block. `.brand` is the topbar's — small and horizontal —
+   and this one belongs to the full-screen surfaces that carry no interface
+   yet: the entry screen and the startup screen. They share it so that
+   signing in never changes identity halfway through. */
+.brandbig {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-5);
+  color: var(--color-foreground);
+}
+
+.brandbig .mk {
+  width: 40px;
+  height: 40px;
+  color: var(--color-primary);
+}
+
+.brandbig .wm {
+  font-size: var(--text-7);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brandbig em {
+  font-style: normal;
+  color: var(--color-primary-text);
+}
+
+.logincard {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  padding: var(--spacing-8) var(--spacing-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  background: var(--color-card);
+}
+
+.logintitle {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-6);
+  font-weight: 600;
+}
+
+.loginsub {
+  margin: calc(var(--spacing-3) * -1) 0 var(--spacing-2);
+  text-align: center;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield input {
+  /* --text-6 is 16px, and that is not a style choice: below it, iOS Safari
+     zooms the page on focus and the frame never comes back. */
+  font:
+    400 var(--text-6) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.loginfield input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.loginerr {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-danger);
+}
+
+.loginerr[hidden] {
+  display: none;
+}
+
+.loginsubmit {
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-5) var(--spacing-7);
+  border: 0;
+  border-radius: var(--radius-3);
+  font:
+    600 var(--text-5) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+}
+
+/* Startup — the wait between signing in and an interface being there.
+
+   This document is large, and a phone spends seconds fetching and parsing it
+   before a single pixel of the interface exists. A wait shown blank is read
+   as a failure, so the screen holds the brand still and says what is
+   happening. It is the FIRST thing the document paints, which is why it sits
+   at the top of the frame in source order: an element declared after
+   megabytes of embedded artwork would appear only once the wait is over.
+
+   The bar is deliberately indeterminate. Nothing here knows how far along
+   the load is, and a bar that pretends to would be lying at every frame. */
+.splash {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  background: var(--color-background);
+}
+
+/* An author `display` rule beats `[hidden]`: without this the attribute is
+   set and nothing happens. */
+.splash[hidden] {
+  display: none;
+}
+
+.splashbar {
+  width: 132px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+/* The bar FILLS, from nothing to full, over the five seconds a cold load is
+   budgeted. It is not a measurement of the load — nothing here knows how far
+   along that is — it is a measurement of the WAIT, which is what the person
+   watching is actually living through. A bar that fills answers « how much
+   longer », where a shuttle that slides back and forth answers nothing and
+   reads the same at one second and at ten.
+
+   It never reaches the end on its own: the interface arrives first and takes
+   the screen away. Should the load outlast the budget, the bar stops full
+   and the message below is what keeps speaking. */
+.splashbar i {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  animation: splash-fill var(--duration-loop-3) linear forwards;
+}
+
+@keyframes splash-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.splashmsg {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+/* login:entry:end */

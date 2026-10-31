@@ -8,10 +8,13 @@ from personalscraper.commands.library.analyze import (
     library_recommend,
     library_report,
     library_rescrape,
+    library_rescrape_item,
 )
 from personalscraper.commands.library.audit import library_ghost_audit, library_reconcile, library_relink
+from personalscraper.commands.library.catalogue import library_catalogue_refresh
 from personalscraper.commands.library.dedup_titles import library_dedup_titles
 from personalscraper.commands.library.doctor import library_doctor
+from personalscraper.commands.library.duplicates_by_id import library_duplicates_by_id
 from personalscraper.commands.library.fix_canonical_provider import library_fix_canonical_provider
 from personalscraper.commands.library.fix_nfo import library_fix_nfo
 from personalscraper.commands.library.fix_orphan_files import library_fix_orphan_files
@@ -20,11 +23,13 @@ from personalscraper.commands.library.gc import library_gc
 from personalscraper.commands.library.maintenance import library_clean, library_repair, library_validate, library_verify
 from personalscraper.commands.library.merge_duplicate_items import library_merge_duplicate_items
 from personalscraper.commands.library.query import library_search, library_show, library_status
+from personalscraper.commands.library.remove_phantom_rows import library_remove_phantom_rows
 from personalscraper.commands.library.retire_ghost_items import library_retire_ghost_items
 from personalscraper.commands.library.scan import library_index, library_init_canonical
 
 __all__ = [
     "library_analyze",
+    "library_catalogue_refresh",
     "library_clean",
     "library_dedup_titles",
     "library_fix_canonical_provider",
@@ -32,6 +37,7 @@ __all__ = [
     "library_fix_orphan_files",
     "library_fix_season_counts",
     "library_doctor",
+    "library_duplicates_by_id",
     "library_gc",
     "library_ghost_audit",
     "library_index",
@@ -40,9 +46,11 @@ __all__ = [
     "library_recommend",
     "library_reconcile",
     "library_relink",
+    "library_remove_phantom_rows",
     "library_repair",
     "library_report",
     "library_rescrape",
+    "library_rescrape_item",
     "library_retire_ghost_items",
     "library_search",
     "library_show",

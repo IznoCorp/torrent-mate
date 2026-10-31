@@ -163,3 +163,114 @@ class TestAbsentFieldsNeverEmptyString:
             "tmdb",
         )
         assert md.trailer_url is None
+
+
+class TestTMDBCast:
+    """The cast: name, role and portrait, in the provider's ``order``."""
+
+    def test_movie_cast_from_credits(self) -> None:
+        """A movie's cast comes from credits.cast, portrait at the profile size."""
+        md = parse_media_details(_load("movie_details.json"), "tmdb")
+        assert len(md.cast) == 76
+        first = md.cast[0]
+        assert first.name == "Edward Norton"
+        assert first.role == "Narrator"
+        assert first.portrait_url == "https://image.tmdb.org/t/p/w185/8nytsqL59SFJTVYVrN72k6qkGgJ.jpg"
+        assert [member.name for member in md.cast[1:3]] == ["Brad Pitt", "Helena Bonham Carter"]
+
+    def test_movie_cast_member_without_profile_has_no_portrait(self) -> None:
+        """A member with no profile_path keeps portrait_url None, never an empty string."""
+        md = parse_media_details(_load("movie_details.json"), "tmdb")
+        without = [member for member in md.cast if member.portrait_url is None]
+        assert len(without) == 20
+        assert all(member.portrait_url != "" for member in md.cast)
+
+    def test_tv_cast_from_aggregate_credits_in_order(self) -> None:
+        """A show's cast comes from aggregate_credits, sorted by ``order``, role from roles[0]."""
+        raw = _load("tv_details.json")
+        md = parse_media_details(raw, "tmdb")
+        assert len(md.cast) == 348
+        assert (md.cast[0].name, md.cast[0].role) == ("Bryan Cranston", "Walter White")
+        assert md.cast[0].portrait_url == "https://image.tmdb.org/t/p/w185/npIIZJGSrcJIJ6yHdmbqO6Jzo5I.jpg"
+        by_order = sorted(raw["aggregate_credits"]["cast"], key=lambda person: person["order"])
+        assert [member.name for member in md.cast[:12]] == [person["name"] for person in by_order[:12]]
+
+    def test_cast_sorted_by_order_not_payload_position(self) -> None:
+        """The payload's position does not decide; ``order`` does."""
+        md = parse_media_details(
+            {
+                "id": 5,
+                "title": "Shuffled",
+                "credits": {
+                    "cast": [
+                        {"name": "Second", "character": "B", "order": 1},
+                        {"name": "First", "character": "A", "order": 0, "profile_path": "/a.jpg"},
+                    ]
+                },
+            },
+            "tmdb",
+        )
+        assert [(member.name, member.role) for member in md.cast] == [("First", "A"), ("Second", "B")]
+        assert md.cast[0].portrait_url == "https://image.tmdb.org/t/p/w185/a.jpg"
+        assert md.cast[1].portrait_url is None
+
+    def test_cast_skips_nameless_members_and_keeps_empty_role(self) -> None:
+        """A member with no name is dropped; a missing character is an empty role."""
+        md = parse_media_details(
+            {
+                "id": 6,
+                "name": "Show",
+                "aggregate_credits": {
+                    "cast": [
+                        {"name": "", "roles": [{"character": "Ghost"}], "order": 0},
+                        {"name": "Kept", "roles": [], "order": 1},
+                    ]
+                },
+            },
+            "tmdb",
+        )
+        assert [(member.name, member.role) for member in md.cast] == [("Kept", "")]
+
+    def test_no_credits_is_an_empty_cast(self) -> None:
+        """A response without credits gives an empty cast."""
+        md = parse_media_details(_load("movie_details_minimal.json"), "tmdb")
+        assert md.cast == []
+
+
+class TestTMDBTrailerNameAndLanguage:
+    """The picked trailer's name and language, beside its key."""
+
+    def test_movie_trailer_name_and_language(self) -> None:
+        """Fight Club's first YouTube trailer is the French subtitled one."""
+        md = parse_media_details(_load("movie_details.json"), "tmdb")
+        assert md.trailer_url == "https://www.youtube.com/watch?v=tZpXdiB_pg0"
+        assert md.trailer_name == "Fight Club – Bande Annonce VOST"
+        assert md.trailer_language == "fr"
+
+    def test_tv_trailer_name_and_language(self) -> None:
+        """Breaking Bad's first YouTube trailer."""
+        md = parse_media_details(_load("tv_details.json"), "tmdb")
+        assert md.trailer_name == "Breaking Bad - Serie Netflix - Bande Annonce VF - 2008"
+        assert md.trailer_language == "fr"
+
+    def test_no_trailer_no_name_nor_language(self) -> None:
+        """No trailer picked: name and language stay None."""
+        md = parse_media_details({"id": 7, "title": "Trailerless"}, "tmdb")
+        assert md.trailer_name is None
+        assert md.trailer_language is None
+
+    def test_trailer_without_name_or_language_is_none_not_empty(self) -> None:
+        """A picked trailer with no name/language leaves them None."""
+        md = parse_media_details(
+            {
+                "id": 8,
+                "title": "Bare",
+                "videos": {
+                    "results": [{"type": "Trailer", "site": "YouTube", "key": "k", "name": "", "iso_639_1": None}]
+                },
+            },
+            "tmdb",
+        )
+        assert md.trailer_url == "https://www.youtube.com/watch?v=k"
+        assert md.trailer_name is None
+        assert md.trailer_language is None

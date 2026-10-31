@@ -17,8 +17,8 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.config import Settings
-from personalscraper.web.auth.passwords import hash_password
 from tests.web._web_harness import guarded_client
 
 TEST_USERNAME = "testuser"
@@ -106,12 +106,12 @@ class TestRunRoute:
     ) -> None:
         """A free lock → 202 with a ``run_uid``."""
         monkeypatch.setattr(
-            "personalscraper.web.pipeline_trigger.is_lock_held",
+            "personalscraper.app.pipeline_trigger.is_lock_held",
             lambda _lock_file: False,
         )
         mock_popen = MagicMock(spec=subprocess.Popen)
         monkeypatch.setattr(
-            "personalscraper.web.pipeline_trigger.subprocess.Popen",
+            "personalscraper.app.pipeline_trigger.subprocess.Popen",
             mock_popen,
         )
 
@@ -140,12 +140,12 @@ class TestRunRoute:
     ) -> None:
         """``dry_run: true`` adds ``--dry-run`` to the subprocess command."""
         monkeypatch.setattr(
-            "personalscraper.web.pipeline_trigger.is_lock_held",
+            "personalscraper.app.pipeline_trigger.is_lock_held",
             lambda _lock_file: False,
         )
         mock_popen = MagicMock(spec=subprocess.Popen)
         monkeypatch.setattr(
-            "personalscraper.web.pipeline_trigger.subprocess.Popen",
+            "personalscraper.app.pipeline_trigger.subprocess.Popen",
             mock_popen,
         )
 
@@ -165,7 +165,7 @@ class TestRunRoute:
     ) -> None:
         """Lock held by another PIPELINE run → 409 (strict duplicate, §6)."""
         monkeypatch.setattr(
-            "personalscraper.web.pipeline_trigger.is_lock_held",
+            "personalscraper.app.pipeline_trigger.is_lock_held",
             lambda _lock_file: True,
         )
 
@@ -190,7 +190,7 @@ class TestRunRoute:
         its uid with ``queued: true``.
         """
         monkeypatch.setattr(
-            "personalscraper.web.pipeline_trigger.is_lock_held",
+            "personalscraper.app.pipeline_trigger.is_lock_held",
             lambda _lock_file: True,
         )
         monkeypatch.setattr(

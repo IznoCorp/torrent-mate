@@ -18,6 +18,10 @@
 
 PRAGMA foreign_keys = OFF;
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 -- ---------------------------------------------------------------------------
 -- Step b: Create the replacement table
 -- release_id is nullable (NULL during Stage A before release linkage).
@@ -93,6 +97,8 @@ CREATE INDEX idx_file_enrich_pending ON media_file(enriched_at) WHERE enriched_a
 -- ---------------------------------------------------------------------------
 INSERT INTO schema_version(version) VALUES (2);
 PRAGMA user_version = 2;
+
+COMMIT;
 
 -- Re-enable FK enforcement that was suspended at the top of this migration.
 -- SQLite requires FK=OFF when recreating tables, but we restore the session

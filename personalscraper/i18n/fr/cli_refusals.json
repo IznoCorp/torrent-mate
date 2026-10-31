@@ -1,0 +1,81 @@
+{
+  "request": {
+    "invalid": "La requête est invalide.",
+    "cross_origin": "La requête venait d'une autre origine et a été refusée.",
+    "key_reused": "La clé d'idempotence a déjà servi à une autre requête.",
+    "in_progress": "La requête portant cette clé d'idempotence est encore en cours."
+  },
+  "route": {
+    "unknown": "Aucune opération ne répond à cette requête."
+  },
+  "internal": "La commande a échoué de façon inattendue ; voir le journal.",
+  "auth": {
+    "required": "Il faut une session connectée.",
+    "refused": "La connexion a été refusée.",
+    "plex_only": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici.",
+    "rate_limited": "Trop de tentatives échouées ; réessayez plus tard.",
+    "access_disabled": "L'accès de ce compte est coupé : un Admin le rétablit dans Comptes."
+  },
+  "right": {
+    "missing": "Le rôle du compte n'a pas le droit nécessaire.",
+    "unknown": "Un droit nommé n'est pas connu du serveur."
+  },
+  "instance": {
+    "read_only": "Cette instance est en lecture seule : rien n'a été modifié.",
+    "forbidden_write": "Cette instance interdit ce changement : rien n'a été modifié."
+  },
+  "account": {
+    "unknown": "Aucun compte n'a l'adresse donnée en EMAIL.",
+    "email_invalid": "Un compte demande un nom et une adresse valide.",
+    "email_taken": "Un compte a déjà cette adresse.",
+    "admin_untouchable": "Seul un Admin modifie un compte Admin ou donne le rôle Admin.",
+    "last_admin": "Plus aucun compte ne serait sur le rôle Admin : rien n'a été modifié.",
+    "access_admin_only": "Seul un Admin coupe ou rétablit l'accès d'un compte.",
+    "owner_access": "L'accès du propriétaire du serveur ne se coupe jamais.",
+    "own_access": "Un Admin ne peut pas couper son propre accès.",
+    "admin_owner_only": "Seul le propriétaire du serveur donne le rôle Admin.",
+    "owner_admin": "Le compte du propriétaire du serveur ne quitte jamais le rôle Admin."
+  },
+  "media": {
+    "not_found": "Aucun média ne répond à cet identifiant de fournisseur.",
+    "ambiguous": "Plusieurs lignes ou dossiers de la médiathèque portent cet identifiant de fournisseur : réglez le doublon avant de supprimer ; rien n'a été supprimé."
+  },
+  "provider": {
+    "unavailable": "Un fournisseur de métadonnées n'a pas répondu ; réessayez plus tard."
+  },
+  "library": {
+    "locked": "Le pipeline tient la médiathèque : réessayez à la fin de l'exécution ; rien n'a été supprimé.",
+    "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'a été supprimé tant qu'on ne sait pas ce qu'un tracker attend encore.",
+    "unavailable": "L'index de la médiathèque (library.db) est illisible ou absent ; rien n'a été lu ni changé."
+  },
+  "role": {
+    "unknown": "Aucun rôle n'a cet identifiant.",
+    "system_immutable": "Le rôle Admin ne se modifie pas.",
+    "own_role": "Un gestionnaire qui n'est pas Admin ne modifie pas son propre rôle.",
+    "escalation": "Le rôle donnerait des droits que votre propre rôle n'a pas.",
+    "name_required": "Un rôle demande un nom.",
+    "name_taken": "Un autre rôle porte déjà ce nom.",
+    "in_use": "Un compte tient ce rôle : il ne se supprime pas.",
+    "default": "Les nouveaux comptes démarrent sur ce rôle : il ne se supprime pas."
+  },
+  "password": {
+    "required": "Un compte local demande un mot de passe.",
+    "too_short": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial.",
+    "current_wrong": "Le mot de passe actuel est faux : rien n'a été changé.",
+    "held_by_cli": "Le mot de passe de secours du propriétaire du serveur ne se change qu'avec « accounts set-password » sur le serveur.",
+    "reset_admin_only": "Seul un Admin réinitialise un mot de passe ; changez le vôtre depuis votre profil.",
+    "too_weak": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial : l'un d'eux manque.",
+    "reset_own": "Un Admin change son propre mot de passe depuis son profil, avec l'actuel."
+  },
+  "plex": {
+    "unreachable": "plex.tv n'a pas répondu ; réessayez plus tard.",
+    "server_unreachable": "Le serveur Plex n'a pas répondu ; réessayez plus tard.",
+    "token_refused": "plex.tv a refusé la connexion ; recommencez-la.",
+    "pin_unknown": "Aucune connexion Plex commencée dans ce navigateur ne répond à cette demande ; recommencez-la.",
+    "pin_expired": "La connexion Plex a expiré ; recommencez-la."
+  },
+  "session": {
+    "unknown": "Aucune session de ce compte ne porte cet identifiant.",
+    "current": "La session en cours se termine en se déconnectant, pas depuis cette liste."
+  }
+}

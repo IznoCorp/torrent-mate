@@ -193,7 +193,7 @@
     {
       "anchor": "_runner_engine--long-running-action-supervisor",
       "category": "documentation_only",
-      "reason": "solidify P13.1 — describes the shared spawn-and-stream runner substrate. The engine behavior (RingBuffer, reserve_run_row, run_spawn_stream, child-group teardown) is covered by tests/unit/web/test_runner_engine.py and the per-lobe runner suites under tests/web/; the doc section is a module-map reference.",
+      "reason": "solidify P13.1 — describes the shared spawn-and-stream runner substrate. The engine behavior (RingBuffer, reserve_run_row, run_spawn_stream, child-group teardown) is covered by tests/unit/app/test_runner_engine.py and the per-lobe runner suites under tests/web/; the doc section is a module-map reference.",
       "expires": "2028-07-17"
     },
     {

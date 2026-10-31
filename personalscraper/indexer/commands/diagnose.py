@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.i18n import t
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
@@ -68,7 +69,7 @@ def config_migrate_category_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        typer.echo(f"Config error: {exc}", err=True)
+        typer.echo(t("cli_library.indexer_diagnose.config_error", error=str(exc)), err=True)
         return 1
 
     # --- Validate to_category is a declared id ---
@@ -76,7 +77,7 @@ def config_migrate_category_command(
     if to_category not in known_ids:
         known_sorted = ", ".join(sorted(known_ids))
         typer.echo(
-            f"unknown category '{to_category}'; declared ids: {known_sorted}",
+            t("cli_library.indexer_diagnose.unknown_category", to_category=to_category, known_ids=known_sorted),
             err=True,
         )
         return 2
@@ -97,13 +98,20 @@ def config_migrate_category_command(
                 conn.execute("COMMIT")
             except Exception as exc:  # noqa: BLE001
                 conn.execute("ROLLBACK")
-                typer.echo(f"migration failed: {exc}", err=True)
+                typer.echo(t("cli_library.indexer_diagnose.migration_failed", error=str(exc)), err=True)
                 return 1
 
             if updated == 0:
-                typer.echo(f"no rows matched category_id='{from_category}' (already migrated or no such rows)")
+                typer.echo(t("cli_library.indexer_diagnose.no_rows_matched", from_category=from_category))
             else:
-                typer.echo(f"updated {updated} media_item row(s): '{from_category}' → '{to_category}'")
+                typer.echo(
+                    t(
+                        "cli_library.indexer_diagnose.rows_updated",
+                        updated=updated,
+                        from_category=from_category,
+                        to_category=to_category,
+                    )
+                )
 
             return 0
     except IndexerCeremonyError:

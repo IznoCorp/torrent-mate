@@ -120,6 +120,7 @@ class Flow:
             ]
         }
         self._next_pr = 100
+        self.env: dict[str, str] = {}
 
     def commit(self, branch: str, version: str, message: str, files: dict[str, str] | None = None) -> str:
         """Commits a version on `branch` in the seed clone and pushes it.
@@ -223,6 +224,7 @@ class Flow:
             "GH": str(stub),
             "TM_TEST_GH": str(answers),
             "TM_TEST_GH_LOG": str(self.root / "gh.log"),
+            **self.env,
         }
         return subprocess.run(
             ["bash", str(_SCRIPT), *args], cwd=self.work, env=env, capture_output=True, text=True, timeout=60
@@ -351,6 +353,67 @@ def test_rule_3_refuses_a_commit_with_no_pr(flow: Flow) -> None:
     assert flow.tip("main") == flow.base
 
 
+def _exemptions(flow: Flow, content: str) -> None:
+    """Points the script at an exemption list holding `content`.
+
+    Args:
+        flow: The flow whose next promotion reads the list.
+        content: The list's text.
+    """
+    path = flow.root / "exemptions.txt"
+    path.write_text(content, encoding="utf-8")
+    flow.env["TM_PROMOTE_EXEMPTIONS"] = str(path)
+
+
+def test_rule_3_lets_through_a_listed_pr_and_names_it(flow: Flow) -> None:
+    """A listed PR with a red required check passes, and its exemption is printed with its reason."""
+    sha = flow.merged_pr("0.1.1", checks="failure")
+    _exemptions(flow, "# a comment\n\n101 | docs-only, red at its head\n")
+    done = flow.promote("main")
+    assert done.returncode == 0, _out(done)
+    assert "promote: #101 exempt — docs-only, red at its head\n" in done.stdout
+    assert flow.tip("main") == sha
+
+
+def test_rule_3_still_refuses_an_unlisted_pr_beside_a_listed_one(flow: Flow) -> None:
+    """The exemption covers its own PR only: another PR with a red check is refused."""
+    flow.merged_pr("0.1.1", checks="failure")
+    flow.merged_pr("0.1.2", checks="failure")
+    _exemptions(flow, "101 | docs-only, red at its head\n")
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "PR #102" in done.stderr and "not green" in done.stderr
+    assert flow.tip("main") == flow.base
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["101\n", "101 |   \n", "101 | \n", "abc | a reason\n"],
+    ids=["bare", "blank", "empty", "no-number"],
+)
+def test_rule_3_refuses_an_exemption_without_a_reason(flow: Flow, entry: str) -> None:
+    """A malformed entry stops the script, even when its PR would pass on its own."""
+    flow.merged_pr("0.1.1")
+    _exemptions(flow, entry)
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "exemption" in done.stderr
+    assert flow.tip("main") == flow.base
+
+
+def test_rule_3_exemption_list_is_versioned_with_its_first_entry() -> None:
+    """The shipped list holds #762 with its reason, and nothing else."""
+    lines = [
+        line
+        for line in (_SCRIPT.parent / "promote-exemptions.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    assert lines == [
+        "762 | docs-only PR; harness-full red at its head 4cc2a9a7e, deterministic, "
+        "merged before the rule could refuse it"
+    ]
+
+
 def test_rule_3_refuses_a_pr_whose_checks_were_not_green(flow: Flow) -> None:
     """A PR merged with a required check failing at its head is refused, with the check named."""
     flow.merged_pr("0.1.1", checks="failure")
@@ -402,8 +465,8 @@ def test_rule_4_refuses_a_version_already_tagged(flow: Flow) -> None:
     assert flow.tip("prod") == flow.base
 
 
-def test_rule_4_says_an_unbumped_change_ships_with_the_next_bump(flow: Flow) -> None:
-    """A `no-version-bump` PR carries its base's version: it waits for the next bumped PR, nothing to bump by hand."""
+def test_rule_4_names_the_release_bump(flow: Flow) -> None:
+    """A PR leaves the version alone: a released version is raised by `release`, which the refusal names."""
     flow.merged_pr("0.1.1")
     assert flow.promote("main").returncode == 0
     assert flow.promote("staging").returncode == 0
@@ -413,8 +476,7 @@ def test_rule_4_says_an_unbumped_change_ships_with_the_next_bump(flow: Flow) -> 
     assert flow.promote("staging").returncode == 0
     done = flow.promote("prod")
     assert done.returncode == 1, _out(done)
-    assert "ships with the next version bump to develop" in done.stderr
-    assert "bump the version" not in done.stderr
+    assert "run scripts/promote.sh release" in done.stderr
 
 
 # ── dry run ──────────────────────────────────────────────────────────────────
@@ -463,15 +525,15 @@ def test_backport_pushes_prod_and_opens_a_merge_pr_into_develop(flow: Flow) -> N
     assert "--auto" in merge and "--merge" in merge and "--squash" not in merge
 
 
-def test_backport_resolves_the_version_conflict_to_develops_next_patch(flow: Flow) -> None:
-    """Prod's X.Y.Z.1 against develop's X.Y.(Z+n): the branch carries develop's version bumped, and the hotfix."""
+def test_backport_resolves_the_version_conflict_to_develops_version(flow: Flow) -> None:
+    """Prod's X.Y.Z.1 against develop's X.Y.(Z+n): the branch carries develop's version as it is, and the hotfix."""
     flow.merged_pr("0.1.4")
     flow.commit("prod", "0.1.0.1", "fix: urgent (#7)")
     done = flow.promote("backport", "urgent")
     assert done.returncode == 0, _out(done)
     backport = flow.tip("backport/urgent")
     init = _git(flow.origin, "show", f"{backport}:personalscraper/__init__.py")
-    assert init == '__version__ = "0.1.5"'
+    assert init == '__version__ = "0.1.4"'
     assert _git(flow.origin, "show", f"{backport}:fix-0.1.0.1.txt") == "fix: urgent (#7)"
     assert _git(flow.origin, "show", f"{backport}:feat-0.1.4.txt") == "feat: change 0.1.4 (#101)"
     assert len(_git(flow.work, "worktree", "list").splitlines()) == 1
@@ -602,3 +664,46 @@ def test_rule_3_refuses_a_check_still_running_after_a_success(flow: Flow) -> Non
     done = flow.promote("main")
     assert done.returncode == 1, _out(done)
     assert "not green at its head: lint" in done.stderr
+
+
+# ── the release bump ─────────────────────────────────────────────────────────
+
+
+def test_release_opens_the_one_pr_that_raises_a_released_version(flow: Flow) -> None:
+    """Develop's version is tagged: release/<next> carries develop plus one patch, its PR into develop is armed."""
+    develop = flow.merged_pr("0.1.1")
+    _git(flow.seed, "push", "-q", "origin", f"{develop}:refs/tags/v0.1.1")
+    done = flow.promote("release")
+    assert done.returncode == 0, _out(done)
+    assert "auto-merge armed" in done.stdout
+    branch = flow.tip("release/0.1.2")
+    assert _git(flow.origin, "rev-parse", f"{branch}^") == develop
+    assert _git(flow.origin, "show", f"{branch}:personalscraper/__init__.py") == '__version__ = "0.1.2"'
+    calls = flow.gh_calls()
+    create = next(c for c in calls if c[:2] == ["pr", "create"])
+    assert create[create.index("--base") + 1] == "develop"
+    assert create[create.index("--head") + 1] == "release/0.1.2"
+    merge = next(c for c in calls if c[:2] == ["pr", "merge"])
+    assert "--auto" in merge and "--squash" in merge
+    assert len(_git(flow.work, "worktree", "list").splitlines()) == 1
+
+
+def test_release_leaves_an_unreleased_version_as_it_is(flow: Flow) -> None:
+    """Develop's version has no tag yet: nothing to raise, no branch, no PR."""
+    flow.merged_pr("0.1.1")
+    done = flow.promote("release")
+    assert done.returncode == 0, _out(done)
+    assert "not released yet" in done.stdout
+    assert flow.tip("release/0.1.2") == ""
+    assert not any(c[:1] == ["pr"] for c in flow.gh_calls())
+
+
+def test_release_dry_run_pushes_nothing(flow: Flow) -> None:
+    """--dry-run says the bump and leaves origin untouched."""
+    develop = flow.merged_pr("0.1.1")
+    _git(flow.seed, "push", "-q", "origin", f"{develop}:refs/tags/v0.1.1")
+    before = _git(flow.origin, "for-each-ref", "--format=%(refname) %(objectname)")
+    done = flow.promote("release", "--dry-run")
+    assert done.returncode == 0, _out(done)
+    assert "0.1.1 → 0.1.2" in done.stdout
+    assert _git(flow.origin, "for-each-ref", "--format=%(refname) %(objectname)") == before

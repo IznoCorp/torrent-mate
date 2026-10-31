@@ -9,6 +9,7 @@ Each component works on the state left by the previous one.
 """
 
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.sandbox_guard import assert_all_within_sandbox
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.enforce.coherence_checker import check_coherence
@@ -52,7 +53,13 @@ def run_enforce(
 
     Returns:
         StepReport with enforce counts and details.
+
+    Raises:
+        SandboxGuardError: In a sandbox, the staging tree is outside the sandbox's marked,
+            mounted roots. Nothing is touched.
     """
+    # Sandbox guard (a no-op in prod): no write or purge outside the sandbox's own roots.
+    assert_all_within_sandbox(config, config.paths.staging_dir)
     log.info("enforce_start", dry_run=dry_run)
 
     # Each sub-component emits its per-item ``started`` events (F8, real

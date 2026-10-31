@@ -1,0 +1,16 @@
+{
+  "body": {
+    "MediaContainer": {
+      "apiVersion": "REDACTED",
+      "claimed": true,
+      "machineIdentifier": "REDACTED-machine-1",
+      "size": 0,
+      "version": "1.43.4.10903-e5521bd8c"
+    }
+  },
+  "request": {
+    "method": "GET",
+    "path": "/identity"
+  },
+  "status": 200
+}

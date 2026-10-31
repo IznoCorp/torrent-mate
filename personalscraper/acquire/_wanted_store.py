@@ -84,7 +84,7 @@ class _WantedSubStore:
                 ),
             )
             row_id = cur.lastrowid
-        assert row_id is not None  # noqa: S101 — INSERT always sets lastrowid
+        assert row_id is not None  # INSERT always sets lastrowid
         return row_id
 
     def get(self, wanted_id: int) -> WantedItem | None:
@@ -137,7 +137,7 @@ class _WantedSubStore:
             "SELECT id, followed_id, media_ref_json, kind, season, episode, "
             "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash, "
             "last_search_outcome, last_search_found, tried_hashes_json, absorbed_by "
-            "FROM wanted WHERE status = ? ORDER BY " + order_by,  # noqa: S608 — order_by is an internal literal
+            "FROM wanted WHERE status = ? ORDER BY " + order_by,  # order_by is an internal literal
             (status,),
         ).fetchall()
         return [_row_to_wanted(r) for r in rows]
@@ -906,7 +906,7 @@ class _WantedSubStore:
         Read-model support: a per-episode reader needs all the rows of a follow
         in ONE query (rather than one lookup per episode) AND it needs the
         closed rows too, because the « which row governs » rule is applied by
-        the caller — :func:`~personalscraper.web.acquisition.states.select_wanted_facts`
+        the caller — :func:`~personalscraper.app.acquisition.states.select_wanted_facts`
         — not by a WHERE clause that each caller would have to re-invent.
 
         Args:

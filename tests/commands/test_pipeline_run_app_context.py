@@ -1,7 +1,7 @@
 """Sub-phase 2.4 invariants for the ``personalscraper run`` CLI entry — migrated for 3.7a.
 
 Verifies that the CLI bootstrap in ``personalscraper.commands.pipeline`` builds an
-:class:`AppContext` via ``_build_app_context`` and passes it verbatim to
+:class:`AppContext` via ``build_app_context`` and passes it verbatim to
 :class:`Pipeline.__init__`. The Phase-2 visual-regression baseline (legacy
 ``RichConsoleObserver`` replay) has moved to
 ``tests/subscribers/test_rich_console_subscriber.py::test_rich_console_subscriber_snapshot_matches_baseline``
@@ -34,7 +34,7 @@ def _make_pipeline_report() -> PipelineReport:
 
 
 class TestPipelineCommandBuildsAppContext:
-    """``_build_app_context`` is invoked at the ``run`` boundary."""
+    """``build_app_context`` is invoked at the ``run`` boundary."""
 
     @patch("personalscraper.pipeline.Pipeline.run")
     def test_pipeline_command_builds_app_context_and_passes_to_pipeline(self, mock_run) -> None:
@@ -89,3 +89,26 @@ class TestPipelineCommandBuildsAppContext:
             "expected the CLI bootstrap to register at least one subscriber "
             "(RichConsoleSubscriber after 3.5) before Pipeline.__init__"
         )
+
+
+class TestPipelineCommandUnbindsItsRunContext:
+    """The ``run`` command binds ``run_id`` for its own records and takes it off on exit."""
+
+    @patch("personalscraper.pipeline.Pipeline.run")
+    def test_run_id_does_not_outlive_the_command(self, mock_run) -> None:
+        """A record logged after ``run`` returns carries no ``run_id``.
+
+        structlog contextvars are per worker, not per test: a ``run_id`` left bound
+        by an earlier ``run`` invocation shows up in every later record on that
+        worker (it broke the token vault's account-id-only log assertion under
+        ``pytest -n auto``).
+        """
+        import structlog
+
+        mock_run.return_value = _make_pipeline_report()
+        structlog.contextvars.clear_contextvars()
+
+        result = runner.invoke(app, ["run"])
+
+        assert result.exit_code == 0, result.output
+        assert "run_id" not in structlog.contextvars.get_contextvars()

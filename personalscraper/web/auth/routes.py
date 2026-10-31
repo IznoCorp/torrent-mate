@@ -12,9 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from personalscraper.app.accounts.passwords import hash_password, verify_password
+from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter, rate_limit_key
 from personalscraper.logger import get_logger
-from personalscraper.web.auth.passwords import hash_password, verify_password
-from personalscraper.web.auth.ratelimit import SlidingWindowRateLimiter
 from personalscraper.web.auth.tokens import create_session_token
 from personalscraper.web.deps import Session, require_session
 
@@ -37,35 +37,17 @@ _login_limiter = SlidingWindowRateLimiter()
 # 429 body returned once a client exceeds the failed-attempt threshold.
 _RATE_LIMITED_DETAIL = "Trop de tentatives — réessayez plus tard."
 
-# Hosts treated as the local reverse proxy (Caddy) so its X-Forwarded-For is
-# trusted for per-real-client keying.
-_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
-
 
 def _client_key(request: Request) -> str:
     """Derive the rate-limit key identifying the client behind *request*.
-
-    Uses the peer IP normally.  When the peer is loopback — the Caddy TLS proxy
-    terminating in front of the app — and an ``X-Forwarded-For`` header is
-    present, the LAST forwarded address is used so per-real-client limiting
-    survives the reverse proxy.  The rightmost entry is the one appended by
-    the trusted local proxy (the address it directly accepted the connection
-    from); any earlier entries arrive verbatim from the client and are
-    spoofable — keying on them let an attacker rotate a fake leftmost value
-    to dodge the login rate limit (R13).
 
     Args:
         request: The incoming FastAPI request.
 
     Returns:
-        A stable string key identifying the client.
+        A stable string key identifying the client (see ``rate_limit_key``).
     """
-    peer = request.client.host if request.client else "unknown"
-    if peer in _LOOPBACK_HOSTS:
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            return forwarded.split(",")[-1].strip()
-    return peer
+    return rate_limit_key(request.client.host if request.client else None, request.headers.get("x-forwarded-for"))
 
 
 class LoginRequest(BaseModel):

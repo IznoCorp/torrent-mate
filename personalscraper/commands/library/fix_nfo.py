@@ -46,6 +46,10 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
+from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
+from personalscraper.core.sqlite import refuse_newer_schema
+from personalscraper.i18n import t
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -65,6 +69,7 @@ _Outcome = Literal[
     "skipped_apple_double",
     "backup_failed",
     "truncate_failed",
+    "preprod_refused",
     "nfo_unreadable",
     "ambiguous_nfo",
 ]
@@ -92,6 +97,7 @@ class FixNfoStats(CliFixStatsMixin):
     skipped_apple_double: int = 0
     backup_failed: int = 0
     truncate_failed: int = 0
+    preprod_refused: int = 0
     nfo_unreadable: int = 0
     ambiguous_nfo: int = 0
 
@@ -197,13 +203,15 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> tuple[Path | None, Liter
     return nfo_files[0], "ok"
 
 
-@app.command("library-fix-nfo")
+@app.command(
+    "library-fix-nfo", help=t("cli_library.fix_nfo.command_help", tvshow_close="</tvshow>", movie_close="</movie>")
+)
 @handle_cli_errors
 def library_fix_nfo(
     ctx: typer.Context,
-    apply: bool = typer.Option(False, "--apply", help="Apply fixes (default: dry-run preview)."),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
-    db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
+    apply: bool = typer.Option(False, "--apply", help=t("cli_library.fix_nfo.apply_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.fix_nfo.config_help")),
+    db: Path | None = typer.Option(None, "--db", help=t("cli_library.fix_nfo.db_help")),
 ) -> None:
     """Repair NFO files broken by trailing content after root XML close tag.
 
@@ -227,12 +235,13 @@ def library_fix_nfo(
     elif cfg.indexer.db_path is not None:
         db_path = Path(cfg.indexer.db_path)
     else:
-        typer.echo("indexer.db_path is not configured", err=True)
+        typer.echo(t("cli_library.fix_nfo.db_path_not_configured"), err=True)
         raise typer.Exit(code=1)
 
     from personalscraper.indexer.db import _apply_pragmas as _db_apply_pragmas  # noqa: PLC0415
 
     conn = _sqlite3.connect(str(db_path))
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _db_apply_pragmas(conn)
     conn.row_factory = _sqlite3.Row
     try:
@@ -276,7 +285,7 @@ def library_fix_nfo(
         # Fast path: already well-formed.  NFO files are local and trusted —
         # the XXE risk from xml.etree.ElementTree does not apply.
         try:
-            _ET.parse(str(nfo_path))  # noqa: S314
+            _ET.parse(str(nfo_path))
             stats.inc("already_ok")
             continue
         except _ET.ParseError:
@@ -341,7 +350,7 @@ def library_fix_nfo(
             truncated += b"\n"
         # Post-truncation re-parse — local trusted NFO, XXE not applicable.
         try:
-            _ET.fromstring(truncated)  # noqa: S314
+            _ET.fromstring(truncated)
         except _ET.ParseError as exc:
             stats.inc("still_malformed")
             log.warning(
@@ -356,6 +365,13 @@ def library_fix_nfo(
         bytes_trimmed = len(data) - cutoff
 
         if apply:
+            # Sandbox guard (a no-op in prod): the NFO and its backup stay inside the sandbox's roots.
+            try:
+                assert_within_sandbox(cfg, nfo_path)
+            except SandboxGuardError as exc:
+                stats.inc("preprod_refused")
+                log.error("nfo_fix_preprod_refused", item_id=item_id, nfo=str(nfo_path), error=str(exc))
+                continue
             bak_path = nfo_path.with_suffix(nfo_path.suffix + ".bak")
             try:
                 bak_path.write_bytes(data)

@@ -34,6 +34,10 @@
 -- Step 1 — replace the year-blind UNIQUE index with a year-aware one.
 -- ---------------------------------------------------------------------------
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 DROP INDEX IF EXISTS idx_item_title_kind;
 
 CREATE UNIQUE INDEX idx_item_title_kind_year ON media_item(title, kind, year);
@@ -44,3 +48,5 @@ CREATE UNIQUE INDEX idx_item_title_kind_year ON media_item(title, kind, year);
 
 INSERT INTO schema_version (version) VALUES (10);
 PRAGMA user_version = 10;
+
+COMMIT;
