@@ -517,7 +517,8 @@ def _build_library_services(
 ) -> tuple[CatalogueView, LibraryReads, MediaSheets, LibraryRescrape, LibraryDeletion]:
     """Build the library's services over one catalogue view, one index, the providers and Plex.
 
-    Inert: the catalogue store and the ownership checker open on first use, the deletion
+    Inert: the catalogue store (read-only: it never creates, migrates nor writes ``acquire.db``, and an
+    absent file reads as an empty catalogue) and the ownership checker open on first use, the deletion
     authority reads ``acquire.db`` on each deletion only, and the provider clients are
     reached through ``providers`` on their first call. A registry that cannot be built (a
     missing API key) gives no client: the sheets answer ``provider.unavailable``. The
@@ -577,7 +578,7 @@ def _build_library_services(
     # obligations are unreadable is refused rather than allowed.
     delete_permit = StrictDeletePermit(acquire_db)
     index = LibraryIndex(index_db)
-    view = CatalogueView(catalogue=CatalogueStore(acquire_db), ownership=IndexerOwnershipChecker(index_db))
+    view = CatalogueView(catalogue=CatalogueStore.read_only(acquire_db), ownership=IndexerOwnershipChecker(index_db))
     sheets = MediaSheets(index=index, view=view, providers=providers)
     return (
         view,
