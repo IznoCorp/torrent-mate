@@ -89,3 +89,16 @@ def test_enforce_check_known_name_forwards_only(
     assert result.exit_code == 0, result.output
     _, kwargs = mock_run.call_args
     assert kwargs.get("only") == frozenset({"sort_process_coherence"})
+
+
+def test_enforce_list_checks_shows_the_group_column(test_config) -> None:
+    """Every listed check carries its ``[group]`` column; Rich must not read it as markup."""
+    from personalscraper.verify.checks.base import CheckStage
+    from personalscraper.verify.checks.catalog import list_checks
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=test_config):
+        result = run_cli(["enforce", "--list-checks"])
+
+    assert result.exit_code == 0, result.output
+    for spec in (s for s in list_checks() if s.stage == CheckStage.STAGING):
+        assert f"{spec.name:<34} [{spec.group}]" in result.output
