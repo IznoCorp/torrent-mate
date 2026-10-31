@@ -460,6 +460,33 @@ def test_debounce_fires_run(tmp_path: Path) -> None:
     assert popen_args[reason_idx + 1] == "completion"
 
 
+def test_zero_speed_stalled_download_does_not_block_the_run(tmp_path: Path) -> None:
+    """A 0 B/s ``stalledDL`` torrent beside a completed one: the cycle no longer returns IDLE."""
+    from personalscraper.commands.watch import watch
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    stalled = TorrentItem(
+        hash="stalled", name="dead.torrent", size_bytes=1, progress=0.0, state="stalledDL", download_speed=0
+    )
+    fake_app = _make_fake_app_context(completed=completed)
+    fake_app.torrent_client.get_all_hashes.return_value = [h, stalled.hash]
+    fake_app.torrent_client.get_by_hashes.return_value = [stalled]
+
+    ctx = _make_ctx(tmp_path, enabled=True, poll_interval_s=10, debounce_s=60)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        # Same three cycles as test_debounce_fires_run: cross-seed, debounce, run.
+        p.set_time_sequence([0.0, 10.0, 70.0], shutdown_after_sleeps=21)
+        p.mock_subprocess.run.return_value.returncode = 0
+
+        watch(ctx)
+
+    popen_args = p.mock_subprocess.Popen.call_args[0][0]
+    assert "--no-console" in popen_args
+    assert popen_args[popen_args.index("--trigger-reason") + 1] == "completion"
+
+
 # ---------------------------------------------------------------------------
 # 6.  test_run_success_recorded
 # ---------------------------------------------------------------------------

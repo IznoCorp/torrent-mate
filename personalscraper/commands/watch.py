@@ -253,13 +253,19 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
 
     The quiescence gate reads a COUNT of these: while it is non-zero the grace counter
     cannot run, and any new one resets it (see ``WatcherService.evaluate`` branch 3).
-    So the predicate decides how long the pipeline waits — hence the two exclusions:
+    So the predicate decides how long the pipeline waits — hence the three exclusions:
 
     * a finished torrent (``progress >= 1``) is a seed, not a download;
-    * an inert one (paused / stopped / errored / moving) will never finish by itself.
+    * an inert one (paused / stopped / errored / moving) will never finish by itself;
+    * one whose download speed is a known ``0`` does not advance: a dead torrent (e.g.
+      ``stalledDL`` at 0 % with no source) would otherwise return IDLE on every cycle,
+      before the safety net is reached, and hold the pipeline back indefinitely.
 
-    Anything else that is unfinished counts, including a stalled or queued download: it
-    may still complete, and the operator asked to wait for the batch to be over.
+    A queued or checking torrent (``queuedDL``, ``checkingDL``, often ``metaDL``) reports a
+    speed of 0 and so does not count either: it is not advancing. A speed of ``None``
+    means the client did not report one (Transmission does not). That case keeps the
+    old count: anything unfinished and not inert counts, since it may still complete,
+    and the operator asked to wait for the batch to be over.
 
     Args:
         item: A torrent as reported by the client.
@@ -268,6 +274,8 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
         True when the torrent is an in-progress download.
     """
     if item.progress >= 1.0:
+        return False
+    if item.download_speed == 0:
         return False
     state = (item.state or "").lower()
     return not any(marker in state for marker in _INERT_STATE_MARKERS)
