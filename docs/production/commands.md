@@ -1828,6 +1828,7 @@ that `mutate FS` + `mutate BDD` + `network`
 **Supervisor**: `personalscraper supervise` runs this same poll and also admits the queued runs (one worker at a
 time, under its lease); with it, a fired run is queued instead of spawned. `watch` stays as the rollback and is
 unchanged.
+The preprod's `personalscraper-preprod-watch` app runs `supervise`; prod's `personalscraper-watch` still runs `watch`.
 
 **Examples**:
 

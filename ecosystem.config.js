@@ -343,10 +343,12 @@ module.exports = {
     // ---- PREPROD daemon ----
     // The preprod's watcher daemon: triages the preprod's own grabs (ingest, sort, scrape, dispatch
     // into the preprod's roots); reads only the preprod's qBittorrent category (torrent scope).
+    // It runs the supervisor, which carries the watcher's poll and admits the queued runs; the
+    // watcher's name is kept, and `args: "watch"` is the one-line rollback.
     {
       name: "personalscraper-preprod-watch",
       script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
-      args: "watch",
+      args: "supervise",
       interpreter: "none",
       cwd: "/Users/izno/staging/torrentmate",
       autorestart: true,
