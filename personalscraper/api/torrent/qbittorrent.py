@@ -814,6 +814,12 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     # restantes » only when the client actually knows).
     eta_raw = getattr(t, "eta", None)
     eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and 0 <= eta_raw < 8640000 else None
+    # dlspeed: current download speed in bytes/s. A genuine 0 (« not advancing »)
+    # stays distinct from None (« the client did not say »); negatives are junk.
+    dlspeed_raw = getattr(t, "dlspeed", None)
+    download_speed: int | None = (
+        int(dlspeed_raw) if isinstance(dlspeed_raw, (int, float)) and dlspeed_raw >= 0 else None
+    )
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -830,6 +836,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         error_reason=error_reason,
         swarm_seeds=swarm_seeds,
         eta_seconds=eta_seconds,
+        download_speed=download_speed,
     )
 
 
