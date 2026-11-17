@@ -41,6 +41,7 @@ from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.tv_service import (
     TvServiceMixin,
+    _provider_season_numbers,
     _tvdb_series_to_show_data,
 )
 from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
@@ -851,10 +852,16 @@ class TestMatchSeasons:
 
 
 def _tvdb_two_seasons() -> MagicMock:
-    """TVDB stub listing seasons 1 and 2, each with eight distinctly titled episodes."""
+    """Build a TVDB stub listing seasons 1 and 2, each with eight distinctly titled episodes.
+
+    Returns:
+        A ``MagicMock`` whose ``get_series_episodes(series_id, season)`` answers
+        with ``"S<season> title <n>"`` titles for episodes 1 to 8.
+    """
     tvdb = MagicMock()
 
     def _season(_series_id: int, season: int) -> SeasonDetails:
+        """Answer one season fetch of the stub."""
         return SeasonDetails(
             provider="tvdb",
             tv_id="451177",
@@ -867,7 +874,14 @@ def _tvdb_two_seasons() -> MagicMock:
 
 
 def _merged_show(tmp_path: Path) -> tuple[Path, Path, list[Path]]:
-    """Build the prod layout: ``Saison 02/`` with S02E01 plus a ``Show.S01.pack/`` subfolder with S01E01-E08."""
+    """Build the prod layout: ``Saison 02/`` with S02E01 plus a release subfolder with S01E01-E08.
+
+    Args:
+        tmp_path: Pytest temporary directory the show folder is created in.
+
+    Returns:
+        ``(show_dir, the real S02E01 file, the eight pack files)``.
+    """
     show = tmp_path / "Show (2025)"
     (show / "Saison 02").mkdir(parents=True)
     real_s02e01 = show / "Saison 02" / "S02E01 - S2 title 1.mkv"
@@ -880,6 +894,30 @@ def _merged_show(tmp_path: Path) -> tuple[Path, Path, list[Path]]:
         f.write_text(f"pack episode {e}")
         pack_files.append(f)
     return show, real_s02e01, pack_files
+
+
+class TestProviderSeasonNumbers:
+    """``_provider_season_numbers`` reads the seasons a provider lists for a show."""
+
+    def test_positive_seasons_only(self) -> None:
+        """Specials (season 0) and malformed entries are left out."""
+        show_data = {
+            "seasons": [
+                {"season_number": 0},
+                {"season_number": 1},
+                {"season_number": 2},
+                {"season_number": None},
+                {"season_number": "3"},
+                {"name": "no number"},
+            ]
+        }
+
+        assert _provider_season_numbers(show_data) == {1, 2}
+
+    def test_missing_or_empty_seasons_key(self) -> None:
+        """A show without a ``seasons`` list lists no season."""
+        assert _provider_season_numbers({}) == set()
+        assert _provider_season_numbers({"seasons": None}) == set()
 
 
 class TestSeasonPackMergedBesideAnotherSeason:

@@ -11,6 +11,7 @@ import pytest
 
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.episode_manager import (
+    _destination_taken,
     _extract_season_episode,
     create_season_dirs,
     match_episode_files,
@@ -578,8 +579,10 @@ class TestPhantomRemapNeedsAbsentProviderSeason:
 
         result = match_episode_files([video], api_episodes, provider_seasons={1, 2})
 
+        # Kept as itself: not turned into S02E01. The catalog lacks S01E01, so it falls to Pass 3.
         assert result[video]["season"] == 1
-        assert result[video]["api_title"] != "S2 title 1"
+        assert result[video]["api_title"] == "Episode 1"
+        assert result[video]["fallback"] is True
 
     def test_season_absent_from_provider_is_still_remapped(self, tmp_path: Path) -> None:
         """The parallel-numbering case (S17 label, catalog S01..S04) keeps its remap."""
@@ -601,3 +604,50 @@ class TestPhantomRemapNeedsAbsentProviderSeason:
         result = match_episode_files([video], api_episodes)
 
         assert result[video]["season"] == 4
+
+
+class TestDestinationTaken:
+    """``_destination_taken`` tells a real clash from the same file seen under another name."""
+
+    def test_missing_destination_is_free(self, tmp_path: Path) -> None:
+        """No file at the destination: the rename may go on."""
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+
+        assert _destination_taken(source, tmp_path / "b.mkv") is False
+
+    def test_other_file_at_destination_is_a_clash(self, tmp_path: Path) -> None:
+        """A different file at the destination is taken."""
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+        dest = tmp_path / "b.mkv"
+        dest.write_text("b")
+
+        assert _destination_taken(source, dest) is True
+
+    def test_same_file_under_the_destination_name_is_not_a_clash(self, tmp_path: Path) -> None:
+        """A destination that is the source itself (a case-only rename on a case-insensitive disk) is free.
+
+        A hard link stands in for the case-insensitive twin: same inode, two names.
+        """
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+        dest = tmp_path / "A.mkv.link"
+        dest.hardlink_to(source)
+
+        assert _destination_taken(source, dest) is False
+
+    def test_identity_check_failure_counts_as_taken(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When identity cannot be established, refusing the overwrite is the safe side."""
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+        dest = tmp_path / "b.mkv"
+        dest.write_text("b")
+
+        def _boom(self: Path, other: Path) -> bool:
+            """Simulate a failing stat."""
+            raise OSError("stat failed")
+
+        monkeypatch.setattr(Path, "samefile", _boom)
+
+        assert _destination_taken(source, dest) is True
