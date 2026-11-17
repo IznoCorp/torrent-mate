@@ -846,6 +846,89 @@ class TestMatchSeasons:
 
 
 # ---------------------------------------------------------------------------
+# Hotfix episode-season-remap: a season pack merged beside another season
+# ---------------------------------------------------------------------------
+
+
+def _tvdb_two_seasons() -> MagicMock:
+    """TVDB stub listing seasons 1 and 2, each with eight distinctly titled episodes."""
+    tvdb = MagicMock()
+
+    def _season(_series_id: int, season: int) -> SeasonDetails:
+        return SeasonDetails(
+            provider="tvdb",
+            tv_id="451177",
+            season_number=season,
+            episodes=[EpisodeInfo(episode_number=e, title=f"S{season} title {e}") for e in range(1, 9)],
+        )
+
+    tvdb.get_series_episodes.side_effect = _season
+    return tvdb
+
+
+def _merged_show(tmp_path: Path) -> tuple[Path, Path, list[Path]]:
+    """Build the prod layout: ``Saison 02/`` with S02E01 plus a ``Show.S01.pack/`` subfolder with S01E01-E08."""
+    show = tmp_path / "Show (2025)"
+    (show / "Saison 02").mkdir(parents=True)
+    real_s02e01 = show / "Saison 02" / "S02E01 - S2 title 1.mkv"
+    real_s02e01.write_text("the real S02E01")
+    pack = show / "Show.S01.MULTi.1080p.pack"
+    pack.mkdir()
+    pack_files = []
+    for e in range(1, 9):
+        f = pack / f"Show.S01E{e:02d}.MULTi.1080p.mkv"
+        f.write_text(f"pack episode {e}")
+        pack_files.append(f)
+    return show, real_s02e01, pack_files
+
+
+class TestSeasonPackMergedBesideAnotherSeason:
+    """A season-1 pack in a release subfolder next to ``Saison 02/`` keeps season 1."""
+
+    def test_build_episode_map_fetches_the_pack_season_too(self, tmp_path: Path) -> None:
+        """Seasons fetched = ``Saison NN/`` folders UNION the seasons of every video file below."""
+        show, _real, _pack = _merged_show(tmp_path)
+        tvdb = _tvdb_two_seasons()
+        mixin = _make_mixin(tvdb=tvdb)
+        match = MatchResult(api_id=451177, api_title="Show", api_year=2025, confidence=0.99, source="tvdb")
+
+        out = mixin._build_episode_map(show, match, tmdb_id=None, episode_default_name="Episode")
+
+        assert {s for s, _e in out} == {1, 2}
+        assert out[(1, 1)]["title"] == "S1 title 1"
+
+    def test_pack_lands_in_season_one_and_season_two_survives(self, tmp_path: Path) -> None:
+        """The prod case end to end: pack in ``Saison 01/`` with season-1 titles, S02E01 untouched."""
+        show, real_s02e01, pack_files = _merged_show(tmp_path)
+        mixin = _make_mixin(tvdb=_tvdb_two_seasons())
+        match = MatchResult(api_id=451177, api_title="Show", api_year=2025, confidence=0.99, source="tvdb")
+        show_data = {"name": "Show", "seasons": [{"season_number": 1}, {"season_number": 2}]}
+
+        api_episodes = mixin._build_episode_map(show, match, tmdb_id=None, episode_default_name="Episode")
+        with patch.object(mixin, "_generate_episode_nfos", return_value=[]):
+            renamed, _warnings = mixin._match_seasons(pack_files, api_episodes, show, show_data, "Episode")
+
+        assert renamed == 8
+        season_one = sorted(p.name for p in (show / "Saison 01").iterdir())
+        assert season_one == [f"S01E{e:02d} - S1 title {e}.mkv" for e in range(1, 9)]
+        assert real_s02e01.read_text() == "the real S02E01"
+        assert [p.name for p in (show / "Saison 02").iterdir()] == ["S02E01 - S2 title 1.mkv"]
+
+    def test_a_provider_season_that_was_not_fetched_is_never_remapped(self, tmp_path: Path) -> None:
+        """Defence in depth: even with only season 2 fetched, an S01 file is not turned into S02."""
+        show, real_s02e01, pack_files = _merged_show(tmp_path)
+        mixin = _make_mixin(tvdb=_tvdb_two_seasons())
+        only_season_two = {(2, e): {"title": f"S2 title {e}", "still_path": ""} for e in range(1, 9)}
+        show_data = {"name": "Show", "seasons": [{"season_number": 1}, {"season_number": 2}]}
+
+        with patch.object(mixin, "_generate_episode_nfos", return_value=[]):
+            mixin._match_seasons(pack_files, only_season_two, show, show_data, "Episode")
+
+        assert real_s02e01.read_text() == "the real S02E01"
+        assert [p.name for p in (show / "Saison 02").iterdir()] == ["S02E01 - S2 title 1.mkv"]
+
+
+# ---------------------------------------------------------------------------
 # _generate_episode_nfos
 # ---------------------------------------------------------------------------
 
