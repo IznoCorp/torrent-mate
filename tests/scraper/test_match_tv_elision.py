@@ -27,6 +27,7 @@ from personalscraper.scraper._match_tv import (
     match_tvshow,
     match_tvshow_tvdb_detailed,
 )
+from personalscraper.scraper.search_ranking import gather_tv_candidates
 
 FIXTURES = Path("tests/fixtures/search")
 
@@ -182,3 +183,35 @@ def test_a_title_without_elision_issues_no_extra_query() -> None:
 def test_restore_french_elisions(title: str, expected: str | None) -> None:
     """Only an elision letter followed by a vowel or h gets its apostrophe back."""
     assert _restore_french_elisions(title) == expected
+
+
+def test_manual_search_finds_the_show_typed_without_its_apostrophe() -> None:
+    """The operator's manual search gets the same retry: `L Institut` surfaces tvdb 451177."""
+    tvdb = _recorded_tvdb()
+    tmdb = MagicMock()
+    tmdb.search_tv.return_value = []
+
+    rows = gather_tv_candidates(tvdb, tmdb, "L Institut")
+
+    assert [r.provider_id for r in rows] == [str(INSTITUTE_TVDB_ID)]
+    assert [call.args[0] for call in tvdb.search_series.call_args_list] == ["L Institut", "L'Institut"]
+
+
+def test_manual_search_drops_the_noise_of_the_restored_query() -> None:
+    """A fuzzy restored answer with no row carrying the typed title adds nothing to the search."""
+    tvdb = _recorded_tvdb()
+    tmdb = MagicMock()
+    tmdb.search_tv.return_value = []
+
+    assert gather_tv_candidates(tvdb, tmdb, "L Insti") == []
+
+
+def test_manual_search_does_not_retry_a_literal_hit() -> None:
+    """A query TVDB already answers issues no second TVDB call."""
+    tvdb = _recorded_tvdb()
+    tmdb = MagicMock()
+    tmdb.search_tv.return_value = []
+
+    gather_tv_candidates(tvdb, tmdb, "L'Institut")
+
+    assert [call.args[0] for call in tvdb.search_series.call_args_list] == ["L'Institut"]
