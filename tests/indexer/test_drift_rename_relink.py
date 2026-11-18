@@ -42,23 +42,70 @@ _RENAMED_EPISODE = "Show.S01E03.MULTi.1080p.mkv"
 
 @pytest.fixture()
 def conn() -> sqlite3.Connection:
-    """Open an in-memory SQLite DB with the full migration chain applied."""
+    """Open an in-memory SQLite DB with the full migration chain applied.
+
+    Returns:
+        A migrated connection with foreign keys enforced.
+    """
     c = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
     c.execute("PRAGMA foreign_keys=ON")
     apply_migrations(c, MIGRATIONS_DIR)
     return c
 
 
+def _insert_show(conn: sqlite3.Connection, title: str, year: int, show_dir: Path) -> int:
+    """Insert a show ``media_item`` owning *show_dir* through its ``dispatch_path`` attribute.
+
+    Args:
+        conn: Open SQLite connection.
+        title: Show title.
+        year: Show year.
+        show_dir: Folder the item owns.
+
+    Returns:
+        PK of the new ``media_item``.
+    """
+    now = int(time.time())
+    item_id = item_repo.insert(
+        conn,
+        MediaItemRow(
+            id=0,
+            kind="show",
+            title=title,
+            title_sort=title,
+            original_title=None,
+            year=year,
+            category_id=CID.TV_SHOWS,
+            external_ids_json="{}",
+            ratings_json=None,
+            canonical_provider=None,
+            nfo_status=None,
+            artwork_json=None,
+            date_created=now,
+            date_modified=now,
+            date_metadata_refreshed=None,
+            is_locked=0,
+            preferred_lang="fr",
+        ),
+    )
+    item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=_ATTR_DISPATCH_PATH, value=str(show_dir)))
+    return item_id
+
+
 class _Library:
     """A tiny indexed library: one show on one disk, files seeded and linked like a scan would."""
 
     def __init__(self, conn: sqlite3.Connection, mount: Path) -> None:
-        """Create the disk row, the show item and its ``Show (2025)`` folder under *mount*."""
+        """Create the disk row, the show item and its ``Show (2025)`` folder under *mount*.
+
+        Args:
+            conn: Open SQLite connection.
+            mount: Directory standing in for the disk's mount point.
+        """
         self.conn = conn
         self.mount = mount
         self.show_dir = mount / "series" / "Show (2025)"
         self.show_dir.mkdir(parents=True)
-        now = int(time.time())
         disk_id = conn.execute(
             "INSERT INTO disk (uuid, label, mount_path, is_mounted, merkle_root, unreachable_strikes) "
             "VALUES ('uuid-relink', 'RelinkDisk', ?, 1, NULL, 0)",
@@ -66,34 +113,29 @@ class _Library:
         ).lastrowid
         assert disk_id is not None
         self.disk_id = disk_id
-        self.item_id = item_repo.insert(
-            conn,
-            MediaItemRow(
-                id=0,
-                kind="show",
-                title="Show",
-                title_sort="Show",
-                original_title=None,
-                year=2025,
-                category_id=CID.TV_SHOWS,
-                external_ids_json="{}",
-                ratings_json=None,
-                canonical_provider=None,
-                nfo_status=None,
-                artwork_json=None,
-                date_created=now,
-                date_modified=now,
-                date_metadata_refreshed=None,
-                is_locked=0,
-                preferred_lang="fr",
-            ),
-        )
-        item_repo.upsert_attr(
-            conn, ItemAttributeRow(item_id=self.item_id, key=_ATTR_DISPATCH_PATH, value=str(self.show_dir))
-        )
+        self.item_id = _insert_show(conn, "Show", 2025, self.show_dir)
+
+    def add_other_show(self) -> tuple[int, Path]:
+        """Index a second show, ``Other (2020)``, on the same disk.
+
+        Returns:
+            ``(item_id, show_dir)`` of the second show.
+        """
+        other_dir = self.mount / "series" / "Other (2020)"
+        other_dir.mkdir(parents=True)
+        return _insert_show(self.conn, "Other", 2020, other_dir), other_dir
 
     def add_episode_file(self, season_dir: str, filename: str, content: bytes) -> tuple[int, Path]:
-        """Write a real file, index it as a scan would, link and enrich it. Returns ``(file_id, path)``."""
+        """Write a real file, index it as a scan would, link and enrich it.
+
+        Args:
+            season_dir: Season folder under the show folder, created when missing.
+            filename: Bare filename.
+            content: File content; its OSHash identifies the file.
+
+        Returns:
+            ``(file_id, path)`` of the indexed file.
+        """
         directory = self.show_dir / season_dir
         directory.mkdir(exist_ok=True)
         path = directory / filename
@@ -140,7 +182,14 @@ class _Library:
             )
 
     def episode_of_file(self, file_id: int) -> tuple[int, int] | None:
-        """Return the ``(season, episode)`` of the release a file is linked to, ``None`` when unlinked."""
+        """Return the ``(season, episode)`` of the release a file is linked to.
+
+        Args:
+            file_id: PK of the ``media_file`` row.
+
+        Returns:
+            The pair, or ``None`` when the file is unlinked or linked to a non-episode release.
+        """
         row = self.conn.execute(
             "SELECT s.number, e.number FROM media_file mf "
             "JOIN media_release mr ON mr.id = mf.release_id "
@@ -151,7 +200,11 @@ class _Library:
         return None if row is None else (row[0], row[1])
 
     def episode_rows(self) -> set[tuple[int, int]]:
-        """Return every ``(season, episode)`` row the show holds."""
+        """Return every ``(season, episode)`` row the show holds.
+
+        Returns:
+            The set of episode rows of the library's show.
+        """
         return {
             (r[0], r[1])
             for r in self.conn.execute(
@@ -162,7 +215,15 @@ class _Library:
 
 
 def _row(conn: sqlite3.Connection, file_id: int) -> Any:
-    """Fetch ``(release_id, enriched_at, filename)`` of a file."""
+    """Fetch ``(release_id, enriched_at, filename)`` of a file.
+
+    Args:
+        conn: Open SQLite connection.
+        file_id: PK of the ``media_file`` row.
+
+    Returns:
+        The row, in that column order.
+    """
     return conn.execute("SELECT release_id, enriched_at, filename FROM media_file WHERE id = ?", (file_id,)).fetchone()
 
 
@@ -172,8 +233,14 @@ def test_a_rename_across_seasons_relinks_the_file_and_the_next_stage_purges_the_
     """S02E03 → ``Saison 01/S01E03``: the file ends on release 1x3, the 2x3 episode row goes.
 
     The relink and the removal of the file-less 2x3 release happen in the incremental scan
-    itself; the 2x3 EPISODE row is removed by the next item stage (the full scan's pass 1),
-    which is the only place that purges episode rows.
+    itself; the 2x3 EPISODE row is removed by the next item stage
+    (``scan_and_stage_dir``, which ``stage_library_items`` runs for every show folder as
+    pass 1 of a full scan, and which dispatch runs per folder), the only code that purges
+    episode rows. The incremental scan leaves it.
+
+    Args:
+        conn: Migrated in-memory database.
+        tmp_path: Temporary directory holding the disk mount.
     """
     lib = _Library(conn, tmp_path / "mnt")
     moved_id, moved_path = lib.add_episode_file("Saison 02", _PACK_EPISODE, b"P" * 4096)
@@ -250,3 +317,124 @@ def test_the_old_release_survives_while_another_file_still_uses_it(conn: sqlite3
     assert lib.episode_of_file(moved_id) == (1, 3)
     assert _row(conn, twin_id)[0] == shared_release, "the twin keeps its release"
     assert conn.execute("SELECT 1 FROM media_release WHERE id = ?", (shared_release,)).fetchone() is not None
+
+
+def test_a_rename_to_another_episode_of_the_same_season_relinks(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """``S02E03`` renamed ``S02E04`` in the same folder: the file moves to release 2x4, 2x3 is dropped.
+
+    Args:
+        conn: Migrated in-memory database.
+        tmp_path: Temporary directory holding the disk mount.
+    """
+    lib = _Library(conn, tmp_path / "mnt")
+    file_id, path = lib.add_episode_file("Saison 02", _PACK_EPISODE, b"P" * 4096)
+    old_release = _row(conn, file_id)[0]
+
+    path.rename(path.with_name("Show.S02E04.MULTi.1080p.mkv"))
+    lib.incremental_scan()
+
+    assert lib.episode_of_file(file_id) == (2, 4)
+    assert conn.execute("SELECT 1 FROM media_release WHERE id = ?", (old_release,)).fetchone() is None
+
+
+def test_a_rename_into_another_item_relinks_to_that_item(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """A file moved into another show's folder leaves the first show's release for the second show's.
+
+    Args:
+        conn: Migrated in-memory database.
+        tmp_path: Temporary directory holding the disk mount.
+    """
+    lib = _Library(conn, tmp_path / "mnt")
+    file_id, path = lib.add_episode_file("Saison 02", _PACK_EPISODE, b"P" * 4096)
+    other_item, other_dir = lib.add_other_show()
+
+    (other_dir / "Saison 02").mkdir()
+    path.rename(other_dir / "Saison 02" / _PACK_EPISODE)  # same season and episode, another show
+    lib.incremental_scan()
+
+    owner = conn.execute(
+        "SELECT s.item_id, s.number, e.number FROM media_file mf "
+        "JOIN media_release mr ON mr.id = mf.release_id "
+        "JOIN episode e ON e.id = mr.episode_id JOIN season s ON s.id = e.season_id WHERE mf.id = ?",
+        (file_id,),
+    ).fetchone()
+    assert tuple(owner) == (other_item, 2, 3), "same season and episode numbers, but the OTHER show's rows"
+    still_referenced = conn.execute(
+        "SELECT COUNT(*) FROM media_release mr JOIN episode e ON e.id = mr.episode_id "
+        "JOIN season s ON s.id = e.season_id WHERE s.item_id = ?",
+        (lib.item_id,),
+    ).fetchone()[0]
+    assert still_referenced == 0, "no release of the first show references its episode rows any more"
+
+
+def test_a_rename_that_widens_the_episode_span_reaches_the_linker(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """``S02E03`` renamed ``S02E03-E04``: the span is part of the identity, so the release gains its end.
+
+    Args:
+        conn: Migrated in-memory database.
+        tmp_path: Temporary directory holding the disk mount.
+    """
+    lib = _Library(conn, tmp_path / "mnt")
+    file_id, path = lib.add_episode_file("Saison 02", _PACK_EPISODE, b"P" * 4096)
+    release_id = _row(conn, file_id)[0]
+
+    path.rename(path.with_name("Show.S02E03-E04.MULTi.1080p.mkv"))
+    lib.incremental_scan()
+
+    end = conn.execute(
+        "SELECT e.number FROM media_release mr JOIN episode e ON e.id = mr.episode_end_id WHERE mr.id = ?",
+        (release_id,),
+    ).fetchone()
+    assert end is not None and end[0] == 4, "the same release now covers 2x3 to 2x4"
+    assert _row(conn, file_id)[0] == release_id
+
+
+def test_a_tombstoned_file_keeps_the_old_release_alive(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """A soft-deleted row still pointing at the old release blocks its deletion (the FK cascades).
+
+    Args:
+        conn: Migrated in-memory database.
+        tmp_path: Temporary directory holding the disk mount.
+    """
+    lib = _Library(conn, tmp_path / "mnt")
+    moved_id, moved_path = lib.add_episode_file("Saison 02", _PACK_EPISODE, b"P" * 4096)
+    ghost_id, _ = lib.add_episode_file("Saison 02", "Show.S02E03.ghost.mkv", b"G" * 4096)
+    old_release = _row(conn, moved_id)[0]
+    conn.execute("UPDATE media_file SET deleted_at = ? WHERE id = ?", (int(time.time()), ghost_id))
+
+    new_dir = lib.show_dir / "Saison 01"
+    new_dir.mkdir()
+    moved_path.rename(new_dir / _RENAMED_EPISODE)
+    lib.incremental_scan()
+
+    assert lib.episode_of_file(moved_id) == (1, 3)
+    assert conn.execute("SELECT 1 FROM media_file WHERE id = ?", (ghost_id,)).fetchone() is not None
+    assert conn.execute("SELECT 1 FROM media_release WHERE id = ?", (old_release,)).fetchone() is not None
+
+
+def test_a_failed_relink_leaves_the_file_unlinked_for_the_enrich_pass(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """If the relink raises, the scan goes on, nothing half-written stays, and the linker retries the file.
+
+    Args:
+        conn: Migrated in-memory database.
+        tmp_path: Temporary directory holding the disk mount.
+    """
+    lib = _Library(conn, tmp_path / "mnt")
+    file_id, path = lib.add_episode_file("Saison 02", _PACK_EPISODE, b"P" * 4096)
+    twin_id, _ = lib.add_episode_file("Saison 02", "Show.S02E03.twin.mkv", b"T" * 4096)
+    old_release = _row(conn, file_id)[0]
+    new_dir = lib.show_dir / "Saison 01"
+    new_dir.mkdir()
+    path.rename(new_dir / _RENAMED_EPISODE)
+
+    def _half_write_then_fail(c: sqlite3.Connection, fid: int, _path: str) -> bool:
+        c.execute("UPDATE media_file SET release_id = NULL, enriched_at = 1 WHERE id = ?", (twin_id,))
+        raise sqlite3.OperationalError("disk I/O error")
+
+    with patch("personalscraper.indexer.drift.relink_after_rename", side_effect=_half_write_then_fail):
+        lib.incremental_scan()
+
+    release_id, enriched_at, filename = _row(conn, file_id)
+    assert filename == _RENAMED_EPISODE, "the rename itself stands"
+    assert release_id is None and enriched_at is None, "unlinked and queued: the enrich pass's linker retries it"
+    assert _row(conn, twin_id)[0] == old_release, "the failed relink's own writes were rolled back"
