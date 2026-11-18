@@ -197,6 +197,24 @@ def _safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
     return safe_get_rating(client, provider_id)
 
 
+def _provider_season_numbers(show_data: dict[str, Any]) -> set[int]:
+    """Return the season numbers the metadata provider lists for a show.
+
+    Reads the ``seasons`` summary both the TMDB and the TVDB show converters
+    expose (``[{"season_number": n, ...}]``). Specials (season 0) are not
+    regular seasons and are left out.
+
+    Args:
+        show_data: Show details dict from the matching provider.
+
+    Returns:
+        The positive season numbers listed; empty when the provider lists none.
+    """
+    return {
+        n for season in show_data.get("seasons") or [] if isinstance(n := season.get("season_number"), int) and n > 0
+    }
+
+
 class TvServiceMixin:
     """TV show scrape service methods.
 
@@ -565,8 +583,9 @@ class TvServiceMixin:
     ) -> dict[tuple[int, int], dict[str, Any]]:
         """Fetch episode data from TVDB/TMDB keyed by (season, episode).
 
-        Discovers seasons from local filesystem directories (Saison XX/) and
-        queries metadata providers in the priority order declared by
+        Discovers seasons from the local filesystem — the ``Saison XX/``
+        directories and the ``SxxEyy`` of every video file below the show
+        folder — and queries metadata providers in the priority order declared by
         ``config.metadata.priorities.episode_scraping``. The first provider
         that returns a non-empty episode list for a given season wins; if
         it comes back empty or raises, the next provider is tried.
@@ -585,20 +604,20 @@ class TvServiceMixin:
             Dict mapping ``(season, episode)`` to ``{"title", "still_path"}``.
             Empty when every provider's catalog lacks the requested seasons.
         """
-        season_nums = sorted(
-            {
-                int(m.group(1))
-                for d in show_dir.iterdir()
-                if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
-                if int(m.group(1)) > 0
-            }
-        )
-        # Bootstrap: when the show has no Saison NN/ dirs yet (fresh torrent
-        # layout), discover seasons from SxxEyy patterns in nested video files
-        # so the API episode map can still be built — otherwise the rescrape
-        # path silently bails out and never reorganizes the show.
-        if not season_nums:
-            season_nums = sorted(s for s in _local_show_seasons(show_dir) if s > 0)
+        dir_seasons = {
+            int(m.group(1))
+            for d in show_dir.iterdir()
+            if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
+            if int(m.group(1)) > 0
+        }
+        # Union with the seasons of every video file below the show folder, release
+        # subfolders included: a season pack merged beside an existing ``Saison NN/``
+        # (a show split across two torrent folders) carries a season no folder names
+        # yet. Fetching only the folders' seasons left it out of the episode map, and
+        # the file was then mistaken for a phantom season. This is also the bootstrap
+        # for a fresh torrent layout with no ``Saison NN/`` at all, so the API episode
+        # map can still be built instead of the rescrape silently bailing out.
+        season_nums = sorted(dir_seasons | {s for s in _local_show_seasons(show_dir) if s > 0})
         # Season-pack bootstrap: a whole-season single file (e.g. Integrale.S01)
         # carries a season token but no episode, so neither discovery above sees
         # it. When season-pack handling is enabled, discover seasons from the
@@ -788,6 +807,7 @@ class TvServiceMixin:
             episode_default_name=episode_default_name,
             allow_synthetic_rename=allow_synthetic_rename,
             season_pack_markers=season_pack_markers,
+            provider_seasons=_provider_season_numbers(show_data),
         )
         if not matched:
             return 0, []

@@ -11,6 +11,7 @@ import pytest
 
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.episode_manager import (
+    _destination_taken,
     _extract_season_episode,
     create_season_dirs,
     match_episode_files,
@@ -491,3 +492,162 @@ class TestEpisodeRenameE2E:
         # Original root files are gone.
         assert not video_found.exists()
         assert not video_missing.exists()
+
+
+# ---------------------------------------------------------------------------
+# Hotfix episode-season-remap: rename never overwrites, remap only a phantom
+# ---------------------------------------------------------------------------
+
+
+class TestRenameNeverOverwrites:
+    """``rename_episodes`` must leave both files when the destination exists."""
+
+    def test_existing_destination_is_kept_and_source_stays(
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """A destination already on disk is never replaced: the collision is logged and skipped."""
+        season_dir = tmp_path / "Saison 02"
+        season_dir.mkdir()
+        existing = season_dir / "S02E01 - Real Opener.mkv"
+        existing.write_text("the real S02E01")
+        incoming = tmp_path / "Show.S02E01.mkv"
+        incoming.write_text("another release of the same episode")
+        subtitle = tmp_path / "Show.S02E01.fra.srt"
+        subtitle.write_text("subtitle of the incoming file")
+
+        matched = {incoming: {"season": 2, "episode": 1, "api_title": "Real Opener"}}
+
+        with caplog.at_level("WARNING"):
+            count = rename_episodes(matched, tmp_path, patterns)
+
+        assert count == 0
+        assert existing.read_text() == "the real S02E01"
+        assert incoming.read_text() == "another release of the same episode"
+        # The sub rides with its video: it stays too, so the pair is not split.
+        assert subtitle.exists()
+        assert not (season_dir / "S02E01 - Real Opener.fra.srt").exists()
+        assert "episode_rename_collision" in caplog.text
+
+    def test_collision_keeps_the_source_sidecars(self, tmp_path: Path, patterns: NamingPatterns) -> None:
+        """The skipped source keeps its NFO and thumb: the orphan cleanup must not run."""
+        season_dir = tmp_path / "Saison 01"
+        season_dir.mkdir()
+        (season_dir / "S01E01 - Pilot.mkv").write_text("kept")
+        incoming = tmp_path / "Show.S01E01.mkv"
+        incoming.write_text("incoming")
+        sidecar_nfo = tmp_path / "Show.S01E01.nfo"
+        sidecar_nfo.write_text("<episodedetails/>")
+
+        rename_episodes({incoming: {"season": 1, "episode": 1, "api_title": "Pilot"}}, tmp_path, patterns)
+
+        assert incoming.exists()
+        assert sidecar_nfo.exists()
+
+    def test_collision_is_also_reported_in_dry_run(
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """A dry run does not claim a rename the real run would refuse."""
+        season_dir = tmp_path / "Saison 01"
+        season_dir.mkdir()
+        (season_dir / "S01E01 - Pilot.mkv").write_text("kept")
+        incoming = tmp_path / "Show.S01E01.mkv"
+        incoming.write_text("incoming")
+
+        with caplog.at_level("WARNING"):
+            count = rename_episodes(
+                {incoming: {"season": 1, "episode": 1, "api_title": "Pilot"}}, tmp_path, patterns, dry_run=True
+            )
+
+        assert count == 0
+        assert "episode_rename_collision" in caplog.text
+
+
+class TestPhantomRemapNeedsAbsentProviderSeason:
+    """Pass 2 remaps a label only when the provider itself has no such season."""
+
+    def test_season_listed_by_provider_is_not_remapped(self, tmp_path: Path) -> None:
+        """S01 labelled, provider lists seasons 1 and 2, only season 2 fetched: no remap to season 2."""
+        video = tmp_path / "Show.S01E01.mkv"
+        video.touch()
+        api_episodes = {(2, e): {"title": f"S2 title {e}", "still_path": ""} for e in range(1, 9)}
+
+        result = match_episode_files([video], api_episodes, provider_seasons={1, 2})
+
+        # Kept as itself: not turned into S02E01. The catalog lacks S01E01, so it falls to Pass 3.
+        assert result[video]["season"] == 1
+        assert result[video]["api_title"] == "Episode 1"
+        assert result[video]["fallback"] is True
+
+    def test_season_absent_from_provider_is_still_remapped(self, tmp_path: Path) -> None:
+        """The parallel-numbering case (S17 label, catalog S01..S04) keeps its remap."""
+        video = tmp_path / "Show.S17E03.mkv"
+        video.touch()
+        api_episodes = {(4, e): {"title": f"S4 title {e}", "still_path": ""} for e in range(1, 9)}
+
+        result = match_episode_files([video], api_episodes, provider_seasons={1, 2, 3, 4})
+
+        assert result[video]["season"] == 4
+        assert result[video]["api_title"] == "S4 title 3"
+
+    def test_unknown_provider_seasons_keep_the_legacy_remap(self, tmp_path: Path) -> None:
+        """Callers that pass no season list (``None``) get the pre-existing behaviour."""
+        video = tmp_path / "Show.S17E03.mkv"
+        video.touch()
+        api_episodes = {(4, e): {"title": f"S4 title {e}", "still_path": ""} for e in range(1, 9)}
+
+        result = match_episode_files([video], api_episodes)
+
+        assert result[video]["season"] == 4
+
+
+class TestDestinationTaken:
+    """``_destination_taken`` tells a real clash from the same file seen under another name."""
+
+    def test_missing_destination_is_free(self, tmp_path: Path) -> None:
+        """No file at the destination: the rename may go on."""
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+
+        assert _destination_taken(source, tmp_path / "b.mkv") is False
+
+    def test_other_file_at_destination_is_a_clash(self, tmp_path: Path) -> None:
+        """A different file at the destination is taken."""
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+        dest = tmp_path / "b.mkv"
+        dest.write_text("b")
+
+        assert _destination_taken(source, dest) is True
+
+    def test_same_file_under_the_destination_name_is_not_a_clash(self, tmp_path: Path) -> None:
+        """A destination that is the source itself (a case-only rename on a case-insensitive disk) is free.
+
+        A hard link stands in for the case-insensitive twin: same inode, two names.
+        """
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+        dest = tmp_path / "A.mkv.link"
+        dest.hardlink_to(source)
+
+        assert _destination_taken(source, dest) is False
+
+    def test_identity_check_failure_counts_as_taken(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When identity cannot be established, refusing the overwrite is the safe side."""
+        source = tmp_path / "a.mkv"
+        source.write_text("a")
+        dest = tmp_path / "b.mkv"
+        dest.write_text("b")
+
+        def _boom(self: Path, other: Path) -> bool:
+            """Simulate a failing stat."""
+            raise OSError("stat failed")
+
+        monkeypatch.setattr(Path, "samefile", _boom)
+
+        assert _destination_taken(source, dest) is True
