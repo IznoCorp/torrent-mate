@@ -27,6 +27,7 @@ from personalscraper.indexer.library_view import (
     french_key,
     parse_ids,
 )
+from tests._doubles.idle_wal import leave_wal_database, refuse_idle_wal_read_only
 from tests.unit.app.library.world import FixtureIndex
 
 # The listing's query before it moved: every live row, the most recently added first.
@@ -243,6 +244,51 @@ def test_an_unreadable_index_is_unavailable(tmp_path: Path, content: bytes | Non
 
     assert isinstance(refused.value.__cause__, sqlite3.Error)
     assert content is not None or not path.exists()
+
+
+@pytest.fixture
+def idle_wal_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A populated WAL ``library.db`` that no process holds, under an SQLite that cannot read it ``mode=ro``.
+
+    Args:
+        tmp_path: The test's directory.
+        monkeypatch: The test's monkeypatch.
+
+    Returns:
+        The index's path.
+    """
+    path = tmp_path / "library.db"
+    index = FixtureIndex(path)
+    index.item("Idle WAL movie", tmdb="1")
+    index.conn.close()
+    leave_wal_database(path)
+    refuse_idle_wal_read_only(monkeypatch)
+    return path
+
+
+def test_an_idle_wal_index_is_readable(idle_wal_index: Path) -> None:
+    """A WAL index whose last writer closed (no ``-wal``/``-shm``) is read, not refused as unopenable."""
+    with LibraryIndex(idle_wal_index).reader() as reader:
+        assert reader.any_disk_unmounted() is False
+        assert reader.holders("tmdb", "1")[0].title == "Idle WAL movie"
+
+
+def test_an_idle_wal_reader_can_write_nothing(idle_wal_index: Path) -> None:
+    """The retry connection is read-write at the file, but ``query_only``: every write is refused."""
+    with LibraryIndex(idle_wal_index).reader() as reader:
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            reader._conn.execute("DELETE FROM media_item")  # noqa: SLF001 — proving the connection refuses writes
+        assert reader.holders("tmdb", "1")
+
+
+def test_an_idle_wal_index_is_readable_with_the_real_sqlite(tmp_path: Path) -> None:
+    """Whatever the SQLite build refuses or accepts, an idle WAL index reads (no double in the way)."""
+    path = tmp_path / "library.db"
+    FixtureIndex(path).conn.close()
+    leave_wal_database(path)
+
+    with LibraryIndex(path).reader() as reader:
+        assert reader.any_disk_unmounted() is False
 
 
 def test_any_disk_unmounted(tmp_path: Path) -> None:

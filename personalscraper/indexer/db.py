@@ -40,6 +40,7 @@ from personalscraper.core.sqlite._migrate import apply_migrations as _core_apply
 from personalscraper.core.sqlite._open import OpenDbErrorFactories
 from personalscraper.core.sqlite._open import open_db as _core_open_db
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
+from personalscraper.core.sqlite._read_only import connect_read_only
 from personalscraper.core.sqlite.errors import (
     SqliteCorruptError,
     SqliteDiskFullError,
@@ -417,7 +418,7 @@ def _library_schema_at_head(db_path: Path, dir_: Path) -> bool:
         return False
     head = max((_migration_version(p) for p in dir_.glob("*.sql") if p.is_file()), default=0)
     try:
-        conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+        conn = connect_read_only(db_path)
     except sqlite3.Error:
         return False
     try:

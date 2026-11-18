@@ -4,6 +4,7 @@
 Public API:
   apply_pragmas(conn)          — canonical 8-PRAGMA set
   open_db(path, ...)           — event-free open + corruption-quarantine
+  connect_read_only(path, ...) — read-only open that survives a WAL store no process holds
   db_lock(path, *, timeout=0)  — flock + PID sidecar + stale-sidecar recovery
   apply_migrations(conn, dir_) — apply *.sql migration scripts
   refuse_newer_schema(conn, dir_) — refuse a store migrated past the code (raw writers)
@@ -20,6 +21,7 @@ from personalscraper.core.sqlite._lock import db_lock
 from personalscraper.core.sqlite._migrate import apply_migrations, refuse_newer_schema, safe_rollback
 from personalscraper.core.sqlite._open import open_db
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.core.sqlite._read_only import connect_read_only
 from personalscraper.core.sqlite._serialised import serialised
 from personalscraper.core.sqlite.errors import (
     SqliteCorruptError,
@@ -42,6 +44,7 @@ __all__ = [
     "SqliteSchemaNewerError",
     "apply_migrations",
     "apply_pragmas",
+    "connect_read_only",
     "db_lock",
     "open_db",
     "probe_mount",

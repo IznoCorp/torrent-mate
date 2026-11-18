@@ -15,7 +15,6 @@ Logging: personalscraper.logger.get_logger (NOT structlog.get_logger).
 
 from __future__ import annotations
 
-import sqlite3
 import time
 from contextlib import closing
 from pathlib import Path
@@ -31,6 +30,7 @@ from personalscraper.core.delete_permit import (
     veto,
 )
 from personalscraper.core.event_bus import current_run_uid
+from personalscraper.core.sqlite import connect_read_only
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -662,10 +662,7 @@ class StrictDeletePermit:
             log.warning("acquire.delete_authority.store_absent", path=str(path))
             raise ObligationsUnreadable("acquire.db is absent")
         try:
-            with closing(
-                sqlite3.connect(f"{self._db_path.as_uri()}?mode=ro", uri=True, timeout=_READ_TIMEOUT_S)
-            ) as conn:
-                conn.execute("PRAGMA query_only = ON")
+            with closing(connect_read_only(self._db_path, timeout=_READ_TIMEOUT_S)) as conn:
                 return _decide(_SeedSubStore(conn), path)
         except Exception as exc:
             log.warning(

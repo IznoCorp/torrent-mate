@@ -63,26 +63,16 @@ ALLOWLIST: frozenset[str] = frozenset(
         # raises, and the lookup takes no writer lock (same rationale as
         # ``cli_helpers/boundary.py`` above).
         str(PACKAGE_ROOT / "scraper" / "_db_restore.py"),
-        # The library's read view (LibraryIndex.reader): opens a genuine
-        # ``file:...?mode=ro`` URI connection with ``query_only`` for the library
-        # and media reads. It MUST bypass the canonical writer PRAGMA set — WAL
-        # ``journal_mode`` on a read-only connection raises (same rationale as
-        # ``scraper/_db_restore.py`` above).
-        str(PACKAGE_ROOT / "indexer" / "library_view.py"),
-        # StrictDeletePermit.may_delete: opens a genuine ``file:...?mode=ro`` URI
-        # connection with ``query_only=ON`` for a read-only lookup of the seed
-        # obligations in acquire.db. It MUST bypass the canonical writer PRAGMA
-        # set — WAL ``journal_mode`` on a read-only connection raises, and the
-        # web deletion path never writes, creates or migrates acquire.db
-        # (operator ruling R1; same rationale as ``indexer/library_view.py`` above).
-        str(PACKAGE_ROOT / "acquire" / "delete_authority.py"),
-        # CatalogueStore._reader: opens a genuine ``file:...?mode=ro`` URI
-        # connection with ``query_only=ON`` for the web process's read of
-        # acquire.db. It MUST bypass the canonical writer PRAGMA set — WAL
-        # ``journal_mode`` on a read-only connection raises, and the web process
-        # never writes, creates or migrates acquire.db (same rationale as
-        # ``acquire/delete_authority.py`` above).
-        str(PACKAGE_ROOT / "acquire" / "catalogue.py"),
+        # connect_read_only: the one read-only opener of the stores a reader must not write
+        # (LibraryIndex.reader, the acquire catalogue's web reader, StrictDeletePermit, the
+        # follower's lease and run reads, the « À traiter » rollup, the schema probe). It opens
+        # ``file:...?mode=ro`` with ``query_only=ON`` and MUST bypass the canonical writer PRAGMA
+        # set — WAL ``journal_mode`` on a read-only connection raises. Only when SQLite answers
+        # « unable to open database file » for a file that exists (a WAL store no process holds,
+        # no ``-shm``) does it retry once ``mode=rw`` — never ``rwc``, so an absent file is never
+        # created — still ``query_only=ON``; the retry can create the ``-wal``/``-shm`` side files
+        # and nothing else.
+        str(PACKAGE_ROOT / "core" / "sqlite" / "_read_only.py"),
     }
 )
 

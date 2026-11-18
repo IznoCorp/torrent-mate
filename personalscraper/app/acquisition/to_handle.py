@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.core.sqlite import apply_pragmas
+from personalscraper.core.sqlite import apply_pragmas, connect_read_only
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -114,7 +114,7 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
         return ToHandleRollup(items=(), orphan_count=0, degraded=True)
 
     try:
-        conn = sqlite3.connect(f"file:{indexer_db}?mode=ro", uri=True)
+        conn = connect_read_only(Path(indexer_db))
         try:
             apply_pragmas(conn)
         except sqlite3.Error:
