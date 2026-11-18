@@ -31,6 +31,7 @@ from typing import Any
 
 from personalscraper.api.metadata._base import SearchResult
 from personalscraper.logger import get_logger
+from personalscraper.scraper._match_tv import _exact_title_hits, _restore_french_elisions
 from personalscraper.text_utils import media_processor
 
 log = get_logger("search_ranking")
@@ -399,6 +400,13 @@ def gather_tv_candidates(
     tmdb_rows: list[SearchResult] = []
     try:
         tvdb_rows = list(tvdb_client.search_series(query, year))
+        if not tvdb_rows:
+            # TVDB finds nothing for ``L Institut`` yet the show for ``L'Institut``: retry once with
+            # the French elisions restored, keeping only the rows that carry the typed title (the
+            # same rule as the scrape matcher, ``match_tvshow_tvdb_detailed``).
+            restored = _restore_french_elisions(query)
+            if restored is not None:
+                tvdb_rows = _exact_title_hits(list(tvdb_client.search_series(restored, year)), query)
     except Exception as exc:  # noqa: BLE001 — provider adapters raise a mixed bag
         log.warning("search_tv_provider_degraded", provider="tvdb", query=query, error=str(exc))
     try:

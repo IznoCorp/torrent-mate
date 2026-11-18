@@ -1,0 +1,11 @@
+{
+ "data": [],
+ "links": {
+  "next": null,
+  "page_size": 50,
+  "prev": null,
+  "self": "https://api4.thetvdb.com/v4/search?query=L Institut&type=series&limit=50&page=0",
+  "total_items": 0
+ },
+ "status": "success"
+}
