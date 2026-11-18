@@ -257,10 +257,13 @@ class TvServiceWriteMixin:
                 tmdb_id=tmdb_id,
             )
 
-            total_renamed, nfo_warnings = self._match_seasons(
+            # The warnings cover the NFO write failures AND the renames skipped for a
+            # collision: a skipped file stays loose beside the one holding its name, and a
+            # log line alone left the scrape looking like a plain success.
+            total_renamed, episode_warnings = self._match_seasons(
                 video_files, api_episodes, show_dir, show_data, episode_default_name
             )
-            result.warnings.extend(nfo_warnings)
+            result.warnings.extend(episode_warnings)
 
             # Clean empty release-group subdirectories left after episode moves
             if not self.dry_run:

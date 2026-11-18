@@ -50,7 +50,6 @@ if TYPE_CHECKING:
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.nfo_utils import extract_nfo_metadata
 from personalscraper.scraper.episode_manager import (
-    _extract_season_episode,
     create_season_dirs,
     match_episode_files,
     rename_episodes,
@@ -60,6 +59,7 @@ from personalscraper.scraper.existing_validator_drift import (
     _infer_year_from_child_names,
     _local_show_seasons,
     _read_canonical_provider,
+    _seasons_to_request,
     verify_tvshow_scrape_drift,
 )
 from personalscraper.scraper.existing_validator_repair import (
@@ -352,22 +352,22 @@ class ExistingValidatorMixin:
             return False
 
         try:
-            # Discover season numbers from the local filesystem. Saison NN/ dirs
-            # are the canonical source; when the show is still in raw torrent
-            # layout (no Saison NN/ yet), infer seasons from SxxEyy patterns in
-            # the unorganized files so the repair can bootstrap the structure.
-            season_nums = sorted(
-                {
-                    int(m.group(1))
-                    for d in show_dir.iterdir()
-                    if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
-                    if int(m.group(1)) > 0
-                }
-            )
-            if not season_nums:
-                season_nums = sorted(
-                    {s for s in (_extract_season_episode(f.name)[0] for f in unorganized) if s is not None and s > 0}
-                )
+            # Discover season numbers from the local filesystem: the Saison NN/
+            # dirs UNION the season of every video file below the show folder
+            # (once the provider's show data is in, see ``_seasons_to_request``).
+            # A season pack merged beside an existing Saison NN/ (a show split
+            # across two torrent folders) carries a season no folder names yet;
+            # leaving it out made the pack look like a phantom season and
+            # relabelled it. It is also the bootstrap for a raw torrent layout
+            # (no Saison NN/ yet), so the repair can build the structure.
+            dir_seasons = {
+                int(m.group(1)) for d in show_dir.iterdir() if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
+            }
+            local_seasons = _local_show_seasons(show_dir)
+            # Lazy import (tv_service imports from this module): the seasons the provider
+            # lists, so a listed season is never taken for a phantom one while matching.
+            from personalscraper.scraper.tv_service import _provider_season_numbers  # noqa: PLC0415
+
             if tvdb_id:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
@@ -389,6 +389,7 @@ class ExistingValidatorMixin:
                     fallback_language="en-US",
                     external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
+                season_nums = _seasons_to_request(dir_seasons, local_seasons, _provider_season_numbers(show_data))
                 api_episodes = _fetch_season_episodes_tvdb(tvdb_client, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
@@ -401,6 +402,7 @@ class ExistingValidatorMixin:
                 # fallback forbidden.
                 tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
                 show_data = _coerce_to_show_data(tmdb_client.get_tv(tmdb_id))
+                season_nums = _seasons_to_request(dir_seasons, local_seasons, _provider_season_numbers(show_data))
                 api_episodes = _fetch_season_episodes(tmdb_client, tmdb_id, season_nums)
 
             if not api_episodes:
@@ -418,6 +420,7 @@ class ExistingValidatorMixin:
                 unorganized,
                 api_episodes,
                 allow_synthetic_rename=allow_synthetic_rename,
+                provider_seasons=_provider_season_numbers(show_data),
             )
             if not matched:
                 return False

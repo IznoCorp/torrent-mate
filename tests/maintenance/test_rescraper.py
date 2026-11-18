@@ -2178,3 +2178,146 @@ def test_episodes_needing_nfo_leaves_specials_out(tmp_path: Path) -> None:
     regular.write_bytes(b"x")
 
     assert _episodes_needing_nfo(show) == [regular]
+
+
+def _tvdb_seasons(empty: frozenset[int] = frozenset()) -> MagicMock:
+    """Build a TVDB stub listing seasons 1 and 2, each with eight distinctly titled episodes.
+
+    Args:
+        empty: Seasons the stub answers with no episode at all (a season the provider
+            lists but whose retrieval brought nothing back).
+
+    Returns:
+        A ``MagicMock`` whose ``get_series_episodes(series_id, season)`` answers with
+        ``"S<season> title <n>"`` titles for episodes 1 to 8.
+    """
+    from personalscraper.api.metadata._base import EpisodeInfo, SeasonDetails
+
+    tvdb = MagicMock()
+
+    def _season(_series_id: int, season: int) -> SeasonDetails:
+        """Answer one season request of the stub."""
+        episodes = (
+            []
+            if season in empty
+            else [EpisodeInfo(episode_number=e, title=f"S{season} title {e}") for e in range(1, 9)]
+        )
+        return SeasonDetails(provider="tvdb", tv_id="451177", season_number=season, episodes=episodes)
+
+    tvdb.get_series_episodes.side_effect = _season
+    return tvdb
+
+
+def _merged_show(tmp_path: Path) -> tuple[Path, Path, list[Path]]:
+    """Build the prod layout: ``Saison 02/`` with S02E01 plus a release subfolder with S01E01-E08.
+
+    Args:
+        tmp_path: Pytest temporary directory the show folder is created in.
+
+    Returns:
+        ``(show_dir, the real S02E01 file, the eight pack files)``.
+    """
+    show = tmp_path / "Show (2025)"
+    (show / "Saison 02").mkdir(parents=True)
+    real_s02e01 = show / "Saison 02" / "S02E01 - S2 title 1.mkv"
+    real_s02e01.write_text("the real S02E01")
+    pack = show / "Show.S01.MULTi.1080p.pack"
+    pack.mkdir()
+    pack_files = []
+    for e in range(1, 9):
+        f = pack / f"Show.S01E{e:02d}.MULTi.1080p.mkv"
+        f.write_text(f"pack episode {e}")
+        pack_files.append(f)
+    return show, real_s02e01, pack_files
+
+
+_TWO_SEASONS = {"name": "Show", "seasons": [{"season_number": 1}, {"season_number": 2}]}
+
+
+class TestRescrapeKeepsAMergedPacksSeason:
+    """The library rescrape never relabels a season pack merged beside another season."""
+
+    def test_pack_lands_in_season_one_and_season_two_survives(self, tmp_path: Path) -> None:
+        """Seasons requested = ``Saison NN/`` folders UNION the seasons of every video file below."""
+        from personalscraper.maintenance.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show, real_s02e01, _pack = _merged_show(tmp_path)
+
+        _rescrape_episodes(
+            show, _TWO_SEASONS, "tvdb", 451177, _mock_registry(tvdb=_tvdb_seasons()), NamingPatterns(), dry_run=False
+        )
+
+        assert sorted(p.name for p in (show / "Saison 01").iterdir()) == [
+            f"S01E{e:02d} - S1 title {e}.mkv" for e in range(1, 9)
+        ]
+        assert real_s02e01.read_text() == "the real S02E01"
+        assert [p.name for p in (show / "Saison 02").iterdir()] == ["S02E01 - S2 title 1.mkv"]
+
+    def test_a_provider_season_that_was_not_retrieved_is_never_remapped(self, tmp_path: Path) -> None:
+        """Season 1 is listed by the provider but came back empty: no S01 file is relabelled S02."""
+        from personalscraper.maintenance.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show, real_s02e01, _pack = _merged_show(tmp_path)
+
+        _rescrape_episodes(
+            show,
+            _TWO_SEASONS,
+            "tvdb",
+            451177,
+            _mock_registry(tvdb=_tvdb_seasons(empty=frozenset({1}))),
+            NamingPatterns(),
+            dry_run=False,
+        )
+
+        assert real_s02e01.read_text() == "the real S02E01"
+        assert [p.name for p in (show / "Saison 02").iterdir()] == ["S02E01 - S2 title 1.mkv"]
+
+    def test_episode_nfos_of_an_empty_provider_season_are_not_written_for_another_season(self, tmp_path: Path) -> None:
+        """The NFO repair does not give an S01 file the NFO of an S02 episode when season 1 came back empty."""
+        from personalscraper.maintenance.rescraper import _rescrape_episode_nfos
+
+        show = tmp_path / "Show (2025)"
+        show.mkdir()
+        season_one = show / "Show.S01E02.mkv"
+        season_two = show / "Show.S02E02.mkv"
+        season_one.write_bytes(b"x")
+        season_two.write_bytes(b"x")
+        actions: list[str] = []
+
+        _rescrape_episode_nfos(
+            [season_one, season_two],
+            show,
+            _TWO_SEASONS,
+            "tvdb",
+            451177,
+            _mock_registry(tvdb=_tvdb_seasons(empty=frozenset({1}))),
+            MagicMock(),
+            dry_run=True,
+            actions=actions,
+            errors=[],
+        )
+
+        assert actions == ["episode_nfo_regenerated: Show.S02E02.nfo"]
+
+
+class TestRescrapeRequestsOnlySeasonsTheProviderLists:
+    """A season only a loose file names, and the provider does not list, is never requested."""
+
+    def test_a_season_the_provider_does_not_list_is_not_requested(self, tmp_path: Path) -> None:
+        """An S17 label on a show whose catalogue is S01..S02 would otherwise be a failing request."""
+        from personalscraper.maintenance.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show, _real, _pack = _merged_show(tmp_path)
+        (show / "Show.S17.spin-off").mkdir()
+        (show / "Show.S17.spin-off" / "Show.S17E01.mkv").write_text("phantom season")
+        tvdb = _tvdb_seasons()
+
+        _rescrape_episodes(
+            show, _TWO_SEASONS, "tvdb", 451177, _mock_registry(tvdb=tvdb), NamingPatterns(), dry_run=True
+        )
+
+        requested = {call.args[1] for call in tvdb.get_series_episodes.call_args_list}
+        assert requested == {1, 2}
