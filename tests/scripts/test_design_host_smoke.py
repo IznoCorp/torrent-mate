@@ -444,3 +444,56 @@ def test_a_redirect_is_red_and_not_followed_with_the_session(
     assert out.strip().splitlines() == ["SMOKE RED readVersion 302 redirect"]
     assert elsewhere.requests == []
     assert [path for _, path, _ in host.requests if path.endswith("/version")] == ["/api/v1/version"]
+
+
+SEASONS = {
+    "operationId": "readMediaSeasons",
+    "parameters": [
+        {"name": "provider", "in": "path", "required": True},
+        {"name": "providerId", "in": "path", "required": True},
+    ],
+}
+TWO_KINDS = {
+    "items": [{"kind": "movie", "ids": {"tmdb": 1}}, {"kind": "show", "ids": {"tvdb": 2}}],
+    "total": 2,
+    "matching": 2,
+    "loaded": 2,
+}
+
+
+def test_the_seasons_get_is_drawn_from_a_show_not_the_first_item(
+    tmp_path: Path, run: Callable[..., tuple[int, str]]
+) -> None:
+    """A movie listed first is not the seasons' sample: the show's ids are sent, and the movie's never are.
+
+    Seasons of a movie answer 404 by design, so drawing them from the first item made the smoke
+    red on a healthy host.
+    """
+    contract = _contract(tmp_path, {"/media/{provider}/{providerId}/seasons": SEASONS})
+    answers = {
+        "GET /library/items": (200, TWO_KINDS),
+        "GET /media/tmdb/1/seasons": (404, {"code": "media.not_found"}),
+        "GET /media/tvdb/2/seasons": (200, {"seasons": []}),
+    }
+    with _host(answers) as (host, base):
+        code, out = run(base, contract)
+    paths = [path for _, path, _ in host.requests]
+    assert "/api/v1/media/tvdb/2/seasons" in paths
+    assert "/api/v1/media/tmdb/1/seasons" not in paths
+    assert (code, out.strip()) == (0, "SMOKE OK 4 GETs")
+
+
+def test_a_library_with_no_show_skips_the_seasons_get_with_one_line(
+    tmp_path: Path, run: Callable[..., tuple[int, str]]
+) -> None:
+    """No show to draw from: the seasons GET is skipped with one line, not red, and not called."""
+    movies_only = {"items": [{"kind": "movie", "ids": {"tmdb": 1}}], "total": 1, "matching": 1, "loaded": 1}
+    contract = _contract(tmp_path, {"/media/{provider}/{providerId}/seasons": SEASONS})
+    with _host({"GET /library/items": (200, movies_only)}) as (host, base):
+        code, out = run(base, contract)
+    assert all("/seasons" not in path for _, path, _ in host.requests)
+    assert out.strip().splitlines() == [
+        "SMOKE SKIP readMediaSeasons no show in the library",
+        "SMOKE OK 3 GETs",
+    ]
+    assert code == 0
