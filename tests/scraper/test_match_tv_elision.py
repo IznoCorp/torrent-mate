@@ -22,6 +22,7 @@ import pytest
 from personalscraper.api.metadata._base import SearchResult
 from personalscraper.api.metadata._tvdb_parsers import parse_search_result, unwrap
 from personalscraper.scraper._match_tv import (
+    _exact_title_hits,
     _restore_french_elisions,
     match_tvshow,
     match_tvshow_tvdb_detailed,
@@ -58,6 +59,9 @@ def _recorded_tvdb() -> MagicMock:
     by_query = {
         "L'Institut": _load("l-apostrophe-institut"),
         "L Institut": _load("l-institut-no-apostrophe"),
+        # A title the show list does not carry: TVDB's fuzzy answer to the restored query is noise.
+        "L Insti": _load("l-institut-no-apostrophe"),
+        "L'Insti": _load("l-apostrophe-institut"),
     }
     client = MagicMock()
 
@@ -91,6 +95,38 @@ def test_title_without_apostrophe_matches_on_tvdb() -> None:
     queries = [call.args[0] for call in tvdb.search_series.call_args_list]
     assert queries[0] == "L Institut"
     assert "L'Institut" in queries
+
+
+def test_restored_query_with_a_year_merges_the_no_year_window() -> None:
+    """With a folder year the retry also runs the no-year window query, as the literal search does."""
+    tvdb = _recorded_tvdb()
+
+    match, _ = match_tvshow_tvdb_detailed(tvdb, "L Institut", 2025)
+
+    assert match is not None
+    assert match.api_id == INSTITUTE_TVDB_ID
+    calls = [(call.args[0], call.args[1]) for call in tvdb.search_series.call_args_list]
+    assert ("L'Institut", 2025) in calls
+    assert ("L'Institut", None) in calls
+
+
+def test_exact_title_hits_keeps_only_the_show_carrying_the_title() -> None:
+    """Of the 26 fuzzy rows TVDB returns for `L'Institut`, only tvdb 451177 carries that title."""
+    hits = _exact_title_hits(_load("l-apostrophe-institut"), "L Institut")
+
+    assert [r.provider_id for r in hits] == [str(INSTITUTE_TVDB_ID)]
+
+
+def test_noise_from_the_restored_query_leaves_tvdb_silent() -> None:
+    """A fuzzy answer with no row carrying the title is not a match: TVDB stays silent, TMDB runs."""
+    tvdb = _recorded_tvdb()
+    tmdb = MagicMock()
+    tmdb.search_tv.return_value = []
+
+    assert match_tvshow_tvdb_detailed(tvdb, "L Insti", None) == (None, [])
+    match_tvshow(tvdb, tmdb, "L Insti", None)
+
+    tmdb.search_tv.assert_called()
 
 
 def test_tmdb_is_not_consulted_when_the_restored_query_finds_the_show() -> None:

@@ -92,6 +92,25 @@ def _restore_french_elisions(title: str) -> str | None:
     return restored if restored != title else None
 
 
+def _exact_title_hits(results: list[SearchResult], title: str) -> list[SearchResult]:
+    """Keep the results one of whose titles or aliases IS ``title`` once normalised.
+
+    TVDB answers the restored-apostrophe query with a fuzzy list (26 rows for ``L'Institut``):
+    most rows are noise whose aliases merely resemble the title. Only a candidate that carries the
+    local title itself (title, original title or alias, compared through ``media_processor``,
+    which reads the apostrophe as a space) is evidence the restoration found the right show.
+
+    Args:
+        results: TVDB search results for the restored query.
+        title: The local (apostrophe-less) show title.
+
+    Returns:
+        The results with an exact normalised title or alias, in provider order.
+    """
+    wanted = media_processor(title)
+    return [r for r in results if wanted in {media_processor(t) for t in (r.title, r.original_title, *r.aliases) if t}]
+
+
 def _search_tvdb(tvdb_client: object, title: str, year: int | None) -> list[SearchResult]:
     """Search TVDB for ``title``, merging the no-year candidates within the year window.
 
@@ -183,19 +202,22 @@ def match_tvshow_tvdb_detailed(
         top-5 :class:`DecisionCandidate` list).
     """
     results = _search_tvdb(tvdb_client, title, year)
+    restored: str | None = None
     if not results:
         # TVDB tokenises ``L'Institut`` as one word and finds nothing for ``L Institut``. Retry
         # once with the elision apostrophes restored before declaring TVDB silent: a silent TVDB
         # hands a TVDB-canonical show to the TMDB fallback and its episodes a tmdb-only NFO. The
-        # candidates are still scored against the ORIGINAL title (``default_process`` reads the
-        # apostrophe as a space), so a wrong restoration cannot invent a match.
+        # restored query returns TVDB's fuzzy list (26 rows for ``L'Institut``), so only a candidate
+        # whose own title or alias IS the local title is kept: a noise show must never be
+        # auto-accepted where TVDB used to be silent and TMDB answered.
         restored = _restore_french_elisions(title)
         if restored is not None:
-            results = _search_tvdb(tvdb_client, restored, year)
-            if results:
+            retried = _exact_title_hits(_search_tvdb(tvdb_client, restored, year), title)
+            if retried:
+                results = retried
                 log.info("show_tvdb_elision_retry", title=title, query=restored, results=len(results))
     if not results:
-        log.info("show_no_tvdb_results", title=title, year=year)
+        log.info("show_no_tvdb_results", title=title, year=year, elision_query=restored)
         return None, []
 
     # Build lookup for poster/overview enrichment (no extra API calls).
