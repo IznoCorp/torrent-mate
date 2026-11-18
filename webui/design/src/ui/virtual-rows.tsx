@@ -51,6 +51,7 @@
 // the rows are strings somebody else composed.
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, type ReactElement } from "react";
+import { observeViewport } from "./observe-viewport";
 import { useReaderPlace } from "./reader-place";
 import { useWindowGeometry } from "./window-geometry";
 
@@ -142,6 +143,9 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     // Enough rendered beyond the viewport that a fast flick never shows a gap,
     // and few enough that the node count stays a small constant.
     overscan: 4,
+    // THE SCROLLER IS WATCHED THROUGH ITS BORDER BOX — `ui/observe-viewport.ts`
+    // carries why the library's own content-box observer cannot be used here.
+    observeElementRect: observeViewport,
   });
 
   // THE MEASUREMENTS ARE RE-TAKEN WHEN THE PITCH MOVES, and nothing else does
