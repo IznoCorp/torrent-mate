@@ -189,7 +189,7 @@ describe("firebaseSdk.forget", () => {
       getApps: () => [],
       initializeApp: (_options: unknown, name: string) => ({ name }),
     }));
-    // What the pinned SDK does: `getToken` binds the registration it is given; `deleteToken`
+    // What the pinned SDK does (firebase 13.4.0, `@firebase/messaging` 0.13.3): `getToken` binds the registration it is given; `deleteToken`
     // registers `firebase-messaging-sw.js` when no registration is bound yet.
     vi.doMock("firebase/messaging", () => ({
       getMessaging: () => sdkState,

@@ -139,13 +139,19 @@ Source: `https://firebase.google.com/docs/cloud-messaging/js/client`.
 - The SDK registers its own `firebase-messaging-sw.js` by default; the application passes its OWN
   worker registration instead (`serviceWorkerRegistration`) — one worker, no second one.
 - The permission is asked from a direct user gesture only.
-- **The token API, settled against the pinned SDK** (`firebase` 12.19.0, exact pin in
-  `webui/design/package.json`): `getToken` is marked deprecated there in favour of
-  `register` + `onRegistered`, which deliver a Firebase Installation id (FID), the SDK noting that
-  « the backend send API supports FID as a target ». The HTTP v1 reference documents `message.token`
-  as an FCM REGISTRATION TOKEN, and that is what `getToken` returns — so the client uses `getToken`.
-  The switch to the FID, once Firebase documents it as a v1 target, is confined to
-  `src/lib/push-registration.ts`. The SDK is imported lazily, on the device that turns
+- **The token API, settled against the pinned SDK** (`firebase` 13.4.0, exact pin in
+  `webui/design/package.json`; it carries `@firebase/messaging` 0.13.3, the very package of
+  `firebase` 12.19.0 — the 13.0.0 major changed `@firebase/ai` only, and no 13.x release note up to
+  13.4.0 mentions messaging; sources: the firebase-js-sdk releases `firebase@13.0.0` to `firebase@13.4.0`
+  and the package's `index-public.d.ts`). `getToken` and `deleteToken` are both marked deprecated there:
+  `getToken` in favour of `register` + `onRegistered`, which deliver a Firebase Installation id (FID),
+  the SDK noting that « the backend send API supports FID as a target »; `deleteToken` in favour of
+  `onUnregistered`, which reports the FID no longer active. The HTTP v1 reference documents
+  `message.token` as an FCM REGISTRATION TOKEN, and that is what `getToken` returns — so the client
+  keeps `getToken` and `deleteToken`; `GetTokenOptions` (`vapidKey`, `serviceWorkerRegistration`) is
+  unchanged and `RegisterOptions` has the same shape. `onMessage` is not used (the worker's `push`
+  listener shows every message). The switch to the FID, once Firebase documents it as a v1 target, is
+  confined to `src/lib/push-registration.ts`. The SDK is imported lazily, on the device that turns
   notifications on.
 - `webui/design/src/lib/push-registration.ts`: `pushSupport()` (`unsupported`,
   `needs-install` — told BEFORE the API check, since a Safari tab on iOS defines no push API —,

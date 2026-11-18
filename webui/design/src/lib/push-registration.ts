@@ -12,12 +12,14 @@
 // before the request loses it: `registerPush` asks FIRST, synchronously from the caller's
 // tap, and only then loads the SDK.
 //
-// THE TOKEN API, settled against the pinned SDK (firebase 12.19.0). `getToken` is marked
-// deprecated there in favour of `register` + `onRegistered`, which deliver a Firebase
-// Installation id. `getToken` is kept: it returns an FCM REGISTRATION TOKEN, the target
-// `messages:send`'s `token` field is documented to accept; the SDK's note that « the backend
-// send API supports FID as a target » is not in the HTTP v1 reference. The switch, when
-// Firebase documents it, is confined to this file (`docs/reference/fcm-api.md`).
+// THE TOKEN API, settled against the pinned SDK (firebase 13.4.0, `@firebase/messaging` 0.13.3 —
+// the same messaging package as firebase 12.19.0: the 13 major changed `@firebase/ai` only).
+// `getToken` and `deleteToken` are marked deprecated there, in favour of `register` + `onRegistered`
+// and `onUnregistered`, which deliver and retire a Firebase Installation id. Both are kept:
+// `getToken` returns an FCM REGISTRATION TOKEN, the target `messages:send`'s `token` field is
+// documented to accept; the SDK's note that « the backend send API supports FID as a target » is not
+// in the HTTP v1 reference. The switch, when Firebase documents it, is confined to this file
+// (`docs/reference/fcm-api.md`).
 //
 // The SDK is imported lazily: it is loaded on the device that turns notifications on, never
 // in the bundle every page pays for.
