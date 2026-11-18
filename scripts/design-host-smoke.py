@@ -7,7 +7,9 @@ every ``get`` operation of the contract under ``/api/v1`` and signs out in a ``f
 contract is read, not a hand list, so a new v1 GET is probed the day it ships.
 
 Required parameters are filled by NAME from ``PARAM_SOURCES``, drawn from the first
-``readLibraryItems`` item. A required parameter with no source is red
+``readLibraryItems`` item, or from the first show of it for the ``SHOW_OPERATIONS`` (the seasons
+of a movie are a 404 by design). A show GET with no show in the library is skipped with one line,
+``SMOKE SKIP``, not red. A required parameter with no source is red
 (``unresolvable parameter <name>``), so a new parameter forces its source to be written.
 
 Red is: any status of 400 or more, bar the pairs in ``ALLOWED_STATUSES`` (a title with no
@@ -19,7 +21,8 @@ an unexpected failure (``internal.<ExceptionName>``), or a CLI that gives no tok
 (``cli.no_token.<exit code>``, its last stderr line going to stderr).
 
 Output is ``SMOKE OK <n> GETs`` or one ``SMOKE RED <operationId> <status> <code>`` line per
-failure, exit 1 on red, a failure of the smoke itself included. The token is never printed,
+failure, exit 1 on red, a failure of the smoke itself included; a skipped GET adds one
+``SMOKE SKIP <operationId> …`` line and does not count as called. The token is never printed,
 whatever happens.
 
 Usage:
@@ -46,6 +49,9 @@ from _repo_paths import SERVED_CONTRACT
 API_PREFIX: Final = "/api/v1"
 SESSION_COOKIE: Final = "tm_v1_session"
 LIBRARY_OPERATION: Final = "readLibraryItems"
+# The GETs whose parameters must come from a show: the seasons of a movie answer 404 by design.
+# Without a show in the library such a GET is skipped with one line, not red.
+SHOW_OPERATIONS: Final = frozenset({"readMediaSeasons"})
 SIGN_OUT_PATH: Final = "/auth/logout"
 # The only ``(operationId, status)`` pairs at 400 or more that are not red.
 ALLOWED_STATUSES: Final = frozenset({("readMediaPoster", 404)})
@@ -256,7 +262,7 @@ def body_problem(status: int, media_type: str, body: Any, declared: frozenset[st
     return None
 
 
-def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
+def check(base: str, contract: Path, token: str) -> tuple[int, list[Red], list[str]]:
     """Call every GET of the contract and collect the failures.
 
     Args:
@@ -265,14 +271,23 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
         token: The session value.
 
     Returns:
-        How many GETs were called, and the failures.
+        How many GETs were called, the failures, and the operations skipped for want of a show.
     """
     reds: list[Red] = []
     called = 0
     ids: Mapping[str, Any] | None = None
+    show_ids: Mapping[str, Any] | None = None
+    # A skip means "the library answered and holds no show", never "the library failed" or "the show
+    # has no ids": those are reds, and a skip would hide them.
+    library_listed = False
+    library_has_show = False
+    skipped: list[str] = []
     for operation, template, names, declared in get_operations(contract):
+        if operation in SHOW_OPERATIONS and library_listed and not library_has_show:
+            skipped.append(operation)
+            continue
         try:
-            path = fill(template, names, ids, operation)
+            path = fill(template, names, show_ids if operation in SHOW_OPERATIONS else ids, operation)
             status, body, media_type = call(base, "GET", path, token)
             called += 1
             problem = body.get("code") if isinstance(body, dict) else None
@@ -286,6 +301,10 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
                 if not items:
                     raise Red(operation, status, "library.empty")
                 ids = items[0].get("ids")
+                show = next((item for item in items if item.get("kind") == "show"), None)
+                library_listed = True
+                library_has_show = show is not None
+                show_ids = show.get("ids") if show else None
             elif status >= 300 and (operation, status) not in ALLOWED_STATUSES:
                 raise Red(operation, status, code)
             elif (bad_body := body_problem(status, media_type, body, declared)) is not None:
@@ -297,7 +316,7 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
             break
         except Exception as exc:  # noqa: BLE001 - any failure must be named, or the watcher stays mute
             reds.append(Red(operation, 0, f"internal.{type(exc).__name__}"))
-    return called, reds
+    return called, reds, skipped
 
 
 def sign_out(base: str, token: str) -> None:
@@ -330,9 +349,11 @@ def _verdict(base: str, contract: Path, cli: Sequence[str]) -> int:
         print(red.line())
         return 1
     try:
-        called, reds = check(base, contract, token)
+        called, reds, skipped = check(base, contract, token)
     finally:
         sign_out(base, token)
+    for operation in skipped:
+        print(f"SMOKE SKIP {operation} no show in the library")
     if reds:
         for red in reds:
             print(re.sub(r"\s+", " ", red.line()).replace(token, "***"))
