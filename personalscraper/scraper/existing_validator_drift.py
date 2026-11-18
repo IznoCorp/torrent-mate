@@ -22,6 +22,10 @@ log = get_logger("scraper")
 _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2,})? - .+\.\w+$")
 _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IGNORECASE)
 
+# Folders the scrape never sweeps for episodes (the write path skips them too): a trailer or an
+# actor image named like an episode must not add a season.
+_EXTRAS_DIR_NAMES = frozenset({"Trailers", ".actors"})
+
 # A frame size in a release name (``1920x1080``, ``1280x720``, ``3840x2160``, ``720x480``). The
 # ``NxM`` episode marker of ``_extract_season_episode`` would read its tail as a season and an
 # episode (``20x108``); real ``NxM`` markers have one or two digits before the ``x``.
@@ -32,7 +36,8 @@ def _local_show_seasons(show_dir: Path) -> set[int]:
     """Extract the set of seasons present in a TV show folder.
 
     Walks the folder recursively and parses S/E from each video filename. Sample
-    clips (``Sample/`` folder, ``-sample`` file) are skipped and a frame size such
+    clips (``Sample/`` folder, ``-sample`` file) and the ``Trailers/`` and
+    ``.actors/`` folders are skipped, and a frame size such
     as ``1920x1080`` is not read as an ``NxM`` episode marker: neither is a season
     of the show, and each false season costs a provider call and a warning.
     Feeds content-aware candidate disambiguation in ``match_tvshow_tvdb``:
@@ -52,12 +57,36 @@ def _local_show_seasons(show_dir: Path) -> set[int]:
         if f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
             continue
         # Relative to the show folder: a ``Sample/`` directory above it says nothing about the file.
-        if is_sample_path(f.relative_to(show_dir)):
+        relative = f.relative_to(show_dir)
+        if is_sample_path(relative) or _EXTRAS_DIR_NAMES.intersection(relative.parts):
             continue
         season, _ = _extract_season_episode(_RESOLUTION_TOKEN_RE.sub(" ", f.name))
         if season and season > 0:
             seasons.add(season)
     return seasons
+
+
+def _seasons_to_request(dir_seasons: set[int], local_seasons: set[int], provider_seasons: set[int]) -> list[int]:
+    """Choose the seasons a rescrape or repair asks the metadata provider for.
+
+    The ``Saison NN/`` folders' seasons are always requested. The seasons only a loose file
+    names (a pack merged beside an existing season, which no folder names yet) are requested
+    too, so the pack is matched against its own season instead of being mistaken for a phantom
+    one. A loose season the provider does not list is left out: the provider has nothing under
+    it, and a request for it can fail the whole retrieval. A provider listing no season at all
+    leaves nothing to check against: every local season is requested.
+
+    Args:
+        dir_seasons: Seasons of the ``Saison NN/`` folders.
+        local_seasons: Seasons of the video files below the show folder
+            (:func:`_local_show_seasons`).
+        provider_seasons: Seasons the provider lists for the show.
+
+    Returns:
+        The sorted positive season numbers to request.
+    """
+    loose = {s for s in local_seasons if not provider_seasons or s in provider_seasons}
+    return sorted(s for s in dir_seasons | loose if s > 0)
 
 
 def _infer_year_from_child_names(show_dir: Path, title: str) -> int | None:

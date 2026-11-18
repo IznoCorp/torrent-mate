@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.scraper.existing_validator_drift import _local_show_seasons
+from personalscraper.scraper.existing_validator_drift import _local_show_seasons, _seasons_to_request
 
 
 def _show_with(tmp_path: Path, *relative_files: str) -> Path:
@@ -78,3 +78,38 @@ class TestResolutionIsNotAnEpisodeMarker:
         show = _show_with(tmp_path, "Show.S03E04.1920x1080.mkv")
 
         assert _local_show_seasons(show) == {3}
+
+
+class TestExtrasAreNotEpisodes:
+    """``Trailers/`` and ``.actors/`` hold no episode: the scrape write path leaves them out too."""
+
+    @pytest.mark.parametrize("folder", ["Trailers", ".actors"])
+    def test_extras_folders_are_skipped(self, tmp_path: Path, folder: str) -> None:
+        """A trailer named like ``S05E01`` carries no season of the show."""
+        show = _show_with(tmp_path, "Show.S01E01.mkv", f"{folder}/Show.S05E01.mkv")
+
+        assert _local_show_seasons(show) == {1}
+
+
+class TestSeasonsToRequest:
+    """The seasons a scrape asks the provider for."""
+
+    def test_a_loose_season_the_provider_lists_is_requested(self) -> None:
+        """A pack's season is requested beside the folders' seasons."""
+        assert _seasons_to_request({2}, {1, 2}, {1, 2}) == [1, 2]
+
+    def test_a_loose_season_the_provider_does_not_list_is_left_out(self) -> None:
+        """A phantom label is not requested: the provider has nothing under it."""
+        assert _seasons_to_request({2}, {2, 17}, {1, 2}) == [2]
+
+    def test_a_folder_season_is_always_requested(self) -> None:
+        """The folders' seasons keep their long-standing behaviour, listed or not."""
+        assert _seasons_to_request({17}, set(), {1, 2}) == [17]
+
+    def test_a_provider_listing_nothing_requests_every_local_season(self) -> None:
+        """No season list to check against: every local season is requested, as before."""
+        assert _seasons_to_request(set(), {1, 3}, set()) == [1, 3]
+
+    def test_specials_are_not_requested(self) -> None:
+        """Season 0 is never part of the request."""
+        assert _seasons_to_request(set(), {0, 1}, set()) == [1]

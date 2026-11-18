@@ -1209,3 +1209,46 @@ class TestRepairKeepsAMergedPacksSeason:
 
         assert real_s02e01.read_text() == "the real S02E01"
         assert [p.name for p in (show / "Saison 02").iterdir()] == ["S02E01 - S2 title 1.mkv"]
+
+
+class TestRepairRequestsOnlySeasonsTheProviderLists:
+    """A season only a loose file names, and the provider does not list, is never requested."""
+
+    def test_a_season_the_provider_does_not_list_is_not_requested(self, tmp_path: Path) -> None:
+        """An S17 label on a show whose catalogue is S01..S02 would otherwise be a failing request."""
+        tmdb = _tmdb_two_seasons()
+        validator = _make_validator(tmdb=tmdb)
+        show, _real = _merged_show_with_nfo(tmp_path)
+        (show / "Show.S17.spin-off").mkdir()
+        (show / "Show.S17.spin-off" / "Show.S17E01.mkv").write_text("phantom season")
+
+        validator._repair_artwork(show)
+
+        requested = {call.args[1] for call in tmdb.get_tv_season.call_args_list}
+        assert requested == {1, 2}
+
+    def test_tvdb_branch_keeps_the_merged_packs_season(self, tmp_path: Path) -> None:
+        """The TVDB branch of the repair wires the season union and the provider's seasons too."""
+        tvdb = MagicMock()
+        tvdb.get_series.return_value = SimpleNamespace(external_ids={})
+        tvdb.get_series_episodes.side_effect = lambda _id, season: SeasonDetails(
+            season_number=season,
+            tv_id="999",
+            episodes=[
+                EpisodeInfo(season_number=season, episode_number=e, title=f"S{season} title {e}") for e in range(1, 9)
+            ],
+            provider="tvdb",
+        )
+        validator = _make_validator(tvdb=tvdb)
+        show, real_s02e01 = _merged_show_with_nfo(tmp_path)
+        _write_show_nfo(show / "tvshow.nfo", tvdb_id=999)
+
+        with patch(
+            "personalscraper.scraper.tv_service._tvdb_series_to_show_data",
+            return_value={"name": "Show", "seasons": [{"season_number": 1}, {"season_number": 2}]},
+        ):
+            assert validator._repair_artwork(show) is True
+
+        assert len(list((show / "Saison 01").iterdir())) == 8
+        assert real_s02e01.read_text() == "the real S02E01"
+        assert [p.name for p in (show / "Saison 02").iterdir()] == ["S02E01 - S2 title 1.mkv"]

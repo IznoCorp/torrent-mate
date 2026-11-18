@@ -2300,3 +2300,24 @@ class TestRescrapeKeepsAMergedPacksSeason:
         )
 
         assert actions == ["episode_nfo_regenerated: Show.S02E02.nfo"]
+
+
+class TestRescrapeRequestsOnlySeasonsTheProviderLists:
+    """A season only a loose file names, and the provider does not list, is never requested."""
+
+    def test_a_season_the_provider_does_not_list_is_not_requested(self, tmp_path: Path) -> None:
+        """An S17 label on a show whose catalogue is S01..S02 would otherwise be a failing request."""
+        from personalscraper.maintenance.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show, _real, _pack = _merged_show(tmp_path)
+        (show / "Show.S17.spin-off").mkdir()
+        (show / "Show.S17.spin-off" / "Show.S17E01.mkv").write_text("phantom season")
+        tvdb = _tvdb_seasons()
+
+        _rescrape_episodes(
+            show, _TWO_SEASONS, "tvdb", 451177, _mock_registry(tvdb=tvdb), NamingPatterns(), dry_run=True
+        )
+
+        requested = {call.args[1] for call in tvdb.get_series_episodes.call_args_list}
+        assert requested == {1, 2}

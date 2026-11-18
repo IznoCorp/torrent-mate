@@ -59,6 +59,7 @@ from personalscraper.scraper.existing_validator_drift import (
     _infer_year_from_child_names,
     _local_show_seasons,
     _read_canonical_provider,
+    _seasons_to_request,
     verify_tvshow_scrape_drift,
 )
 from personalscraper.scraper.existing_validator_repair import (
@@ -352,21 +353,17 @@ class ExistingValidatorMixin:
 
         try:
             # Discover season numbers from the local filesystem: the Saison NN/
-            # dirs UNION the season of every video file below the show folder.
+            # dirs UNION the season of every video file below the show folder
+            # (once the provider's show data is in, see ``_seasons_to_request``).
             # A season pack merged beside an existing Saison NN/ (a show split
             # across two torrent folders) carries a season no folder names yet;
             # leaving it out made the pack look like a phantom season and
             # relabelled it. It is also the bootstrap for a raw torrent layout
             # (no Saison NN/ yet), so the repair can build the structure.
-            season_nums = sorted(
-                {
-                    int(m.group(1))
-                    for d in show_dir.iterdir()
-                    if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
-                    if int(m.group(1)) > 0
-                }
-                | {s for s in _local_show_seasons(show_dir) if s > 0}
-            )
+            dir_seasons = {
+                int(m.group(1)) for d in show_dir.iterdir() if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
+            }
+            local_seasons = _local_show_seasons(show_dir)
             # Lazy import (tv_service imports from this module): the seasons the provider
             # lists, so a listed season is never taken for a phantom one while matching.
             from personalscraper.scraper.tv_service import _provider_season_numbers  # noqa: PLC0415
@@ -392,6 +389,7 @@ class ExistingValidatorMixin:
                     fallback_language="en-US",
                     external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
+                season_nums = _seasons_to_request(dir_seasons, local_seasons, _provider_season_numbers(show_data))
                 api_episodes = _fetch_season_episodes_tvdb(tvdb_client, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
@@ -404,6 +402,7 @@ class ExistingValidatorMixin:
                 # fallback forbidden.
                 tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
                 show_data = _coerce_to_show_data(tmdb_client.get_tv(tmdb_id))
+                season_nums = _seasons_to_request(dir_seasons, local_seasons, _provider_season_numbers(show_data))
                 api_episodes = _fetch_season_episodes(tmdb_client, tmdb_id, season_nums)
 
             if not api_episodes:

@@ -826,21 +826,19 @@ def _rescrape_episodes(
         match_episode_files,
         rename_episodes,
     )
-    from personalscraper.scraper.existing_validator_drift import _local_show_seasons
+    from personalscraper.scraper.existing_validator_drift import _local_show_seasons, _seasons_to_request
     from personalscraper.scraper.tv_service import _provider_season_numbers
 
-    # Seasons to request: the ``Saison NN/`` folders UNION the season of every video file
-    # below the show folder. A season pack merged beside an existing ``Saison NN/`` (a show
-    # split across two torrent folders) carries a season no folder names yet; leaving it out
-    # of the request made the pack look like a phantom season and relabelled it.
-    season_nums = sorted(
-        {
-            int(m.group(1))
-            for d in show_dir.iterdir()
-            if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
-            if int(m.group(1)) > 0
-        }
-        | {s for s in _local_show_seasons(show_dir) if s > 0}
+    # Seasons to request: the ``Saison NN/`` folders UNION the seasons of the video files below
+    # the show folder that the provider lists. A season pack merged beside an existing
+    # ``Saison NN/`` (a show split across two torrent folders) carries a season no folder names
+    # yet; leaving it out of the request made the pack look like a phantom season and
+    # relabelled it. A season only a loose file names and the provider does not list stays out.
+    provider_seasons = _provider_season_numbers(_coerce_to_show_data(show_data))
+    season_nums = _seasons_to_request(
+        {int(m.group(1)) for d in show_dir.iterdir() if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))},
+        _local_show_seasons(show_dir),
+        provider_seasons,
     )
     if not season_nums:
         return
@@ -863,7 +861,7 @@ def _rescrape_episodes(
     matched = match_episode_files(
         video_files,
         all_episodes,
-        provider_seasons=_provider_season_numbers(_coerce_to_show_data(show_data)),
+        provider_seasons=provider_seasons,
     )
     if matched:
         needed_seasons = sorted({info["season"] for info in matched.values()})
