@@ -36,6 +36,7 @@ from typing import Literal
 from personalscraper.indexer import repair as _repair_mod
 from personalscraper.indexer.fingerprint import is_racy, xxh3_partial
 from personalscraper.indexer.merkle import DiskMountStatus
+from personalscraper.indexer.release_linker import relink_after_rename
 from personalscraper.indexer.repos import file_repo, log_repo
 from personalscraper.indexer.schema import DeletedItemRow, DiskRow, MediaFileRow
 from personalscraper.logger import get_logger
@@ -408,7 +409,48 @@ def detect_rename(
         new_path_id=current_path_id,
         new_filename=filename,
     )
+    _relink_renamed_file(conn, cand["id"], current_path_id, filename)
     return "rename_applied"
+
+
+def _relink_renamed_file(conn: sqlite3.Connection, file_id: int, path_id: int, filename: str) -> None:
+    """Re-resolve the release of a file a rename just moved, when the new path names another identity.
+
+    ``media_file.release_id`` survives a rename untouched, so a file moved to another
+    season or episode would stay on the release of its old path: the release linker only
+    handles ``release_id IS NULL``. See
+    :func:`personalscraper.indexer.release_linker.relink_after_rename`. The relink runs in
+    a savepoint. A failure never aborts the scan (the rename itself is already applied): the
+    relink is rolled back, and the file is left unlinked (``release_id`` and ``enriched_at``
+    cleared) so the enrich pass's linker retries it, rather than keeping the release of its
+    old path for good.
+
+    Args:
+        conn: Open SQLite connection.
+        file_id: PK of the renamed ``media_file`` row.
+        path_id: ``path.id`` of the file's new directory.
+        filename: The file's new bare filename.
+    """
+    row = conn.execute(
+        "SELECT d.mount_path, p.rel_path FROM path p JOIN disk d ON d.id = p.disk_id WHERE p.id = ?",
+        (path_id,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return
+    conn.execute("SAVEPOINT relink_after_rename")
+    try:
+        relink_after_rename(conn, file_id, str(Path(row[0]) / row[1] / filename))
+        conn.execute("RELEASE SAVEPOINT relink_after_rename")
+    except sqlite3.Error as exc:
+        log.warning(
+            "indexer.drift.relink_after_rename_failed",
+            file_id=file_id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        conn.execute("ROLLBACK TO SAVEPOINT relink_after_rename")
+        conn.execute("RELEASE SAVEPOINT relink_after_rename")
+        conn.execute("UPDATE media_file SET release_id = NULL, enriched_at = NULL WHERE id = ?", (file_id,))
 
 
 # ---------------------------------------------------------------------------
