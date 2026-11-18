@@ -50,7 +50,6 @@ if TYPE_CHECKING:
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.nfo_utils import extract_nfo_metadata
 from personalscraper.scraper.episode_manager import (
-    _extract_season_episode,
     create_season_dirs,
     match_episode_files,
     rename_episodes,
@@ -352,10 +351,13 @@ class ExistingValidatorMixin:
             return False
 
         try:
-            # Discover season numbers from the local filesystem. Saison NN/ dirs
-            # are the canonical source; when the show is still in raw torrent
-            # layout (no Saison NN/ yet), infer seasons from SxxEyy patterns in
-            # the unorganized files so the repair can bootstrap the structure.
+            # Discover season numbers from the local filesystem: the Saison NN/
+            # dirs UNION the season of every video file below the show folder.
+            # A season pack merged beside an existing Saison NN/ (a show split
+            # across two torrent folders) carries a season no folder names yet;
+            # leaving it out made the pack look like a phantom season and
+            # relabelled it. It is also the bootstrap for a raw torrent layout
+            # (no Saison NN/ yet), so the repair can build the structure.
             season_nums = sorted(
                 {
                     int(m.group(1))
@@ -363,11 +365,12 @@ class ExistingValidatorMixin:
                     if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
                     if int(m.group(1)) > 0
                 }
+                | {s for s in _local_show_seasons(show_dir) if s > 0}
             )
-            if not season_nums:
-                season_nums = sorted(
-                    {s for s in (_extract_season_episode(f.name)[0] for f in unorganized) if s is not None and s > 0}
-                )
+            # Lazy import (tv_service imports from this module): the seasons the provider
+            # lists, so a listed season is never taken for a phantom one while matching.
+            from personalscraper.scraper.tv_service import _provider_season_numbers  # noqa: PLC0415
+
             if tvdb_id:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
@@ -418,6 +421,7 @@ class ExistingValidatorMixin:
                 unorganized,
                 api_episodes,
                 allow_synthetic_rename=allow_synthetic_rename,
+                provider_seasons=_provider_season_numbers(show_data),
             )
             if not matched:
                 return False
