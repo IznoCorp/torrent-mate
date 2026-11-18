@@ -8,7 +8,8 @@ the engine's side:
   - `staging-delete` — delete a staged folder;
   - `del` — delete a medium from the library;
   - `removesecret` — remove a provider's key;
-  - `torrent-remove` — remove a torrent from qBittorrent (Trackers).
+  - `torrent-remove` — remove a torrent from qBittorrent (Trackers);
+  - `session-end` — end one of the account's other sessions (Profil).
 
 Maintenance's destructive commands are held by R67 (a real run only after a
 blank one); the bulk delete's dialog naming the ticked media by `selection.py`.
@@ -50,6 +51,11 @@ TORRENT = """async () => {
   const one = (downloads.downloads ?? []).find((entry) => entry.infoHash && entry.tracker);
   return one ? `${one.infoHash}:${one.tracker}` : null;
 }"""
+SESSION = """async () => {
+  const listed = await (await fetch('/api/v1/auth/sessions')).json();
+  const other = (listed.sessions ?? []).find((one) => !one.current);
+  return other ? String(other.id) : null;
+}"""
 SECRET = """async () => ((await (await fetch('/api/v1/config/secrets')).json())[0] ?? {}).key ?? null"""
 
 
@@ -64,12 +70,14 @@ async def main():
         await read_at(page, "trackers-page", "() => true")
         torrent = await page.evaluate(TORRENT)
         secret = await page.evaluate(SECRET)
+        session = await page.evaluate(SESSION)
         cases = (
             ("journey-abandon", "acq-card-blocked", "data-journey-abandon", "Lucky"),
             ("staging-delete", "acq-card-blocked", "data-staging-delete", "Lucky"),
             ("del", "lib-grid", "data-del", "Silo (2023)"),
             ("removesecret", "settings", "data-removesecret", secret),
             ("torrent-remove", "trackers-page", "data-torrent-remove", torrent),
+            ("session-end", "profile-sessions", "data-session-end", session),
         )
         for verb, state, attribute, value in cases:
             if not journal.check(f"{verb}: a subject to tap it on", bool(value), str(value)):

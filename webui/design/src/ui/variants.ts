@@ -22,6 +22,7 @@ export * from "./variants/frame";
 export * from "./variants/badge";
 export * from "./variants/layout";
 export * from "./variants/controls";
+export * from "./variants/reveal";
 export * from "./variants/tabs";
 export * from "./variants/surfaces";
 export * from "./variants/notice";

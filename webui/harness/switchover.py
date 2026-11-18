@@ -10,7 +10,9 @@ measurement must never write into the operator's source — and holds all
 three over plain HTTP.
 """
 import contextlib
+import html
 import http.client
+import json
 import os
 import pathlib
 import re
@@ -54,7 +56,7 @@ def prepare_scratch() -> None:
     # one means every place that assembles a build tree learns about it in the
     # same move.
     for name in ("index.html", "vite.config.mjs", "build-identity.mjs",
-                 "worker-source.mjs", "package.json", "sw.js"):
+                 "worker-source.mjs", "app-bundle.mjs", "package.json", "sw.js"):
         shutil.copy(design / name, SCRATCH / name)
     # The envelope names a module entry: without its source the scratch build
     # cannot resolve it, and the rule would report a broken host where there is
@@ -63,6 +65,9 @@ def prepare_scratch() -> None:
     shutil.copytree(design / "src", SCRATCH / "src")
     (SCRATCH / "node_modules").symlink_to(design / "node_modules")
     (SCRATCH / "assets").symlink_to(design / "assets")
+    # The classic scripts and the typeface the document names by absolute URL (`vite.config.mjs` links them).
+    (SCRATCH / "boot").symlink_to(design / "boot")
+    (SCRATCH / "fonts").symlink_to(design / "fonts")
     # And whatever the tree reaches for OUTSIDE itself, found by reading the
     # sources rather than by naming one file here: a name typed into this rule
     # is a second copy of the guard's list, and it would rot the day a second
@@ -87,9 +92,25 @@ def prepare_scratch() -> None:
                 shutil.copy(design / step, landing)
 
 
-def request_(path_, cookie=None, method="GET", body=None):
+def served_words(language, key):
+    """One `server.<key>` entry of a language's catalogue, as the host words it.
+
+    Args:
+        language: `fr` or `en`.
+        key: The entry under the catalogue's `server` namespace (`buildFailure`).
+
+    Returns:
+        The entry's texts by name, read from the catalogue the host itself reads.
+    """
+    catalogue = ROOT / "design" / "src" / "i18n" / f"{language}.json"
+    return json.loads(catalogue.read_text(encoding="utf-8"))["server"][key]
+
+
+def request_(path_, cookie=None, method="GET", body=None, language=None):
     conn = http.client.HTTPConnection("127.0.0.1", PORT, timeout=150)
     headers = {}
+    if language:
+        headers["Accept-Language"] = language
     if cookie:
         headers["Cookie"] = cookie
     if body is not None:
@@ -171,14 +192,15 @@ def main():
                 page: A sign-in page.
 
             Returns:
-                The page with its `RETURN_TO` value removed.
+                The page with the `data-return-to` attribute of its sign-in script blanked.
             """
-            return re.sub(rb"var RETURN_TO = [^;]*;", b"var RETURN_TO;", page)
+            return re.sub(rb'data-return-to="[^"]*"', b'data-return-to=""', page)
         journal.check(
             "an unknown address with no session answers the sign-in screen, like «/»",
             response_without.status == 401 and response_root.status == 401
             and without_return(without_session) == without_return(login_page)
-            and b'var RETURN_TO = "/media/tvdb/403245";' in without_session,
+            and b'data-return-to="' in without_session
+            and b"/media/tvdb/403245" in without_session,
             f"{response_without.status} vs {response_root.status}")
 
         response_with, with_session = request_("/media/tvdb/403245", cookie)
@@ -257,8 +279,11 @@ def main():
         # (c) A broken build answers 503 and SAYS it broke.
         (SCRATCH / "vite.config.mjs").write_text("ceci n'est pas du javascript {\n")
         # The config is a build input: its mtime alone must trigger the try.
-        response, body = request_("/", cookie)
+        # The page is worded in the browser's language: the request names English and the
+        # check reads the English catalogue's heading, never a retyped literal.
+        response, body = request_("/", cookie, language="en")
         body_str = body.decode("utf-8", "replace")
+        heading = html.escape(served_words("en", "buildFailure")["heading"])
         # Extract text between <pre and </pre> and check for non-empty error.
         pre_start = body_str.find("<pre")
         pre_end = body_str.find("</pre>")
@@ -270,7 +295,7 @@ def main():
         error_not_empty = len("".join(error_excerpt.split())) >= 10
         journal.check("a broken build answers 503 and says so",
                          response.status == 503
-                         and "build de la maquette a" in body_str
+                         and heading in body_str
                          and error_not_empty,
                          f"{response.status}, error: {error_excerpt[:60]}")
 

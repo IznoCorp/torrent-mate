@@ -32,13 +32,13 @@ logger = get_logger(__name__)
 
 
 def build_acquire_context(
-    config: "Config",
-    settings: "Settings",
+    config: Config,
+    settings: Settings,
     *,
-    event_bus: "EventBus",
-    cb_policy: "CircuitPolicy",
-    torrent_client: "QBitClient | TransmissionClient | None" = None,
-    ownership: "OwnershipChecker | None" = None,
+    event_bus: EventBus,
+    cb_policy: CircuitPolicy,
+    torrent_client: QBitClient | TransmissionClient | None = None,
+    ownership: OwnershipChecker | None = None,
 ) -> AcquireContext:
     """Build the AcquireContext at the composition-root boundary.
 
@@ -117,6 +117,7 @@ def build_acquire_context(
         store=store,
         torrent_client=torrent_client,
         economy=economy,
+        scope=config.torrent.active_scope(),
     )
     # GrabCore is the single grab handle (orchestrator + service). It is built
     # ONLY here — the only frame holding registry + config.ranking +
@@ -187,6 +188,8 @@ def build_acquire_context(
             original_title_resolver=_original_title_resolver,
             episode_count_resolver=_episode_count_resolver,
             bandwidth=config.acquire.bandwidth,
+            scope=config.torrent.active_scope(),
+            sandbox_categories=config.torrent.active_sandbox_categories(),
         )
         service = AcquisitionService(
             store=store,

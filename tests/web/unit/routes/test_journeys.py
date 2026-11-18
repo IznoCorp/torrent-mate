@@ -39,7 +39,7 @@ def _seed_journey(db_path: Path) -> None:
         store.close()
 
 
-def build_acquire_store_config(db_path: Path):  # noqa: ANN201 - test helper
+def build_acquire_store_config(db_path: Path):  # test helper
     """Build a real acquire store on *db_path*."""
     from personalscraper.conf.models.acquire import AcquireConfig
 

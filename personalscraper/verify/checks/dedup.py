@@ -30,7 +30,7 @@ class NoDuplicateVideos:
     default_severity = Severity.ERROR
     description = "Movie root must hold at most one feature video"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed when ≤ 1 non-trailer root video.
 
         The scan is non-recursive (root only): videos inside sub-dirs such
@@ -57,7 +57,7 @@ class NoDuplicateVideos:
         ]
 
 
-def _find_video_files(directory: "Path") -> "list[Path]":
+def _find_video_files(directory: Path) -> list[Path]:
     """Find video files in a directory (non-recursive; copied from checker.py).
 
     Args:

@@ -6,9 +6,10 @@ import os
 from typing import TYPE_CHECKING
 
 import typer
+from rich.markup import escape
 
 from personalscraper import cli_helpers
-from personalscraper.app.composition import build_app_context
+from personalscraper.app.supervisor.execution import RunOptions, execute_run
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     CommandContext,
@@ -16,12 +17,12 @@ from personalscraper.cli_helpers import (
     handle_cli_errors,
 )
 from personalscraper.cli_state import state
+from personalscraper.commands import run_follow
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.i18n import t, t_code
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.pipeline_step_codes import StepCode
-from personalscraper.run_journal import LogTailHandler
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -117,11 +118,12 @@ def _check_row(spec: CheckSpec) -> str:
         spec: The check to describe.
 
     Returns:
-        The row, columns padded as the listing has always been.
+        The row, columns padded as the listing has always been, escaped for
+        Rich: the ``[group]`` column would otherwise be read as markup.
     """
     fix = t("cli_core.pipeline.check_fixable") if spec.fixable else "-"
     idx = t("cli_core.pipeline.check_indexable") if spec.indexable else "-"
-    return t(
+    row = t(
         "cli_core.pipeline.check_row",
         name=f"{spec.name:<34}",
         group=spec.group,
@@ -130,6 +132,7 @@ def _check_row(spec: CheckSpec) -> str:
         indexable=f"{idx:<9}",
         description=spec.description,
     )
+    return escape(row)
 
 
 def _run_help() -> str:
@@ -727,33 +730,53 @@ def run(
         "--no-post-maintenance",
         help=t("cli_core.pipeline.opt.no_post_maintenance"),
     ),
+    detach: bool = typer.Option(
+        False,
+        "--detach",
+        help=t("cli_core.pipeline.opt.detach"),
+    ),
 ) -> None:
     """Execute all pipeline phases via ``Pipeline.run``.
+
+    While a supervisor's lease is live the run is asked through the queue and followed instead
+    (:mod:`personalscraper.commands.run_follow`); with no live lease it runs in this process.
 
     The step list displayed in ``--help`` is generated from
     :data:`~personalscraper.pipeline_steps.DEFAULT_STEPS` at import time via
     :func:`_run_help`, so it always reflects the actual registered steps.
     """
-    from datetime import datetime
-
-    import structlog.contextvars
-
-    from personalscraper.api.notify.healthchecks import HealthcheckClient
-    from personalscraper.api.notify.telegram import TelegramNotifier
-    from personalscraper.api.transport._http import HttpTransport
-    from personalscraper.logger import cleanup_old_logs
-    from personalscraper.pipeline import Pipeline
-    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
-    from personalscraper.subscribers.debug_log import DebugLogSubscriber
-    from personalscraper.subscribers.plex import PlexSubscriber, build_plex_subscriber
-    from personalscraper.subscribers.redis_stream import build_redis_publisher
-    from personalscraper.subscribers.rich_console import RichConsoleSubscriber
-    from personalscraper.subscribers.telegram import TelegramSubscriber
-
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     verbose = state["verbose"]
-    _run_log = get_logger("pipeline")
+    options = RunOptions(
+        dry_run=dry_run,
+        skip_trailers=skip_trailers,
+        continue_on_trailer_error=continue_on_trailer_error,
+        no_post_maintenance=no_post_maintenance,
+    )
+
+    try:
+        supervised = run_follow.lease_live(config)
+    except run_follow.SupervisorStateUnreadable:
+        console.print("[red]" + t("cli_core.run.supervisor_state_unreadable") + "[/red]")
+        raise typer.Exit(1) from None
+    if supervised:
+        if interactive:
+            console.print("[red]" + t("cli_core.run.interactive_needs_direct") + "[/red]")
+            raise typer.Exit(1)
+        services = run_follow.open_services(config, cli_helpers.get_settings())
+        try:
+            code = run_follow.enqueue_and_follow(
+                services, config, console, options=options, trigger_reason=trigger_reason, detach=detach
+            )
+        finally:
+            services.close()
+        if code:
+            raise typer.Exit(code)
+        return
+
+    if detach:
+        console.print(t("cli_core.run.detach_needs_supervisor"), style="yellow", highlight=False)
 
     if not cli_helpers.acquire_pipeline_lock(
         config.paths.data_dir / "pipeline.lock",
@@ -765,196 +788,19 @@ def run(
 
     try:
         settings = cli_helpers.get_settings()
-
-        # The :class:`AppContext` is built once per invocation at the CLI
-        # boundary via :func:`build_app_context` (Sub-phase 2.4 — boundary-only
-        # rule from DESIGN §Architecture, enforced by the AST allowlist landed
-        # in Sub-phase 2.6). Constructed early so the healthcheck and Telegram
-        # transports built below can plumb ``app_context.event_bus`` into their
-        # circuit breakers (Sub-phase 4.1).
-        # build_torrent_client=True: the full pipeline includes the ingest step,
-        # which consumes ctx.torrent_client, so the client is resolved + validated
-        # at boot here (DESIGN D3 fail-fast for the run path).
-        app_context = build_app_context(config, settings, build_torrent_client=True)
-
-        # Healthcheck client (None if not configured — pings short-circuit at the call site).
-        healthcheck: HealthcheckClient | None = None
-        if HealthcheckClient.is_configured(settings):
-            hc_transport = HttpTransport(
-                HealthcheckClient.policy(settings.healthcheck_url),
-                event_bus=app_context.event_bus,
-            )
-            healthcheck = HealthcheckClient(hc_transport)
-            healthcheck.ping_start()
-
-        # Pipeline outcome is set to "success" only on the clean-completion path; any other
-        # exit (typer.Exit, TrailerStepFailed, unhandled exception) leaves it None and the
-        # finally block fires healthcheck.ping_fail() — preserves the dead-man's-switch
-        # contract per DESIGN §7.1.
-        pipeline_outcome: str | None = None
-        try:
-            # Clean old logs and bind run context
-            cleanup_old_logs()
-            structlog.contextvars.clear_contextvars()
-            run_id = datetime.now().isoformat(timespec="seconds")
-            structlog.contextvars.bind_contextvars(run_id=run_id)
-
-            _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
-
-            # Resolve flag defaults from config when not explicitly set by the caller.
-            effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
-            effective_continue_on_trailer_error = (
-                continue_on_trailer_error or config.trailers.pipeline.continue_on_error
-            )
-
-            from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
-
-            # Build subscribers — both self-subscribe in their constructors via the
-            # shared AppContext bus. ``--headless`` skips subscriber construction
-            # for silent cron / CI runs.
-            #
-            # ``--no-console`` (used by the Watcher daemon) disables the Rich
-            # console subscriber but keeps Telegram subscribers active.
-            # ``--headless`` disables both; if both flags are passed, ``--headless``
-            # wins (the outer ``not headless`` gate prevents all subscriber
-            # construction).
-            rich_subscriber: RichConsoleSubscriber | None = None
-            telegram_subscriber: TelegramSubscriber | None = None
-            acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
-            plex_subscriber: PlexSubscriber | None = None
-            # ``--verbose`` activates the DebugLogSubscriber which logs every
-            # emitted event at DEBUG. Registered independently of ``--headless``
-            # so verbose log streams work even in cron / CI contexts that
-            # suppress Rich / Telegram output.
-            debug_subscriber: DebugLogSubscriber | None = None
-            # Redis event publisher (gate on web.enabled, fail-soft — Redis down
-            # must never block the pipeline boot).
-            redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
-            # Plex refresh trigger (plex-refresh D3), through the single owner
-            # shared with the standalone ``personalscraper dispatch`` command so
-            # both dispatch entry points behave identically. The token is the
-            # gate, deliberately OUTSIDE ``--headless``: this one makes the
-            # dispatched media visible in Plex rather than producing operator
-            # output, so a cron run needs it exactly as much.
-            plex_subscriber = build_plex_subscriber(app_context.event_bus, settings)
-            if verbose:
-                debug_subscriber = DebugLogSubscriber(app_context.event_bus)
-            if not headless:
-                if not no_console:
-                    rich_subscriber = RichConsoleSubscriber(
-                        app_context.event_bus,
-                        console=console,
-                        verbose=verbose,
-                        dry_run=dry_run,
-                        run_id=run_id,
-                    )
-                if TelegramNotifier.is_configured(settings):
-                    tg_transport = HttpTransport(
-                        TelegramNotifier.policy(settings.telegram_bot_token),
-                        event_bus=app_context.event_bus,
-                    )
-                    tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
-                    telegram_subscriber = TelegramSubscriber(app_context.event_bus, tg_notifier)
-                    acq_telegram_subscriber = AcquisitionTelegramSubscriber(
-                        app_context.event_bus,
-                        notifier=tg_notifier,
-                        enabled=config.notify.acquire_notify_enabled,
-                    )
-
-            # Emit ``WatcherRunTriggered`` before ``PipelineStarted`` when the
-            # run is spawned by the Watcher daemon (``--trigger-reason`` set).
-            # Subscribers (Telegram, Rich console) are already wired at this
-            # point, so they will observe and forward the event.
-            if trigger_reason:
-                from personalscraper.acquire.events import WatcherRunTriggered
-
-                app_context.event_bus.emit(WatcherRunTriggered(reason=trigger_reason))
-
-            # Build run-history writer (pipe-control sub-phase 1.3b).
-            # The writer is an injected dependency — the CLI owns the DB
-            # path resolution.  Fail-soft: if construction fails (missing
-            # library.db, permission error, etc.) the pipeline runs without
-            # history recording.
-            history_writer: PipelineRunWriter | None = None
-            try:
-                from personalscraper.pipeline_history import PipelineRunWriter  # noqa: PLC0415
-
-                history_writer = PipelineRunWriter(
-                    db_path=config.indexer.db_path,
-                )
-            except Exception:
-                _run_log.warning(
-                    "pipeline_history_writer_init_failed",
-                    exc_info=True,
-                )
-
-            # Capture the log tail for the durable run journal (universal run
-            # journal, 2026-07-08): every trigger path — cli, web-spawned,
-            # safety_net — routes through this command, so installing the
-            # handler here gives all of them an ``output_tail``.
-            tail_handler = LogTailHandler()
-            tail_handler.install()
-
-            pipeline = Pipeline(app_context)
-            try:
-                try:
-                    report = pipeline.run(
-                        dry_run=dry_run,
-                        interactive=interactive,
-                        verbose=verbose,
-                        skip_trailers=effective_skip_trailers,
-                        continue_on_trailer_error=effective_continue_on_trailer_error,
-                        no_post_maintenance=no_post_maintenance,
-                        trigger_reason=trigger_reason or "cli",
-                        history_writer=history_writer,
-                        output_tail_provider=tail_handler.tail,
-                    )
-                finally:
-                    tail_handler.uninstall()
-                    if rich_subscriber is not None:
-                        rich_subscriber.close()
-                    if telegram_subscriber is not None:
-                        telegram_subscriber.close()
-                    if acq_telegram_subscriber is not None:
-                        acq_telegram_subscriber.close()
-                    if plex_subscriber is not None:
-                        plex_subscriber.close()
-                    if debug_subscriber is not None:
-                        debug_subscriber.close()
-                    if redis_publisher is not None:
-                        redis_publisher.close()
-            except TrailerStepFailed as exc:
-                # Trailers step failed and --continue-on-trailer-error was not set.
-                # Exit with code 2 (distinct from generic pipeline error exit 1) so
-                # scripts / launchd jobs can handle this case explicitly.
-                console.print("[red]" + t("cli_core.pipeline.aborted", reason=str(exc)) + "[/red]", highlight=False)
-                _run_log.error("pipeline_aborted_trailer_step_failed", reason=str(exc))
-                raise typer.Exit(code=2) from exc
-
-            dur = report.duration()
-            minutes = int(dur.total_seconds()) // 60
-            seconds = int(dur.total_seconds()) % 60
-            dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
-            _run_log.info("pipeline_finished", duration=dur_str)
-
-            # Mark outcome BEFORE the typer.Exit so the finally block pings the right state.
-            pipeline_outcome = "fail" if report.has_errors() else "success"
-            if report.has_errors():
-                raise typer.Exit(1)
-        finally:
-            # Dead-man's-switch: ping_fail on any non-clean exit (TrailerStepFailed, unexpected
-            # exception, typer.Exit due to report errors). HealthcheckClient is itself fail-soft
-            # so an unreachable hc-ping.com will not abort the lock release below.
-            if healthcheck is not None:
-                if pipeline_outcome == "success":
-                    healthcheck.ping_success()
-                else:
-                    healthcheck.ping_fail()
-            # The run context is per invocation: structlog contextvars outlive the command
-            # in a long-lived process (a worker, the watcher), so ``run_id`` is taken off
-            # here rather than left on every later record. A no-op if it was never bound.
-            structlog.contextvars.unbind_contextvars("run_id")
-
+        code = execute_run(
+            config,
+            settings,
+            options,
+            trigger=trigger_reason,
+            console=console,
+            verbose=verbose,
+            headless=headless,
+            interactive=interactive,
+            no_console=no_console,
+        )
+        if code:
+            raise typer.Exit(code)
     finally:
         cli_helpers.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 

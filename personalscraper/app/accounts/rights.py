@@ -3,7 +3,7 @@
 ``Right`` is the contract's ``#/components/schemas/Right`` enum, verbatim. A
 ``Requirement`` is what one operation asks: nothing (``Public``), a session
 (``SignedIn``), or one right among several (``AnyOf``). The table naming every
-operation's requirement is ``http_v1/rights.py``; the one path that applies it is
+operation's requirement is ``requirements.py``; the one path that applies it is
 ``authorise``.
 """
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, TypeAlias
+from typing import Final
 
 
 class Right(StrEnum):
@@ -90,7 +90,7 @@ class AnyOf:
     rights: frozenset[Right]
 
 
-Requirement: TypeAlias = Public | SignedIn | AnyOf
+type Requirement = Public | SignedIn | AnyOf
 
 
 def holds(right: Right) -> AnyOf:

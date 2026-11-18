@@ -204,7 +204,7 @@ def classify_from_nfo(
             )
 
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314
+        root = ET.parse(nfo_path).getroot()
     except (ET.ParseError, OSError) as exc:
         log.warning("nfo_parse_failed", nfo_file=nfo_path.name, error=str(exc))
         return None, "nfo_parse_error"
@@ -247,7 +247,7 @@ def _read_nfo_category(nfo_path: Path) -> str | None:
         The stripped text content of the found element, or ``None``.
     """
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314
+        root = ET.parse(nfo_path).getroot()
     except (ET.ParseError, OSError):
         return None
 

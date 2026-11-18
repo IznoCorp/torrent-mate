@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from pydantic import Field, StrictBool
 
+from personalscraper.app.accounts.model import SignInKind
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.views import AccountSummaryView, RosterView, SignInKind
+from personalscraper.app.accounts.views import AccountSummaryView, RosterView
 from personalscraper.http_v1.contract import ContractModel
 from personalscraper.http_v1.models.authentication import RoleModel
 

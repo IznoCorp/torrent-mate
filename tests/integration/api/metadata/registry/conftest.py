@@ -12,10 +12,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-import requests  # noqa: F401
+import requests
 import responses
 
-# ruff: noqa: D102, D107  # Test helpers with obvious behavior
+# Test helpers with obvious behavior
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,
@@ -294,6 +294,8 @@ def build_registry_fakes(monkeypatch: pytest.MonkeyPatch):
             cb_policy_arg: object,
             event_bus_arg: object,
             retry_arg: object = None,
+            *,
+            language: str = "fr-FR",
         ) -> dict[str, object]:
             return {n: fakes[n] for n in names if n in fakes}
 
@@ -307,6 +309,7 @@ def build_registry_fakes(monkeypatch: pytest.MonkeyPatch):
             event_bus=event_bus,
             cb_policy=SimpleNamespace(),
             providers_config=providers_config,
+            language="fr-FR",
         )
 
     return _build

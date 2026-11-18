@@ -12,6 +12,6 @@ from personalscraper.verify.checks import (  # noqa: F401
     streams,
     structure,
 )
-from personalscraper.verify.checks.registry import registry  # noqa: F401
+from personalscraper.verify.checks.registry import registry
 
 __all__ = ["registry"]

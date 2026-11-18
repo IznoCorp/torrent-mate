@@ -76,18 +76,24 @@ export function poseTrail(pages: string[]): void {
 }
 
 // What a state left listening after its drive, stopped when the next one is driven.
-let leaving: (() => void) | null = null;
+let leaving: (() => void)[] = [];
 
 /**
  * Asks for a stop to run when the next state is driven — for a state whose
  * subject arrives after its drive (an asynchronous landing), so what it left
  * listening never acts on a state that is not its own.
  *
+ * EVERY ASK IS KEPT, not the last one. A state that composes another state's
+ * drive and then asks for a stop of its own used to REPLACE the first stop: the
+ * presses the composed state armed were never forgotten and fired, 400 and 900 ms
+ * later, over whichever states the walk had reached — the confirming press taking
+ * the first danger button of whatever dialog was open.
+ *
  * Args:
  *     stop: What ends the listening.
  */
 export function onLeave(stop: () => void): void {
-  leaving = stop;
+  leaving.push(stop);
 }
 
 /** One named state: the id `__go` takes, its label in words, and how to build it. */
@@ -192,8 +198,9 @@ function go(stateId: string, options?: { keep?: boolean }): string {
       table.length
         ? "état inconnu : " + stateId
         : "aucun état enregistré — la table du harnais est vide");
-  leaving?.();
-  leaving = null;
+  const stops = leaving;
+  leaving = [];
+  for (const stop of stops) stop();
   if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
   if (stateId !== "startup") window.__entry?.hideStartup();
   if (!stateId.startsWith("pwa-")) window.__entry?.hideInstall();

@@ -104,6 +104,36 @@ def test_vanished_torrent_unowned_requeues_pending(store: ConcreteAcquireStore) 
     assert row.grabbed_hash is None
 
 
+def test_foreign_hash_is_not_vanished(store: ConcreteAcquireStore) -> None:
+    """A hash held in another instance's category is in flight, never requeued."""
+    wanted_id = _grabbed(store, season=3, episode=5, info_hash="f0e1d2c3")
+
+    summary = reconcile_wanted(
+        store, _StubOwnership(set()), client_items={}, event_bus=_BUS, foreign=frozenset({"f0e1d2c3"})
+    )
+
+    assert summary.requeued_missing == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "grabbed"
+    assert row.grabbed_hash == "f0e1d2c3"
+
+
+def test_absent_hash_is_still_requeued_when_another_is_foreign(store: ConcreteAcquireStore) -> None:
+    """Only the foreign hash is spared: a truly absent one goes back to pending."""
+    _grabbed(store, season=3, episode=5, info_hash="f0e1d2c3")
+    gone_id = _grabbed(store, season=3, episode=6, info_hash="0a0b0c0d")
+
+    summary = reconcile_wanted(
+        store, _StubOwnership(set()), client_items={}, event_bus=_BUS, foreign=frozenset({"f0e1d2c3"})
+    )
+
+    assert summary.requeued_missing == 1
+    row = store.wanted.get(gone_id)
+    assert row is not None and row.status == "pending" and row.grabbed_hash is None
+
+
 def test_torrent_still_in_client_stays_grabbed(store: ConcreteAcquireStore) -> None:
     """Grabbed + hash still known to the client + unowned → left in flight."""
     wanted_id = _grabbed(store, season=3, episode=3, info_hash="cafebabe")

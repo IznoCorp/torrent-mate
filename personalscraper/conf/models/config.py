@@ -143,8 +143,8 @@ class Config(_StrictModel):
         - ``acquire.db_path`` → the acquire store in ``paths.data_dir``
         - ``trailers.state_file`` → ``paths.data_dir / 'trailers_state.json'``
 
-        The store file names follow ``PERSONALSCRAPER_ENV`` (absent = prod, the
-        historical ``library.db`` / ``acquire.db``). Then the isolation guard checks
+        The store file names follow ``PERSONALSCRAPER_ENV`` (``prod`` keeps the
+        historical ``library.db`` / ``acquire.db``; absent is refused). Then the isolation guard checks
         that ``paths.data_dir``, the store paths and ``web.stream_key`` belong to this
         environment.
 
@@ -152,12 +152,12 @@ class Config(_StrictModel):
             self with derived paths resolved.
 
         Raises:
-            EnvironmentSettingError: ``PERSONALSCRAPER_ENV`` is set to an unknown
+            EnvironmentSettingError: ``PERSONALSCRAPER_ENV`` is unset or set to an unknown
                 value (a ``ValueError``, so Pydantic wraps it as a load error).
             EnvironmentIsolationError: ``paths.data_dir`` is marked for another
                 environment or its marker is unreadable, is unmarked outside prod, a
-                store lies outside it outside prod, or ``staging`` uses prod's stream
-                key (a ``ValueError`` too).
+                store lies outside it outside prod, or, outside prod, the stream key is
+                prod's or an enabled torrent client has no scope (a ``ValueError`` too).
         """
         if self.indexer.db_path is None:
             object.__setattr__(self.indexer, "db_path", store_path(self.paths.data_dir, StoreName.LIBRARY))

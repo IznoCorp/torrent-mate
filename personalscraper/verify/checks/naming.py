@@ -32,7 +32,7 @@ class DirNaming:
     default_severity = Severity.ERROR
     description = "Directory must be named 'Title (Year)'"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False when name is malformed.
 
         Args:
@@ -57,7 +57,7 @@ class DirNaming:
             )
         ]
 
-    def fix(self, ctx: "CheckContext") -> "list[FixAction]":
+    def fix(self, ctx: CheckContext) -> list[FixAction]:
         """Rename directory using title + year from NFO.
 
         Args:
@@ -84,7 +84,7 @@ class DirNaming:
             log.debug("dir_naming_fix_skipped", reason="no NFO found", dir=ctx.media_dir.name)
             return []
         try:
-            tree = ET.parse(nfo_path)  # noqa: S314
+            tree = ET.parse(nfo_path)
             root = tree.getroot()
         except (ET.ParseError, OSError) as exc:
             log.warning("dir_naming_fix_nfo_parse_error", nfo=nfo_path.name, exc_info=True, error=str(exc))

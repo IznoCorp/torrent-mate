@@ -12,10 +12,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import ClassVar, TypeAlias
+from typing import ClassVar
 
 #: The typed facts a refusal carries for the interface's sentence — never a sentence.
-RefusalParams: TypeAlias = Mapping[str, str | int | float | bool | list[str]]
+type RefusalParams = Mapping[str, str | int | float | bool | list[str]]
 
 
 class RefusalCode(StrEnum):
@@ -26,6 +26,8 @@ class RefusalCode(StrEnum):
 
     REQUEST_INVALID = "request.invalid"
     REQUEST_CROSS_ORIGIN = "request.cross_origin"
+    REQUEST_KEY_REUSED = "request.key_reused"
+    REQUEST_IN_PROGRESS = "request.in_progress"
     ROUTE_UNKNOWN = "route.unknown"
     INTERNAL = "internal"
     AUTH_REQUIRED = "auth.required"
@@ -55,6 +57,8 @@ class RefusalCode(StrEnum):
     ROLE_IN_USE = "role.in_use"
     ROLE_DEFAULT = "role.default"
     RIGHT_UNKNOWN = "right.unknown"
+    SESSION_UNKNOWN = "session.unknown"
+    SESSION_CURRENT = "session.current"
     PASSWORD_REQUIRED = "password.required"
     PASSWORD_TOO_SHORT = "password.too_short"
     PASSWORD_TOO_WEAK = "password.too_weak"

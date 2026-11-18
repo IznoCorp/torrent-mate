@@ -83,13 +83,13 @@ class AcquireContext:
             indexer impl does; ``NullOwnershipChecker`` does not).
     """
 
-    tracker_registry: "TrackerRegistry"
-    store: "AcquireStore | None" = None
-    delete_authority: "DeleteAuthority | None" = None
-    torrent_client: "QBitClient | TransmissionClient | None" = None
-    grab: "GrabCore | None" = None
-    cross_seed: "CrossSeedService | None" = None
-    ownership: "OwnershipChecker" = field(default_factory=NullOwnershipChecker)
+    tracker_registry: TrackerRegistry
+    store: AcquireStore | None = None
+    delete_authority: DeleteAuthority | None = None
+    torrent_client: QBitClient | TransmissionClient | None = None
+    grab: GrabCore | None = None
+    cross_seed: CrossSeedService | None = None
+    ownership: OwnershipChecker = field(default_factory=NullOwnershipChecker)
 
     def close(self) -> None:
         """Close OWNED resources: tracker_registry, store, and ownership.

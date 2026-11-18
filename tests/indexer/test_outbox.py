@@ -750,8 +750,8 @@ def test_apply_row_with_retry_retries_on_lock_then_succeeds(conn: sqlite3.Connec
 
     apply_calls = 0
     # Access private names via getattr to avoid mypy attr-defined errors.
-    original_move = getattr(_apply_mod, "_apply_move")
-    handlers: dict[str, Any] = getattr(_apply_mod, "_OP_HANDLERS")
+    original_move = _apply_mod._apply_move
+    handlers: dict[str, Any] = _apply_mod._OP_HANDLERS
 
     def move_raises_once(c: sqlite3.Connection, payload: dict[str, Any]) -> None:
         nonlocal apply_calls

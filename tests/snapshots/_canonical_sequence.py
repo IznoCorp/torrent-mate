@@ -23,12 +23,10 @@ literals — no ``MagicMock``, no real I/O, no live ``datetime.utcnow``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from personalscraper.models import PipelineReport, StepReport
-
-UTC = timezone.utc
 
 
 @dataclass(frozen=True)

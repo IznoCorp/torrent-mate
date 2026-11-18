@@ -25,9 +25,9 @@ class TestLockoutPath:
         """A non-prod environment → ``qbit_auth_lockout-<env>`` beside the prod file."""
         assert lockout_path(env) == _HISTORICAL.with_name(f"qbit_auth_lockout-{env.value}")
 
-    def test_unset_environment_is_prod(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """No argument and no ``PERSONALSCRAPER_ENV`` → the historical path."""
-        monkeypatch.delenv(ENV_VAR, raising=False)
+    def test_no_argument_under_prod_reads_the_historical_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No argument with ``PERSONALSCRAPER_ENV=prod`` → the historical path."""
+        monkeypatch.setenv(ENV_VAR, "prod")
         assert lockout_path() == _HISTORICAL
 
     def test_none_reads_the_environment_variable(self, monkeypatch: pytest.MonkeyPatch) -> None:

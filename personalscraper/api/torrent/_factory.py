@@ -33,7 +33,7 @@ _CLIENT_IMPL: dict[str, str] = {
 def build_active_torrent_client(
     cfg: TorrentConfig,
     env: Mapping[str, str] | None = None,
-) -> "QBitClient | TransmissionClient":
+) -> QBitClient | TransmissionClient:
     """Read cfg.active, validate creds, return concrete torrent client instance.
 
     The return type is the union of the two supported implementations

@@ -13,7 +13,7 @@ the same commit (the commit documents the additive change — DESIGN §3.1).
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from personalscraper.api.metadata.registry import ProviderStatus, RegistryProviderName
 from personalscraper.core.circuit import CircuitState
@@ -45,7 +45,7 @@ def test_providerstatus_json_roundtrip() -> None:
         provider_name=RegistryProviderName("tmdb"),
         circuit_state=CircuitState.CLOSED,
         failure_count_recent=0,
-        last_success_at=datetime(2026, 7, 1, 12, 0, 0, tzinfo=timezone.utc),
+        last_success_at=datetime(2026, 7, 1, 12, 0, 0, tzinfo=UTC),
         last_failure_at=None,
         last_latency_ms=42.5,
     )

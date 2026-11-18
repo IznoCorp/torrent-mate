@@ -20,7 +20,7 @@ from _repo_paths import HARNESS
 
 sys.path.insert(0, str(HARNESS))
 
-import common  # noqa: E402
+import common
 
 # A layer whose exit is drawn longer than any wait a rule ever typed, a
 # visibility delayed by its length, and a spinner that never ends.

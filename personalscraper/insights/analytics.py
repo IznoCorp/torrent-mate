@@ -18,7 +18,7 @@ no filesystem walk, no ffprobe:
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -70,7 +70,7 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
     Returns:
         :class:`AnalysisResult` with aggregate health metrics.
     """
-    result = AnalysisResult(analyzed_at=datetime.now(tz=timezone.utc).isoformat())
+    result = AnalysisResult(analyzed_at=datetime.now(tz=UTC).isoformat())
 
     # --- total / kind breakdown -----------------------------------------------
     result.total_items = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
@@ -314,7 +314,7 @@ def analyze_from_index(
     Returns:
         :class:`LibraryAnalysisResult` populated from the index.
     """
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
     conn.row_factory = sqlite3.Row
 
     item_query = """
@@ -528,5 +528,5 @@ def _file_analysis_from_index(conn: sqlite3.Connection, file_row: sqlite3.Row) -
         subtitle_tracks=subtitle_tracks,
         audio_profile=audio_profile,
         subtitle_languages=sorted({t.language for t in subtitle_tracks}),
-        analyzed_at=datetime.now(tz=timezone.utc).isoformat(),
+        analyzed_at=datetime.now(tz=UTC).isoformat(),
     )

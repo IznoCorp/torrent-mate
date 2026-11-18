@@ -3,6 +3,7 @@
 Uses typer.testing.CliRunner. All orchestrator/scanner calls are mocked.
 """
 
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -684,8 +685,6 @@ class TestCliHelperFunctions:
 
     def test_item_added_at_oserror_fallback(self, tmp_path):
         """_item_added_at returns epoch when stat raises OSError."""
-        from datetime import timezone
-
         from personalscraper.trailers.cli import _item_added_at
         from personalscraper.trailers.scanner import ScanItem
 
@@ -700,11 +699,11 @@ class TestCliHelperFunctions:
         result = _item_added_at(item)
         from datetime import datetime
 
-        assert result == datetime.fromtimestamp(0, tz=timezone.utc)
+        assert result == datetime.fromtimestamp(0, tz=UTC)
 
     def test_filter_since_with_date(self, tmp_path):
         """_filter_since with a date filters out old items."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from personalscraper.trailers.cli import _filter_since
         from personalscraper.trailers.scanner import ScanItem
@@ -721,7 +720,7 @@ class TestCliHelperFunctions:
             tmdb_id=None,
         )
         # Since = far future date, item should be filtered out
-        future = datetime(2099, 1, 1, tzinfo=timezone.utc)
+        future = datetime(2099, 1, 1, tzinfo=UTC)
         result = _filter_since([item], future)
         assert result == []
 

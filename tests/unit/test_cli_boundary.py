@@ -64,7 +64,7 @@ class _PerStepSpy:
         self.calls: list[dict[str, Any]] = []
         self.app_context = SimpleNamespace(event_bus=EventBus(), torrent_client=None)
 
-    def __call__(self, config: Any, settings: Any, **kwargs: Any):  # noqa: ANN204
+    def __call__(self, config: Any, settings: Any, **kwargs: Any):
         self.calls.append({"config": config, "settings": settings, **kwargs})
         return _fake_per_step_boundary_cm(self.app_context)
 
@@ -268,7 +268,7 @@ def test_journal_opened_with_command_name(tmp_path, monkeypatch):
     journal_calls: list[dict[str, Any]] = []
 
     @contextmanager
-    def fake_journal(config, *, command, dry_run):  # noqa: ANN001, ANN202
+    def fake_journal(config, *, command, dry_run):
         journal_calls.append({"command": command, "dry_run": dry_run})
         yield "run-uid-123"
 
@@ -293,7 +293,7 @@ def test_journal_command_override(tmp_path, monkeypatch):
     names: list[str] = []
 
     @contextmanager
-    def fake_journal(config, *, command, dry_run):  # noqa: ANN001, ANN202
+    def fake_journal(config, *, command, dry_run):
         names.append(command)
         yield None
 
@@ -313,7 +313,7 @@ def test_readonly_tier_never_journals(tmp_path, monkeypatch):
     opened: list[str] = []
 
     @contextmanager
-    def fake_journal(config, *, command, dry_run):  # noqa: ANN001, ANN202
+    def fake_journal(config, *, command, dry_run):
         opened.append(command)
         yield None
 

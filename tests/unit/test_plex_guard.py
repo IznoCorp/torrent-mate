@@ -398,7 +398,7 @@ class TestRepair:
         session = _FakeSession(_routes(gentlemen_guid="imdb://tt30141774", gentlemen_matches=None))
         # Force the PUT handler to NOT flip the guid: a route override that
         # answers 200 without touching the state.
-        session._routes[("PUT", "http://localhost:32400/library/metadata/210743/match")] = _FakeResponse(200, {})  # noqa: SLF001
+        session._routes[("PUT", "http://localhost:32400/library/metadata/210743/match")] = _FakeResponse(200, {})
         result = run_plex_guard(client=_client(session), connection=db_conn, repair=True, now="2026-08-25T00:00:00Z")
 
         by_item = {f.item_id: f for f in result.findings}
@@ -749,9 +749,7 @@ class TestPathRobustness:
         wrong_title = json.loads(json.dumps(_fixture("item-gentlemen")))
         wrong_title["MediaContainer"]["Metadata"][0]["title"] = "Shameless: Very Important Punk"
         session = _FakeSession(_routes())
-        session._routes[("GET", "http://localhost:32400/library/metadata/210743")] = _FakeResponse(  # noqa: SLF001
-            200, wrong_title
-        )
+        session._routes[("GET", "http://localhost:32400/library/metadata/210743")] = _FakeResponse(200, wrong_title)
         result = run_plex_guard(client=_client(session), connection=db_conn, repair=False, now="2026-08-25T00:00:00Z")
 
         by_item = {f.item_id: f for f in result.findings}
@@ -767,9 +765,7 @@ class TestPathRobustness:
         localized = json.loads(json.dumps(_fixture("item-gentlemen")))
         localized["MediaContainer"]["Metadata"][0]["title"] = "Frères d'armes"
         session = _FakeSession(_routes())
-        session._routes[("GET", "http://localhost:32400/library/metadata/210743")] = _FakeResponse(  # noqa: SLF001
-            200, localized
-        )
+        session._routes[("GET", "http://localhost:32400/library/metadata/210743")] = _FakeResponse(200, localized)
         result = run_plex_guard(client=_client(session), connection=db_conn, repair=False, now="2026-08-25T00:00:00Z")
 
         by_item = {f.item_id: f for f in result.findings}

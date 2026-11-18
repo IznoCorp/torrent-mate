@@ -106,7 +106,7 @@ class StalledGrab:
     reason: str
 
 
-def _latest_step_at(wanted: "WantedItem", row: "ProvenanceRow | None") -> int:
+def _latest_step_at(wanted: WantedItem, row: ProvenanceRow | None) -> int:
     """The most recent instant this acquisition is known to have moved.
 
     Prefers the journey's own stage timestamps (they describe the pipeline, which is
@@ -133,8 +133,8 @@ def _latest_step_at(wanted: "WantedItem", row: "ProvenanceRow | None") -> int:
 
 
 def stalled_grab_reason(
-    wanted: "WantedItem",
-    row: "ProvenanceRow | None",
+    wanted: WantedItem,
+    row: ProvenanceRow | None,
     *,
     now: int,
     last_run_finished_at: int | None = None,
@@ -218,11 +218,11 @@ def stalled_grab_reason(
 
 
 def list_stalled_grabs(
-    wanted_rows: "list[WantedItem]",
-    journey_for: "Callable[[str], ProvenanceRow | None]",
+    wanted_rows: list[WantedItem],
+    journey_for: Callable[[str], ProvenanceRow | None],
     *,
     now: int,
-    release_name_for: "Callable[[ProvenanceRow | None], str | None]",
+    release_name_for: Callable[[ProvenanceRow | None], str | None],
     last_run_finished_at: int | None = None,
 ) -> list[StalledGrab]:
     """Return every parked acquisition among *wanted_rows*, most-stale first.

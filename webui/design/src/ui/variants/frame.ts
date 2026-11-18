@@ -320,20 +320,27 @@ export const drawerRailToggle = cva(
   { variants: { collapsed: { true: "desk:ml-0", false: "" } }, defaultVariants: { collapsed: false } },
 );
 
+/* THE SCROLL RESTS ON A GROUP'S START, never inside one. The appearance and the footer are pinned
+   under this region, so what is left for the navigation is short, and a scroll free to stop anywhere
+   stopped with a group's heading at the cut and its entries below it — the menu then ended on a
+   heading that named nothing (B-712). `snap-mandatory` on the groups' start keeps heading and
+   entries together; the end of the scroll is always reachable, so the last group is never cut. The scroll
+   padding is the region's own, so the first group rests at 0 and the menu never opens already scrolled. */
 export const drawerNavigation = cva(
-  "flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 p-4",
+  "flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 p-4 scroll-pt-4 snap-y snap-mandatory",
 );
 
 /* THE SEPARATOR IS A SIBLING RULE, and it stays one. `.grp + .grp` is what
    draws the line between two groups; expressing it per element would mean the
    FIRST group carrying a line it must not have. */
 export const drawerGroup = cva(
-  "grp [.grp+&]:border-t [.grp+&]:border-border [.grp+&]:mt-3 [.grp+&]:pt-5",
+  "grp snap-start [.grp+&]:border-t [.grp+&]:border-border [.grp+&]:mt-3 [.grp+&]:pt-5",
 );
 
 /** The appearance group, which sits outside the navigation: it takes the
- *  navigation's own padding, so its heading starts where every group's does. */
-export const drawerAppearance = cva("px-4");
+ *  navigation's own padding, so its heading starts where every group's does —
+ *  and its bottom one, so the control does not rest on the footer's border (B-711). */
+export const drawerAppearance = cva("px-4 pb-6");
 
 /** The appearance selector, under its heading and aligned with it. */
 export const drawerAppearanceSwitch = cva("mx-6");

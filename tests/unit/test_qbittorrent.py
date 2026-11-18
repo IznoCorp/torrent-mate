@@ -89,6 +89,18 @@ class TestTorrentItemMapping:
         mock.eta = 720
         assert _torrent_item(mock).eta_seconds == 720
 
+    def test_dlspeed_maps_to_download_speed(self) -> None:
+        """Map qBit `dlspeed` (bytes/s) onto TorrentItem.download_speed, a genuine 0 included."""
+        mock = MagicMock()
+        mock.dlspeed = 1_500_000
+        assert _torrent_item(mock).download_speed == 1_500_000
+        mock.dlspeed = 0
+        assert _torrent_item(mock).download_speed == 0
+
+    def test_dlspeed_absent_or_non_numeric_is_none(self) -> None:
+        """Duck-typed junk degrades to unknown, never to a false 0."""
+        assert _torrent_item(MagicMock()).download_speed is None
+
     def test_eta_infinity_sentinel_is_none(self) -> None:
         """8640000 is qBit's « infinity/unknown » sentinel — honest None."""
         mock = MagicMock()
@@ -373,6 +385,31 @@ class TestQBitClient:
         assert client.get_by_hashes(set()) == []
         client._client.torrents_info.assert_not_called()  # type: ignore[attr-defined]
 
+    def test_get_by_category_asks_qbit_for_the_category(self) -> None:
+        """get_by_category() sends one category-filtered request and maps the result."""
+        client = self._client()
+        mock_t = MagicMock()
+        mock_t.hash = "abc"
+        mock_t.name = "Robot"
+        mock_t.total_size = 1000
+        mock_t.progress = 1.0
+        mock_t.state = "uploading"
+        mock_t.content_path = "/data"
+        mock_t.category = "scoped"
+        mock_t.added_on = 1712345678
+        client._client.torrents_info.return_value = [mock_t]  # type: ignore[attr-defined]
+
+        items = client.get_by_category("scoped")
+        assert [i.hash for i in items] == ["abc"]
+        client._client.torrents_info.assert_called_once_with(category="scoped")  # type: ignore[attr-defined]
+
+    def test_get_by_category_blank_is_refused(self) -> None:
+        """A blank category is never sent: qBit reads it as « uncategorised »."""
+        client = self._client()
+        with pytest.raises(ValueError, match="category"):
+            client.get_by_category("  ")
+        client._client.torrents_info.assert_not_called()  # type: ignore[attr-defined]
+
     def test_is_seeding_uses_state_enum(self) -> None:
         """is_seeding() delegates to qbittorrentapi state_enum.is_uploading."""
         client = self._client()
@@ -506,6 +543,13 @@ class TestQBitNeutralErrorTranslation:
         client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
         with pytest.raises(TorrentUnreachableError):
             client.get_all_hashes()
+
+    def test_get_by_hashes_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on get_by_hashes → TorrentUnreachableError, never the raw client error."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentUnreachableError):
+            client.get_by_hashes({"abc"})
 
     def test_get_content_path_connection_error_maps_to_unreachable(self) -> None:
         """APIConnectionError on get_content_path → TorrentUnreachableError."""

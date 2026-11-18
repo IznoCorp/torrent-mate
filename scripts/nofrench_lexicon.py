@@ -101,7 +101,7 @@ FRENCH_TOKENS = {
     # English too, and a gate that flagged them would teach its reader to stop
     # believing it.
     "actifs", "anneau", "apparence", "apparences", "bordees", "calque",
-    "candidats", "cherche", "chercher", "circulaire", "combien", "controle",
+    "candidats", "cherche", "circulaire", "combien", "controle",
     "coupables", "couverture", "denominateur", "depuis", "dessin", "faits",
     "frise", "lignes", "maintenant", "masquables", "masquer", "mots",
     "normaliser", "numerateur", "pilotage", "plages", "prendre", "reglee",
@@ -146,7 +146,7 @@ FRENCH_FUNCTION_WORDS = {
     "aucune", "chaque", "meme", "deja", "encore", "moins", "etre", "avoir",
     "fait", "faire", "vers", "chez", "mais", "donc", "alors", "ainsi", "comme",
     "quand", "lorsque", "depuis", "entre", "sous", "trop", "rien", "jamais",
-    "toujours", "nest", "cest", "un", "aucun", "notre", "votre",
+    "toujours", "nest", "cest", "un", "notre", "votre",
 }
 # `du`, `est` and `et` are NOT here, though they are French: they are also
 # `du -sh`, EST and « et al. » — and a guardrail that flags a shell command

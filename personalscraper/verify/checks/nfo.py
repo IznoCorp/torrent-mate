@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 log = get_logger("verify.checks.nfo")
 
 
-def _movie_nfo_path(ctx: "CheckContext") -> "Path":
+def _movie_nfo_path(ctx: CheckContext) -> Path:
     """Resolve the movie NFO path exactly as ``checker.py`` does.
 
     Mirrors ``MediaChecker.check_movie`` : parses the title from the
@@ -45,7 +45,7 @@ def _movie_nfo_path(ctx: "CheckContext") -> "Path":
     return ctx.media_dir / nfo_name
 
 
-def _tvshow_nfo_path(ctx: "CheckContext") -> "Path":
+def _tvshow_nfo_path(ctx: CheckContext) -> Path:
     """Resolve the tvshow NFO path exactly as ``checker.py`` does.
 
     Args:
@@ -68,7 +68,7 @@ class NfoPresent:
     default_severity = Severity.ERROR
     description = "NFO file must be present"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False if NFO absent.
 
         Args:
@@ -129,7 +129,7 @@ class NfoValid:
     default_severity = Severity.ERROR
     description = "NFO must contain required fields"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[]`` if NFO absent; ``[CheckResult]`` otherwise.
 
         Args:
@@ -204,7 +204,7 @@ class NfoIds:
     default_severity = Severity.ERROR
     description = "NFO must contain required external IDs"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[]`` if NFO root is None; severity dynamic for movies.
 
         Args:
@@ -251,7 +251,7 @@ class NfoIds:
 # --- module-level NFO helpers (copied verbatim from checker.py; Phase 3 consolidates) ---
 
 
-def _parse_nfo(nfo_path: "Path") -> "ET.Element | None":
+def _parse_nfo(nfo_path: Path) -> ET.Element | None:
     """Parse an NFO XML file.
 
     Args:
@@ -261,7 +261,7 @@ def _parse_nfo(nfo_path: "Path") -> "ET.Element | None":
         Root Element, or None if parse fails.
     """
     try:
-        tree = ET.parse(nfo_path)  # noqa: S314
+        tree = ET.parse(nfo_path)
         return tree.getroot()
     except (ET.ParseError, OSError) as exc:
         log.warning("verify_nfo_parse_failed", nfo=nfo_path.name, exc_info=True, error=str(exc))

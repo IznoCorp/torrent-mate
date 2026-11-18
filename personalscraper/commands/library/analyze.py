@@ -314,21 +314,48 @@ def library_rescrape_item(
     the needs-rescrape predicate bypassed. It takes ``pipeline.lock`` itself (exit 3
     when held, the code the maintenance runner re-queues on).
 
+    Raises:
+        typer.Exit: With code 1 when the indexer DB is missing, unreachable or the item resolves
+            nothing, and with code 3 when ``pipeline.lock`` is held.
+
     Examples:
         personalscraper library-rescrape-item 1600
     """
-    _rescrape(
-        ctx,
-        command="library-rescrape-item",
-        only=None,
-        disk=None,
-        category_id=None,
-        interactive=False,
-        dry_run=False,
-        max_items=None,
-        item_id=item_id,
-        write_report=False,
-    )
+    from personalscraper.app.supervisor.execution import rescrape_item  # noqa: PLC0415
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+    from personalscraper.commands._cli_run_row import cli_run_row  # noqa: PLC0415
+
+    console = state["console"]
+    config = ctx.obj.config
+    settings = cli_helpers.get_settings()
+
+    # Guard: the item look-up requires a configured and reachable indexer DB.
+    db_path = config.indexer.db_path
+    if not db_path.exists():
+        console.print("[red]" + t("cli_library.analyze.indexer_db_missing", path=db_path) + "[/red]")
+        raise typer.Exit(1)
+
+    if not cli_helpers.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
+    ):
+        # Exit 3 = lock busy (the maintenance runner re-queues on this code).
+        console.print("[red]" + t("cli_library.analyze.lock_busy") + "[/red]")
+        raise typer.Exit(3)
+
+    try:
+        code = rescrape_item(
+            config,
+            settings,
+            item_id,
+            console=console,
+            run_row=cli_run_row,
+            step_boundary=per_step_boundary,
+        )
+        if code:
+            raise typer.Exit(code)
+    finally:
+        cli_helpers.release_lock()
 
 
 def _rescrape(
@@ -418,12 +445,12 @@ def _rescrape(
             # connection is closed in the finally block below to avoid leaks.
             conn: sqlite3.Connection | None = None
             if item_id is not None:
+                from personalscraper.core.sqlite import SqliteMigrationError  # noqa: PLC0415
                 from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
                 from personalscraper.indexer.db import (  # noqa: PLC0415
                     IndexerCorruptError,
                     IndexerDiskFullError,
                     IndexerInvalidPathError,
-                    IndexerMigrationError,
                     apply_migrations,
                     open_db,
                 )
@@ -435,7 +462,7 @@ def _rescrape(
                     IndexerCorruptError,
                     IndexerInvalidPathError,
                     IndexerDiskFullError,
-                    IndexerMigrationError,
+                    SqliteMigrationError,  # the base: a failed script or a newer schema
                 ) as exc:
                     console.print("[red]" + t("cli_library.analyze.open_failed_label") + "[/red] " + str(exc))
                     if conn is not None:
@@ -503,7 +530,8 @@ def _rescrape(
             errors=result.error_count,
             total=t("cli_library.analyze.total", total=total),
         )
-        if write_report:
+        # A dry run writes nothing: the report would overwrite the last real run's.
+        if write_report and not dry_run:
             output_path = config.paths.data_dir / "library_rescrape.json"
             write_json(result, output_path)
             summary += f" → {output_path}"

@@ -345,6 +345,8 @@ def test_run_ingest_emits_item_progressed_per_torrent(
 
     config = MagicMock()
     config.torrent.active = "qbittorrent"
+    # A MagicMock scope would filter every torrent out of scoped(): pin "no scope".
+    config.torrent.active_scope.return_value = None
     config.paths.staging_dir = tmp_path
     config.paths.data_dir = tmp_path / ".data"
     config.paths.data_dir.mkdir(exist_ok=True)

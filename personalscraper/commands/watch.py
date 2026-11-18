@@ -40,11 +40,11 @@ from personalscraper.acquire.watcher import (
     WatcherService,
     WatcherState,
 )
+from personalscraper.api.torrent._base import in_sandbox, scoped, scoped_hashes, triage_skip_reason
 from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS
 from personalscraper.app.composition import build_app_context
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import handle_cli_errors
-from personalscraper.core.tags import SEED_PURE
 from personalscraper.i18n import t
 from personalscraper.ingest.deferral import classify_deferrals, deferral_probe_dirs
 from personalscraper.ingest.tracker import IngestTracker
@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.torrent._contracts import TorrentLister
+    from personalscraper.conf.models.api_config import TorrentScope
     from personalscraper.conf.models.config import Config
 
 log = get_logger(__name__)
@@ -221,20 +222,21 @@ def _read_ingested_hashes(tracker_path: Path) -> frozenset[str] | None:
     return frozenset(ingested_data.keys())
 
 
-def _poll_completed(torrent_client: TorrentLister) -> list[TorrentItem] | None:
+def _poll_completed(torrent_client: TorrentLister, scope: TorrentScope | None = None) -> list[TorrentItem] | None:
     """List completed torrents, guarding against transient client errors.
 
     W1: log, skip the cycle, never crash the daemon.
 
     Args:
         torrent_client: The active torrent client.
+        scope: The instance's scope in a shared client; ``None`` = the whole client.
 
     Returns:
         The completed torrents, or ``None`` when the client raised a
         recoverable listing error — meaning the caller must skip this cycle.
     """
     try:
-        return torrent_client.get_completed()
+        return scoped(torrent_client.get_completed(), scope)
     except TORRENT_LISTING_ERRORS:
         log.warning("watcher_poll_error", exc_info=True)
         return None
@@ -255,13 +257,19 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
 
     The quiescence gate reads a COUNT of these: while it is non-zero the grace counter
     cannot run, and any new one resets it (see ``WatcherService.evaluate`` branch 3).
-    So the predicate decides how long the pipeline waits — hence the two exclusions:
+    So the predicate decides how long the pipeline waits — hence the three exclusions:
 
     * a finished torrent (``progress >= 1``) is a seed, not a download;
-    * an inert one (paused / stopped / errored / moving) will never finish by itself.
+    * an inert one (paused / stopped / errored / moving) will never finish by itself;
+    * one whose download speed is a known ``0`` does not advance: a dead torrent (e.g.
+      ``stalledDL`` at 0 % with no source) would otherwise return IDLE on every cycle,
+      before the safety net is reached, and hold the pipeline back indefinitely.
 
-    Anything else that is unfinished counts, including a stalled or queued download: it
-    may still complete, and the operator asked to wait for the batch to be over.
+    A queued or checking torrent (``queuedDL``, ``checkingDL``, often ``metaDL``) reports a
+    speed of 0 and so does not count either: it is not advancing. A speed of ``None``
+    means the client did not report one (Transmission does not). That case keeps the
+    old count: anything unfinished and not inert counts, since it may still complete,
+    and the operator asked to wait for the batch to be over.
 
     Args:
         item: A torrent as reported by the client.
@@ -271,11 +279,18 @@ def _is_actively_downloading(item: TorrentItem) -> bool:
     """
     if item.progress >= 1.0:
         return False
+    if item.download_speed == 0:
+        return False
     state = (item.state or "").lower()
     return not any(marker in state for marker in _INERT_STATE_MARKERS)
 
 
-def _poll_active_downloads(torrent_client: TorrentLister, completed_hashes: frozenset[str]) -> int | None:
+def _poll_active_downloads(
+    torrent_client: TorrentLister,
+    completed_hashes: frozenset[str],
+    scope: TorrentScope | None = None,
+    sandbox_categories: tuple[str, ...] = (),
+) -> int | None:
     """Count the torrents still actively downloading, or None on a client error.
 
     Reads the client's full hash set, subtracts what is already complete, and inspects
@@ -287,15 +302,23 @@ def _poll_active_downloads(torrent_client: TorrentLister, completed_hashes: froz
     Args:
         torrent_client: The active torrent client.
         completed_hashes: Hashes already known complete this cycle.
+        scope: The instance's scope in a shared client; ``None`` = the whole client.
+        sandbox_categories: Unscoped instance only: categories of the sandboxes sharing the
+            client, subcategories included. Their downloads are not this instance's, so they
+            never hold its gate.
 
     Returns:
         The count of in-progress downloads, or None when the cycle must be skipped.
     """
     try:
-        pending = {h for h in torrent_client.get_all_hashes() if h not in completed_hashes}
+        pending = {h for h in scoped_hashes(torrent_client, scope) if h not in completed_hashes}
         if not pending:
             return 0
-        return sum(1 for t in torrent_client.get_by_hashes(pending) if _is_actively_downloading(t))
+        return sum(
+            1
+            for t in scoped(torrent_client.get_by_hashes(pending), scope)
+            if not in_sandbox(t.category, sandbox_categories) and _is_actively_downloading(t)
+        )
     except TORRENT_LISTING_ERRORS:
         log.warning("watcher_active_downloads_poll_error", exc_info=True)
         return None
@@ -318,7 +341,7 @@ def _poll_deferrals(
 
     Args:
         completed: Completed torrents from the poll.
-        exclude_hashes: Hashes to exclude from deferral (ingested ∪ seed-pure).
+        exclude_hashes: Hashes to exclude from deferral (ingested ∪ triage-skipped).
         config: The typed configuration (ratio / free-space thresholds).
         deferral_dirs: Staging probe dirs.
         deferral_ingest_dir: The ingest dir, or ``None`` when deferral is off.
@@ -387,7 +410,8 @@ def _poll(
         return None, last_deferred
 
     # 2. Completed torrents with error guard (W1).
-    completed = _poll_completed(torrent_client)
+    scope = config.torrent.active_scope()
+    completed = _poll_completed(torrent_client, scope)
     if completed is None:
         return None, last_deferred
 
@@ -397,16 +421,20 @@ def _poll(
     # 3a. Quiescence gate input (§14.3): how many downloads are still running. Same W1
     #     guard as the completed listing — deciding on a blind count would defeat the
     #     gate on the exact cycle the client hiccups.
-    downloading_count = _poll_active_downloads(torrent_client, completed_hashes)
+    downloading_count = _poll_active_downloads(
+        torrent_client, completed_hashes, scope, config.torrent.active_sandbox_categories()
+    )
     if downloading_count is None:
         return None, last_deferred
 
-    seed_pure_hashes = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
+    # The torrents the triage leaves alone: seed-pure unscoped; under a scope, the
+    # untagged and the own seed-only ones (``triage_skip_reason``).
+    triage_skipped_hashes = frozenset(t.hash for t in completed if triage_skip_reason(t, scope) is not None)
 
     # 3b. Transient-skip deferrals (live, self-healing, nothing persisted).
     deferred, last_deferred = _poll_deferrals(
         completed,
-        ingested_hashes | seed_pure_hashes,
+        ingested_hashes | triage_skipped_hashes,
         config,
         deferral_dirs,
         deferral_ingest_dir,
@@ -418,7 +446,7 @@ def _poll(
     inp = WatcherInput(
         completed_hashes=completed_hashes,
         ingested_hashes=ingested_hashes,
-        seed_pure_hashes=seed_pure_hashes,
+        triage_skipped_hashes=triage_skipped_hashes,
         sentinel_present=(data_dir / "watch.trigger").exists(),
         pipeline_lock_held=is_lock_held(data_dir / "pipeline.lock"),
         now=now,
@@ -689,7 +717,7 @@ def watch(ctx: typer.Context) -> None:
         typer.echo(t("cli_core.watch.no_client"), err=True)
         raise typer.Exit(code=1)
 
-    svc = WatcherService(config.watch)
+    svc = WatcherService(config.watch, scoped=config.torrent.active_scope() is not None)
     state = WatcherState()
 
     # Restore last_successful_run_at from acquire.db (fail-soft).
@@ -749,7 +777,7 @@ def watch(ctx: typer.Context) -> None:
                         active_downloads=inp.downloading_count,
                         now=inp.now,
                     )
-                except Exception:  # noqa: BLE001 — advisory: visibility never breaks the watch
+                except Exception:  # advisory: visibility never breaks the watch
                     log.warning("watcher_pending_run_publish_failed", exc_info=True)
 
             # TRIGGER — execute the decision, then reap the tracked run handle.

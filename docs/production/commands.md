@@ -63,46 +63,48 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 26. [`library-fix-orphan-files`](#personalscraper-library-fix-orphan-files) — repair `media_file` rows with `release_id IS NULL` (DEVIATION #8, invariant AO)
 27. [`library-fix-season-counts`](#personalscraper-library-fix-season-counts) — repair `season.episode_count` drift (DEVIATION #9, invariant AP)
 28. [`library-dedup-titles`](#personalscraper-library-dedup-titles) — de-duplicate NFD/NFC media_item twins
-29. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
-30. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
+29. [`library-merge-duplicate-items`](#personalscraper-library-merge-duplicate-items) — merge the media_item rows sharing one dispatch_path
+30. [`library-retire-ghost-items`](#personalscraper-library-retire-ghost-items) — retire the items whose folder is gone, with no cap
+31. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
+32. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
 ### Library — analysis & query
 
-31. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
-32. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
-33. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
-34. [`library-report`](#personalscraper-library-report) — health statistics
-35. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
-36. [`library-search`](#personalscraper-library-search) — flex-attr query
-37. [`library-show`](#personalscraper-library-show) — pretty-print one item
-38. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
+33. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
+34. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
+35. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
+36. [`library-report`](#personalscraper-library-report) — health statistics
+37. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
+38. [`library-search`](#personalscraper-library-search) — flex-attr query
+39. [`library-show`](#personalscraper-library-show) — pretty-print one item
+40. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
 
 ### Trailers
 
-39. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
-40. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
-41. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
-42. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
-43. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
+41. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
+42. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
+43. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
+44. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
+45. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
 ### Config — sub-commands
 
-44. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
+46. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
 ### Watcher — daemon (PM2)
 
-45. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
-46. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
+47. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
+48. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
 
 ### Acquisition — Follow (auto-download, PM2)
 
-47. [`follow add`](#personalscraper-follow) — follow a TV series by provider ID
-48. [`follow list`](#personalscraper-follow) — list followed series
-49. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
-50. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
-51. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
-52. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
-53. [`schedule`](#personalscraper-schedule) — self-managed cron loop behind the scheduled PM2 jobs
+49. [`follow add`](#personalscraper-follow) — follow a TV series by provider ID
+50. [`follow list`](#personalscraper-follow) — list followed series
+51. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
+52. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
+53. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
+54. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
+55. [`schedule`](#personalscraper-schedule) — self-managed cron loop behind the scheduled PM2 jobs
 
 ### Make targets + scheduling (appendix)
 
@@ -407,10 +409,21 @@ Telegram)
 - `--headless` : run with no subscribers (silent mode for cron / CI) — disables Rich console output and Telegram notifications
 - `--no-console` : disable Rich console Live display (useful when stdout is not a TTY, e.g. invoked by the watcher daemon). Unlike `--headless`, structlog file logging and Telegram notifications remain active.
 - `--trigger-reason` : label this run with a human-readable trigger cause (e.g. `"watcher-debounce"`, `"watch-now"`, `"safety-net"`). Emitted as a `WatcherRunTriggered` event for observability.
+- `--detach` : with a live supervisor lease, queue the run and return `0` at once instead of following it. Without a live lease it has no effect (the run executes in this process).
+
+**With a supervisor** (`personalscraper supervise` holds a live lease in `app.db`): nothing but the supervisor's
+worker starts a run, so `run` starts nothing in its own process. It asks the run through the queue (under
+`PERSONALSCRAPER_RUN_UID` when a caller promised one; an equal request already waiting answers it), prints the
+request's uid and position, then follows **the uid the queue answered**: each step as it closes, then the end. The exit
+code is the run's: `0` success, `1` error (`interrupted` and `abandoned` too), `2` when the trailers step aborted the
+run, `130` killed. Ctrl-C (or `--detach`) leaves the follower and keeps the request. `--interactive` is refused in this
+mode (exit `1`): use `personalscraper scrape -i`. With no live lease (no supervisor, or its lease lapsed) the command
+runs in this process exactly as before.
 
 **Examples**:
 
     personalscraper run
+    personalscraper run --detach
     personalscraper run --dry-run
     personalscraper run --skip-trailers
     personalscraper run --continue-on-trailer-error
@@ -569,7 +582,15 @@ pass (rich `media_item` rows: title, canonical provider, seasons, artwork
 status, `item_issue` flags) as **pass 1**, then the recursive file walk
 (`media_file` / `media_stream` / `path` rows) as **pass 2**, inside a single
 invocation. No prior `library-scan` step is required (the legacy two-step
-"scan then index" workflow is gone).
+"scan then index" workflow is gone). Both passes walk every media folder present
+on a disk, whatever its `categories` (they only decide where new media go). A
+full run that reached its end then retires the ghost items — folder gone, files
+all tombstoned — of each mounted disk, unless more than 10 % of the disk's items
+would go (`docs/production/indexer.md` « Ghost items »); the summary lists them
+under `ghost_items` (with `--dry-run`, the ones that would go — a lower bound,
+`ghost_items_lower_bound: true`, since a dry run tombstones no file), the capped
+disks under `ghost_items_capped` and the disks whose ghost pass failed under
+`ghost_items_failed`.
 
 **Side effects**: `mutate BDD` (writes media_item, season, episode, item_attribute, media_file, path, scan_run, scan_event rows)
 
@@ -1135,6 +1156,102 @@ macOS `iterdir()` emitting NFD folder names)
     personalscraper library-dedup-titles --db /custom/path/library.db --apply
 
 **Related**: `library-index`
+
+---
+
+## `personalscraper library-merge-duplicate-items`
+
+**Purpose**: Merges the `media_item` rows that share one `dispatch_path`. One media
+folder is one work, but older builds split some folders in two: a re-dispatch stored
+the folder name with its year as the title, and the next scan missed it and inserted a
+second item. Each group keeps its oldest item (smallest `date_created`). Every child
+row of the others moves to the keeper before they are deleted: releases and their
+files (same-signature releases are folded into one), seasons and episodes (colliding
+numbers merged), attributes, issues, scan events and item repairs. Provider ids of both
+rows are kept, the keeper's title is made canonical, and each merged item leaves a
+`deleted_item` tombstone with reason `merged_duplicate`. A folder shared by two works
+is not a split: its group is skipped and reported — a movie and a show
+(`mixed_kinds`), two explicit years such as a remake and its original
+(`different_years`), or one provider naming two ids (`conflicting_provider_ids`). A
+group whose year-less keeper would take a year a third item already holds under the
+same title and kind is skipped too (`year_taken`), alone: the other groups still
+merge. The preview reports the same skips. Like its siblings it previews by default;
+`--apply` runs the merge in one transaction.
+
+**Side effects**: `read-only` (default), `mutate DB` (with `--apply`)
+
+**Pipeline position**: n/a (maintenance — run once after deploying the fix that stops
+the split)
+
+**Args**:
+
+- `--apply` : Merge the groups (default: list them and the item each merges into;
+  write nothing)
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `dry_run` (bool) — `true` without `--apply`
+- `groups` (list) — `dispatch_path`, `keeper_id`, `merged_ids`, `titles` per group
+- `skipped` (list) — `dispatch_path`, `ids`, `reason` (`mixed_kinds`, `different_years`,
+  `conflicting_provider_ids` or `year_taken`)
+- `titles_kept` (list) — `keeper_id`, `title`: keepers merged whose canonical title
+  another row already holds, so their drifted title stays (also logged as a warning)
+- `merged` / `would_merge` (int) — items merged (`would_merge` without `--apply`)
+
+**Examples**:
+
+    personalscraper --format json library-merge-duplicate-items
+    personalscraper --format json library-merge-duplicate-items --apply
+    personalscraper library-merge-duplicate-items --db /custom/path/library.db
+
+**Related**: `library-dedup-titles`, `library-index`
+
+---
+
+## `personalscraper library-retire-ghost-items`
+
+**Purpose**: Retires the `media_item` rows whose `dispatch_path` no longer exists
+(`docs/production/indexer.md` « Ghost items »). The full scan does the same under a
+10 % per-disk cap; this command lifts the cap to clear a backlog, and keeps every
+other guard: the disk is configured and its mount verified by its sentinel
+(`MOUNTED_AND_VERIFIED`), the folder is gone (`stat` answers not found), no file of
+the item is live, and no `pending` / `running` repair names the item, one of its
+releases or one of their files. Each retired item is hard-deleted after a
+`deleted_item` tombstone (`reason='dispatch_path_gone'`, JSON snapshot of the row),
+in one transaction per disk; each disk's report is written to stderr as it
+completes. It exits 1 when `--disk` names a disk the configuration does not hold, or
+when any disk's pass failed (the other disks' work stays done).
+
+**Side effects**: `read-only` (with `--dry-run`), `mutate DB` (otherwise)
+
+**Pipeline position**: n/a (maintenance)
+
+**Args**:
+
+- `--dry-run` : List the ghost items and why; write nothing
+- `--disk TEXT` : Only this disk label
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `dry_run` (bool)
+- `disks` (list) — per disk: `disk`, `frozen` (mount not verified or a folder
+  unreadable, nothing retired),
+  `disk_items`, `ghosts` (`item_id`, `title`, `kind`, `dispatch_path`, `reason`) and
+  `kept` (`item_id`, `dispatch_path`, `reason`: `live_files` or `pending_repair`)
+- `failed` (list) — `disk`, `error` for each disk whose pass failed and rolled back
+- `retired` / `would_retire` (int)
+
+**Examples**:
+
+    personalscraper --format json library-retire-ghost-items --dry-run
+    personalscraper --format json library-retire-ghost-items
+    personalscraper library-retire-ghost-items --disk medias1 --dry-run
+
+**Related**: `library-index`, `library-merge-duplicate-items`
 
 ---
 
@@ -1708,12 +1825,17 @@ that `mutate FS` + `mutate BDD` + `network`
 - `watch.debounce_s` (int) : Seconds to wait after a torrent completes before triggering a run [default: 900]
 - `watch.safety_net_hours` (int) : Maximum hours between pipeline runs — triggers a run regardless of torrent activity [default: 24]
 
+**Supervisor**: `personalscraper supervise` runs this same poll and also admits the queued runs (one worker at a
+time, under its lease); with it, a fired run is queued instead of spawned. `watch` stays as the rollback and is
+unchanged.
+The preprod's `personalscraper-preprod-watch` app runs `supervise`; prod's `personalscraper-watch` still runs `watch`.
+
 **Examples**:
 
     personalscraper watch
     personalscraper watch --interval 120
 
-**Related**: `watch-now`, `run`, `cross-seed`
+**Related**: `watch-now`, `run`, `supervise`, `cross-seed`
 
 ---
 
@@ -2115,7 +2237,8 @@ Records **who started the run** in the `pipeline_run` history table. Values:
 | `manual`     | a manually-labelled run                             |
 | `""` (empty) | default — unlabelled                                |
 
-Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`.
+Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`. With a live supervisor lease the
+value becomes the queued request's trigger (empty means `cli`).
 
 The web route also injects `PERSONALSCRAPER_RUN_UID=<hex>` into the subprocess
 environment so the `run_uid` returned by `POST /api/pipeline/run` equals the
@@ -2129,6 +2252,7 @@ run's history row (`run()` honours the env var, falling back to a fresh
 | `pipeline.pause` | While present, a running pipeline pauses **at the next step boundary** and polls until it is removed (or SIGTERM). Create/remove it manually to pause/resume a run without the web UI. |
 | `watcher.paused` | While present, the Watcher daemon no-ops (does not auto-start runs). Distinct from pausing a run in progress.                                                                          |
 | `pipeline.lock`  | Single trigger authority — holds the running pipeline's pid; `POST /api/pipeline/kill` reads it to SIGTERM the run.                                                                    |
+| `run_lease` (row of `app.db`) | The supervisor's authority: while it is live, a run starts only through the queue and `personalscraper run` follows it (`--detach` to leave). The worker still holds `pipeline.lock` for the run's lifetime. |
 
 Manual example — pause the current run, then resume:
 

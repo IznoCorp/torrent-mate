@@ -72,7 +72,7 @@ class TestLibraryIndexCommandAppContext:
         observed: list[str | None] = []
         capturing, _captured = _patches()
 
-        def _spy_orchestrator(**kwargs) -> int:  # type: ignore[no-untyped-def]  # noqa: ANN003
+        def _spy_orchestrator(**kwargs) -> int:  # type: ignore[no-untyped-def]
             observed.append(current_correlation_id.get())
             return 0
 
@@ -98,7 +98,7 @@ class TestLibraryIndexCommandAppContext:
         captured_kwargs: dict = {}
         capturing, _captured = _patches()
 
-        def _spy(**kwargs) -> int:  # type: ignore[no-untyped-def]  # noqa: ANN003
+        def _spy(**kwargs) -> int:  # type: ignore[no-untyped-def]
             captured_kwargs.update(kwargs)
             return 0
 
@@ -164,7 +164,7 @@ class TestLibraryIndexCommandBusPassThrough:
             mock_conn.execute.return_value.fetchall.return_value = []
             return mock_conn
 
-        def _spy_scan(request) -> ScanRunResult:  # type: ignore[no-untyped-def]  # noqa: ANN001
+        def _spy_scan(request) -> ScanRunResult:  # type: ignore[no-untyped-def]
             # library_index_command now builds a ScanRequest and calls
             # scan_with(request); capture the request to assert on its bus.
             scan_requests.append(request)

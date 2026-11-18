@@ -1150,7 +1150,27 @@
       "todoSortTitle": "Trier « À traiter »",
       "todoSortMeta": "L'urgence d'abord : ce qui attend votre jugement, puis ce qui repart seul, puis ce qui est clos.",
       "todoFilterCount_one": "{{count}} carte",
-      "todoFilterCount_other": "{{count}} cartes"
+      "todoFilterCount_other": "{{count}} cartes",
+      "nowFilter": {
+        "all": "Tout",
+        "series": "Séries",
+        "movies": "Films"
+      },
+      "nowFilterTitle": "Afficher dans « En cours »",
+      "nowFilterMeta": "Les séries et les films en route, avec leur nombre.",
+      "nowFilterEmpty": "Aucune acquisition en cours ne correspond.",
+      "nowFilterCount_one": "{{count}} acquisition",
+      "nowFilterCount_other": "{{count}} acquisitions",
+      "nowSort": {
+        "queue": "Ordre de la file",
+        "progress": "Avancement",
+        "az": "A → Z",
+        "za": "Z → A"
+      },
+      "nowSortTitle": "Trier « En cours »",
+      "nowSortMeta": "L'ordre de la file d'abord, tel que le moteur le sert ; « Avancement » met en tête ce qui est le plus près d'arriver.",
+      "nowSearchLabel": "Filtrer les acquisitions en cours",
+      "todoSearchLabel": "Filtrer les cartes à traiter"
     },
     "accountPage": {
       "install": {
@@ -1183,6 +1203,39 @@
       "identifierSub": "défini dans la configuration, pas ici",
       "address": "Adresse e-mail",
       "session": "Votre session",
+      "sessions": {
+        "heading": "Appareils connectés",
+        "intro": "Les sessions ouvertes sur votre compte. Une session que vous ne reconnaissez pas : mettez-y fin, elle sera refusée dès sa prochaine requête.",
+        "loading": "Lecture de vos sessions…",
+        "loadFailed": "Vos sessions ne peuvent pas être lues pour le moment.",
+        "retry": "Réessayer",
+        "unknownDevice": "Appareil inconnu",
+        "current": "Cet appareil",
+        "lastSeen": "Dernière activité {{moment}}",
+        "onlyCurrent": "Aucune autre session n'est ouverte sur votre compte.",
+        "end": "Mettre fin",
+        "ending": "Fin en cours…",
+        "held": "Hors connexion : la fin de cette session partira au retour du réseau.",
+        "refused": "Cette session n'a pas pu être fermée.",
+        "confirm": {
+          "heading": "Mettre fin à cette session ?",
+          "bodyBefore": "La session de ",
+          "bodyAfter": " sera fermée à l'instant : sa prochaine requête sera refusée et son titulaire devra se reconnecter.",
+          "confirm": "Mettre fin à la session",
+          "cancel": "Annuler"
+        },
+        "notices": {
+          "heading": "Connexions récentes",
+          "loading": "Lecture de vos connexions…",
+          "loadFailed": "Vos connexions ne peuvent pas être lues pour le moment.",
+          "held": "Hors connexion : le marquage partira au retour du réseau.",
+          "new": "Nouveau",
+          "markAll": "Tout marquer comme lu",
+          "marking": "Marquage…",
+          "markFailed": "Les connexions n'ont pas pu être marquées comme lues.",
+          "none": "Aucune connexion récente à signaler."
+        }
+      },
       "duration": "Durée",
       "durationValue": "30 jours",
       "durationSub": "sans utilisation — chaque usage la prolonge",
@@ -1378,6 +1431,7 @@
       "reasonDisabled": "Accès désactivé par un administrateur.",
       "plex": "Se connecter avec Plex",
       "plexUnreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",
+      "showPassword": "Afficher le mot de passe",
       "usePassword": "Utiliser un mot de passe",
       "invalid": "Identifiants invalides",
       "email": "Adresse e-mail",
@@ -1572,6 +1626,36 @@
         "heading": "Cross-seed, tracker par tracker",
         "origin": "{{name}} — l'original, sur {{tracker}}"
       }
+    },
+    "devLots": {
+      "title": "Avancement des lots",
+      "back": "Retour",
+      "updated": "Mis à jour {{moment}}",
+      "errorSubject": "l'avancement des lots",
+      "unavailable": "Aucun avancement n'est publié sur cet hôte.",
+      "noLots": "Aucun lot n'est défini.",
+      "blockedBy": "Bloqué : {{reason}}",
+      "phases_one": "{{count}} phase",
+      "phases_other": "{{count}} phases",
+      "pr": "PR #{{number}}",
+      "state": {
+        "planned": "Prévue",
+        "in-progress": "En cours",
+        "pr-open": "PR ouverte",
+        "merged": "Fusionnée"
+      },
+      "dispatch": {
+        "in-flight": "en cours d'écriture",
+        "in-review": "en relecture",
+        "ready-unarmed": "prête, non armée",
+        "armed": "armée",
+        "unknown": "état inconnu"
+      },
+      "dates": "{{start}} → {{end}}",
+      "datesFrom": "{{start}} →",
+      "datesUntil": "→ {{end}}",
+      "datesEstimated": "≈ {{dates}}",
+      "duration": "Durée : {{duration}}"
     }
   },
   "surfaces": {
@@ -2038,7 +2122,10 @@
         "bodyFollow": " Le suivi continue : une autre release sera cherchée.",
         "confirm": "Mettre en quarantaine",
         "cancel": "Annuler",
-        "done": "« {{title}} » mis en quarantaine : {{path}}"
+        "done": "« {{title}} » mis en quarantaine : {{path}}",
+        "refused": "La mise en quarantaine a été refusée : le dossier n'a pas bougé.",
+        "held": "Hors connexion : la mise en quarantaine de « {{title}} » partira au retour du réseau, le dossier n'a pas bougé.",
+        "failed": "Le réseau n'a pas répondu : « {{title}} » n'a pas été mis en quarantaine."
       },
       "deleteStaged": {
         "heading": "Supprimer « {{title}} » du disque ?",
@@ -2049,11 +2136,17 @@
         "caseUnknown": "qBittorrent n'a pas répondu : ce dossier est traité comme le seul exemplaire.",
         "confirm": "Supprimer",
         "cancel": "Annuler",
-        "done": "« {{title}} » supprimé du disque."
+        "done": "« {{title}} » supprimé du disque.",
+        "refused": "La suppression a été refusée : le dossier est toujours sur le disque.",
+        "held": "Hors connexion : la suppression de « {{title}} » partira au retour du réseau, le dossier est toujours sur le disque.",
+        "failed": "Le réseau n'a pas répondu : le dossier est toujours sur le disque."
       },
       "left": "« {{title}} » mis de côté — il vous attend, replié en fin d'« À traiter ».",
       "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque.",
-      "closureSeenRefused": "« {{title}} » n'a pas pu être marqué comme vu : sa carte reste dans « À traiter »."
+      "closureSeenRefused": "« {{title}} » n'a pas pu être marqué comme vu : sa carte reste dans « À traiter ».",
+      "held": "Hors connexion : l'action est gardée et partira au retour du réseau.",
+      "failed": "Le réseau n'a pas répondu : l'action n'a pas été faite.",
+      "refused": "Le serveur a refusé : l'action n'a pas été faite."
     },
     "media": {
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",
@@ -2314,7 +2407,9 @@
   "refusals": {
     "request": {
       "invalid": "La demande est mal formée : rien n'a été changé.",
-      "cross_origin": "Demande refusée : elle ne vient pas de cette interface."
+      "cross_origin": "Demande refusée : elle ne vient pas de cette interface.",
+      "key_reused": "Demande refusée : son identifiant a déjà servi à une autre action.",
+      "in_progress": "Cette action est encore en cours sur le serveur : elle sera renvoyée."
     },
     "route": {
       "unknown": "Cette action n'existe pas sur ce serveur."
@@ -2385,6 +2480,10 @@
       "locked": "Le pipeline est en cours : la médiathèque ne se modifie pas pendant qu'il tourne. Réessayez à la fin de l'exécution.",
       "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'est supprimé tant qu'on ne sait pas ce qu'un tracker attend encore.",
       "unavailable": "La médiathèque est indisponible : le serveur ne peut pas la lire pour le moment. Réessayez dans un instant."
+    },
+    "session": {
+      "unknown": "Cette session n'existe plus ou n'est pas la vôtre.",
+      "current": "Cette session est celle que vous utilisez : déconnectez-vous pour la fermer."
     }
   },
   "push": {
@@ -2457,6 +2556,18 @@
         "title": "Service injoignable",
         "body": "{{service}} ne répond plus."
       }
+    },
+    "account": {
+      "sign_in": {
+        "device": {
+          "title": "Nouvelle connexion",
+          "body": "Votre compte vient d'être ouvert sur {{device}}. Si ce n'est pas vous, mettez fin à cette session dans votre Profil."
+        },
+        "unknown_device": {
+          "title": "Nouvelle connexion",
+          "body": "Votre compte vient d'être ouvert sur un appareil inconnu. Si ce n'est pas vous, mettez fin à cette session dans votre Profil."
+        }
+      }
     }
   },
   "notifications": {
@@ -2514,6 +2625,20 @@
           "label": "Service injoignable",
           "description": "Un fournisseur ou un service ne répond plus."
         }
+      },
+      "account": {
+        "sign_in": {
+          "label": "Nouvelle connexion",
+          "description": "Une connexion par Plex ouvre une nouvelle session sur votre compte."
+        }
+      }
+    }
+  },
+  "notices": {
+    "account": {
+      "sign_in": {
+        "device": "Nouvelle connexion sur {{device}}.",
+        "unknown_device": "Nouvelle connexion sur un appareil inconnu."
       }
     }
   },

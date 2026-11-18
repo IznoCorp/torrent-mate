@@ -121,10 +121,10 @@ def test_grab_only_walks_available_items(store: ConcreteAcquireStore) -> None:
         item: WantedItem,
         profile: object,
         *,
-        on_intent: "Callable[[str], None] | None" = None,
+        on_intent: Callable[[str], None] | None = None,
         exclude_hashes: object = frozenset(),
     ) -> GrabOutcome:
-        assert item.id is not None  # noqa: S101
+        assert item.id is not None
         grabbed_ids.append(item.id)
         return GrabOutcome(disposition="success", info_hash="h", found=3)
 
@@ -234,7 +234,7 @@ def test_grab_failure_reason_is_persisted_on_the_row(store: ConcreteAcquireStore
 
     _service(store, orch).run()
 
-    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
+    row = store.wanted._conn.execute(  # persistence pin on the real column
         "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
     ).fetchone()
     assert row is not None
@@ -292,9 +292,7 @@ def test_a_vanished_candidate_is_not_called_a_grab_failure(store: ConcreteAcquir
 
     _service(store, orch).run()
 
-    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
-        "SELECT last_grab_reason FROM wanted WHERE id = ?", (rowid,)
-    ).fetchone()
+    row = store.wanted._conn.execute("SELECT last_grab_reason FROM wanted WHERE id = ?", (rowid,)).fetchone()
     assert row is not None
     assert row[0] is None
 
@@ -310,7 +308,7 @@ def test_a_new_grab_attempt_supersedes_the_previous_failure(store: ConcreteAcqui
 
     assert store.wanted.claim_for_grab(rowid, _PINNED_NOW) is True
 
-    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
+    row = store.wanted._conn.execute(  # persistence pin on the real column
         "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
     ).fetchone()
     assert row is not None
@@ -330,7 +328,7 @@ def test_grab_success_clears_the_failure_reason(store: ConcreteAcquireStore) -> 
 
     _service(store, orch).run()
 
-    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
+    row = store.wanted._conn.execute(  # persistence pin on the real column
         "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
     ).fetchone()
     assert row is not None

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import contract from "../../../../../contract/openapi.json";
 import { NOTIFICATION_RIGHTS } from "./notifications";
 
-type TypeSchema = { enum: string[]; "x-rights": Record<string, string> };
+type TypeSchema = { enum: string[]; "x-rights": Record<string, string | null> };
 const schema = (contract as unknown as { components: { schemas: Record<string, TypeSchema> } })
   .components.schemas.NotificationType;
 

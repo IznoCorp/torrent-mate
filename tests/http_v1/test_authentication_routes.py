@@ -21,9 +21,9 @@ from fastapi import Response
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.avatar import GRAVATAR_SIZE
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.services import AppServices
@@ -51,7 +51,7 @@ def _production(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch: Pytest's monkeypatch fixture.
     """
     monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
 
 
 def _services(client: TestClient) -> AppServices:
@@ -115,7 +115,7 @@ class TestReadAccount:
         """
         configured_language("en")
         client = v1_client(role="household")
-        role = _services(client).app_store.accounts.role("household")
+        role = _services(client).app_store.roles.role("household")
         assert role is not None
 
         response = client.get("/auth/me")
@@ -144,7 +144,7 @@ class TestReadAccount:
         (foreign keys OFF) reaches it.
         """
         client = v1_client()
-        db_path = _services(client).app_store._db_path  # noqa: SLF001 — the test writes the file itself
+        db_path = _services(client).app_store._db_path  # the test writes the file itself
         conn = sqlite3.connect(db_path)
         try:
             conn.execute("DELETE FROM role WHERE id = 'household'")
@@ -196,14 +196,14 @@ class TestReadAccount:
     def test_an_account_with_no_email_and_no_link_has_no_avatar(self, v1_client: Callable[..., TestClient]) -> None:
         """Neither source: the property is absent, and the interface draws the initial."""
         client = v1_client()
-        conn = _services(client).app_store.accounts._conn  # noqa: SLF001 — no repository method blanks an e-mail
+        conn = _services(client).app_store.accounts._conn  # no repository method blanks an e-mail
         conn.execute("UPDATE account SET email = ''")
         assert "avatar" not in client.get("/auth/me").json()
 
     def test_the_stored_avatar_column_is_not_the_source(self, v1_client: Callable[..., TestClient]) -> None:
         """One place decides: a value left in ``account.avatar`` never outranks the resolution."""
         client = v1_client(server_access="owner")
-        conn = _services(client).app_store.accounts._conn  # noqa: SLF001 — no repository method sets an avatar
+        conn = _services(client).app_store.accounts._conn  # no repository method sets an avatar
         conn.execute("UPDATE account SET avatar = 'https://example.invalid/stale.png'")
         assert client.get("/auth/me").json()["avatar"] == "https://plex.tv/users/uuid-1/avatar"
 
@@ -275,7 +275,7 @@ def _seed_password_account(client: TestClient, email: str = "local@example.org")
     """
     account_id = f"account-{email.split('@')[0]}"
     _services(client).app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id=account_id,
             name="Local",
             email=email,
@@ -394,7 +394,7 @@ class TestSignIn:
         client = v1_client(role=None)
         account_id = _seed_password_account(client)
         _services(client).app_store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id=account_id,
                 plex_id=7,
                 plex_uuid="uuid-7",
@@ -669,7 +669,7 @@ class TestSetOwnLanguage:
         client = v1_client(role="household")
         repo = _services(client).app_store.accounts
         repo.insert_account(
-            AccountRow(
+            Account(
                 id="account-other",
                 name="Other",
                 email="other@example.org",
@@ -748,7 +748,7 @@ class TestCookie:
         store = AppStore(tmp_path / "app.db")
         try:
             store.accounts.insert_account(
-                AccountRow(
+                Account(
                     id="account-ttl",
                     name="TTL",
                     email="ttl@example.org",
@@ -759,7 +759,7 @@ class TestCookie:
                     updated_at=1.0,
                 )
             )
-            sessions = SessionService(lambda: store.accounts, idle_days=web.session_idle_days, clock=lambda: 1_000.0)
+            sessions = SessionService(store, idle_days=web.session_idle_days, clock=lambda: 1_000.0)
             sessions.open("account-ttl", user_agent=None)
             conn = sqlite3.connect(tmp_path / "app.db")
             try:

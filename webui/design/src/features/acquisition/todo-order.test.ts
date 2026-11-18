@@ -54,3 +54,16 @@ describe("causeOf and todoCounts", () => {
     expect(todoCounts(ALL)).toEqual({ all: 5, resolve: 1, plex: 0, step: 1, disks: 1, ratio: 1, unreachable: 0, closed: 1 });
   });
 });
+
+describe("the search typed in the zone", () => {
+  it("narrows the cards by name, case and accents ignored, under the filter in force", () => {
+    expect(titles(orderTodo(ALL, "all", "urgency", "  DUN"))).toEqual(["Dune"]);
+    expect(titles(orderTodo(ALL, "disks", "urgency", "u"))).toEqual([]);
+    expect(titles(orderTodo(ALL, "disks", "urgency", "sil"))).toEqual(["Silo"]);
+  });
+  it("counts each cause with the search applied", () => {
+    expect(todoCounts(ALL, "u").all).toBe(3);
+    expect(todoCounts(ALL, "du").ratio).toBe(1);
+    expect(todoCounts(ALL, "du").disks).toBe(0);
+  });
+});

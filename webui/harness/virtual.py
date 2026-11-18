@@ -522,18 +522,63 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     # THE MEASURED ROW'S INDEX, derived from the window's own leading spacer
     # rather than from the scroll: the spacer stands in for every row above the
     # window, so its height over one row's pitch IS the first drawn index.
-    drawn = await page.evaluate("""({ row, pitch }) => {
+    # A TITLE IS NOT A ROW. The fixture holds two media called « RoboCop » (1987,
+    # 2014) and two « Doctor Who »; the checks below read the screen by title, so
+    # a measured row with a twin leaves the twin drawn after a delete that went
+    # right — which is the CI red « 'RoboCop' gone after the answer: False »,
+    # whenever the fling happens to stop the window on one of them. The measured
+    # row is therefore the drawn row nearest the middle whose title the library
+    # holds ONCE, counted from the layer's own listing and not typed into this rule.
+    #
+    # A TITLE HELD ONCE IS NOT YET A ROW THE LAYER WILL DELETE. The delete names a
+    # medium by its identity, and the layer refuses an identity two rows hold
+    # (`media.ambiguous`, 409, nothing goes — O-5 B). The fixture gives the film
+    # « Bob l'éponge - Le film Un héros sort de l'eau » and the series « Bob
+    # l'éponge » the same tmdb and imdb ids, so the film's title is unique and
+    # its identity is not: measured there, the offline half passes (the request
+    # never leaves the browser) and the online half waits five seconds for a row
+    # the refusal kept — « gone after the answer: False » — on the runs where the
+    # fling happens to stop the window on it, and on no other. The rows that
+    # qualify therefore carry a title held once AND every identity held once.
+    held_once = await page.evaluate("""async () => {
+      const titles = {};
+      const identities = {};
+      const rows = [];
+      for (let page = 0; ; page += 1) {
+        const answer = await (await fetch(`/api/v1/library/items?page=${page}`)).json();
+        if (!answer.items.length) break;
+        for (const item of answer.items) {
+          rows.push(item);
+          titles[item.title] = (titles[item.title] || 0) + 1;
+          for (const [provider, id] of Object.entries(item.ids || {})) {
+            const key = `${provider}:${id}`;
+            identities[key] = (identities[key] || 0) + 1;
+          }
+        }
+      }
+      return rows.filter((item) => titles[item.title] === 1
+        && Object.entries(item.ids || {}).every(([provider, id]) => identities[`${provider}:${id}`] === 1))
+        .map((item) => item.title);
+    }""")
+    drawn = await page.evaluate("""({ row, pitch, once }) => {
       const container = document.querySelector('#libitems');
       const spacer = container && container.querySelector('[data-part="window/spacer"]');
       const above = spacer ? Math.round(spacer.getBoundingClientRect().height / pitch) : 0;
       const items = [...document.querySelectorAll(row)];
-      const at = Math.floor(items.length / 2);
-      const title = items[at] && items[at].querySelector('[data-part="card/title"]');
+      const titled = items.map((item) => {
+        const node = item.querySelector('[data-part="card/title"]');
+        return node ? node.textContent.trim() : null;
+      });
+      const middle = Math.floor(items.length / 2);
+      const candidates = titled.map((title, index) => index)
+        .filter((index) => titled[index] !== null && once.includes(titled[index]))
+        .sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle));
+      const at = candidates.length ? candidates[0] : middle;
       return { count: items.length,
                at: above + at,
-               title: title ? title.textContent.trim() : null,
+               title: candidates.length ? titled[at] : null,
                scrolled: document.querySelector('#port').scrollTop };
-    }""", {"row": ROW, "pitch": ROW_PITCH})
+    }""", {"row": ROW, "pitch": ROW_PITCH, "once": held_once})
     journal.check(
         "the row measured is BEYOND the first page — the whole subject of this "
         "hold, and a scroll offset is not that check",
@@ -930,9 +975,17 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
     await page.evaluate("()=>{document.querySelector('#port').scrollTop = 300;}")
     await page.wait_for_timeout(500)
     barely = await visible(ROW)
-    await page.click('[data-selmode="1"]')
+    # DRIVEN BY SCRIPT, NOT BY A CLICK THE DRIVER AIMS. At 300px the mode control
+    # is 66px above the port (it scrolls away with the library's head), so
+    # Playwright's click scrolls the port to 0 to reach it — the reader is moved
+    # by the driver before the mode toggles, and what the round trip then
+    # restores depends on whether the place observer had recorded the row before
+    # or after that jump: 189px (inside one pitch, a pass) on a quiet machine, 0px
+    # (the red) when the observer lagged under load. The place is the subject of
+    # this check, so the driver must not move it.
+    await page.evaluate("()=>document.querySelector('[data-selmode=\"1\"]').click()")
     await page.wait_for_timeout(600)
-    await page.click('[data-selmode="0"]')
+    await page.evaluate("()=>document.querySelector('[data-selmode=\"0\"]').click()")
     await page.wait_for_timeout(700)
     barely_after = await visible(ROW)
     # THE TITLE ALONE CANNOT DECIDE THIS ONE, and that is why it is read with a

@@ -34,6 +34,12 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# The engine refuses to run with no environment named (an unset PERSONALSCRAPER_ENV is
+# never read as prod). CI's hermetic config is unmarked, which only prod accepts; pytest
+# pins it in tests/conftest.py, and this covers every other step (make openapi, scripts).
+env:
+  PERSONALSCRAPER_ENV: prod
+
 # ── The draft gate ────────────────────────────────────
 # A draft pull request costs no runner minute: EVERY job carries the same
 # condition, so a draft dispatches a run whose jobs all report `skipped` and
@@ -89,7 +95,7 @@ jobs:
       # `personalscraper/**` is not in the `python` and `frontend_app` filters
       # below: it is read by the `package` filter of the next step, and joined
       # to both in the job outputs.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filtre
         if: github.event_name == 'pull_request'
         with:
@@ -99,16 +105,22 @@ jobs:
               - 'scripts/**'
               - 'config.example/**'
               - 'pyproject.toml'
+              - 'uv.lock'
               - 'Makefile'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             deps:
               - 'pyproject.toml'
+              - 'uv.lock'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             frontend_app:
               - 'frontend/**'
               - 'contract/openapi.generated.json'
               - 'pyproject.toml'
+              - 'uv.lock'
               - '.github/workflows/ci.yml'
+              - '.github/actions/locked-install/**'
             maquette:
               - 'webui/**'
               - 'contract/**'
@@ -134,7 +146,7 @@ jobs:
       #   not a second one that can drift from it.
       # `webui/**` is NOT a frontend-app change, and no `frontend_app` pattern
       # matches it: the maquette has its own steps, gated by the `maquette` output.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: refine
         if: github.event_name == 'pull_request'
         with:
@@ -157,19 +169,16 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-3.12-
-      - run: pip install ruff
+      # `--locked` already refuses a drifted lock at install; this names the failure on its own line.
+      - run: uv lock --check
         if: needs.changes.outputs.python == 'true'
       - run: ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
         if: needs.changes.outputs.python == 'true'
@@ -188,8 +197,8 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
@@ -214,21 +223,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.python == 'true'
-        with:
-          path: |
-            .venv/
-            .mypy_cache
-          key: venv-mypy-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-mypy-${{ runner.os }}-3.12-
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
       - run: mypy personalscraper/
         if: needs.changes.outputs.python == 'true'
@@ -240,10 +241,10 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         id: cache-gitleaks
         with:
           path: ~/.local/bin/gitleaks
@@ -272,19 +273,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.deps == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.deps == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      - run: pip install -e . pip-licenses
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.deps == 'true'
       - if: needs.changes.outputs.deps == 'true'
         run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
@@ -302,24 +297,18 @@ jobs:
     env:
       PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.python == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
       # RAR extractor backend for the DEV #1 golden-fixture extraction test
       # (rarfile shells out to it). `unar` is in ubuntu main; without it the
       # real-extraction test skips instead of asserting the happy path (COV-4).
       - run: sudo apt-get update && sudo apt-get install -y unar
         if: needs.changes.outputs.python == 'true'
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
       # The renaming tool reads JS/TS through `scripts/source-spans.mjs`, which
       # requires `webui/design/node_modules/typescript`. Without it, 13 of the 16
@@ -329,7 +318,7 @@ jobs:
       # machine that happens to have run `npm ci`. Installing the ONE package
       # into an empty prefix keeps this to seconds instead of the
       # maquette's full dependency tree (same version as its lockfile).
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.python == 'true'
         with:
           node-version: "22"
@@ -361,7 +350,7 @@ jobs:
       # (v4 silently skips dotfiles by default).
       - run: mv .coverage coverage.dat
         if: needs.changes.outputs.python == 'true'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.changes.outputs.python == 'true'
         with:
           name: coverage
@@ -375,24 +364,15 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.deps == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.deps == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      # Upgrade pip itself first — the runner ships pip 26.0.1 which carries
-      # CVE-2026-6357 (fixed in 26.1). Auditing with the upgraded pip removes
-      # the finding entirely instead of suppressing it.
-      - run: python -m pip install --upgrade "pip>=26.1"
-        if: needs.changes.outputs.deps == 'true'
-      - run: pip install -e . pip-audit
+      # The audited environment is the lock's: it carries pip >= 26.1 (the runner's
+      # 26.0.1 has CVE-2026-6357), so the finding is gone without suppressing it.
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.deps == 'true'
       # CVE-2026-3219 affects pip; no fix released yet. Ignore until upstream patch.
       # TODO(security): remove --ignore-vuln CVE-2026-3219 once pip ships a fix.
@@ -408,9 +388,9 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           node-version: "22"
@@ -420,6 +400,7 @@ jobs:
           cache-dependency-path: |
             frontend/package-lock.json
             webui/design/package-lock.json
+            webui/design/tools/contract-types/package-lock.json
       # lint:tokens greps with ripgrep; without it the guard used to silently
       # no-op (`rg: command not found` swallowed by `|| true`, 2026-07-15).
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
@@ -439,6 +420,25 @@ jobs:
       - run: npm test -- --run
         if: needs.changes.outputs.maquette == 'true'
         working-directory: webui/design
+      # THE BUILD THAT SHIPS (`--mode app`): no mock layer, no harness, no phone frame.
+      # Built on every change to what it is built from, and read by the check that
+      # refuses any of the three in the bundle — the switchover's subtraction, proven
+      # on each pull request instead of on the day.
+      - run: npm run build:app
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      - run: npm run check:app-bundle
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      # The contract's types, regenerated and refused on any difference: the proof
+      # the size and vocabulary guards' exemption of `contract/types.d.ts` rests on.
+      # The generator is locked apart (`tools/contract-types`): it peers TypeScript 5,
+      # the maquette runs TypeScript 7.
+      - run: npm ci --prefix tools/contract-types
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: webui/design
+      - run: make check-contract-types
+        if: needs.changes.outputs.maquette == 'true'
       - run: npm run lint
         if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
@@ -453,11 +453,11 @@ jobs:
         working-directory: frontend
       # Python for the OpenAPI export below, and for the conformance test at the end,
       # which a contract-only (maquette) change must run too.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
       # config-home (#326): the live config left the repo (config/ untracked, canonical at
       # ~/.torrentmate/config). CI boots the app for OpenAPI generation against the tracked
@@ -480,6 +480,46 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
+
+  # The built client against a seeded v1 server, in a browser: every operation the
+  # client asks of v1 is answered by v1 itself (tests/app_e2e, one file per surface).
+  # It reads both ends, so a change to either runs it.
+  app-e2e:
+    name: app-e2e
+    runs-on: ubuntu-latest
+    needs: [changes, lint, typecheck]
+    if: >-
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
+    steps:
+      - uses: actions/checkout@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - uses: actions/setup-node@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: webui/design/package-lock.json
+      - run: npm ci
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        working-directory: webui/design
+      - run: npm run build:app
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        working-directory: webui/design
+      - uses: actions/setup-python@v7
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+        with:
+          python-version: "3.12"
+      - uses: ./.github/actions/locked-install
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      # The browser driver is the `e2e` extra, pinned in uv.lock like the rest; --locked fails when the
+      # lock and pyproject.toml disagree. Only the browser itself is fetched outside the lock.
+      - run: uv sync --locked --python 3.12 --extra dev --extra e2e
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - run: python -m playwright install --with-deps chromium
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
+      - run: python -m pytest -m app_e2e tests/app_e2e -q --no-header
+        if: needs.changes.outputs.maquette == 'true' || needs.changes.outputs.python == 'true'
 
   # ── Stage 3: Coverage gate + upload ───────────────────
   coverage-merge:
@@ -510,15 +550,15 @@ jobs:
     # show `lint` red, `test` skipped, and coverage-merge green-and-idle rather
     # than red-and-misleading.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           name: coverage
@@ -534,12 +574,17 @@ jobs:
           THRESHOLD=$(python3 scripts/get_coverage_threshold.py)
           coverage report --fail-under="${THRESHOLD}"
           coverage xml -o coverage.xml
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
+          # A run without the token (Dependabot's secret store is separate, and
+          # forks get none) is refused by Codecov on a protected branch; that
+          # refusal must not fail the job. Codecov's `fail_ci_if_error` input
+          # ("fail the CI build if Codecov runs into an error during upload")
+          # is therefore true only when the token is present.
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
       - name: Verify fail_under is monotonic against base ref
         if: needs.changes.outputs.python == 'true' && needs.test.result == 'success' && github.event_name == 'pull_request'
         env:
@@ -567,19 +612,13 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
-        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
-        with:
-          path: .venv/
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: venv-${{ runner.os }}-3.12-
-      - run: pip install -e ".[dev]"
+      - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
       - name: Map freshness check
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'

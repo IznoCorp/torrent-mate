@@ -1192,6 +1192,87 @@ class TestCollectRescrapeCandidates:
             result = _collect_rescrape_candidates(config, MagicMock(), None, "other_cat")
         assert result == []
 
+    @staticmethod
+    def _frozen_disk_config(tmp_path: Path) -> Config:
+        """Build a two-disk Config whose second disk is frozen to audiobooks.
+
+        The second disk takes no new media but still holds series whose new
+        episodes land there, as Medias2 does in production.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            A populated Config instance.
+        """
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[
+                DiskConfig(id="medias1", path=tmp_path / "medias1", categories=["tv_shows"]),
+                DiskConfig(id="medias2", path=tmp_path / "medias2", categories=["audiobooks"]),
+            ],
+            categories={
+                "tv_shows": CategoryConfig(folder_name="series"),
+                "audiobooks": CategoryConfig(folder_name="audiobooks"),
+            },
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+
+    def test_db_path_takes_the_disk_from_the_dispatch_attribute(self, tmp_path: Path) -> None:
+        """A show on the frozen disk is labelled with that disk and kept by its --disk filter.
+
+        Mapping the disk by category put it on the first disk accepting its
+        category: a plain run mislabelled it and ``--disk medias2`` dropped it.
+        """
+        from personalscraper.indexer.schema import ItemAttributeRow
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._frozen_disk_config(tmp_path)
+        media_dir = tmp_path / "medias2" / "series" / "Show (2020)"
+        media_dir.mkdir(parents=True)
+        item_row = MagicMock()
+        item_row.id = 7
+        item_row.kind = "show"
+        item_row.category_id = "tv_shows"
+
+        with (
+            patch(
+                "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+                return_value=[(item_row, str(tmp_path / "medias2"), "series/Show (2020)")],
+            ),
+            patch(
+                "personalscraper.indexer.repos.item_repo.get_attr",
+                return_value=ItemAttributeRow(item_id=7, key="dispatch_disk", value="medias2"),
+            ),
+        ):
+            plain = _collect_rescrape_candidates(config, MagicMock(), None, None)
+            filtered = _collect_rescrape_candidates(config, MagicMock(), "medias2", None)
+            other = _collect_rescrape_candidates(config, MagicMock(), "medias1", None)
+
+        assert [(path, disk_id) for path, _t, disk_id, _c, _e in plain] == [(media_dir, "medias2")]
+        assert [(path, disk_id) for path, _t, disk_id, _c, _e in filtered] == [(media_dir, "medias2")]
+        assert other == []
+
+    def test_walk_reaches_a_category_folder_the_disk_does_not_accept(self, tmp_path: Path) -> None:
+        """The filesystem walk finds the series of a disk frozen to audiobooks."""
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._frozen_disk_config(tmp_path)
+        (tmp_path / "medias1").mkdir()
+        (tmp_path / "medias2" / "series" / "Show (2020)").mkdir(parents=True)
+        (tmp_path / "medias2" / "audiobooks" / "Book").mkdir(parents=True)
+
+        candidates = _collect_rescrape_candidates(config, None, "medias2", None)
+
+        assert [(path.name, media_type, disk_id, cat_id) for path, media_type, disk_id, cat_id, _e in candidates] == [
+            ("Show (2020)", "tvshow", "medias2", "tv_shows")
+        ]
+
 
 class TestRescrapeLibraryOrchestrator:
     """End-to-end orchestrator tests for rescrape_library, using mocked components."""
@@ -1796,6 +1877,100 @@ class TestRescrapeLibraryItemIdThreading:
         # item_id must have been forwarded — check keyword or positional
         assert _call_kwargs.kwargs.get("item_id") == 42 or (len(_call_kwargs.args) >= 5 and _call_kwargs.args[4] == 42)
 
+    def _conforming_movie(self, tmp_path: Path) -> Path:
+        """Create a movie folder the detectors find whole: video, complete NFO and poster.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            Path to the prepared movie directory.
+        """
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">42</uniqueid></movie>')
+        (movie / "Movie-poster.jpg").write_bytes(b"\x00" * 100)
+        return movie
+
+    def _run_item(
+        self, tmp_path: Path, movie: Path, *, only: str | None, item_id: int | None = 1
+    ) -> tuple[object, MagicMock]:
+        """Rescrape *movie* live as one targeted item, its NFO writer and TMDB mocked.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+            movie: The movie folder the item resolves to.
+            only: The ``only`` filter forwarded to ``rescrape_library``.
+            item_id: The targeted item, or ``None`` for a library-wide run.
+
+        Returns:
+            The run's result and the mocked NFO generator instance.
+        """
+        from personalscraper.maintenance.rescraper import rescrape_library
+
+        tmdb = MagicMock()
+        tmdb.get_movie.return_value = {"id": 42, "title": "Movie"}
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper._collect_rescrape_candidates",
+                return_value=[(movie, "movie", "disk1", "movies", None)],
+            ),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator") as nfo_cls,
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+            patch("personalscraper.scraper.mediainfo.extract_stream_info", return_value=None),
+        ):
+            result = rescrape_library(
+                self._config(tmp_path),
+                item_id=item_id,
+                only=only,
+                dry_run=False,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=tmdb, tvdb=MagicMock()),
+            )
+        return result, nfo_cls.return_value
+
+    def test_item_id_regenerates_a_conforming_nfo(self, tmp_path: Path) -> None:
+        """A targeted item is rescraped even when its folder already conforms.
+
+        The item-id path asks the providers again: the NFO is rewritten and the item
+        counted fixed. Before, the folder detectors found nothing to repair, the item
+        was dropped as « already OK » and the run reported success with total 0.
+        """
+        from personalscraper.maintenance.rescraper import ACTION_NFO_REGENERATED
+
+        result, nfo_gen = self._run_item(tmp_path, self._conforming_movie(tmp_path), only=None)
+
+        assert (result.fixed_count, result.skipped_count, result.error_count) == (1, 0, 0)
+        assert result.items[0].actions_taken == [ACTION_NFO_REGENERATED]
+        nfo_gen.write_nfo.assert_called_once()
+
+    def test_item_id_with_nothing_to_do_is_counted_skipped(self, tmp_path: Path) -> None:
+        """A targeted item the ``only`` filter leaves nothing to do is named, never dropped.
+
+        ``only="artwork"`` keeps the poster detector, and the poster is there: the item
+        is reported skipped as already conforming, so the run's total is never 0 for
+        the one item it was given.
+        """
+        from personalscraper.maintenance.rescraper import SKIP_ALREADY_OK
+
+        result, nfo_gen = self._run_item(tmp_path, self._conforming_movie(tmp_path), only="artwork")
+
+        assert (result.fixed_count, result.skipped_count, result.error_count) == (0, 1, 0)
+        assert result.items[0].actions_skipped == [SKIP_ALREADY_OK]
+        nfo_gen.write_nfo.assert_not_called()
+
+    def test_library_wide_run_skips_a_conforming_movie(self, tmp_path: Path) -> None:
+        """Without ``item_id`` a conforming folder is left alone, its NFO never rewritten.
+
+        Only the targeted path forces a rescrape; a library-wide run that forced every
+        folder would rewrite each conforming NFO.
+        """
+        result, nfo_gen = self._run_item(tmp_path, self._conforming_movie(tmp_path), only=None, item_id=None)
+
+        assert result.fixed_count == 0
+        nfo_gen.write_nfo.assert_not_called()
+
 
 class TestArtworkTruthfulness:
     """`artwork_downloaded` must reflect files actually written (2026-07-15).
@@ -1985,3 +2160,21 @@ class TestInjectDbExternalIds:
         assert '<uniqueid type="tvdb" default="true">459609</uniqueid>' in xml
         assert 'type="tmdb">285084</uniqueid>' in xml
         assert 'type="imdb">tt35629774</uniqueid>' in xml
+
+
+def test_episodes_needing_nfo_leaves_specials_out(tmp_path: Path) -> None:
+    """Season 0 videos are never repaired (no season is fetched for them): not listed to repair."""
+    from personalscraper.maintenance.rescraper import _episodes_needing_nfo
+    from personalscraper.naming_patterns import PATTERNS
+
+    show = tmp_path / "Show (2008)"
+    specials_dir = show / PATTERNS.format("season_dir", Season=0)
+    season_dir = show / PATTERNS.format("season_dir", Season=1)
+    specials_dir.mkdir(parents=True)
+    season_dir.mkdir()
+    special = specials_dir / "Show - S00E01 - Special.mkv"
+    regular = season_dir / "Show - S01E01 - One.mkv"
+    special.write_bytes(b"x")
+    regular.write_bytes(b"x")
+
+    assert _episodes_needing_nfo(show) == [regular]

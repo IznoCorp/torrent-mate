@@ -64,7 +64,7 @@ from personalscraper.app._runner_engine import (
     redis_publish_line as _redis_publish_line,  # noqa: F401 — re-export for test/seam parity
 )
 from personalscraper.conf.loader import load_config
-from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.core.sqlite import apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
@@ -199,7 +199,7 @@ def main() -> None:
 
     try:
         config = load_config()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — process boundary: log, then exit 2
         log.error("decision_runner_config_load_failed", run_uid=run_uid, error=str(exc))
         sys.exit(2)
 
@@ -281,7 +281,10 @@ def main() -> None:
         mechanism. The lazy import lets tests patch ``spawn_pipeline_run`` at its
         source module.
         """
-        from personalscraper.app.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
+        from personalscraper.app.pipeline_trigger import (  # noqa: PLC0415 — tests patch it at its source module
+            RESOLVE_CONTINUATION_TRIGGER,
+            spawn_pipeline_run,
+        )
 
         continuation_uid = spawn_pipeline_run(config.paths.data_dir, trigger_reason=RESOLVE_CONTINUATION_TRIGGER)
         log.info(

@@ -1,4 +1,4 @@
-"""Unit tests for the accounts screen in ``AccountService``: the roster, accounts and roles, their guards and E8.
+"""Unit tests for the accounts screen: the roster, accounts and roles, their guards and E8.
 
 The guards are the maquette's (``webui/design/src/mocks/handlers/accounts.ts``):
 a manager who is not Admin gives only rights its own role holds, never touches its own
@@ -17,15 +17,17 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.app.accounts.account_repository import AccountRepository
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.credentials import CredentialService, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.model import Account, PlexLink, Role, SignInKind
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, verify_password
-from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService, OwnerAlreadySeeded, OwnerPlexIdentity
+from personalscraper.app.accounts.roles import RoleService
+from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import SessionService
-from personalscraper.app.accounts.views import SignInKind
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, AppRefusal, RefusalCode
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
@@ -38,7 +40,7 @@ _PASSWORD = "A provisional one 1!"
 _MANAGER_RIGHTS = frozenset({Right.ACCOUNTS_MANAGE, Right.LIBRARY_READ, Right.ACQUISITION_REQUEST})
 
 
-def _account(account_id: str, role_id: str, created_at: float) -> AccountRow:
+def _account(account_id: str, role_id: str, created_at: float) -> Account:
     """An account row with no password.
 
     Args:
@@ -49,7 +51,7 @@ def _account(account_id: str, role_id: str, created_at: float) -> AccountRow:
     Returns:
         The row.
     """
-    return AccountRow(
+    return Account(
         id=account_id,
         name=account_id,
         email=f"{account_id}@example.org",
@@ -73,7 +75,9 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     """
     app_store = AppStore(tmp_path / "app.db")
     repo = app_store.accounts
-    repo.insert_role(RoleRow(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=_MANAGER_RIGHTS), now=1.0)
+    app_store.roles.insert_role(
+        Role(id="manager", name="Manager", kind=RoleKind.ORDINARY, rights=_MANAGER_RIGHTS), now=1.0
+    )
     repo.insert_account(_account("account-admin", "admin", 1.0))
     repo.insert_account(_account("account-manager", "manager", 2.0))
     repo.insert_account(_account("account-household", "household", 3.0))
@@ -84,8 +88,8 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
         app_store.close()
 
 
-def _service(store: AppStore, bus: EventBus) -> AccountService:
-    """The account service over a store.
+def _service(store: AppStore, bus: EventBus) -> RosterService:
+    """The roster service over a store.
 
     Args:
         store: The store.
@@ -94,8 +98,33 @@ def _service(store: AppStore, bus: EventBus) -> AccountService:
     Returns:
         The service.
     """
-    sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
-    return AccountService(lambda: store.accounts, sessions, bus)
+    return RosterService(store, bus)
+
+
+def _roles(store: AppStore, bus: EventBus) -> RoleService:
+    """The role service over a store.
+
+    Args:
+        store: The store.
+        bus: The bus it publishes on.
+
+    Returns:
+        The service.
+    """
+    return RoleService(store, bus)
+
+
+def _credentials(store: AppStore) -> CredentialService:
+    """The credential service over a store.
+
+    Args:
+        store: The store.
+
+    Returns:
+        The service.
+    """
+    sessions = SessionService(store, idle_days=1, ceiling=lambda: _NO_CEILING)
+    return CredentialService(store, sessions)
 
 
 @pytest.fixture
@@ -124,8 +153,8 @@ def published(bus: EventBus) -> list[AccountRightsChanged]:
 
 
 @pytest.fixture
-def accounts(store: AppStore, bus: EventBus) -> AccountService:
-    """The account service over the store.
+def accounts(store: AppStore, bus: EventBus) -> RosterService:
+    """The roster service over the store.
 
     Args:
         store: The store.
@@ -137,19 +166,33 @@ def accounts(store: AppStore, bus: EventBus) -> AccountService:
     return _service(store, bus)
 
 
-def _actor_of(repo: AccountRepository, account_id: str) -> Actor:
+@pytest.fixture
+def roles(store: AppStore, bus: EventBus) -> RoleService:
+    """The role service over the store.
+
+    Args:
+        store: The store.
+        bus: The bus it publishes on.
+
+    Returns:
+        The service.
+    """
+    return _roles(store, bus)
+
+
+def _actor_of(store: AppStore, account_id: str) -> Actor:
     """The actor an account signs in as, read from the base.
 
     Args:
-        repo: The repository.
+        store: The ``app`` store.
         account_id: The account.
 
     Returns:
         Its actor, with no ceiling.
     """
-    account = repo.account(account_id)
+    account = store.accounts.account(account_id)
     assert account is not None
-    role = repo.role(account.role_id)
+    role = store.roles.role(account.role_id)
     assert role is not None
     return Actor(
         account_id=account.id,
@@ -171,7 +214,7 @@ def admin(store: AppStore) -> Actor:
     Returns:
         The actor.
     """
-    return _actor_of(store.accounts, "account-admin")
+    return _actor_of(store, "account-admin")
 
 
 @pytest.fixture
@@ -184,7 +227,7 @@ def manager(store: AppStore) -> Actor:
     Returns:
         The actor.
     """
-    return _actor_of(store.accounts, "account-manager")
+    return _actor_of(store, "account-manager")
 
 
 def _make_owner(store: AppStore, account_id: str) -> None:
@@ -195,7 +238,7 @@ def _make_owner(store: AppStore, account_id: str) -> None:
         account_id: The account.
     """
     store.accounts.upsert_plex_link(
-        PlexLinkRow(
+        PlexLink(
             account_id=account_id,
             plex_id=4242,
             plex_uuid="uuid-owner",
@@ -220,7 +263,7 @@ def owner(store: AppStore) -> Actor:
         The actor.
     """
     _make_owner(store, "account-admin")
-    return _actor_of(store.accounts, "account-admin")
+    return _actor_of(store, "account-admin")
 
 
 @pytest.fixture(params=["local", "plex-shared"])
@@ -238,7 +281,7 @@ def non_owner_admin(request: pytest.FixtureRequest, store: AppStore) -> Actor:
     """
     if request.param == "plex-shared":
         store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-admin",
                 plex_id=4343,
                 plex_uuid="uuid-shared",
@@ -250,7 +293,7 @@ def non_owner_admin(request: pytest.FixtureRequest, store: AppStore) -> Actor:
                 last_sign_in_at=None,
             )
         )
-    return _actor_of(store.accounts, "account-admin")
+    return _actor_of(store, "account-admin")
 
 
 def _refusal(call: Callable[[], object]) -> AppRefusal:
@@ -270,7 +313,7 @@ def _refusal(call: Callable[[], object]) -> AppRefusal:
 class TestReadRoster:
     """``read_roster`` — ``readAccounts``."""
 
-    def test_an_admin_reads_every_account_and_every_role(self, accounts: AccountService, admin: Actor) -> None:
+    def test_an_admin_reads_every_account_and_every_role(self, accounts: RosterService, admin: Actor) -> None:
         """Every account in creation order, every role (Admin included)."""
         roster = accounts.read_roster(admin)
 
@@ -290,7 +333,7 @@ class TestReadRoster:
         ]
 
     def test_a_manager_who_is_not_admin_never_sees_an_admin_account(
-        self, accounts: AccountService, manager: Actor
+        self, accounts: RosterService, manager: Actor
     ) -> None:
         """M7: the accounts on the Admin role are left out; the roles are all there."""
         roster = accounts.read_roster(manager)
@@ -299,11 +342,11 @@ class TestReadRoster:
         assert "admin" in [role.id for role in roster.roles]
 
     def test_a_summary_carries_its_role_and_how_it_signs_in(
-        self, store: AppStore, accounts: AccountService, admin: Actor
+        self, store: AppStore, accounts: RosterService, admin: Actor
     ) -> None:
         """The role view, ``signInKind`` from the Plex link, no ``demotedFrom`` yet."""
         store.accounts.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-household",
                 plex_id=7,
                 plex_uuid="uuid-7",
@@ -328,7 +371,7 @@ class TestCreateAccount:
     """``create_account`` — ``createAccount``."""
 
     def test_on_the_role_given_the_password_kept_as_scrypt_only(
-        self, store: AppStore, accounts: AccountService, admin: Actor
+        self, store: AppStore, accounts: RosterService, admin: Actor
     ) -> None:
         """The role is required: the account starts on it; the password is kept as scrypt only."""
         created = accounts.create_account(
@@ -348,7 +391,7 @@ class TestCreateAccount:
     def test_starts_in_the_projects_configured_language(
         self,
         store: AppStore,
-        accounts: AccountService,
+        accounts: RosterService,
         admin: Actor,
         configured_language: ConfiguredLanguage,
         configured: str,
@@ -365,14 +408,14 @@ class TestCreateAccount:
         row = store.accounts.account(created.id)
         assert row is not None and row.language == expected
 
-    def test_on_the_role_asked(self, accounts: AccountService, admin: Actor) -> None:
+    def test_on_the_role_asked(self, accounts: RosterService, admin: Actor) -> None:
         """A role named: the account starts on it."""
         created = accounts.create_account(
             admin, name="New", email="new@example.org", role_id="requester", password=_PASSWORD
         )
         assert created.role.id == "requester"
 
-    def test_the_owner_creates_an_admin(self, accounts: AccountService, owner: Actor) -> None:
+    def test_the_owner_creates_an_admin(self, accounts: RosterService, owner: Actor) -> None:
         """The server's owner gives Admin."""
         created = accounts.create_account(
             owner, name="New", email="new@example.org", role_id="admin", password=_PASSWORD
@@ -380,7 +423,7 @@ class TestCreateAccount:
         assert created.role.kind is RoleKind.ADMIN
 
     def test_an_admin_who_is_not_the_owner_never_creates_an_admin(
-        self, store: AppStore, accounts: AccountService, non_owner_admin: Actor
+        self, store: AppStore, accounts: RosterService, non_owner_admin: Actor
     ) -> None:
         """403 ``account.admin_owner_only``: only the owner promotes to Admin; nothing is created."""
         refusal = _refusal(
@@ -393,7 +436,7 @@ class TestCreateAccount:
         assert store.accounts.account_by_email("new@example.org") is None
 
     def test_a_weak_password_is_refused_by_the_policy(
-        self, store: AppStore, accounts: AccountService, admin: Actor
+        self, store: AppStore, accounts: RosterService, admin: Actor
     ) -> None:
         """400 ``password.too_weak`` with ``minimum``: long enough, but no uppercase, digit or special character."""
         refusal = _refusal(
@@ -405,7 +448,7 @@ class TestCreateAccount:
         assert (refusal.code, refusal.params) == (RefusalCode.PASSWORD_TOO_WEAK, {"minimum": PASSWORD_MINIMUM})
         assert store.accounts.account_by_email("new@example.org") is None
 
-    def test_a_manager_creates_on_a_role_within_its_rights(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_creates_on_a_role_within_its_rights(self, accounts: RosterService, manager: Actor) -> None:
         """``local-guest`` carries ``library.read`` alone, which the manager holds."""
         created = accounts.create_account(
             manager, name="New", email="new@example.org", role_id="local-guest", password=_PASSWORD
@@ -413,7 +456,7 @@ class TestCreateAccount:
         assert created.role.id == "local-guest"
 
     @pytest.mark.parametrize("email", ["", "   ", "no-at-sign", "@example.org", "someone@"])
-    def test_an_invalid_email_is_refused(self, accounts: AccountService, admin: Actor, email: str) -> None:
+    def test_an_invalid_email_is_refused(self, accounts: RosterService, admin: Actor, email: str) -> None:
         """400 ``account.email_invalid``."""
         refusal = _refusal(
             lambda: accounts.create_account(admin, name="New", email=email, role_id="local-guest", password=_PASSWORD)
@@ -421,7 +464,7 @@ class TestCreateAccount:
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.ACCOUNT_EMAIL_INVALID
 
-    def test_a_blank_name_is_refused(self, accounts: AccountService, admin: Actor) -> None:
+    def test_a_blank_name_is_refused(self, accounts: RosterService, admin: Actor) -> None:
         """400 ``account.email_invalid`` (the mock's: a local account carries a name and an e-mail)."""
         refusal = _refusal(
             lambda: accounts.create_account(
@@ -431,7 +474,7 @@ class TestCreateAccount:
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.ACCOUNT_EMAIL_INVALID
 
-    def test_an_unknown_role_is_not_found(self, accounts: AccountService, admin: Actor) -> None:
+    def test_an_unknown_role_is_not_found(self, accounts: RosterService, admin: Actor) -> None:
         """404 ``role.unknown``."""
         refusal = _refusal(
             lambda: accounts.create_account(
@@ -441,7 +484,7 @@ class TestCreateAccount:
         assert isinstance(refusal, AppNotFound)
         assert refusal.code is RefusalCode.ROLE_UNKNOWN
 
-    def test_a_manager_never_gives_admin(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_gives_admin(self, accounts: RosterService, manager: Actor) -> None:
         """403 ``role.escalation``."""
         refusal = _refusal(
             lambda: accounts.create_account(
@@ -451,7 +494,7 @@ class TestCreateAccount:
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
 
-    def test_a_manager_never_gives_rights_it_does_not_hold(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_gives_rights_it_does_not_hold(self, accounts: RosterService, manager: Actor) -> None:
         """``household`` carries ``acquisition.follow``, which the manager lacks: 403 ``role.escalation``."""
         refusal = _refusal(
             lambda: accounts.create_account(
@@ -461,7 +504,7 @@ class TestCreateAccount:
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
 
-    def test_a_taken_email_whatever_its_case_conflicts(self, accounts: AccountService, admin: Actor) -> None:
+    def test_a_taken_email_whatever_its_case_conflicts(self, accounts: RosterService, admin: Actor) -> None:
         """409 ``account.email_taken``."""
         refusal = _refusal(
             lambda: accounts.create_account(
@@ -473,7 +516,7 @@ class TestCreateAccount:
 
     @pytest.mark.parametrize("password", [None, ""])
     def test_a_local_account_needs_a_password(
-        self, accounts: AccountService, admin: Actor, password: str | None
+        self, accounts: RosterService, admin: Actor, password: str | None
     ) -> None:
         """400 ``password.required``."""
         refusal = _refusal(
@@ -484,7 +527,7 @@ class TestCreateAccount:
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.PASSWORD_REQUIRED
 
-    def test_a_short_password_names_the_minimum(self, accounts: AccountService, admin: Actor) -> None:
+    def test_a_short_password_names_the_minimum(self, accounts: RosterService, admin: Actor) -> None:
         """400 ``password.too_short`` with ``minimum``; one character more is accepted."""
         refusal = _refusal(
             lambda: accounts.create_account(
@@ -499,7 +542,7 @@ class TestCreateAccount:
             admin, name="New", email="new@example.org", role_id="local-guest", password="Abcdefgh-1" + "x" * 2
         )
 
-    def test_a_refused_creation_writes_nothing(self, store: AppStore, accounts: AccountService, admin: Actor) -> None:
+    def test_a_refused_creation_writes_nothing(self, store: AppStore, accounts: RosterService, admin: Actor) -> None:
         """The e-mail is checked before the password, and nothing is stored on a refusal."""
         before = len(store.accounts.accounts())
         refusal = _refusal(
@@ -511,7 +554,7 @@ class TestCreateAccount:
         assert len(store.accounts.accounts()) == before
 
     def test_a_creation_publishes_nothing_and_never_logs_the_password(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged], logged_events: LoggedEvents
+        self, accounts: RosterService, admin: Actor, published: list[AccountRightsChanged], logged_events: LoggedEvents
     ) -> None:
         """No account's rights moved: no E8; the password is in no log line."""
         with logged_events() as logs:
@@ -526,7 +569,7 @@ class TestUpdateAccount:
     """``update_account`` — ``updateAccount``."""
 
     def test_an_admin_assigns_a_role_and_e8_names_the_account(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, accounts: RosterService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """200 on the new role; one E8 ``role_assigned`` naming the account alone."""
         updated = accounts.update_account(admin, "account-guest", role_id="requester")
@@ -537,7 +580,7 @@ class TestUpdateAccount:
         ]
 
     def test_the_same_role_moves_nothing_and_publishes_nothing(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, accounts: RosterService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """No rights moved: no E8."""
         updated = accounts.update_account(admin, "account-guest", role_id="local-guest")
@@ -545,7 +588,7 @@ class TestUpdateAccount:
         assert published == []
 
     def test_a_role_given_clears_the_demotion_and_the_roster_shows_it_until_then(
-        self, store: AppStore, accounts: AccountService, admin: Actor
+        self, store: AppStore, accounts: RosterService, admin: Actor
     ) -> None:
         """``demotedFrom`` reads in the roster after a Plex link's demotion, and is gone once an Admin gives a role."""
         store.accounts.set_role("account-guest", "local-guest", now=5.0, demoted_from="requester")
@@ -558,7 +601,7 @@ class TestUpdateAccount:
         assert store.accounts.account("account-guest").demoted_from is None  # type: ignore[union-attr]
 
     def test_the_same_role_given_still_clears_the_demotion_and_publishes_nothing(
-        self, store: AppStore, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, store: AppStore, accounts: RosterService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """An Admin confirming the demoted role decides it: the demotion is cleared, no rights moved, no E8."""
         store.accounts.set_role("account-guest", "local-guest", now=5.0, demoted_from="requester")
@@ -569,44 +612,44 @@ class TestUpdateAccount:
         assert store.accounts.account("account-guest").demoted_from is None  # type: ignore[union-attr]
         assert published == []
 
-    def test_an_unknown_account_is_not_found(self, accounts: AccountService, admin: Actor) -> None:
+    def test_an_unknown_account_is_not_found(self, accounts: RosterService, admin: Actor) -> None:
         """404 ``account.unknown``."""
         refusal = _refusal(lambda: accounts.update_account(admin, "nope", role_id="requester"))
         assert isinstance(refusal, AppNotFound)
         assert refusal.code is RefusalCode.ACCOUNT_UNKNOWN
 
-    def test_an_unknown_role_is_not_found(self, accounts: AccountService, admin: Actor) -> None:
+    def test_an_unknown_role_is_not_found(self, accounts: RosterService, admin: Actor) -> None:
         """404 ``role.unknown``."""
         refusal = _refusal(lambda: accounts.update_account(admin, "account-guest", role_id="nope"))
         assert isinstance(refusal, AppNotFound)
         assert refusal.code is RefusalCode.ROLE_UNKNOWN
 
-    def test_a_manager_never_touches_its_own_role(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_touches_its_own_role(self, accounts: RosterService, manager: Actor) -> None:
         """403 ``role.own_role``."""
         refusal = _refusal(lambda: accounts.update_account(manager, "account-manager", role_id="local-guest"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_OWN_ROLE
 
-    def test_a_manager_never_touches_an_admin_account(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_touches_an_admin_account(self, accounts: RosterService, manager: Actor) -> None:
         """403 ``account.admin_untouchable``."""
         refusal = _refusal(lambda: accounts.update_account(manager, "account-admin", role_id="local-guest"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ACCOUNT_ADMIN_UNTOUCHABLE
 
-    def test_a_manager_never_gives_admin(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_gives_admin(self, accounts: RosterService, manager: Actor) -> None:
         """403 ``account.admin_untouchable`` (the mock's code for Admin given by a manager)."""
         refusal = _refusal(lambda: accounts.update_account(manager, "account-guest", role_id="admin"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ACCOUNT_ADMIN_UNTOUCHABLE
 
-    def test_a_manager_never_gives_rights_it_does_not_hold(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_gives_rights_it_does_not_hold(self, accounts: RosterService, manager: Actor) -> None:
         """403 ``role.escalation``."""
         refusal = _refusal(lambda: accounts.update_account(manager, "account-guest", role_id="household"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
 
     def test_the_owner_promotes_an_account_to_admin(
-        self, accounts: AccountService, owner: Actor, published: list[AccountRightsChanged]
+        self, accounts: RosterService, owner: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """The server's owner gives Admin; E8 names the account."""
         assert accounts.update_account(owner, "account-guest", role_id="admin").role.kind is RoleKind.ADMIN
@@ -615,7 +658,7 @@ class TestUpdateAccount:
     def test_an_admin_who_is_not_the_owner_never_promotes_to_admin(
         self,
         store: AppStore,
-        accounts: AccountService,
+        accounts: RosterService,
         non_owner_admin: Actor,
         published: list[AccountRightsChanged],
     ) -> None:
@@ -627,15 +670,13 @@ class TestUpdateAccount:
         assert guest is not None and guest.role_id == "local-guest"
         assert published == []
 
-    def test_an_admin_who_is_not_the_owner_keeps_an_admin_on_admin(
-        self, accounts: AccountService, admin: Actor
-    ) -> None:
+    def test_an_admin_who_is_not_the_owner_keeps_an_admin_on_admin(self, accounts: RosterService, admin: Actor) -> None:
         """Putting an Admin account on the role it holds gives nothing: allowed, nothing moves."""
         assert accounts.update_account(admin, "account-admin", role_id="admin").role.kind is RoleKind.ADMIN
 
     @pytest.mark.parametrize("caller", ["the-owner", "another-admin"])
     def test_the_owners_account_never_leaves_admin(
-        self, store: AppStore, accounts: AccountService, published: list[AccountRightsChanged], caller: str
+        self, store: AppStore, accounts: RosterService, published: list[AccountRightsChanged], caller: str
     ) -> None:
         """403 ``account.owner_admin``, whoever asks, the owner included; nothing moves, nothing is published.
 
@@ -644,7 +685,7 @@ class TestUpdateAccount:
         """
         _make_owner(store, "account-admin")
         store.accounts.insert_account(_account("account-admin-2", "admin", 5.0))
-        actor = _actor_of(store.accounts, "account-admin" if caller == "the-owner" else "account-admin-2")
+        actor = _actor_of(store, "account-admin" if caller == "the-owner" else "account-admin-2")
 
         refusal = _refusal(lambda: accounts.update_account(actor, "account-admin", role_id="local-guest"))
 
@@ -654,21 +695,21 @@ class TestUpdateAccount:
         assert row is not None and row.role_id == "admin"
         assert published == []
 
-    def test_the_owners_guard_comes_before_the_last_admin_one(self, accounts: AccountService, owner: Actor) -> None:
+    def test_the_owners_guard_comes_before_the_last_admin_one(self, accounts: RosterService, owner: Actor) -> None:
         """The owner alone on Admin, demoting itself: ``account.owner_admin``, not ``account.last_admin``."""
         refusal = _refusal(lambda: accounts.update_account(owner, "account-admin", role_id="local-guest"))
         assert refusal.code is RefusalCode.ACCOUNT_OWNER_ADMIN
 
-    def test_the_owner_kept_on_admin_is_not_refused(self, accounts: AccountService, owner: Actor) -> None:
+    def test_the_owner_kept_on_admin_is_not_refused(self, accounts: RosterService, owner: Actor) -> None:
         """Putting the owner on the Admin role it holds moves nothing and is allowed."""
         assert accounts.update_account(owner, "account-admin", role_id="admin").role.kind is RoleKind.ADMIN
 
-    def test_a_manager_assigns_a_role_within_its_rights(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_assigns_a_role_within_its_rights(self, accounts: RosterService, manager: Actor) -> None:
         """``plex-guest`` carries ``library.read`` alone: allowed."""
         assert accounts.update_account(manager, "account-household", role_id="plex-guest").role.id == "plex-guest"
 
     def test_demoting_the_last_admin_conflicts_and_publishes_nothing(
-        self, store: AppStore, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, store: AppStore, accounts: RosterService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """409 ``account.last_admin``: the account keeps its role, no E8."""
         refusal = _refusal(lambda: accounts.update_account(admin, "account-admin", role_id="local-guest"))
@@ -681,7 +722,7 @@ class TestUpdateAccount:
         assert published == []
 
     def test_an_admin_demotes_another_while_one_is_left(
-        self, store: AppStore, accounts: AccountService, admin: Actor
+        self, store: AppStore, accounts: RosterService, admin: Actor
     ) -> None:
         """Two Admins: one may go."""
         store.accounts.insert_account(_account("account-admin-2", "admin", 5.0))
@@ -697,8 +738,8 @@ class TestUpdateAccount:
         """
         store.accounts.insert_account(_account("account-admin-2", "admin", 5.0))
         actors = {
-            "account-admin": _actor_of(store.accounts, "account-admin"),
-            "account-admin-2": _actor_of(store.accounts, "account-admin-2"),
+            "account-admin": _actor_of(store, "account-admin"),
+            "account-admin-2": _actor_of(store, "account-admin-2"),
         }
         barrier = threading.Barrier(2, timeout=1.0)
         stores = [AppStore(tmp_path / "app.db"), AppStore(tmp_path / "app.db")]
@@ -733,8 +774,9 @@ class TestUpdateAccount:
             repo.count_on_role_kind = _count  # type: ignore[method-assign]
             return repo
 
-        repos = [_waiting(one.accounts) for one in stores]
-        services = [AccountService(lambda repo=repo: repo, None, EventBus()) for repo in repos]  # type: ignore[arg-type,misc]
+        for one in stores:
+            _waiting(one.accounts)
+        services = [RosterService(one, EventBus()) for one in stores]
         outcomes: dict[str, str] = {}
 
         def _demote(index: int, caller: str, other: str) -> None:
@@ -795,79 +837,77 @@ class TestCreateRole:
     """``create_role`` — ``createRole``."""
 
     def test_an_admin_creates_an_ordinary_role(
-        self, store: AppStore, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, store: AppStore, roles: RoleService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """A new ``role-…`` key, ``ordinary``, its name and rights; no E8."""
-        created = accounts.create_role(admin, name=" Friends ", rights=["library.read", "trackers.view"])
+        created = roles.create_role(admin, name=" Friends ", rights=["library.read", "trackers.view"])
 
         assert created.id.startswith("role-")
         assert created.kind is RoleKind.ORDINARY
         assert created.name == "Friends"
         assert created.rights == (Right.LIBRARY_READ, Right.TRACKERS_VIEW)
         assert created.default_for == ()
-        assert store.accounts.role(created.id) is not None
+        assert store.roles.role(created.id) is not None
         assert published == []
 
     @pytest.mark.parametrize("name", ["", "   "], ids=["empty", "blank"])
-    def test_a_blank_name_is_required(self, store: AppStore, accounts: AccountService, admin: Actor, name: str) -> None:
+    def test_a_blank_name_is_required(self, store: AppStore, roles: RoleService, admin: Actor, name: str) -> None:
         """400 ``role.name_required``: a role carries the name typed, none is made up; nothing is created."""
-        before = len(store.accounts.roles())
-        refusal = _refusal(lambda: accounts.create_role(admin, name=name, rights=[]))
+        before = len(store.roles.roles())
+        refusal = _refusal(lambda: roles.create_role(admin, name=name, rights=[]))
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.ROLE_NAME_REQUIRED
-        assert len(store.accounts.roles()) == before
+        assert len(store.roles.roles()) == before
 
     @pytest.mark.parametrize("name", ["Manager", " manager ", "MANAGER"], ids=["same", "trimmed", "other-case"])
     def test_a_name_another_role_carries_is_taken(
-        self, store: AppStore, accounts: AccountService, admin: Actor, name: str
+        self, store: AppStore, roles: RoleService, admin: Actor, name: str
     ) -> None:
         """409 ``role.name_taken``, compared trimmed and regardless of case; nothing is created."""
-        before = len(store.accounts.roles())
-        refusal = _refusal(lambda: accounts.create_role(admin, name=name, rights=[]))
+        before = len(store.roles.roles())
+        refusal = _refusal(lambda: roles.create_role(admin, name=name, rights=[]))
         assert isinstance(refusal, AppConflict)
         assert refusal.code is RefusalCode.ROLE_NAME_TAKEN
-        assert len(store.accounts.roles()) == before
+        assert len(store.roles.roles()) == before
 
-    def test_names_compare_by_unicode_lowercase_as_the_maquette_does(
-        self, accounts: AccountService, admin: Actor
-    ) -> None:
+    def test_names_compare_by_unicode_lowercase_as_the_maquette_does(self, roles: RoleService, admin: Actor) -> None:
         """« STRASSE » and « straße » are two names, as ``toLowerCase`` reads them; « strasse » is « STRASSE »."""
-        accounts.create_role(admin, name="STRASSE", rights=[])
-        assert accounts.create_role(admin, name="straße", rights=[]).name == "straße"
-        refusal = _refusal(lambda: accounts.create_role(admin, name="strasse", rights=[]))
+        roles.create_role(admin, name="STRASSE", rights=[])
+        assert roles.create_role(admin, name="straße", rights=[]).name == "straße"
+        refusal = _refusal(lambda: roles.create_role(admin, name="strasse", rights=[]))
         assert refusal.code is RefusalCode.ROLE_NAME_TAKEN
 
-    def test_a_seeded_roles_interface_words_are_free(self, accounts: AccountService, admin: Actor) -> None:
+    def test_a_seeded_roles_interface_words_are_free(self, roles: RoleService, admin: Actor) -> None:
         """A seeded role carries no name (its words are the interface's): « Household » is free."""
-        assert accounts.create_role(admin, name="Household", rights=[]).name == "Household"
+        assert roles.create_role(admin, name="Household", rights=[]).name == "Household"
 
-    def test_an_unknown_right_is_refused(self, accounts: AccountService, admin: Actor) -> None:
+    def test_an_unknown_right_is_refused(self, roles: RoleService, admin: Actor) -> None:
         """400 ``right.unknown``."""
-        refusal = _refusal(lambda: accounts.create_role(admin, name="X", rights=["library.read", "auth.password"]))
+        refusal = _refusal(lambda: roles.create_role(admin, name="X", rights=["library.read", "auth.password"]))
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.RIGHT_UNKNOWN
 
-    def test_a_manager_never_creates_a_role_wider_than_its_own(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_creates_a_role_wider_than_its_own(self, roles: RoleService, manager: Actor) -> None:
         """403 ``role.escalation``."""
-        refusal = _refusal(lambda: accounts.create_role(manager, name="X", rights=["library.read", "library.delete"]))
+        refusal = _refusal(lambda: roles.create_role(manager, name="X", rights=["library.read", "library.delete"]))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
 
-    def test_a_manager_creates_a_role_within_its_own(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_creates_a_role_within_its_own(self, roles: RoleService, manager: Actor) -> None:
         """A subset of its rights: allowed."""
-        assert accounts.create_role(manager, name="X", rights=["library.read"]).rights == (Right.LIBRARY_READ,)
+        assert roles.create_role(manager, name="X", rights=["library.read"]).rights == (Right.LIBRARY_READ,)
 
 
 class TestUpdateRole:
     """``update_role`` — ``updateRole``."""
 
     def test_new_rights_publish_e8_for_every_account_on_the_role(
-        self, store: AppStore, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, store: AppStore, roles: RoleService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """One E8 ``role_rights_changed`` naming the role's accounts, in creation order."""
         store.accounts.insert_account(_account("account-guest-2", "local-guest", 6.0))
 
-        updated = accounts.update_role(admin, "local-guest", rights=["library.read", "acquisition.request"])
+        updated = roles.update_role(admin, "local-guest", rights=["library.read", "acquisition.request"])
 
         assert updated.rights == (Right.ACQUISITION_REQUEST, Right.LIBRARY_READ)
         assert [(event.account_ids, event.cause) for event in published] == [
@@ -894,15 +934,15 @@ class TestUpdateRole:
                 conn.close()
 
         bus.subscribe(AccountRightsChanged, _read_committed)
-        _service(store, bus).update_role(admin, "local-guest", rights=["library.read", "trackers.view"])
+        _roles(store, bus).update_role(admin, "local-guest", rights=["library.read", "trackers.view"])
 
         assert seen == [["library.read", "trackers.view"]]
 
     def test_a_rename_alone_publishes_role_renamed(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, roles: RoleService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """A seeded ordinary role is renamable; E8 ``role_renamed``."""
-        updated = accounts.update_role(admin, "local-guest", name="Visitors")
+        updated = roles.update_role(admin, "local-guest", name="Visitors")
 
         assert updated.name == "Visitors"
         assert [(event.account_ids, event.cause) for event in published] == [
@@ -910,98 +950,94 @@ class TestUpdateRole:
         ]
 
     def test_rights_and_name_together_publish_rights_changed_once(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, roles: RoleService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """The rights' cause wins; one event."""
-        accounts.update_role(admin, "local-guest", name="Visitors", rights=["library.read", "trackers.view"])
+        roles.update_role(admin, "local-guest", name="Visitors", rights=["library.read", "trackers.view"])
         assert [event.cause for event in published] == [RightsChangeCause.ROLE_RIGHTS_CHANGED]
 
     def test_a_role_nobody_holds_publishes_nothing(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, roles: RoleService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """No account on it: no E8."""
-        accounts.update_role(admin, "plex-guest", rights=["library.read", "trackers.view"])
+        roles.update_role(admin, "plex-guest", rights=["library.read", "trackers.view"])
         assert published == []
 
     def test_an_empty_change_publishes_nothing(
-        self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, roles: RoleService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """Neither field, a blank name, or the same rights: unchanged, no E8."""
-        assert accounts.update_role(admin, "local-guest").rights == (Right.LIBRARY_READ,)
-        assert accounts.update_role(admin, "local-guest", name="  ").name is None
-        accounts.update_role(admin, "local-guest", rights=["library.read"])
+        assert roles.update_role(admin, "local-guest").rights == (Right.LIBRARY_READ,)
+        assert roles.update_role(admin, "local-guest", name="  ").name is None
+        roles.update_role(admin, "local-guest", rights=["library.read"])
         assert published == []
 
-    def test_an_unknown_role_is_not_found(self, accounts: AccountService, admin: Actor) -> None:
+    def test_an_unknown_role_is_not_found(self, roles: RoleService, admin: Actor) -> None:
         """404 ``role.unknown``."""
-        refusal = _refusal(lambda: accounts.update_role(admin, "nope", name="X"))
+        refusal = _refusal(lambda: roles.update_role(admin, "nope", name="X"))
         assert isinstance(refusal, AppNotFound)
         assert refusal.code is RefusalCode.ROLE_UNKNOWN
 
     @pytest.mark.parametrize(("name", "rights"), [("Boss", None), (None, ["library.read"])])
     def test_the_admin_role_is_immutable(
         self,
-        accounts: AccountService,
+        roles: RoleService,
         admin: Actor,
         published: list[AccountRightsChanged],
         name: str | None,
         rights: list[str] | None,
     ) -> None:
         """409 ``role.system_immutable``, renamed or re-righted, and no E8."""
-        refusal = _refusal(lambda: accounts.update_role(admin, "admin", name=name, rights=rights))
+        refusal = _refusal(lambda: roles.update_role(admin, "admin", name=name, rights=rights))
         assert isinstance(refusal, AppConflict)
         assert refusal.code is RefusalCode.ROLE_SYSTEM_IMMUTABLE
         assert published == []
 
-    def test_an_unknown_right_is_refused(self, accounts: AccountService, admin: Actor) -> None:
+    def test_an_unknown_right_is_refused(self, roles: RoleService, admin: Actor) -> None:
         """400 ``right.unknown``."""
-        refusal = _refusal(lambda: accounts.update_role(admin, "local-guest", rights=["auth.password"]))
+        refusal = _refusal(lambda: roles.update_role(admin, "local-guest", rights=["auth.password"]))
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.RIGHT_UNKNOWN
 
-    def test_a_manager_never_touches_its_own_role(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_touches_its_own_role(self, roles: RoleService, manager: Actor) -> None:
         """403 ``role.own_role``, even to narrow it."""
-        refusal = _refusal(lambda: accounts.update_role(manager, "manager", rights=["library.read"]))
+        refusal = _refusal(lambda: roles.update_role(manager, "manager", rights=["library.read"]))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_OWN_ROLE
 
     def test_a_manager_never_widens_a_role_beyond_its_own(
-        self, store: AppStore, accounts: AccountService, manager: Actor, published: list[AccountRightsChanged]
+        self, store: AppStore, roles: RoleService, manager: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """403 ``role.escalation``; the role keeps its rights, no E8."""
-        refusal = _refusal(
-            lambda: accounts.update_role(manager, "local-guest", rights=["library.read", "library.delete"])
-        )
+        refusal = _refusal(lambda: roles.update_role(manager, "local-guest", rights=["library.read", "library.delete"]))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
-        role = store.accounts.role("local-guest")
+        role = store.roles.role("local-guest")
         assert role is not None
         assert role.rights == frozenset({Right.LIBRARY_READ})
         assert published == []
 
-    def test_a_manager_never_renames_a_role_beyond_its_own(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_never_renames_a_role_beyond_its_own(self, roles: RoleService, manager: Actor) -> None:
         """``household`` carries rights the manager lacks: 403 ``role.escalation``."""
-        refusal = _refusal(lambda: accounts.update_role(manager, "household", name="Family"))
+        refusal = _refusal(lambda: roles.update_role(manager, "household", name="Family"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
 
-    def test_a_rename_onto_another_roles_name_is_taken(
-        self, store: AppStore, accounts: AccountService, admin: Actor
-    ) -> None:
+    def test_a_rename_onto_another_roles_name_is_taken(self, store: AppStore, roles: RoleService, admin: Actor) -> None:
         """409 ``role.name_taken``, whatever the case; the role keeps its name."""
-        refusal = _refusal(lambda: accounts.update_role(admin, "plex-guest", name=" manager "))
+        refusal = _refusal(lambda: roles.update_role(admin, "plex-guest", name=" manager "))
         assert isinstance(refusal, AppConflict)
         assert refusal.code is RefusalCode.ROLE_NAME_TAKEN
-        role = store.accounts.role("plex-guest")
+        role = store.roles.role("plex-guest")
         assert role is not None and role.name is None
 
-    def test_a_role_keeps_its_own_name_in_another_case(self, accounts: AccountService, admin: Actor) -> None:
+    def test_a_role_keeps_its_own_name_in_another_case(self, roles: RoleService, admin: Actor) -> None:
         """Its own name is not taken by itself."""
-        assert accounts.update_role(admin, "manager", name="MANAGER").name == "MANAGER"
+        assert roles.update_role(admin, "manager", name="MANAGER").name == "MANAGER"
 
-    def test_a_manager_sets_a_role_within_its_own(self, accounts: AccountService, manager: Actor) -> None:
+    def test_a_manager_sets_a_role_within_its_own(self, roles: RoleService, manager: Actor) -> None:
         """Rights within its own and a rename of a role within them: allowed."""
-        updated = accounts.update_role(
+        updated = roles.update_role(
             manager, "plex-guest", name="Friends", rights=["library.read", "acquisition.request"]
         )
         assert (updated.name, updated.rights) == ("Friends", (Right.ACQUISITION_REQUEST, Right.LIBRARY_READ))
@@ -1011,26 +1047,26 @@ class TestDeleteRole:
     """``delete_role`` — ``deleteRole``: only a role nothing depends on goes."""
 
     def test_an_admin_deletes_a_role_nobody_holds(
-        self, store: AppStore, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self, store: AppStore, roles: RoleService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
         """Gone with its rights; no E8 (no account held it)."""
-        created = accounts.create_role(admin, name="Friends", rights=["library.read"])
+        created = roles.create_role(admin, name="Friends", rights=["library.read"])
 
-        accounts.delete_role(admin, created.id)
+        roles.delete_role(admin, created.id)
 
-        assert store.accounts.role(created.id) is None
-        rows = store.accounts._conn.execute(  # noqa: SLF001
+        assert store.roles.role(created.id) is None
+        rows = store.accounts._conn.execute(
             "SELECT count(*) FROM role_right WHERE role_id = ?", (created.id,)
         ).fetchone()
         assert rows[0] == 0
         assert published == []
 
     def test_a_seeded_role_nobody_holds_and_no_newcomer_starts_on_goes(
-        self, store: AppStore, accounts: AccountService, admin: Actor
+        self, store: AppStore, roles: RoleService, admin: Actor
     ) -> None:
         """``requester`` is nobody's start role: deletable once unheld."""
-        accounts.delete_role(admin, "requester")
-        assert store.accounts.role("requester") is None
+        roles.delete_role(admin, "requester")
+        assert store.roles.role("requester") is None
 
     @pytest.mark.parametrize(
         ("role_id", "status", "code"),
@@ -1044,30 +1080,28 @@ class TestDeleteRole:
         ids=["unknown", "admin", "default-unheld", "default-held", "held"],
     )
     def test_a_role_something_depends_on_is_refused(
-        self, store: AppStore, accounts: AccountService, admin: Actor, role_id: str, status: int, code: RefusalCode
+        self, store: AppStore, roles: RoleService, admin: Actor, role_id: str, status: int, code: RefusalCode
     ) -> None:
         """In the contract's order: unknown, Admin, a newcomer's start role (even unheld), a held role."""
-        refusal = _refusal(lambda: accounts.delete_role(admin, role_id))
+        refusal = _refusal(lambda: roles.delete_role(admin, role_id))
         assert (refusal.status, refusal.code) == (status, code)
         if role_id != "nobody":
-            assert store.accounts.role(role_id) is not None
+            assert store.roles.role(role_id) is not None
 
     def test_a_manager_never_deletes_a_role_beyond_its_own(
-        self, store: AppStore, accounts: AccountService, manager: Actor
+        self, store: AppStore, roles: RoleService, manager: Actor
     ) -> None:
         """403 ``role.escalation``: ``requester`` carries rights the manager lacks."""
-        refusal = _refusal(lambda: accounts.delete_role(manager, "requester"))
+        refusal = _refusal(lambda: roles.delete_role(manager, "requester"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION
-        assert store.accounts.role("requester") is not None
+        assert store.roles.role("requester") is not None
 
-    def test_a_manager_deletes_a_role_within_its_own(
-        self, store: AppStore, accounts: AccountService, manager: Actor
-    ) -> None:
+    def test_a_manager_deletes_a_role_within_its_own(self, store: AppStore, roles: RoleService, manager: Actor) -> None:
         """A role whose rights the manager holds, held by nobody: gone."""
-        created = accounts.create_role(manager, name="Readers", rights=["library.read"])
-        accounts.delete_role(manager, created.id)
-        assert store.accounts.role(created.id) is None
+        created = roles.create_role(manager, name="Readers", rights=["library.read"])
+        roles.delete_role(manager, created.id)
+        assert store.roles.role(created.id) is None
 
 
 _OWNER_EMAIL = "owner@example.org"
@@ -1092,7 +1126,7 @@ def empty_store(tmp_path: Path) -> Iterator[AppStore]:
         app_store.close()
 
 
-def _create_owner(service: AccountService, **overrides: object) -> str:
+def _create_owner(service: CredentialService, **overrides: object) -> str:
     """Seed the owner with the test's identity, some fields overridden.
 
     Args:
@@ -1117,13 +1151,13 @@ class TestCreateOwner:
 
     def test_the_owner_signs_in_by_password_as_the_admin_owner(self, empty_store: AppStore, bus: EventBus) -> None:
         """The seeded password opens a session; the account reads ``owner``, on the Admin role."""
-        service = _service(empty_store, bus)
+        service = _credentials(empty_store)
 
         account_id = _create_owner(service)
         signed_in = service.sign_in_with_password(
             _OWNER_EMAIL.upper(), _OWNER_PASSWORD, client_key="test", user_agent=None
         )
-        read = service.read_account(_actor_of(empty_store.accounts, account_id))
+        read = _service(empty_store, bus).read_account(_actor_of(empty_store, account_id))
 
         assert signed_in.account.id == account_id
         assert read.sign_in_kind is SignInKind.OWNER
@@ -1136,12 +1170,12 @@ class TestCreateOwner:
     ) -> None:
         """The seeded owner is a new account: it speaks the configured language, whichever it is."""
         configured_language(configured)
-        account = empty_store.accounts.account(_create_owner(_service(empty_store, bus)))
+        account = empty_store.accounts.account(_create_owner(_credentials(empty_store)))
         assert account is not None and account.language == configured
 
     def test_one_account_and_one_owner_link_without_a_token(self, empty_store: AppStore, bus: EventBus) -> None:
         """The account holds only a hash; the link is the owner's plex.tv identity, no token kept."""
-        account_id = _create_owner(_service(empty_store, bus))
+        account_id = _create_owner(_credentials(empty_store))
 
         repo = empty_store.accounts
         (account,) = repo.accounts()
@@ -1160,7 +1194,7 @@ class TestCreateOwner:
 
     def test_a_second_owner_is_refused(self, empty_store: AppStore, bus: EventBus) -> None:
         """``OwnerAlreadySeeded``; still one account."""
-        service = _service(empty_store, bus)
+        service = _credentials(empty_store)
         _create_owner(service)
 
         with pytest.raises(OwnerAlreadySeeded):
@@ -1173,7 +1207,7 @@ class TestCreateOwner:
         before = store.accounts.accounts()
 
         with pytest.raises(OwnerAlreadySeeded):
-            _create_owner(_service(store, bus))
+            _create_owner(_credentials(store))
 
         assert store.accounts.accounts() == before
 
@@ -1182,7 +1216,7 @@ class TestCreateOwner:
         repo = empty_store.accounts
         repo.insert_account(_account("account-member", "household", 1.0))
         repo.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-member",
                 plex_id=7,
                 plex_uuid="u7",
@@ -1196,7 +1230,7 @@ class TestCreateOwner:
         )
 
         with pytest.raises(OwnerAlreadySeeded):
-            _create_owner(_service(empty_store, bus))
+            _create_owner(_credentials(empty_store))
 
         assert len(repo.accounts()) == 1
 
@@ -1207,7 +1241,7 @@ class TestCreateOwner:
         repo = empty_store.accounts
         repo.insert_account(_account("account-member", "household", 1.0))
         repo.upsert_plex_link(
-            PlexLinkRow(
+            PlexLink(
                 account_id="account-member",
                 plex_id=_OWNER_PLEX.plex_id,
                 plex_uuid="u",
@@ -1221,7 +1255,7 @@ class TestCreateOwner:
         )
 
         with pytest.raises(OwnerAlreadySeeded):
-            _create_owner(_service(empty_store, bus))
+            _create_owner(_credentials(empty_store))
 
         assert len(repo.accounts()) == 1
 
@@ -1229,7 +1263,7 @@ class TestCreateOwner:
         """An ordinary account carries the e-mail: 409 ``account.email_taken``, nothing written."""
         empty_store.accounts.insert_account(_account("owner", "household", 1.0))
 
-        refusal = _refusal(lambda: _create_owner(_service(empty_store, bus)))
+        refusal = _refusal(lambda: _create_owner(_credentials(empty_store)))
 
         assert refusal.code is RefusalCode.ACCOUNT_EMAIL_TAKEN
         assert len(empty_store.accounts.accounts()) == 1
@@ -1249,7 +1283,7 @@ class TestCreateOwner:
             name: The display name.
             email: The e-mail.
         """
-        refusal = _refusal(lambda: _create_owner(_service(empty_store, bus), name=name, email=email))
+        refusal = _refusal(lambda: _create_owner(_credentials(empty_store), name=name, email=email))
 
         assert isinstance(refusal, AppBadRequest)
         assert refusal.code is RefusalCode.ACCOUNT_EMAIL_INVALID
@@ -1264,14 +1298,14 @@ class TestCreateOwner:
         self, empty_store: AppStore, bus: EventBus, password: str, code: RefusalCode
     ) -> None:
         """400 by the policy every local door applies, nothing written."""
-        refusal = _refusal(lambda: _create_owner(_service(empty_store, bus), password=password))
+        refusal = _refusal(lambda: _create_owner(_credentials(empty_store), password=password))
 
         assert (refusal.status, refusal.code) == (400, code)
         assert empty_store.accounts.accounts() == []
 
     def test_an_empty_password_is_refused(self, empty_store: AppStore, bus: EventBus) -> None:
         """400 ``password.required``, nothing written."""
-        refusal = _refusal(lambda: _create_owner(_service(empty_store, bus), password=""))
+        refusal = _refusal(lambda: _create_owner(_credentials(empty_store), password=""))
 
         assert refusal.code is RefusalCode.PASSWORD_REQUIRED
         assert empty_store.accounts.accounts() == []
@@ -1281,10 +1315,10 @@ class TestSetOwnLanguage:
     """``set_own_language`` — ``setOwnLanguage``, the signed-in account's own language."""
 
     def test_sets_it_and_reads_it_back_another_account_untouched(
-        self, store: AppStore, accounts: AccountService
+        self, store: AppStore, accounts: RosterService
     ) -> None:
         """The account answered carries the language chosen, so does the next read; no other row moves."""
-        caller = _actor_of(store.accounts, "account-guest")
+        caller = _actor_of(store, "account-guest")
         store.accounts.set_language("account-household", Language.EN, now=1.0)
 
         first = accounts.set_own_language(caller, Language.EN)
@@ -1295,12 +1329,10 @@ class TestSetOwnLanguage:
         other = store.accounts.account("account-household")
         assert other is not None and other.language is Language.EN
 
-    def test_an_account_gone_since_its_session_is_auth_required(
-        self, store: AppStore, accounts: AccountService
-    ) -> None:
+    def test_an_account_gone_since_its_session_is_auth_required(self, store: AppStore, accounts: RosterService) -> None:
         """The session's account was deleted: ``auth.required``, nothing written."""
-        caller = _actor_of(store.accounts, "account-guest")
-        store.accounts._conn.execute("DELETE FROM account WHERE id = ?", (caller.account_id,))  # noqa: SLF001
+        caller = _actor_of(store, "account-guest")
+        store.accounts._conn.execute("DELETE FROM account WHERE id = ?", (caller.account_id,))
 
         with pytest.raises(AppRefusal) as raised:
             accounts.set_own_language(caller, Language.EN)

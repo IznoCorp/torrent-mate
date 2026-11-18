@@ -116,7 +116,7 @@ def disk_id_for_path(path: Path, db_path: Path) -> tuple[int, str] | None:
             rows = cursor.fetchall()
         finally:
             conn.close()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning(
             "indexer.db.disk_lookup_failed",
             path=str(path),

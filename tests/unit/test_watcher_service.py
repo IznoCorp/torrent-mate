@@ -52,7 +52,7 @@ def _inp(
     return WatcherInput(
         completed_hashes=frozenset(completed),
         ingested_hashes=frozenset(ingested),
-        seed_pure_hashes=frozenset(seed_pure or set()),
+        triage_skipped_hashes=frozenset(seed_pure or set()),
         sentinel_present=sentinel,
         pipeline_lock_held=lock_held,
         now=now,
@@ -286,6 +286,29 @@ class TestWatcherService:
         assert out.new_state.backoff_multiplier == 1  # incremented, not reset
         assert out.new_state.debounce_origin == "safety_net"
 
+    def test_scoped_boot_without_a_recorded_run_starts_the_safety_net_clock(self) -> None:
+        """A scoped instance with no recorded run is IDLE on boot; its first safety net is due after the delay."""
+        svc = WatcherService(
+            WatchConfig(enabled=True, debounce_s=900, safety_net_hours=24, poll_interval_s=60), scoped=True
+        )
+        boot = _inp(completed=set(), ingested=set(), now=1_000_000.0)
+        out = svc.evaluate(boot, WatcherState())
+        assert out.decision == WatcherDecision.IDLE
+        assert out.new_state.last_successful_run_at == 1_000_000.0
+        just_before = _inp(completed=set(), ingested=set(), now=1_000_000.0 + 24 * 3600 - 1)
+        assert svc.evaluate(just_before, out.new_state).decision == WatcherDecision.IDLE
+        due = _inp(completed=set(), ingested=set(), now=1_000_000.0 + 24 * 3600)
+        fired = svc.evaluate(due, out.new_state)
+        assert fired.decision == WatcherDecision.FIRE_RUN
+        assert fired.run_reason == "safety_net"
+
+    def test_scoped_boot_still_honours_the_sentinel(self) -> None:
+        """The boot clock never swallows a manual poke."""
+        svc = WatcherService(WatchConfig(enabled=True, safety_net_hours=24), scoped=True)
+        out = svc.evaluate(_inp(completed=set(), ingested=set(), now=1_000_000.0, sentinel=True), WatcherState())
+        assert out.decision == WatcherDecision.FIRE_RUN
+        assert out.run_reason == "manual"
+
     def test_safety_net_fires_when_expired_25h(self, svc: WatcherService) -> None:
         """25 h elapsed with 24 h config → safety net triggers."""
         state = WatcherState(last_successful_run_at=1_000_000.0)
@@ -346,7 +369,7 @@ class TestWatcherService:
             completed=set(original_inp.completed_hashes),
             ingested=set(original_inp.ingested_hashes),
             now=original_inp.now,
-            seed_pure=set(original_inp.seed_pure_hashes),
+            seed_pure=set(original_inp.triage_skipped_hashes),
             sentinel=original_inp.sentinel_present,
             lock_held=original_inp.pipeline_lock_held,
         )
@@ -362,7 +385,7 @@ class TestWatcherService:
         # Verify input unchanged
         assert original_inp.completed_hashes == inp_before.completed_hashes
         assert original_inp.ingested_hashes == inp_before.ingested_hashes
-        assert original_inp.seed_pure_hashes == inp_before.seed_pure_hashes
+        assert original_inp.triage_skipped_hashes == inp_before.triage_skipped_hashes
         assert original_inp.sentinel_present == inp_before.sentinel_present
         assert original_inp.pipeline_lock_held == inp_before.pipeline_lock_held
         assert original_inp.now == inp_before.now
@@ -841,7 +864,7 @@ class TestActiveDownloadPredicate:
     """
 
     @staticmethod
-    def _item(state: str, progress: float) -> object:
+    def _item(state: str, progress: float, download_speed: int | None = None) -> object:
         """A minimal TorrentItem stand-in carrying only what the predicate reads."""
         from personalscraper.api.torrent._base import TorrentItem
 
@@ -853,6 +876,7 @@ class TestActiveDownloadPredicate:
             state=state,
             content_path="/x",
             category=None,
+            download_speed=download_speed,
         )
 
     @pytest.mark.parametrize(
@@ -860,10 +884,20 @@ class TestActiveDownloadPredicate:
         ["downloading", "stalledDL", "metaDL", "queuedDL", "forcedDL", "checkingDL", "downloading (slow)"],
     )
     def test_an_unfinished_active_torrent_counts(self, state: str) -> None:
-        """Tout ce qui n'est pas fini et n'est pas arrêté compte comme en cours."""
+        """With its speed unknown (``None``), an unfinished non-inert torrent still counts.
+
+        ``None`` is what a client that does not report a speed (Transmission) gives: the
+        predicate cannot tell it is stalled, so it keeps the old count.
+        """
         from personalscraper.commands.watch import _is_actively_downloading
 
-        assert _is_actively_downloading(self._item(state, 0.42)) is True
+        assert _is_actively_downloading(self._item(state, 0.42, download_speed=None)) is True
+
+    def test_a_queued_torrent_at_zero_speed_does_not_count(self) -> None:
+        """A queued torrent reporting a 0 B/s speed is not advancing, so it does not count."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item("queuedDL", 0.0, download_speed=0)) is False
 
     @pytest.mark.parametrize("state", ["pausedDL", "stoppedDL", "paused", "stopped", "error", "missingFiles", "moving"])
     def test_a_stopped_or_broken_torrent_never_counts(self, state: str) -> None:
@@ -878,3 +912,51 @@ class TestActiveDownloadPredicate:
 
         assert _is_actively_downloading(self._item("uploading", 1.0)) is False
         assert _is_actively_downloading(self._item("stalledUP", 1.0)) is False
+
+    def test_a_stalled_torrent_at_zero_speed_never_counts(self) -> None:
+        """Operator rule: a torrent at 0 B/s does not advance, so it must not hold the run back."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item("stalledDL", 0.0, download_speed=0)) is False
+
+    def test_a_torrent_with_a_positive_speed_counts(self) -> None:
+        """A download that moves bytes is in progress."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item("downloading", 0.42, download_speed=2_500_000)) is True
+
+    def test_an_unknown_speed_keeps_counting(self) -> None:
+        """``None`` is « the client did not say »: unchanged behaviour, the torrent counts."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item("stalledDL", 0.0, download_speed=None)) is True
+
+
+class TestStalledTorrentBesideCompletedOne:
+    """The poll's count, fed to the engine, over a fake client (the 2026-10 incident)."""
+
+    @staticmethod
+    def _client(items: list[object]) -> object:
+        """A fake torrent client listing *items* as its whole catalogue."""
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_all_hashes.return_value = [i.hash for i in items]  # type: ignore[attr-defined]
+        client.get_by_hashes.side_effect = lambda hashes: [i for i in items if i.hash in hashes]  # type: ignore[attr-defined]
+        return client
+
+    def test_a_zero_speed_stalled_torrent_does_not_hold_back_the_debounce(self) -> None:
+        """A completed, un-ingested torrent beside a 0 B/s stalledDL one: START_DEBOUNCE, not IDLE."""
+        from personalscraper.api.torrent._base import TorrentItem
+        from personalscraper.commands.watch import _poll_active_downloads
+
+        stalled = TorrentItem(hash="stalled", name="n", size_bytes=1, progress=0.0, state="stalledDL", download_speed=0)
+        count = _poll_active_downloads(self._client([stalled]), frozenset({"done"}))  # type: ignore[arg-type]
+        assert count == 0
+
+        svc = WatcherService(WatchConfig(enabled=True, poll_interval_s=60, debounce_s=60, safety_net_hours=24))
+        out = svc.evaluate(
+            _inp(completed={"done"}, ingested=set(), now=1000.0, downloading=count or 0),
+            WatcherState(cross_seed_dispatched=frozenset({"done"})),
+        )
+        assert out.decision is WatcherDecision.START_DEBOUNCE

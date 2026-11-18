@@ -8,10 +8,11 @@ pre-1.0).
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Mapping, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from personalscraper.logger import get_logger
 
@@ -133,15 +134,15 @@ class CheckContext:
     media_dir: Path
     media_type: str
     stage: CheckStage
-    config: "Config"
-    patterns: "NamingPatterns"
+    config: Config
+    patterns: NamingPatterns
     dry_run: bool = False
-    resolved_category: "str | None" = None
+    resolved_category: str | None = None
 
-    _nfo_root: "ET.Element | None | object" = field(default=None, init=False, repr=False, compare=False)
+    _nfo_root: ET.Element | None | object = field(default=None, init=False, repr=False, compare=False)
     _nfo_parsed: bool = field(default=False, init=False, repr=False, compare=False)
 
-    def nfo_root(self) -> "ET.Element | None":
+    def nfo_root(self) -> ET.Element | None:
         """Return cached NFO root, parsing on first call.
 
         Returns:
@@ -154,13 +155,13 @@ class CheckContext:
                 self._nfo_root = None
             else:
                 try:
-                    self._nfo_root = ET.parse(p).getroot()  # noqa: S314
+                    self._nfo_root = ET.parse(p).getroot()
                 except (ET.ParseError, OSError) as exc:
                     log.warning("nfo_root_parse_failed", nfo=str(p), exc_info=True, error=str(exc))
                     self._nfo_root = None
         return self._nfo_root  # type: ignore[return-value]
 
-    def nfo_path(self) -> "Path | None":
+    def nfo_path(self) -> Path | None:
         """Return expected NFO path for this media item.
 
         Returns:
@@ -241,7 +242,7 @@ class FixableCheck(Protocol):
 class IndexableCheck(Protocol):
     """Optional capability: the check can derive results from a DB row."""
 
-    def from_index(self, row: Mapping[str, Any], ctx: IndexContext) -> "list[CheckResult] | None":
+    def from_index(self, row: Mapping[str, Any], ctx: IndexContext) -> list[CheckResult] | None:
         """Derive results from an indexer DB row.
 
         Args:

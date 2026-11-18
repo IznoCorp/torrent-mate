@@ -13,6 +13,7 @@ from personalscraper.acquire.events import (
     CrossSeedRejected,
     GrabFailed,
     GrabSucceeded,
+    PreprodPurgeCompleted,
     RatioMeasured,
     SeedObligationBreached,
     SeedObligationRecorded,
@@ -45,6 +46,7 @@ ACQUIRE_EVENT_CLASSES: tuple[type[Event], ...] = (
     SeedObligationBreached,
     SeedObligationSatisfied,
     SeedObligationReleased,
+    PreprodPurgeCompleted,
     RatioMeasured,
     WatcherRunTriggered,
 )

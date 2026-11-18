@@ -28,7 +28,7 @@ class OwnershipChecker(Protocol):
 
     def owns(
         self,
-        media_ref: "MediaRef",
+        media_ref: MediaRef,
         *,
         kind: Literal["movie", "episode"],
         season: int | None = None,
@@ -61,7 +61,7 @@ class NullOwnershipChecker:
 
     def owns(
         self,
-        media_ref: "MediaRef",
+        media_ref: MediaRef,
         *,
         kind: Literal["movie", "episode"],
         season: int | None = None,

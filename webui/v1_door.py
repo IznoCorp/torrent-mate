@@ -109,7 +109,7 @@ def ask_v1(token: str) -> tuple[int, str | None]:
         f"{V1_URL}/api/v1/auth/me", headers={"Cookie": f"{V1_COOKIE}={token}", "Accept": "application/json"}
     )
     try:
-        with urllib.request.urlopen(request, timeout=V1_TIMEOUT) as answer:  # noqa: S310 — a configured loopback URL
+        with urllib.request.urlopen(request, timeout=V1_TIMEOUT) as answer:  # a configured loopback URL
             return answer.status, None
     except urllib.error.HTTPError as refusal:
         return refusal.code, _code_of(refusal)
@@ -252,76 +252,27 @@ def return_target(request_path: str) -> str:
     return safe_return_path(parts.path + (f"?{kept}" if kept else ""))
 
 
-# The sign-in page's v1 half: the form posts the e-mail and the password to v1
-# as declared JSON, and lands on the place that was asked once v1 opens the
-# session — or back on the sign-in page, that place kept, when it does not.
-V1_SIGN_IN = """
-<script>
-(function () {
-  var RETURN_TO = __RETURN_TO__;
-  var REASONS = __REASONS__;
-  var form = document.querySelector('#loginform');
-  function refused(code) {
-    var why = REASONS.indexOf(code) < 0 ? '' : '&why=' + code;
-    return '/?refus=1' + why + '&next=' + encodeURIComponent(RETURN_TO);
-  }
-  form.addEventListener('submit', function (event) {
-    event.preventDefault();
-    if (!form.checkValidity()) return;
-    fetch('/api/v1/auth/login', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: form.username.value.trim(), password: form.password.value })
-    }).then(function (answer) {
-      if (answer.ok) {
-        // The application boots from scratch after this page: the mark is how its first boot
-        // knows a person has just signed in, and proposes the install (`app/install-state.ts`).
-        try { sessionStorage.setItem('tm-signed-in', '1'); } catch (e) {}
-        return location.replace(RETURN_TO);
-      }
-      return answer.json().catch(function () { return {}; })
-        .then(function (problem) { location.replace(refused(problem && problem.code)); });
-    }).catch(function () { location.replace(refused()); });
-  });
-})();
-</script>
-"""
-
-
-def _as_js(value: object) -> str:
-    """Writes a value as JSON safe inside an inline script.
-
-    Args:
-        value: Any JSON-serialisable value.
-
-    Returns:
-        Its JSON, with no `</script>`, no `&` and no line terminator a script
-        would read as the end of a line.
-    """
-    return (
-        json.dumps(value)
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-        .replace("\u2028", "\\u2028")
-        .replace("\u2029", "\\u2029")
-    )
+# The sign-in page's v1 half lives in `design/boot/sign-in.js`, a file like every script of a
+# page served under a Content-Security-Policy: the form posts the e-mail and the password to v1
+# as declared JSON, and lands on the place that was asked once v1 opens the session — or back
+# on the sign-in page, that place kept, when it does not. What differs per visit rides as
+# attributes of the script's tag (`sign_in_script`).
 
 
 def sign_in_script(return_to: str) -> str:
-    """The sign-in page's script, built for the place it returns to.
+    """The sign-in page's script tag, carrying the place it returns to.
 
     Args:
         return_to: Where the visitor was going; passed through `safe_return_path`
-            again, since this is the one place it becomes script.
+            again, since this is the one place it reaches a script.
 
     Returns:
-        The `<script>` element.
+        The `<script src>` element; its place and reasons are JSON in two
+        attributes, escaped as attribute values.
     """
-    return V1_SIGN_IN.replace("__RETURN_TO__", _as_js(safe_return_path(return_to))).replace(
-        "__REASONS__", _as_js(sorted(REASONS))
-    )
+    place = html.escape(json.dumps(safe_return_path(return_to)), quote=True)
+    reasons = html.escape(json.dumps(sorted(REASONS)), quote=True)
+    return f'<script src="/boot/sign-in.js" data-return-to="{place}" data-reasons="{reasons}"></script>'
 
 
 def worded(markup: str, catalogue: dict[str, object]) -> str:
@@ -434,7 +385,7 @@ def email_label(resource: str) -> str:
     return str(json.loads(resource)["screens"]["gate"]["email"])
 
 
-def unreachable_page(error: str, texts: dict[str, str]) -> bytes:
+def unreachable_page(error: str, texts: dict[str, str], language: str) -> bytes:
     """Returns the 503 served when the v1 door cannot ask v1.
 
     A visitor signing in meets it, so its words are the interface's
@@ -444,19 +395,19 @@ def unreachable_page(error: str, texts: dict[str, str]) -> bytes:
     Args:
         error: What v1 did, or did not, answer.
         texts: The `server.v1Unreachable` words: `title`, `heading`, `body`.
+        language: The language `texts` speaks, declared as the page's `lang`.
 
     Returns:
         A complete HTML document that names the server that did not answer,
         never the sign-in.
     """
     return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        f'<!doctype html><html lang="{language}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
-        f"<title>{html.escape(texts['title'], quote=False)}</title></head><body "
-        'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
+        f"<title>{html.escape(texts['title'], quote=False)}</title>"
+        '<link rel="stylesheet" href="/host.css"></head><body class="failure">'
         f"<h1>{html.escape(texts['heading'], quote=False)}</h1><p>{html.escape(texts['body'], quote=False)}"
-        '</p><pre style="white-space:pre-wrap;background:#f6f6f6;'
-        'padding:12px;border-radius:8px">'
+        "</p><pre>"
         f"{html.escape(error)}"
         "</pre></body></html>"
     ).encode()

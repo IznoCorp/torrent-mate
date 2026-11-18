@@ -1,0 +1,26 @@
+name: Locked Python install
+description: >-
+  Install the project into .venv from uv.lock (never re-resolved: --locked fails
+  when the lock and pyproject.toml disagree) and put .venv/bin first on PATH, so
+  every later step runs the locked ruff, mypy and pytest.
+inputs:
+  dev:
+    description: Also install the `dev` extra (ruff, mypy, pytest, audit tools).
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v10.2.0
+      with:
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+    - shell: bash
+      env:
+        DEV: ${{ inputs.dev }}
+      run: |
+        if [ "$DEV" = "true" ]; then
+          uv sync --locked --python 3.12 --extra dev
+        else
+          uv sync --locked --python 3.12
+        fi
+        echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"

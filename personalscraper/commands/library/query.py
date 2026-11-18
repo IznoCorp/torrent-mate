@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -54,7 +53,7 @@ def library_search(
     ctx: typer.Context,
     query: str = typer.Argument(..., help=t("cli_library.query.library_search_query_help")),
     limit: int = typer.Option(50, "--limit", help=t("cli_library.query.library_search_limit_help")),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.query.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.query.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -71,7 +70,7 @@ def library_search(
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.indexer.cli import library_search_command  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     rc, rows = library_search_command(query, limit=limit, config_path=effective_config, event_bus=bundle.event_bus)
     emit(
         {"rows": rows, "count": len(rows), "query": query, "limit": limit},
@@ -104,7 +103,7 @@ def _print_search_table(rows: list[dict[str, object]]) -> None:
 def library_show(
     ctx: typer.Context,
     item_id: int = typer.Argument(..., help=t("cli_library.query.library_show_item_id_help")),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.query.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.query.config_help")),
     *,
     bundle: CommandContext,
 ) -> None:
@@ -119,7 +118,7 @@ def library_show(
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.indexer.cli import library_show_command  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     rc, payload = library_show_command(item_id, config_path=effective_config, event_bus=bundle.event_bus)
     emit(payload, rich_renderer=lambda: _print_show_sections(payload))
     if rc != 0:

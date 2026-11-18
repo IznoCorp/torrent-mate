@@ -16,7 +16,7 @@ def _clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch: The pytest monkeypatch fixture.
     """
     monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
 
 
 def test_read_only_clone_forbids_every_write(monkeypatch: pytest.MonkeyPatch) -> None:

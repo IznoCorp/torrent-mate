@@ -31,7 +31,9 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.i18n import t
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -66,7 +68,7 @@ class FixSeasonCountsStats(CliFixStatsMixin):
     fixed: int = 0
     details: list[dict[str, int]] = field(default_factory=list)
 
-    def snapshot(self) -> "FixSeasonCountsStats":
+    def snapshot(self) -> FixSeasonCountsStats:
         """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
         return replace(self, details=list(self.details))
 
@@ -125,6 +127,7 @@ def library_fix_season_counts(
     from personalscraper.indexer.db import _apply_pragmas as _db_apply_pragmas  # noqa: PLC0415
 
     conn = _sqlite3.connect(str(db_path))
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _db_apply_pragmas(conn)
     conn.row_factory = _sqlite3.Row
 

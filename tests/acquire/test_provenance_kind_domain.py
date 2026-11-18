@@ -212,7 +212,7 @@ class TestReconstructedJourneysAreMarked:
         faite » et dessine un chemin qui n'a jamais existé. Le marqueur est ce qui permet
         de dire « inconnue » plutôt que « pas faite ».
         """
-        conn = store._ensure_open()  # noqa: SLF001 — the test reaches the migrated schema
+        conn = store._ensure_open()  # the test reaches the migrated schema
         conn.execute(
             "INSERT INTO staging_provenance (info_hash, kind, grabbed_at, dispatch_path, "
             "dispatched_at, status, reconstructed_at) VALUES ('rec1','episode',10,'/disk/x',20,"

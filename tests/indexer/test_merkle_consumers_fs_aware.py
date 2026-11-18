@@ -251,7 +251,7 @@ def _raw_root_from_db(conn: sqlite3.Connection, disk_id: int) -> str:
 class TestDetectMerkleDriftCoarseFs:
     """``detect_merkle_drift`` must reproduce the scanner's bucketed root."""
 
-    def test_no_false_drift_on_exfat_with_override(self, fs: "FakeFilesystem") -> None:
+    def test_no_false_drift_on_exfat_with_override(self, fs: FakeFilesystem) -> None:
         """ExFAT disk, clean scan, override threaded → detector reports NO drift.
 
         Without the FS-aware fix the detector would recompute a RAW root that
@@ -277,7 +277,7 @@ class TestDetectMerkleDriftCoarseFs:
         assert fresh.id not in drifted, "an exFAT disk with a clean bucketed stored root must NOT be flagged as drifted"
         assert drifted == [], "no disk should drift after a clean scan"
 
-    def test_raw_recompute_would_false_drift_without_fix(self, fs: "FakeFilesystem") -> None:
+    def test_raw_recompute_would_false_drift_without_fix(self, fs: FakeFilesystem) -> None:
         """Counter-proof: a RAW recompute (the pre-fix path) DOES mismatch on exFAT.
 
         Pins exactly what the fix repairs. The stored exFAT-bucketed root must
@@ -311,7 +311,7 @@ class TestDetectMerkleDriftCoarseFs:
         drifted = detect_merkle_drift(conn, fs_type_overrides={"disk_raw": "exfat"})
         assert fresh.id not in drifted
 
-    def test_ntfs_control_no_drift(self, fs: "FakeFilesystem") -> None:
+    def test_ntfs_control_no_drift(self, fs: FakeFilesystem) -> None:
         """NTFS control: a clean NTFS disk drifts under NEITHER raw nor bucketed.
 
         NTFS granularity is 1 (identity), so the detector behaves exactly as the
@@ -331,7 +331,7 @@ class TestDetectMerkleDriftCoarseFs:
         drifted = detect_merkle_drift(conn)
         assert fresh.id not in drifted, "a clean NTFS disk must never drift"
 
-    def test_ntfs_detector_root_byte_identical_to_raw(self, fs: "FakeFilesystem") -> None:
+    def test_ntfs_detector_root_byte_identical_to_raw(self, fs: FakeFilesystem) -> None:
         """On NTFS the bucketed detector root equals the raw DB root (identity)."""
         fs.pause()
         conn = _make_conn_real()
@@ -355,7 +355,7 @@ class TestDetectMerkleDriftCoarseFs:
 class TestRefreshDiskMerkleCoarseFs:
     """``_refresh_disk_merkle`` must write the SAME root the scanner would."""
 
-    def test_refresh_matches_next_scan_on_exfat(self, fs: "FakeFilesystem") -> None:
+    def test_refresh_matches_next_scan_on_exfat(self, fs: FakeFilesystem) -> None:
         """Refresh an exFAT disk → stored root equals the scanner's bucketed root.
 
         The repair cascade auto-detects the capability (override map not reachable
@@ -394,7 +394,7 @@ class TestRefreshDiskMerkleCoarseFs:
         drifted = detect_merkle_drift(conn, fs_type_overrides={"disk_exfat_repair": "exfat"})
         assert fresh.id not in drifted
 
-    def test_refresh_byte_identical_to_raw_on_ntfs(self, fs: "FakeFilesystem") -> None:
+    def test_refresh_byte_identical_to_raw_on_ntfs(self, fs: FakeFilesystem) -> None:
         """NTFS: the refreshed root equals the raw-mtime root (identity, inert fix)."""
         fs.pause()
         conn = _make_conn_real()
@@ -413,7 +413,7 @@ class TestRefreshDiskMerkleCoarseFs:
         raw_root = _raw_root_from_db(conn, fresh.id)
         assert written == raw_root, "on NTFS the refreshed root must be byte-identical to the raw-mtime root"
 
-    def test_refresh_noop_when_merkle_null(self, fs: "FakeFilesystem") -> None:
+    def test_refresh_noop_when_merkle_null(self, fs: FakeFilesystem) -> None:
         """A disk with no prior merkle is left untouched (legacy no-op preserved)."""
         fs.pause()
         conn = _make_conn_real()

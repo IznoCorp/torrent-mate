@@ -75,7 +75,7 @@ class GrabPassMixin(PassGatesMixin):
             json.JSONDecodeError: On corrupt criteria/profile JSON (:meth:`run`
                 isolates it and abandons the row).
         """
-        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in run()
+        assert item.id is not None  # ensured by the SELECTs in run()
         wanted_id = item.id
 
         gate = self._apply_cutoff_gate(item, now, cadence=cadence)
@@ -278,7 +278,7 @@ class GrabPassMixin(PassGatesMixin):
             sqlite3.OperationalError: If a persist loses the DB lock — the emit
                 is then skipped (no double-emit on the eventual re-grab).
         """
-        assert item.id is not None  # noqa: S101 — caller fetched it by id
+        assert item.id is not None  # caller fetched it by id
         info_hash = outcome.info_hash or ""
         if not info_hash:
             # A 'success' disposition with no hash is a contract violation upstream
@@ -327,7 +327,7 @@ class GrabPassMixin(PassGatesMixin):
         if info_hash and source_tracker:
             try:
                 self._record_seed_obligation(info_hash, source_tracker)
-            except Exception:  # noqa: BLE001 — fail-soft: obligation is advisory
+            except Exception:  # fail-soft: obligation is advisory
                 log.warning(
                     "acquire.service.obligation_write_failed",
                     wanted_id=item.id,

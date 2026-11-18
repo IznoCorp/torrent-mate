@@ -21,9 +21,9 @@ from pydantic import ValidationError
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.model import Account
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import (
     SESSION_RENEWAL_INTERVAL_S,
     SESSION_ROTATION_GRACE_S,
@@ -78,7 +78,7 @@ def store(tmp_path: Path) -> Iterator[AppStore]:
     """
     app_store = AppStore(tmp_path / "app.db")
     app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id=_ACCOUNT_ID,
             name="Alice",
             email="alice@example.org",
@@ -116,7 +116,7 @@ def sessions(store: AppStore, clock: _Clock) -> SessionService:
     Returns:
         The service.
     """
-    return SessionService(lambda: store.accounts, idle_days=_IDLE_DAYS, ceiling=lambda: _NO_CEILING, clock=clock)
+    return SessionService(store, idle_days=_IDLE_DAYS, ceiling=lambda: _NO_CEILING, clock=clock)
 
 
 def _rows(store: AppStore) -> list[tuple[object, ...]]:
@@ -128,7 +128,7 @@ def _rows(store: AppStore) -> list[tuple[object, ...]]:
     Returns:
         Each row's ``token_hash``, ``expires_at``, ``last_seen_at``, ``revoked_at``, ``user_agent``.
     """
-    conn = sqlite3.connect(store._db_path)  # noqa: SLF001 — the test reads the file itself, as an attacker would
+    conn = sqlite3.connect(store._db_path)  # the test reads the file itself, as an attacker would
     try:
         return conn.execute(
             "SELECT token_hash, expires_at, last_seen_at, revoked_at, user_agent FROM session"
@@ -148,7 +148,7 @@ def _delete_the_role(store: AppStore, role_id: str) -> None:
         store: The store.
         role_id: The role to delete.
     """
-    conn = sqlite3.connect(store._db_path)  # noqa: SLF001 — the test writes the file itself
+    conn = sqlite3.connect(store._db_path)  # the test writes the file itself
     try:
         conn.execute("DELETE FROM role WHERE id = ?", (role_id,))
         conn.commit()
@@ -230,7 +230,7 @@ class TestResolve:
         after = sessions.resolve(token)
         assert before is not None and after is not None
         assert after.role_id == "local-guest"
-        assert after.role_rights == store.accounts.role("local-guest").rights  # type: ignore[union-attr]
+        assert after.role_rights == store.roles.role("local-guest").rights  # type: ignore[union-attr]
         assert after.role_rights != before.role_rights
 
     def test_a_session_whose_role_is_gone_is_nobody(self, sessions: SessionService, store: AppStore) -> None:
@@ -241,7 +241,7 @@ class TestResolve:
 
     def test_read_account_refuses_once_the_role_is_gone(self, sessions: SessionService, store: AppStore) -> None:
         """An actor resolved before its role vanished is refused ``auth.required``."""
-        accounts = AccountService(lambda: store.accounts, sessions, EventBus())
+        accounts = RosterService(store, EventBus())
         actor = sessions.resolve(sessions.open(_ACCOUNT_ID, user_agent=None))
         assert actor is not None
         _delete_the_role(store, "household")
@@ -260,7 +260,7 @@ class TestResolve:
     def test_the_ceiling_is_read_at_each_call(self, store: AppStore, clock: _Clock) -> None:
         """The instance ceiling is the one current at resolution."""
         ceilings = [_NO_CEILING, InstanceCeiling(forbidden=frozenset({Right.LIBRARY_DELETE}), read_only=False)]
-        service = SessionService(lambda: store.accounts, idle_days=_IDLE_DAYS, ceiling=lambda: ceilings[0], clock=clock)
+        service = SessionService(store, idle_days=_IDLE_DAYS, ceiling=lambda: ceilings[0], clock=clock)
         token = service.open(_ACCOUNT_ID, user_agent=None)
         ceilings.reverse()
         actor = service.resolve(token)
@@ -389,11 +389,11 @@ class TestRenewal:
         """A second use whose row was read before the first renewed loses the race: one rotation."""
         token = sessions.open(_ACCOUNT_ID, user_agent=None)
         clock.now += SESSION_RENEWAL_INTERVAL_S
-        stale = store.accounts.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
+        stale = store.sessions.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
         first = sessions.use(token)
         assert first is not None and first.renewed_token is not None
         assert stale is not None
-        assert sessions._renew(store.accounts, stale, clock.now) is None  # noqa: SLF001 — the race's loser
+        assert sessions._renew(store, stale, clock.now) is None  # the race's loser
         assert _rows(store)[0][0] == hashlib.sha256(first.renewed_token.encode()).hexdigest()
 
     def test_a_revoked_session_never_renews(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
@@ -413,7 +413,7 @@ class TestRenewal:
         clock.now += SESSION_RENEWAL_INTERVAL_S
         use = sessions.use(old)
         assert use is not None and use.renewed_token is not None
-        store.accounts.revoke_sessions_of(_ACCOUNT_ID, except_id=None, now=clock.now)
+        store.sessions.revoke_sessions_of(_ACCOUNT_ID, except_id=None, now=clock.now)
         assert sessions.use(old) is None
         assert sessions.use(use.renewed_token) is None
 
@@ -493,11 +493,11 @@ class TestEviction:
         assert first is not None and first.renewed_token is not None
         assert sessions.use(first.renewed_token) is not None
         old_hash = hashlib.sha256(old.encode()).hexdigest()
-        assert old_hash in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
+        assert old_hash in sessions._replaced  # the memory bound is the subject
         clock.now += SESSION_RENEWAL_INTERVAL_S
         second = sessions.use(first.renewed_token)
         assert second is not None and second.renewed_token is not None
-        assert old_hash not in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
+        assert old_hash not in sessions._replaced  # the memory bound is the subject
 
     def test_a_value_awaiting_for_an_idle_lifetime_is_forgotten(self, sessions: SessionService, clock: _Clock) -> None:
         """Renewed, the new value never presented, an idle lifetime passed: another session's renewal evicts it."""
@@ -507,14 +507,14 @@ class TestEviction:
         lost = sessions.use(old)
         assert lost is not None and lost.renewed_token is not None
         old_hash = hashlib.sha256(old.encode()).hexdigest()
-        assert sessions._awaiting == {key: [old_hash]}  # noqa: SLF001 — the memory bound is the subject
+        assert sessions._awaiting == {key: [old_hash]}  # the memory bound is the subject
         clock.now += _IDLE_S
         other = sessions.open(_ACCOUNT_ID, user_agent=None)
         clock.now += SESSION_RENEWAL_INTERVAL_S
         renewal = sessions.use(other)
         assert renewal is not None and renewal.renewed_token is not None
-        assert old_hash not in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
-        assert key not in sessions._awaiting  # noqa: SLF001 — the memory bound is the subject
+        assert old_hash not in sessions._replaced  # the memory bound is the subject
+        assert key not in sessions._awaiting  # the memory bound is the subject
 
 
 class TestClose:

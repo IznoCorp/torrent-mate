@@ -30,7 +30,6 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -656,7 +655,7 @@ def library_doctor(
         "--stuck-scan-threshold-s",
         help=t("cli_library.doctor.stuck_scan_threshold_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.doctor.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.doctor.config_help")),
 ) -> None:
     """Run health checks on the library indexer database.
 
@@ -682,7 +681,7 @@ def library_doctor(
     from personalscraper.indexer.commands._bootstrap import build_fs_type_overrides  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
 
     if cfg.indexer.db_path is None:

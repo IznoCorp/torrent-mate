@@ -235,13 +235,17 @@ def publish(design: Path | None = None) -> dict:
     for name in ("sw.js", "build.json"):
         if (dist / name).is_file():
             shutil.copy2(dist / name, SERVED / name)
-    link = SERVED / "assets"
-    if link.is_symlink() or link.exists():
-        if link.is_dir() and not link.is_symlink():
-            shutil.rmtree(link)
-        else:
-            link.unlink()
-    link.symlink_to(design / "assets", target_is_directory=True)
+    # THE FOLDERS THE DOCUMENT NAMES BY ABSOLUTE URL: the artwork, the classic scripts
+    # (`/boot/…`) and the typeface (`/fonts/…`). Missing from the copy, a `<script src>`
+    # would fold onto the document and the browser would refuse it on the MIME type.
+    for name in ("assets", "boot", "fonts"):
+        link = SERVED / name
+        if link.is_symlink() or link.exists():
+            if link.is_dir() and not link.is_symlink():
+                shutil.rmtree(link)
+            else:
+                link.unlink()
+        link.symlink_to(design / name, target_is_directory=True)
     return write_stamp()
 
 

@@ -12,15 +12,24 @@ succeeded and the indexer reconciles drift at its next scan.
 from __future__ import annotations
 
 import os
+import sqlite3
+import time
+from collections.abc import Sequence
+from contextlib import closing
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
+from personalscraper.core.identity import ItemId
+from personalscraper.core.sqlite import refuse_newer_schema
+from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
+from personalscraper.indexer.phantom_rows import tombstone_item
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -210,8 +219,8 @@ def delete_media_folder(
         run_uid: Optional correlating ``pipeline_run`` uid for the journal row.
         dry_run: Consult the permit and measure the folder; delete, journal and
             publish nothing.
-        config: The loaded configuration, naming preprod's roots. Only read under
-            ``staging``, where it is required (without it the roots are unknown).
+        config: The loaded configuration, naming the sandbox's roots. Only read in
+            a sandbox, where it is required (without it the roots are unknown).
 
     Returns:
         A :class:`DeleteResult`: ``VETOED`` when the permit refused, ``FAILED``
@@ -219,12 +228,12 @@ def delete_media_folder(
         otherwise ``DELETED`` with the folder's size.
 
     Raises:
-        SandboxGuardError: Under ``staging``, *path* is outside preprod's marked,
+        SandboxGuardError: In a sandbox, *path* is outside the sandbox's marked,
             mounted roots, or no *config* was given. Nothing is deleted or journaled.
     """
-    if current_environment() is Environment.STAGING:
+    if is_sandboxed():
         if config is None:
-            raise SandboxGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+            raise SandboxGuardError(f"cannot delete {path}: a sandbox needs the config to know its roots")
         assert_within_sandbox(config, path)
     try:
         decision: PermitDecision = permit.may_delete(path)
@@ -286,4 +295,48 @@ def delete_media_folder(
     return DeleteResult(DeleteOutcome.DELETED, size_bytes=size, deleted_count=1)
 
 
-__all__ = ["DeleteOutcome", "DeleteResult", "delete_media_folder"]
+def remove_items(db_path: Path, item_ids: Sequence[ItemId], *, actor: str, reason: str) -> int:
+    """Remove index rows (their releases, files, seasons and episodes by cascade), tombstoned and journaled.
+
+    The rows go in one transaction, each with its ``deleted_item`` tombstone; the journal
+    rows (``record_destruction(op="delete", path="index:media_item/<id>")``) are written
+    after it commits, through the journal's own connection, and never raise.
+
+    Args:
+        db_path: Path of ``library.db``.
+        item_ids: The ``media_item`` rows to remove.
+        actor: Who deletes, written to the journal (``web:<account id>``).
+        reason: The tombstones' ``deleted_item.reason``.
+
+    Returns:
+        The rows removed (a row already gone is not counted).
+
+    Raises:
+        sqlite3.Error: When the transaction fails; it is rolled back and nothing is removed.
+    """
+    if not item_ids:
+        return 0
+    now = int(time.time())
+    removed: list[ItemId] = []
+    with closing(sqlite3.connect(str(db_path), isolation_level=None)) as conn:
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
+        apply_pragmas(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            for item_id in dict.fromkeys(item_ids):
+                if conn.execute("SELECT 1 FROM media_item WHERE id = ?", (item_id,)).fetchone() is None:
+                    continue
+                tombstone_item(conn, item_id, now, reason=reason)
+                conn.execute("DELETE FROM media_item WHERE id = ?", (item_id,))
+                removed.append(item_id)
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+    for item_id in removed:
+        record_destruction(db_path, op=OP_DELETE, path=f"index:media_item/{item_id}", actor=actor)
+        log.info("app.library.delete_row_removed", item_id=item_id, actor=actor)
+    return len(removed)
+
+
+__all__ = ["DeleteOutcome", "DeleteResult", "delete_media_folder", "remove_items"]

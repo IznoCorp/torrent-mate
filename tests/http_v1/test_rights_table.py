@@ -16,8 +16,8 @@ from typing import Any
 import pytest
 from _repo_paths import CONTRACT, DESIGN_SRC
 
+from personalscraper.app.accounts.requirements import OPERATION_RIGHTS, OWN_SCOPED, PENDING_OPERATIONS
 from personalscraper.app.accounts.rights import AnyOf, Public, Requirement, Right, SignedIn, holds
-from personalscraper.http_v1.rights import OPERATION_RIGHTS, OWN_SCOPED, PENDING_OPERATIONS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CONTRACT = CONTRACT
@@ -26,8 +26,8 @@ _WRITE_METHODS = frozenset({"post", "put", "patch", "delete"})
 
 #: The ruled corrections to the source's ``null`` (DESIGN C.6): the sign-in
 #: operations ask no session; the account's own writes (notification choices and
-#: devices, its password, its seen mark on a closed tunnel) are refused on a
-#: read-only instance (2026-10-03: no right, but a write).
+#: devices, its password, its seen mark on a closed tunnel, the end of one of its sessions, its notices marked
+#: read) are refused on a read-only instance (2026-10-03: no right, but a write).
 _OVERRIDES: dict[str, Requirement] = {
     "signIn": Public(),
     "signInWithPlex": Public(),
@@ -36,6 +36,8 @@ _OVERRIDES: dict[str, Requirement] = {
     "registerPushDevice": SignedIn(write=True),
     "changeOwnPassword": SignedIn(write=True),
     "setOwnLanguage": SignedIn(write=True),
+    "revokeOwnSession": SignedIn(write=True),
+    "markNoticesRead": SignedIn(write=True),
     "dismissClosure": SignedIn(write=True),
 }
 

@@ -23,9 +23,9 @@ sys.path.insert(0, str(HARNESS))
 # The harness modules import Playwright at load; CI's `test` job does not install it.
 pytest.importorskip("playwright")
 
-import busy  # noqa: E402
-import queued_ask_mark  # noqa: E402
-from common import browser_channel, chrome_launch_args  # noqa: E402
+import busy
+import queued_ask_mark
+from common import browser_channel, chrome_launch_args
 
 # Two controls whose whole centre is an icon — a sheet action and a named
 # control — and a row an icon covers.

@@ -21,7 +21,7 @@ from personalscraper.web.registry_projection import RegistryHealthProjection
 
 # Shared guard-mount helper + test creds (creds still live in the web pipeline tests).
 from tests.web._web_harness import mount_guarded
-from tests.web.test_pipeline_routes import (  # noqa: E402
+from tests.web.test_pipeline_routes import (
     TEST_HASH,
     TEST_PASSWORD,
     TEST_USERNAME,

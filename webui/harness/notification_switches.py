@@ -20,10 +20,13 @@ R521-b — the switches, the account's:
 4. one switch per type the read answers, each named by its `data-notification-type` from the
    contract's `NotificationType`, its label the type's label, all on in the seeded layer;
 5. the types drawn are exactly those whose right (`x-rights` on `NotificationType`) the account
-   holds — every type for the Admin, a subset for a household member;
+   holds — every type for the Admin, a subset for a household member — plus the types that ask no
+   right (`account.sign_in`, `x-rights` null: every new Plex session notifies its holder, the
+   operator's ruling Q4 A), which every account is offered;
 6. a switch pressed turns that type off, the others staying on, and a fresh read keeps it off
    (the server holds the choice, never the device);
-7. an account that may receive no type (`profile-notifications-none`) is shown no section.
+7. an account that holds no right (`profile-notifications-none`) is offered the types that ask none
+   alone, `account.sign_in`: nothing else is drawn.
 
 R521-c — the writes carry no right: an account's own notifications are its own business
 (the operator, 2026-10-03: « tout le monde à le droit de changer les notifications de son propre
@@ -54,6 +57,8 @@ TYPES = TYPE_SCHEMA.get("enum", [])
 # THE RIGHT EACH TYPE ASKS TO RECEIVE IT — absent on the contract before the change: every type then reads as
 # asking a right nobody holds, so the rule FAILS on behaviour rather than crashing.
 TYPE_RIGHTS = TYPE_SCHEMA.get("x-rights", {})
+# THE TYPES THAT ASK NO RIGHT (`x-rights` null): every account receives them.
+OPEN_TYPES = [one for one, right in TYPE_RIGHTS.items() if right is None]
 ABSENT = "<no words>"
 WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))
 PAGE = WORDS["screens"]["accountPage"]
@@ -126,7 +131,7 @@ def receivable(account):
     Returns:
         The types, in the contract's order.
     """
-    return [one for one in TYPES if account["admin"] or TYPE_RIGHTS.get(one) in account["rights"]]
+    return [one for one in TYPES if account["admin"] or one in OPEN_TYPES or TYPE_RIGHTS.get(one) in account["rights"]]
 
 
 async def exists(page, state):
@@ -149,8 +154,9 @@ async def main():
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        journal.check("the contract declares the eleven types and the right each asks",
-                      len(TYPES) == 11 and set(TYPE_RIGHTS) == set(TYPES), f"{len(TYPES)} types, rights {TYPE_RIGHTS}")
+        journal.check("the contract declares the twelve types and the right each asks, account.sign_in none",
+                      len(TYPES) == 12 and set(TYPE_RIGHTS) == set(TYPES) and OPEN_TYPES == ["account.sign_in"],
+                      f"{len(TYPES)} types, rights {TYPE_RIGHTS}")
 
         # ── R521-a: the device's line, per support ──────────────────────────
         for state, support in SUPPORTS:
@@ -287,7 +293,9 @@ async def main():
 
         if await exists(page, "profile-notifications-none"):
             seen = await read_at(page, "profile-notifications-none", SECTION)
-            journal.check("an account that receives no type is shown no section", seen is None, repr(seen))
+            drawn = [row["type"] for row in (seen or {}).get("switches", [])]
+            journal.check("an account that holds no right is offered the sign-in notice alone",
+                          drawn == OPEN_TYPES, f"drawn {drawn}, expected {OPEN_TYPES}")
         else:
             journal.check("the named state profile-notifications-none exists", False, "absent")
 

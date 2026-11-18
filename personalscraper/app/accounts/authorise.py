@@ -1,14 +1,27 @@
 """``authorise``: the one authorisation path (§ 17, NE-DOIT-PAS-7).
 
 The v1 perimeter calls it for every operation; the instance ceiling is one of
-its terms, never a second check beside it.
+its terms, never a second check beside it. Every service method taking an actor
+calls it too, through :func:`requires`, so an in-process caller is refused what
+an HTTP one is.
 """
 
 from __future__ import annotations
 
+import functools
+import inspect
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
+
 from personalscraper.app.accounts.actor import Actor, RoleKind
+from personalscraper.app.accounts.requirements import OPERATION_RIGHTS
 from personalscraper.app.accounts.rights import AnyOf, Public, Requirement, Right, SignedIn
 from personalscraper.app.errors import AppForbidden, AppUnauthenticated, RefusalCode
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+#: The name of the parameter :func:`requires` authorises: the first after ``self``.
+_ACTOR_PARAMETER = "actor"
 
 
 def authorise(actor: Actor | None, requirement: Requirement) -> None:
@@ -78,3 +91,61 @@ def _role_grants(actor: Actor, right: Right) -> bool:
         True when the role is Admin or carries the right.
     """
     return actor.role_kind is RoleKind.ADMIN or right in actor.role_rights
+
+
+def requires(operation_id: str) -> Callable[[F], F]:
+    """Authorise the decorated method's ``actor`` against its operation's requirement before the body runs.
+
+    The ``actor`` is the method's first parameter after ``self``. The requirement,
+    ``OPERATION_RIGHTS[operation_id]``, is read once, at decoration. The refusal comes
+    before the body opens a store, takes a lock or learns that anything exists: the
+    order the v1 perimeter gives HTTP. The wrapper carries the operation id as ``__requires__``.
+
+    Args:
+        operation_id: The contract ``operationId`` the method serves.
+
+    Returns:
+        The decorator.
+
+    Raises:
+        KeyError: at decoration, when ``operation_id`` is in no table (an import-time error).
+    """
+    requirement = OPERATION_RIGHTS[operation_id]
+
+    def decorate(method: F) -> F:
+        """Wrap one method with the authorisation of its actor.
+
+        Args:
+            method: The service method; its first parameter after ``self`` is ``actor``.
+
+        Returns:
+            The wrapper.
+
+        Raises:
+            TypeError: at decoration, when the method's first parameter after ``self``
+                is not ``actor``.
+        """
+        parameters = list(inspect.signature(method).parameters)
+        if parameters[1:2] != [_ACTOR_PARAMETER]:
+            raise TypeError(f"{method.__qualname__} takes no actor after self; @requires has none to authorise")
+
+        @functools.wraps(method)
+        def authorised(self: object, *args: Any, **kwargs: Any) -> Any:
+            """Authorise the actor, then run the method.
+
+            Args:
+                self: The service.
+                *args: The method's positional arguments, the actor first.
+                **kwargs: The method's keyword arguments.
+
+            Returns:
+                What the method returns.
+            """
+            actor = args[0] if args else kwargs[_ACTOR_PARAMETER]
+            authorise(actor, requirement)
+            return method(self, *args, **kwargs)
+
+        authorised.__requires__ = operation_id  # type: ignore[attr-defined]
+        return cast(F, authorised)
+
+    return decorate

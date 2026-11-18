@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import is_sandboxed
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.dispatch._transfer import force_rmtree
@@ -135,8 +135,8 @@ def sweep_orphans(
             :data:`ARTIFACT_TABLE`; overridable for tests).
         dry_run: When True, ``SKIP`` roots do nothing and ``REPORT`` roots log
             what they *would* clean (and count it) without deleting.
-        config: Loaded configuration naming preprod's roots. Only read under
-            ``staging``, where it is required: a directory-walking root (a storage
+        config: Loaded configuration naming the sandbox's roots. Only read in
+            a sandbox, where it is required: a directory-walking root (a storage
             disk, the staging tree or the ingest dir) outside the marked, mounted
             roots is skipped with an error log, before anything under it is touched.
 
@@ -145,10 +145,10 @@ def sweep_orphans(
         that *would* have been cleaned).
 
     Raises:
-        SandboxGuardError: Under ``staging``, no *config* was given. Nothing is removed.
+        SandboxGuardError: In a sandbox, no *config* was given. Nothing is removed.
     """
-    if current_environment() is Environment.STAGING and config is None:
-        raise SandboxGuardError("cannot sweep orphans: staging needs the config to know preprod's roots")
+    if is_sandboxed() and config is None:
+        raise SandboxGuardError("cannot sweep orphans: a sandbox needs the config to know its roots")
     total = 0
     for root in roots:
         if config is not None and root.kind is not RootKind.LOCKOUT_FILE:

@@ -52,6 +52,7 @@ import "../features/acquisition/follow-verbs";
 import "../features/acquisition/deck-verbs";
 import "../features/acquisition/verbs";
 import "../features/acquisition/todo-pill-verbs";
+import "../features/acquisition/now-pill-verbs";
 import "../features/acquisition/follows-pill-verbs";
 import "../features/acquisition/add-verbs";
 // And the library's verbs: the lens, the category, the layout, the sort, the

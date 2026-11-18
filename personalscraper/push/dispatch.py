@@ -127,4 +127,33 @@ class PushDispatcher:
         return report
 
 
-__all__ = ["DispatchReport", "PushDispatcher", "PushSender"]
+class PushChannel(Protocol):
+    """What a notifier needs of the push channel — :class:`PushDispatcher` and :class:`UnconfiguredPush` satisfy it."""
+
+    def notify_account(self, account_id: str, message: PushMessage) -> DispatchReport:
+        """Sends one message to every live device of an account; never raises on a delivery failure."""
+        ...
+
+
+class UnconfiguredPush:
+    """The push channel of a process with no FCM sender configured: it sends nothing, and says so.
+
+    The in-app channel still tells the account; a missing FCM configuration is the operator's to
+    see in the log, never a failure of what raised the message.
+    """
+
+    def notify_account(self, account_id: str, message: PushMessage) -> DispatchReport:
+        """Send nothing; log ``push.not_configured``.
+
+        Args:
+            account_id: The account the message was for.
+            message: The message, whose code is logged.
+
+        Returns:
+            An empty report: nothing delivered, nothing failed.
+        """
+        log.info("push.not_configured", account_id=account_id, code=message.code)
+        return DispatchReport()
+
+
+__all__ = ["DispatchReport", "PushChannel", "PushDispatcher", "PushSender", "UnconfiguredPush"]

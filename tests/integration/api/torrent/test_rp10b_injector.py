@@ -49,6 +49,19 @@ class TestInject:
             is_paused=True,
         )
 
+    def test_inject_posts_category_and_tags_when_given(self) -> None:
+        """torrents_add receives the category and the tags a scoped caller passes."""
+        client = self._client()
+        client.inject(_TORRENT_BYTES, save_path="/data/movies", category="scoped", tags=["a", "seed-pure"])
+        client._client.torrents_add.assert_called_once_with(  # type: ignore[attr-defined]
+            torrent_files=_TORRENT_BYTES,
+            save_path="/data/movies",
+            is_skip_checking=False,
+            is_paused=True,
+            category="scoped",
+            tags=["a", "seed-pure"],
+        )
+
     def test_inject_recheck_called(self) -> None:
         """torrents_recheck called with the computed v1 info-hash."""
         client = self._client()

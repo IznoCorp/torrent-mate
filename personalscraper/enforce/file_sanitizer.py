@@ -74,8 +74,8 @@ def sanitize_files(
         List of SanitizeResult for each action taken.
 
     Raises:
-        SandboxGuardError: Under ``staging``, a category directory is outside preprod's
-            marked, mounted roots.
+        SandboxGuardError: In a sandbox, a category directory is outside the
+            sandbox's marked, mounted roots.
     """
     results: list[SanitizeResult] = []
     staging = config.paths.staging_dir
@@ -87,7 +87,7 @@ def sanitize_files(
         cat_dir = staging / dir_name
         if not cat_dir.exists():
             continue
-        # Preprod guard (``staging`` only): the sanitizer deletes and renames under *cat_dir*.
+        # Sandbox guard (a no-op in prod): the sanitizer deletes and renames under *cat_dir*.
         assert_all_within_sandbox(config, cat_dir)
         results.extend(_sanitize_directory(cat_dir, dry_run, bus))
 

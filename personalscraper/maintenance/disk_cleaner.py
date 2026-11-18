@@ -29,7 +29,8 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 from personalscraper._fs_utils import is_apple_double
-from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.environment import is_sandboxed
+from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -124,10 +125,10 @@ def _delete_dir(
             :func:`delete_media_folder` for the journal and outbox (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
         config: Loaded configuration forwarded to :func:`delete_media_folder`, whose
-            preprod guard needs it under ``staging``.
+            sandbox guard needs it in a sandbox.
 
     Returns:
-        None. *result* is updated in place; a deletion the preprod guard refuses is
+        None. *result* is updated in place; a deletion the sandbox guard refuses is
         counted as an error.
     """
     try:
@@ -187,15 +188,15 @@ def _delete_file(
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
             :func:`_publish_deleted` (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
-        config: Loaded configuration naming preprod's roots. Only read under
-            ``staging``, where it is required: a file outside the marked, mounted
+        config: Loaded configuration naming the sandbox's roots. Only read in
+            a sandbox, where it is required: a file outside the marked, mounted
             roots (or any file when no *config* is given) is refused and counted as
             an error, before any consult, unlink, journal row or outbox event.
     """
-    if current_environment() is Environment.STAGING:
+    if is_sandboxed():
         try:
             if config is None:
-                raise SandboxGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+                raise SandboxGuardError(f"cannot delete {path}: a sandbox needs the config to know its roots")
             assert_within_sandbox(config, path)
         except SandboxGuardError as exc:
             result.error_count += 1
@@ -369,6 +370,8 @@ def clean_library(
     Returns:
         CleanResult with counts and details.
     """
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
+
     result = CleanResult(dry_run=not apply)
 
     # Orphans is opt-in: only triggered when the user passes --only orphans.
@@ -386,13 +389,19 @@ def clean_library(
             log.warning("library_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
-        for category_id in disk.categories:
+        # A disk's ``categories`` gate where NEW media go, not what exists on it: every
+        # video category folder present is cleaned. Its own non-video categories
+        # (audiobooks) are not video, so the helper skips them; they stay cleaned.
+        category_dirs = _category_dirs_on_disk(config, disk)
+        category_dirs.extend(
+            (category_id, disk.path / config.category(category_id).folder_name)
+            for category_id in disk.categories
+            if category_id in NON_VIDEO_CATEGORY_IDS
+        )
+        for category_id, category_dir in category_dirs:
             if category_filter and category_id != category_filter:
                 continue
 
-            # Resolve physical folder name from config
-            cat_cfg = config.category(category_id)
-            category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
                 log.debug("library_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
@@ -466,7 +475,7 @@ def _clean_media_dir(
             helpers for write-through outbox publish (DESIGN §9.4).
         permit: Deletion authority forwarded to ``_delete_dir`` / ``_delete_file``
             (fail-open default: AllowAllPermit).
-        config: Loaded configuration forwarded to ``_delete_dir`` / ``_delete_file`` for the preprod guard.
+        config: Loaded configuration forwarded to ``_delete_dir`` / ``_delete_file`` for the sandbox guard.
     """
     try:
         entries = list(media_dir.iterdir())

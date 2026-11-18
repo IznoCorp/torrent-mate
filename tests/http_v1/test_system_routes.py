@@ -17,6 +17,7 @@ from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import create_v1_app
 from personalscraper.http_v1.perimeter import ActorResolver
 
@@ -83,7 +84,7 @@ def test_signed_in_answers_the_services_build(test_config: Config, make_v1_servi
 
 def test_composition_serves_the_boot_build(test_config: Config) -> None:
     """The composed services answer this package's version and the commit read at boot."""
-    services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
 
     response = _client(test_config, services, _StubResolver()).get("/version")
 
@@ -96,13 +97,13 @@ def test_commit_is_the_boot_value_after_a_redeploy(test_config: Config, monkeypa
     A stale process re-reading the freshly stamped file would pass itself off as the
     new build, and the deploy's post-check could no longer catch a failed restart.
     """
-    services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+    services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
     client = _client(test_config, services, _StubResolver())
     first = client.get("/version").json()["commit"]
 
     monkeypatch.setattr(build_info_module, "read_build_commit", lambda static_dir: "post-deploy-sha")
     second = client.get("/version").json()["commit"]
-    rebuilt = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+    rebuilt = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
 
     assert second == first != "post-deploy-sha"
     assert rebuilt.build_info.commit == first

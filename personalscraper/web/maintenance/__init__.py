@@ -15,7 +15,7 @@ registry ground truth.
 """
 
 from personalscraper.app.maintenance.registry import REGISTRY, ActionOption, MaintenanceAction, canonical_options_json
-from personalscraper.web.maintenance.models import (  # noqa: F401
+from personalscraper.web.maintenance.models import (
     ActionsResponse,
     DiskInfo,
     DisksResponse,

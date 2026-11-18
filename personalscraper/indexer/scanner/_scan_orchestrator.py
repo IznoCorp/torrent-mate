@@ -370,7 +370,7 @@ def _setup_scan_run(
     spotlight_enabled: bool,
     staging_dir: str | None,
     disk_breaker: DiskCircuitBreaker | None,
-    event_bus: "EventBus",
+    event_bus: EventBus,
     check_mount_flags: Callable[[list[DiskRow]], None],
 ) -> tuple[int, DiskCircuitBreaker, SpotlightChangeDetector, bool]:
     """Insert the ``scan_run`` row, run pre-walk probes, resolve the breaker.
@@ -607,7 +607,8 @@ def _scan_one_disk(
         # (sequential loop or parallel wrapper) can surface it.
         raise
     except PermissionError as perm_exc:
-        # Per-file EACCES: log a warning and return (no strike against the disk).
+        # EACCES that escaped the walk (the walker shelters an unreadable file itself): log a
+        # warning and return (no strike against the disk).
         # PermissionError is a subclass of OSError so it MUST be matched first;
         # otherwise the OSError clause below would always win.
         log.warning(
@@ -855,7 +856,7 @@ def _mark_scan_run_failed(conn: sqlite3.Connection, scan_run_id: int) -> None:
 
 
 def _emit_completion(
-    event_bus: "EventBus",
+    event_bus: EventBus,
     source: str,
     mode: ScanMode,
     state: _ScanState,

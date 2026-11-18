@@ -194,7 +194,7 @@ def served_style() -> str | None:
     left at top level is a token nothing declares.
 
     Returns:
-        The text between the composed page's `<style>` tags, or `None` when the
+        The composed sign-in stylesheet (served at `/login.css`), or `None` when the
         composer cannot be imported or serves no style at all.
     """
     location = importlib.util.spec_from_file_location("_login_composer", COMPOSER)
@@ -204,29 +204,28 @@ def served_style() -> str | None:
     module = importlib.util.module_from_spec(location)
     try:
         location.loader.exec_module(module)
-        page = module.login_page(False)
+        styles = module.login_styles()
     except Exception as failure:  # the composer's own errors, reported as its own
         print(
-            f"check-login: composing the sign-in page raised {failure!r} — "
+            f"check-login: composing the sign-in page's stylesheet raised {failure!r} — "
             "the page this arm measures is the page nobody would be served",
             file=sys.stderr,
         )
         return None
-    # `login_page` returns the bytes it will write on the wire, which is the
+    # `login_styles` returns the bytes it will write on the wire, which is the
     # right shape for a server and the wrong one for a pattern — decoded here
     # rather than changed there, because what this arm must read is exactly
     # what is sent.
-    if isinstance(page, bytes):
-        page = page.decode("utf-8")
-    blocks = re.findall(r"<style[^>]*>(.*?)</style>", page, re.S)
-    if not blocks:
+    if isinstance(styles, bytes):
+        styles = styles.decode("utf-8")
+    if not styles.strip():
         print(
-            "check-login: the composed sign-in page carries no <style> at all — "
+            "check-login: the composed sign-in stylesheet is empty — "
             "an arm that reads no CSS holds nothing",
             file=sys.stderr,
         )
         return None
-    return "\n".join(blocks)
+    return styles
 
 
 def top_level_tokens(css: str) -> list[str]:

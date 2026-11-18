@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -30,7 +30,12 @@ from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year
+from personalscraper.nfo_utils import (
+    extract_nfo_metadata,
+    is_episode_nfo_usable,
+    is_nfo_complete,
+    parse_title_year,
+)
 from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     match_movie,
@@ -43,6 +48,7 @@ log = get_logger("library.rescraper")
 # --- Rescrape action constants ---
 
 ACTION_NFO_REGENERATED = "nfo_regenerated"
+ACTION_EPISODE_NFO_REGENERATED = "episode_nfo_regenerated"
 ACTION_ARTWORK_DOWNLOADED = "artwork_downloaded"
 ACTION_EPISODES_RENAMED = "episodes_renamed"
 SKIP_LOW_CONFIDENCE = "low_confidence_match"
@@ -384,6 +390,7 @@ def _rescrape_item(
     dry_run: bool,
     episode_default_name: str = "Episode",
     external_ids_json: str | None = None,
+    force: bool = False,
 ) -> RescrapeAction | None:
     """Rescrape a single media item.
 
@@ -406,14 +413,39 @@ def _rescrape_item(
         external_ids_json: Raw ``media_item.external_ids_json`` for this item,
             consulted when the NFO is absent and merged into the regenerated
             NFO's id families. ``None`` on the filesystem-walk path.
+        force: The item was targeted by id: its NFO is regenerated whatever the
+            detectors find (unless *only* excludes the NFO), and an item left with
+            nothing to do is reported skipped (``SKIP_ALREADY_OK``), never dropped.
 
     Returns:
-        RescrapeAction or None if item is already OK.
+        RescrapeAction, or None if the item is already OK and was not forced.
     """
     needs_nfo, needs_artwork, needs_episodes = _detect_needs(media_dir, media_type, only)
+    # ``--only nfo`` and the unfiltered run also repair the episode NFOs.
+    episode_nfo_videos = _episodes_needing_nfo(media_dir) if media_type == "tvshow" and only in (None, "nfo") else []
 
-    if not any([needs_nfo, needs_artwork, needs_episodes]):
-        return None  # Already OK
+    # A targeted rescrape asks the providers again: a conforming NFO is no reason
+    # to skip it, or the one item the caller named would vanish from the counts.
+    if force and only in (None, "nfo"):
+        needs_nfo = True
+
+    if not any([needs_nfo, needs_artwork, needs_episodes, episode_nfo_videos]):
+        if not force:
+            return None  # Already OK
+        return RescrapeAction(
+            path=str(media_dir),
+            title=title,
+            media_type=media_type,
+            disk=disk,
+            category=category,
+            actions_taken=[],
+            actions_skipped=[SKIP_ALREADY_OK],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=None,
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
+        )
 
     # Resolve TMDB ID
     provider_id, id_source, confidence, source = _resolve_tmdb_id(
@@ -440,7 +472,7 @@ def _rescrape_item(
             tmdb_id=None,
             id_source=None,
             match_confidence=confidence,
-            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
         )
 
     # Fetch API data once, honouring the source-of-match invariant via the
@@ -480,7 +512,7 @@ def _rescrape_item(
             tmdb_id=report_tmdb_id,
             id_source=id_source,
             match_confidence=confidence,
-            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+            rescraped_at=datetime.now(tz=UTC).isoformat(),
         )
 
     actions: list[str] = []
@@ -516,6 +548,21 @@ def _rescrape_item(
         except Exception as exc:
             errors.append(f"NFO generation failed: {exc}")
             log.error("library_rescrape_nfo_failed", title=title, exc_info=True, error=str(exc))
+
+    # Fix episode NFOs (absent, empty or unreadable), TV shows only
+    if episode_nfo_videos:
+        _rescrape_episode_nfos(
+            episode_nfo_videos,
+            media_dir,
+            api_data,
+            source or "tmdb",
+            api_id,
+            registry,
+            nfo_gen,
+            dry_run,
+            actions,
+            errors,
+        )
 
     # Fix artwork
     if needs_artwork:
@@ -574,8 +621,164 @@ def _rescrape_item(
         tmdb_id=report_tmdb_id,
         id_source=id_source,
         match_confidence=confidence,
-        rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+        rescraped_at=datetime.now(tz=UTC).isoformat(),
     )
+
+
+def _fetch_episodes(
+    show_dir: Path,
+    source: str,
+    api_id: int,
+    registry: ProviderRegistry,
+    season_nums: list[int],
+) -> dict[tuple[int, int], dict[str, Any]]:
+    """Get the episode catalogue of the seasons from the MATCHED provider.
+
+    Source-aware (TVDB-primary): the shared twins are used, never
+    ``tmdb.get_tv_season`` on a TVDB id (the divergence that caused the 404 abort).
+    A provider failure is logged and yields an empty catalogue.
+
+    Args:
+        show_dir: TV show directory (log context only).
+        source: Matched provider — ``"tvdb"`` or ``"tmdb"``.
+        api_id: Provider id (TVDB series id when source == 'tvdb', else TMDB id).
+        registry: ProviderRegistry to resolve the matched provider's client.
+        season_nums: Season numbers to request.
+
+    Returns:
+        ``{(season, episode): episode_info}``, empty when nothing could be obtained.
+    """
+    from personalscraper.scraper.existing_validator_repair import (  # noqa: PLC0415
+        _fetch_season_episodes,
+        _fetch_season_episodes_tvdb,
+    )
+
+    try:
+        if source == "tvdb":
+            tvdb_client = cast("TVDBClient", registry.get("tvdb"))
+            return _fetch_season_episodes_tvdb(tvdb_client, api_id, season_nums)
+        tmdb_client = cast("TMDBClient", registry.get("tmdb"))
+        return _fetch_season_episodes(tmdb_client, api_id, season_nums)
+    except Exception as exc:
+        log.warning(
+            "library_rescrape_season_fetch_failed",
+            show=show_dir.name,
+            source=source,
+            exc_info=True,
+            error=str(exc),
+        )
+        return {}
+
+
+def _episodes_needing_nfo(show_dir: Path) -> list[Path]:
+    """List the episode videos whose sibling NFO is absent, empty or unreadable.
+
+    Only files named like an episode (``SxxEyy``, season 1 or later) are considered:
+    extras, specials and unrenamed files are not episodes to repair yet (``--only episodes`` handles those).
+    "Conformant" is :func:`personalscraper.nfo_utils.is_episode_nfo_usable`,
+    the same rule the scraper applies before skipping an existing NFO.
+
+    Args:
+        show_dir: TV show directory.
+
+    Returns:
+        Sorted video paths needing an NFO written next to them.
+    """
+    from personalscraper.scraper.episode_manager import _extract_season_episode  # noqa: PLC0415
+
+    return sorted(
+        f
+        for f in show_dir.rglob("*")
+        if f.is_file()
+        and not is_apple_double(f.name)
+        and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+        and re.search(r"S\d+E\d+", f.name, re.IGNORECASE)
+        # Specials (season 0) are not fetched by _rescrape_episode_nfos, so listing them
+        # would only warn on every run without ever repairing them.
+        and (_extract_season_episode(f.name)[0] or 0) > 0
+        and not is_episode_nfo_usable(f.with_suffix(".nfo"))
+    )
+
+
+def _rescrape_episode_nfos(
+    videos: list[Path],
+    show_dir: Path,
+    show_data: Any,
+    source: str,
+    api_id: int,
+    registry: ProviderRegistry,
+    nfo_gen: NFOGenerator,
+    dry_run: bool,
+    actions: list[str],
+    errors: list[str],
+) -> None:
+    """Regenerate the NFO of each given episode video from the matched provider.
+
+    The NFO is written at the video's own stem, so it pairs with the file as it
+    is on disk. ``dry_run`` lists the files that would be written and writes
+    nothing (no directory, no NFO, no stream probe).
+
+    Args:
+        videos: Episode videos needing an NFO (from :func:`_episodes_needing_nfo`).
+        show_dir: TV show directory.
+        show_data: Show metadata returned by the provider.
+        source: Matched provider — ``"tvdb"`` or ``"tmdb"``.
+        api_id: Provider id of the show.
+        registry: ProviderRegistry to resolve the matched provider's client.
+        nfo_gen: NFOGenerator used to render and write.
+        dry_run: Preview without changes.
+        actions: Appended with one ``episode_nfo_regenerated: <relative path>`` per file.
+        errors: Appended with one message per file whose generation failed.
+    """
+    from personalscraper.scraper._movie_convert import _coerce_to_show_data  # noqa: PLC0415
+    from personalscraper.scraper.episode_manager import (  # noqa: PLC0415
+        _extract_season_episode,
+        match_episode_files,
+    )
+    from personalscraper.scraper.mediainfo import extract_stream_info  # noqa: PLC0415
+
+    season_nums = sorted({s for v in videos if (s := _extract_season_episode(v.name)[0]) is not None and s > 0})
+    all_episodes = _fetch_episodes(show_dir, source, api_id, registry, season_nums) if season_nums else {}
+    # allow_synthetic_rename=False: a file with no provider record is left out, never given a made-up title.
+    matched = match_episode_files(videos, all_episodes, allow_synthetic_rename=False) if all_episodes else {}
+
+    show_dict = _coerce_to_show_data(show_data)
+    show_title = show_dict.get("name", "")
+    mpaa = nfo_gen._extract_fr_rating(show_dict, tv=True)
+    networks = show_dict.get("networks", [])
+    studio = networks[0].get("name", "") if networks else ""
+
+    for video in videos:
+        rel = video.relative_to(show_dir).with_suffix(".nfo").as_posix()
+        info = matched.get(video)
+        if info is None or info.get("fallback"):
+            # Not an error: the provider may simply not know the episode, and an error would
+            # re-flag it on every run. The warning names the file for whoever looks.
+            log.warning("library_rescrape_episode_nfo_no_provider_data", show=show_dir.name, nfo=rel)
+            continue
+        try:
+            episode_data = {
+                "name": info["api_title"],
+                "showtitle": show_title,
+                "id": info.get("tmdb_episode_id", ""),
+                "tvdb_id": info.get("tvdb_episode_id", ""),
+                "imdb_id": info.get("imdb_episode_id", ""),
+                "season_number": info["season"],
+                "episode_number": info["episode"],
+                "overview": "",
+                "mpaa": mpaa,
+                "studio": studio,
+                "crew": [],
+                "still_path": info.get("still_path", ""),
+            }
+            if not dry_run:
+                xml = nfo_gen.generate_episode_nfo(episode_data, extract_stream_info(video))
+                nfo_gen.write_nfo(xml, video.with_suffix(".nfo"))
+            actions.append(f"{ACTION_EPISODE_NFO_REGENERATED}: {rel}")
+            log.info("library_rescrape_episode_nfo", show=show_dir.name, nfo=rel, dry_run=dry_run)
+        except Exception as exc:
+            errors.append(f"Episode NFO generation failed for {rel}: {exc}")
+            log.error("library_rescrape_episode_nfo_failed", nfo=rel, exc_info=True, error=str(exc))
 
 
 def _rescrape_episodes(
@@ -610,10 +813,6 @@ def _rescrape_episodes(
         match_episode_files,
         rename_episodes,
     )
-    from personalscraper.scraper.existing_validator_repair import (
-        _fetch_season_episodes,
-        _fetch_season_episodes_tvdb,
-    )
 
     # Discover season numbers from local filesystem (show_data has no seasons array).
     season_nums = sorted(
@@ -627,24 +826,7 @@ def _rescrape_episodes(
     if not season_nums:
         return
 
-    # Source-aware episode fetch (TVDB-primary): use the shared twins, never
-    # tmdb.get_tv_season on a TVDB id (the divergence that caused the 404 abort).
-    try:
-        if source == "tvdb":
-            tvdb_client = cast("TVDBClient", registry.get("tvdb"))
-            all_episodes = _fetch_season_episodes_tvdb(tvdb_client, api_id, season_nums)
-        else:
-            tmdb_client = cast("TMDBClient", registry.get("tmdb"))
-            all_episodes = _fetch_season_episodes(tmdb_client, api_id, season_nums)
-    except Exception as exc:
-        log.warning(
-            "library_rescrape_season_fetch_failed",
-            show=show_dir.name,
-            source=source,
-            exc_info=True,
-            error=str(exc),
-        )
-        all_episodes = {}
+    all_episodes = _fetch_episodes(show_dir, source, api_id, registry, season_nums)
 
     if not all_episodes:
         return
@@ -709,6 +891,7 @@ def _collect_rescrape_candidates(
             *category_filter* (mutually exclusive options).
     """
     from personalscraper.indexer.repos import item_repo as _item_repo  # noqa: PLC0415
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
 
     candidates: list[tuple[Path, str, str, str, str | None]] = []
 
@@ -778,16 +961,16 @@ def _collect_rescrape_candidates(
             if not media_dir.is_dir():
                 continue
 
-            # Map category_id back to disk_id via config for filter checks.
-            # disk_id (uuid/label) is stored as DiskConfig.id in the scanner.
-            disk_id = ""
-            for disk in config.disks:
-                if disk_filter and disk.id != disk_filter:
-                    continue
-                if item_row.category_id in disk.categories:
-                    disk_id = disk.id
-                    break
+            # The disk is the one the item lives on, as the item_id path reads it:
+            # a disk's categories only gate where NEW media go, so mapping by
+            # category labels a series on a frozen disk with another disk. A row
+            # never stamped with a configured disk falls back to that mapping.
+            configured = {disk.id for disk in config.disks}
+            disk_attr = _item_repo.get_attr(conn, item_row.id, _item_repo._ATTR_DISPATCH_DISK)
+            disk_id = disk_attr.value if disk_attr and disk_attr.value in configured else ""
             if not disk_id:
+                disk_id = next((disk.id for disk in config.disks if item_row.category_id in disk.categories), "")
+            if not disk_id or (disk_filter and disk_id != disk_filter):
                 continue
 
             if category_filter and item_row.category_id != category_filter:
@@ -804,18 +987,10 @@ def _collect_rescrape_candidates(
                 log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
                 continue
 
-            for category_id in disk.categories:
+            # Every video category folder present on the disk, as the full scan
+            # walks it: a disk frozen to audiobooks still holds series.
+            for category_id, category_dir in _category_dirs_on_disk(config, disk):
                 if category_filter and category_id != category_filter:
-                    continue
-
-                cat_cfg = config.category(category_id)
-                category_dir = disk.path / cat_cfg.folder_name
-                if not category_dir.is_dir():
-                    log.debug(
-                        "library_rescrape_category_not_found",
-                        category_dir=str(category_dir),
-                        disk=disk.id,
-                    )
                     continue
 
                 is_series = category_id in TV_CATEGORY_IDS
@@ -864,7 +1039,8 @@ def rescrape_library(
         disk_filter: Only rescrape this disk (by disk.id). None = all.
         category_filter: Only rescrape this category_id. None = all.
         item_id: Target exactly this item by its indexer DB id, bypassing the
-            needs-rescrape predicate.  Mutually exclusive with *disk_filter* and
+            needs-rescrape predicate and forcing its NFO's regeneration (see
+            ``_rescrape_item``'s *force*).  Mutually exclusive with *disk_filter* and
             *category_filter*.  None = use standard candidate discovery.
         only: Only apply this action: "nfo", "artwork", "episodes". None = all.
         interactive: If True, prompt for low-confidence matches.
@@ -877,8 +1053,8 @@ def rescrape_library(
             clients (TMDB, TVDB).
 
     Returns:
-        LibraryRescrapeResult with per-item actions. Under ``staging``, an item outside
-        preprod's marked, mounted roots is refused and reported as an error.
+        LibraryRescrapeResult with per-item actions. In a sandbox, an item outside
+        the sandbox's marked, mounted roots is refused and reported as an error.
     """
     from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
@@ -899,7 +1075,7 @@ def rescrape_library(
     skipped_count = 0
     error_count = 0
     items_processed = 0
-    start = datetime.now(tz=timezone.utc).isoformat()
+    start = datetime.now(tz=UTC).isoformat()
 
     candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter, item_id=item_id)
 
@@ -910,7 +1086,7 @@ def rescrape_library(
         title, year = parse_title_year(media_dir.name)
 
         try:
-            # Preprod guard (``staging`` only): a refusal lands in this item's error branch.
+            # Sandbox guard (a no-op in prod): a refusal lands in this item's error branch.
             assert_within_sandbox(config, media_dir)
             action = _rescrape_item(
                 media_dir=media_dir,
@@ -928,6 +1104,7 @@ def rescrape_library(
                 dry_run=dry_run,
                 episode_default_name=scraper_config.episode_default_name,
                 external_ids_json=external_ids_json,
+                force=item_id is not None,
             )
         except Exception as exc:
             log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))
@@ -944,7 +1121,7 @@ def rescrape_library(
                     tmdb_id=None,
                     id_source=None,
                     match_confidence=None,
-                    rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+                    rescraped_at=datetime.now(tz=UTC).isoformat(),
                 )
             )
             error_count += 1

@@ -67,9 +67,9 @@ test-cov:
 
 lint:
 	@echo "Running linter..."
-	python -m ruff check personalscraper/ tests/ scripts/ webui/ frontend/scripts/
-	python -m ruff format --check personalscraper/ tests/
-	python -m mypy personalscraper/
+	uv run --locked --extra dev ruff check personalscraper/ tests/ scripts/ webui/ frontend/scripts/
+	uv run --locked --extra dev ruff format --check personalscraper/ tests/
+	uv run --locked --extra dev mypy personalscraper/
 
 check: lint
 	python3 scripts/check-typed-api.py
@@ -85,7 +85,7 @@ check: lint
 	python3 scripts/compare-contracts.py --check --have v1
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts contract/openapi.generated.json; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
-	@if [ -d webui/design/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (webui/design/node_modules absent)"; fi
+	@if [ -d webui/design/node_modules ]; then (test -d webui/design/tools/contract-types/node_modules || (cd webui/design/tools/contract-types && npm ci)) && $(MAKE) check-contract-types; else echo "contract-types: skipped (webui/design/node_modules absent)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
 
 format:
@@ -95,7 +95,7 @@ format:
 
 install-dev:
 	@echo "Installing PersonalScraper in development mode..."
-	pip install -e ".[dev]"
+	uv sync --locked --extra dev
 
 version:
 	@echo "Current version:"
@@ -103,7 +103,8 @@ version:
 
 update-ytdlp:
 	@echo "Updating yt-dlp..."
-	python -m pip install -U yt-dlp
+	uv lock --upgrade-package yt-dlp
+	uv sync --locked --extra dev
 	@echo "Running yt-dlp integration test (requires TRAILER_INTEGRATION_TESTS=1)..."
 	TRAILER_INTEGRATION_TESTS=1 python -m pytest tests/scraper/test_ytdlp_downloader.py -v -m network
 

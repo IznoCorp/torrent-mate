@@ -163,14 +163,14 @@ def cli_step_journal(config: Config, *, command: str, dry_run: bool) -> Iterator
                 kind="pipeline",
                 command=command,
             )
-    except Exception:  # noqa: BLE001 — journaling must never break the command
+    except Exception:  # journaling must never break the command
         log.warning("run_journal.init_failed", command=command, exc_info=True)
         writer = None
 
     tail_handler = LogTailHandler()
     try:
         tail_handler.install()
-    except Exception:  # noqa: BLE001 — same fail-soft contract
+    except Exception:  # same fail-soft contract
         log.warning("run_journal.tail_install_failed", command=command, exc_info=True)
 
     outcome = "success"
@@ -194,7 +194,7 @@ def cli_step_journal(config: Config, *, command: str, dry_run: bool) -> Iterator
     finally:
         try:
             tail_handler.uninstall()
-        except Exception:  # noqa: BLE001 — same fail-soft contract
+        except Exception:  # same fail-soft contract
             log.warning("run_journal.tail_uninstall_failed", command=command, exc_info=True)
         if writer is not None:
             writer.finalize(run_uid, outcome, error=error_msg, output_tail=tail_handler.tail())

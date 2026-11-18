@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.core.sqlite import apply_pragmas
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:

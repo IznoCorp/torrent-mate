@@ -54,7 +54,7 @@ def test_info_providers_lists_configured_providers(monkeypatch):
 
 
 def test_info_providers_exits_nonzero_on_missing_creds_real_validation(
-    monkeypatch: "pytest.MonkeyPatch",
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """``info providers`` exits non-zero through the REAL validator (ACC-04b).
 
@@ -142,7 +142,7 @@ def test_info_providers_uses_config_override_with_real_bad_config(tmp_path: Path
 # the same scaffolding (real Settings, no ProviderRegistry mock).
 def test_top_level_config_override_malformed_dir_exits_with_friendly_error(
     tmp_path: Path,
-    monkeypatch: "pytest.MonkeyPatch",
+    monkeypatch: pytest.MonkeyPatch,
     real_loader,
 ) -> None:
     """``personalscraper --config <bad_dir> info`` exits non-zero via load_config.

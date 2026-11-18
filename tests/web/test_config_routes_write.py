@@ -1233,3 +1233,39 @@ class TestRestartEndpoint:
         resp = client.post("/api/config/restart-web", headers=_xrw())
         assert resp.status_code == 202
         assert "PRIOR FAILURE TRACE" in log_path.read_text()
+
+
+class TestSecretsExplicitEnvFile:
+    """``/api/config/secrets`` follows ``PERSONALSCRAPER_ENV_FILE`` when it is set."""
+
+    def test_get_reads_is_set_from_explicit_file(self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """is_set comes from the explicit file, not the clone's ``.env``."""
+        explicit = secrets_tmp_dir / "explicit.env"
+        explicit.write_text("TVDB_API_KEY=from-explicit\n", encoding="utf-8")
+        monkeypatch.setenv("PERSONALSCRAPER_ENV_FILE", str(explicit))
+
+        resp = TestClient(_build_app()).get("/api/config/secrets")
+
+        assert resp.status_code == 200
+        flags = {s["key"]: s["is_set"] for s in resp.json()["secrets"]}
+        # The clone's .env sets TMDB_API_KEY only; the explicit file sets TVDB_API_KEY only.
+        assert flags["TVDB_API_KEY"] is True
+        assert flags["TMDB_API_KEY"] is False
+
+    def test_put_writes_explicit_file_and_leaves_clone_env_absent(
+        self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The write lands in the explicit file; no clone ``.env`` is recreated."""
+        (secrets_tmp_dir / ".env").unlink()
+        explicit = secrets_tmp_dir / "explicit.env"
+        monkeypatch.setenv("PERSONALSCRAPER_ENV_FILE", str(explicit))
+
+        resp = TestClient(_build_app()).put(
+            "/api/config/secrets",
+            json={"TMDB_API_KEY": "from-explicit"},
+            headers=_xrw(),
+        )
+
+        assert resp.status_code == 200
+        assert "TMDB_API_KEY=from-explicit" in explicit.read_text(encoding="utf-8")
+        assert not (secrets_tmp_dir / ".env").exists()

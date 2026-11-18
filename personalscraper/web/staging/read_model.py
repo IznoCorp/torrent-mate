@@ -112,7 +112,7 @@ def media_id_for(relative_path: str) -> str:
         across requests and safe to embed in a URL (the poster route matches on
         it instead of accepting a path).
     """
-    digest = hashlib.sha1(_nfc(relative_path).encode("utf-8")).hexdigest()  # noqa: S324 — id, not security
+    digest = hashlib.sha1(_nfc(relative_path).encode("utf-8")).hexdigest()  # id, not security
     return digest[:16]
 
 

@@ -34,8 +34,8 @@ RESOURCE = SHELL / "i18n" / "fr.json"
 
 # `t("key", { … })` — the argument object, comments and nesting included.
 CALL = re.compile(r"""\bt\(\s*["'](?P<key>[\w.]+)["']\s*,\s*\{(?P<args>.*?)\}\s*\)""", re.S)
-# A key in that object: `name:` or the `{ name }` shorthand.
-ARG = re.compile(r"(?:^|[,{\s])(?P<name>[A-Za-z_]\w*)\s*(?::|(?=[,}\s]*$))", re.M)
+# One entry of that object: `name: value`, `"name": value` or the `name` shorthand.
+ENTRY = re.compile(r"""^\s*["']?(?P<name>[A-Za-z_]\w*)["']?\s*(?::|$)""")
 PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
 COMMENT = re.compile(r"//[^\n]*")
 
@@ -49,6 +49,69 @@ def leaves(node: object, prefix: str = "") -> dict[str, str]:
     elif isinstance(node, str):
         out[prefix] = node
     return out
+
+
+def top_level_entries(args: str) -> list[str]:
+    """Splits the text of an argument object at its top-level commas.
+
+    Commas inside a string, a template literal or a nested bracket belong to the entry.
+
+    Args:
+        args: The text between the braces of the call's argument object.
+
+    Returns:
+        The entries, in order, unstripped.
+    """
+    entries: list[str] = []
+    current: list[str] = []
+    depth = 0
+    quote = ""
+    escaped = False
+    for char in args:
+        if quote:
+            current.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = ""
+            continue
+        if char in "\"'`":
+            quote = char
+        elif char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif char == "," and depth == 0:
+            entries.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+    entries.append("".join(current))
+    return entries
+
+
+def supplied_names(args: str) -> set[str]:
+    """Reads the argument names a `t()` call passes, from the text of its object.
+
+    A name is read from the start of each top-level entry, so `{ start, end }` on one line
+    yields both, and `{ a: foo }` yields `a` and not the identifier `foo`.
+
+    Args:
+        args: The text between the braces of the call's argument object.
+
+    Returns:
+        The names the call supplies.
+    """
+    # Comments are stripped first: a `french-ok` note between the brace
+    # and the argument would otherwise read as an argument name.
+    names: set[str] = set()
+    for entry in top_level_entries(COMMENT.sub("", args)):
+        found = ENTRY.match(entry)
+        if found:
+            names.add(found.group("name"))
+    return names
 
 
 def main() -> int:
@@ -73,27 +136,28 @@ def main() -> int:
             if not wanted:
                 continue
             checked += 1
-            # Comments are stripped first: a `french-ok` note between the brace
-            # and the argument would otherwise read as an argument name.
-            supplied = set(ARG.findall(COMMENT.sub("", call.group("args"))))
+            supplied = supplied_names(call.group("args"))
             missing = wanted - supplied
             if missing:
                 line = source.count("\n", 0, call.start()) + 1
                 violations.append(
                     f"{path.relative_to(ROOT)}:{line}: {call.group('key')} renders "
                     f"{', '.join('{{' + m + '}}' for m in sorted(missing))} literally — "
-                    f"fr.json expects {sorted(wanted)}, the caller passes {sorted(supplied)}")
+                    f"fr.json expects {sorted(wanted)}, the caller passes {sorted(supplied)}"
+                )
 
     if violations:
         print("i18n placeholder contract broken:", file=sys.stderr)
         for violation in violations:
             print(f"  {violation}", file=sys.stderr)
-        print(f"\n{len(violations)} broken. The placeholder is named by fr.json; "
-              "the CALLER is the end that must agree — fr.json is the translation "
-              "resource and does not move.", file=sys.stderr)
+        print(
+            f"\n{len(violations)} broken. The placeholder is named by fr.json; "
+            "the CALLER is the end that must agree — fr.json is the translation "
+            "resource and does not move.",
+            file=sys.stderr,
+        )
         return 1
-    print(f"check-i18n-placeholders: {checked} interpolated call(s), every "
-          "placeholder supplied.")
+    print(f"check-i18n-placeholders: {checked} interpolated call(s), every placeholder supplied.")
     return 0
 
 

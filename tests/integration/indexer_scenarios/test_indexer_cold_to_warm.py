@@ -159,7 +159,7 @@ _NON_VIDEO_FILENAMES = {
 }
 
 
-def _build_fixture(fs: "FakeFilesystem", mount_a: str, mount_b: str) -> None:
+def _build_fixture(fs: FakeFilesystem, mount_a: str, mount_b: str) -> None:
     """Create the fake directory tree for the cold-scan fixture.
 
     Args:
@@ -186,7 +186,7 @@ def _build_fixture(fs: "FakeFilesystem", mount_a: str, mount_b: str) -> None:
 class TestColdScan:
     """Full-mode cold scan records all fixture files with correct fingerprints."""
 
-    def test_cold_scan_full_mode(self, fs: "FakeFilesystem") -> None:
+    def test_cold_scan_full_mode(self, fs: FakeFilesystem) -> None:
         """Full scan across 2 disks: 10 files indexed, oshash populated, enriched_at NULL."""
         # Build DB while real FS is accessible.
         fs.pause()
@@ -294,7 +294,7 @@ def _make_fake_mi_result(n_video: int = 1, n_audio: int = 1) -> MagicMock:
 class TestEnrichScan:
     """Enrich mode (ScanMode.enrich) on the cold fixture — sub-phase 4.2 E2E."""
 
-    def test_enrich_after_cold_scan(self, fs: "FakeFilesystem") -> None:
+    def test_enrich_after_cold_scan(self, fs: FakeFilesystem) -> None:
         """After a cold full scan, enrich mode populates media_stream and enriched_at.
 
         Steps:

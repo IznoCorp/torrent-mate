@@ -18,8 +18,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import verify_password
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.cli import app as cli_app
@@ -59,7 +59,7 @@ def store(test_config: Config) -> Iterator[AppStore]:
     """
     app_store = build_app_store(test_config)
     app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id="account-owner",
             name="Owner",
             email=_EMAIL,
@@ -76,7 +76,7 @@ def store(test_config: Config) -> Iterator[AppStore]:
         app_store.close()
 
 
-def _invoke(cli_runner: CliRunner, test_config: Config, args: list[str], typed: str = ""):  # noqa: ANN202
+def _invoke(cli_runner: CliRunner, test_config: Config, args: list[str], typed: str = ""):
     """Run the CLI over the synthetic configuration.
 
     Args:
@@ -248,7 +248,7 @@ def dev_data_dir(test_config: Config, monkeypatch: pytest.MonkeyPatch) -> Path:
     return data_dir
 
 
-def _accounts_in(db: Path) -> list[AccountRow]:
+def _accounts_in(db: Path) -> list[Account]:
     """The accounts a store file holds.
 
     Args:
@@ -298,7 +298,7 @@ class TestCreateOwner:
         assert "The two passwords differ; nothing was changed." in result.stderr
         assert not (dev_data_dir / "app-dev.db").exists()
 
-    @pytest.mark.parametrize("value", ["", "prod"])
+    @pytest.mark.parametrize("value", ["prod"])
     def test_production_is_refused(
         self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch, value: str
     ) -> None:
@@ -308,7 +308,7 @@ class TestCreateOwner:
             cli_runner: The runner.
             test_config: The synthetic configuration.
             monkeypatch: Pytest monkeypatch fixture.
-            value: ``PERSONALSCRAPER_ENV``, empty or ``prod``.
+            value: ``PERSONALSCRAPER_ENV``, ``prod``.
         """
         monkeypatch.setenv("PERSONALSCRAPER_ENV", value)
 
@@ -433,7 +433,7 @@ def _seed_owner(db: Path, *, allowed: bool = True, owner_link: bool = True) -> s
     try:
         repo = app_store.accounts
         repo.insert_account(
-            AccountRow(
+            Account(
                 id="account-owner",
                 name="Owner",
                 email=_EMAIL,
@@ -446,7 +446,7 @@ def _seed_owner(db: Path, *, allowed: bool = True, owner_link: bool = True) -> s
         )
         if owner_link:
             repo.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id="account-owner",
                     plex_id=4242,
                     plex_uuid="0f1e2d3c4b5a6978",
@@ -484,26 +484,10 @@ def _session_user_agents(db: Path) -> list[str]:
 _OPEN_SESSION_ARGS = ["accounts", "open-session", "--owner"]
 
 
-@pytest.fixture
-def kept_log_capture() -> Iterator[None]:
-    """Keep pytest's log capture attached through a CLI run.
-
-    The CLI's callback runs ``configure_logging``, whose ``dictConfig`` replaces the root
-    logger's handlers, ``caplog``'s among them: every record after it would go unseen and a
-    « never logged » assertion would pass on nothing. The session's structlog chain, set up by
-    ``tests/conftest.py``, stays the one in force.
-
-    Yields:
-        Nothing; the patch holds while the test runs.
-    """
-    with patch("personalscraper.cli.configure_logging"):
-        yield
-
-
 class TestOpenSession:
     """``accounts open-session --owner`` — the design host's smoke check signs in with no stored secret."""
 
-    @pytest.mark.parametrize("value", ["", "prod"])
+    @pytest.mark.parametrize("value", ["prod"])
     def test_production_is_refused(
         self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch, value: str
     ) -> None:
@@ -513,7 +497,7 @@ class TestOpenSession:
             cli_runner: The runner.
             test_config: The synthetic configuration.
             monkeypatch: Pytest monkeypatch fixture.
-            value: ``PERSONALSCRAPER_ENV``, empty or ``prod``.
+            value: ``PERSONALSCRAPER_ENV``, ``prod``.
         """
         monkeypatch.setenv("PERSONALSCRAPER_ENV", value)
 
@@ -576,7 +560,7 @@ class TestOpenSession:
         assert token and result.stdout == f"{token}\n"
         app_store = AppStore(store_file)
         try:
-            actor = SessionService(lambda: app_store.accounts, idle_days=30).resolve(token)
+            actor = SessionService(app_store, idle_days=30).resolve(token)
         finally:
             app_store.close()
         assert actor is not None and actor.account_id == owner_id
@@ -660,7 +644,7 @@ class TestOpenSession:
         try:
             repo = app_store.accounts
             repo.insert_account(
-                AccountRow(
+                Account(
                     id="account-former-owner",
                     name="Former owner",
                     email="former@example.test",
@@ -672,7 +656,7 @@ class TestOpenSession:
                 )
             )
             repo.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id="account-former-owner",
                     plex_id=4343,
                     plex_uuid="1a2b3c4d5e6f7089",

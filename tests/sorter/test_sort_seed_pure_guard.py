@@ -20,11 +20,22 @@ import pytest
 from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
-from personalscraper.core.tags import SEED_PURE
+from personalscraper.core.tags import SEED_ONLY, SEED_PURE
 from personalscraper.models import SortResult
 from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
+from tests.fixtures.torrent_scope import (
+    OTHER_CATEGORY,
+    OTHER_CATEGORY_HASH,
+    PREPROD_HASH,
+    PROD_HASH,
+    SCOPE,
+    SCOPED_TORRENT_CONFIG,
+    UNSCOPED_TORRENT_CONFIG,
+    shared_client,
+    torrent,
+)
 
 
 def _make_config(tmp_path: Path, *, verify_seed_pure: bool = False) -> Config:
@@ -138,7 +149,7 @@ class TestSorterProcessSkipNames:
             results = sorter.process(
                 ingest,
                 dest_root=dest_root,
-                skip_names=frozenset({"Seed.Movie.2024"}),
+                skip_names={"Seed.Movie.2024": "seed_pure"},
                 bus=EventBus(),
             )
 
@@ -155,6 +166,26 @@ class TestSorterProcessSkipNames:
         sorted_names = {call.args[1].name for call in mock_sort_item.call_args_list}
         assert sorted_names == {"Keep.Show.2024"}
         assert "Seed.Movie.2024" not in sorted_names
+
+    def test_sort_process_reports_the_reason_per_skipped_name(self, tmp_path: Path) -> None:
+        """Each skipped name is logged and reported with its own reason code."""
+        config = _make_config(tmp_path)
+        ingest = tmp_path / "ingest"
+        ingest.mkdir()
+        (ingest / "Own.Cross.Seed.2024").mkdir()
+        (ingest / "Other.Instance.2024").mkdir()
+
+        results = Sorter(config=config, dry_run=True).process(
+            ingest,
+            dest_root=tmp_path / "dest",
+            skip_names={"Own.Cross.Seed.2024": "seed_only", "Other.Instance.2024": "not_own"},
+            bus=EventBus(),
+        )
+
+        assert {r.source.name: r.message for r in results} == {
+            "Own.Cross.Seed.2024": "seed_only",
+            "Other.Instance.2024": "not_own",
+        }
 
 
 class TestRunSortGuard:
@@ -179,7 +210,7 @@ class TestRunSortGuard:
 
         mock_client.get_completed.assert_not_called()
         _, kwargs = MockSorter.return_value.process.call_args
-        assert kwargs["skip_names"] == frozenset()
+        assert kwargs["skip_names"] == {}
 
     def test_run_sort_guard_on_threads_skip_names(self, tmp_path: Path) -> None:
         """Flag on: get_completed runs once; seed-pure names reach process."""
@@ -225,8 +256,46 @@ class TestRunSortGuard:
             )
 
         _, kwargs = MockSorter.return_value.process.call_args
-        assert kwargs["skip_names"] == frozenset()
+        assert kwargs["skip_names"] == {}
         assert report.error_count == 0
+
+    def test_run_sort_guard_on_no_client_says_so(self, tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
+        """Flag on but no client: the guard being off is logged once, and the sort still proceeds."""
+        config = _make_config(tmp_path, verify_seed_pure=True)
+        _seed_ingest(config, "some_item.mkv")
+
+        with patch("personalscraper.sorter.run.Sorter") as MockSorter, logged_events() as events:
+            MockSorter.return_value.process.return_value = []
+            run_sort(
+                MagicMock(),
+                staging_dir=config.paths.staging_dir,
+                config=config,
+                event_bus=EventBus(),
+                torrent_client=None,
+            )
+
+        off = [e for e in events if e["event"] == "sort.seed_pure_guard_off"]
+        assert len(off) == 1
+        assert off[0]["reason"] == "no_torrent_client"
+        assert off[0]["log_level"] == "warning"
+        MockSorter.return_value.process.assert_called_once()
+
+    def test_run_sort_guard_off_no_client_stays_silent(self, tmp_path: Path, logged_events) -> None:  # type: ignore[no-untyped-def]
+        """Flag off and no client: nothing to warn about."""
+        config = _make_config(tmp_path, verify_seed_pure=False)
+        _seed_ingest(config, "some_item.mkv")
+
+        with patch("personalscraper.sorter.run.Sorter") as MockSorter, logged_events() as events:
+            MockSorter.return_value.process.return_value = []
+            run_sort(
+                MagicMock(),
+                staging_dir=config.paths.staging_dir,
+                config=config,
+                event_bus=EventBus(),
+                torrent_client=None,
+            )
+
+        assert not [e for e in events if e["event"] == "sort.seed_pure_guard_off"]
 
 
 @pytest.mark.parametrize("flag", [True, False])
@@ -249,5 +318,66 @@ def test_run_sort_guard_fail_soft_on_client_error(tmp_path: Path, flag: bool) ->
         )
 
     _, kwargs = MockSorter.return_value.process.call_args
-    assert kwargs["skip_names"] == frozenset()
+    assert kwargs["skip_names"] == {}
     assert report.error_count == 0
+
+
+def _seed_pure_names_for(torrent_config: object, tmp_path: Path, tags: list[str] | None = None) -> dict[str, str]:
+    """Run the sort guard over a shared client whose torrents all carry the same tags.
+
+    Args:
+        torrent_config: The ``config.torrent`` section the run reads its scope from.
+        tmp_path: Pytest temporary directory.
+        tags: The tags every torrent carries (default: seed-pure alone).
+
+    Returns:
+        The skip-name to reason mapping the guard handed to ``Sorter.process``.
+    """
+    config = _make_config(tmp_path, verify_seed_pure=True).model_copy(update={"torrent": torrent_config})
+    _seed_ingest(config, "some_item.mkv")
+    client = shared_client()
+    for item in client.get_completed.return_value:
+        item.tags = list(tags) if tags is not None else [SEED_PURE]
+    with patch("personalscraper.sorter.run.Sorter") as MockSorter:
+        MockSorter.return_value.process.return_value = []
+        run_sort(
+            MagicMock(),
+            staging_dir=config.paths.staging_dir,
+            config=config,
+            event_bus=EventBus(),
+            torrent_client=client,
+        )
+    return MockSorter.return_value.process.call_args.kwargs["skip_names"]
+
+
+def test_run_sort_under_scope_guards_only_its_own_torrents(tmp_path: Path) -> None:
+    """Under a scope the other instance's seed-pure names are not in the skip set."""
+    names = _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path)
+    assert names == {torrent(PREPROD_HASH, "tm-preprod").name: "not_own"}
+
+
+def test_run_sort_without_scope_guards_every_seed_pure_torrent(tmp_path: Path) -> None:
+    """Characterisation: no scope, every seed-pure name is in the skip set."""
+    names = _seed_pure_names_for(UNSCOPED_TORRENT_CONFIG, tmp_path)
+    assert names == {
+        torrent(PREPROD_HASH, "tm-preprod").name: "seed_pure",
+        torrent(PROD_HASH, None).name: "seed_pure",
+        torrent(OTHER_CATEGORY_HASH, OTHER_CATEGORY).name: "seed_pure",
+    }
+
+
+def test_run_sort_under_scope_sorts_own_grab_carrying_seed_pure(tmp_path: Path) -> None:
+    """Under a scope an own grab is sorted, though it carries the seed-pure v0 prod reads."""
+    assert _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path, ["c411", *SCOPE.grab_tags]) == {}
+
+
+def test_run_sort_under_scope_guards_own_seed_only_cross_seed(tmp_path: Path) -> None:
+    """Under a scope an own seed-only cross-seed is guarded from the sort."""
+    names = _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path, [*SCOPE.instance_tags, SEED_ONLY])
+    assert names == {torrent(PREPROD_HASH, "tm-preprod").name: "seed_only"}
+
+
+def test_run_sort_under_scope_guards_a_torrent_without_the_instance_tag(tmp_path: Path) -> None:
+    """Under a scope a torrent of the category without the instance tag is not this instance's: guarded."""
+    names = _seed_pure_names_for(SCOPED_TORRENT_CONFIG, tmp_path, ["c411"])
+    assert names == {torrent(PREPROD_HASH, "tm-preprod").name: "not_own"}

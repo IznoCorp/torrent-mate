@@ -114,7 +114,7 @@ def _open_readonly_conn(db_file: Path) -> sqlite3.Connection:
 
 
 def _restore_from_db(
-    config: "Config | None",
+    config: Config | None,
     dry_run: bool,
     movie_dir: Path,
     title: str,

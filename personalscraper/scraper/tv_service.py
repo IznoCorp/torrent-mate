@@ -206,24 +206,24 @@ class TvServiceMixin:
     ``registry.chain(Searchable | TvDetailsProvider | EpisodeFetcher)``.
     """
 
-    patterns: "NamingPatterns"
+    patterns: NamingPatterns
     dry_run: bool
-    _registry: "ProviderRegistry"
+    _registry: ProviderRegistry
     _scraper_language: str
     _scraper_fallback_language: str
     _tvdb_language: str
     _tvdb_fallback_language: str
-    _nfo: "NFOGenerator"
-    _artwork: "ArtworkDownloader"
-    config: "Config | None"
-    _classify_item: "Callable[..., str | None]"
-    _resolve_title: "Callable[..., str]"
-    _strip_trailing_year: "Callable[[str], str]"
-    _verify_existing_scrape: "Callable[..., tuple[bool, str]]"
-    _check_missing_tvshow_artwork: "Callable[..., list[str]]"
-    _repair_tvshow_dir: "Callable[..., bool]"
-    _generate_episode_nfos: "Callable[..., list[str]]"  # from TvServiceNfoMixin (Phase 27.2 extraction)
-    _write_confirmed_show: "Callable[..., ScrapeResult]"  # from TvServiceWriteMixin
+    _nfo: NFOGenerator
+    _artwork: ArtworkDownloader
+    config: Config | None
+    _classify_item: Callable[..., str | None]
+    _resolve_title: Callable[..., str]
+    _strip_trailing_year: Callable[[str], str]
+    _verify_existing_scrape: Callable[..., tuple[bool, str]]
+    _check_missing_tvshow_artwork: Callable[..., list[str]]
+    _repair_tvshow_dir: Callable[..., bool]
+    _generate_episode_nfos: Callable[..., list[str]]  # from TvServiceNfoMixin (Phase 27.2 extraction)
+    _write_confirmed_show: Callable[..., ScrapeResult]  # from TvServiceWriteMixin
 
     @staticmethod
     def _to_tvdb_language(language: str) -> str:

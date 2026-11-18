@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 # ── ranking preview (ranking editor, #18) ─────────────────────────────────
 
 
-def _ranking_preview_samples() -> list["TrackerResult"]:
+def _ranking_preview_samples() -> list[TrackerResult]:
     """Build the fixed, representative release sample set for the ranking preview.
 
     Six synthetic releases spanning every scored axis (resolution, codec,

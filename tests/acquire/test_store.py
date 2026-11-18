@@ -155,7 +155,7 @@ def test_store_satisfies_protocol(store: ConcreteAcquireStore) -> None:
 def test_two_stores_same_path_both_open_and_read_no_lock_error(tmp_path: Path) -> None:
     """REGRESSION: two stores on the SAME db_path both open + read concurrently.
 
-    The committed 3.3 store held the writer FileLock for its lifetime, so a
+    The committed 3.3 store held the writer flock for its lifetime, so a
     second store on the same path crashed with AcquireLockError — which broke
     the shared composition root (e.g. the library-index cron during a pipeline
     run).  With the corrected model (SQLite-native single-writer, lock-free
@@ -183,7 +183,7 @@ def test_write_through_one_store_visible_to_another(tmp_path: Path) -> None:
     A FollowedSeries written through store A is read back through a *separate*
     store B opened on the same db_path — proving BEGIN IMMEDIATE commits are
     durable and shared cross-process/cross-handle (the SQLite-native serializer
-    that replaced the lifetime FileLock).
+    that replaced the lifetime flock).
     """
     db_path = tmp_path / "acquire.db"
     writer = build_acquire_store(AcquireConfig(db_path=db_path))

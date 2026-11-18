@@ -15,11 +15,13 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit, SeedObligationRecorder
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.crash_recovery import DryRunPolicy, RootKind, SweepRoot, sweep_orphans
 from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
@@ -315,6 +317,7 @@ def _drain_dispatch_outbox(config: Config) -> None:
     db_path = config.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         applied = drain_if_present(conn, config.indexer)
@@ -364,6 +367,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
     db_path = config.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         disk_rows: list[DiskRow] = []

@@ -22,7 +22,6 @@ import subprocess
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Union
 
 from personalscraper.logger import get_logger
 
@@ -105,7 +104,7 @@ def canonical_fs_type(raw: str) -> str:
     return "unknown"
 
 
-def _parse_mount_line(line: str) -> Optional[MountInfo]:
+def _parse_mount_line(line: str) -> MountInfo | None:
     """Parse one macOS ``mount`` output line into a :class:`MountInfo`.
 
     macOS format::
@@ -209,7 +208,7 @@ def _build_mount_table(mount_output: str) -> dict[str, MountInfo]:
     return table
 
 
-def probe_mount(path: str) -> Optional[MountInfo]:
+def probe_mount(path: str) -> MountInfo | None:
     """Return the :class:`MountInfo` for the volume containing *path*, or None.
 
     Uses the module-level cached ``mount`` output so the shell-out happens at
@@ -232,7 +231,7 @@ def probe_mount(path: str) -> Optional[MountInfo]:
     table = _build_mount_table(mount_output)
     normalised = path.rstrip("/")
 
-    best: Optional[MountInfo] = None
+    best: MountInfo | None = None
     for mp, info in table.items():
         if normalised == mp or normalised.startswith(mp.rstrip("/") + "/"):
             if best is None or len(mp) > len(best.mount_point):
@@ -256,7 +255,7 @@ def _is_mount_root(path: str) -> bool:
     return os.path.ismount(path)
 
 
-def is_mounted(path: Union[str, Path]) -> bool:
+def is_mounted(path: str | Path) -> bool:
     """Return True only when *path* exists on a volume that is really mounted.
 
     A disk path is a folder under ``/Volumes/<Disk>/…``.  When the volume is not

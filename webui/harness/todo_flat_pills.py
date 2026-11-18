@@ -67,8 +67,9 @@ TIMED_OLDEST = ["Silo|S03", CLOSED, "This City Is Ours", "Conclave", "President 
 LIST = """() => {
   const body = document.querySelector('#view [data-region="acquisition/body"]');
   if (!body) return null;
+  // THE PILLS STAND IN THE ZONE, the body's sibling (`acquisition-zone.tsx`).
   const pill = (verb) => {
-    const node = body.querySelector(`[data-part="pill/select"][${verb}]`);
+    const node = document.querySelector('#view').querySelector(`[data-part="pill/select"][${verb}]`);
     return node ? {text: node.firstChild?.textContent.trim() ?? '', pressed: node.getAttribute('aria-pressed') === 'true',
       count: node.querySelector('[data-part="pill/select-count"]')?.textContent.trim() ?? null} : null;
   };

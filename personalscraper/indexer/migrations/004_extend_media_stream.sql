@@ -27,6 +27,10 @@
 --      (cheap, no row rewrite — SQLite ALTER TABLE ADD COLUMN is metadata-only).
 --   2. Records the version bump in ``schema_version``.
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 ALTER TABLE media_stream ADD COLUMN hdr_format TEXT;       -- HDR standard ("HDR10", "HDR10+", "Dolby Vision", "HLG"), NULL when SDR
 ALTER TABLE media_stream ADD COLUMN is_atmos   INTEGER;    -- 0 / 1 boolean; NULL = unknown (pre-migration row)
 ALTER TABLE media_stream ADD COLUMN is_default INTEGER;    -- 0 / 1 boolean; NULL = unknown (pre-migration row)
@@ -35,3 +39,5 @@ ALTER TABLE media_stream ADD COLUMN format     TEXT;       -- subtitle format ("
 
 INSERT INTO schema_version (version) VALUES (4);
 PRAGMA user_version = 4;
+
+COMMIT;

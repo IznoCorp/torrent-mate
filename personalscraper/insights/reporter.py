@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
@@ -229,7 +229,7 @@ def generate_report(
     Returns:
         LibraryReport with aggregated statistics.
     """
-    report = LibraryReport(generated_at=datetime.now(tz=timezone.utc).isoformat())
+    report = LibraryReport(generated_at=datetime.now(tz=UTC).isoformat())
 
     # --- DB-backed analysis result: totals, distribution, NFO/artwork metrics
     if analysis_result is not None:

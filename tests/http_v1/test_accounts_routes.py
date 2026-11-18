@@ -17,8 +17,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.events import AccountRightsChanged
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import _MIGRATIONS_DIR
@@ -39,7 +39,7 @@ def _production(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch: Pytest's monkeypatch fixture.
     """
     monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
 
 
 def _services(client: TestClient) -> AppServices:
@@ -64,7 +64,7 @@ def _add_account(client: TestClient, account_id: str, role_id: str) -> None:
         role_id: Its role.
     """
     _services(client).app_store.accounts.insert_account(
-        AccountRow(
+        Account(
             id=account_id,
             name=account_id,
             email=f"{account_id}@example.org",
@@ -480,7 +480,7 @@ def _link(client: TestClient, account_id: str, server_access: str) -> None:
         server_access: ``owner`` or ``shared``.
     """
     _services(client).app_store.accounts.upsert_plex_link(
-        PlexLinkRow(
+        PlexLink(
             account_id=account_id,
             plex_id=900,
             plex_uuid="uuid-900",
@@ -497,8 +497,8 @@ def _link(client: TestClient, account_id: str, server_access: str) -> None:
 class TestResetAccountPassword:
     """``POST /accounts/{accountId}/password`` — ``resetAccountPassword``, an Admin's act."""
 
-    def test_an_admin_resets_and_the_sessions_stay(self, v1_client: Callable[..., TestClient]) -> None:
-        """200 ``{"ok": true}``; the provisional password signs in; the account's session keeps running."""
+    def test_an_admin_resets_and_the_sessions_end(self, v1_client: Callable[..., TestClient]) -> None:
+        """200 ``{"ok": true}``; the provisional password signs in; the account's session ends."""
         client = v1_client(role="admin")
         _add_account(client, "account-guest", "local-guest")
         running = _services(client).sessions.open("account-guest", user_agent="pytest")
@@ -507,7 +507,7 @@ class TestResetAccountPassword:
 
         assert response.status_code == 200
         assert response.json() == {"ok": True}
-        assert _services(client).sessions.resolve(running) is not None
+        assert _services(client).sessions.resolve(running) is None
         login = client.post("/auth/login", json={"email": "account-guest@example.org", "password": _PASSWORD})
         assert login.status_code == 200
 

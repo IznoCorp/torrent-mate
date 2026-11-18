@@ -56,27 +56,27 @@ class TvServiceWriteMixin:
     established mixin pattern — see :class:`TvServiceMixin`).
     """
 
-    patterns: "NamingPatterns"
+    patterns: NamingPatterns
     dry_run: bool
-    config: "Config | None"
-    _registry: "ProviderRegistry"
+    config: Config | None
+    _registry: ProviderRegistry
     _imdb: Any
     _rotten_tomatoes: Any
     _scraper_language: str
     _scraper_fallback_language: str
-    _nfo: "NFOGenerator"
-    _artwork: "ArtworkDownloader"
-    _classify_item: "Callable[..., str | None]"
-    _resolve_title: "Callable[..., str]"
-    _strip_trailing_year: "Callable[[str], str]"
-    _build_episode_map: "Callable[..., dict[tuple[int, int], dict[str, Any]]]"
-    _xref_enrichment: "Callable[..., None]"
-    _match_seasons: "Callable[..., tuple[int, list[str]]]"
+    _nfo: NFOGenerator
+    _artwork: ArtworkDownloader
+    _classify_item: Callable[..., str | None]
+    _resolve_title: Callable[..., str]
+    _strip_trailing_year: Callable[[str], str]
+    _build_episode_map: Callable[..., dict[tuple[int, int], dict[str, Any]]]
+    _xref_enrichment: Callable[..., None]
+    _match_seasons: Callable[..., tuple[int, list[str]]]
 
     def _write_confirmed_show(
         self,
         show_dir: Path,
-        match: "MatchResult",
+        match: MatchResult,
         show_data: dict[str, Any],
         tmdb_id: int | None,
         resolved_title: str,
@@ -311,7 +311,7 @@ class TvServiceWriteMixin:
     def _apply_external_ids(
         self,
         show_data: dict[str, Any],
-        match: "MatchResult",
+        match: MatchResult,
         year: int | None,
     ) -> None:
         """Fold the Q5=B external-ids pass result into ``show_data`` in place.
@@ -387,7 +387,7 @@ class TvServiceWriteMixin:
         source: str,
         provider_id: int,
         result: ScrapeResult,
-    ) -> "tuple[MatchResult, dict[str, Any], int | None, str] | None":
+    ) -> tuple[MatchResult, dict[str, Any], int | None, str] | None:
         """Build the ``(match, show_data, tmdb_id, resolved_title)`` tuple for a forced id.
 
         The forced counterpart of
@@ -459,10 +459,10 @@ class TvServiceWriteMixin:
             when the provider fetch fails (fail-soft, never raises).
 
         Raises:
-            SandboxGuardError: Under ``staging``, *show_dir* is outside preprod's marked,
+            SandboxGuardError: In a sandbox, *show_dir* is outside the sandbox's marked,
                 mounted roots. Nothing is written or renamed.
         """
-        # Preprod guard (``staging`` only): the forced scrape bypasses ``run_scrape``, so the
+        # Sandbox guard (a no-op in prod): the forced scrape bypasses ``run_scrape``, so the
         # choke point judges the folder itself before the NFOs, artwork and renames.
         if self.config is not None:
             assert_all_within_sandbox(self.config, show_dir)

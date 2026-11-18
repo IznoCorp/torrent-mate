@@ -27,9 +27,9 @@ run_check() {
   rm -f "$output"
 }
 
-run_check "ruff check"          python -m ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
-run_check "ruff format --check" python -m ruff format --check personalscraper/ tests/
-run_check "mypy"                python -m mypy personalscraper/
+run_check "ruff check"          uv run --locked --extra dev ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
+run_check "ruff format --check" uv run --locked --extra dev ruff format --check personalscraper/ tests/
+run_check "mypy"                uv run --locked --extra dev mypy personalscraper/
 
 if [[ "$failures" -eq 0 ]]; then
   exit 0

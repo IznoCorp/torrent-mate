@@ -38,7 +38,7 @@ from personalscraper.core.delete_permit import ALLOW, ObligationsUnreadable
 
 
 @pytest.fixture
-def store(tmp_path: Path) -> Iterator["ConcreteAcquireStore"]:
+def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
     """Yield an inert store on a temp acquire.db and close it afterwards.
 
     The store opens lazily on first sub-store access.  Using try/finally
@@ -104,21 +104,21 @@ def test_store_absent_returns_allow(tmp_path: Path) -> None:
     assert decision is ALLOW
 
 
-def test_no_obligation_returns_allow(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_no_obligation_returns_allow(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """No matching obligation → ALLOW."""
     auth = build_delete_authority(store=store)
     decision = auth.may_delete(tmp_path / "movie.mkv")
     assert decision is ALLOW
 
 
-def test_has_active_obligation_true_when_present(store: "ConcreteAcquireStore") -> None:
+def test_has_active_obligation_true_when_present(store: ConcreteAcquireStore) -> None:
     """§7 HnR — an active obligation for the hash → has_active_obligation True."""
     store.seed.add(_obligation(dispatched_path=None, info_hash="hashOwe"))
     auth = build_delete_authority(store=store)
     assert auth.has_active_obligation("hashOwe") is True
 
 
-def test_has_active_obligation_false_when_absent(store: "ConcreteAcquireStore") -> None:
+def test_has_active_obligation_false_when_absent(store: ConcreteAcquireStore) -> None:
     """No obligation for the hash → False (ingest then relies on its seeding probe)."""
     auth = build_delete_authority(store=store)
     assert auth.has_active_obligation("unknownhash") is False
@@ -131,7 +131,7 @@ def test_has_active_obligation_false_without_store() -> None:
 
 
 def test_lookup_exception_fail_open_with_mutation_proof(
-    store: "ConcreteAcquireStore", tmp_path: Path, caplog: pytest.LogCaptureFixture
+    store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Store lookup raises → ALLOW (fail-open), AND mutation-proof.
 
@@ -160,7 +160,7 @@ def test_lookup_exception_fail_open_with_mutation_proof(
 
 
 def test_path_exists_oserror_fail_open_with_mutation_proof(
-    store: "ConcreteAcquireStore",
+    store: ConcreteAcquireStore,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
@@ -204,7 +204,7 @@ def test_path_exists_oserror_fail_open_with_mutation_proof(
     assert decision is not ALLOW
 
 
-def test_stale_obligation_mutation_proof(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_stale_obligation_mutation_proof(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Path-exists guard: missing file → ALLOW; creating it → VETO.
 
     A stale obligation (dispatched_path set but file absent on disk) is
@@ -234,7 +234,7 @@ def test_stale_obligation_mutation_proof(store: "ConcreteAcquireStore", tmp_path
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_seedtime_not_met_veto(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_seedtime_not_met_veto(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Active obligation with seedtime NOT met → VETO; reason names tracker + info_hash."""
     path = tmp_path / "movie.mkv"
     path.write_text("fake content")
@@ -256,7 +256,7 @@ def test_seedtime_not_met_veto(store: "ConcreteAcquireStore", tmp_path: Path) ->
     assert "abc123de" in reason_str  # info_hash[:8]...
 
 
-def test_seedtime_met_allow(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_seedtime_met_allow(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Obligation with seedtime already elapsed → ALLOW."""
     path = tmp_path / "movie.mkv"
     path.write_text("fake content")
@@ -274,7 +274,7 @@ def test_seedtime_met_allow(store: "ConcreteAcquireStore", tmp_path: Path) -> No
     assert decision is ALLOW
 
 
-def test_released_obligation_excluded_at_sql_level(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_released_obligation_excluded_at_sql_level(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Released obligation (released_at set) → ALLOW.
 
     find_active_under filters on ``released_at IS NULL``, so a released
@@ -306,7 +306,7 @@ def test_released_obligation_excluded_at_sql_level(store: "ConcreteAcquireStore"
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_descendant_match_vetoes_directory_deletion(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_descendant_match_vetoes_directory_deletion(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Obligation on D/movie.mkv (unmet, exists) → may_delete(D) VETOes.
 
     The LIKE pattern ``D/%`` in find_active_under catches the child, so
@@ -325,7 +325,7 @@ def test_descendant_match_vetoes_directory_deletion(store: "ConcreteAcquireStore
     assert decision is not ALLOW
 
 
-def test_sibling_prefix_boundary_safe_allow(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_sibling_prefix_boundary_safe_allow(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Obligation on D/, may_delete on 'D-other' → ALLOW (boundary-safe LIKE).
 
     The LIKE pattern uses ESCAPE so that ``D/%`` matches descendants of D
@@ -354,7 +354,7 @@ def test_sibling_prefix_boundary_safe_allow(store: "ConcreteAcquireStore", tmp_p
     assert decision is ALLOW
 
 
-def test_exact_path_match_veto(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_exact_path_match_veto(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Obligation on D/movie.mkv → may_delete(D/movie.mkv) VETOes (exact match)."""
     parent_dir = tmp_path / "D"
     parent_dir.mkdir()
@@ -369,7 +369,7 @@ def test_exact_path_match_veto(store: "ConcreteAcquireStore", tmp_path: Path) ->
     assert decision is not ALLOW
 
 
-def test_mixed_obligations_one_unmet_vetoes_directory(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_mixed_obligations_one_unmet_vetoes_directory(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Two obligations under D, one MET one UNMET (both files exist) → may_delete(D) VETOes.
 
     The iteration in may_delete skips the MET obligation (seedtime elapsed),
@@ -423,7 +423,7 @@ class _SpyConnection(sqlite3.Connection):
     the spy is a subclass handed to the real ``sqlite3.connect`` as its factory.
     """
 
-    opened: "list[_SpyConnection]" = []
+    opened: list[_SpyConnection] = []
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Open the connection and register it.
@@ -442,7 +442,7 @@ class _SpyConnection(sqlite3.Connection):
         super().close()
 
 
-def _spy_connect(monkeypatch: pytest.MonkeyPatch) -> "list[_SpyConnection]":
+def _spy_connect(monkeypatch: pytest.MonkeyPatch) -> list[_SpyConnection]:
     """Route ``sqlite3.connect`` through :class:`_SpyConnection` from now on.
 
     ``sqlite3`` is one module object, so this reaches every caller: install it
@@ -465,7 +465,7 @@ def _spy_connect(monkeypatch: pytest.MonkeyPatch) -> "list[_SpyConnection]":
     return opened
 
 
-def _owed_store(store: "ConcreteAcquireStore", path: Path) -> int:
+def _owed_store(store: ConcreteAcquireStore, path: Path) -> int:
     """Record two unmet obligations under *path* and return the later of their due moments.
 
     Args:
@@ -485,7 +485,7 @@ def _owed_store(store: "ConcreteAcquireStore", path: Path) -> int:
     return now - 10 + 50_000
 
 
-def test_owed_until_is_the_latest_due_moment(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_owed_until_is_the_latest_due_moment(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """The fail-open authority's veto carries owed_until = max(added_at + min_seed_time_s)."""
     folder = tmp_path / "Show"
     folder.mkdir()
@@ -497,7 +497,7 @@ def test_owed_until_is_the_latest_due_moment(store: "ConcreteAcquireStore", tmp_
     assert decision.owed_until == expected  # type: ignore[union-attr]
 
 
-def test_strict_permit_vetoes_with_owed_until(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_strict_permit_vetoes_with_owed_until(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """The strict permit makes the same decision and carries the same owed_until."""
     folder = tmp_path / "Show"
     folder.mkdir()
@@ -509,7 +509,7 @@ def test_strict_permit_vetoes_with_owed_until(store: "ConcreteAcquireStore", tmp
     assert decision.owed_until == expected  # type: ignore[union-attr]
 
 
-def test_strict_permit_allows_without_obligation(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
+def test_strict_permit_allows_without_obligation(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """A readable store with nothing owed under the path → ALLOW."""
     store.seed.add(_obligation(str(tmp_path / "elsewhere.mkv")))
 
@@ -546,7 +546,7 @@ def test_strict_permit_refuses_corrupt_store_and_leaves_it(tmp_path: Path) -> No
 
 
 def test_strict_permit_refuses_locked_store(
-    store: "ConcreteAcquireStore", tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    store: ConcreteAcquireStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """acquire.db held under an exclusive lock past the read timeout → ObligationsUnreadable."""
     store.seed.add(_obligation(str(tmp_path / "movie.mkv")))
@@ -565,7 +565,7 @@ def test_strict_permit_refuses_locked_store(
 
 
 def test_strict_permit_closes_its_connection_after_each_decision(
-    store: "ConcreteAcquireStore", tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    store: ConcreteAcquireStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Every decision opens one read-only connection and closes it — allowed, vetoed or refused (N3)."""
     folder = tmp_path / "Show"

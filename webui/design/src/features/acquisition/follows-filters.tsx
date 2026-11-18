@@ -1,5 +1,5 @@
-// The filters of « Suivis »: the search field with its own native handler,
-// the filter pill and the sort pill, and the three display modes.
+// The filters of « Suivis »: the zone every tab draws (`acquisition-zone.tsx`),
+// fed the follows' filter and sort, and with the three display modes.
 //
 // THE ONE PILL OF EVERY LIST (`ui/pill-select.tsx`, maquette-blocked DECIDED 1,
 // § 1.9): the row of « Tout », « Séries », « Films » pills became ONE filter
@@ -7,15 +7,11 @@
 // the same component. Both are REMEMBERED on this device, as « À traiter »'s
 // are: the store holds the choice once made, the device's memory what was
 // chosen last.
-import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { Icon } from "../../ui/icon";
-import { redraw } from "../../lib/shell-doors";
 import { tabMemory } from "../../lib/tab-memory";
-import { useUiState, writeUiState } from "../../lib/store-access";
-import { PillSelect } from "../../ui/pill-select";
-import { filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
+import { useUiState } from "../../lib/store-access";
+import { AcquisitionZone } from "./acquisition-zone";
 import { FOLLOW_FILTERS, FOLLOW_SORTS, type FollowFilter, type FollowSort } from "./follow-order";
 
 /** The device's memory of the filter and of the sort. */
@@ -64,108 +60,30 @@ export function followSortInForce(state: Record<string, unknown>): FollowSort {
  * The filter zone.
  *
  * @param props.shown How many follows the filter keeps.
- * @returns The search field, the two pills and the view switch.
+ * @returns The zone, display switch included.
  */
 export function FollowsFilters({ shown }: { shown: number }): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons } = useEngineDrawing();
   const filter = followFilterInForce(state);
   const sort = followSortInForce(state);
   return (
-    <div className={filterZone()} data-region="acquisition/filters">
-      <div className={searchField()}>
-        <Icon paths={icons.search} />
-        <input
-          className={searchInput()}
-          // UNCONTROLLED, with its own native handler — the arrangement
-          // `#libq` has, for the same reason: `mountSearch` bound this field
-          // from outside, and it runs inside `render()`, BEFORE React has put
-          // the field in the document. Typing did nothing until some other
-          // control forced a second render.
-          type="search"
-          // A TITLE STARTS WITH A CAPITAL (B-694): the keyboard's first capital, `sentences`, and
-          // no correction — a title is a proper noun, often foreign, that autocorrect would mangle (B-690).
-          autoCapitalize="sentences"
-          autoCorrect="off"
-          id="follq"
-          defaultValue={state.filter as string}
-          placeholder={t("screens.acquisition.filterPlaceholder")}
-          aria-label={t("screens.acquisition.filterLabel")}
-          ref={(element) => {
-            if (!element) return;
-            // What changes the filter from OUTSIDE — the clear cross — has to
-            // reach the field, and only when the two differ, so nothing
-            // touches the node mid-word. The ATTRIBUTE follows too: the
-            // legacy re-emitted it on every draw.
-            const filter = state.filter as string;
-            if (element.value !== filter) element.value = filter;
-            if (element.getAttribute("value") !== filter)
-              element.setAttribute("value", filter);
-            const commit = () => {
-              writeUiState({ filter: element.value });
-              redraw();
-            };
-            element.addEventListener("input", commit);
-            return () => element.removeEventListener("input", commit);
-          }}
-        />
-        {state.filter ? (
-          <button
-            className={searchClear()}
-            data-clear-filter
-            aria-label={t("screens.acquisition.clearLabel")}
-          >
-            <Icon paths={icons.x} />
-          </button>
-        ) : null}
-      </div>
-      <div className={pillBar()}>
-        <div className={pillScroll()} data-part="pill/list">
-          <PillSelect
-            label={t(followFilterWord(filter))}
-            count={shown}
-            pressed={filter !== FOLLOW_FILTERS[0]}
-            attributes={{ "data-follows-filter-pill": "" }}
-          />
-          <PillSelect
-            label={t(`screens.acquisition.followSort.${sort}`)}
-            pressed={sort !== "urgency"}
-            attributes={{ "data-follows-sort-pill": "" }}
-          />
-        </div>
-        <div className={viewSwitchWrap()}>
-          <div className={viewSwitch()} data-part="view/switch">
-            <button
-              className={viewSwitchButton()}
-              aria-pressed={state.followMode === "list"}
-              data-active={state.followMode === "list"}
-              data-fmode="list"
-              aria-label={t("screens.acquisition.modeList")}
-            >
-              <Icon paths={icons.list} />
-            </button>
-            <button
-              className={viewSwitchButton()}
-              aria-pressed={state.followMode === "group"}
-              data-active={state.followMode === "group"}
-              data-fmode="group"
-              aria-label={t("screens.acquisition.modeGroup")}
-            >
-              <Icon paths={icons.group} />
-            </button>
-            <button
-              className={viewSwitchButton()}
-              aria-pressed={state.followMode === "grid"}
-              data-active={state.followMode === "grid"}
-              data-fmode="grid"
-              aria-label={t("screens.acquisition.modeGrid")}
-            >
-              <Icon paths={icons.grid} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AcquisitionZone
+      searchKey="filter"
+      searchId="follq"
+      searchLabel={t("screens.acquisition.filterLabel")}
+      filter={{
+        label: t(followFilterWord(filter)),
+        count: shown,
+        pressed: filter !== FOLLOW_FILTERS[0],
+        attributes: { "data-follows-filter-pill": "" },
+      }}
+      sort={{
+        label: t(`screens.acquisition.followSort.${sort}`),
+        pressed: sort !== "urgency",
+        attributes: { "data-follows-sort-pill": "" },
+      }}
+      modes
+    />
   );
 }

@@ -9,6 +9,7 @@
 // (the next release, `nextAirDate`, a follow with none last). The two dates are
 // BK8: the maquette carries them in its follows seed.
 import { URGENCY } from "./follow-vocabulary";
+import { titleMatches } from "./title-search";
 import type { Follow } from "./types";
 
 /** The filter's choices, in the order its panel offers them. */
@@ -62,9 +63,7 @@ export function followCounts(follows: readonly Follow[]): Record<FollowFilter, n
  * @returns The follows looked among.
  */
 export function followsInView(follows: readonly Follow[], search: string): Follow[] {
-  const plain = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
-  const term = plain(search.trim());
-  return follows.filter((follow) => follow.status !== "disabled" && (term === "" || plain(follow.title).includes(term)));
+  return follows.filter((follow) => follow.status !== "disabled" && titleMatches(follow.title, search));
 }
 
 /**

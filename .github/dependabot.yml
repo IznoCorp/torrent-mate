@@ -5,15 +5,29 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # One pull request per ecosystem per week: each group takes every dependency,
+  # majors included, so a bump that breaks is read once instead of piling up.
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      pip-weekly:
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions-weekly:
+        patterns:
+          - "*"
   - package-ecosystem: "npm"
     directory: "/webui/design"
     schedule:
       interval: "weekly"
+    groups:
+      npm-weekly:
+        patterns:
+          - "*"

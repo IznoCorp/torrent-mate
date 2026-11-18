@@ -39,7 +39,7 @@ from personalscraper.trailers.discovery.trailers_cache import TrailersCache
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata._base import Video
-    from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: F811
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
 logger = get_logger(__name__)
@@ -126,7 +126,7 @@ class TrailerFinder:
 
     def __init__(
         self,
-        registry: "ProviderRegistry",  # noqa: F821
+        registry: ProviderRegistry,
         youtube_search: YoutubeSearch,
         cache: TrailersCache,
         languages: list[str],

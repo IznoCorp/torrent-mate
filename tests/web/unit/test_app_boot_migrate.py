@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from personalscraper.core.sqlite import SqliteSchemaNewerError
 from personalscraper.web.app import _apply_pending_indexer_migrations
 
 # Latest schema version == number of NNN_*.sql migration scripts on disk.
@@ -112,3 +113,22 @@ def test_second_call_is_idempotent(test_config: Any, monkeypatch: pytest.MonkeyP
     _apply_pending_indexer_migrations(test_config)
     assert _user_version(str(db_path)) == _LATEST_VERSION
     assert _has_table(str(db_path), "scrape_decision")
+
+
+def test_a_store_newer_than_the_code_fails_the_boot(test_config: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``library.db`` past the last migration fails the boot closed; the store keeps its version.
+
+    Older code must not serve, nor write, a store a newer checkout migrated: the refusal
+    escapes the fail-soft guard so the process errors instead of booting.
+    """
+    monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
+    db_path = test_config.indexer.db_path
+    _make_empty_db(db_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(f"PRAGMA user_version = {_LATEST_VERSION + 1}")
+    conn.close()
+
+    with pytest.raises(SqliteSchemaNewerError):
+        _apply_pending_indexer_migrations(test_config)
+
+    assert _user_version(str(db_path)) == _LATEST_VERSION + 1

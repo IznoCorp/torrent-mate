@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json as _json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -29,7 +28,7 @@ def library_gc(
         "--dry-run",
         help=t("cli_library.gc.dry_run_help"),
     ),
-    config: Optional[Path] = typer.Option(None, "--config", "-c", help=t("cli_library.gc.config_help")),
+    config: Path | None = typer.Option(None, "--config", "-c", help=t("cli_library.gc.config_help")),
 ) -> None:
     """Garbage-collect old index_outbox rows (status=done, processed_at < cutoff).
 
@@ -58,7 +57,7 @@ def library_gc(
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
 
-    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
 
     if cfg.indexer.db_path is None:
@@ -70,7 +69,7 @@ def library_gc(
 
     # Compute cutoff as a UTC Unix timestamp (integer seconds).
     # ``processed_at`` is stored as INTEGER (Unix seconds) in index_outbox.
-    cutoff_dt = datetime.now(tz=timezone.utc) - timedelta(days=older_than_days)
+    cutoff_dt = datetime.now(tz=UTC) - timedelta(days=older_than_days)
     cutoff_ts = int(cutoff_dt.timestamp())
 
     event_bus = EventBus()

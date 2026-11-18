@@ -30,10 +30,10 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, browser_channel, chrome_launch_args  # noqa: E402
-from transition import FROM_STATE, TILE, open_page_with  # noqa: E402
+from common import Journal, browser_channel, chrome_launch_args
+from transition import FROM_STATE, TILE, open_page_with
 
-from playwright.async_api import async_playwright  # noqa: E402
+from playwright.async_api import async_playwright
 
 journal = Journal("R190 — the panel's return is drawn (B-275)")
 

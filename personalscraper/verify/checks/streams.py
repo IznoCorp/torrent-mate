@@ -34,7 +34,7 @@ class Streamdetails:
     default_severity = Severity.WARNING
     description = "NFO should contain a <streamdetails> block"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[]`` when the NFO root is None; ``[CheckResult]`` otherwise.
 
         Mirrors ``check_movie``: the check runs only when the movie NFO
@@ -61,7 +61,7 @@ class Streamdetails:
         ]
 
 
-def _parse_nfo(nfo_path: "Path") -> "ET.Element | None":
+def _parse_nfo(nfo_path: Path) -> ET.Element | None:
     """Parse an NFO XML file (copied verbatim from checker.py).
 
     Args:
@@ -71,7 +71,7 @@ def _parse_nfo(nfo_path: "Path") -> "ET.Element | None":
         Root Element, or None if parse fails.
     """
     try:
-        tree = ET.parse(nfo_path)  # noqa: S314
+        tree = ET.parse(nfo_path)
         return tree.getroot()
     except (ET.ParseError, OSError) as exc:
         log.warning("verify_nfo_parse_failed", nfo=nfo_path.name, exc_info=True, error=str(exc))

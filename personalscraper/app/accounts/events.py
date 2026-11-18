@@ -1,10 +1,11 @@
-"""The accounts' domain events: E8, an account's rights moved."""
+"""The accounts' domain events: E8, an account's rights moved; a session a Plex sign-in opened."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
 
+from personalscraper.app.accounts.ids import AccountId
 from personalscraper.core.event_bus import Event
 
 
@@ -31,3 +32,20 @@ class AccountRightsChanged(Event):
 
     account_ids: tuple[str, ...]
     cause: RightsChangeCause
+
+
+@dataclass(frozen=True, kw_only=True)
+class PlexSessionOpened(Event):
+    """A Plex sign-in opened a new session: its holder is told where (ruling Q4 A).
+
+    Published once the session is open, never for a renewal of a session already open nor
+    for a refused sign-in. A Plex sign-in can be phished — whoever has a person confirm a PIN
+    signs in as them — so the account hears of every new session, and can end it.
+
+    Attributes:
+        account_id: The account signed in.
+        device: The browser and system the session's user agent names; ``None`` when it names neither.
+    """
+
+    account_id: AccountId
+    device: str | None

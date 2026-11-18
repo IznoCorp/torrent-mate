@@ -61,8 +61,18 @@ remote_sha="$(git rev-parse origin/prod)"
   || fail "local prod ($local_sha) ≠ origin/prod ($remote_sha). Run 'git pull --ff-only origin prod' first."
 
 # ── Guard 4: the prod venv must exist (per-clone isolation) ───────────────────
-[ -x "$VENV/bin/pip" ] \
-  || fail "prod venv not found: $VENV (expected $VENV/bin/pip). Create it first (python -m venv \"$VENV\") or export TM_VENV."
+[ -x "$VENV/bin/python" ] \
+  || fail "prod venv not found: $VENV (expected $VENV/bin/python). Create it first (python -m venv \"$VENV\") or export TM_VENV."
+
+# ── Guard 4b: uv must be reachable and the lock must exist and match pyproject.toml (checked BEFORE the build wipes anything) ──
+# The backend is installed from uv.lock, never re-resolved from pyproject.toml. PM2's PATH may lack
+# Homebrew's bin, hence the explicit fallback; override with TM_UV.
+UV="${TM_UV:-$(command -v uv || true)}"
+if [ -z "$UV" ] && [ -x /opt/homebrew/bin/uv ]; then UV=/opt/homebrew/bin/uv; fi
+{ [ -n "$UV" ] && [ -x "$UV" ]; } || fail "uv not found (install it, or export TM_UV=/path/to/uv)."
+[ -f uv.lock ] || fail "uv.lock missing — the backend installs from the lock."
+"$UV" lock --check >/dev/null 2>&1 \
+  || fail "uv.lock is out of date with pyproject.toml (run 'uv lock' and commit it)."
 
 printf '✓ prod clean and in sync @ %s — building the SPA…\n' "$local_sha"
 
@@ -86,8 +96,11 @@ rsync -a --delete \
 # ── Stamp: record exactly which commit is now live (GET /api/version reads it) ─
 printf '%s\n' "$local_sha" > personalscraper/web/static/BUILD_COMMIT
 
-# ── Reinstall the backend into the prod venv (per-clone isolation) ────────────
-"$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . failed (broken venv? missing dependencies?)"
+# ── Reinstall the backend (from the lock) into the prod venv (per-clone isolation) ────────────
+# --locked: install exactly uv.lock (fails if it disagrees with pyproject.toml, never re-resolves);
+# the sync is exact, so a package outside the lock is removed from the venv. No `dev` extra here.
+UV_PROJECT_ENVIRONMENT="$VENV" "$UV" sync --locked --python "$VENV/bin/python" >/dev/null \
+  || fail "uv sync --locked failed (lock out of date with pyproject.toml? broken venv?)"
 
 # ── Start-or-restart the PM2 app (fail-soft) ──────────────────────────────────
 # startOrRestart (not restart): the FIRST post-merge autodeploy must START the

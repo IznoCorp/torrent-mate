@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.scraper.decision_writer import DecisionWriteError, DecisionWriter
 
 # ---------------------------------------------------------------------------
@@ -847,3 +848,23 @@ class TestDecisionWriterFailSoft:
             candidates_json="[]",
             run_uid="run-fs",
         )
+
+
+def test_upsert_writes_nothing_on_a_newer_store(tmp_path: Path) -> None:
+    """A ``library.db`` past the last library migration gets no decision row and keeps its version."""
+    db_path = tmp_path / "library.db"
+    _create_db(db_path)
+    newer = max(int(p.name.split("_")[0]) for p in LIBRARY_MIGRATIONS_DIR.glob("*.sql")) + 1
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute(f"PRAGMA user_version = {newer}")
+    conn.close()
+
+    result = DecisionWriter(db_path).upsert(
+        tmp_path / "Some.Show", "tv", "Some Show", None, "pipeline", "[]", run_uid=None
+    )
+
+    assert result is None
+    with sqlite3.connect(str(db_path)) as check:
+        assert check.execute("SELECT COUNT(*) FROM scrape_decision").fetchone()[0] == 0
+        assert check.execute("PRAGMA user_version").fetchone()[0] == newer
+    check.close()

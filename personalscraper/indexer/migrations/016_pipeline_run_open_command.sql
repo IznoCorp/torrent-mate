@@ -14,9 +14,15 @@
 -- Additive and idempotent (IF NOT EXISTS): applied at web boot by the lifespan
 -- migration pass as well as by the CLI.
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 CREATE INDEX IF NOT EXISTS idx_pipeline_run_open_command
     ON pipeline_run (command)
     WHERE ended_at IS NULL;
 
 INSERT INTO schema_version (version) VALUES (16);
 PRAGMA user_version = 16;
+
+COMMIT;

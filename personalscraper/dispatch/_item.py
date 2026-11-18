@@ -93,8 +93,8 @@ class TransferOutcome:
     metadata_refreshed: bool = False
 
 
-def _refused_by_preprod_guard(dispatcher: Dispatcher, result: DispatchResult, dest: Path) -> bool:
-    """Refuse a destination or source outside preprod's marked, mounted roots (``staging`` only).
+def _refused_by_sandbox_guard(dispatcher: Dispatcher, result: DispatchResult, dest: Path) -> bool:
+    """Refuse a destination or source outside the sandbox's marked, mounted roots (a no-op in prod).
 
     Args:
         dispatcher: The owning dispatcher (its config names the roots).
@@ -104,7 +104,7 @@ def _refused_by_preprod_guard(dispatcher: Dispatcher, result: DispatchResult, de
 
     Returns:
         True when the guard refused (``result`` is then final), False otherwise —
-        always False outside ``staging``.
+        always False in prod.
     """
     try:
         # The transfer purges the staging source on success: judge both ends.
@@ -112,7 +112,7 @@ def _refused_by_preprod_guard(dispatcher: Dispatcher, result: DispatchResult, de
     except SandboxGuardError as exc:
         log.error("preprod_destination_refused", destination=str(dest), error=str(exc))
         result.action = "error"
-        result.reason = f"Preprod guard refused the destination: {exc}"
+        result.reason = f"Sandbox guard refused the destination: {exc}"
         return True
     return False
 
@@ -417,7 +417,7 @@ def _dispatch_item(
         dest = Path(existing.path)
         result.disk = existing.disk
         result.destination = dest
-        if _refused_by_preprod_guard(dispatcher, result, dest):
+        if _refused_by_sandbox_guard(dispatcher, result, dest):
             return result
 
         # Free-space gate for the in-place supersede.
@@ -525,7 +525,7 @@ def _dispatch_item(
         dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / src.name
         result.disk = target_disk.id
         result.destination = dest
-        if _refused_by_preprod_guard(dispatcher, result, dest):
+        if _refused_by_sandbox_guard(dispatcher, result, dest):
             return result
 
         cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)

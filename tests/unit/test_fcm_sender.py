@@ -297,6 +297,18 @@ def test_the_request_is_a_data_only_webpush_message(service_account_file: Path) 
     assert "validate_only" not in sent["json"]
 
 
+def test_the_recipients_language_rides_in_the_data() -> None:
+    """``language`` set: carried as ``data.language`` for the worker to word the code in (FG-2 A)."""
+    message = PushMessage(code="account.sign_in.unknown_device", language="en")
+
+    assert message.webpush_data()["language"] == "en"
+
+
+def test_no_language_leaves_the_data_without_one() -> None:
+    """``language`` unset: no ``data.language`` — the worker words it in English (OPEN-2 B)."""
+    assert "language" not in PushMessage(code="tracker.ratio_low").webpush_data()
+
+
 def test_validate_only_is_sent_when_asked(service_account_file: Path) -> None:
     """The probe's credential check asks FCM not to deliver."""
     fake = _FakeGoogle(_fixture("invalid-argument-400"))

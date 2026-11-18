@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 
 import { LANGUAGES, type Language } from "../../i18n";
 import { refusalWords } from "../../lib/refusal";
-import { factsPanel, keyValueRow, qualityHint, sectionHeading, settingRow, surfaceError, viewSwitch, viewSwitchButton } from "../../ui/variants";
+import { factsPanel, keyValueRow, qualityHint, section, sectionHeading, settingRow, surfaceError, viewSwitch, viewSwitchButton } from "../../ui/variants";
 import { accountQuery, useAccount, type Account } from "./queries";
 import { sendNow } from "./send-now";
 
@@ -52,7 +52,7 @@ export function LanguageSection(): ReactElement | null {
   }
 
   return (
-    <section data-part="profile/language" data-language={current} data-saving={saving || undefined}>
+    <section className={section()} data-part="profile/language" data-language={current} data-saving={saving || undefined}>
       <h2 className={sectionHeading()} data-part="heading">{t(`${words}.heading`)}</h2>
       <div className={factsPanel()} data-part="panel">
         <div className={`${keyValueRow()} ${settingRow()}`} data-part="key-value">

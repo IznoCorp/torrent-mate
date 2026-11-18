@@ -34,6 +34,18 @@ from pathlib import Path
 # asking — which is the failure this whole mechanism repairs.
 IDENTITY_TIMEOUT = 5.0
 
+# WHERE THE DEPLOY LEAVES THE IDENTITY WHEN THE SERVED TREE IS NOT A REPOSITORY.
+# tm-design serves an rsync copy of the build tree, which carries no `.git`, so
+# no git command can answer there and the drawer said « identity unavailable »
+# (B-713). The deploy writes the four fields it knows — it is the one that
+# checked the commit out — into this file at the root of the served design tree.
+IDENTITY_STAMP = ".served-identity.json"
+
+# The fields a stamp must carry, and their types: the same four `served_identity`
+# publishes, so the drawer reads one shape whichever source answered.
+_STAMP_FIELDS: dict[str, type] = {
+    "branch": str, "detached": bool, "commit": str, "dirty": bool}
+
 
 def _git(root: Path, *arguments: str) -> str | None:
     """Runs one read-only git command in a tree's repository.
@@ -57,6 +69,34 @@ def _git(root: Path, *arguments: str) -> str | None:
     return run.stdout.strip()
 
 
+def _stamped_identity(root: Path) -> dict[str, object] | None:
+    """Reads the identity the deploy stamped into a tree that has no repository.
+
+    Every field is checked, not merely the file: a partial payload would reach
+    the drawer as « undefined », which reads as a value rather than as a hole,
+    so a stamp that cannot name all four names none. A detached head carries no
+    branch, which is required only when the head is not detached.
+
+    Args:
+        root: The tree the host serves from.
+
+    Returns:
+        The four fields, or None when the stamp is absent, unreadable or partial.
+    """
+    try:
+        stamp = json.loads((root / IDENTITY_STAMP).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(stamp, dict):
+        return None
+    for field, kind in _STAMP_FIELDS.items():
+        if not isinstance(stamp.get(field), kind):
+            return None
+    if not stamp["commit"] or not (stamp["detached"] or stamp["branch"]):
+        return None
+    return {field: stamp[field] for field in _STAMP_FIELDS}
+
+
 def served_identity(root: Path) -> dict[str, object] | None:
     """Returns what a host serving `root` is serving: branch, commit, dirt.
 
@@ -78,8 +118,10 @@ def served_identity(root: Path) -> dict[str, object] | None:
 
     Returns:
         A mapping with `branch`, `detached`, `commit` and `dirty`, or None when
-        the root is not a git repository — in which case the page says so
-        rather than showing a plausible value.
+        the root is neither a git repository nor carries the deploy's stamp
+        (`IDENTITY_STAMP`) — in which case the page says so rather than showing
+        a plausible value. Git answers first: a repository is described by what
+        it holds now, and a stamp is only what a tree with no repository has.
     """
     # A DETACHED HEAD IS ITS OWN STATE, NOT A BRANCH CALLED « HEAD ».
     # `rev-parse --abbrev-ref HEAD` answers the literal string `HEAD` on a
@@ -93,7 +135,7 @@ def served_identity(root: Path) -> dict[str, object] | None:
     branch = _git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
     commit = _git(root, "rev-parse", "--short", "HEAD")
     if not commit:
-        return None
+        return _stamped_identity(root)
     # THE DIRT IS SCOPED TO WHAT THE HOST ACTUALLY SERVES. `git status` is
     # repository-scoped whatever its working directory, so an edit to
     # `personalscraper/`, to `tests/` or to this register would have marked the
@@ -104,7 +146,7 @@ def served_identity(root: Path) -> dict[str, object] | None:
     # not in the index is still a file the build reads.
     status = _git(root, "status", "--porcelain", "--", str(root))
     if status is None:
-        return None
+        return _stamped_identity(root)
     return {"branch": branch or "", "detached": branch is None,
             "commit": commit, "dirty": bool(status)}
 

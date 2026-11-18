@@ -22,7 +22,7 @@ import json
 import os
 import sqlite3
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -157,6 +157,7 @@ def drain(
     *,
     budget_seconds: float,
     processor: Callable[[sqlite3.Connection, RepairQueueRow], None] | None = None,
+    only_ids: Collection[int] | None = None,
 ) -> RepairStats:
     """Process pending repair rows in FIFO order within a wall-clock time budget.
 
@@ -183,6 +184,9 @@ def drain(
         processor: Optional callable taking ``(conn, row)`` that performs the
             actual repair for a single queue entry.  When ``None`` the default
             noop processor is used.
+        only_ids: When given, only the pending rows whose ``repair_queue.id`` is in
+            this collection are drained (a targeted refresh must not process the
+            rest of the queue). ``None`` drains every pending row.
 
     Returns:
         :class:`RepairStats` with counts and queue-health snapshot at drain-end.
@@ -195,17 +199,22 @@ def drain(
 
     while True:
         # Fetch the next batch of pending rows in FIFO order.
+        only_clause = ""
+        only_params: list[int] = []
+        if only_ids is not None:
+            only_params = sorted(only_ids)
+            only_clause = f" AND id IN ({','.join('?' * len(only_params))})"
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            """
+            f"""
             SELECT id, scope, scope_id, reason, payload_json,
                    enqueued_at, status, attempted_at, attempts
               FROM repair_queue
-             WHERE status = 'pending'
+             WHERE status = 'pending'{only_clause}
              ORDER BY enqueued_at ASC
              LIMIT ?
-            """,
-            (_DRAIN_BATCH,),
+            """,  # noqa: S608 — only placeholders are interpolated
+            (*only_params, _DRAIN_BATCH),
         ).fetchall()
         conn.row_factory = None
 

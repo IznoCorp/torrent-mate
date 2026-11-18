@@ -572,7 +572,7 @@ def test_new_media_moves_via_move_new_and_never_journals(
 
 
 # ---------------------------------------------------------------------------
-# Preprod guard wiring (``staging`` only)
+# Sandbox guard wiring (driven under ``staging``)
 # ---------------------------------------------------------------------------
 
 
@@ -585,7 +585,7 @@ def test_existing_copy_outside_every_preprod_root_is_refused_under_staging(
 ) -> None:
     """Under staging a supersede whose existing copy sits outside every root is refused.
 
-    The template must end the item as an error naming the preprod guard before
+    The template must end the item as an error naming the sandbox guard before
     the transfer, leaving source and destination untouched.
     """
     name = "Dune (2021)"
@@ -608,7 +608,7 @@ def test_existing_copy_outside_every_preprod_root_is_refused_under_staging(
         index.close()
 
     assert result.action == "error"
-    assert "Preprod guard" in result.reason
+    assert "Sandbox guard" in result.reason
     assert result.destination == existing
     assert transfer.calls == []
     assert [p.name for p in source.iterdir()] == ["new.mkv"]
@@ -656,7 +656,7 @@ def test_new_media_on_an_unmarked_disk_is_refused_under_staging(
         index.close()
 
     assert result.action == "error"
-    assert "Preprod guard" in result.reason
+    assert "Sandbox guard" in result.reason
     assert result.destination is not None
     assert not result.destination.exists()
     assert move_calls == []

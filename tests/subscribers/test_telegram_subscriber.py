@@ -14,7 +14,7 @@ cassette now exercises all four production events.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -27,8 +27,6 @@ from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline_events import PipelineEnded, StepErrored
 from personalscraper.subscribers.telegram import TelegramSubscriber
-
-UTC = timezone.utc
 
 
 def _make_pipeline_report() -> PipelineReport:
@@ -76,7 +74,7 @@ def test_telegram_subscriber_has_four_subscriptions_after_phase4() -> None:
     """
     bus = EventBus()
     sub = TelegramSubscriber(bus, _FakeNotifier())  # type: ignore[arg-type]
-    assert len(sub._tokens) == 4  # noqa: SLF001
+    assert len(sub._tokens) == 4
 
 
 def test_telegram_subscriber_sends_html_on_pipeline_ended() -> None:
@@ -165,7 +163,7 @@ def test_telegram_subscriber_close_unsubscribes() -> None:
     # Give the scheduler a chance — no spawn should have happened.
     time.sleep(0.05)
     assert notifier.calls == []
-    assert sub._tokens == []  # noqa: SLF001
+    assert sub._tokens == []
 
 
 def test_telegram_subscriber_returns_synchronously_under_threshold() -> None:

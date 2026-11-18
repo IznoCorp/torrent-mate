@@ -22,6 +22,7 @@ import { actionButton, factList, guidance, sectionHeading } from "../../ui/varia
 import { NotificationsSection } from "./notifications-section";
 import { InstallSection } from "./install-section";
 import { LanguageSection } from "./language-section";
+import { SessionsSection } from "./sessions-section";
 
 export function AccountPage(): ReactElement | null {
   const { t } = useTranslation();
@@ -105,6 +106,8 @@ export function AccountPage(): ReactElement | null {
       <NotificationsSection />
 
       <InstallSection />
+
+      <SessionsSection />
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.session")}</h2>
       {facts([

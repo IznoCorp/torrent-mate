@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import importlib
 import os
-from typing import TYPE_CHECKING, Any, Callable, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
 
 from personalscraper.api.metadata.registry._errors import UnknownProviderError
 from personalscraper.core.circuit import CircuitState
@@ -68,7 +69,8 @@ def _build_tmdb(
     cb_policy: CircuitPolicy,
     event_bus: EventBus,
     *,
-    retry: "RetryPolicy | None" = None,
+    language: str,
+    retry: RetryPolicy | None = None,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tmdb import TMDBClient
@@ -76,7 +78,7 @@ def _build_tmdb(
 
     tmdb_policy = TMDBClient.policy(settings.tmdb_api_key, circuit=cb_policy, retry=retry)
     tmdb_transport = HttpTransport(tmdb_policy, event_bus=event_bus)
-    return TMDBClient(tmdb_transport, language="fr-FR")
+    return TMDBClient(tmdb_transport, language=language)
 
 
 def _build_tvdb(
@@ -84,14 +86,15 @@ def _build_tvdb(
     cb_policy: CircuitPolicy,
     event_bus: EventBus,
     *,
-    retry: "RetryPolicy | None" = None,
+    language: str,
+    retry: RetryPolicy | None = None,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tvdb import TVDBClient
 
     return TVDBClient(
         settings.tvdb_api_key,
-        language="fr-FR",
+        language=language,
         circuit=cb_policy,
         retry=retry,
         event_bus=event_bus,
@@ -187,7 +190,9 @@ def build_providers(
     settings: Settings,
     cb_policy: CircuitPolicy,
     event_bus: EventBus,
-    retry: "RetryPolicy | None" = None,
+    retry: RetryPolicy | None = None,
+    *,
+    language: str,
 ) -> dict[str, object]:
     """Instantiate each named provider once. Returns ``name → instance`` dict.
 
@@ -208,6 +213,8 @@ def build_providers(
             request passes ``max_attempts=1`` so a dead provider cannot hold
             the worker thread through the full backed-off retry loop (D1).
             Builders that take no retry knob absorb it via ``**_kwargs``.
+        language: The metadata language the TMDB and TVDB clients ask in
+            (``scraper.language``); the other builders absorb it via ``**_kwargs``.
 
     Returns:
         Dict mapping ``{name: instance}`` for each requested provider.
@@ -221,6 +228,7 @@ def build_providers(
             cb_policy,
             event_bus,
             retry=retry,
+            language=language,
             _cache=_backend_cache,
         )
     return providers

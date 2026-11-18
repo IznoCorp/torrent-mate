@@ -83,7 +83,7 @@ class ScraperRatings(BaseModel):
     entries: list[Any] = Field(default_factory=list)
 
     @classmethod
-    def from_notations(cls, notations: list[Any]) -> "ScraperRatings":
+    def from_notations(cls, notations: list[Any]) -> ScraperRatings:
         """Wrap a list of :class:`Notations` into a :class:`ScraperRatings`.
 
         Args:

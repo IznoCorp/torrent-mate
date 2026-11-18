@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 import typer
 
-from personalscraper.app.accounts.service import AmbiguousOwner, OwnerAlreadySeeded, OwnerPlexIdentity
+from personalscraper.app.accounts.credentials import AmbiguousOwner, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.token_vault import (
     MalformedTokenKey,
     NoKeptTokenOpens,
@@ -33,6 +33,7 @@ from personalscraper.app.errors import AppRefusal, RefusalCode
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.conf.environment import Environment, StoreName, current_environment, store_path
 from personalscraper.config import get_settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.i18n import t, t_code
 from personalscraper.logger import get_logger
 
@@ -75,9 +76,9 @@ def set_password(
         typer.echo(t("cli_accounts.set_password.mismatch"), err=True)
         raise typer.Exit(code=1)
 
-    services = build_app_services(config, get_settings())
+    services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        services.accounts.set_password(email, password)
+        services.credentials.set_password(email, password)
     except AppRefusal as exc:
         _refuse(exc)
     finally:
@@ -131,9 +132,9 @@ def create_owner(
         raise typer.Exit(code=1)
 
     plex = OwnerPlexIdentity(plex_id=plex_id, plex_uuid=plex_uuid, plex_username=plex_username)
-    services = build_app_services(config, get_settings())
+    services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        services.accounts.create_owner(email=email, name=name, password=password, plex=plex)
+        services.credentials.create_owner(email=email, name=name, password=password, plex=plex)
     except OwnerAlreadySeeded:
         typer.echo(t("cli_accounts.create_owner.owner_exists"), err=True)
         raise typer.Exit(code=1) from None
@@ -180,13 +181,13 @@ def open_session(
         typer.echo(t(f"cli_accounts.open_session.{line}"), err=True)
         raise typer.Exit(code=1)
 
-    services = build_app_services(config, get_settings())
+    services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        owner_id = services.accounts.owner_account_id()
+        owner_id = services.credentials.owner_account_id()
         if owner_id is None:
             typer.echo(t("cli_accounts.open_session.no_owner"), err=True)
             raise typer.Exit(code=1)
-        result = services.accounts.open_proven_session(owner_id, user_agent=_SMOKE_USER_AGENT)
+        result = services.credentials.open_proven_session(owner_id, user_agent=_SMOKE_USER_AGENT)
     except AmbiguousOwner:
         typer.echo(t("cli_accounts.open_session.ambiguous_owner"), err=True)
         raise typer.Exit(code=1) from None
@@ -256,9 +257,9 @@ def rotate_token_key(ctx: typer.Context) -> None:
     if vault.key_count < 2:
         typer.echo(t("cli_accounts.token_key.rotate.needs_two"), err=True)
         raise typer.Exit(code=1)
-    services = build_app_services(config, get_settings())
+    services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        result = rotate_kept_tokens(services.app_store.accounts, vault, now=time.time())
+        result = rotate_kept_tokens(services.app_store, vault, now=time.time())
     finally:
         services.close()
     typer.echo(t("cli_accounts.token_key.rotate.done", count=result.rotated))
@@ -291,17 +292,17 @@ def forget_token(
         typer.echo(t("cli_accounts.token.forget.target_required"), err=True)
         raise typer.Exit(code=2)
     # Forgetting reads no token, so it needs no key: it still works once a key is lost.
-    services = build_app_services(config, get_settings())
+    services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        repo = services.app_store.accounts
+        store = services.app_store
         account_id: str | None = None
         if email is not None:
-            account = repo.account_by_email(email)
+            account = store.accounts.account_by_email(email)
             if account is None:
                 typer.echo(t_code("cli_refusals", RefusalCode.ACCOUNT_UNKNOWN), err=True)
                 raise typer.Exit(code=1)
             account_id = account.id
-        count = forget_kept_tokens(repo, account_id=account_id)
+        count = forget_kept_tokens(store, account_id=account_id)
     finally:
         services.close()
     typer.echo(t("cli_accounts.token.forget.done", count=count))
@@ -328,9 +329,9 @@ def purge_undecryptable_tokens(
     assert config is not None
 
     vault = _vault()
-    services = build_app_services(config, get_settings())
+    services = build_app_services(config, get_settings(), event_bus=EventBus())
     try:
-        count = purge_undecryptable(services.app_store.accounts, vault, now=time.time(), force=force)
+        count = purge_undecryptable(services.app_store, vault, now=time.time(), force=force)
     except NoKeptTokenOpens:
         typer.echo(t("cli_accounts.token.purge.none_opens"), err=True)
         raise typer.Exit(code=1) from None

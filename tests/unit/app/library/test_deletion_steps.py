@@ -13,8 +13,8 @@ from personalscraper.app.library.deletion import (
     TrashKept,
     follow_up_plex,
     remove_empty_parents,
-    remove_item_rows,
 )
+from personalscraper.indexer.deletion import remove_items
 from tests.unit.app.library.plex_fakes import FakePlex, FakeTime
 from tests.unit.app.library.world import FixtureIndex
 
@@ -73,7 +73,7 @@ class TestRemoveItemRows:
         index.movie_file(doomed, "films/Doomed")
         index.movie_file(kept, "films/Kept")
 
-        assert remove_item_rows(index.path, [doomed, doomed], actor="web:owner") == 1
+        assert remove_items(index.path, [doomed, doomed], actor="web:owner", reason="media_deleted") == 1
 
         conn = index.conn
         assert [r[0] for r in conn.execute("SELECT id FROM media_item")] == [kept]
@@ -89,7 +89,7 @@ class TestRemoveItemRows:
         """An id no row holds any more removes nothing and journals nothing."""
         index = FixtureIndex(tmp_path / "library.db")
 
-        assert remove_item_rows(index.path, [999], actor="web:owner") == 0
+        assert remove_items(index.path, [999], actor="web:owner", reason="media_deleted") == 0
         assert index.conn.execute("SELECT COUNT(*) FROM destructive_op").fetchone()[0] == 0
         index.conn.close()
 
@@ -256,7 +256,7 @@ def test_tombstone_snapshot_is_readable(tmp_path: Path) -> None:
     index = FixtureIndex(tmp_path / "library.db")
     doomed = index.item("Doomed", tmdb="2")
 
-    remove_item_rows(index.path, [doomed], actor="web:owner")
+    remove_items(index.path, [doomed], actor="web:owner", reason="media_deleted")
 
     conn = sqlite3.connect(str(index.path))
     payload = conn.execute("SELECT payload_json FROM deleted_item").fetchone()[0]

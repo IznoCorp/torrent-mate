@@ -156,7 +156,7 @@ def _persisted_state(orchestrator: TrailersOrchestrator, item: ScanItem) -> Trai
     return orchestrator._state_store.get(_state_key(item))
 
 
-def _def_download(url: str, dest: Path) -> DownloadResult:  # noqa: ARG001
+def _def_download(url: str, dest: Path) -> DownloadResult:
     """Guard downloader used when a scenario must not reach the download step.
 
     Raises:
@@ -166,7 +166,7 @@ def _def_download(url: str, dest: Path) -> DownloadResult:  # noqa: ARG001
     raise AssertionError("downloader.download must not be called in this scenario")
 
 
-def _dl_success(url: str, dest: Path) -> DownloadResult:  # noqa: ARG001
+def _dl_success(url: str, dest: Path) -> DownloadResult:
     """Fake a successful download by materializing the trailer at ``dest``.
 
     Args:
@@ -191,7 +191,7 @@ def _dl_status(status: DownloadStatus) -> Callable[[str, Path], DownloadResult]:
         A callable matching the ``download(url, dest)`` signature.
     """
 
-    def _download(url: str, dest: Path) -> DownloadResult:  # noqa: ARG001
+    def _download(url: str, dest: Path) -> DownloadResult:
         return DownloadResult(status=status, output_path=None, error_message="boom")
 
     return _download

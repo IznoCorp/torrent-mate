@@ -516,6 +516,16 @@ class TestLibraryRescrapeItem:
         assert result.exit_code == 0, result.output
         assert report.read_bytes() == b'{"fixed_count": 120}'
 
+    def test_a_missing_index_exits_1_before_the_lock_is_taken(self, test_config) -> None:
+        """The DB guard runs first: its exit leaves no ``pipeline.lock`` behind."""
+        assert not test_config.indexer.db_path.exists()
+        lock_file = test_config.paths.data_dir / "pipeline.lock"
+
+        result = runner.invoke(app, ["library-rescrape-item", "42"])
+
+        assert result.exit_code == 1
+        assert not lock_file.exists()
+
     def test_runner_lets_the_command_take_its_own_lock(self) -> None:
         """The runner never holds the lock for it: the command acquires it itself."""
         from personalscraper.app.maintenance.runner import _CLI_SELF_LOCKING  # noqa: PLC0415

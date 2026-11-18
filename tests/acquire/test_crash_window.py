@@ -7,7 +7,7 @@ Real model (supersedes the plan's scenario 3 wording):
 - Store is lazy-open (build_acquire_store is inert; no connection/lock/migration
   until first sub-store access).
 - Cross-process single-writer is SQLite-native: WAL + BEGIN IMMEDIATE +
-  busy_timeout=5000 (DESIGN §6.3). No lifetime FileLock.
+  busy_timeout=5000 (DESIGN §6.3). No lifetime flock.
 - Reads are lock-free (WAL). No lock on the read path — the delete-permit reader
   never blocks on or contends for a writer lock.
 - Write-before-move: record_dispatch writes the obligation BEFORE the FS move
@@ -312,7 +312,7 @@ def test_scenario2_re_runnable_dispatch_after_crash(store: ConcreteAcquireStore,
 # ---------------------------------------------------------------------------
 
 # NOTE — this scenario SUPERSEDES the plan's stale "concurrent acquire writer
-# holds the lock" scenario.  Sub-phase 3.4 dropped the lifetime FileLock; the
+# holds the lock" scenario.  Sub-phase 3.4 dropped the lifetime flock; the
 # real store uses lazy-open + SQLite-native single-writer via BEGIN IMMEDIATE +
 # busy_timeout + lock-free reads (DESIGN §6.3).  No lifetime lock exists to
 # contend on — two handles on the same db_path both open, read, and write
@@ -326,7 +326,7 @@ def test_scenario3_two_stores_same_db_no_deadlock(
 
     This is the REAL model (DESIGN §6.3): cross-process single-writer is
     SQLite-native (WAL + BEGIN IMMEDIATE + busy_timeout=5000).  Reads are
-    lock-free.  No lifetime FileLock exists to cause contention.
+    lock-free.  No lifetime flock exists to cause contention.
 
     Store A writes an obligation; store B (separate handle, same db_path)
     immediately reads it back via find_active_under (lock-free read sees A's

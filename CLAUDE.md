@@ -15,7 +15,7 @@ config-driven, never hardcoded (`personalscraper init-config` seeds `config/` fr
 ## Setup (per clone)
 
 ```bash
-pip install -e ".[dev]"
+uv sync --locked --extra dev   # .venv from uv.lock; activate it, or prefix commands with `uv run`
 ./hooks/install.sh   # one-time per clone — sets core.hooksPath to hooks/ (never ~/.gitconfig)
 ```
 
@@ -79,6 +79,12 @@ pull request touching the maquette), not on this machine. `make harness` runs th
   prints it); `make test` and `run.sh` default to half the processors. The harness writes its
   profiles, served copy and logs on `/Volumes/TMScratch` when it is mounted. Kill what you start,
   delete what you build. The machine reboots every Monday at 05:00.
+- NEVER deliberate real load on IznoServer (the operator, 2026-10-05: « ça doit plus jamais se
+  reproduire ! »): no parallel runs to « reproduce under load », no CPU burners. A slowness is
+  reproduced with Playwright's emulated CPU throttling (CDP `Emulation.setCPUThrottlingRate`) in one
+  run, or in CI. `.claude/hooks/block_load_generators.py` refuses the generators; `heavy.sh`'s watcher
+  kills a run beyond its class (`~/Library/Logs/heavy.log`); the PM2 machine guard kills an agent's
+  trees after three minutes of saturation (`GUARD KILLED` in `~/Library/Logs/machine-guard.log`).
 - `personalscraper run` and any long pipeline command: foreground only, `timeout=600000` (hook-enforced);
   create TODO tasks before launching; show output step by step; kill on 2 identical consecutive
   errors, then check for orphans, lock files and temp dirs. Or run the steps one by one
@@ -153,7 +159,8 @@ document; French inside an English one only quotes UI copy, media titles or the 
   (Pydantic `response_model`; a route change ⇒ `make openapi` and commit the generated
   `frontend/openapi.json` and `contract/openapi.generated.json`); the
   auth perimeter is the single `guarded_api` dependency (never a per-route `Depends(require_session)`);
-  maintenance write actions hold `pipeline.lock` for their runner's lifetime; `pipeline_run`
+  a run and a v1 rescrape start only under the supervisor's lease, and their worker holds `pipeline.lock` for its
+  lifetime; maintenance write actions still hold `pipeline.lock` for their runner's lifetime; `pipeline_run`
   timestamps are epoch `time.time()`; `GET /api/version` serves the boot-cached BUILD_COMMIT.
 
 ## Reference index (lazy-load)

@@ -148,7 +148,7 @@ class SearchPassMixin(PassGatesMixin):
             json.JSONDecodeError: On corrupt criteria/profile JSON
                 (:meth:`run_search` isolates it and abandons the row).
         """
-        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in run_search()
+        assert item.id is not None  # ensured by the SELECTs in run_search()
         wanted_id = item.id
 
         gate = self._apply_cadence_gates(item, now, cadence=cadence)
@@ -304,7 +304,7 @@ class SearchPassMixin(PassGatesMixin):
             sqlite3.OperationalError: On a DB lock (isolated by
                 :meth:`run_search`).
         """
-        assert item.id is not None  # noqa: S101 — caller claimed it by id
+        assert item.id is not None  # caller claimed it by id
         wanted_id = item.id
 
         status = SEARCH_OUTCOME_STATUS.get(verdict.outcome)
@@ -418,8 +418,8 @@ class SearchPassMixin(PassGatesMixin):
             because the existing season row is terminal — the caller then applies
             the ordinary search verdict so the episode stays live.
         """
-        assert episode_item.followed_id is not None  # noqa: S101
-        assert episode_item.season is not None  # noqa: S101
+        assert episode_item.followed_id is not None
+        assert episode_item.season is not None
         fid = episode_item.followed_id
         season_num = episode_item.season
 
@@ -538,7 +538,7 @@ class SearchPassMixin(PassGatesMixin):
         aired_rows = self._store.aired.list_for_followed(followed_id)
         return [int(r.episode) for r in aired_rows if r.season == season]
 
-    def _follow_titles(self, followed_id: int | None) -> "list[str | None]":
+    def _follow_titles(self, followed_id: int | None) -> list[str | None]:
         """Resolve a follow's known titles (display + original) for the season identity guard.
 
         Args:

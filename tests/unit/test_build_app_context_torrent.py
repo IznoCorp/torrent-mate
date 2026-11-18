@@ -3,7 +3,7 @@
 D3: enabled-but-incapable active torrent client → RegistryConfigError at boot.
 D9: no client configured → torrent_client=None, no error.
 
-Md6a: disabled client → ValueError propagates from the real factory.
+Md6a: disabled active client → no client, the factory is never called.
 Md6b: factory ApiError propagates through build_app_context (boot fail-loud).
 
 Review #1/#2/#5: the torrent build is gated on ``build_torrent_client``. Only
@@ -27,6 +27,8 @@ def _cfg(active: str = "", enabled: bool = True) -> MagicMock:
     cfg = MagicMock()
     cfg.torrent.active = active
     cfg.torrent.clients = {active: MagicMock(enabled=enabled)} if active else {}
+    # A MagicMock would answer truthy; give the real predicate's answer.
+    cfg.torrent.active_client_disabled.return_value = bool(active) and not enabled
     cfg.thresholds.circuit_breaker_threshold = 5
     cfg.thresholds.circuit_breaker_cooldown = 300
     cfg.providers = {}
@@ -97,28 +99,25 @@ class TestBuildAppContextTorrent:
             with pytest.raises(RegistryConfigError, match="TorrentAdder"):
                 build_app_context(_cfg(active="qbittorrent"), MagicMock(), build_torrent_client=True)
 
-    def test_disabled_client_raises(self) -> None:
-        """Md6a: disabled client → ValueError propagates from real factory.
+    def test_disabled_client_gives_none_without_calling_factory(self) -> None:
+        """Md6a: a disabled active client means no client.
 
-        Uses the real ``build_active_torrent_client`` (not patched) so the
-        factory's own enabled=False check is exercised — the ValueError
-        propagates through ``build_app_context`` to the CLI boundary (boot
-        fail-loud).
-
-        Approach: the MagicMock config from ``_cfg(active="qbittorrent",
-        enabled=False)`` provides enough structure (``.active``, ``.clients``,
-        ``.clients[active].enabled``) to reach the factory's disabled check
-        before any real credentials or imports are needed.
+        ``build_app_context`` yields ``torrent_client is None`` and never calls
+        ``build_active_torrent_client``, so no boot error and no contact with
+        the client. The factory's own refusal for a direct caller is pinned in
+        ``tests/unit/app/test_composition_disabled_client.py``.
         """
         from personalscraper.app.composition import build_app_context
 
         with (
             patch(_SRC_PROVIDER_REGISTRY) as mock_reg,
             patch(_SRC_CIRCUIT_POLICY),
+            patch(_SRC_FACTORY) as mock_factory,
         ):
             mock_reg.return_value = MagicMock()
-            with pytest.raises(ValueError, match="disabled"):
-                build_app_context(_cfg(active="qbittorrent", enabled=False), MagicMock(), build_torrent_client=True)
+            ctx = build_app_context(_cfg(active="qbittorrent", enabled=False), MagicMock(), build_torrent_client=True)
+        assert ctx.torrent_client is None
+        mock_factory.assert_not_called()
 
     def test_factory_raise_propagates(self) -> None:
         """Md6b: factory ApiError propagates through build_app_context.

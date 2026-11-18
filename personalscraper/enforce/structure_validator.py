@@ -82,15 +82,15 @@ def validate_structure(
         One :class:`StructureResult` per media directory scanned.
 
     Raises:
-        SandboxGuardError: Under ``staging``, a category directory is outside preprod's
-            marked, mounted roots.
+        SandboxGuardError: In a sandbox, a category directory is outside the
+            sandbox's marked, mounted roots.
     """
     results: list[StructureResult] = []
     staging = config.paths.staging_dir
 
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     if movies_dir.exists():
-        # Preprod guard (``staging`` only): validation repairs and purges under each category dir.
+        # Sandbox guard (a no-op in prod): validation repairs and purges under each category dir.
         assert_all_within_sandbox(config, movies_dir)
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):

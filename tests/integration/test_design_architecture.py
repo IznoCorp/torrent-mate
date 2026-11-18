@@ -16,18 +16,20 @@ class TestPackageContract:
     """Top-level package — DESIGN architecture.md §Package."""
 
     def test_package_name_and_version_exposed(self) -> None:
-        """Package name is ``personalscraper`` and exposes a SemVer ``__version__``.
+        """Package name is ``personalscraper`` and exposes a numeric ``__version__``.
 
         Design: docs/production/architecture.md#package
         Contract: ``import personalscraper`` succeeds and exposes a
-        ``__version__`` attribute matching the SemVer ``X.Y.Z`` pattern.
+        ``__version__`` attribute matching ``X.Y.Z``, or ``X.Y.Z.N`` for a
+        hotfix into prod (a hotfix bumps a fourth component, see
+        docs/features/git-flow/DESIGN.md), every part numeric.
         This is the single source of truth read by the dynamic version
         in ``pyproject.toml``.
         """
         assert personalscraper.__name__ == "personalscraper"
         version = personalscraper.__version__
         parts = version.split(".")
-        assert len(parts) == 3
+        assert len(parts) in (3, 4)
         for part in parts:
             assert part.isdigit(), f"version segment {part!r} is not numeric"
 

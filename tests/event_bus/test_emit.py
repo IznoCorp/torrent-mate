@@ -79,7 +79,7 @@ def test_emit_with_no_subscribers_is_noop() -> None:
     bus = EventBus()
     # Must not raise — the fast path returns before any iteration.
     bus.emit(_Foo())
-    assert bus._subscribers == {}  # noqa: SLF001
+    assert bus._subscribers == {}
 
 
 def test_emit_no_subscribers_zero_allocation() -> None:
@@ -141,12 +141,12 @@ def test_mro_cache_populated_on_first_emit() -> None:
     """The first emit for a given type populates ``_mro_cache``."""
     bus = EventBus()
     bus.subscribe(_Foo, lambda _e: None)
-    assert _Foo not in bus._mro_cache  # noqa: SLF001
+    assert _Foo not in bus._mro_cache
     bus.emit(_Foo())
-    assert _Foo in bus._mro_cache  # noqa: SLF001
+    assert _Foo in bus._mro_cache
     # The cached value is the tuple of callables in dispatch order.
-    assert isinstance(bus._mro_cache[_Foo], tuple)  # noqa: SLF001
-    assert len(bus._mro_cache[_Foo]) == 1  # noqa: SLF001
+    assert isinstance(bus._mro_cache[_Foo], tuple)
+    assert len(bus._mro_cache[_Foo]) == 1
 
 
 def test_mro_cache_invalidated_on_subscribe() -> None:
@@ -154,9 +154,9 @@ def test_mro_cache_invalidated_on_subscribe() -> None:
     bus = EventBus()
     bus.subscribe(_Foo, lambda _e: None)
     bus.emit(_Foo())  # populate cache
-    assert _Foo in bus._mro_cache  # noqa: SLF001
+    assert _Foo in bus._mro_cache
     bus.subscribe(_Foo, lambda _e: None)
-    assert bus._mro_cache == {}  # noqa: SLF001
+    assert bus._mro_cache == {}
 
 
 def test_mro_cache_invalidated_on_unsubscribe() -> None:
@@ -164,6 +164,6 @@ def test_mro_cache_invalidated_on_unsubscribe() -> None:
     bus = EventBus()
     token = bus.subscribe(_Foo, lambda _e: None)
     bus.emit(_Foo())
-    assert _Foo in bus._mro_cache  # noqa: SLF001
+    assert _Foo in bus._mro_cache
     bus.unsubscribe(token)
-    assert bus._mro_cache == {}  # noqa: SLF001
+    assert bus._mro_cache == {}

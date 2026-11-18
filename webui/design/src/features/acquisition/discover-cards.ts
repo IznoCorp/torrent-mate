@@ -117,7 +117,7 @@ export function deckCard(
 ): string {
   const escape = escapeHtml;
   const poster = suggestion.posterHighDefinition
-    ? `<img src="${suggestion.posterHighDefinition}" alt="" loading="lazy">`
+    ? `<img src="${escape(suggestion.posterHighDefinition)}" alt="" loading="lazy">`
     : posterArtworkMarkup(posterArtwork(icons, suggestion.poster, suggestion.title, suggestion.kind === "Film" ? "movie" : "show"));
   // THE GESTURE LABELS BELONG TO THE TOP CARD ALONE — it is the only one a
   // finger can reach, and `advanceDeck` moves them with the place rather than

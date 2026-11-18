@@ -360,13 +360,13 @@ def run_scrape(
         StepReport with success/skip/error counts and details.
 
     Raises:
-        SandboxGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+        SandboxGuardError: In a sandbox, the staging tree is outside the sandbox's marked,
             mounted roots. Nothing is touched.
     """
     staging = config.paths.staging_dir
     movies_dir_name = folder_name(find_by_file_type(config, FileType.MOVIE))
     tvshows_dir_name = folder_name(find_by_file_type(config, FileType.TVSHOW))
-    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    # Sandbox guard (a no-op in prod): no write or purge outside the sandbox's own roots.
     assert_all_within_sandbox(config, staging, staging / movies_dir_name, staging / tvshows_dir_name)
 
     # Fast-skip: nothing to scrape and no structural repairs needed

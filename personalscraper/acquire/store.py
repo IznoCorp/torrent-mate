@@ -11,9 +11,9 @@ Concurrency model (CORRECTED — see DESIGN §6.3):
     an explicit ``BEGIN IMMEDIATE`` on every write (:func:`_write_tx`) +
     ``busy_timeout=5000`` (in the canonical PRAGMA set).  This is exactly the
     model used by the indexer outbox publisher and the Phase-5 lock-free seed-
-    obligation writer.  The store does **NOT** hold a lifetime ``FileLock``.
+    obligation writer.  The store does **NOT** hold a lifetime flock.
 
-    The core ``db_lock`` (FileLock) is taken **only briefly** around
+    The core ``db_lock`` (flock) is taken **only briefly** around
     open + migrate (idempotent ``apply_migrations`` — a no-op once the schema is
     current), then released immediately.  It is a **strict leaf**: never held
     across an FS operation or a qBit/Transmission HTTP call, never acquired with
@@ -60,18 +60,18 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from personalscraper.acquire._aired_store import _AiredSubStore  # noqa: PLC0415
-from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore  # noqa: PLC0415
-from personalscraper.acquire._download_marks import DownloadMarksStore  # noqa: PLC0415
-from personalscraper.acquire._provenance_store import _ProvenanceSubStore  # noqa: PLC0415
+from personalscraper.acquire._aired_store import _AiredSubStore
+from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore
+from personalscraper.acquire._download_marks import DownloadMarksStore
+from personalscraper.acquire._provenance_store import _ProvenanceSubStore
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_followed,
     _row_to_ratio,
     _row_to_seed,
 )
-from personalscraper.acquire._wanted_store import _WantedSubStore  # noqa: PLC0415
-from personalscraper.acquire._watch_store import _WatchSubStore  # noqa: PLC0415
+from personalscraper.acquire._wanted_store import _WantedSubStore
+from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
     FollowedSeries,
     RatioState,
@@ -217,7 +217,7 @@ class _FollowSubStore:
                     series.original_title,
                 ),
             ).fetchone()
-        assert row is not None  # noqa: S101 — RETURNING always yields the affected row
+        assert row is not None  # RETURNING always yields the affected row
         return int(row[0])
 
     def get(self, followed_id: int) -> FollowedSeries | None:
@@ -585,7 +585,7 @@ class _SeedSubStore:
                 ),
             )
             row_id = cur.lastrowid
-        assert row_id is not None  # noqa: S101 — INSERT always sets lastrowid
+        assert row_id is not None  # INSERT always sets lastrowid
         return row_id
 
     def find_active_by_hash(self, info_hash: str) -> SeedObligation | None:
@@ -937,7 +937,7 @@ class ConcreteAcquireStore:
     Lazy + lock-free-on-the-read-path.  Construction opens nothing: the
     connection is opened (and migrations applied under a brief leaf lock) on the
     first sub-store access.  Cross-process single-writer is SQLite-native (WAL +
-    ``BEGIN IMMEDIATE`` + ``busy_timeout``); no ``FileLock`` is held for the
+    ``BEGIN IMMEDIATE`` + ``busy_timeout``); no flock is held for the
     store's lifetime.
 
     The six sub-stores are exposed as properties (``follow`` / ``wanted`` /
@@ -979,7 +979,7 @@ class ConcreteAcquireStore:
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
 
-        Takes the core ``db_lock`` (FileLock) with a generous timeout ONLY
+        Takes the core ``db_lock`` (flock) with a generous timeout ONLY
         around ``open_db`` + ``apply_migrations`` and releases it immediately —
         the lock spans a single ``with`` block, never the store's lifetime.
         ``apply_migrations`` is idempotent, so the steady-state path holds the

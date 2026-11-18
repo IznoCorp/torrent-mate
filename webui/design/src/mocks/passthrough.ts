@@ -36,30 +36,6 @@ export function servedOperations(document: ServedDocument): ReadonlySet<string> 
   return served;
 }
 
-/**
- * THE ONE EXCLUSION: every operation that reads or writes the engine's library
- * store (`library.db`, through `personalscraper/app/library/service.py`).
- *
- * Why: tm-design's dev v1 (`torrentmate-v1-dev`) has a data_dir with no
- * `library.db`, so each of these answers 500 and the library, media-sheet and
- * follow-card screens break. They stay on the mocks here.
- *
- * Exit condition: until the dev sandbox serves a library (dispatch row 52).
- * Lifting it is one edit — empty this set.
- */
-export const LIBRARY_STORE_OPERATIONS: ReadonlySet<string> = new Set([
-  "readLibraryItems",
-  "readLibraryCategories",
-  "readLibraryRecent",
-  "readLibraryIncomplete",
-  "readLibraryMembership",
-  "deleteLibraryItems",
-  "readMediaSheet",
-  "readMediaSeasons",
-  "readMediaPoster",
-  "rescrapeMedia",
-]);
-
 // Read once, on the first call that asks.
 let served: ReadonlySet<string> | undefined;
 
@@ -68,13 +44,12 @@ let served: ReadonlySet<string> | undefined;
  *
  * @param operationId The operation, as the contract names it.
  * @param designHost Whether this is the design host's build.
- * @returns True on the design host for an operation v1 serves, the library
- *     store's excluded.
+ * @returns True on the design host for an operation v1 serves.
  */
 export function passesThrough(operationId: string, designHost: boolean = __DESIGN_HOST__): boolean {
   if (!designHost) return false;
   served ??= servedOperations(V1 as ServedDocument);
-  return served.has(operationId) && !LIBRARY_STORE_OPERATIONS.has(operationId);
+  return served.has(operationId);
 }
 
 // The answers that say who the real session is: an account read, or none.

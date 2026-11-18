@@ -24,7 +24,9 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 from personalscraper.logger import get_logger
 
 log = get_logger(__name__)
@@ -62,6 +64,7 @@ def record_destruction(
     """
     try:
         conn = sqlite3.connect(str(db_path), isolation_level=None)
+        refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
         try:
             apply_pragmas(conn)
             conn.execute(

@@ -385,6 +385,6 @@ class MetadataClient:
                 "see MetadataClient base class docstring."
             )
 
-    def __init__(self, transport: "HttpTransport", language: str = "fr-FR") -> None:
+    def __init__(self, transport: HttpTransport, language: str = "fr-FR") -> None:
         self._transport = transport
         self._language = language

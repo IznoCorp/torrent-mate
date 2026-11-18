@@ -42,7 +42,7 @@ forces.
 
 | Step | Invocation | Who, when |
 | --- | --- | --- |
-| Promote a validated lot | `scripts/promote.sh main [<sha>]` — `develop` → `main`; refused unless every commit is a merged PR into `develop` whose required checks were green | the orchestrator, when the lot's reading passed |
+| Promote a validated lot | `scripts/promote.sh main [<sha>]` — `develop` → `main`; refused unless every commit is a merged PR into `develop` whose required checks were green (a PR listed with its reason in `scripts/promote-exemptions.txt` skips that test and is printed at each promotion; an entry is added by a PR) | the orchestrator, when the lot's reading passed |
 | Deploy the preprod | `scripts/promote.sh staging [<sha>]` — `main` → `staging`; the poller deploys it within 60 s (`tm-staging`'s `/api/version` → `staging @ <sha>`) | any session, on his word only (« passe en staging ») |
 | Deploy production | `scripts/promote.sh prod [<sha>]` — `staging` → `prod`, then the tag `v<__version__>`; refused if that tag exists | any session, on his word only (« mets en prod ») |
 | Raise the version | `scripts/promote.sh release` — when `develop`'s version is already tagged, opens the one PR into `develop` that raises it a patch (armed); otherwise says there is nothing to raise | before `promote.sh prod`, when it refuses a version already released |

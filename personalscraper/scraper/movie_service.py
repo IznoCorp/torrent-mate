@@ -55,19 +55,19 @@ class MovieServiceMixin:
     Artwork/Keyword/Video to ``registry.locked()`` (identity-locked semantics).
     """
 
-    patterns: "NamingPatterns"
+    patterns: NamingPatterns
     dry_run: bool
-    _registry: "ProviderRegistry"
-    _artwork: "ArtworkDownloader"
+    _registry: ProviderRegistry
+    _artwork: ArtworkDownloader
     _imdb: Any
     _rotten_tomatoes: Any
-    config: "Config | None"
-    _nfo: "NFOGenerator"
-    _classify_item: "Callable[..., str | None]"
-    _resolve_title: "Callable[..., str]"
-    _strip_trailing_year: "Callable[[str], str]"
-    _check_missing_movie_artwork: "Callable[..., list[str]]"
-    _repair_movie_dir: "Callable[..., bool]"
+    config: Config | None
+    _nfo: NFOGenerator
+    _classify_item: Callable[..., str | None]
+    _resolve_title: Callable[..., str]
+    _strip_trailing_year: Callable[[str], str]
+    _check_missing_movie_artwork: Callable[..., list[str]]
+    _repair_movie_dir: Callable[..., bool]
 
     def _match_movie_candidates(
         self,
@@ -585,7 +585,7 @@ class MovieServiceMixin:
     def _apply_external_ids(
         self,
         movie_data_dict: dict[str, Any],
-        match: "MatchResult",
+        match: MatchResult,
         year: int | None,
     ) -> None:
         """Fold the Q5=B external-ids pass result into ``movie_data_dict`` in place.
@@ -667,12 +667,12 @@ class MovieServiceMixin:
             when the provider fetch fails (fail-soft, never raises).
 
         Raises:
-            SandboxGuardError: Under ``staging``, *movie_dir* is outside preprod's marked,
+            SandboxGuardError: In a sandbox, *movie_dir* is outside the sandbox's marked,
                 mounted roots. Nothing is written or renamed.
         """
         from personalscraper.scraper.confidence import MatchResult  # noqa: PLC0415
 
-        # Preprod guard (``staging`` only): the forced scrape bypasses ``run_scrape``, so the
+        # Sandbox guard (a no-op in prod): the forced scrape bypasses ``run_scrape``, so the
         # choke point judges the folder itself before the NFO, artwork and renames.
         if self.config is not None:
             assert_all_within_sandbox(self.config, movie_dir)

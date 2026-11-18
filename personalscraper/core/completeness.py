@@ -167,7 +167,7 @@ def _nfo_has_title(nfo_path: Path) -> bool:
         ``True`` iff the NFO parses as XML and its ``<title>`` is non-empty.
     """
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we wrote
+        root = ET.parse(nfo_path).getroot()  # trusted NFO we wrote
     except (ET.ParseError, OSError):
         return False
     return bool((root.findtext("title") or "").strip())

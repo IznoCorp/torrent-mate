@@ -38,7 +38,7 @@ log = get_logger("acquire.title_resolver")
 
 def resolve_series_title(
     media_ref: MediaRef,
-    registry: "ProviderRegistry",
+    registry: ProviderRegistry,
     *,
     fallback_title: str | None = None,
 ) -> str:

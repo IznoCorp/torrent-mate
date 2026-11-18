@@ -169,11 +169,13 @@ def test_the_root_files_are_part_of_the_identity(tmp_path: Path) -> None:
 # `worker-source.mjs` (the push texts the worker build writes) went the same
 # way: switchover.py and serve.py were named here, and `dense_boot.py` and the
 # fresh-build test, which assemble a tree too, were not — the harness went red
-# on the dense build. Every assembler is named, not two.
+# on the dense build. Every assembler is named, not two. `app-bundle.mjs` then
+# missed the design-host switches fixture, which went red in CI only.
 ASSEMBLERS = {
     "switchover.py's scratch tree": HARNESS / "switchover.py",
     "dense_boot.py's scratch tree": HARNESS / "dense_boot.py",
     "test_design_fresh_build.py's BUILD_FILES": ROOT / "tests" / "scripts" / "test_design_fresh_build.py",
+    "test_design_host_switches.py's scratch design root": ROOT / "tests" / "scripts" / "test_design_host_switches.py",
     "serve.py's BUILD_INPUTS": MAQUETTE / "serve.py",
 }
 

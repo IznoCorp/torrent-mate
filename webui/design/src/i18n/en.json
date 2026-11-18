@@ -1150,7 +1150,27 @@
       "todoSortTitle": "Sort “To handle”",
       "todoSortMeta": "Urgency first: what awaits your judgement, then what resumes on its own, then what is closed.",
       "todoFilterCount_one": "{{count}} card",
-      "todoFilterCount_other": "{{count}} cards"
+      "todoFilterCount_other": "{{count}} cards",
+      "nowFilter": {
+        "all": "All",
+        "series": "Series",
+        "movies": "Movies"
+      },
+      "nowFilterTitle": "Show in “In progress”",
+      "nowFilterMeta": "Series and movies on their way, with their count.",
+      "nowFilterEmpty": "No acquisition in progress matches.",
+      "nowFilterCount_one": "{{count}} item",
+      "nowFilterCount_other": "{{count}} items",
+      "nowSort": {
+        "queue": "Queue order",
+        "progress": "Progress",
+        "az": "A → Z",
+        "za": "Z → A"
+      },
+      "nowSortTitle": "Sort “In progress”",
+      "nowSortMeta": "The queue's order first, as the engine serves it; “Progress” puts what is closest to arriving on top.",
+      "nowSearchLabel": "Filter the acquisitions in progress",
+      "todoSearchLabel": "Filter the cards to handle"
     },
     "accountPage": {
       "install": {
@@ -1183,6 +1203,39 @@
       "identifierSub": "set in the configuration, not here",
       "address": "E-mail address",
       "session": "Your session",
+      "sessions": {
+        "heading": "Connected devices",
+        "intro": "The sessions open on your account. If you do not recognise one, end it: its next request is refused.",
+        "loading": "Reading your sessions…",
+        "loadFailed": "Your sessions cannot be read right now.",
+        "retry": "Try again",
+        "unknownDevice": "Unknown device",
+        "current": "This device",
+        "lastSeen": "Last active {{moment}}",
+        "onlyCurrent": "No other session is open on your account.",
+        "end": "End session",
+        "ending": "Ending…",
+        "held": "Offline: ending this session will go through when the network is back.",
+        "refused": "This session could not be ended.",
+        "confirm": {
+          "heading": "End this session?",
+          "bodyBefore": "The session on ",
+          "bodyAfter": " will be closed at once: its next request is refused and its holder has to sign in again.",
+          "confirm": "End session",
+          "cancel": "Cancel"
+        },
+        "notices": {
+          "heading": "Recent sign-ins",
+          "loading": "Reading your sign-ins…",
+          "loadFailed": "Your sign-ins cannot be read right now.",
+          "held": "Offline: the mark will go through when the network is back.",
+          "new": "New",
+          "markAll": "Mark all as read",
+          "marking": "Marking…",
+          "markFailed": "The sign-ins could not be marked as read.",
+          "none": "No recent sign-in to report."
+        }
+      },
       "duration": "Duration",
       "durationValue": "30 days",
       "durationSub": "unused — every use extends it",
@@ -1378,6 +1431,7 @@
       "reasonDisabled": "Access disabled by an administrator.",
       "plex": "Sign in with Plex",
       "plexUnreachable": "Plex is not answering: sign in with a password.",
+      "showPassword": "Show password",
       "usePassword": "Use a password",
       "invalid": "Invalid credentials",
       "email": "E-mail address",
@@ -1572,6 +1626,36 @@
         "heading": "Cross-seed, tracker by tracker",
         "origin": "{{name}} — the original, on {{tracker}}"
       }
+    },
+    "devLots": {
+      "title": "Lots progress",
+      "back": "Back",
+      "updated": "Updated {{moment}}",
+      "errorSubject": "the lots progress",
+      "unavailable": "No progress is published on this host.",
+      "noLots": "No lot is defined.",
+      "blockedBy": "Blocked: {{reason}}",
+      "phases_one": "{{count}} phase",
+      "phases_other": "{{count}} phases",
+      "pr": "PR #{{number}}",
+      "state": {
+        "planned": "Planned",
+        "in-progress": "In progress",
+        "pr-open": "PR open",
+        "merged": "Merged"
+      },
+      "dispatch": {
+        "in-flight": "being written",
+        "in-review": "in review",
+        "ready-unarmed": "ready, not armed",
+        "armed": "armed",
+        "unknown": "unknown state"
+      },
+      "dates": "{{start}} → {{end}}",
+      "datesFrom": "{{start}} →",
+      "datesUntil": "→ {{end}}",
+      "datesEstimated": "≈ {{dates}}",
+      "duration": "Duration: {{duration}}"
     }
   },
   "surfaces": {
@@ -2038,7 +2122,10 @@
         "bodyFollow": " The follow continues: another release will be searched for.",
         "confirm": "Quarantine",
         "cancel": "Cancel",
-        "done": "“{{title}}” quarantined: {{path}}"
+        "done": "“{{title}}” quarantined: {{path}}",
+        "refused": "The quarantine was refused: the folder has not moved.",
+        "held": "Offline: the quarantine of “{{title}}” will go out when the network is back, the folder has not moved.",
+        "failed": "The network did not answer: “{{title}}” was not quarantined."
       },
       "deleteStaged": {
         "heading": "Delete “{{title}}” from disk?",
@@ -2049,11 +2136,17 @@
         "caseUnknown": "qBittorrent did not answer: this folder is treated as the only copy.",
         "confirm": "Delete",
         "cancel": "Cancel",
-        "done": "“{{title}}” deleted from disk."
+        "done": "“{{title}}” deleted from disk.",
+        "refused": "The deletion was refused: the folder is still on disk.",
+        "held": "Offline: the deletion of “{{title}}” will go out when the network is back, the folder is still on disk.",
+        "failed": "The network did not answer: the folder is still on disk."
       },
       "left": "“{{title}}” set aside — it is waiting for you, folded at the end of “To handle”.",
       "resolved": "Identified as “{{choice}}” — the pipeline resumes through to the library.",
-      "closureSeenRefused": "“{{title}}” could not be marked as seen: its card stays in “To handle”."
+      "closureSeenRefused": "“{{title}}” could not be marked as seen: its card stays in “To handle”.",
+      "held": "Offline: the action is kept and will go out when the network is back.",
+      "failed": "The network did not answer: the action was not done.",
+      "refused": "The server refused: the action was not done."
     },
     "media": {
       "seasonAsked": "Season {{season}} of “{{title}}” requested — {{count}} episodes to download.",
@@ -2314,7 +2407,9 @@
   "refusals": {
     "request": {
       "invalid": "The request is malformed: nothing was changed.",
-      "cross_origin": "Request refused: it does not come from this interface."
+      "cross_origin": "Request refused: it does not come from this interface.",
+      "key_reused": "Request refused: its identifier was already used for another action.",
+      "in_progress": "This action is still running on the server: it will be sent again."
     },
     "route": {
       "unknown": "This action does not exist on this server."
@@ -2385,6 +2480,10 @@
       "locked": "The pipeline is running: the library cannot be modified while it runs. Try again when the run ends.",
       "obligations_unreadable": "The seeding obligations cannot be read: nothing is deleted while what a tracker is still owed is unknown.",
       "unavailable": "The library is unavailable: the server cannot read it right now. Try again in a moment."
+    },
+    "session": {
+      "unknown": "This session no longer exists or is not yours.",
+      "current": "This is the session you are using: sign out to close it."
     }
   },
   "push": {
@@ -2457,6 +2556,18 @@
         "title": "Service unreachable",
         "body": "{{service}} is no longer answering."
       }
+    },
+    "account": {
+      "sign_in": {
+        "device": {
+          "title": "New sign-in",
+          "body": "Your account was just opened on {{device}}. If it was not you, end that session in your Profile."
+        },
+        "unknown_device": {
+          "title": "New sign-in",
+          "body": "Your account was just opened on an unknown device. If it was not you, end that session in your Profile."
+        }
+      }
     }
   },
   "notifications": {
@@ -2514,6 +2625,20 @@
           "label": "Service unreachable",
           "description": "A provider or a service is no longer answering."
         }
+      },
+      "account": {
+        "sign_in": {
+          "label": "New sign-in",
+          "description": "A Plex sign-in opens a new session on your account."
+        }
+      }
+    }
+  },
+  "notices": {
+    "account": {
+      "sign_in": {
+        "device": "New sign-in on {{device}}.",
+        "unknown_device": "New sign-in on an unknown device."
       }
     }
   },

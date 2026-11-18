@@ -52,26 +52,25 @@ from personalscraper.api.plex_account import (
     PlexTokenRefused,
 )
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID
-from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.repository import (
-    AccountRepository,
-    AccountRow,
-    PlexLinkRow,
-    PlexPinRow,
-    RoleRow,
-    StartKind,
-)
-from personalscraper.app.accounts.service import AccountService, SignInResult
+from personalscraper.app.accounts.credentials import CredentialService, SignInResult
+from personalscraper.app.accounts.device import device_label
+from personalscraper.app.accounts.events import AccountRightsChanged, PlexSessionOpened, RightsChangeCause
+from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.accounts.model import Account, PlexLink, Role, StartKind
+from personalscraper.app.accounts.pin_repository import PlexPinRow
+from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.errors import (
     AppBadRequest,
     AppConflict,
     AppForbidden,
     AppInternalError,
+    AppTooManyRequests,
     AppUnauthenticated,
     AppUnavailable,
     RefusalCode,
 )
+from personalscraper.app.store.store import AppStore
 from personalscraper.conf.environment import Environment
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
@@ -156,8 +155,8 @@ class PlexSignInService:
 
     def __init__(
         self,
-        repo_factory: Callable[[], AccountRepository],
-        accounts: AccountService,
+        store: AppStore,
+        credentials: CredentialService,
         *,
         vault: TokenVault | None,
         client_factory: Callable[[str, str], PlexAccountClient],
@@ -168,12 +167,13 @@ class PlexSignInService:
         bus: EventBus,
         clock: Callable[[], float] = time.time,
         vault_keys_malformed: bool = False,
+        start_limiter: SlidingWindowRateLimiter | None = None,
     ) -> None:
         """Build the door; nothing is opened and plex.tv is not asked until the first call.
 
         Args:
-            repo_factory: Returns the account repository (opening ``app.db`` on first use).
-            accounts: The account service, whose public door opens the session.
+            store: The environment's ``app.db``, opened on first use.
+            credentials: The credential service, whose public door opens the session.
             vault: The token vault; ``None`` when no key is set — the token is then not kept.
             client_factory: Builds the plex.tv account client from the product and the
                 client identifier.
@@ -183,13 +183,16 @@ class PlexSignInService:
             environment: The environment, which names the product on plex.tv.
             forward_url: Where plex.tv sends the sign-in window once confirmed, from the
                 configuration — never from the request; ``None`` leaves it on Plex.
-            bus: The bus E8 is published on after a link moves an account's role.
+            bus: The bus E8 is published on after a link moves an account's role, and every
+                session opened (:class:`PlexSessionOpened`).
             clock: The epoch clock.
             vault_keys_malformed: Whether ``PLEX_TOKEN_KEYS`` was set but malformed, which left
                 the door with no vault: a token not kept is then a warning, not a choice.
+            start_limiter: The limiter of PINs asked per client; a new one, with the sign-in
+                door's budget, when ``None``.
         """
-        self._repo_factory = repo_factory
-        self._accounts = accounts
+        self._store = store
+        self._credentials = credentials
         self._vault = vault
         self._client_factory = client_factory
         self._server = server
@@ -198,6 +201,7 @@ class PlexSignInService:
         self._forward_url = forward_url
         self._bus = bus
         self._clock = clock
+        self._start_limiter = start_limiter if start_limiter is not None else SlidingWindowRateLimiter()
         self._vault_keys_malformed = vault_keys_malformed
         self._no_server_logged = False
         self._client_lock = threading.Lock()
@@ -215,15 +219,23 @@ class PlexSignInService:
 
     # -- start ----------------------------------------------------------------
 
-    def start(self) -> PlexPinStarted:
+    def start(self, client_key: str) -> PlexPinStarted:
         """Create a PIN on plex.tv, keep it bound to a fresh nonce, and answer plex.tv's page.
 
         The PINs no sign-in can use any more — consumed, or past their expiry — are deleted first.
+        The start is public and every call asks plex.tv and writes a row, so each client may ask
+        only a few PINs a minute: every call that gets past the limit counts, as no failure
+        tells a start from another.
+
+        Args:
+            client_key: The key of the client asking, from ``rate_limit_key``.
 
         Returns:
             The PIN's id, plex.tv's page, the nonce for the pin cookie and the cookie's lifetime.
 
         Raises:
+            AppTooManyRequests: ``auth.rate_limited`` — ``client_key`` asked too many PINs in
+                the window; plex.tv is not asked.
             AppUnavailable: ``plex.server_unreachable`` — no Plex server is configured, so
                 nobody could be admitted (plex.tv is not asked); ``plex.unreachable`` —
                 plex.tv did not answer.
@@ -234,6 +246,10 @@ class PlexSignInService:
                 self._no_server_logged = True
                 log.warning("plex_sign_in.no_server")
             raise AppUnavailable("No Plex server is configured.", code=RefusalCode.PLEX_SERVER_UNREACHABLE)
+        if not self._start_limiter.allow(client_key):
+            log.warning("plex_sign_in.start_rate_limited", client_key=client_key)
+            raise AppTooManyRequests("Too many sign-in starts from this client.", code=RefusalCode.AUTH_RATE_LIMITED)
+        self._start_limiter.record_failure(client_key)
         client = self._client()
         try:
             pin = client.create_pin()
@@ -241,9 +257,9 @@ class PlexSignInService:
             raise AppUnavailable("plex.tv did not answer.", code=RefusalCode.PLEX_UNREACHABLE) from None
         now = self._clock()
         nonce = secrets.token_urlsafe(32)
-        repo = self._repo_factory()
-        repo.purge_pins(now=now, lifetime=_PIN_LIFETIME_FALLBACK_S, limit=_PIN_PURGE_LIMIT)
-        repo.insert_pin(
+        store = self._store
+        store.pins.purge_pins(now=now, lifetime=_PIN_LIFETIME_FALLBACK_S, limit=_PIN_PURGE_LIMIT)
+        store.pins.insert_pin(
             PlexPinRow(
                 pin_id=pin.id,
                 code=pin.code,
@@ -274,16 +290,48 @@ class PlexSignInService:
         """
         with self._client_lock:
             if self._account_client is None:
-                repo = self._repo_factory()
-                with repo.immediate():
-                    identifier = repo.setting(CLIENT_IDENTIFIER_SETTING)
+                store = self._store
+                with store.immediate():
+                    identifier = store.settings.setting(CLIENT_IDENTIFIER_SETTING)
                     if identifier is None:
                         identifier = uuid.uuid4().hex
-                        repo.set_setting(CLIENT_IDENTIFIER_SETTING, identifier)
+                        store.settings.set_setting(CLIENT_IDENTIFIER_SETTING, identifier)
                 self._account_client = self._client_factory(PRODUCTS[self._environment], identifier)
             return self._account_client
 
     # -- finish ---------------------------------------------------------------
+
+    def _live_pin(self, pin_id: int, nonce: str | None, now: float) -> PlexPinRow:
+        """Return the PIN row when it is bound to this browser, unused and not expired.
+
+        Args:
+            pin_id: The PIN ``start`` answered.
+            nonce: The pin cookie's value; ``None`` when the browser sent none.
+            now: The clock's reading.
+
+        Returns:
+            The PIN's row.
+
+        Raises:
+            AppBadRequest: ``plex.pin_unknown`` — unknown, used, or another browser's nonce.
+            AppConflict: ``plex.pin_expired`` — past its expiry.
+        """
+        row = self._store.pins.pin(pin_id)
+        bound = (
+            row is not None
+            and row.consumed_at is None
+            and nonce is not None
+            and hmac.compare_digest(row.nonce_hash, _nonce_hash(nonce))
+        )
+        if row is None or not bound:
+            # Anyone may send a forged or stale PIN id: debug only, so they cannot flood the log.
+            log.debug("plex_sign_in.pin_unknown", pin_id=pin_id)
+            raise AppBadRequest(
+                "No Plex sign-in started in this browser answers this PIN.", code=RefusalCode.PLEX_PIN_UNKNOWN
+            )
+        if row.expires_at is not None and now >= row.expires_at:
+            raise AppConflict("The Plex PIN expired.", code=RefusalCode.PLEX_PIN_EXPIRED)
+        return row
 
     def finish(self, pin_id: int, *, nonce: str | None, user_agent: str | None) -> SignInResult | PlexPending:
         """Ask whether the PIN is claimed and, once it is, sign in the identity it yields.
@@ -313,26 +361,12 @@ class PlexSignInService:
             AppForbidden: ``auth.access_disabled`` — the identity holds an account an Admin cut.
             AppUnavailable: ``plex.unreachable``, ``plex.server_unreachable``.
         """
-        repo = self._repo_factory()
+        store = self._store
         now = self._clock()
-        row = repo.pin(pin_id)
-        bound = (
-            row is not None
-            and row.consumed_at is None
-            and nonce is not None
-            and hmac.compare_digest(row.nonce_hash, _nonce_hash(nonce))
-        )
-        if row is None or not bound:
-            # Anyone may send a forged or stale PIN id: debug only, so they cannot flood the log.
-            log.debug("plex_sign_in.pin_unknown", pin_id=pin_id)
-            raise AppBadRequest(
-                "No Plex sign-in started in this browser answers this PIN.", code=RefusalCode.PLEX_PIN_UNKNOWN
-            )
-        if row.expires_at is not None and now >= row.expires_at:
-            raise AppConflict("The Plex PIN expired.", code=RefusalCode.PLEX_PIN_EXPIRED)
+        row = self._live_pin(pin_id, nonce, now)
         if self._server is None:
             raise AppUnavailable("No Plex server is configured.", code=RefusalCode.PLEX_SERVER_UNREACHABLE)
-        if not repo.claim_pin_check(pin_id, now=now, min_interval=PIN_CHECK_MIN_INTERVAL_S):
+        if not store.pins.claim_pin_check(pin_id, now=now, min_interval=PIN_CHECK_MIN_INTERVAL_S):
             return PlexPending()
         client = self._client()
         try:
@@ -353,18 +387,21 @@ class PlexSignInService:
         # A refusal of a proven identity is definitive: the PIN is used, so polling it again
         # asks plex.tv nothing. An unavailable answer is no verdict and leaves it open.
         if access is PlexServerAccess.NONE:
-            repo.consume_pin(pin_id, now=now)
+            store.pins.consume_pin(pin_id, now=now)
             log.info("plex_sign_in.refused", reason="no_access", plex_id=plex.plex_id)
             raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
         try:
-            account_id, moved = self._admit(repo, pin_id, plex, access, token)
+            account_id, moved = self._admit(store, pin_id, plex, access, token)
         except (AppUnauthenticated, AppForbidden):
             # _admit's transaction rolled back; the PIN is used outside it.
-            repo.consume_pin(pin_id, now=now)
+            store.pins.consume_pin(pin_id, now=now)
             raise
         if moved:
             self._bus.emit(AccountRightsChanged(account_ids=(account_id,), cause=RightsChangeCause.PLEX_LINKED))
-        return self._accounts.open_proven_session(account_id, user_agent=user_agent)
+        signed_in = self._credentials.open_proven_session(account_id, user_agent=user_agent)
+        # A PIN confirmed by the wrong person signs THEM in: the holder hears of every new session.
+        self._bus.emit(PlexSessionOpened(account_id=account_id, device=device_label(user_agent)))
+        return signed_in
 
     def _access(self, client: PlexAccountClient, token: str, plex: PlexAccount) -> PlexServerAccess:
         """What the identity is to this server, OWNER only when cross-checked.
@@ -428,12 +465,12 @@ class PlexSignInService:
             return self._owner_plex_id
 
     def _admit(
-        self, repo: AccountRepository, pin_id: int, plex: PlexAccount, access: PlexServerAccess, token: str
-    ) -> tuple[str, bool]:
+        self, store: AppStore, pin_id: int, plex: PlexAccount, access: PlexServerAccess, token: str
+    ) -> tuple[AccountId, bool]:
         """Find, link or create the identity's account, use the PIN and keep the token — one transaction.
 
         Args:
-            repo: The account repository.
+            store: The ``app`` store.
             pin_id: The PIN, used here.
             plex: The identity.
             access: Its access to this server (never NONE).
@@ -453,37 +490,37 @@ class PlexSignInService:
         now = self._clock()
         moved = False
         revoked: int | None = None  # sessions ended with a dropped password; None when none was dropped
-        with repo.immediate():
-            link = repo.plex_link_by_plex_id(plex.plex_id)
+        with store.immediate():
+            link = store.accounts.plex_link_by_plex_id(plex.plex_id)
             if link is not None:
-                account = repo.account(link.account_id)
+                account = store.accounts.account(link.account_id)
                 assert account is not None  # a link's account is a foreign key: it exists
                 _refuse_cut(account)
                 linked_at = link.linked_at
             else:
                 linked_at = now
-                found = repo.account_by_email(plex.email)
+                found = store.accounts.account_by_email(plex.email)
                 if found is None:
-                    account = self._create(repo, plex, _first_role(repo, access), now)
+                    account = self._create(store, plex, _first_role(store, access), now)
                 else:
                     # An e-mail plex.tv has not confirmed proves nothing: whoever typed it
                     # would take the local account that holds it.
                     if not plex.confirmed:
                         log.info("plex_sign_in.refused", reason="email_unconfirmed", plex_id=plex.plex_id)
                         raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
-                    if repo.plex_link(found.id) is not None:
+                    if found.plex_link is not None:
                         log.info("plex_sign_in.refused", reason="email_linked_elsewhere", plex_id=plex.plex_id)
                         raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
                     _refuse_cut(found)
                     account = found
-                    moved, revoked = self._link_by_email(repo, found, _first_role(repo, access), owner=owner, now=now)
-            if not repo.consume_pin(pin_id, now=now):
+                    moved, revoked = self._link_by_email(store, found, _first_role(store, access), owner=owner, now=now)
+            if not store.pins.consume_pin(pin_id, now=now):
                 raise AppBadRequest(
                     "No Plex sign-in started in this browser answers this PIN.", code=RefusalCode.PLEX_PIN_UNKNOWN
                 )
             sealed = self._vault.seal(account.id, token) if self._vault is not None else None
-            repo.upsert_plex_link(
-                PlexLinkRow(
+            store.accounts.upsert_plex_link(
+                PlexLink(
                     account_id=account.id,
                     plex_id=plex.plex_id,
                     plex_uuid=plex.uuid,
@@ -506,11 +543,11 @@ class PlexSignInService:
         return account.id, moved
 
     @staticmethod
-    def _create(repo: AccountRepository, plex: PlexAccount, role: RoleRow, now: float) -> AccountRow:
+    def _create(store: AppStore, plex: PlexAccount, role: Role, now: float) -> Account:
         """Create the account of an identity met for the first time, on its Plex kind's role, with no password.
 
         Args:
-            repo: The account repository, inside the transaction.
+            store: The ``app`` store, inside the transaction.
             plex: The identity.
             role: Its first role.
             now: The creation time.
@@ -518,8 +555,8 @@ class PlexSignInService:
         Returns:
             The new account.
         """
-        account = AccountRow(
-            id=f"account-{uuid.uuid4().hex}",
+        account = Account(
+            id=AccountId(f"account-{uuid.uuid4().hex}"),
             name=plex.title or plex.username or plex.email.partition("@")[0],
             email=plex.email,
             avatar="",
@@ -528,12 +565,12 @@ class PlexSignInService:
             created_at=now,
             updated_at=now,
         )
-        repo.insert_account(account)
+        store.accounts.insert_account(account)
         return account
 
     @staticmethod
     def _link_by_email(
-        repo: AccountRepository, account: AccountRow, role: RoleRow, *, owner: bool, now: float
+        store: AppStore, account: Account, role: Role, *, owner: bool, now: float
     ) -> tuple[bool, int | None]:
         """Link a local account whose e-mail is the identity's: its role and password as the rulings say.
 
@@ -543,7 +580,7 @@ class PlexSignInService:
         recorded as ``demoted_from`` when it moves.
 
         Args:
-            repo: The account repository, inside the transaction.
+            store: The ``app`` store, inside the transaction.
             account: The local account.
             role: The role its Plex kind starts on (Admin for the owner).
             owner: Whether the identity is the server's owner.
@@ -555,21 +592,21 @@ class PlexSignInService:
         """
         moved = account.role_id != role.id
         if moved:
-            repo.set_role(account.id, role.id, now=now, demoted_from=None if owner else account.role_id)
+            store.accounts.set_role(account.id, role.id, now=now, demoted_from=None if owner else account.role_id)
         revoked: int | None = None
         if not owner and account.password_hash is not None:
-            repo.set_password_hash(account.id, None, now=now)
+            store.accounts.set_password_hash(account.id, None, now=now)
             # The password is gone: no session it opened outlives it (as a password change ends
             # the others). The Plex session is opened after this transaction, so none is spared.
-            revoked = repo.revoke_sessions_of(account.id, except_id=None, now=now)
+            revoked = store.sessions.revoke_sessions_of(account.id, except_id=None, now=now)
         return moved, revoked
 
 
-def _first_role(repo: AccountRepository, access: PlexServerAccess) -> RoleRow:
+def _first_role(store: AppStore, access: PlexServerAccess) -> Role:
     """The role an identity starts on: Admin for the owner, else its Plex kind's (``Role.defaultFor``).
 
     Args:
-        repo: The account repository.
+        store: The ``app`` store.
         access: The identity's access (never NONE).
 
     Returns:
@@ -578,14 +615,18 @@ def _first_role(repo: AccountRepository, access: PlexServerAccess) -> RoleRow:
     Raises:
         AppInternalError: ``internal`` — the store names no role for it.
     """
-    role = repo.role(SYSTEM_ROLE_ID) if access is PlexServerAccess.OWNER else repo.role_for_start(_START_KIND[access])
+    role = (
+        store.roles.role(SYSTEM_ROLE_ID)
+        if access is PlexServerAccess.OWNER
+        else store.roles.role_for_start(_START_KIND[access])
+    )
     if role is None:
         log.error("plex_sign_in.no_start_role", access=access.value)
         raise AppInternalError("No role answers this Plex kind.", code=RefusalCode.INTERNAL)
     return role
 
 
-def _refuse_cut(account: AccountRow) -> None:
+def _refuse_cut(account: Account) -> None:
     """Refuse an account an Admin cut, before anything is written for it.
 
     Args:

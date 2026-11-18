@@ -36,10 +36,10 @@ _os.environ.setdefault("PERSONALSCRAPER_LANG", "en")
 # The environment: production, whatever the shell exports or the checkout's `.env` says. A dev
 # checkout carries `PERSONALSCRAPER_ENV=dev`, and the suite's config is hermetic and unmarked, which
 # the isolation guard refuses to anything but prod. Pinned here, at import time, because fixtures
-# that build a Config can run before `_no_environment_setting`, and set to the empty string (prod)
-# rather than removed so that `load_dotenv` (override=False) — below, and in every child process
-# that imports the package — cannot put `dev` back.
-_os.environ["PERSONALSCRAPER_ENV"] = ""
+# that build a Config can run before `_no_environment_setting`, and set explicitly (an unset variable
+# is refused) so that `load_dotenv` (override=False) — below, and in every child process that
+# imports the package — cannot put `dev` back.
+_os.environ["PERSONALSCRAPER_ENV"] = "prod"
 
 # E402 for the whole file, declared once with its reason rather than eleven
 # times: the block above MUST precede every import, because Rich reads the
@@ -210,6 +210,8 @@ def logged_events(caplog: pytest.LogCaptureFixture) -> LoggedEvents:
         events: list[dict[str, Any]] = []
         try:
             yield events
+            # A CLI run whose logging setup swapped caplog's handler out leaves this capture empty.
+            assert caplog.handler in logging.getLogger().handlers, "caplog left the root logger: kept_log_capture"
         finally:
             for record in caplog.records[start:]:
                 if isinstance(record.msg, dict):
@@ -217,6 +219,23 @@ def logged_events(caplog: pytest.LogCaptureFixture) -> LoggedEvents:
                     events.append({**event, "log_level": record.levelname.lower()})
 
     return capture
+
+
+@pytest.fixture
+def kept_log_capture() -> Iterator[None]:
+    """Keep pytest's log capture attached through a CLI run.
+
+    The CLI's callback runs ``configure_logging``, whose ``dictConfig`` replaces the root
+    logger's handlers, ``caplog``'s among them: every record after it would go unseen, a
+    « never logged » assertion would pass on nothing and a « logged » one would fail for the wrong
+    reason. A test that runs a CLI command and then reads ``caplog`` or :func:`logged_events` uses
+    this fixture. The session's structlog chain, set up above, stays the one in force.
+
+    Yields:
+        Nothing; the patch holds while the test runs.
+    """
+    with patch("personalscraper.cli.configure_logging"):
+        yield
 
 
 #: Sets the project's configured language for one test (``PERSONALSCRAPER_LANG``).
@@ -250,16 +269,16 @@ def configured_language(monkeypatch: pytest.MonkeyPatch) -> Iterator[ConfiguredL
 
 @pytest.fixture(autouse=True)
 def _no_environment_setting(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Start every test with ``PERSONALSCRAPER_ENV`` empty, i.e. the production store names.
+    """Start every test with ``PERSONALSCRAPER_ENV=prod``, i.e. the production store names.
 
     The real ``.env`` is loaded into ``os.environ`` by this module, and a developer shell
     may export the variable; either would rename every derived store file under the tests.
-    The variable is set to the empty string rather than deleted: the package calls
-    ``load_dotenv()`` (``override=False``) in every process it is imported in, so a deleted
-    variable would let a dev checkout's ``.env`` turn a child process into ``dev`` on the
+    The variable is set explicitly rather than deleted: an unset one is refused, and the
+    package calls ``load_dotenv()`` (``override=False``) in every process it is imported in,
+    so a deleted variable would also let a dev checkout's ``.env`` turn a child process into ``dev`` on the
     hermetic, unmarked test config. A test about the setting sets it itself.
     """
-    monkeypatch.setenv("PERSONALSCRAPER_ENV", "")
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
 
 
 @pytest.fixture(autouse=True)

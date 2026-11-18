@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Literal, TypedDict
@@ -211,7 +211,7 @@ class OmdbQuotaTracker:
     @staticmethod
     def _today_utc() -> str:
         """Return today's date as ``YYYY-MM-DD`` in UTC."""
-        return datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        return datetime.now(tz=UTC).strftime("%Y-%m-%d")
 
     def _maybe_reset_day(self) -> None:
         """Reset the count if the persisted date is not today (UTC)."""
@@ -286,7 +286,7 @@ class OmdbQuotaTracker:
         if not self._state_path.exists():
             log.info("omdb_quota_corrupt_already_removed", path=str(self._state_path), reason=reason)
             return
-        ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d-%H%M%S")
+        ts = datetime.now(tz=UTC).strftime("%Y%m%d-%H%M%S")
         corrupt_path = self._state_path.with_suffix(self._state_path.suffix + f".corrupt-{ts}")
         try:
             os.replace(self._state_path, corrupt_path)

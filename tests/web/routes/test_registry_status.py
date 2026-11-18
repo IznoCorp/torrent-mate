@@ -17,7 +17,7 @@ from personalscraper.web.registry_projection import RegistryHealthProjection
 from tests.web._web_harness import mount_guarded
 
 # Reuse the auth constants from the pipeline route tests.
-from tests.web.test_pipeline_routes import TEST_HASH, TEST_PASSWORD, TEST_USERNAME  # noqa: E402
+from tests.web.test_pipeline_routes import TEST_HASH, TEST_PASSWORD, TEST_USERNAME
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Final, Protocol
 
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.store import _SeedSubStore
+from personalscraper.api.torrent._base import lookup_scoped, scoped
 from personalscraper.core.delete_permit import (
     ALLOW,
     ObligationsUnreadable,
@@ -36,7 +37,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.torrent._contracts import TorrentLister, TorrentStateInspector
-    from personalscraper.conf.models.api_config import TrackerEconomyConfig
+    from personalscraper.conf.models.api_config import TorrentScope, TrackerEconomyConfig
     from personalscraper.core.event_bus import Event
 
     class _ReadOnlyTorrentClient(TorrentLister, TorrentStateInspector, Protocol):
@@ -72,9 +73,10 @@ class DeleteAuthority:
 
     def __init__(
         self,
-        store: "ConcreteAcquireStore | None",
-        torrent_client: "_ReadOnlyTorrentClient | None" = None,
-        economy: "dict[str, TrackerEconomyConfig] | None" = None,
+        store: ConcreteAcquireStore | None,
+        torrent_client: _ReadOnlyTorrentClient | None = None,
+        economy: dict[str, TrackerEconomyConfig] | None = None,
+        scope: TorrentScope | None = None,
     ) -> None:
         """Initialise with the acquire store, torrent client, and economy map.
 
@@ -84,10 +86,14 @@ class DeleteAuthority:
                 TorrentStateInspector) for dispatch-time correlation, or None.
             economy: Tracker-name → TrackerEconomyConfig map for resolving the
                 source tracker from a torrent's tags, or None.
+            scope: The instance's scope in a shared client — ``record_dispatch``
+                then correlates only the torrents of its category; ``None`` =
+                the whole client.
         """
         self._store = store
         self._torrent_client = torrent_client
         self._economy = economy
+        self._scope = scope
 
     def has_active_obligation(self, info_hash: str) -> bool:
         """Return ``True`` when *info_hash* has a live, unmet seed obligation.
@@ -168,7 +174,7 @@ class DeleteAuthority:
         Returns:
             ALLOW if permitted, veto(reason) if a live unmet obligation exists.
         """
-        assert self._store is not None  # noqa: S101 — guarded by the caller
+        assert self._store is not None  # guarded by the caller
         return _decide(self._store.seed, path)
 
     def record_dispatch(
@@ -244,7 +250,7 @@ class DeleteAuthority:
 
         # Single cached get_completed() — fail-soft on any client error.
         try:
-            completed = self._torrent_client.get_completed()
+            completed = scoped(self._torrent_client.get_completed(), self._scope)
         except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt the caller
             log.warning(
                 "acquire.record_dispatch.miss",
@@ -325,7 +331,7 @@ class DeleteAuthority:
     def _correlate_and_record(
         self,
         *,
-        completed: "list[TorrentItem]",
+        completed: list[TorrentItem],
         basename: str,
         size: int,
         dispatched_dest: Path,
@@ -358,8 +364,8 @@ class DeleteAuthority:
         """
         # ``self._store`` is non-None here (guarded by the record_dispatch
         # pre-checks); assert for the type checker.
-        assert self._store is not None  # noqa: S101
-        assert self._torrent_client is not None  # noqa: S101
+        assert self._store is not None
+        assert self._torrent_client is not None
 
         matches = [t for t in completed if t.name == basename and t.size_bytes == size]
 
@@ -459,7 +465,9 @@ class DeleteAuthority:
         an honest MISS: no obligation is invented with made-up floors.
 
         Fail-soft throughout: a client error, a missing store or a store write
-        failure returns ``False`` and never interrupts the sweep.
+        failure returns ``False`` and never interrupts the sweep. Under a scope a
+        hash held in another instance's category is not ours: it is skipped with a
+        log line and gets no obligation.
 
         Args:
             info_hash: Info-hash of the recovered torrent.
@@ -474,7 +482,7 @@ class DeleteAuthority:
         try:
             if self._store.seed.find_active_by_hash(info_hash) is not None:
                 return False  # idempotent: the obligation is already there
-            items = list(self._torrent_client.get_by_hashes({info_hash.lower()}))
+            items, _foreign = lookup_scoped(self._torrent_client, {info_hash.lower()}, self._scope)
             item = next((t for t in items if t.hash.lower() == info_hash.lower()), None)
             if item is None:
                 log.debug("acquire.record_grab_obligation.no_live_torrent", info_hash=info_hash)
@@ -505,7 +513,7 @@ class DeleteAuthority:
         log.info("acquire.record_grab_obligation.recorded", info_hash=info_hash, tracker=tracker_name)
         return True
 
-    def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
+    def _resolve_tracker(self, item: TorrentItem) -> tuple[str, TrackerEconomyConfig] | None:
         """Resolve the source tracker for *item* from its tags and the economy map.
 
         The RP1 acquisition flow tags each torrent with its source tracker.
@@ -551,7 +559,7 @@ class DeleteAuthority:
         log.info("acquire.mark_breach.done", path=str(path), count=count)
 
 
-def _decide(seed: "_SeedSubStore", path: Path) -> PermitDecision:
+def _decide(seed: _SeedSubStore, path: Path) -> PermitDecision:
     """Decide whether *path* may go, from the active obligations under it (raises on any lookup error).
 
     VETO only when a positively-known unmet obligation exists AND its
@@ -670,9 +678,10 @@ class StrictDeletePermit:
 
 
 def build_delete_authority(
-    store: "ConcreteAcquireStore | None",
-    torrent_client: "_ReadOnlyTorrentClient | None" = None,
-    economy: "dict[str, TrackerEconomyConfig] | None" = None,
+    store: ConcreteAcquireStore | None,
+    torrent_client: _ReadOnlyTorrentClient | None = None,
+    economy: dict[str, TrackerEconomyConfig] | None = None,
+    scope: TorrentScope | None = None,
 ) -> DeleteAuthority:
     """Build a DeleteAuthority over the given store, torrent client, and economy map.
 
@@ -681,11 +690,12 @@ def build_delete_authority(
         torrent_client: A read-only torrent client (TorrentLister +
             TorrentStateInspector) for dispatch-time correlation, or None.
         economy: Tracker-name → TrackerEconomyConfig map, or None.
+        scope: The instance's scope in a shared client, or None for the whole client.
 
     Returns:
         A DeleteAuthority ready for injection into dispatch/maintenance.
     """
-    return DeleteAuthority(store=store, torrent_client=torrent_client, economy=economy)
+    return DeleteAuthority(store=store, torrent_client=torrent_client, economy=economy, scope=scope)
 
 
 __all__ = ["DeleteAuthority", "StrictDeletePermit", "build_delete_authority"]

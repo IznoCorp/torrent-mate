@@ -23,12 +23,11 @@ import json
 import re
 import sqlite3
 import time
-import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
 
-from personalscraper._fs_utils import is_apple_double
+from personalscraper._fs_utils import is_apple_double, name_key
 from personalscraper.conf.ids import AUDIOBOOKS, NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -54,7 +53,7 @@ from personalscraper.indexer.schema import (
 )
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, season_number_from_dir
-from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year
+from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year, read_episode_nfo_roots
 from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES
 
 if TYPE_CHECKING:
@@ -203,12 +202,14 @@ def upsert_item_with_attrs(
 
     Idempotent on ``(kind, title, year)`` via :func:`item_repo.upsert` (the
     repo strips a trailing `` (YYYY)`` from the title and disambiguates
-    same-title remakes by year). The ``date_created`` /
-    ``date_modified`` placeholders carried in *row* are stamped with *now_s*
-    just before the write. Each ``attrs`` pair is upserted via
-    :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``), then the
-    whole issue set is **replaced**: ``DELETE FROM item_issue WHERE item_id=?``
-    followed by ``INSERT OR IGNORE`` of each issue (parity with
+    same-title remakes by year) — unless an item already carries the
+    ``dispatch_path`` in *attrs*: that item owns the folder and is updated
+    when it is the same work (same kind, year-compatible). The
+    ``date_created`` / ``date_modified`` placeholders carried in *row* are
+    stamped with *now_s* just before the write. Each ``attrs`` pair is
+    upserted via :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``),
+    then the whole issue set is **replaced**: ``DELETE FROM item_issue WHERE
+    item_id=?`` followed by ``INSERT OR IGNORE`` of each issue (parity with
     ``library.scanner._upsert_media_item`` lines 716-721).
 
     Args:
@@ -231,7 +232,12 @@ def upsert_item_with_attrs(
     write_row["date_created"] = stamp
     write_row["date_modified"] = stamp
 
-    item_id = item_repo.upsert(conn, MediaItemRow(**write_row), dispatch_path=attrs.get(item_repo._ATTR_DISPATCH_PATH))
+    # The item already carrying this folder's dispatch_path owns it, whatever
+    # its stored title, once no provider id has matched: matching on the title
+    # alone split a folder in two.
+    dispatch_path = attrs.get(item_repo._ATTR_DISPATCH_PATH)
+    owner_id = item_repo.find_id_by_dispatch_path(conn, dispatch_path) if dispatch_path else None
+    item_id = item_repo.upsert(conn, MediaItemRow(**write_row), existing_id=owner_id, dispatch_path=dispatch_path)
 
     # Persist flex attributes (dispatch path/disk/normalized-title, ...) so
     # consumers that INNER JOIN on them (trailers cross-disk index, dispatch
@@ -450,7 +456,8 @@ def _read_episode_titles(season_dir: Path) -> dict[int, str | None]:
     ``<title>`` tag; files without a sibling NFO, an unparseable NFO, or an
     empty title map to ``None``. A multi-episode span file (« S09E23-24 »)
     contributes every covered number — the title attaches to the FIRST, the
-    tail numbers map to ``None``.
+    tail numbers map to ``None`` unless the NFO is a multi-episode file with
+    several ``<episodedetails>`` roots, whose Nth root titles the Nth number.
 
     The mapping contains ONLY episode numbers actually evidenced by files on
     disk. The old ``range(1, episode_count+1)`` backfill fabricated phantom
@@ -490,13 +497,15 @@ def _read_episode_titles(season_dir: Path) -> dict[int, str | None]:
             out.setdefault(ep_num, None)
             continue
         try:
-            root = ET.parse(nfo).getroot()  # noqa: S314 — trusted NFO we wrote
+            roots = read_episode_nfo_roots(nfo)
         except (ET.ParseError, OSError) as exc:
             log.debug("indexer_item_stage_episode_nfo_parse_error", nfo=str(nfo), exc_info=True, error=str(exc))
             out.setdefault(ep_num, None)
             continue
-        title_text = (root.findtext("title") or "").strip()
-        out[ep_num] = title_text or None
+        # A multi-episode NFO holds one root per covered episode, in order.
+        out.setdefault(ep_num, None)
+        for offset, root in enumerate(roots[: ep_end - ep_num + 1]):
+            out[ep_num + offset] = (root.findtext("title") or "").strip() or None
     return out
 
 
@@ -685,7 +694,7 @@ def _nfo_facts(nfo_path: Path) -> dict[str, Any]:
     """
     facts: dict[str, Any] = {"overview": None, "poster_url": None, "date_provider_read": None}
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we wrote
+        root = ET.parse(nfo_path).getroot()  # trusted NFO we wrote
         # Read after the parse: an unreadable NFO carries no provider-read date.
         mtime = nfo_path.stat().st_mtime
     except (ET.ParseError, OSError) as exc:
@@ -828,8 +837,8 @@ def scan_and_stage_dir(
     )
 
     # Dispatch flex attributes. Normalization mirrors
-    # ``dispatch.media_index._normalize_key``: NFC, lowercase, stripped.
-    norm_title = unicodedata.normalize("NFC", title).lower().strip()
+    # ``dispatch.media_index._normalize_key``: NFC, U+F025 folded, lowercase, stripped.
+    norm_title = name_key(title).lower().strip()
     attrs: dict[str, str | None] = {
         item_repo._ATTR_DISPATCH_PATH: str(media_dir),
         item_repo._ATTR_DISPATCH_DISK: disk_cfg.id,
@@ -877,13 +886,52 @@ def _purge_non_video_items(conn: sqlite3.Connection) -> int:
     return int(cursor.rowcount)
 
 
+def _category_dirs_on_disk(config: Config, disk_cfg: DiskConfig) -> list[tuple[str, Path]]:
+    """List the video category folders present on a disk, whatever its ``categories``.
+
+    A disk's ``categories`` gate where NEW media go (dispatch eligibility), not
+    what is indexed: a disk frozen to ``["audiobooks"]`` still holds series whose
+    new episodes land there, and walking only its configured categories left
+    those items un-refreshed by every full scan. Every known category is
+    therefore probed; the disk's own categories come first so that, should two
+    categories share one folder name, the disk's declared one wins. Non-video
+    categories are skipped (audiobooks are never indexed).
+
+    Args:
+        config: Fully-loaded application config.
+        disk_cfg: Config entry for the storage disk being walked.
+
+    Returns:
+        ``(category_id, category_dir)`` pairs for each video category whose
+        folder exists on the disk, each folder listed once.
+    """
+    others = sorted(config.all_category_ids - set(disk_cfg.categories))
+    seen_folders: set[str] = set()
+    found: list[tuple[str, Path]] = []
+    for category_id in [*disk_cfg.categories, *others]:
+        if category_id in NON_VIDEO_CATEGORY_IDS:
+            continue  # audiobooks etc. are not movies/shows — never indexed
+        folder_name = config.category(category_id).folder_name
+        # The storage filesystems are case-insensitive: one folder, one walk.
+        if folder_name.lower() in seen_folders:
+            continue
+        category_dir = disk_cfg.path / folder_name
+        if not category_dir.is_dir():
+            continue
+        seen_folders.add(folder_name.lower())
+        found.append((category_id, category_dir))
+    return found
+
+
 def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | None = None) -> int:
     """Stage rich ``media_item`` rows for every media directory across all configured disks.
 
     Pass-1 of ``library-index --mode full``. Mirrors ``library.scanner.scan_library``'s
     walk (disks × categories × media dirs) but delegates each directory to
     :func:`scan_and_stage_dir` instead of the legacy ``scan_movie_dir`` /
-    ``scan_tvshow_dir``. Every mounted disk gets a guaranteed ``disk`` row
+    ``scan_tvshow_dir``. Every video category folder present on a disk is
+    walked, not only the disk's configured ``categories``
+    (:func:`_category_dirs_on_disk`). Every mounted disk gets a guaranteed ``disk`` row
     (:func:`_ensure_disk_row`) before its directories are iterated. Dotfile
     directories are skipped.
 
@@ -910,13 +958,7 @@ def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | N
             log.warning("item_stage_disk_not_mounted", disk=disk_cfg.id, path=str(disk_cfg.path))
             continue
         _ensure_disk_row(conn, disk_cfg, now_s)
-        for category_id in disk_cfg.categories:
-            if category_id in NON_VIDEO_CATEGORY_IDS:
-                continue  # audiobooks etc. are not movies/shows — never indexed
-            cat_cfg = config.category(category_id)
-            category_dir = disk_cfg.path / cat_cfg.folder_name
-            if not category_dir.is_dir():
-                continue
+        for category_id, category_dir in _category_dirs_on_disk(config, disk_cfg):
             kind: MediaItemKind = "show" if category_id in TV_CATEGORY_IDS else "movie"
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):

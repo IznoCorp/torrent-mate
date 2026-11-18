@@ -64,7 +64,7 @@ def test_circuit_breaker_emits_closed_on_recovery() -> None:
     cb.record_failure(_server_error_exc())
     cb.record_failure(_server_error_exc())
     # Force HALF_OPEN by accessing state after manually setting opened_at to past.
-    cb._opened_at = time.monotonic() - 1.0  # noqa: SLF001
+    cb._opened_at = time.monotonic() - 1.0
     cb.cooldown_seconds = 0.0
     assert cb.can_proceed()  # auto-transition to HALF_OPEN
     cb.record_success()  # HALF_OPEN → CLOSED

@@ -34,7 +34,7 @@ import json
 import os
 import sqlite3
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -277,7 +277,7 @@ def _record_measurement(mode: str, elapsed: float) -> None:
     rows_by_mode = _read_baseline()
     row = rows_by_mode[mode]
     row["last_measured_seconds"] = round(elapsed, 3)
-    row["last_measured_at"] = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    row["last_measured_at"] = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     _write_baseline(rows_by_mode)
 
 

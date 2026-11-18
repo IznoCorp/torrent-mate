@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 
 import pytest
 
 from personalscraper.api.metadata._base import ArtworkItem, CastMember, MediaDetails, SeasonInfo
+from personalscraper.app.composition import LazyProviders, build_app_services
 from personalscraper.app.errors import AppNotFound, AppUnavailable, RefusalCode
 from personalscraper.app.library.facts import CastFact, GenreId, MediaStatus
+from personalscraper.conf.models.config import Config
+from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 from tests.unit.app.library.world import World, catalogued
 
@@ -66,7 +71,7 @@ def test_a_held_movie(world: World) -> None:
     world.index.movie_file(movie, "films/Heat")
     world.tmdb.movies["949"] = _movie_details()
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
 
     assert sheet.title == "Heat"
     assert sheet.kind == "movie"
@@ -103,7 +108,7 @@ def test_metadata_refreshed_at_is_the_provider_read_date(world: World) -> None:
     world.index.movie_file(movie, "films/Heat")
     world.tmdb.movies["949"] = _movie_details()
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
 
     assert sheet.metadata_refreshed_at == datetime.fromtimestamp(1_700_000_000.0).date()
 
@@ -115,7 +120,7 @@ def test_a_held_show(world: World) -> None:
     catalogued(world.store, "tvdb", "391101", {1: [date(2022, 4, 15), date(2022, 4, 22)]})
     world.tvdb.shows["391101"] = _show_details()
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tvdb_id=391101))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tvdb_id=391101))
 
     assert sheet.kind == "show"
     assert sheet.status is MediaStatus.ENDED
@@ -152,7 +157,7 @@ def test_a_person_listed_twice_keeps_both_roles_and_the_first_portrait(world: Wo
     )
     world.tmdb.movies["77"] = details
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=77))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=77))
 
     assert [(member.name, member.role) for member in sheet.cast] == [("Jane Doe", "Anna"), ("Jane Doe", "Bella")]
     assert dict(sheet.cast_portraits) == {"Jane Doe": "https://image.tmdb.org/t/p/w185/a.jpg"}
@@ -162,7 +167,7 @@ def test_a_medium_the_library_does_not_hold(world: World) -> None:
     """Opened from the discovery screen: still answered, not owned; the show is asked first, the movie on its 404."""
     world.tmdb.movies["949"] = _movie_details()
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
 
     assert sheet.owned is False
     assert sheet.kind == "movie"
@@ -174,7 +179,7 @@ def test_a_medium_the_library_does_not_hold(world: World) -> None:
 def test_an_id_no_provider_knows(world: World) -> None:
     """An id the provider answers 404 for, as a show and as a movie: ``media.not_found``."""
     with pytest.raises(AppNotFound) as refused:
-        world.service.read_sheet(world.actor, MediaRef(tmdb_id=1))
+        world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=1))
 
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
 
@@ -182,7 +187,7 @@ def test_an_id_no_provider_knows(world: World) -> None:
 def test_an_imdb_id_the_library_does_not_hold(world: World) -> None:
     """No client reads a sheet by IMDb id: an IMDb id the library does not hold is not found."""
     with pytest.raises(AppNotFound) as refused:
-        world.service.read_sheet(world.actor, MediaRef(imdb_id="tt0113277"))
+        world.sheets.read_sheet(world.actor, MediaRef(imdb_id="tt0113277"))
 
     assert refused.value.code is RefusalCode.MEDIA_NOT_FOUND
 
@@ -193,7 +198,7 @@ def test_an_imdb_id_the_library_holds(world: World) -> None:
     world.index.movie_file(movie, "films/Heat")
     world.tmdb.movies["949"] = _movie_details()
 
-    assert world.service.read_sheet(world.actor, MediaRef(imdb_id="tt0113277")).title == "Heat"
+    assert world.sheets.read_sheet(world.actor, MediaRef(imdb_id="tt0113277")).title == "Heat"
 
 
 def test_a_provider_down(world: World) -> None:
@@ -203,10 +208,44 @@ def test_a_provider_down(world: World) -> None:
     world.tmdb.down = True
 
     with pytest.raises(AppUnavailable) as refused:
-        world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
+        world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
 
     assert refused.value.code is RefusalCode.PROVIDER_UNAVAILABLE
     assert refused.value.params == {"provider": "tmdb"}
+
+
+def test_no_tmdb_key_builds_the_services_and_answers_provider_unavailable(
+    world: World, test_config: Config, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No ``TMDB_API_KEY``: the services still build, and a sheet answers ``provider.unavailable``, said once."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+    config = test_config.model_copy(
+        update={
+            "indexer": test_config.indexer.model_copy(update={"db_path": world.index.path}),
+            "acquire": test_config.acquire.model_copy(update={"db_path": world.data_dir / "acquire.db"}),
+        }
+    )
+    services = build_app_services(config, Settings(_env_file=None, tmdb_api_key=""), event_bus=EventBus())  # type: ignore[call-arg]
+    caplog.set_level(logging.DEBUG)
+    try:
+        assert isinstance(services.sheets._providers, LazyProviders)
+        for _ in range(2):
+            with pytest.raises(AppUnavailable) as refused:
+                services.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
+            assert refused.value.code is RefusalCode.PROVIDER_UNAVAILABLE
+            assert refused.value.params == {"provider": "tmdb"}
+    finally:
+        services.close()
+    said = [
+        record.msg
+        for record in caplog.records
+        if record.name == "app.composition"
+        and isinstance(record.msg, dict)
+        and record.msg["event"] == "app.providers.unavailable"
+    ]
+    assert len(said) == 1
+    assert said[0]["issues"] == ["missing_credentials"]
 
 
 def test_the_provider_answer_is_cached_five_minutes(world: World) -> None:
@@ -215,11 +254,11 @@ def test_the_provider_answer_is_cached_five_minutes(world: World) -> None:
     world.index.movie_file(movie, "films/Heat")
     world.tmdb.movies["949"] = _movie_details()
 
-    world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
+    world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
     world.clock[0] += 299
-    world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
+    world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
     world.clock[0] += 2
-    world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
+    world.sheets.read_sheet(world.actor, MediaRef(tmdb_id=949))
 
     assert world.tmdb.calls == [("movie", "949"), ("movie", "949")]
 
@@ -245,7 +284,7 @@ def test_a_show_read_at_tvdb_takes_its_trailer_and_rating_from_tmdb(world: World
     world.tvdb.shows["391101"] = _show_details()
     world.tmdb.shows["113985"] = _tmdb_show_details()
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tvdb_id=391101))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tvdb_id=391101))
 
     assert (sheet.trailer_key, sheet.trailer_name, sheet.trailer_language) == (
         "4G1gEQsc0Cc",
@@ -264,7 +303,7 @@ def test_a_show_read_at_tvdb_answers_without_trailer_and_rating_when_tmdb_fails(
     world.tvdb.shows["391101"] = _show_details()
     world.tmdb.down = True
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tvdb_id=391101))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tvdb_id=391101))
 
     assert sheet.title == "Outer Range"
     assert (sheet.trailer_key, sheet.trailer_name, sheet.trailer_language, sheet.rating) == (None, None, None, None)
@@ -278,7 +317,7 @@ def test_a_show_read_at_tvdb_without_a_tmdb_id_asks_tmdb_nothing(world: World) -
     world.index.episodes(show, 1, [1])
     world.tvdb.shows["391101"] = MediaDetails(**{**details.__dict__, "external_ids": {"imdb": "tt11685912"}})
 
-    sheet = world.service.read_sheet(world.actor, MediaRef(tvdb_id=391101))
+    sheet = world.sheets.read_sheet(world.actor, MediaRef(tvdb_id=391101))
 
     assert (sheet.trailer_key, sheet.rating) == (None, None)
     assert world.tmdb.calls == []

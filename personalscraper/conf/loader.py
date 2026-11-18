@@ -49,8 +49,8 @@ __all__ = [
     "collect_warnings",
 ]
 
-_MASTER_FILENAME = "config.json5"
-_LOCAL_FILENAME = "local.json5"
+MASTER_FILENAME = "config.json5"
+LOCAL_FILENAME = "local.json5"
 
 log = get_logger("personalscraper.conf.loader")
 
@@ -98,7 +98,7 @@ def resolve_config_path(cli_override: Path | None = None) -> Path:
     return pkg_root / "config"
 
 
-def _load_json5_file(path: Path) -> dict[str, Any]:
+def load_json5_file(path: Path) -> dict[str, Any]:
     """Read and parse a single JSON5 file, returning a plain dict.
 
     Args:
@@ -155,20 +155,20 @@ def _build_config(
     if replaced is None:
         replaced = {}
 
-    master_path = config_dir / _MASTER_FILENAME
+    master_path = config_dir / MASTER_FILENAME
     if not master_path.is_file():
         raise ConfigNotFoundError(
             f"No config.json5 found in {config_dir}. "
             "Run 'personalscraper init-config' to create one from the example template."
         )
 
-    master = _load_json5_file(master_path)
+    master = load_json5_file(master_path)
 
     # Collect overlay dicts in declared order.
     overlay_names: list[str] = master.pop("overlays", [])
 
     # Validate replaced keys: every key must be a declared overlay or local.json5.
-    valid_keys = set(overlay_names) | {_LOCAL_FILENAME}
+    valid_keys = set(overlay_names) | {LOCAL_FILENAME}
     unknown = set(replaced) - valid_keys
     if unknown:
         raise ConfigLoadError(
@@ -183,19 +183,19 @@ def _build_config(
             parsed = dict(replaced[name])
         else:
             overlay_path = config_dir / name
-            parsed = _load_json5_file(overlay_path)
+            parsed = load_json5_file(overlay_path)
         # Attach source sentinel so merge_overlays can identify local.json5.
         parsed["__source__"] = config_dir / name
         overlay_dicts.append(parsed)
 
     # Optional local.json5 — missing is fine, not an error.
-    local_path = config_dir / _LOCAL_FILENAME
-    if _LOCAL_FILENAME in replaced:
-        local_dict = dict(replaced[_LOCAL_FILENAME])
+    local_path = config_dir / LOCAL_FILENAME
+    if LOCAL_FILENAME in replaced:
+        local_dict = dict(replaced[LOCAL_FILENAME])
         local_dict["__source__"] = local_path
         overlay_dicts.append(local_dict)
     elif local_path.is_file():
-        local_dict = _load_json5_file(local_path)
+        local_dict = load_json5_file(local_path)
         local_dict["__source__"] = local_path
         overlay_dicts.append(local_dict)
 

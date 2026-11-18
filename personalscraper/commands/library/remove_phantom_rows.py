@@ -28,7 +28,9 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.core.sqlite import refuse_newer_schema
 from personalscraper.i18n import t
+from personalscraper.indexer.migrations import MIGRATIONS_DIR as LIBRARY_MIGRATIONS_DIR
 
 
 @app.command("library-remove-phantom-rows", help=t("cli_library.remove_phantom_rows.library_remove_phantom_rows_help"))
@@ -71,6 +73,7 @@ def library_remove_phantom_rows(
     # A dry run opens the database read only: it cannot write, even by mistake.
     target = str(db_path) if apply else f"file:{db_path}?mode=ro"
     conn = _sqlite3.connect(target, uri=not apply, isolation_level=None)
+    refuse_newer_schema(conn, LIBRARY_MIGRATIONS_DIR)
     _apply_pragmas(conn)
     try:
         ids = phantom_rows(find_provider_id_duplicates(conn))

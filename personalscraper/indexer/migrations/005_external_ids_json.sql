@@ -31,6 +31,10 @@
 --      single forward-only schema with no fallback compatibility.
 --   6. Records the version bump in `schema_version`.
 
+-- One transaction: a crash mid-script leaves the store as it was before it, so the
+-- next attempt snapshots a whole store into its .bak, never a half-applied one.
+BEGIN TRANSACTION;
+
 ALTER TABLE media_item ADD COLUMN external_ids_json TEXT NOT NULL DEFAULT '{}';
 ALTER TABLE media_item ADD COLUMN ratings_json      TEXT;
 ALTER TABLE media_item ADD COLUMN canonical_provider TEXT CHECK(canonical_provider IN ('tvdb', 'tmdb'));
@@ -61,3 +65,5 @@ ALTER TABLE media_item DROP COLUMN tvdb_id;
 
 INSERT INTO schema_version (version) VALUES (5);
 PRAGMA user_version = 5;
+
+COMMIT;

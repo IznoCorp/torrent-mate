@@ -4,12 +4,12 @@ A PREFERENCE, NOT A MOMENT. The way out of the frame was a checkbox and nothing
 else, so a reload put the operator back inside the phone every time he had left
 it. It is a preference now: the choice is written to `localStorage` when the
 control changes and read back before any module runs, so a reload opens where
-he left it — the shape the appearance already has, one inline script beside it.
+he left it — the shape the appearance already has, one boot script beside it.
 
 WHERE THE SCRIPT LIVES IS PART OF WHAT IS HELD. It is harness chrome, so it is
-an inline script in `design/index.html` beside the control — never a module of
+a boot script, `design/boot/desktop-switch.js`, that the harness's document loads beside the control — never a module of
 the app, never the dying engine — and it goes when the frame goes. The key is
-the harness's: it is written in that document and in no file under
+the harness's: it is written in that script and in no file under
 `design/src/`, so nothing the app ships can read it or come to depend on it.
 
 WHAT IT REFUSES, hold by hold:
@@ -47,14 +47,14 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args
-from desktop_frame import CHECKBOX, DESKTOP, DEVICE, LABEL  # noqa: E402 - the path line above must run first
+from desktop_frame import CHECKBOX, DESKTOP, DEVICE, LABEL  # the path line above must run first
 
 # The one name the two ends share: the control's script writes it, and this
 # rule reads it. Typed here because it is a contract, like the appearance's.
 STORAGE_KEY = "tm-desktop-switch"
 OUT_OF_THE_FRAME = "out-of-the-frame"
 
-DOCUMENT = ROOT / "design" / "index.html"
+DOCUMENT = ROOT / "design" / "boot" / "desktop-switch.js"
 APPLICATION_SOURCES = ROOT / "design" / "src"
 
 # Records the box's state when parsing ends — `interactive` is reached once

@@ -42,6 +42,10 @@ class Problem(ContractModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+#: The largest integer SQLite stores (a signed 64-bit): an id above it is a refused request at the
+#: edge, never a driver overflow reaching the base as a 500.
+SQLITE_MAX_INTEGER: Final = 2**63 - 1
+
 _PROBLEM: Final[dict[str, Any]] = {"model": Problem, "description": "A refusal, answered as a Problem."}
 
 #: The refusal statuses every contract operation declares; a route adds 201, 404 or 429

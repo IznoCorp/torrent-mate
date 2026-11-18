@@ -9,7 +9,7 @@ QuotaStatus).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -56,8 +56,8 @@ class TestFreshState:
         # freezegun is not in dev-deps (checked pyproject.toml). Fall back to a
         # ±1 day tolerance to avoid flakiness if the test straddles UTC midnight
         # between the tracker writes and the assertion read.
-        today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-        yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(tz=UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
         assert s.date in {today, yesterday}
         assert s.count == 10
         assert s.limit == _DEFAULT_LIMIT
@@ -82,7 +82,7 @@ class TestDateReset:
     def test_date_change_resets(self, tmp_path: Path) -> None:
         """State from 'yesterday' → reserve_call resets and returns 'allowed'."""
         state_file = tmp_path / ".omdb-quota.json"
-        yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(tz=UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
         # Pre-seed a near-exhausted state from yesterday
         state_file.write_text(
             json.dumps(
@@ -98,13 +98,13 @@ class TestDateReset:
         # First reserve should reset to today and allow the call
         assert tracker.reserve_call() == "allowed"
         s = tracker.status()
-        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        assert s.date == datetime.now(tz=UTC).strftime("%Y-%m-%d")
         assert s.count == 1
 
     def test_date_change_clears_exhausted(self, tmp_path: Path) -> None:
         """Exhausted flag from yesterday is cleared on day change."""
         state_file = tmp_path / ".omdb-quota.json"
-        yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(tz=UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
         state_file.write_text(
             json.dumps(
                 {
@@ -223,7 +223,7 @@ class TestCorruptedState:
         tracker = OmdbQuotaTracker(state_path=state_file)
         assert tracker.reserve_call() == "allowed"
         s = tracker.status()
-        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        assert s.date == datetime.now(tz=UTC).strftime("%Y-%m-%d")
         assert s.count == 1  # the call we just reserved
 
     def test_state_file_wrong_shape_resets(self, tmp_path: Path) -> None:
@@ -258,7 +258,7 @@ class TestCorruptedState:
         # Must not raise — fall back to fresh state for today.
         tracker = OmdbQuotaTracker(state_path=state_file)
         s = tracker.status()
-        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        assert s.date == datetime.now(tz=UTC).strftime("%Y-%m-%d")
         assert s.count == 0
 
     def test_state_file_bad_types_resets(self, tmp_path: Path) -> None:

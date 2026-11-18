@@ -12,14 +12,15 @@ from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, RoleRow
+from personalscraper.app.accounts.credentials import CredentialService
+from personalscraper.app.accounts.model import Account, PlexLink, Role
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import create_v1_app
 from personalscraper.http_v1.perimeter import ActorResolver
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE
@@ -48,7 +49,7 @@ def make_v1_services(test_config: Config) -> Iterator[Callable[[], AppServices]]
         Returns:
             The services, inert until first use.
         """
-        services = build_app_services(test_config, Settings(_env_file=None))  # type: ignore[call-arg]
+        services = build_app_services(test_config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
         built.append(services)
         return services
 
@@ -93,12 +94,12 @@ def _with_ceiling(services: AppServices, ceiling: InstanceCeiling, idle_days: in
         idle_days: The sessions' idle lifetime.
 
     Returns:
-        The same services, but for ``sessions`` and ``accounts``.
+        The same services, but for ``sessions`` and ``credentials``.
     """
     store = services.app_store
-    sessions = SessionService(lambda: store.accounts, idle_days=idle_days, ceiling=lambda: ceiling)
-    accounts = AccountService(lambda: store.accounts, sessions, services.event_bus)
-    return dataclasses.replace(services, sessions=sessions, accounts=accounts)
+    sessions = SessionService(store, idle_days=idle_days, ceiling=lambda: ceiling)
+    credentials = CredentialService(store, sessions)
+    return dataclasses.replace(services, sessions=sessions, credentials=credentials)
 
 
 @pytest.fixture
@@ -146,11 +147,13 @@ def v1_client(test_config: Config, make_v1_services: Callable[[], AppServices]) 
         role_id = role
         if rights is not None:
             role_id = LISTED_ROLE_ID
-            repo.insert_role(RoleRow(id=role_id, name="Listed", kind=RoleKind.ORDINARY, rights=rights), now=1.0)
+            services.app_store.roles.insert_role(
+                Role(id=role_id, name="Listed", kind=RoleKind.ORDINARY, rights=rights), now=1.0
+            )
         number = next(numbers)
         account_id = f"account-{number}"
         repo.insert_account(
-            AccountRow(
+            Account(
                 id=account_id,
                 name=f"Account {number}",
                 email=f"account-{number}@example.org",
@@ -163,7 +166,7 @@ def v1_client(test_config: Config, make_v1_services: Callable[[], AppServices]) 
         )
         if server_access is not None:
             repo.upsert_plex_link(
-                PlexLinkRow(
+                PlexLink(
                     account_id=account_id,
                     plex_id=number,
                     plex_uuid=f"uuid-{number}",

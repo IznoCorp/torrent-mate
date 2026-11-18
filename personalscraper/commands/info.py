@@ -88,6 +88,7 @@ def info_providers(
             event_bus=event_bus,
             cb_policy=cb_policy,
             providers_config=providers_config,
+            language=ctx.obj.config.scraper.language,
         )
     except RegistryConfigError as exc:
         typer.echo(str(exc), err=True)

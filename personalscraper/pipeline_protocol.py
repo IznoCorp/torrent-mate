@@ -33,12 +33,12 @@ class StepContext:
         extras: Mutable mapping for ad-hoc cross-step data.
     """
 
-    app: "AppContext"
+    app: AppContext
     run_id: UUID
     dry_run: bool
     interactive: bool
     verbose: bool
-    upstream: Mapping[str, "StepReport"]
+    upstream: Mapping[str, StepReport]
     extras: MutableMapping[str, Any]
 
 
@@ -53,7 +53,7 @@ class PipelineStep(Protocol):
 
     name: str
 
-    def __call__(self, ctx: StepContext) -> "StepReport | tuple[StepReport, Any]": ...  # noqa: D102
+    def __call__(self, ctx: StepContext) -> StepReport | tuple[StepReport, Any]: ...  # noqa: D102
 
 
 def is_pipeline_step(obj: Any) -> bool:

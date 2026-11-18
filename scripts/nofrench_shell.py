@@ -13,11 +13,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nofrench_lexicon import (  # noqa: E402
+from nofrench_lexicon import (
     ROOT, examined, french_tokens_in, has_accent, offending_string, read,
     relative, tracked_paths,
 )
-from nofrench_scan import pragma_on  # noqa: E402
+from nofrench_scan import pragma_on
 
 
 SHELL_BY_NAME = {"Makefile"}

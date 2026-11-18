@@ -317,7 +317,7 @@ def _apply_row_with_retry(
                 exc_info=True,
             )
             return "failed"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.error(
                 "indexer.outbox.row_failed",
                 row_id=row.id,
@@ -410,7 +410,7 @@ def _replay_pending_ops(conn: sqlite3.Connection, disk_id: int, stats: DrainStat
                     exc_info=True,
                 )
                 break
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.error(
                     "indexer.pending_op.replay_failed",
                     row_id=op_row.id,
@@ -532,7 +532,7 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
                     outbox_repo.mark_deferred(conn, row.id)
                     conn.execute("COMMIT")
                     deferred_ok = True
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     try:
                         conn.execute("ROLLBACK")
                     except Exception:  # noqa: BLE001

@@ -31,6 +31,7 @@ from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_st
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import TrackerEconomyConfig
 from personalscraper.core.identity import MediaRef
+from tests.fixtures.torrent_scope import SCOPE
 
 # A representative per-tracker economy: c411, 72h min seed, ratio floor 1.0.
 _C411_ECONOMY = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200)
@@ -752,3 +753,46 @@ def test_record_dispatch_updates_provenance(store: ConcreteAcquireStore, tmp_pat
     row = store.provenance.by_hash("hh")
     assert row is not None and row.status == "dispatched"
     assert row.dispatch_path == str(dest)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Client scope — the correlation looks only at the instance's own category
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _correlate_over_shared_client(store: ConcreteAcquireStore, tmp_path: Path, *, scoped: bool) -> int:
+    """Dispatch a folder whose only live match is the other instance's torrent.
+
+    Args:
+        store: The acquire store.
+        tmp_path: Pytest temp directory.
+        scoped: Whether the authority is built under the instance scope.
+
+    Returns:
+        How many obligations ``record_dispatch`` wrote.
+    """
+    source = tmp_path / "Movie.2024.1080p-GRP"
+    source.mkdir()
+    (source / "movie.mkv").write_bytes(b"x" * 100)
+    foreign = _torrent_item(name=source.name, size_bytes=100, tags=["c411"])
+    foreign.category = None
+    authority = build_delete_authority(
+        store=store,
+        torrent_client=_client([foreign]),
+        economy={"c411": _C411_ECONOMY},
+        **({"scope": SCOPE} if scoped else {}),
+    )
+    authority.record_dispatch(staging_source=source, dispatched_dest=tmp_path / "dest")
+    return len(_read_rows(tmp_path / "acquire.db"))
+
+
+def test_record_dispatch_under_scope_ignores_the_other_instances_torrent(
+    store: ConcreteAcquireStore, tmp_path: Path
+) -> None:
+    """Under a scope a uncategorised torrent never becomes a seed obligation."""
+    assert _correlate_over_shared_client(store, tmp_path, scoped=True) == 0
+
+
+def test_record_dispatch_without_scope_correlates_any_torrent(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """Characterisation: no scope, the same torrent is correlated and recorded as today."""
+    assert _correlate_over_shared_client(store, tmp_path, scoped=False) == 1

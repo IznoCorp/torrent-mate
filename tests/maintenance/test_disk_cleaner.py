@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import pytest
+
+from personalscraper.conf.environment import Environment
 from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
@@ -542,7 +545,7 @@ class TestInternalHelpers:
                 self._real = real
                 self.path = real.path
 
-            def is_dir(self, follow_symlinks=False):  # noqa: ARG002
+            def is_dir(self, follow_symlinks=False):
                 raise OSError("ghost is_dir")
 
         original_scandir = _dc.os.scandir
@@ -902,7 +905,7 @@ class TestDeletePermitHardSkip:
 class _RaisingPermit:
     """A DeletePermit whose may_delete always raises (F2 fail-open consult)."""
 
-    def may_delete(self, path: Path):  # noqa: D102, ANN001
+    def may_delete(self, path: Path):
         raise RuntimeError("permit boom")
 
 
@@ -975,17 +978,45 @@ class TestDeletePermitConsultFailOpen:
         assert result.skipped_by_obligation == 0
 
 
-class TestPreprodGuard:
-    """Under ``staging`` the cleaner deletes only inside preprod's marked, mounted roots."""
+class TestCleanFrozenDisk:
+    """library-clean reaches a disk's existing media whatever its ``categories``."""
 
-    def test_deletion_outside_the_roots_is_refused_and_counted(self, tmp_path: Path, monkeypatch) -> None:
+    def test_the_frozen_disks_media_folders_are_cleaned(self, tmp_path: Path) -> None:
+        """The defect: junk in the film and series of a disk frozen to audiobooks was never seen."""
+        from tests._frozen_disk import frozen_disk_config, seed_frozen_library  # noqa: PLC0415
+
+        library = seed_frozen_library(tmp_path)
+        result = clean_library(frozen_disk_config(tmp_path), apply=False, only="junk")
+
+        assert any(str(library.movie_dir / ".DS_Store") in detail for detail in result.details)
+        assert any(str(library.show_dir / ".DS_Store") in detail for detail in result.details)
+        assert (library.movie_dir / ".DS_Store").exists()  # dry-run deletes nothing
+
+    def test_apply_cleans_the_frozen_disk(self, tmp_path: Path) -> None:
+        """``--apply`` removes the junk on the frozen disk."""
+        from tests._frozen_disk import frozen_disk_config, seed_frozen_library  # noqa: PLC0415
+
+        library = seed_frozen_library(tmp_path)
+        clean_library(frozen_disk_config(tmp_path), apply=True, only="junk")
+
+        assert not (library.movie_dir / ".DS_Store").exists()
+        assert not (library.show_dir / ".DS_Store").exists()
+
+
+class TestPreprodGuard:
+    """In a sandbox (staging or dev) the cleaner deletes only inside its own marked, mounted roots."""
+
+    @pytest.mark.parametrize("env", [Environment.STAGING, Environment.DEV], ids=str)
+    def test_deletion_outside_the_roots_is_refused_and_counted(
+        self, tmp_path: Path, monkeypatch, env: Environment
+    ) -> None:
         """A marked root is cleaned; a folder reached through a symlink out of it is refused.
 
         The refusal is an error entry, never an exception, and the refused folder is
         neither deleted nor journaled.
         """
         from personalscraper.conf import sandbox_guard
-        from personalscraper.conf.sandbox_guard import PREPROD_ROOT_MARKER
+        from personalscraper.conf.sandbox_guard import root_marker
         from personalscraper.indexer.destructive_journal import list_recent
         from personalscraper.maintenance import disk_cleaner
 
@@ -993,7 +1024,7 @@ class TestPreprodGuard:
         inside_actors = disk / "films" / "Inside (2024)" / ".actors"
         inside_actors.mkdir(parents=True)
         (inside_actors / "Actor.jpg").write_bytes(b"\x00" * 100)
-        (disk / PREPROD_ROOT_MARKER).write_text("", encoding="utf-8")
+        (disk / root_marker(env)).write_text("", encoding="utf-8")
         outside = tmp_path / "prod-media" / "Outside (2024)"
         outside_actors = outside / ".actors"
         outside_actors.mkdir(parents=True)
@@ -1003,7 +1034,7 @@ class TestPreprodGuard:
         config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
         monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
         monkeypatch.setattr(disk_cleaner, "is_mounted", lambda path: True)
-        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", env.value)
 
         result = clean_library(config, apply=True, only="actors")
 
@@ -1019,14 +1050,35 @@ class TestPreprodGuard:
         journaled = [str(row["path"]) for row in list_recent(config.indexer.db_path)]
         assert not any("Outside (2024)" in path or "prod-media" in path for path in journaled)
 
-    def test_junk_file_outside_the_roots_is_refused_and_counted(self, tmp_path: Path, monkeypatch) -> None:
+    def test_prod_unchanged_cleans_an_unmarked_root(self, tmp_path: Path, monkeypatch) -> None:
+        """``PERSONALSCRAPER_ENV`` unset: an unmarked, unmounted-for-the-guard root is cleaned with no refusal."""
+        from personalscraper.conf import sandbox_guard
+
+        disk = tmp_path / "medias"
+        actors = disk / "films" / "Movie (2024)" / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "Actor.jpg").write_bytes(b"\x00" * 100)
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: False)
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "prod")
+
+        result = clean_library(config, apply=True, only="actors")
+
+        assert not actors.exists()
+        assert result.deleted_count == 1
+        assert result.error_count == 0
+
+    @pytest.mark.parametrize("env", [Environment.STAGING, Environment.DEV], ids=str)
+    def test_junk_file_outside_the_roots_is_refused_and_counted(
+        self, tmp_path: Path, monkeypatch, env: Environment
+    ) -> None:
         """A junk file inside a root is unlinked; one reached through a symlink out of it is refused.
 
         The refusal is an error entry, never an exception, and the refused file is
         neither unlinked, journaled nor published.
         """
         from personalscraper.conf import sandbox_guard
-        from personalscraper.conf.sandbox_guard import PREPROD_ROOT_MARKER
+        from personalscraper.conf.sandbox_guard import root_marker
         from personalscraper.indexer.destructive_journal import list_recent
         from personalscraper.maintenance import disk_cleaner
 
@@ -1034,7 +1086,7 @@ class TestPreprodGuard:
         inside = disk / "films" / "Inside (2024)"
         inside.mkdir(parents=True)
         (inside / ".DS_Store").write_bytes(b"\x00")
-        (disk / PREPROD_ROOT_MARKER).write_text("", encoding="utf-8")
+        (disk / root_marker(env)).write_text("", encoding="utf-8")
         outside = tmp_path / "prod-media" / "Outside (2024)"
         outside.mkdir(parents=True)
         (outside / ".DS_Store").write_bytes(b"\x00")
@@ -1045,7 +1097,7 @@ class TestPreprodGuard:
         monkeypatch.setattr(disk_cleaner, "_publish_deleted", lambda path, label, db_path: published.append(path))
         monkeypatch.setattr(sandbox_guard, "is_mounted", lambda path: True)
         monkeypatch.setattr(disk_cleaner, "is_mounted", lambda path: True)
-        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", env.value)
 
         result = clean_library(config, apply=True, only="junk")
 

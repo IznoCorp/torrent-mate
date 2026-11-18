@@ -256,7 +256,7 @@ def _run_incremental(conn: sqlite3.Connection, disk: DiskRow, mount: str, capabi
 class TestExfatWithinBucket:
     """exFAT: stored mtime < 2 s from on-disk + zeroed ctime → treated unchanged."""
 
-    def test_within_two_seconds_no_recompute_no_repair(self, fs: "FakeFilesystem") -> None:
+    def test_within_two_seconds_no_recompute_no_repair(self, fs: FakeFilesystem) -> None:
         """A 1 s stored/on-disk mtime gap on exFAT is absorbed by the 2 s bucket.
 
         The stored ctime is also zeroed to prove exFAT drops ctime: despite the
@@ -292,7 +292,7 @@ class TestExfatWithinBucket:
 class TestExfatBeyondBucket:
     """exFAT: stored mtime > 2 s from on-disk → tier-1 mismatch → OSHash recompute."""
 
-    def test_beyond_two_seconds_recomputes_oshash_no_repair(self, fs: "FakeFilesystem") -> None:
+    def test_beyond_two_seconds_recomputes_oshash_no_repair(self, fs: FakeFilesystem) -> None:
         """A 3 s stored/on-disk mtime gap crosses the exFAT bucket → mismatch.
 
         The mismatch forces an OSHash recompute; since the bytes are unchanged
@@ -342,7 +342,7 @@ class TestExfatMissedDriftLimitation:
     narrowed to same-size + within-bucket + content-changed only.
     """
 
-    def test_same_size_within_bucket_content_change_is_missed(self, fs: "FakeFilesystem") -> None:
+    def test_same_size_within_bucket_content_change_is_missed(self, fs: FakeFilesystem) -> None:
         """ExFAT incremental tier-1 misses a same-size, within-bucket content edit.
 
         Uses the REAL ``_compute_oshash`` (not mocked) so the assertion is about
@@ -395,7 +395,7 @@ class TestExfatMissedDriftLimitation:
 class TestExfatRealDriftEnqueuesRepair:
     """Coarse FS still enqueues a repair when a real, detectable drift occurs."""
 
-    def test_beyond_bucket_content_change_enqueues_content_drift_repair(self, fs: "FakeFilesystem") -> None:
+    def test_beyond_bucket_content_change_enqueues_content_drift_repair(self, fs: FakeFilesystem) -> None:
         """exFAT: beyond-2 s mtime mismatch + real content change → repair enqueue.
 
         Complements the missed-drift limitation: when the mtime moves into a
@@ -436,7 +436,7 @@ class TestExfatRealDriftEnqueuesRepair:
 class TestHfsplusSubSecond:
     """HFS+: stored mtime < 1 s from on-disk (same ctime) → treated unchanged."""
 
-    def test_subsecond_jitter_no_recompute(self, fs: "FakeFilesystem") -> None:
+    def test_subsecond_jitter_no_recompute(self, fs: FakeFilesystem) -> None:
         """A 0.5 s stored/on-disk mtime gap on HFS+ stays within the 1 s bucket.
 
         ctime is left untouched (HFS+ keeps ctime), so the only difference is the
@@ -474,7 +474,7 @@ class TestHfsplusSubSecond:
 class TestNtfsRegression:
     """NTFS: ctime participates in tier-1 → a stored ctime change forces a mismatch."""
 
-    def test_ctime_change_triggers_mismatch_recompute(self, fs: "FakeFilesystem") -> None:
+    def test_ctime_change_triggers_mismatch_recompute(self, fs: FakeFilesystem) -> None:
         """Changing only the stored ctime on NTFS produces a tier-1 mismatch.
 
         This pins the legacy behaviour: NTFS keeps ctime in the tier-1 tuple, so
@@ -508,7 +508,7 @@ class TestNtfsRegression:
 class TestOrchestratorThreadsCapability:
     """Prove ``scan()`` resolves the per-disk capability and threads it down."""
 
-    def test_exfat_probe_makes_incremental_fs_aware(self, fs: "FakeFilesystem") -> None:
+    def test_exfat_probe_makes_incremental_fs_aware(self, fs: FakeFilesystem) -> None:
         """With ``probe_mount`` returning exFAT, a within-bucket gap is unchanged.
 
         Drives the *full* :func:`scan` entry point in incremental mode and
@@ -546,7 +546,7 @@ class TestOrchestratorThreadsCapability:
             "orchestrator must thread the exFAT capability so the within-bucket gap is a no-op"
         )
 
-    def test_ntfs_probe_keeps_ctime_sensitivity(self, fs: "FakeFilesystem") -> None:
+    def test_ntfs_probe_keeps_ctime_sensitivity(self, fs: FakeFilesystem) -> None:
         """With ``probe_mount`` returning NTFS, a stored ctime change still drifts.
 
         Mirror of the exFAT E2E test for the NTFS regression: the orchestrator
@@ -591,7 +591,7 @@ class TestOrchestratorThreadsCapability:
 class TestScannerHonorsFsTypeOverride:
     """``scan(fs_type_overrides=...)`` must beat the auto-detected probe result."""
 
-    def test_override_exfat_beats_ntfs_probe_no_spurious_drift(self, fs: "FakeFilesystem") -> None:
+    def test_override_exfat_beats_ntfs_probe_no_spurious_drift(self, fs: FakeFilesystem) -> None:
         """Probe → NTFS, override → exFAT: a within-2 s mtime gap must NOT drift.
 
         Proves the operator override threads from ``scan()`` all the way to the
@@ -644,7 +644,7 @@ class TestScannerHonorsFsTypeOverride:
             "despite the NTFS probe result"
         )
 
-    def test_no_override_falls_back_to_ntfs_probe_drift(self, fs: "FakeFilesystem") -> None:
+    def test_no_override_falls_back_to_ntfs_probe_drift(self, fs: FakeFilesystem) -> None:
         """Same fixture, but WITHOUT the override → NTFS probe wins → ctime drift.
 
         The control case for ``test_override_exfat_beats_ntfs_probe...``: with an
@@ -696,7 +696,7 @@ class TestScannerHonorsFsTypeOverride:
 class TestPerDiskOverrideMapTwoDisks:
     """``fs_type_overrides`` is resolved per-disk: one overridden, one auto-detected."""
 
-    def test_override_one_disk_other_autodetected(self, fs: "FakeFilesystem") -> None:
+    def test_override_one_disk_other_autodetected(self, fs: FakeFilesystem) -> None:
         """Two disks, one ``exfat`` override + one auto-detect → distinct capabilities.
 
         Both mounts PROBE as NTFS. The override map contains ONLY the first
@@ -782,7 +782,7 @@ class TestPerDiskOverrideMapTwoDisks:
 class TestOverrideSurvivesMountPathDivergence:
     """A remounted disk (mount_path != config path) still gets its override."""
 
-    def test_override_applies_when_mount_path_diverges_from_config_path(self, fs: "FakeFilesystem") -> None:
+    def test_override_applies_when_mount_path_diverges_from_config_path(self, fs: FakeFilesystem) -> None:
         """Override survives a mount_path that no longer equals the config path.
 
         Simulates a remount: the ``DiskRow.mount_path`` is the NEW location while
@@ -874,7 +874,7 @@ class TestOverrideSurvivesMountPathDivergence:
 class TestFullToIncrementalNoOpHandoffCoarseFs:
     """A no-change incremental after a full exFAT scan is a pure no-op."""
 
-    def test_incremental_after_full_exfat_is_noop_merkle_intact(self, fs: "FakeFilesystem") -> None:
+    def test_incremental_after_full_exfat_is_noop_merkle_intact(self, fs: FakeFilesystem) -> None:
         """Full → incremental with no changes on exFAT: merkle hit, no recompute.
 
         Both scans run under the exFAT override (keyed on the stable DiskRow.label)
@@ -975,7 +975,7 @@ class TestQuickParanoiaCoarseFs:
     coarse capability.
     """
 
-    def test_within_bucket_same_size_no_recheck(self, fs: "FakeFilesystem", caplog: pytest.LogCaptureFixture) -> None:
+    def test_within_bucket_same_size_no_recheck(self, fs: FakeFilesystem, caplog: pytest.LogCaptureFixture) -> None:
         """exFAT: within-2 s stored/on-disk mtime jitter (same size) → NO recheck."""
         fs.pause()
         conn = _make_conn_real()
@@ -998,9 +998,7 @@ class TestQuickParanoiaCoarseFs:
             f"exFAT within-bucket same-size jitter must NOT trigger a paranoia recheck; got: {msgs}"
         )
 
-    def test_beyond_bucket_same_size_recheck_logged(
-        self, fs: "FakeFilesystem", caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_beyond_bucket_same_size_recheck_logged(self, fs: FakeFilesystem, caplog: pytest.LogCaptureFixture) -> None:
         """exFAT: stored mtime > 2 s away (same size) → paranoia_recheck logged."""
         fs.pause()
         conn = _make_conn_real()
@@ -1046,7 +1044,7 @@ class TestVerifyModeCoarseFs:
     still governs) MUST still detect drift.
     """
 
-    def test_hfsplus_subsecond_jitter_no_spurious_repair(self, fs: "FakeFilesystem") -> None:
+    def test_hfsplus_subsecond_jitter_no_spurious_repair(self, fs: FakeFilesystem) -> None:
         """HFS+: a <1 s stored/on-disk mtime gap (same size) → NO bogus repair.
 
         The on-disk mtime sits at the aligned base; the stored mtime is +0.5 s
@@ -1084,7 +1082,7 @@ class TestVerifyModeCoarseFs:
         # The row must be marked verified-clean (generation bumped, not just touched).
         assert _scan_generation(conn, file_id) == 2
 
-    def test_hfsplus_beyond_bucket_still_detects_drift(self, fs: "FakeFilesystem") -> None:
+    def test_hfsplus_beyond_bucket_still_detects_drift(self, fs: FakeFilesystem) -> None:
         """HFS+ control: a >1 s stored/on-disk mtime gap → drift still enqueued.
 
         Pins the other half of the bucketing: a stored mtime in a DIFFERENT 1 s
@@ -1116,7 +1114,7 @@ class TestVerifyModeCoarseFs:
             "a beyond-bucket stored mtime must still be flagged as drift on HFS+ (real change, not jitter)"
         )
 
-    def test_ntfs_subsecond_mtime_change_still_detects_drift(self, fs: "FakeFilesystem") -> None:
+    def test_ntfs_subsecond_mtime_change_still_detects_drift(self, fs: FakeFilesystem) -> None:
         """NTFS control: granularity 1 → exact compare → even +0.5 s drifts.
 
         The SAME +0.5 s stored mtime mutation that HFS+ absorbs MUST enqueue a

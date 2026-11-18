@@ -26,7 +26,7 @@ from __future__ import annotations
 import subprocess
 import unicodedata
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -37,7 +37,7 @@ from rich.table import Table
 
 from personalscraper import cli_helpers
 from personalscraper.app.composition import build_app_context
-from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
+from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.sandbox_guard import SandboxGuardError, assert_within_sandbox
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.core.media_types import trailer_folders_in
@@ -112,7 +112,7 @@ def _parse_since(since: str | None) -> datetime | None:
     if since is None:
         return None
     try:
-        return datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=UTC)
     except ValueError:
         typer.echo(t("cli_trailers.since_invalid", since=repr(since)), err=True)
         raise typer.Exit(code=2)
@@ -134,8 +134,8 @@ def _item_added_at(item: ScanItem) -> datetime:
     try:
         mtime = source.stat().st_mtime
     except OSError:
-        return datetime.fromtimestamp(0, tz=timezone.utc)
-    return datetime.fromtimestamp(mtime, tz=timezone.utc)
+        return datetime.fromtimestamp(0, tz=UTC)
+    return datetime.fromtimestamp(mtime, tz=UTC)
 
 
 def _filter_since(items: list[ScanItem], since_dt: datetime | None) -> list[ScanItem]:
@@ -958,6 +958,8 @@ def _discover_fs_orphan_trailers(
     Returns:
         A ``(orphan_trailers, index_gaps)`` tuple, both possibly empty.
     """
+    from personalscraper.indexer.scanner._modes._item_stage import _category_dirs_on_disk  # noqa: PLC0415
+
     live_dirs = _live_item_dirs(config, app_context, disk, seasons_enabled=seasons_enabled, min_size=min_size)
     if live_dirs is None:
         # Index unavailable — do NOT purge or heal on FS alone (would flag everything).
@@ -967,7 +969,7 @@ def _discover_fs_orphan_trailers(
     orphans: list[Path] = []
     gaps: list[_HealTarget] = []
 
-    # 1. Storage disks — scanner-parity iteration (disk.categories → folder_name)
+    # 1. Storage disks — scanner-parity iteration (video category folders present)
     #    so each gap carries the correct (disk_cfg, category_id, kind) for healing.
     for disk_cfg in getattr(config, "disks", []):
         if disk is not None and getattr(disk_cfg, "id", None) != disk:
@@ -975,12 +977,9 @@ def _discover_fs_orphan_trailers(
         disk_path = Path(str(disk_cfg.path))
         if not is_mounted(disk_path):
             continue
-        for category_id in getattr(disk_cfg, "categories", []):
-            if category_id in NON_VIDEO_CATEGORY_IDS:
-                continue  # audiobooks etc. never hold movie/show trailers
-            category_dir = disk_path / config.category(category_id).folder_name
-            if not category_dir.is_dir():
-                continue
+        # ``categories`` gate where NEW media go, not what exists: a disk frozen to
+        # ["audiobooks"] still holds films and series (the helper skips non-video ones).
+        for category_id, category_dir in _category_dirs_on_disk(config, disk_cfg):
             kind: MediaItemKind = "show" if category_id in TV_CATEGORY_IDS else "movie"
             try:
                 media_dirs = [m for m in category_dir.iterdir() if m.is_dir() and not m.name.startswith(".")]
@@ -1148,7 +1147,7 @@ def purge(
         deleted = 0
         for trailer_p in orphan_trailer_paths:
             try:
-                # Preprod guard (``staging`` only): a purge stays inside preprod's own roots.
+                # Sandbox guard (a no-op in prod): a purge stays inside the sandbox's own roots.
                 assert_within_sandbox(config, trailer_p)
                 trailer_p.unlink()
                 deleted += 1

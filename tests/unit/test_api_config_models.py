@@ -1,9 +1,12 @@
 """Tests for Pydantic API config models."""
 
+import pytest
+
 from personalscraper.api.tracker._ranking import RankingBonuses, RankingConfig, ThresholdEntry
 from personalscraper.conf.models.api_config import (
     MetadataConfig,
     NotifyConfig,
+    TorrentClientEntry,
     TorrentConfig,
     TrackerConfig,
 )
@@ -106,6 +109,41 @@ class TestTorrentConfig:
         cfg = TorrentConfig.model_validate(data)
         assert cfg.active == "qbittorrent"
         assert cfg.clients["qbittorrent"].host == "192.168.1.1"
+
+
+class TestSandboxCategories:
+    """``sandbox_categories``: how an unscoped instance learns which categories belong to the sandboxes."""
+
+    def test_default_is_empty(self) -> None:
+        """No key, no sandbox category: prod behaves as before."""
+        assert TorrentClientEntry().sandbox_categories == ()
+        assert TorrentConfig().active_sandbox_categories() == ()
+
+    def test_active_client_categories_are_returned(self) -> None:
+        """The active client's list is what the instance keeps out of."""
+        cfg = TorrentConfig.model_validate(
+            {"active": "qbit", "clients": {"qbit": {"sandbox_categories": ["tm-preprod", "tm-dev"]}}}
+        )
+        assert cfg.active_sandbox_categories() == ("tm-preprod", "tm-dev")
+
+    def test_scoped_instance_refuses_the_key(self) -> None:
+        """A sandbox is itself scoped: the key belongs to the unscoped instance only."""
+        with pytest.raises(ValueError, match="sandbox_categories"):
+            TorrentClientEntry.model_validate(
+                {"scope": {"category": "tm-dev", "download_root": "/srv/dev"}, "sandbox_categories": ["tm-preprod"]}
+            )
+
+    @pytest.mark.parametrize("bad", [[""], ["  "]])
+    def test_blank_category_is_refused(self, bad: list[str]) -> None:
+        """A blank category would match nothing, or everything uncategorised: refused."""
+        with pytest.raises(ValueError, match="sandbox_categories"):
+            TorrentClientEntry.model_validate({"sandbox_categories": bad})
+
+    @pytest.mark.parametrize("bad", [[" tm-dev"], ["tm-dev "], ["tm-preprod", "\ttm-dev"]])
+    def test_padded_category_is_refused(self, bad: list[str]) -> None:
+        """A padded category matches nothing in qBittorrent, so prod would silently fail open: refused."""
+        with pytest.raises(ValueError, match="whitespace"):
+            TorrentClientEntry.model_validate({"sandbox_categories": bad})
 
 
 class TestTrackerConfig:

@@ -73,9 +73,9 @@ def _guard_no_running_resolve(conn: sqlite3.Connection, decision_id: int) -> Non
             # Dead process → stale row (crashed runner).
             log.info("resolve_stale_row_ignored", run_uid=run_uid_db, pid=pid_db)
             continue
-        except PermissionError:
+        except PermissionError as err:
             # Process exists but owned by another user → treat as alive.
-            raise AppConflict("This decision is already resolving")
+            raise AppConflict("This decision is already resolving") from err
         else:
             raise AppConflict("This decision is already resolving")
 

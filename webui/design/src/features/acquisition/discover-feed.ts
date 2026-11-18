@@ -370,9 +370,11 @@ export function sugFoot(): void {
     }
     return;
   }
+  // CLASSES, never `style=`: the page is served under a Content-Security-Policy that refuses an
+  // inline style attribute. The `!` makes the row's own 62px height yield to the sentinel's 104px.
   const waiting =
-    `<div style="display:flex;flex-direction:column;gap:14px">` +
-    `${`<div class="${skeleton({ shape: "row" })}" data-skeleton="" style="height:104px"></div>`.repeat(2)}</div>`;
+    `<div class="flex flex-col gap-[14px]">` +
+    `${`<div class="${skeleton({ shape: "row" })} h-[104px]!" data-skeleton=""></div>`.repeat(2)}</div>`;
   if (waiting !== lastFooter || foot.innerHTML === "") {
     lastFooter = waiting;
     foot.innerHTML = waiting;

@@ -29,7 +29,7 @@ class NtfsSafeNames:
     default_severity = Severity.ERROR
     description = "Filenames must be NTFS-safe"
 
-    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+    def run(self, ctx: CheckContext) -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False when NTFS-illegal names exist.
 
         Args:
@@ -62,7 +62,7 @@ class NtfsSafeNames:
             )
         ]
 
-    def fix(self, ctx: "CheckContext") -> "list[FixAction]":
+    def fix(self, ctx: CheckContext) -> list[FixAction]:
         """Rename files with NTFS-illegal characters.
 
         Args:

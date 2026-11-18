@@ -27,7 +27,7 @@ from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.app.accounts.repository import AccountRepository
+    from personalscraper.app.store.store import AppStore
     from personalscraper.config import Settings
 
 log = get_logger("app.accounts.token_vault")
@@ -179,7 +179,7 @@ class TokenVault:
         return f"TokenVault(keys={self._key_count})"
 
 
-def rotate_kept_tokens(repo: AccountRepository, vault: TokenVault, *, now: float) -> RotationResult:
+def rotate_kept_tokens(store: AppStore, vault: TokenVault, *, now: float) -> RotationResult:
     """Re-seal every kept token under the vault's first key.
 
     A row the vault cannot open for its own account (a removed key, a ciphertext moved from
@@ -187,7 +187,7 @@ def rotate_kept_tokens(repo: AccountRepository, vault: TokenVault, *, now: float
     old key is dropped, and ``purge_undecryptable`` clears it.
 
     Args:
-        repo: The account rows.
+        store: The ``app`` store.
         vault: The vault, the new key first and the old ones after it.
         now: The storage time written on every re-sealed row (epoch seconds).
 
@@ -196,41 +196,41 @@ def rotate_kept_tokens(repo: AccountRepository, vault: TokenVault, *, now: float
     """
     rotated = 0
     skipped = 0
-    with repo.immediate():
-        for link in repo.plex_links_with_token():
+    with store.immediate():
+        for link in store.accounts.plex_links_with_token():
             assert link.token_ciphertext is not None  # the query keeps only rows holding one
             # Opened first so the account binding is checked: a foreign ciphertext is not re-sealed.
             if vault.open(link.account_id, link.token_ciphertext) is None:
                 skipped += 1
                 continue
-            repo.set_token_ciphertext(link.account_id, vault.rotate(link.token_ciphertext), now=now)
+            store.accounts.set_token_ciphertext(link.account_id, vault.rotate(link.token_ciphertext), now=now)
             rotated += 1
     log.info("plex_token.rotated", count=rotated, skipped=skipped)
     return RotationResult(rotated=rotated, skipped=skipped)
 
 
-def forget_kept_tokens(repo: AccountRepository, *, account_id: str | None) -> int:
+def forget_kept_tokens(store: AppStore, *, account_id: str | None) -> int:
     """Forget kept tokens: one account's, or every one.
 
     Args:
-        repo: The account rows.
+        store: The ``app`` store.
         account_id: The account, or ``None`` for every account.
 
     Returns:
         How many kept tokens were forgotten.
     """
     forgotten = 0
-    with repo.immediate():
-        for link in repo.plex_links_with_token():
+    with store.immediate():
+        for link in store.accounts.plex_links_with_token():
             if account_id is not None and link.account_id != account_id:
                 continue
-            repo.set_token_ciphertext(link.account_id, None, now=None)
+            store.accounts.set_token_ciphertext(link.account_id, None, now=None)
             forgotten += 1
     log.info("plex_token.forgotten", count=forgotten, account_id=account_id)
     return forgotten
 
 
-def purge_undecryptable(repo: AccountRepository, vault: TokenVault, *, now: float, force: bool = False) -> int:
+def purge_undecryptable(store: AppStore, vault: TokenVault, *, now: float, force: bool = False) -> int:
     """Clear every kept token the vault cannot open for its own account.
 
     A well-formed but wrong key set (a typo, the old key dropped too early, a stale
@@ -238,7 +238,7 @@ def purge_undecryptable(repo: AccountRepository, vault: TokenVault, *, now: floa
     opens, the purge refuses unless ``force`` says that is meant.
 
     Args:
-        repo: The account rows.
+        store: The ``app`` store.
         vault: The vault over the keys still trusted.
         now: The purge time (epoch seconds), logged.
         force: Clear the rows even when none of them opens.
@@ -251,8 +251,8 @@ def purge_undecryptable(repo: AccountRepository, vault: TokenVault, *, now: floa
             nothing is written.
     """
     purged = 0
-    with repo.immediate():
-        links = repo.plex_links_with_token()
+    with store.immediate():
+        links = store.accounts.plex_links_with_token()
         unreadable = []
         for link in links:
             assert link.token_ciphertext is not None  # the query keeps only rows holding one
@@ -261,7 +261,7 @@ def purge_undecryptable(repo: AccountRepository, vault: TokenVault, *, now: floa
         if links and len(unreadable) == len(links) and not force:
             raise NoKeptTokenOpens
         for account_id in unreadable:
-            repo.set_token_ciphertext(account_id, None, now=None)
+            store.accounts.set_token_ciphertext(account_id, None, now=None)
             purged += 1
     log.info("plex_token.purged", count=purged, at=now)
     return purged
