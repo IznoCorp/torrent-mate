@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from personalscraper.core.artwork_naming import artwork_status
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.scraper.classifier import _parse_folder_name
@@ -22,11 +22,19 @@ log = get_logger("scraper")
 _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2,})? - .+\.\w+$")
 _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IGNORECASE)
 
+# A frame size in a release name (``1920x1080``, ``1280x720``, ``3840x2160``, ``720x480``). The
+# ``NxM`` episode marker of ``_extract_season_episode`` would read its tail as a season and an
+# episode (``20x108``); real ``NxM`` markers have one or two digits before the ``x``.
+_RESOLUTION_TOKEN_RE = re.compile(r"(?<!\d)\d{3,4}x\d{3,4}(?!\d)", re.IGNORECASE)
+
 
 def _local_show_seasons(show_dir: Path) -> set[int]:
     """Extract the set of seasons present in a TV show folder.
 
-    Walks the folder recursively and parses S/E from each video filename.
+    Walks the folder recursively and parses S/E from each video filename. Sample
+    clips (``Sample/`` folder, ``-sample`` file) are skipped and a frame size such
+    as ``1920x1080`` is not read as an ``NxM`` episode marker: neither is a season
+    of the show, and each false season costs a provider call and a warning.
     Feeds content-aware candidate disambiguation in ``match_tvshow_tvdb``:
     a candidate whose TVDB catalog does not cover the observed seasons is
     very likely the wrong show (e.g. a same-keyword spin-off).
@@ -43,7 +51,10 @@ def _local_show_seasons(show_dir: Path) -> set[int]:
             continue
         if f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
             continue
-        season, _ = _extract_season_episode(f.name)
+        # Relative to the show folder: a ``Sample/`` directory above it says nothing about the file.
+        if is_sample_path(f.relative_to(show_dir)):
+            continue
+        season, _ = _extract_season_episode(_RESOLUTION_TOKEN_RE.sub(" ", f.name))
         if season and season > 0:
             seasons.add(season)
     return seasons
