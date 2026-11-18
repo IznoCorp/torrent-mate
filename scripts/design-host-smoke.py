@@ -277,9 +277,13 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red], list[s
     called = 0
     ids: Mapping[str, Any] | None = None
     show_ids: Mapping[str, Any] | None = None
+    # A skip means "the library answered and holds no show", never "the library failed" or "the show
+    # has no ids": those are reds, and a skip would hide them.
+    library_listed = False
+    library_has_show = False
     skipped: list[str] = []
     for operation, template, names, declared in get_operations(contract):
-        if operation in SHOW_OPERATIONS and show_ids is None:
+        if operation in SHOW_OPERATIONS and library_listed and not library_has_show:
             skipped.append(operation)
             continue
         try:
@@ -298,6 +302,8 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red], list[s
                     raise Red(operation, status, "library.empty")
                 ids = items[0].get("ids")
                 show = next((item for item in items if item.get("kind") == "show"), None)
+                library_listed = True
+                library_has_show = show is not None
                 show_ids = show.get("ids") if show else None
             elif status >= 300 and (operation, status) not in ALLOWED_STATUSES:
                 raise Red(operation, status, code)

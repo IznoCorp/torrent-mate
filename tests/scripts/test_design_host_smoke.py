@@ -497,3 +497,32 @@ def test_a_library_with_no_show_skips_the_seasons_get_with_one_line(
         "SMOKE OK 3 GETs",
     ]
     assert code == 0
+
+
+def test_a_show_without_ids_is_red_not_a_skip(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """A show that exists but has no ids is a red line for its seasons GET: a skip would hide it."""
+    body = {
+        "items": [{"kind": "movie", "ids": {"tmdb": 1}}, {"kind": "show"}],
+        "total": 2,
+        "matching": 2,
+        "loaded": 2,
+    }
+    contract = _contract(tmp_path, {"/media/{provider}/{providerId}/seasons": SEASONS})
+    with _host({"GET /library/items": (200, body)}) as (host, base):
+        code, out = run(base, contract)
+    assert code == 1
+    assert "SMOKE SKIP" not in out
+    assert "SMOKE RED readMediaSeasons 0 no sample for parameter provider" in out
+    assert all("/seasons" not in path for _, path, _ in host.requests)
+
+
+def test_a_failed_library_gives_no_skip_line_for_its_seasons(
+    tmp_path: Path, run: Callable[..., tuple[int, str]]
+) -> None:
+    """A library that answers 404 is red itself; its seasons GET is red for want of a sample, not skipped."""
+    contract = _contract(tmp_path, {"/media/{provider}/{providerId}/seasons": SEASONS})
+    with _host({"GET /library/items": (404, {"code": "route.missing"})}) as (_, base):
+        code, out = run(base, contract)
+    assert code == 1
+    assert "SMOKE SKIP" not in out
+    assert "SMOKE RED readMediaSeasons 0 no sample for parameter provider" in out
