@@ -2,6 +2,36 @@
   "feature": "indexer",
   "design": "docs/production/indexer.md",
   "sections": {
+    "ghost-items": {
+      "tests": [
+        "tests/indexer/test_ghost_items.py::test_a_disk_whose_mount_is_not_confirmed_retires_nothing",
+        "tests/indexer/test_ghost_items.py::test_a_disk_with_no_sentinel_retires_nothing",
+        "tests/indexer/test_ghost_items.py::test_a_dry_run_reports_the_ghost_and_writes_nothing",
+        "tests/indexer/test_ghost_items.py::test_a_file_appearing_between_the_check_and_the_write_keeps_the_item",
+        "tests/indexer/test_ghost_items.py::test_a_folder_that_cannot_be_stat_ed_freezes_the_disk",
+        "tests/indexer/test_ghost_items.py::test_a_ghost_with_its_files_tombstoned_is_retired_with_a_tombstone",
+        "tests/indexer/test_ghost_items.py::test_an_item_an_open_repair_names_is_kept",
+        "tests/indexer/test_ghost_items.py::test_an_item_on_another_disk_is_not_this_disks_ghost",
+        "tests/indexer/test_ghost_items.py::test_an_item_whose_folder_is_present_is_kept",
+        "tests/indexer/test_ghost_items.py::test_an_item_with_a_live_file_is_kept",
+        "tests/indexer/test_ghost_items.py::test_an_item_with_a_live_unlinked_file_under_its_folder_is_kept",
+        "tests/indexer/test_ghost_items.py::test_an_open_repair_on_a_release_or_a_file_of_the_item_keeps_it",
+        "tests/indexer/test_ghost_items.py::test_any_error_while_retiring_rolls_back_and_re_raises",
+        "tests/indexer/test_ghost_items.py::test_more_than_the_cap_retires_none_unless_the_cap_is_lifted",
+        "tests/indexer/test_ghost_items.py::test_only_configured_disks_are_kept",
+        "tests/indexer/test_ghost_items.py::test_the_pass_refuses_a_connection_with_an_open_transaction",
+        "tests/indexer/test_ghost_items_cli.py::test_a_disk_in_the_store_but_not_configured_is_refused",
+        "tests/indexer/test_ghost_items_cli.py::test_a_dry_run_summary_says_its_ghosts_are_a_lower_bound",
+        "tests/indexer/test_ghost_items_cli.py::test_a_failed_ghost_pass_is_named_in_the_summary",
+        "tests/indexer/test_ghost_items_cli.py::test_a_full_scan_dry_run_reports_the_ghost_and_keeps_it",
+        "tests/indexer/test_ghost_items_cli.py::test_a_full_scan_out_of_budget_retires_no_ghost",
+        "tests/indexer/test_ghost_items_cli.py::test_a_full_scan_retires_a_ghost_whose_files_are_tombstoned",
+        "tests/indexer/test_ghost_items_cli.py::test_a_gone_folder_whose_files_are_not_tombstoned_keeps_its_item",
+        "tests/indexer/test_ghost_items_cli.py::test_an_error_on_one_disk_reports_the_disks_done_and_exits_1",
+        "tests/indexer/test_ghost_items_cli.py::test_only_a_full_scan_retires_ghosts",
+        "tests/indexer/test_ghost_items_cli.py::test_the_scan_cap_holds_and_the_command_clears_the_backlog_with_every_other_guard"
+      ]
+    },
     "schema-overview": {
       "tests": [
         "tests/integration/test_design_indexer.py::TestIndexerSchemaContract::test_each_migration_registers_in_schema_version_table"

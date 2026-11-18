@@ -256,6 +256,15 @@ class TestBuildArgv:
         argv = _build_argv(action, "{}", dry_run=False)
         assert "--apply" in argv
 
+    def test_merge_duplicate_items_previews_unless_applied(self) -> None:
+        """``library-merge-duplicate-items`` is apply-style, like its siblings: no flag previews."""
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
+
+        action = _resolve_action("library-merge-duplicate-items")
+        assert "--apply" not in _build_argv(action, "{}", dry_run=True)
+        assert "--dry-run" not in _build_argv(action, "{}", dry_run=True)
+        assert "--apply" in _build_argv(action, "{}", dry_run=False)
+
     def test_unsupported_dry_run_omits_all_flags(self) -> None:
         """When dry_run='unsupported', no dry-run/apply flag is added."""
         from personalscraper.app.maintenance.runner import _build_argv, _resolve_action

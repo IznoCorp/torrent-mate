@@ -16,9 +16,11 @@ WHAT THIS RULE HOLDS, at 390 px, read through `getBoundingClientRect`:
    cut with all its entries below it — a heading is never the last thing a reader sees. The
    rest positions are those the scroll lands on after each step of `SCROLL_STEP` px, and the
    rule waits `SETTLE_MS` for the browser's snapping to finish;
-4. the same holds at 844×390 (a phone turned on its side), where the largest group is taller than
-   the navigation's visible height: at every rest no heading stands bare, and the last entry of
-   EVERY group can be brought whole into the visible navigation.
+4. at 844×390 (a phone turned on its side), where the largest group is taller than the navigation's
+   visible height, the last entry of EVERY group can be brought whole into the visible navigation
+   (the scroll is moved, `SETTLE_MS` is waited, then the entry is read). The heading check of
+   point 3 is NOT run there, on purpose: a group taller than the navigation scrolls freely inside
+   its snap area, so a heading may legitimately rest at the cut.
 """
 
 import asyncio
@@ -72,23 +74,30 @@ READ_STRANDED = """() => {
   }).map((group) => group.querySelector('.sect').textContent);
 }"""
 
-# Whether each group's last entry can be scrolled whole into the navigation's visible box. The
-# scroll is moved to the entry's own offset and clamped by the browser, so a group the scroll
-# range cannot bring up reads false.
-READ_REACHABLE = """() => {
+# Brings group `index`'s last entry to the navigation's bottom edge. The scroll is moved to the
+# entry's own offset and clamped by the browser, so a group the scroll range cannot bring up stays
+# short of it. Returns the group's title, or null when the group has no entry.
+SCROLL_TO_LAST = """(index) => {
   const nav = document.querySelector('#drawer nav');
-  return [...nav.querySelectorAll('.grp')].map((group) => {
-    const last = [...group.querySelectorAll('a, button')].at(-1);
-    if (!last) return {title: group.querySelector('.sect')?.textContent ?? '', reachable: false};
-    nav.scrollTop += last.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom;
-    const box = nav.getBoundingClientRect();
-    const rect = last.getBoundingClientRect();
-    return {
-      title: group.querySelector('.sect')?.textContent ?? '',
-      reachable: rect.height > 0 && rect.top >= box.top - 0.5 && rect.bottom <= box.bottom + 0.5,
-    };
-  });
+  const group = nav.querySelectorAll('.grp')[index];
+  const last = [...group.querySelectorAll('a, button')].at(-1);
+  if (!last) return null;
+  nav.scrollTop += last.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom;
+  return group.querySelector('.sect')?.textContent ?? '';
 }"""
+
+# Read AFTER the scroll has settled (the navigation snaps): whether group `index`'s last entry lies
+# whole in the navigation's visible box.
+READ_REACHABLE = """(index) => {
+  const nav = document.querySelector('#drawer nav');
+  const group = nav.querySelectorAll('.grp')[index];
+  const last = [...group.querySelectorAll('a, button')].at(-1);
+  const box = nav.getBoundingClientRect();
+  const rect = last.getBoundingClientRect();
+  return rect.height > 0 && rect.top >= box.top - 0.5 && rect.bottom <= box.bottom + 0.5;
+}"""
+
+READ_GROUP_COUNT = "() => document.querySelectorAll('#drawer nav .grp').length"
 
 READ_DRAWER = """() => {
   const control = document.querySelector('#drawer [data-appearance]')?.closest('[data-part="view/switch"]');
@@ -151,6 +160,24 @@ async def stranded_at_rests(page):
         if at_rest:
             stranded[top] = at_rest
     return stranded
+
+
+async def unreachable_groups(page):
+    """Scrolls to each group's last entry, lets the scroll settle, then reads whether it is whole.
+
+    Args:
+        page: The Playwright page, its drawer open.
+
+    Returns:
+        The titles of the groups whose last entry cannot be brought whole into the navigation.
+    """
+    unreachable = []
+    for index in range(await page.evaluate(READ_GROUP_COUNT)):
+        title = await page.evaluate(SCROLL_TO_LAST, index)
+        await page.wait_for_timeout(SETTLE_MS)
+        if title is None or not await page.evaluate(READ_REACHABLE, index):
+            unreachable.append(title or f"group {index}")
+    return unreachable
 
 
 async def main():
@@ -222,7 +249,7 @@ async def main():
         await read_at(page, "drawer-navigation", READ_DRAWER)
         # No heading check here: at this height a group is taller than the navigation and scrolls
         # freely inside its snap area by design, so only reachability is asserted.
-        unreachable = [g["title"] for g in await page.evaluate(READ_REACHABLE) if not g["reachable"]]
+        unreachable = await unreachable_groups(page)
         journal.check(
             "at 844x390 the last entry of every group can be brought whole into the navigation",
             not unreachable,

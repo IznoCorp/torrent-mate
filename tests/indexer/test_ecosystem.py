@@ -815,15 +815,17 @@ def test_preprod_apps_run_in_the_staging_environment(app_name: str) -> None:
 
 
 def test_preprod_watcher_runs_scoped_from_the_staging_clone() -> None:
-    """The preprod's watcher is the ``watch`` daemon of the staging clone, in ``staging`` on its overlay.
+    """The preprod's watcher is the ``supervise`` daemon of the staging clone, in ``staging`` on its overlay.
 
+    The supervisor absorbs the watcher (its poll runs inside it), so the preprod runs the
+    supervisor alone under the watcher's app name; ``watch`` stays the one-line rollback.
     It reads the preprod overlay's client scope (its own qBittorrent category) and writes into
     the preprod's roots: it must never run on prod's config or from prod's clone, or it would
     triage prod's torrents. Like prod's watcher it is a daemon, not a ``schedule`` loop.
     """
     app = _get_app_by_name(_parse_ecosystem_apps(_ECOSYSTEM_PATH), _PREPROD_WATCH)
     assert app.get("script") == _STAGING_BIN
-    assert app.get("args") == "watch"
+    assert app.get("args") == "supervise"
     assert app.get("cwd") == _STAGING_CLONE
     assert app.get("PERSONALSCRAPER_ENV") == "staging"
     assert app.get("PERSONALSCRAPER_CONFIG") == _PREPROD_CONFIG

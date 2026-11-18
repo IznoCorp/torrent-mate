@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -14,6 +15,7 @@ from personalscraper.acquire import catalogue as catalogue_module
 from personalscraper.acquire import store as acquire_store
 from personalscraper.acquire.catalogue import (
     CatalogueEpisode,
+    CatalogueReadOnlyError,
     CatalogueStore,
     ProviderClients,
     aired_by_season,
@@ -371,3 +373,102 @@ class TestOpen:
         report = refresh_catalogue(store, index, ProviderClients(tvdb=tvdb, tmdb=None), now=NOW, max_shows=1)
         assert (report.skipped, report.refreshed, report.remaining) == (1, 1, 0)
         assert store.episodes("tvdb", "1") is not None
+
+
+class TestReadOnly:
+    """A read-only store reads ``acquire.db`` as it finds it and never creates, migrates or writes it."""
+
+    def test_an_absent_database_reads_as_an_empty_catalogue_and_stays_absent(self, tmp_path: Path) -> None:
+        """No file: every show reads « never fetched », and nothing is left behind, not even a lock."""
+        path = tmp_path / "data" / "acquire.db"
+        reader = CatalogueStore.read_only(path)
+        assert reader.episodes("tvdb", "1") is None
+        reader.close()
+        assert not path.parent.exists()
+
+    def test_a_file_that_appears_later_is_read(self, tmp_path: Path) -> None:
+        """Absence is not cached: the pipeline creating ``acquire.db`` after a first read is seen by the next."""
+        path = tmp_path / "acquire.db"
+        reader = CatalogueStore.read_only(path)
+        assert reader.episodes("tvdb", "1") is None
+        writer = CatalogueStore(path)
+        writer.replace_show("tvdb", "1", "Continuing", [_ep(1, 1)], NOW)
+        writer.close()
+        assert reader.episodes("tvdb", "1") == [_ep(1, 1)]
+        reader.close()
+
+    def test_a_database_without_the_catalogue_tables_reads_empty_and_is_not_migrated(self, tmp_path: Path) -> None:
+        """A store older than migration 026 has no catalogue: read as empty, left at its version."""
+        old = tmp_path / "m025"
+        old.mkdir()
+        for script in sorted(MIGRATIONS_DIR.glob("0[0-2][0-9]_*.sql")):
+            if script.name < "026":
+                (old / script.name).write_text(script.read_text())
+        path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(path)
+        apply_migrations(conn, old)
+        conn.close()
+        reader = CatalogueStore.read_only(path)
+        assert reader.episodes("tvdb", "1") is None
+        reader.close()
+        conn = sqlite3.connect(path)
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        conn.close()
+        assert "catalogue_show" not in tables
+
+    def test_the_writers_refuse_with_a_typed_error(self, tmp_path: Path) -> None:
+        """A write path through a read-only store is refused and creates nothing."""
+        path = tmp_path / "acquire.db"
+        reader = CatalogueStore.read_only(path)
+        with pytest.raises(CatalogueReadOnlyError):
+            reader.replace_show("tvdb", "1", None, [], NOW)
+        with pytest.raises(CatalogueReadOnlyError):
+            reader.record_failure("tvdb", "1", NOW)
+        with pytest.raises(CatalogueReadOnlyError):
+            reader.due(NOW)
+        assert not path.exists()
+
+    def test_a_populated_wal_store_reads_through_the_read_only_store(self, tmp_path: Path) -> None:
+        """A store the writable path built (WAL) reads once closed; a never-fetched show still reads None."""
+        path = tmp_path / "acquire.db"
+        writer = CatalogueStore(path)
+        writer.replace_show("tvdb", "1", "Continuing", [_ep(1, 1), _ep(1, 2)], NOW)
+        writer.close()
+        reader = CatalogueStore.read_only(path)
+        assert reader.episodes("tvdb", "1") == [_ep(1, 1), _ep(1, 2)]
+        assert reader.episodes("tvdb", "never") is None
+        reader.close()
+
+    def test_a_connection_opened_in_one_thread_reads_in_another(self, tmp_path: Path) -> None:
+        """The web serves routes from a thread pool: the cached read connection is not thread-bound."""
+        path = tmp_path / "acquire.db"
+        writer = CatalogueStore(path)
+        writer.replace_show("tvdb", "1", "Continuing", [_ep(1, 1)], NOW)
+        writer.close()
+        reader = CatalogueStore.read_only(path)
+        assert reader.episodes("tvdb", "1") == [_ep(1, 1)]
+        outcome: list[object] = []
+
+        def read_again() -> None:
+            try:
+                outcome.append(reader.episodes("tvdb", "1"))
+            except Exception as exc:  # noqa: BLE001 - the assertion below reports it
+                outcome.append(exc)
+
+        thread = threading.Thread(target=read_again)
+        thread.start()
+        thread.join()
+        reader.close()
+        assert outcome == [[_ep(1, 1)]]
+
+    def test_a_malformed_file_raises_the_acquire_error_and_is_left_untouched(self, tmp_path: Path) -> None:
+        """Read-only reports corruption as the writable path does, but never quarantines nor rewrites the file."""
+        path = tmp_path / "acquire.db"
+        garbage = b"this is not a sqlite database" * 100
+        path.write_bytes(garbage)
+        reader = CatalogueStore.read_only(path)
+        with pytest.raises(AcquireCorruptError):
+            reader.episodes("tvdb", "1")
+        reader.close()
+        assert path.read_bytes() == garbage
+        assert [p.name for p in tmp_path.iterdir()] == ["acquire.db"]

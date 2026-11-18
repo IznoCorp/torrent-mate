@@ -364,12 +364,15 @@ def library_index_command(
                 # is a LIFETIME counter: ``reset_strikes_on_reappearance`` exists
                 # but has no production caller, so seeing a file again never
                 # clears its strikes.
+                # One import for the strikes and the ghost pass below, which
+                # both ask a live mount verification after the walk.
+                from personalscraper.indexer.merkle import verify_disk_mounted  # noqa: PLC0415
+
                 if not dry_run and scan_mode in (ScanMode.full,) and not result.budget_exhausted:
                     from personalscraper.indexer.drift import (  # noqa: PLC0415
                         mark_missed_files,
                         should_apply_drift_for_disk,
                     )
-                    from personalscraper.indexer.merkle import verify_disk_mounted  # noqa: PLC0415
 
                     for d in filtered_disks:
                         if not should_apply_drift_for_disk(d, verify_disk_mounted(d)):
@@ -415,6 +418,57 @@ def library_index_command(
                     if soft_deleted:
                         conn.commit()
 
+                # --- Retire ghost items (full mode, post soft-delete) ---
+                # An item whose folder is gone and whose files are all
+                # tombstoned is deleted, under the 10 % per-disk cap. Asked after
+                # the soft-deletes so the files tombstoned by this very run count.
+                # Same truncation and mount guards as the strikes above; a dry
+                # run reports what would go and writes nothing — and, having
+                # skipped the strikes and soft-deletes, it lists only the items
+                # whose files were ALREADY tombstoned: a lower bound.
+                ghost_items: list[dict[str, object]] = []
+                ghost_capped: list[str] = []
+                ghost_failed: list[str] = []
+                if scan_mode is ScanMode.full and not result.budget_exhausted:
+                    # The strikes above are this run's own writes: committed
+                    # here, the ghost pass opens a transaction of its own (it
+                    # refuses to commit or roll back a caller's). Never on a dry
+                    # run: its transaction holds the rolled-back savepoint, and
+                    # a dry pass writes nothing.
+                    if conn.in_transaction and not dry_run:
+                        conn.commit()
+                    from personalscraper.indexer.ghost_items import (  # noqa: PLC0415
+                        configured_disks,
+                        retire_ghost_items,
+                    )
+
+                    for d in configured_disks(filtered_disks, cfg):
+                        try:
+                            ghost_report = retire_ghost_items(conn, d, verify_disk_mounted(d), dry_run=dry_run)
+                        except sqlite3.Error as ghost_exc:
+                            log.warning(
+                                "indexer.cli.index.ghost_items_failed",
+                                disk_id=d.id,
+                                error=str(ghost_exc),
+                                error_type=type(ghost_exc).__name__,
+                                exc_info=True,
+                            )
+                            ghost_failed.append(d.label)
+                            continue
+                        if ghost_report.capped:
+                            ghost_capped.append(d.label)
+                            continue
+                        ghost_items.extend(
+                            {
+                                "disk": d.label,
+                                "item_id": ghost.item_id,
+                                "title": ghost.title,
+                                "dispatch_path": ghost.dispatch_path,
+                                "reason": ghost.reason,
+                            }
+                            for ghost in ghost_report.ghosts
+                        )
+
                 # --- Drain outbox ---
                 drained = drain_if_present(conn, cfg.indexer)
                 log.debug("indexer.cli.index.outbox_drained", count=drained)
@@ -436,6 +490,14 @@ def library_index_command(
                     # claims is the premise of the strike guard above.
                     "budget_exhausted": result.budget_exhausted,
                     "soft_deleted": soft_deleted,
+                    # Retired, or on a dry run the ones that would be.
+                    "ghost_items": ghost_items,
+                    "ghost_items_capped": ghost_capped,
+                    # Disks whose ghost pass failed (rolled back, logged).
+                    "ghost_items_failed": ghost_failed,
+                    # A dry run strikes nothing, so an item whose last live
+                    # files this run would tombstone is not listed yet.
+                    "ghost_items_lower_bound": dry_run,
                     "dry_run": dry_run,
                     "rebuild": rebuild,
                 }

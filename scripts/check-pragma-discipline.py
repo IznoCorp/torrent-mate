@@ -76,6 +76,13 @@ ALLOWLIST: frozenset[str] = frozenset(
         # web deletion path never writes, creates or migrates acquire.db
         # (operator ruling R1; same rationale as ``indexer/library_view.py`` above).
         str(PACKAGE_ROOT / "acquire" / "delete_authority.py"),
+        # CatalogueStore._reader: opens a genuine ``file:...?mode=ro`` URI
+        # connection with ``query_only=ON`` for the web process's read of
+        # acquire.db. It MUST bypass the canonical writer PRAGMA set — WAL
+        # ``journal_mode`` on a read-only connection raises, and the web process
+        # never writes, creates or migrates acquire.db (same rationale as
+        # ``acquire/delete_authority.py`` above).
+        str(PACKAGE_ROOT / "acquire" / "catalogue.py"),
     }
 )
 

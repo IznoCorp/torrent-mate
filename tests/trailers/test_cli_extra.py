@@ -463,7 +463,7 @@ class TestPurgeFilesystemTruth:
         cfg.indexer.db_path.write_bytes(b"")  # exists → real db_path path taken
         disk = MagicMock()
         disk.id = "Disk1"
-        disk.path = str(disk_dir)
+        disk.path = disk_dir
         disk.categories = ["movies"]
         cfg.disks = [disk]
         cfg.category.side_effect = lambda cid: SimpleNamespace(folder_name="001-MOVIES")
@@ -520,7 +520,7 @@ class TestPurgeFilesystemTruth:
         cfg.indexer.db_path.write_bytes(b"")
         disk = MagicMock()
         disk.id = "Disk1"
-        disk.path = str(disk_dir)
+        disk.path = disk_dir
         disk.categories = ["movies"]
         cfg.disks = [disk]
         cfg.category.side_effect = lambda cid: SimpleNamespace(folder_name="001-MOVIES")
@@ -567,7 +567,7 @@ class TestPurgeFilesystemTruth:
         cfg.indexer.db_path.write_bytes(b"")
         disk = MagicMock()
         disk.id = "Disk1"
-        disk.path = str(disk_dir)
+        disk.path = disk_dir
         disk.categories = ["movies"]
         cfg.disks = [disk]
         cfg.category.side_effect = lambda cid: SimpleNamespace(folder_name="001-MOVIES")

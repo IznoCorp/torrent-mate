@@ -271,8 +271,9 @@ def _reconcile_before_search(acquire: AcquireContext, event_bus: EventBus, conso
         return ReconcileSummary()
 
     try:
-        # client_items=None → ownership half only (see docstring): with no client view the sweep
-        # never requeues, confirms nor settles a hash, so it cannot misread another instance's torrent.
+        # client_items=None → ownership half only (see docstring): the sweep still closes by
+        # ownership (mark_done) and does the season fallback, but never decides on the client's
+        # view, so it cannot misread another instance's torrent.
         summary = reconcile_wanted(store, acquire.ownership, client_items=None, event_bus=event_bus)
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the search
         log.warning("cli.search.reconcile_failed", error=str(exc))

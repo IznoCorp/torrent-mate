@@ -70,6 +70,13 @@ class TorrentItem:
             the auto-reswitch (reswitch #342) needs to decide whether to switch to
             another release. Optional + defaulted so every existing caller and
             mapper stays source-compatible.
+        eta_seconds: Estimated seconds until completion, or ``None`` when unknown.
+        download_speed: Current download speed in bytes per second, or ``None``
+            when the client does not serve it (default ``None``). Populated by the
+            qBittorrent mapper from ``dlspeed`` in ``torrents/info``; the
+            Transmission mapper leaves it ``None`` (``rateDownload`` is not in its
+            field set). ``0`` means the torrent is not advancing, which the
+            watcher uses to keep it out of the quiescence gate's count.
         seeding_time_s: Seconds the client reports the torrent as really seeded
             (qBittorrent ``seeding_time``, Transmission ``secondsSeeding``), or
             ``None`` when absent or negative. The seed-obligation sweep reads it
@@ -93,6 +100,10 @@ class TorrentItem:
     # Estimated seconds until completion, as the client reports it. None when
     # unknown (qBit sentinel 8640000, Transmission -1/-2, or absent).
     eta_seconds: int | None = None
+    # Current download speed in bytes per second, as the client reports it. None
+    # when unknown (field not served by the client); a genuine 0 means « not
+    # advancing » and is distinct from None.
+    download_speed: int | None = None
     seeding_time_s: int | None = None
 
 

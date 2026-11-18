@@ -36,6 +36,7 @@ from typing import Literal
 from personalscraper.indexer import repair as _repair_mod
 from personalscraper.indexer.fingerprint import is_racy, xxh3_partial
 from personalscraper.indexer.merkle import DiskMountStatus
+from personalscraper.indexer.release_linker import relink_after_rename
 from personalscraper.indexer.repos import file_repo, log_repo
 from personalscraper.indexer.schema import DeletedItemRow, DiskRow, MediaFileRow
 from personalscraper.logger import get_logger
@@ -408,7 +409,48 @@ def detect_rename(
         new_path_id=current_path_id,
         new_filename=filename,
     )
+    _relink_renamed_file(conn, cand["id"], current_path_id, filename)
     return "rename_applied"
+
+
+def _relink_renamed_file(conn: sqlite3.Connection, file_id: int, path_id: int, filename: str) -> None:
+    """Re-resolve the release of a file a rename just moved, when the new path names another identity.
+
+    ``media_file.release_id`` survives a rename untouched, so a file moved to another
+    season or episode would stay on the release of its old path: the release linker only
+    handles ``release_id IS NULL``. See
+    :func:`personalscraper.indexer.release_linker.relink_after_rename`. The relink runs in
+    a savepoint. A failure never aborts the scan (the rename itself is already applied): the
+    relink is rolled back, and the file is left unlinked (``release_id`` and ``enriched_at``
+    cleared) so the enrich pass's linker retries it, rather than keeping the release of its
+    old path for good.
+
+    Args:
+        conn: Open SQLite connection.
+        file_id: PK of the renamed ``media_file`` row.
+        path_id: ``path.id`` of the file's new directory.
+        filename: The file's new bare filename.
+    """
+    row = conn.execute(
+        "SELECT d.mount_path, p.rel_path FROM path p JOIN disk d ON d.id = p.disk_id WHERE p.id = ?",
+        (path_id,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return
+    conn.execute("SAVEPOINT relink_after_rename")
+    try:
+        relink_after_rename(conn, file_id, str(Path(row[0]) / row[1] / filename))
+        conn.execute("RELEASE SAVEPOINT relink_after_rename")
+    except sqlite3.Error as exc:
+        log.warning(
+            "indexer.drift.relink_after_rename_failed",
+            file_id=file_id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        conn.execute("ROLLBACK TO SAVEPOINT relink_after_rename")
+        conn.execute("RELEASE SAVEPOINT relink_after_rename")
+        conn.execute("UPDATE media_file SET release_id = NULL, enriched_at = NULL WHERE id = ?", (file_id,))
 
 
 # ---------------------------------------------------------------------------
@@ -448,6 +490,125 @@ def mark_missed_files(conn: sqlite3.Connection, disk_id: int, current_generation
     if count > 0:
         log.info("indexer.drift.miss_strikes_incremented", disk_id=disk_id, count=count, generation=current_generation)
     return count
+
+
+def _soft_delete_file_row(conn: sqlite3.Connection, row: sqlite3.Row, now_seconds: int, reason: str) -> None:
+    """Soft-delete one ``media_file`` row and write its ``deleted_item`` tombstone.
+
+    Args:
+        conn: Open SQLite connection.
+        row: A row carrying ``id, path_id, filename, oshash, size_bytes, mtime_ns, miss_strikes``.
+        now_seconds: Epoch seconds stamped on ``deleted_at`` and the tombstone.
+        reason: Why the file is retired (``'n_strikes'`` from the scanner,
+            ``'refresh_path'`` from a targeted refresh of a deleted folder).
+    """
+    file_id: int = row["id"]
+
+    # Per-row atomic transaction: the deleted_at SET and the
+    # tombstone INSERT must commit together or not at all so a
+    # crash mid-loop cannot leave a row marked deleted without a
+    # tombstone (audit gap) or vice versa.
+    conn.execute("SAVEPOINT soft_delete_row")
+    try:
+        # Mark the live row as soft-deleted.
+        conn.execute(
+            "UPDATE media_file SET deleted_at = ? WHERE id = ?",
+            (now_seconds, file_id),
+        )
+
+        # Build a JSON snapshot of the key fields for the tombstone.
+        # ``miss_strikes`` belongs in the snapshot because it is the only
+        # record of WHY this row was retired, and the row that carried it is
+        # about to stop saying so: a later walk that sees the file again
+        # resets the counter to 0 on sight. Diagnosing the 2026-06-30
+        # mass-tombstone meant reading strike counts off live rows; had a
+        # scan reached them first, the evidence would have been gone.
+        snapshot_payload = json.dumps(
+            {
+                "id": file_id,
+                "path_id": row["path_id"],
+                "filename": row["filename"],
+                "oshash": row["oshash"],
+                "size_bytes": row["size_bytes"],
+                "mtime_ns": row["mtime_ns"],
+                "miss_strikes": row["miss_strikes"],
+            }
+        )
+
+        tombstone = DeletedItemRow(
+            id=0,  # ignored on insert
+            kind="file",
+            original_id=file_id,
+            deleted_at=now_seconds,
+            reason=reason,
+            payload_json=snapshot_payload,
+        )
+        log_repo.insert_deleted_item(conn, tombstone)
+    except sqlite3.Error:
+        conn.execute("ROLLBACK TO soft_delete_row")
+        conn.execute("RELEASE soft_delete_row")
+        raise
+    conn.execute("RELEASE soft_delete_row")
+
+    log.info(
+        "indexer.drift.soft_delete",
+        file_id=file_id,
+        filename=row["filename"],
+        reason=reason,
+    )
+
+
+def soft_delete_live_files_under(
+    conn: sqlite3.Connection,
+    disk_id: int,
+    rel_path_variants: set[str],
+    *,
+    reason: str,
+    unseen_before: int | None = None,
+) -> int:
+    """Soft-delete every live file of a disk subtree, whatever the scanner's strike count.
+
+    Used when the operator names a folder that is gone from the disk, or a folder that
+    was just re-walked in full: the answer is known, so no strikes are waited for. The
+    subtree is every ``path`` row equal to or below one of *rel_path_variants* (the
+    spellings the rows may be stored under).
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the disk owning the subtree.
+        rel_path_variants: Spellings of the subtree root, relative to the disk mount.
+        reason: Tombstone reason.
+        unseen_before: When given, only the files whose ``scan_generation`` is below it —
+            the ones a walk of generation ``unseen_before`` did not see — are retired.
+
+    Returns:
+        Number of ``media_file`` rows soft-deleted.
+    """
+    now_seconds = int(time.time())
+    clauses = " OR ".join("(p.rel_path = ? OR substr(p.rel_path, 1, ?) = ?)" for _ in rel_path_variants)
+    params: list[object] = [disk_id]
+    for variant in sorted(rel_path_variants):
+        params.extend([variant, len(variant) + 1, variant + "/"])
+    unseen_clause = ""
+    if unseen_before is not None:
+        unseen_clause = " AND mf.scan_generation < ?"
+        params.append(unseen_before)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT mf.id, mf.path_id, mf.filename, mf.oshash, mf.size_bytes, mf.mtime_ns, mf.miss_strikes
+              FROM media_file mf
+              JOIN path p ON p.id = mf.path_id
+             WHERE p.disk_id = ? AND mf.deleted_at IS NULL AND ({clauses}){unseen_clause}
+            """,  # noqa: S608 — only placeholders are interpolated
+            params,
+        ).fetchall()
+    finally:
+        conn.row_factory = None
+    for row in rows:
+        _soft_delete_file_row(conn, row, now_seconds, reason)
+    return len(rows)
 
 
 # ---------------------------------------------------------------------------
@@ -494,60 +655,7 @@ def apply_soft_deletes(conn: sqlite3.Connection, disk_id: int, n_strikes_for_sof
 
     count = 0
     for row in candidates:
-        file_id: int = row["id"]
-
-        # Per-row atomic transaction: the deleted_at SET and the
-        # tombstone INSERT must commit together or not at all so a
-        # crash mid-loop cannot leave a row marked deleted without a
-        # tombstone (audit gap) or vice versa.
-        conn.execute("SAVEPOINT soft_delete_row")
-        try:
-            # Mark the live row as soft-deleted.
-            conn.execute(
-                "UPDATE media_file SET deleted_at = ? WHERE id = ?",
-                (now_seconds, file_id),
-            )
-
-            # Build a JSON snapshot of the key fields for the tombstone.
-            # ``miss_strikes`` belongs in the snapshot because it is the only
-            # record of WHY this row was retired, and the row that carried it is
-            # about to stop saying so: a later walk that sees the file again
-            # resets the counter to 0 on sight. Diagnosing the 2026-06-30
-            # mass-tombstone meant reading strike counts off live rows; had a
-            # scan reached them first, the evidence would have been gone.
-            snapshot_payload = json.dumps(
-                {
-                    "id": file_id,
-                    "path_id": row["path_id"],
-                    "filename": row["filename"],
-                    "oshash": row["oshash"],
-                    "size_bytes": row["size_bytes"],
-                    "mtime_ns": row["mtime_ns"],
-                    "miss_strikes": row["miss_strikes"],
-                }
-            )
-
-            tombstone = DeletedItemRow(
-                id=0,  # ignored on insert
-                kind="file",
-                original_id=file_id,
-                deleted_at=now_seconds,
-                reason="n_strikes",
-                payload_json=snapshot_payload,
-            )
-            log_repo.insert_deleted_item(conn, tombstone)
-        except sqlite3.Error:
-            conn.execute("ROLLBACK TO soft_delete_row")
-            conn.execute("RELEASE soft_delete_row")
-            raise
-        conn.execute("RELEASE soft_delete_row")
-
-        log.info(
-            "indexer.drift.soft_delete",
-            file_id=file_id,
-            filename=row["filename"],
-            disk_id=disk_id,
-        )
+        _soft_delete_file_row(conn, row, now_seconds, "n_strikes")
         count += 1
 
     return count

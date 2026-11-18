@@ -530,7 +530,8 @@ def _rescrape(
             errors=result.error_count,
             total=t("cli_library.analyze.total", total=total),
         )
-        if write_report:
+        # A dry run writes nothing: the report would overwrite the last real run's.
+        if write_report and not dry_run:
             output_path = config.paths.data_dir / "library_rescrape.json"
             write_json(result, output_path)
             summary += f" → {output_path}"
