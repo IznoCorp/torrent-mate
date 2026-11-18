@@ -10,6 +10,7 @@ import { observeElementRect } from "@tanstack/react-virtual";
 import type { Rect } from "@tanstack/react-virtual";
 import { describe, expect, it } from "vitest";
 import { observeViewport } from "./observe-viewport";
+import { SCROLLER_OBSERVERS } from "./virtual-rows";
 
 type Watch = { target: unknown; options: ResizeObserverOptions | undefined };
 
@@ -38,9 +39,13 @@ function fakeVirtualizer(scroller: object | null, targetWindow: object | null) {
 }
 
 describe("the scroller observer", () => {
+  it("is the one the window's virtualizer is given", () => {
+    expect(SCROLLER_OBSERVERS.observeElementRect).toBe(observeViewport);
+  });
+
   it("is not the library's, which watches the content box", () => {
     const { targetWindow, watches } = fakeWindow();
-    const scroller = { clientWidth: 390, clientHeight: 775, offsetWidth: 390, offsetHeight: 775 };
+    const scroller = { clientWidth: 390, clientHeight: 775 };
     observeElementRect(fakeVirtualizer(scroller, targetWindow), () => {});
     expect(watches.map((watch) => watch.options?.box)).toEqual(["content-box"]);
   });

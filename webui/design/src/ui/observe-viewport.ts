@@ -18,9 +18,15 @@
 //
 // A padding change moves nothing the window reads. What the window needs is the
 // viewport's size (`clientWidth`/`clientHeight`), and the padding is inside it;
-// only a change of the border box can change that size, which is the box the
-// observer watched before 3.19. So this watches the border box, and reports the
-// same numbers the library does.
+// a change of the border box is what moves that size, which is the box the
+// observer watched before 3.19. So this watches the border box, and reads the
+// same measurement the library does, from the same properties.
+//
+// WHAT IT DOES NOT SEE, and 3.17 did not either: a classic scrollbar appearing
+// narrows `clientWidth` with the border box unchanged. The window windows a
+// vertical list by HEIGHT, `#port` clips its horizontal overflow
+// (`overflow-x-clip`) so no scrollbar can shorten it, and the columns of a gallery
+// are read from the rendered grid (`ui/window-geometry.ts`), never from this width.
 import type { Rect, Virtualizer } from "@tanstack/react-virtual";
 
 /**

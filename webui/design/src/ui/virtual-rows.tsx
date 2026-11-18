@@ -55,6 +55,14 @@ import { observeViewport } from "./observe-viewport";
 import { useReaderPlace } from "./reader-place";
 import { useWindowGeometry } from "./window-geometry";
 
+/**
+ * The virtualizer options that decide how its scroller is watched, apart so a test can name them.
+ *
+ * THE SCROLLER IS WATCHED THROUGH ITS BORDER BOX — `ui/observe-viewport.ts`
+ * carries why the library's own content-box observer cannot be used here.
+ */
+export const SCROLLER_OBSERVERS = { observeElementRect: observeViewport } as const;
+
 /** What the surface tells the window, and none of it names a domain. */
 export type VirtualRowsProperties = {
   /** How many rows exist in total. */
@@ -143,9 +151,7 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     // Enough rendered beyond the viewport that a fast flick never shows a gap,
     // and few enough that the node count stays a small constant.
     overscan: 4,
-    // THE SCROLLER IS WATCHED THROUGH ITS BORDER BOX — `ui/observe-viewport.ts`
-    // carries why the library's own content-box observer cannot be used here.
-    observeElementRect: observeViewport,
+    ...SCROLLER_OBSERVERS,
   });
 
   // THE MEASUREMENTS ARE RE-TAKEN WHEN THE PITCH MOVES, and nothing else does
