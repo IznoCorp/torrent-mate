@@ -39,6 +39,8 @@ CAPTURES: tuple[tuple[str, str, str, str], ...] = (
     ("matrix", "tmdb", "/search/movie", "matrix"),
     ("top chef", "tmdb", "/search/tv", "top-chef"),
     ("top chef", "tvdb", "/search", "top-chef"),
+    ("L'Institut", "tvdb", "/search", "l-apostrophe-institut"),
+    ("L Institut", "tvdb", "/search", "l-institut-no-apostrophe"),
     ("les evades", "tmdb", "/search/movie", "les-evades"),
     ("기생충", "tmdb", "/search/movie", "hangul-parasite"),
     ("進撃の巨人", "tmdb", "/search/tv", "kanji-attack-on-titan"),

@@ -64,6 +64,60 @@ def _tv_fallback_title_variants(title: str) -> list[str]:
     return variants
 
 
+#: A French elided article or pronoun left behind by a release name: the elision letter(s) as a
+#: whole word, then a vowel or ``h`` (the sounds an elision happens before). ``\b`` keeps it to a
+#: word start, so ``Aujourd Hui`` is untouched. ``s`` and ``t`` are left out on purpose: an English
+#: possessive (``Grey s Anatomy``) must not become ``Grey'Anatomy``.
+_FRENCH_ELISION_RE = re.compile(
+    r"\b(l|d|j|m|n|c|qu|jusqu|lorsqu|puisqu)\s+(?=[aeiouyhàâäéèêëîïôöùûüœ])",  # french-ok: vowel class
+    re.IGNORECASE,
+)
+
+
+def _restore_french_elisions(title: str) -> str | None:
+    """Put the apostrophe back into a French title that lost it.
+
+    A release name cannot carry an apostrophe (``L.Institut.S02E01``), so the folder title reaches
+    the matcher as ``L Institut``. TVDB's ``/search`` indexes ``L'Institut`` as one token and
+    returns nothing for the spaced form, while the same show is found by the apostrophe form.
+
+    Args:
+        title: Cleaned show title from the local folder.
+
+    Returns:
+        The title with its elisions restored (``L'Institut``), or ``None`` when there is nothing to
+        restore.
+    """
+    restored = _FRENCH_ELISION_RE.sub(lambda m: f"{m.group(1)}'", title)
+    return restored if restored != title else None
+
+
+def _search_tvdb(tvdb_client: object, title: str, year: int | None) -> list[SearchResult]:
+    """Search TVDB for ``title``, merging the no-year candidates within the year window.
+
+    TVDB's year filter (like TMDB's) can exclude the correct show when its first-air year differs
+    by a year or two from a similarly-titled show's. When a year is present, the no-year
+    candidates within the fallback window are fetched and merged so the right show survives to
+    scoring. Same bug class as the movie path (fixed there first).
+
+    Args:
+        tvdb_client: TVDBClient instance.
+        title: Query title.
+        year: First air date year (None if not detected).
+
+    Returns:
+        The merged search results (empty when TVDB has none).
+    """
+    results: list[SearchResult] = tvdb_client.search_series(title, year)  # type: ignore[attr-defined]
+    if year is not None:
+        windowed = _filter_by_year_window(
+            tvdb_client.search_series(title, None),  # type: ignore[attr-defined]
+            year,
+        )
+        results = _merge_results(results, windowed)
+    return results
+
+
 def _candidate_has_any_season(
     tvdb_client: object,
     tvdb_id: int,
@@ -128,19 +182,18 @@ def match_tvshow_tvdb_detailed(
         Tuple of (best :class:`MatchResult` with source="tvdb" or None,
         top-5 :class:`DecisionCandidate` list).
     """
-    results = tvdb_client.search_series(title, year)  # type: ignore[attr-defined]
-    # Year-window merge: TVDB's year filter (like TMDB's) can exclude the correct
-    # show when its first-air year differs by a year or two from a similarly-titled
-    # show's. When a year is present, also fetch the no-year candidates within the
-    # fallback window and merge them so the right show survives to scoring. Same
-    # bug class as the movie path (fixed there first); TVDB previously had no
-    # no-year fallback at all, so this also closes that gap.
-    if year is not None:
-        windowed = _filter_by_year_window(
-            tvdb_client.search_series(title, None),  # type: ignore[attr-defined]
-            year,
-        )
-        results = _merge_results(results, windowed)
+    results = _search_tvdb(tvdb_client, title, year)
+    if not results:
+        # TVDB tokenises ``L'Institut`` as one word and finds nothing for ``L Institut``. Retry
+        # once with the elision apostrophes restored before declaring TVDB silent: a silent TVDB
+        # hands a TVDB-canonical show to the TMDB fallback and its episodes a tmdb-only NFO. The
+        # candidates are still scored against the ORIGINAL title (``default_process`` reads the
+        # apostrophe as a space), so a wrong restoration cannot invent a match.
+        restored = _restore_french_elisions(title)
+        if restored is not None:
+            results = _search_tvdb(tvdb_client, restored, year)
+            if results:
+                log.info("show_tvdb_elision_retry", title=title, query=restored, results=len(results))
     if not results:
         log.info("show_no_tvdb_results", title=title, year=year)
         return None, []

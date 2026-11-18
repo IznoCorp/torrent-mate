@@ -1,0 +1,1211 @@
+{
+ "data": [
+  {
+   "aliases": [
+    "The Institute (2025)",
+    "The Institute"
+   ],
+   "country": "usa",
+   "first_air_time": "2025-07-13",
+   "id": "series-451177",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/451177/posters/68752b8ee3b0b.jpg",
+   "name": "The Institute",
+   "network": "MGM+",
+   "objectID": "series-451177",
+   "overview": "Luke Ellis, a 12-year-old genius, is kidnapped and awakens at The Institute, a facility full of children who all got there the same way he did, and all of whom possess unusual abilities. Former police officer Tim Jamieson's story and Luke’s are destined to collide.",
+   "overviews": {
+    "deu": "Luke Ellis, ein 14-jähriges Genie, wird entführt und erwacht im Institut, einer Einrichtung voller Kinder, die alle auf die gleiche Weise wie er dorthin gekommen sind und die alle ungewöhnliche Fähigkeiten besitzen. Die Geschichte des ehemaligen Polizisten Tim Jamieson und die von Luke sind dazu bestimmt, miteinander zu kollidieren.",
+    "eng": "Luke Ellis, a 12-year-old genius, is kidnapped and awakens at The Institute, a facility full of children who all got there the same way he did, and all of whom possess unusual abilities. Former police officer Tim Jamieson's story and Luke’s are destined to collide.",
+    "fin": "Jännityssarja perustuu Kingin samannimiseen romaaniin ja seuraa teini-ikäistä Luke Ellisiä, joka joutuu siepatuksi ja herää epätavallisin kyvyin varustettuja lapsia täynnä olevassa laitoksessa. Lapset alkavat taistelle laitosta vastaan, joka yrittää ”pelastaa maailman” heidän voimiensa avulla. Ahdistunut entinen poliisi Tim Jamieson on saapunut läheiseen kaupunkiin aloittaakseen uuden elämän, mutta ei kestä kauaa, kun näiden kahden tarinat jo törmäävät toisiinsa.",
+    "fra": "Luke Ellis, un jeune génie de 12 ans, est kidnappé et se réveille à l'Institut, un établissement rempli d'enfants qui sont tous arrivés là de la même façon que lui et qui possèdent tous des capacités inhabituelles. L'histoire de Tim Jamieson, ancien policier, et celle de Luke sont destinées à s'entrechoquer.",
+    "heb": "מותחן אימה בדיוני, על פי הרומן המצליח באותו השם מאת סטיבן קינג. לוק אליס, ילד בן 12 בעל כוחות טלפתיים, נחטף ומועבר למוסד ממשלתי סודי בלב יער מבודד. שם הוא מגלה ילדים נוספים עם כוחות יוצאי דופן, כולם כפופים לניסויים אכזריים ולמנהלת מסתורית בשם גברת סיגסבי. בעוד לוק מנסה להבין את מטרת המקום, סיפור מקביל מתרקם בעיירה שקטה בקרבת מקום, שם תובע לשעבר בשם טים ג'יימסון מתחיל לחקור סדרת היעלמויות מסתורית.",
+    "ita": "Luke Ellis, un quattordicenne prodigio, viene rapito nel cuore della notte e portato all'Istituto, una struttura simile a una prigione nel Maine rurale che ospita adolescenti dotati di poteri psichici. Lo dirige la signora Sigsby, una inflessibile fanatica disposta a tutto pur di portare a termine la sua missione. Tra la signora Sigsby e Luke si scatena uno scontro di determinazione e ingegno.",
+    "pol": "Nastoletniego geniusz Luke Ellis (Freeman) zostaje porwany i budzi się w Instytucie — tajemniczym ośrodku pełnym dzieci, które trafiły tam w identyczny sposób jak on i wszystkie posiadają niezwykłe zdolności. W pobliskim miasteczku były policjant Tim Jamieson (Barnes), prześladowany przez demony przeszłości, próbuje zacząć nowe życie w spokoju, ale cisza nie potrwa długo — jego los i historia Luke’a są bowiem nieuchronnie ze sobą splecione.",
+    "pt": "Luke Ellis, um garoto prodígio de 14 anos, é sequestrado no meio da noite e levado ao Instituto, uma instalação parecida com uma prisão no interior do Maine que mantém crianças com habilidades psíquicas. O lugar é comandado pela Sra. Sigsby, uma mulher sádica e obstinada, disposta a tudo para cumprir sua missão. Logo, ela e Luke se veem presos em um perigoso duelo de vontades e inteligência.",
+    "rus": "«Институт» — телевизионная адаптация романа Стивена Кинга, повествующая о жестоких экспериментах над одаренными детьми. Тим Джеймисон — бывший полицейский из Бостона, уволенный из-за громкого скандала. Мужчина оказывается в одном из городков обожаемого Кингом штата Мэн, где работает кем-то вроде патрульного. Тем временем в Миннеаполисе 14-летний вундеркинд Люк готовится окончить школу, чтобы поступить в престижный Массачусетский технологический институт, но его похищают и доставляют в странное бетонное сооружение, расположенное неподалеку от того самого городка. Под строгим надзором мисс Сигсби и главы службы безопасности Стэкхауса Люк и несколько его товарищей по несчастью становятся подопытными кроликами в пугающем эксперименте с неясными целями. Сможет ли парень сколотить команду единомышленников и выбраться на свободу, пока его гениальный мозг не превратили в кашу?..",
+    "spa": "Luke Ellis, un genio de 14 años, es secuestrado en plena noche y trasladado al Instituto, una instalación en el Maine rural que recluye a niños con habilidades psíquicas. Su directora es la Sra. Sigsby, una sádica y firme defensora de la causa que hará cualquier cosa para llevar a cabo su misión. Sigsby y Luke chocan de inmediato en un letal enfrentamiento de opiniones.",
+    "srp": "Лук Елис, дванаестогодишњи геније, бива киднапован и буди се у Институту, установи пуној деце која су сва тамо стигла на исти начин као и он, и сва поседују необичне способности.",
+    "swe": "Ett gäng barn blir tvingade att ta saker och ting i egna händer i Stephen Kings paranormala thrillerserie."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt10946316",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.mgmplus.com/series/the-institute",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "253372",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "77778",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "The_Institute_(TV_series)",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "the-institute",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/451177/posters/68752b8ee3b0b_t.jpg",
+   "translations": {
+    "deu": "Das Institut",
+    "eng": "The Institute",
+    "fin": "The Institute",
+    "fra": "L'Institut",
+    "heb": "המכון",
+    "ita": "L'Istituto",
+    "pol": "The Institute",
+    "pt": "O Instituto",
+    "rus": "Институт",
+    "spa": "El instituto",
+    "srp": "Институту",
+    "swe": "The Institute"
+   },
+   "tvdb_id": "451177",
+   "type": "series",
+   "year": "2025"
+  },
+  {
+   "country": "esp",
+   "first_air_time": "2016-09-15",
+   "id": "series-317161",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/317161-1.jpg",
+   "name": "El instituto",
+   "objectID": "series-317161",
+   "overview": "\"El instituto\" es una serie documental que durante 7 semanas y, a través de 55 cámaras robotizadas, registra el día a día de un grupo de alumnos de 4º de la E.S.O. que está a punto de enfrentarse a la graduación. Una ocasión única para apreciar los desafíos y los retos de la educación española por dentro.",
+   "overviews": {
+    "spa": "\"El instituto\" es una serie documental que durante 7 semanas y, a través de 55 cámaras robotizadas, registra el día a día de un grupo de alumnos de 4º de la E.S.O. que está a punto de enfrentarse a la graduación. Una ocasión única para apreciar los desafíos y los retos de la educación española por dentro."
+   },
+   "primary_language": "spa",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt5949702",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "102779",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "317161-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/317161-1_t.jpg",
+   "translations": {
+    "eng": "The High School",
+    "spa": "El instituto"
+   },
+   "tvdb_id": "317161",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "nld",
+   "first_air_time": "2016-10-20",
+   "id": "series-319005",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/319005-1.jpg",
+   "name": "Het Instituut",
+   "network": "BNNVARA",
+   "objectID": "series-319005",
+   "overview": "Honderd mensen worden een week lang opgesloten in een voormalige kazerne in Ede: Het Instituut. Contact met de buitenwereld is gelimiteerd en alle honderd proefpersonen krijgen een gelijke behandeling: dezelfde kleding, hetzelfde eten, eenzelfde slaapplaats. Een week lang fungeren zij als proefpersonen en worden onderworpen aan tientallen psychologische, sociale en fysieke onderzoeken en experimenten. Een walhalla voor de onderzoekers. En een onvergetelijke ervaring voor de deelnemers.",
+   "overviews": {
+    "eng": "One hundred people are locked up for a week in a former barracks in Ede: Het Instituut. Contact with the outside world is limited and all hundred test subjects receive equal treatment: the same clothing, the same food, the same place to sleep. For a week, they act as test subjects and are subjected to dozens of psychological, social and physical examinations and experiments. A mecca for researchers. And an unforgettable experience for the participants.",
+    "nld": "Honderd mensen worden een week lang opgesloten in een voormalige kazerne in Ede: Het Instituut. Contact met de buitenwereld is gelimiteerd en alle honderd proefpersonen krijgen een gelijke behandeling: dezelfde kleding, hetzelfde eten, eenzelfde slaapplaats. Een week lang fungeren zij als proefpersonen en worden onderworpen aan tientallen psychologische, sociale en fysieke onderzoeken en experimenten. Een walhalla voor de onderzoekers. En een onvergetelijke ervaring voor de deelnemers."
+   },
+   "primary_language": "nld",
+   "primary_type": "series",
+   "slug": "319005-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/319005-1_t.jpg",
+   "translations": {
+    "eng": "The institute (2016)",
+    "nld": "Het Instituut"
+   },
+   "tvdb_id": "319005",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2007-06-25",
+   "id": "series-345125",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Women's Institute",
+   "network": "BBC Four",
+   "objectID": "series-345125",
+   "overview": "Documentary about the Women's Institute as it finds its way into the 21st century, revealing the lives of a formidable group of women who are holding communities together across Britain",
+   "overviews": {
+    "eng": "Documentary about the Women's Institute as it finds its way into the 21st century, revealing the lives of a formidable group of women who are holding communities together across Britain"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "345125-show",
+   "status": "Ended",
+   "translations": {
+    "eng": "Women's Institute"
+   },
+   "tvdb_id": "345125",
+   "type": "series",
+   "year": "2007"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2020-09-28",
+   "id": "series-389268",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "The Gravel Institute",
+   "network": "YouTube",
+   "objectID": "series-389268",
+   "overview": "The Gravel Institute was founded in 2019 to carry on the life’s work of former U.S Senator Mike Gravel in fighting for global peace and democracy. Its mission is to promote bold and forward-looking ideas about a more peaceful and egalitarian world, and to build a robust movement of young people to win it.",
+   "overviews": {
+    "eng": "The Gravel Institute was founded in 2019 to carry on the life’s work of former U.S Senator Mike Gravel in fighting for global peace and democracy. Its mission is to promote bold and forward-looking ideas about a more peaceful and egalitarian world, and to build a robust movement of young people to win it."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "the-gravel-institute",
+   "status": "Ended",
+   "translations": {
+    "eng": "The Gravel Institute"
+   },
+   "tvdb_id": "389268",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "country": "deu",
+   "first_air_time": "2018-01-03",
+   "id": "series-339293",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/339293-1.jpg",
+   "name": "Das Institut – Oase des Scheiterns",
+   "network": "BR",
+   "objectID": "series-339293",
+   "overview": "Am Ende der Welt versucht ein deutsches Sprach- und Kulturinstitut, das islamische Volk von Kisbekistan für Deutschland und seine Werte zu begeistern.",
+   "overviews": {
+    "deu": "Am Ende der Welt versucht ein deutsches Sprach- und Kulturinstitut, das islamische Volk von Kisbekistan für Deutschland und seine Werte zu begeistern.",
+    "eng": "At the end of the world a German language and cultural institute tries to inspire the Islamic people of Kisbekistan for Germany and its values."
+   },
+   "primary_language": "deu",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt5808002",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "34191",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "Q47087924",
+     "sourceName": "Wikidata",
+     "type": 18
+    }
+   ],
+   "slug": "339293-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/339293-1_t.jpg",
+   "translations": {
+    "deu": "Das Institut – Oase des Scheiterns",
+    "eng": "The institute - Oasis of Failure"
+   },
+   "tvdb_id": "339293",
+   "type": "series",
+   "year": "2018"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2025-12-26",
+   "id": "series-472949",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/472949/posters/696dbb674d956.jpg",
+   "name": "The Monroe Institute Experience",
+   "objectID": "series-472949",
+   "overview": "Through guided learning and direct practice, you’ll explore the Focus Levels — learnable states of expanded awareness that move beyond ordinary perception of time, space, and self. These are not abstract ideas, but step-by-step and repeatable experiences designed to help you access deeper clarity, intuition, and inner balance. With each Focus Level building naturally upon the last, you can deepen and expand your consciousness at your own pace.",
+   "overviews": {
+    "eng": "Through guided learning and direct practice, you’ll explore the Focus Levels — learnable states of expanded awareness that move beyond ordinary perception of time, space, and self. These are not abstract ideas, but step-by-step and repeatable experiences designed to help you access deeper clarity, intuition, and inner balance. With each Focus Level building naturally upon the last, you can deepen and expand your consciousness at your own pace."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "the-monroe-institute-experience",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/472949/posters/696dbb674d956_t.jpg",
+   "translations": {
+    "eng": "The Monroe Institute Experience"
+   },
+   "tvdb_id": "472949",
+   "type": "series",
+   "year": "2025"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2017-09-04",
+   "id": "series-357868",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/357868/posters/6955c6d985bd8.jpg",
+   "name": "PINY: Institute of New York",
+   "network": "Pop TV",
+   "objectID": "series-357868",
+   "overview": "Join Michelle, Tasha, Lilith, Julia, Dory and Rita at the PINY Institute of New York as they study at the prestigious college in a bid to become top fashions designers! Michelle finds herself being able to make friends with the Indie Girls but also rivals with the Beautiful Girls! Watch as Michelle's creativity and determination help her to achieve her dreams!!",
+   "overviews": {
+    "eng": "Join Michelle, Tasha, Lilith, Julia, Dory and Rita at the PINY Institute of New York as they study at the prestigious college in a bid to become top fashions designers! Michelle finds herself being able to make friends with the Indie Girls but also rivals with the Beautiful Girls! Watch as Michelle's creativity and determination help her to achieve her dreams!!",
+    "fra": "Michelle rêve de devenir une grande styliste de mode. Très talentueuse,  elle est acceptée dans une prestigieuse école, PINY, l’institut de mode de New-York. Là-bas, Michelle devient amie avec Tasha et Lilith. Ensemble, elles vont former le groupe des Indie Girls et affronter la terrible Julia, ses deux copines Rita et Dory, et leurs plans diaboliques !",
+    "rus": "Мишель Фэйрчайлд, скромная 14-летняя девушка, увлечённая дизайном одежды и миром моды, получает приглашение на собеседование в престижный ПИНИ: Перспективный Институт Нью-Йорка в качестве претендентки на полную стипендию. Хотя собеседование не задалось, директор ПИНИ мадам Форбс всё же решает принять Мишель на учёбу. \r\nВ институте девушка знакомится с соседкой по комнате Ташей Робинсон, занимающейся пением, и с Лилит Хендерсон, имеющей склонность к точным наукам. В итоге Мишель подружится с ними, и вместе они сформируют команду Независимые, противостоящую группе Красотки, которую возглавляет своенравная задавака Джулия Купер. Джулия вместе со своими приспешницами Дори и Ритой постоянно пытаются унизить Мишель и её подруг.",
+    "spa": "Michelle y sus amigas experimentan emocionantes aventuras en un exclusivo instituto de Nueva York centrado en la educación en diseño y moda. En este entorno, aprenderán a lidiar con el amor, la amistad y los celos mientras avanzan en sus estudios."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt10517218",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "piny-institute-of-new-york",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/357868/posters/6955c6d985bd8_t.jpg",
+   "translations": {
+    "eng": "PINY: Institute of New York",
+    "fra": "PINY",
+    "rus": "ПИНИ: Перспективный Институт Нью-Йорка",
+    "spa": "PINY: Instituto de Nueva York"
+   },
+   "tvdb_id": "357868",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "country": "usa",
+   "id": "series-259216",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "The Culinary Institute of America",
+   "objectID": "series-259216",
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "the-culinary-institute-of-america",
+   "status": "Ended",
+   "translations": {
+    "eng": "The Culinary Institute of America"
+   },
+   "tvdb_id": "259216",
+   "type": "series"
+  },
+  {
+   "aliases": [
+    "gamberro de instituto"
+   ],
+   "country": "usa",
+   "first_air_time": "2017-09-15",
+   "id": "series-332828",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/332828-4.jpg",
+   "name": "American Vandal",
+   "network": "Netflix",
+   "objectID": "series-332828",
+   "overview": "A high school is rocked by an act of vandalism, but the top suspect pleads innocence and finds an ally in a filmmaker. A satirical true crime mystery.",
+   "overviews": {
+    "ces": "Odvážná satira popisuje události v americkém státě Kalifornie, kde na místní střední škole bylo poškozeno celkem 27 automobilů obrázkem znázorňující mužský pohlavní orgán. Většina lidí ihned ukazuje prstem na Dylana Maxwella, studenta školy, který je již několik let posedlý malováním penisů na různá místa. Dylan však tvrdí, že nic takové neudělal. Mají ostatní pravdu, nebo za tím stojí opravdu někdo jiný?",
+    "deu": "Die satirische Comedy-Serie nimmt den anhaltenden Trend der True-Crime-Dokus aufs Korn, die sich mit der Aufklärung wahrer Verbrechen beschäftigen. Im Mittelpunkt der Parodie „American Vandal“ steht das Nachspiel eines aus dem Ruder gelaufenen Streiches an einer High School. Ein Unbekannter hat riesige Phallussymbole auf 27 Autos gesprayt. Wer für die Schmierereien verantwortlich ist, scheint ein offenes Geheimnis. Doch der Verdächtige Dylan Maxwell beteuert seine Unschuld. Mithilfe von Interviews mit Angehörigen, Schülern, Angestellten der High School, Ermittlern und exklusiven Videoaufnahmen möchte ein Dokumentarfilmer dem Rätsel der Penisse auf die Spur kommen …",
+    "eng": "A high school is rocked by an act of vandalism, but the top suspect pleads innocence and finds an ally in a filmmaker. A satirical true crime mystery.",
+    "est": "Krimidokumentaalide paroodia fookuses on keskoolis toime pandud kulukas vemp, mille käigus joonistati 27 autole meessuguelundite pildid. Kooli juhtkond mõistab süüdi abituriendist \"klassi klouni\" Dylan Maxwelli (Jimmy Tatro), kes karistuseks koolist välja visatakse. Juhtumi otsustab aga uuesti käsile võtta sama kooli 10. klassis käiv Peter Maldonado (Tyler Alvarez), et välja uurida, kas kuriteo taga on tõesti Dylan või pole kõik sugugi nii lihtne kui esialgu tundus.",
+    "fin": "Peter ja Sam etsivät ensimmäisen dokumenttinsa menestyksen jälkimainingeissa uutta aihetta ja valitsevat washingtonilaisen lukion kuvottavan mysteerin.",
+    "fra": "En huit épisodes, un lycéen tentera d’innocenter un de ses camarades viré du bahut… pour avoir dessiné des pénis géants sur 27 voitures et notamment celles des profs de l’établissement.",
+    "heb": "\"חוליגן אמריקאי\" עוסקת במעשה ונדליזם מזעזע בית ספר תיכון, אבל החשוד העיקרי טוען כי הוא חף מפשע ומקבל סיוע מיוצר סרטים. סאטירה על סרטי פשע אמיתי.",
+    "hun": "Az American Vandal az elmúlt időszak dokusorozatainak szerkezetére építkezik, azok stílusában prezentálnak egy bagatellnek tűnő esetet, nyilván szatirikus hangnemben. A csavar az egészben, hogy a bűncselekmény mégsem annyira bagatell. A sorozat nem annyira komédia, a rejtély faktor pedig abszolút kiemelt szerepet kap. Nyomozónk célja az, hogy utánajárjon jogosan rúgták-e ki az iskola egyik kőostoba rosszfiúját, miután őt gyanúsították meg azzal, hogy összesen 27 hímvesszőt pingált a tanári kar 27 tagjának gépjárművére, ezzel 100 ezer dolláros kárt okozva.",
+    "ita": "Verità. Giustizia. Pene. Un giovane cerca la nuda verità in un parcheggio scolastico imbrattato con disegni di falli.",
+    "nld": "Als grappenmaker Dylan Maxwell in zijn laatste jaar van school wordt gestuurd voor vandalisme, onderzoekt tweedejaarsscholier Peter Maldonado of Dylan echt schuldig is.",
+    "pol": "W liceum ktoś dokonuje aktu wandalizmu, ale główny podejrzany nie przyznaje się do winy i znajduje sojusznika w osobie pewnego filmowca. Intryga kryminalna na wesoło.",
+    "por": "Neste documentário policial, o estacionamento de um liceu é vandalizado, mas o principal suspeito declara-se inocente e alia-se a um cineasta para descobrir o culpado.",
+    "pt": "Neste híbrido de documentário investigativo e sátira, uma escola entra em choque quando o estacionamento é pichado, mas o principal suspeito nega tudo.",
+    "rus": "Сериал представлен в виде документального расследования и высмеивает телевизионные хиты последних лет: «Создавая убийцу» и «О. Джей: Сделано в Америке». По сюжету, кто-то разрисовал 27 припаркованных около школы машин членами. Вся школа подозревает одного старшеклассника, который заявляет о своей невиновности. Интервью учителей и одноклассников, шокирующие кадры с места происшествия и расследование — классические элементы документального кино будут поданы в виде тридцатиминутных эпизодов.",
+    "spa": "Cuando el sospechoso de una gamberrada épica en un instituto afirma ser inocente, un cineasta se pone de su parte en esta sátira sobre los programas de crímenes reales.",
+    "swe": "Denna mockumentär skildrar ett fall där en skola vandaliseras, men den huvudmisstänkte blånekar och får stöd av en filmmakare.",
+    "zho": "在這部諷刺真實罪案懸疑推理的偽紀錄影集中，一場破壞行動震撼整間高中，頭號嫌疑犯卻堅稱無罪，還得到一位製片聲援。"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt6877772",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "73126",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "american-vandal",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/332828-4_t.jpg",
+   "translations": {
+    "ces": "American Vandal",
+    "deu": "American Vandal",
+    "eng": "American Vandal",
+    "est": "Ameerika vandaal",
+    "fin": "American Vandal",
+    "fra": "American Vandal",
+    "heb": "חוליגן אמריקאי",
+    "hun": "American Vandal",
+    "ita": "American Vandal",
+    "nld": "American Vandal",
+    "por": "American Vandal",
+    "pt": "Vândalo Americano",
+    "rus": "Американский Вандал",
+    "spa": "American Vandal",
+    "zho": "美國高中破壞公物事件"
+   },
+   "tvdb_id": "332828",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "aliases": [
+    "The American Film Institute Salute"
+   ],
+   "country": "usa",
+   "first_air_time": "1973-03-31",
+   "id": "series-146191",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5ce9ab762b37c.jpg",
+   "name": "AFI Life Achievement Award",
+   "network": "CBS",
+   "objectID": "series-146191",
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt15441582",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "23608",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "afi-life-achievement-award",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5ce9ab762b37c_t.jpg",
+   "translations": {
+    "eng": "AFI Life Achievement Award"
+   },
+   "tvdb_id": "146191",
+   "type": "series",
+   "year": "1973"
+  },
+  {
+   "aliases": [
+    "AKB48 17 Research Institute!"
+   ],
+   "country": "jpn",
+   "first_air_time": "2022-07-10",
+   "id": "series-426747",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/426747/posters/6362afb031a04.jpg",
+   "name": "AKB48 17研究所!",
+   "objectID": "series-426747",
+   "overview": "AKB48 17期研究生の第一弾番組。一流のアイドルを目指して様々なことに挑戦していきます。",
+   "overviews": {
+    "eng": "'AKB48 17 kenkyuujo!' (AKB48 17 Research Institute!), is the first program of AKB48 17th generation research students. They will explore various things with the aim of becoming a first-class idol.",
+    "jpn": "AKB48 17期研究生の第一弾番組。一流のアイドルを目指して様々なことに挑戦していきます。"
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://nicochannel.jp/akb48-17ken/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "akb48_17ken",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    }
+   ],
+   "slug": "akb48-17",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/426747/posters/6362afb031a04_t.jpg",
+   "translations": {
+    "eng": "AKB48 17 kenkyuujo!",
+    "jpn": "AKB48 17研究所!"
+   },
+   "tvdb_id": "426747",
+   "type": "series",
+   "year": "2022"
+  },
+  {
+   "aliases": [
+    "Potato Research Institute",
+    "Potato Research Center",
+    "НИИ Картофеля"
+   ],
+   "country": "kor",
+   "first_air_time": "2025-03-01",
+   "id": "series-452991",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/452991/posters/68eb88a249b3d.jpg",
+   "name": "감자연구소",
+   "network": "tvN",
+   "objectID": "series-452991",
+   "overview": "감자를 연구하는 감자연구소. 이곳에 까칠한 이사가 새로 부임하면서, 열혈 연구원의 삶에 핑크빛이 감돌기 시작한다. 아무도 예상치 못한 곳에서도 사랑은 싹틀 수 있는 법.",
+   "overviews": {
+    "ara": "تتخذ حياة باحثة شغوفة منعطفًا مفاجئًا عندما يصل مدير صارم جديد إلى مختبر البطاطس الذي تعمل فيه... ويتضح أنّ الحب قد يزهر في أكثر الأماكن غير المتوقعة.",
+    "deu": "Das Leben einer leidenschaftlichen Forscherin ändert sich, als ein strenger Direktor ihr Kartoffellabor besucht. Doch Liebe kann an den ungewöhnlichsten Orten aufkeimen.",
+    "eng": "Six years ago, Mi-kyung, who was in a workplace romance at Wonjin Retail, lost both love and her job due to her boyfriend’s betrayal and impulsively ran away to her younger brother’s guesthouse. One day, while researching potatoes in the fresh air of Daegwallyeong, news comes that Seonnyeo Foods is acquired by Wonjin Retail, and an attractive yet cold-hearted figure, Baek-ho, is appointed as the new head of the Potato Research Institute. Kim Mi-kyung and So Baek-ho don’t get along and they have conflicts on pretty much everything.",
+    "fin": "Intohimoisen tutkijan elämä muuttuu, kun hänen perunalaboratorionsa saa uuden tiukan johtajan. Rakkaus voi totisesti itää yllättävissä paikoissa.",
+    "fra": "La vie d'une chercheuse passionnée bascule lorsqu'un directeur strict débarque dans son labo de pommes de terre, prouvant que l'amour peut éclore n'importe où.",
+    "hun": "Egy szenvedélyes kutató élete gyökeresen megváltozik, amikor\r\nszigorú igazgató érkezik a burgonyakutató központba - bebizonyítva, hogy bárhol szárba szökkenhet a szerelem,",
+    "kor": "감자를 연구하는 감자연구소. 이곳에 까칠한 이사가 새로 부임하면서, 열혈 연구원의 삶에 핑크빛이 감돌기 시작한다. 아무도 예상치 못한 곳에서도 사랑은 싹틀 수 있는 법.",
+    "pt": "A vida de uma pesquisadora de batatas vira de cabeça para baixo quando um novo diretor chega ao laboratório, provando que o amor pode brotar nos lugares mais inesperados.",
+    "rus": "Мир Ми-Кён, сосредоточенный на картофеле, меняется, когда она встречает практичного Пэк-Хо, что приводит к закрученной романтической комедии о исцелении и росте.",
+    "spa": "La vida de una apasionada investigadora da un giro cuando un estricto director llega a su laboratorio de papas y demuestra que el amor puede brotar en los lugares más inesperados."
+   },
+   "primary_language": "kor",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt35665377",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://tvn.cjenm.com/ko/the-potato-lab/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "254391",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "82080",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "The_Potato_Lab",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "the-potato-lab",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/452991/posters/68eb88a249b3d_t.jpg",
+   "translations": {
+    "ara": "مختبر البطاطس",
+    "deu": "The Potato Lab",
+    "eng": "The Potato Lab",
+    "fin": "The Potato Lab",
+    "fra": "The Potato Lab",
+    "hun": "A burgonyakutató központ",
+    "jpn": "ジャガイモ研究所",
+    "kor": "감자연구소",
+    "pt": "Amor e Batatas",
+    "rus": "Картофельная лаборатория",
+    "spa": "Amor en el Laboratorio"
+   },
+   "tvdb_id": "452991",
+   "type": "series",
+   "year": "2025"
+  },
+  {
+   "aliases": [
+    "Institute of Human Anatomy"
+   ],
+   "country": "usa",
+   "first_air_time": "2019-11-24",
+   "id": "series-447107",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "The Anatomy Lab",
+   "objectID": "series-447107",
+   "overview": "The Institute of Human Anatomy is a private human cadaver laboratory that educates health, fitness, and medical professionals on human anatomy and physiology using human cadavers.\r\n\r\nOur mission is to teach as many people on the planet as possible about the anatomical wonder of the one thing we all carry 24/7 for our entire lives: our amazing bodies!",
+   "overviews": {
+    "eng": "The Institute of Human Anatomy is a private human cadaver laboratory that educates health, fitness, and medical professionals on human anatomy and physiology using human cadavers.\r\n\r\nOur mission is to teach as many people on the planet as possible about the anatomical wonder of the one thing we all carry 24/7 for our entire lives: our amazing bodies!"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "the-anatomy-lab",
+   "status": "Ended",
+   "translations": {
+    "eng": "The Anatomy Lab"
+   },
+   "tvdb_id": "447107",
+   "type": "series",
+   "year": "2019"
+  },
+  {
+   "aliases": [
+    "Institue of Medical Jurisprudence"
+   ],
+   "country": "isr",
+   "first_air_time": "2017-12-17",
+   "id": "series-386299",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "המכון לרפואה משפטית",
+   "network": "HOT",
+   "objectID": "series-386299",
+   "overview": "בתיעוד אינטימי ונדיר, שלושת פרקי הסדרה עוקבים אחר רופאי המכון לרפואה משפטית ומספקים הצצה אל עולמם של אלו שבחרו לחיות לצד המוות.\r\n\r\nבקומת המרתף שבמכון לרפואה משפטית מתחיל בכל יום מסע חדש לחקר האמת וחיפוש הצדק. שם, בחדרי הנתיחה, מחפשים רופאי המכון לפתור את התעלומה: מה גרם למותו של האדם אשר מוטל דומם לפניהם ומה גדע את חוט חייו.\r\n\r\nאותם רופאים מומחים לרפואה משפטית קמים מדי בוקר לשגרת יומם: מקרי רצח, התאבדות, מוות פתאומי או תאונות דרכים. כיצד הם מתמודדים עם מראות הכאב והסבל? באיזה אופן עבודתם משפיעה על השקת עולמם? ומהם מנגנוני ההגנה הנדרשים כדי לחיות, לאהוב ולצחוק במקום העבודה ובחיים שמחוצה לו?",
+   "overviews": {
+    "eng": "\r\nA 3 part intimate documentation following the doctors of the Israeli Institute of Medical Jurisprudence , those who conduct autopsies and chose to leave beside death each day of their lives",
+    "heb": "בתיעוד אינטימי ונדיר, שלושת פרקי הסדרה עוקבים אחר רופאי המכון לרפואה משפטית ומספקים הצצה אל עולמם של אלו שבחרו לחיות לצד המוות.\r\n\r\nבקומת המרתף שבמכון לרפואה משפטית מתחיל בכל יום מסע חדש לחקר האמת וחיפוש הצדק. שם, בחדרי הנתיחה, מחפשים רופאי המכון לפתור את התעלומה: מה גרם למותו של האדם אשר מוטל דומם לפניהם ומה גדע את חוט חייו.\r\n\r\nאותם רופאים מומחים לרפואה משפטית קמים מדי בוקר לשגרת יומם: מקרי רצח, התאבדות, מוות פתאומי או תאונות דרכים. כיצד הם מתמודדים עם מראות הכאב והסבל? באיזה אופן עבודתם משפיעה על השקת עולמם? ומהם מנגנוני ההגנה הנדרשים כדי לחיות, לאהוב ולצחוק במקום העבודה ובחיים שמחוצה לו?"
+   },
+   "primary_language": "heb",
+   "primary_type": "series",
+   "slug": "386299-",
+   "status": "Ended",
+   "translations": {
+    "eng": "Hamachon Lerefua Mishpatit",
+    "heb": "המכון לרפואה משפטית"
+   },
+   "tvdb_id": "386299",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "aliases": [
+    "Secret Entertainment Training Center",
+    "Secret Training Variety Show",
+    "Socializing Camp"
+   ],
+   "country": "kor",
+   "first_air_time": "2017-05-05",
+   "id": "series-328161",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/328161/posters/648fae3b8ea70.jpg",
+   "name": "비밀 여능연수원",
+   "network": "MBC",
+   "objectID": "series-328161",
+   "overview": "세계인의 눈에 띄지 않는 비밀 예능 훈련소에 대한민국을 대표하는 셀럽들이 찾아왔습니다. 이곳에서 예능의 거장들이 세심하게 조율한 훈련을 통해 자신의 재능을 발굴하고 다른 연습생들과 화기애애한 시간을 보내며 자신의 삶을 반성하는 시간을 가질 예정이다.",
+   "overviews": {
+    "eng": "Korea’s hottest celebrities have come to the secret variety training institution hidden from the eyes of the world. Here, through the training carefully orchestrated by masters of variety shows, they will uncover their talent and get a chance to reflect on their lives while having a blast with other trainees.",
+    "kor": "세계인의 눈에 띄지 않는 비밀 예능 훈련소에 대한민국을 대표하는 셀럽들이 찾아왔습니다. 이곳에서 예능의 거장들이 세심하게 조율한 훈련을 통해 자신의 재능을 발굴하고 다른 연습생들과 화기애애한 시간을 보내며 자신의 삶을 반성하는 시간을 가질 예정이다."
+   },
+   "primary_language": "kor",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://program.imbc.com/secretentertainment",
+     "sourceName": "Official Website",
+     "type": 4
+    }
+   ],
+   "slug": "secret-variety-institute",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/328161/posters/648fae3b8ea70_t.jpg",
+   "translations": {
+    "eng": "Secret Variety Institute",
+    "kor": "비밀 여능연수원"
+   },
+   "tvdb_id": "328161",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "country": "jpn",
+   "first_air_time": "2020-03-13",
+   "id": "series-409400",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/409400/posters/6140726ac4481.jpg",
+   "name": "すみっこオカルト研究所",
+   "objectID": "series-409400",
+   "overview": "東京のある場所にアパートがあり、ある部屋にはオカルトに魅了され日々研究を続けている施設があります。",
+   "overviews": {
+    "eng": "There is an apartment in a certain place in Tokyo, and in one room there is a facility that is fascinated by the occult and continues to research every day.",
+    "jpn": "東京のある場所にアパートがあり、ある部屋にはオカルトに魅了され日々研究を続けている施設があります。"
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.entermeitele.com/horror/sumikko10.html",
+     "sourceName": "Official Website",
+     "type": 4
+    }
+   ],
+   "slug": "409400-",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/409400/posters/6140726ac4481_t.jpg",
+   "translations": {
+    "eng": "Sumikko Occult Research Institute",
+    "jpn": "すみっこオカルト研究所"
+   },
+   "tvdb_id": "409400",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "aliases": [
+    "Australian Film Institute Awards",
+    "AFI Awards",
+    "Australian Academy of Cinema and Television Arts Awards"
+   ],
+   "country": "aus",
+   "first_air_time": "2012-01-31",
+   "id": "series-338805",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "AACTA Awards",
+   "network": "Nine Network",
+   "objectID": "series-338805",
+   "overview": "The Australian Academy of Cinema and Television Arts (AACTA) Awards are a continuum of the AFI Awards, which have honoured screen excellence in Australia since 1958. The AACTA Awards recognise film, television and documentary screen craft excellence - including screenwriting, producing and acting, through to cinematography, composition and costume design - across over 40 Awards. As Australia's highest film and television Awards, the AACTA Awards are Australia's equivalent of the Oscars and the BAFTAs.\r\nThe AACTA Awards are held annually in Sydney in recognition and celebration of Australia's highest achievements in film and television, as judged by the industry itself. \r\nAFI | AACTA also recognises screen excellence, regardless of geography, through the AACTA International Awards, held each January in Los Angeles.",
+   "overviews": {
+    "eng": "The Australian Academy of Cinema and Television Arts (AACTA) Awards are a continuum of the AFI Awards, which have honoured screen excellence in Australia since 1958. The AACTA Awards recognise film, television and documentary screen craft excellence - including screenwriting, producing and acting, through to cinematography, composition and costume design - across over 40 Awards. As Australia's highest film and television Awards, the AACTA Awards are Australia's equivalent of the Oscars and the BAFTAs.\r\nThe AACTA Awards are held annually in Sydney in recognition and celebration of Australia's highest achievements in film and television, as judged by the industry itself. \r\nAFI | AACTA also recognises screen excellence, regardless of geography, through the AACTA International Awards, held each January in Los Angeles."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "75493",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "AACTA_Awards",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "338805-show",
+   "status": "Continuing",
+   "translations": {
+    "eng": "AACTA Awards"
+   },
+   "tvdb_id": "338805",
+   "type": "series",
+   "year": "2012"
+  },
+  {
+   "aliases": [
+    "Voltaire, Mixte",
+    "Voltaire High"
+   ],
+   "country": "fra",
+   "first_air_time": "2021-06-14",
+   "id": "series-382571",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/382571/posters/643e85488f39e.jpg",
+   "name": "Mixte",
+   "network": "Prime Video",
+   "objectID": "series-382571",
+   "overview": "C’est la rentrée 1963 au Lycée Voltaire ! Et pour la première fois, filles et garçons se mélangent. Cette première année de mixité réserve bien des surprises aux professeurs comme aux élèves…",
+   "overviews": {
+    "deu": "Als im September 1963 die Voltaire High School zum ersten Mal eine Handvoll Mädchen neben den Jungen unterrichtet, gerät eine ganze Welt aus dem Gleichgewicht. Elf Mädchen kommen auf hunderte von Jungen – das ist eine Revolution. Der Schauplatz ist eine High School – der Ort für hormonelles Feuerwerk! In „Voltaire High – Die Mädchen kommen“ lernen Erwachsene und Jugendliche im Alltag einer Welt vor 1968 miteinander zu leben. (Text: Amazon)\r\n",
+    "eng": "\"Mixte\" takes place in an all-male high school when girls are allowed in for the first time. Set in 1960s France, the series looks at the relationships and \"hormonal fireworks\" of the time. It will cover topics such as love, emancipation, sexuality and self-acceptance.",
+    "fin": "On ensimmäinen päivä kouluvuonna 1963 Voltairen lukiossa! Ensi kertaa tytöt ja pojat ovat samassa luokassa. Ensimmäinen yhteinen vuosi on täynnä yllätyksiä niin opettajille kuin oppilaillekin.",
+    "fra": "C’est la rentrée 1963 au Lycée Voltaire ! Et pour la première fois, filles et garçons se mélangent. Cette première année de mixité réserve bien des surprises aux professeurs comme aux élèves…",
+    "ita": "Primo giorno dell'anno scolastico 1963 al Liceo Voltaire! Per la prima volta ragazzi e ragazze si mescoleranno. Questo primo anno di scuola mista sarà pieno di sorprese, per professori e studenti.",
+    "por": "É o primeiro dia do ano letivo de 1963 no Liceu Voltaire. Pela primeira vez, rapazes e raparigas vão misturar-se. Este primeiro ano de coeducação está repleto de surpresas, tanto para os professores como para os alunos.",
+    "spa": "¿Pensarías que los niños se alegrarían de que las niñas asistieran a la escuela secundaria? Para nada. Cuando Voltaire High se convierte en alumna en 1963 en Francia y, por primera vez, un puñado de niñas toman clases junto con los niños, todo un mundo pierde el equilibrio."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt11243112",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.primevideo.com/detail/0GG48P8YUQZXWWB25RUYSUA5Y5",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "121460",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "voltaire-mixte",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/382571/posters/643e85488f39e_t.jpg",
+   "translations": {
+    "deu": "Voltaire High – Die Mädchen kommen",
+    "eng": "Mixte",
+    "fin": "Voltairen lukio",
+    "fra": "Mixte",
+    "ita": "Il liceo Voltaire",
+    "por": "Misto",
+    "rus": "Смешанный лицей",
+    "spa": "Instituto Voltaire (Mixte)"
+   },
+   "tvdb_id": "382571",
+   "type": "series",
+   "year": "2021"
+  },
+  {
+   "aliases": [
+    "Gakuen Mokushiroku: High School of the Dead",
+    "Gakuen Mokushiroku",
+    "HOTD",
+    "HOTDTV",
+    "HSOTD",
+    "HSOTDTV",
+    "Gakuen Mokushiroku: High School of the Dead",
+    "Gakuen Mokushiroku: Highschool of the Dead",
+    "Haisukūru obu za Deddo",
+    "Apocalyptic Academy: Highschool of the Dead",
+    "Gakuen Mokushiroku Haisukūru obu za Deddo",
+    "Gakuen Mokushiroku Haisukuuru obu za Deddo",
+    "Haisukuuru obu za Deddo",
+    "Highschool of the Dead",
+    "학원묵시록 하이스쿨 오브 더 데드",
+    "Apocalipsis en el instituto"
+   ],
+   "country": "jpn",
+   "first_air_time": "2010-07-05",
+   "id": "series-171591",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/171591-9.jpg",
+   "name": "学園黙示録 HIGHSCHOOL OF THE DEAD",
+   "network": "TV Tokyo",
+   "objectID": "series-171591",
+   "overview": "立藤美学園は、たった一人の侵入者－〈奴ら〉によって地獄の坩堝と化した！\r\n〈奴ら〉は人を襲い、喰らい、新たなる〈奴ら〉を生みだし学園を席巻。\r\n\r\n悪魔の世界と化した学園内で、小室孝と幼馴染の宮本麗、親友の井豪永は、一時避難する。\r\nしかし、麗をかばい〈奴ら〉に噛まれた永は〈奴ら〉と化してしまう・・・・\r\n\r\n残された二人は、他の生き残り、級友の高城沙耶、平野コータ、剣道部主将・毒島冴子、校医の鞠川静香と合流、学園を脱出する決意を固める！彼らに生きのびる術はあるのか！？",
+   "overviews": {
+    "ara": "تدور أحداث القصة حول مجموعة من طلاب المرحلة الثانوية وممرضة المدرسة، وهم يواجهون كارثة عالمية تُعرف باسم \"التفشي\". وبينما يحاول طاقم العمل النجاة من كارثة الزومبي، يواجهون أيضًا تهديدات إضافية بانهيار المجتمع، متمثلة في ناجين خطرين، واحتمال تدهور قيمهم الأخلاقية.",
+    "deu": "Takashi Komuro, Schüler der Fujimi High School, steht eines Morgens an einem Geländer seiner Schule und schwelgt in den kurzen Momenten der Ruhe in ein paar Erinnerungen. Doch dieser Moment wird jäh gestört, als er beobachtet, wie sich eine merkwürdig wankende Person dem Schultor nähert. Die herannahenden Lehrer versuchen noch die aufdringliche Person abzudrängen, als diese plötzlich einen der Lehrer anfällt und beißt. Innerhalb von Sekunden fallen die Lehrer übereinander her und der friedliche Schulhof mutiert in kürzester Zeit zu einem Platz voller Gewalt, Blut, Tod und untoten Zombies. Takashi glaubt seinen Augen kaum, als er Zeuge das grauenhafte Massaker ist und kann nur noch an eines denken: Sein Leben und das seiner Freunde, insbesondere seiner Mitschülerin und Jugendliebe Rei Miyamoto, um jeden Preis zu retten. Der Kampf in der Schule um Leben und Tod hat begonnen...",
+    "eng": "The story follows a group of high school students and the school's nurse as they deal with a worldwide catastrophic event known as the \"Outbreak\". As the cast tries to survive the zombie apocalypse, they must also face the additional threats of societal collapse, in the form of dangerous fellow survivors, and the possible decay of their own moral codes.",
+    "fra": "Le monde est contaminé par une maladie mortelle qui transforme les humains en zombies. Au Japon, de nombreux étudiants du lycée Fujimi, ainsi qu'une infirmière scolaire, se sont réunis afin de tout faire pour survivre à cet apocalypse. L'histoire suit Takashi Komuro, l'un des étudiants à avoir survécu à la première attaque.",
+    "heb": "מחלה קטלנית ההופכת אנשים לזומבים השתלטה על העולם.\r\nכמה תלמידי תיכון פוג'ימי ביפן, ביחד עם אחות בית הספר שלהם, גיבשו קבוצה שתשרוד את סוף העולם. הסיפור עוקב אחרי קומורי טקאשי, אחד התיכוניסטים ששרד את התפרצות המחלה.",
+    "ita": "Highschool of the Dead è ambientata al giorno d'oggi, dove è improvvisamente scoppiata una pandemia a causa di un virus che trasforma gli esseri umani in zombi, eufemisticamente chiamati dai protagonisti della storia \"loro\". La storia ruota intorno a Takashi Komuro, uno studente giapponese della Fujimi High School, che sopravvive allo scoppio iniziale della pandemia insieme ad alcuni suoi compagni ed all'infermiera della scuola, ed occasionalmente la trama segue le vicende di altri personaggi.",
+    "jpn": "立藤美学園は、たった一人の侵入者－〈奴ら〉によって地獄の坩堝と化した！\r\n〈奴ら〉は人を襲い、喰らい、新たなる〈奴ら〉を生みだし学園を席巻。\r\n\r\n悪魔の世界と化した学園内で、小室孝と幼馴染の宮本麗、親友の井豪永は、一時避難する。\r\nしかし、麗をかばい〈奴ら〉に噛まれた永は〈奴ら〉と化してしまう・・・・\r\n\r\n残された二人は、他の生き残り、級友の高城沙耶、平野コータ、剣道部主将・毒島冴子、校医の鞠川静香と合流、学園を脱出する決意を固める！彼らに生きのびる術はあるのか！？",
+    "kor": "여느 날과 다름없는 평범한 오후 갑자기 후지미 고등학교에 좀비가 나타나면서 벌어지는 일을 그린 애니메이션",
+    "por": "Tudo começa como mais um dia normal no Instituto Fujimi até que a meio da manhã, o instituto é atingido pelos efeitos de uma epidemia devastadora que se espalha rapidamente, transformando a população em mortos-vivos sedentos de sangue.\r\n\r\nEnquanto professores e colegas se devoram, um pequeno grupo de alunos consegue sair do instituto com vida apenas para descobrir que o apocalipse está a varrer as ruas.\r\n\r\nTakashi Komuro, até então um estudante comum, torna-se o líder de um grupo improvisado cujos membros colocarão as suas diferentes habilidades ao serviço da sobrevivência, munidos de um arsenal de armas caseiras, enquanto tentam descobrir por que razão o mundo como o conheciam chegou ao fim.",
+    "pt": "Numa manhã comum tudo acontecia normal como em qualquer outro dia. Do telhado, Komuro Takashi, observa um estranho acontecimento nos portões do colégio, um homem suspeito está causando confusão. Um dos professores acaba sendo mordido pelo homem suspeito e em meio a gritos de desespero dos outros professores ele se levanta, mas agora ele é um zumbi. Enquanto isso, Takashi corre de volta para dentro do colégio e junto com suas amigas Rei e Hisashi eles decidem fugir do colégio. Mas agora já é tarde demais, pois o colégio já está infestado de professores e outros colegiais zumbis. Assim começa a história de sobrevivência desses simples colegiais.",
+    "rus": "Страшная болезнь, превращающая людей в зомби, вырвалась на свободу, и мир рухнул в одночасье. Беда неслышно подкралась и к частной академии Фудзими, лишь немногие школьники и учителя смогли распознать её и бежать от толпы живых мертвецов.\r\n\r\nВ центре сюжета — судьба тесной группы, невольный лидер которой, 17-летний Такаси Комуро, готов на всё, чтобы спасти подругу детства Рэй Миямото. По пути на волю к ним присоединяются другие ученики — президент клуба кэндо Саэко Бусудзима, фанат оружия Кота Хирано и самозваный гений Сая Такаги. Пополнив ряды еще и школьной медсестрой Сидзукой Марикавой, беглецы вырываются в город — а там всё только хуже.\r\n\r\nКонец света быстро срывает маски, показывая, кто держится друзей, а кто готов толкнуть падающего; кто хочет просто выжить, а кто желает еще и половить рыбку в мутных водах Апокалипсиса. Героям придется пройти ускоренный курс суровой науки выживания, чтобы найти родных и близких и не потерять надежду.",
+    "spa": "La historia sigue a un grupo de estudiantes de secundaria y a la enfermera de la escuela mientras lidian con un evento catastrófico mundial conocido como el \"Brote\".  A medida que el elenco intenta sobrevivir al apocalipsis zombie, también deben enfrentar las amenazas adicionales de colapso social, en forma de compañeros sobrevivientes peligrosos, y la posible decadencia de sus propios códigos morales.",
+    "zho": "故事发生在藤美学园，一个宁静的下午，主角小室孝正翘课在学校的天台上发呆。突然间学校受到了“它们”的袭击，被袭击的人死后复生，又成为了“它们”的伙伴。“不破坏它们的头部就不会停止活动！”，仅仅得知这一个信息，孝与青梅竹马宫本丽、好友井豪永只能不断地逃生……　\r\n\r\n几小时前还是和平的学校在几小时后就丧尸成群，被丧尸咬到的人也会变成丧尸，这些丧尸被称作僵尸。幸存下来的几个人拿起了武器，与活死人丧尸对抗。\r\n\r\n他们是否能冲出重重包围来到安全地带？这全靠他们的努力了。\r\n\r\n当整个个世界陷入了绝望，到底是什么改变了世界？你？我？还是神已经抛弃了我们？这究竟是为什么？疑惑，不解，猜忌，人性的挣扎，都暂且放下，为了生存去奋斗吧！不要让恐惧遮蔽了你的眼睛与心灵。\r\n\r\n人类面对恐怖的僵尸，他们真的能勇敢的生存下去么？",
+    "zhtw": "原本是平凡生活中的一天，整個世界發生異變，床主市街上出現大量如同殭屍般的死體，主角「小室孝」所就讀的藤美學園也遭到死體的襲擊。為了求生小室孝集結包含青梅竹馬在內的一批人，在這如同地獄般世界中，過去的各種價值觀及法律已毫無意義，為了能在這現實的世界存活下去，人們的自私、黑暗、瘋狂開始漸漸浮現，主角一行人必須拋棄從前所謂的理想，面對殘酷的現實，並在這崩壞的世界求得一線生機…"
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.nbcuni.co.jp/rondorobe/anime/hotd/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "tt1685401",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "HighSchoolOfTheDead/",
+     "sourceName": "Reddit",
+     "type": 7
+    },
+    {
+     "id": "https://highschool-of-the-dead.fandom.com/wiki/Highschool_of_the_Dead_Wiki",
+     "sourceName": "Fan Site",
+     "type": 8
+    },
+    {
+     "id": "56998",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "10.5240/6925-25B6-8AB2-CD2F-34CF-Q",
+     "sourceName": "EIDR",
+     "type": 13
+    }
+   ],
+   "slug": "highschool-of-the-dead",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/171591-9_t.jpg",
+   "translations": {
+    "ara": "مدرسة الموتى الثانوية",
+    "deu": "Highschool of the Dead",
+    "eng": "High School of the Dead",
+    "fra": "High School of the Dead",
+    "heb": "תיכון המתים",
+    "ita": "Highschool of the Dead",
+    "jpn": "学園黙示録 HIGHSCHOOL OF THE DEAD",
+    "kor": "학원묵시록 HIGHSCHOOL OF THE DEAD",
+    "por": "High School of the Dead",
+    "pt": "High School of the Dead",
+    "rus": "Школа мертвецов",
+    "spa": "Highschool of the Dead",
+    "zho": "学园默示录",
+    "zhtw": "學園默示錄"
+   },
+   "tvdb_id": "171591",
+   "type": "series",
+   "year": "2010"
+  },
+  {
+   "aliases": [
+    "Eizouken ni wa Te wo Dasu na!",
+    "Don't Dare to Work at the Video Institute!",
+    "Eizouken ni wa Te wo Dasu na!",
+    "映像研には手を出すな！(ドラマ)"
+   ],
+   "country": "jpn",
+   "first_air_time": "2020-04-06",
+   "id": "series-379607",
+   "image_url": "https://artworks.thetvdb.com/banners/series/379607/posters/5e8e0a97e38f1.jpg",
+   "name": "映像研には手を出すな！",
+   "network": "MBS",
+   "objectID": "series-379607",
+   "overview": "迷彩帽に迷彩リュックの少女・浅草みどり（齋藤飛鳥）は、アニメが好きで、人並み外れた想像力があるのだが、見知らぬ人に話しかけられると卒倒してしまうほどの極度の人見知り。浅草の中学からの同級生・金森さやか（梅澤美波）は長身で美脚、金儲けに異常な執着を見せるタイプだ。2人が入学した芝浜高校は、413の部活動と72の研究会およびそれに類する学生組織がある、一言でいえばカオスな高校。\r\nこの部活動および学生組織を束ねているのが大・生徒会。道頓堀透（小西桜子）、ソワンデ（グレイス・エマ）、阿島（福本莉子）、王（松﨑亮）が幹部として運営を司っている。\r\nそんな芝浜高校で、浅草と金森はカリスマ読者モデルの水崎ツバメ（山下美月）と出会う。ツバメもまた、芝浜高校に入学してきた新入生で、実はアニメ好きでアニメーター志望だった。\r\n運命的な出会いを果たした3人はアニメ制作に邁進することを決意する。\r\n\r\nこうして、電撃3人娘の「最強の世界」を目指す冒険が始まった！！！",
+   "overviews": {
+    "eng": "Midori Asakusa, a girl in a camouflage hat and backpack, likes anime and has a strange imagination. Sayaka Kanamori, a classmate since middle school, is tall, has beautiful legs, and a extraordinary obsession with making money. At school they run into Mizusaki Tsubame, she is a new student that just enrolled to Shibahama High School, she loves anime and aspires to to create one.\r\nShibahama High School has 413 clubs 72 study groups. In little words it's a pretty wild school. Toru Dotonbori, Sowande, Ashima and Wang make up the Student Council.\r\n\r\nThe adventures of Asakusa, Knamori, and Tsubame begins!",
+    "jpn": "迷彩帽に迷彩リュックの少女・浅草みどり（齋藤飛鳥）は、アニメが好きで、人並み外れた想像力があるのだが、見知らぬ人に話しかけられると卒倒してしまうほどの極度の人見知り。浅草の中学からの同級生・金森さやか（梅澤美波）は長身で美脚、金儲けに異常な執着を見せるタイプだ。2人が入学した芝浜高校は、413の部活動と72の研究会およびそれに類する学生組織がある、一言でいえばカオスな高校。\r\nこの部活動および学生組織を束ねているのが大・生徒会。道頓堀透（小西桜子）、ソワンデ（グレイス・エマ）、阿島（福本莉子）、王（松﨑亮）が幹部として運営を司っている。\r\nそんな芝浜高校で、浅草と金森はカリスマ読者モデルの水崎ツバメ（山下美月）と出会う。ツバメもまた、芝浜高校に入学してきた新入生で、実はアニメ好きでアニメーター志望だった。\r\n運命的な出会いを果たした3人はアニメ制作に邁進することを決意する。\r\n\r\nこうして、電撃3人娘の「最強の世界」を目指す冒険が始まった！！！",
+    "zho": "高中1年级学生浅草绿（斋藤飞鸟 饰），是强调“设定即生命”的动画迷。在素描本上描绘积累各种各样的想法，却因不能一个人行动做事而无法迈出走向动画制作的一步。对于浅草这种才能，拥有制片人气质的金森沙耶加（梅泽美波 饰）很快注意到了。同时，了解到同学兼新星读者模特的水崎燕（ 山下美月 饰），其实上希望成为动画家，3人为了展现脑内“最强的世界”而设立了映像研。"
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt14640812",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "eizouken_saikyo/",
+     "sourceName": "Instagram",
+     "type": 9
+    },
+    {
+     "id": "https://eizouken-saikyo.com/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "671397",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "eizouken_saikyo",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    }
+   ],
+   "slug": "379607-keep-your-hands-off-eizouken",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/379607/posters/5e8e0a97e38f1_t.jpg",
+   "translations": {
+    "eng": "Keep Your Hands Off Eizouken! (2020)",
+    "jpn": "映像研には手を出すな！",
+    "zho": "别对映像研出手！"
+   },
+   "tvdb_id": "379607",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "aliases": [
+    "Just Beyond (2021)",
+    "За пределами",
+    "Otra Dimensión"
+   ],
+   "country": "usa",
+   "first_air_time": "2021-10-13",
+   "id": "series-382152",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/382152/posters/616494bfe6eff.jpg",
+   "name": "Just Beyond",
+   "network": "Disney+",
+   "objectID": "series-382152",
+   "overview": "Inspired by the writings of R.L. Stine, “Just Beyond” is an eight-episode anthology series that tells astonishing and thought-provoking stories of a reality just beyond the one we know. Each episode introduces viewers to a new cast of characters who must go on a surprising journey of self-discovery in a supernatural world of witches, aliens, ghosts and parallel universes.",
+   "overviews": {
+    "deu": "„Just Beyond“ ist eine Horror-Comedy-Anthologie-Serie basierend auf den Graphic Novels von R.L. Stine. Jede Episode wird dabei eine in sich abgeschlossene Geschichte erzählen.",
+    "eng": "Inspired by the writings of R.L. Stine, “Just Beyond” is an eight-episode anthology series that tells astonishing and thought-provoking stories of a reality just beyond the one we know. Each episode introduces viewers to a new cast of characters who must go on a surprising journey of self-discovery in a supernatural world of witches, aliens, ghosts and parallel universes.",
+    "fra": "Tirés des romans de R.L. Stine, \"De l'autre côté\" est une série anthologique en huit épisodes dont les histoires vous étonneront et vous feront réfléchir en vous faisant passer de l'autre côté de la réalité. Dans chaque épisode, vous rencontrerez de nouveaux personnages en pleine découverte d'eux-mêmes ; suivez-les dans leurs aventures pleines de surprises, tandis qu'ils plongent dans les mondes fantastiques des sorcières, des extraterrestres, des fantômes et des univers parallèles.",
+    "heb": "סדרת אנתולוגיה אימה המבוססת על כתבי ר. ל. סטיין, העוסקת בסיפורי אימה שונים שמתרחשים בחייהם של בני נוער.",
+    "ita": "Ispirata ai romanzi di R.L. Stine, \"Just Beyond\" è una serie antologica di otto episodi che racconta storie sorprendenti e stimolanti di una realtà che va oltre quella che conosciamo. Ogni episodio presenta agli spettatori un nuovo cast di personaggi che intraprendono un sorprendente viaggio alla scoperta di se stessi in un mondo soprannaturale fatto di streghe, alieni, fantasmi e universi paralleli.",
+    "por": "Uma antologia de oito episódios que contam incríveis e instigantes histórias de uma realidade um pouco além da que conhecemos. Cada episódio apresenta novas personagens que têm de prosseguir numa jornada surpreendente de autodescoberta num mundo sobrenatural de bruxas, extraterrestres, fantasmas e universos paralelos.",
+    "pt": "A série explora o sobrenatural e conta histórias surpreendentes e provocadoras de uma realidades além da que conhecemos. Cada episódio traz novos personagens que embarcam em uma viagem surpreendente de autoconhecimento em um mundo sobrenatural de bruxas, fantasmas e universos paralelos.",
+    "rus": "Вдохновленный произведениями Р.Л. Стайна, сериал Просто запредельно - это антология, рассказывающая удивительные и заставляющие задуматься истории о реальности, находящейся за пределами того, что мы знаем. Каждый эпизод знакомит зрителей с новым составом персонажей, которым предстоит отправиться в удивительное путешествие за самопознанием в сверхъестественный мир ведьм, инопланетян, призраков и параллельных вселенных. \r\n",
+    "spa": "Inspirada en los escritos de R.L. Stine, \"Just Beyond\" es una serie de antología de ocho episodios que cuenta historias asombrosas y estimulantes de una realidad que va más allá de la que conocemos. Cada episodio presenta a los espectadores un nuevo elenco de personajes que deben emprender un sorprendente viaje de autodescubrimiento en un mundo sobrenatural de brujas, extraterrestres, fantasmas y universos paralelos.\r\n\r\n"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "120734",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt12286434",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "just-beyond",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/382152/posters/616494bfe6eff_t.jpg",
+   "translations": {
+    "deu": "Just Beyond",
+    "eng": "Just Beyond",
+    "fra": "De l'autre côté",
+    "heb": "העולם שמעבר",
+    "ita": "Just Beyond",
+    "por": "A Escola do Além",
+    "pt": "Just Beyond",
+    "rus": "Просто запредельно",
+    "spa": "Al otro lado del instituto"
+   },
+   "tvdb_id": "382152",
+   "type": "series",
+   "year": "2021"
+  },
+  {
+   "aliases": [
+    "Freaks and Geeks (1999)",
+    "Хулиганы и ботаны"
+   ],
+   "country": "usa",
+   "first_air_time": "1999-09-25",
+   "id": "series-76321",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/76321-4.jpg",
+   "name": "Freaks and Geeks",
+   "network": "NBC",
+   "objectID": "series-76321",
+   "overview": "Two unique groups of teenagers deal with life in high school during the 1980s. Lindsay Weir rebels and begins hanging out with a crowd of burnouts, the \"freaks,\" while her brother Sam Weir navigates a different part of the social universe with his nerdy friends, the \"geeks.\"",
+   "overviews": {
+    "deu": "Michigan, USA, 1980. Die Geschwister Lindsay und Sam besuchen eine High-School in der Provinz, wo sie nicht gerade zu den populärsten Schülern gehören. Während die hübsche Lindsay sich einer Clique rebellischer Außenseiter anschließt und dort ihre erste Liebe findet, versuchen ihr jüngerer Bruder Sam und seine freakigen Freunde, sich gegen die Schikanen der älteren Schulrowdys zur Wehr zu setzen - mal mehr, mal weniger erfolgreich. \r\nMit Witz und Charme erzählt die amerikanische Serie \"Voll daneben, voll im Leben\" von den Wirren des Erwachsenwerdens und dem turbulenten Alltag an einer amerikanischen High-School. Dabei beweist die mit einem \"Emmy-Award\" ausgezeichnete Serie ein ungewöhnliches Gespür für die alltäglichen Sorgen und Schwierigkeiten des Teenagerlebens. Bemerkenswert ist vor allem, dass es sich bei den Protagonisten nicht wie üblich um die reichen und schönen Stars der Schule handelt, sondern um die \"grauen Mäuse\" und die Außenseiter des Campuslebens - daher auch der wunderbar selbstironische Originaltitel der Serie: \"Freaks and Geeks\".",
+    "eng": "Two unique groups of teenagers deal with life in high school during the 1980s. Lindsay Weir rebels and begins hanging out with a crowd of burnouts, the \"freaks,\" while her brother Sam Weir navigates a different part of the social universe with his nerdy friends, the \"geeks.\"",
+    "fin": "1980-luvun alun lukiomaailmaan sijoittuva amerikkalainen kulttimaineen saanut sarja, jossa näytteli tukku tulevia tähtiä kuten James Franco, Seth Rogen, Jason Segel, Linda Cardellini ja John Francis Daley.",
+    "fra": "La série est axée sur la vie d'une adolescente Lindsay Weir et de son frère cadet Sam, tous deux scolarisés au lycée McKinley, dans le Michigan durant l'année scolaire 1980-1981.\r\nLes amis de Lindsay constituent ceux qu'on appellent les Freaks, groupe de rebelles peu enclin aux études qui préfère sécher les cours, et ceux de Sam les Geeks, groupe passionné de science-fiction et assez bons dans toutes les matières sauf en sport, du lycée. Les Freaks sont constitués du charismatique et cool Daniel Desario, du sarcastique Ken Miller, du sympathique et affable Nick Andropolis et de la parfois très colérique Kim Kelly. Les Geeks sont constitués du très ouvert Bill Haverchuck et du modeste et doux Neil Schweiber.",
+    "heb": "סדרת טלוויזיה שחושפת שתי קבוצות משמעותיות בהווי התיכוניסטי של שנות ה-80: הפריקים והחנונים. על-אף שהסדרה זכתה במספר פרסי אמי ובביקורות מעולות, החליטה הרשת המפיקה להורידה מהמרקע. את הסדרה יצר פול פייג, ובין הבמאים הרבים: מיגל ארטטה (\"בחורה טובה\", \"עמוק באדמה\") וג'ק קאסדן (\"מחוז אורנג'\", \"זירו אפקט\").",
+    "hun": "1980-as évek közepét írjuk egy amerikai középiskolában. Vannak a különcök (Lindsay, Daniel, Ken és Nick) és vannak a stréberek (Sam, Bill és Neal). A különcök füveznek, lógnak a suliból és a lehető legmagasabbról szarnak bele mindenbe miközben nagyokat álmodoznak a szabad életről, a zenéről és a úgy en block arról, hogy ők mennyire menők. A stréberek ezzel szemben egész nap egy összetett sci-fi-fantasy-képregény világként élik mindennapjaikat, jól tanulnak és a pomponlányokra izgulnak az ebédlőben. Ami közös bennünk, hogy mindnyájan egyformán esendőek. Már maga a cím egy erős szembenállást feltételez a két csoport között, de az igazság az, hogy mivel Sam (John Francis Daley) és Lindsey (Linda Cardellini) testvérek így a szeretetteljes pillanatok éppoly gyakoriak mint a konfliktusok. Persze nem csak az életfelfogásban hanem korban is távol áll egymástól a két csoport, mégis van bennük valami közös: mindketten az iskolai élet lenézett, megvetett szereplői.",
+    "ita": "La serie, ambientata all'inizio degli anni ottanta, è incentrata sui fratelli Weir, Lindsay (Linda Cardellini) e Sam (John Francis Daley). Entrambi frequentano la McKinley High School, dove, durante l'anno scolastico 1980-1981, si intersecano le loro vicende con quelle dei loro amici, divisi tra freaks e geeks. Oltre alla famiglia Weir, diversi personaggi ricorrono negli episodi della serie, particolarmente presente è Millie Kentner (Sarah Hagan), l'amica d'infanzia di Lindsay; molto religiosa e spaventata dal cambiamento nella personalità di Lindsay, che durante il terzo anno cambia amici e comincia a frequentare i freak.",
+    "nld": "Een groep middelbareschoolscholieren, anno 1980, wordt geconfronteerd met sociale strijd. Lindsay rebelleert en zoekt het gezelschap van een bende burnouts op.",
+    "por": "A universal experiência da adolescência vivida pelos típicos \"freaks\" e \"geeks\" de um colégio em Michigan por volta de 1980 é o tema desta nostálgica comédia dramática.",
+    "pt": "A trama gira em torno da adolescente Lindsay Weir (Linda Cardellini) e seu irmão Sam Weir (John Francis Daley) que frequentam o Liceu McKinley (McKinley High School) no início dos anos 80, nos subúrbios de Detroit, Michigan. Ao ser abalada pela morte da avó, Lindsay perde alguns hábitos e ganha novos fazendo novos amigos, vulgarmente freaks. Este novo estilo de vida de Lindsay traz conflitos às relações com os seus pais.\r\nOs primeiros episódios da série, em especial, ilustram a transição da vida de Lindsay, como uma matematleta inata que tem como melhor amiga Millie Kentner (Sarah Hagan), de personalidade semelhante, em uma adolescente que veste o casacão do exército do pai e sai com seus novos amigos politicamente incorretos e problemáticos.  De forma paralela, a série mostra o percurso de Sam e seus amigos geeks enquanto eles tentam se encaixar em um novo universo social.",
+    "rus": "Действие сериала происходит в 1980 году и разворачивается вокруг Линдси Виер и её младшего брата Сэма, учащихся старшей школы в вымышленном городке неподалеку от Детройта. Линдси, прилежная ученица и участница математических олимпиад, начинает проводить время в компании «фриков», из-за влюбленности в обаятельного, но эгоистичного Дэниеля Дезарио, неформального лидера компании. Параллельно попыткам Линдси разобраться в себе и решить проблемы в отношениях с родителями и друзьями, сюжетные линии сериала демонстрируют непростые попытки Сэма и его компании «гиков» изменить своё место в школьной иерархии. \r\n\r\nВ 2007 году сериал вошёл в список «100 лучших телесериалов всех времен» по версии журнала Time, а в 2008 занял 13 место в списке «100 лучших телесериалов за последние 25 лет» по версии журнала Entertainment Weekly.",
+    "spa": "Serie juvenil, ambientada en los años 80, que relata las relaciones de amistad, problemas y situaciones a las que se enfrentan dos grupos de adolescentes en el instituto. Los problemas propios de su edad, sumados a las situaciones personales de cada uno, darán lugar a divertidas tramas donde los jóvenes de hoy en día se podrán ver identificados sin problema.",
+    "zho": "　　故事背景为80年代的美国，底特律郊外一所私立高中里，有这么两种学生：怪胎和书呆。怪胎游手好闲、惹是生非，书呆懦弱无能，只会读书。Lindsay（琳达·卡德里尼 Linda Cardellini 饰）学习成绩拔尖，因为不想被划入“书呆”行列，她主动结识了几个“怪胎”，成为他们的朋友。她的弟弟Sam（约翰·弗朗西斯·达利 John Francis Daley 饰）是个不折不扣的书呆，不仅本人软弱无能，还交了一群同样怯懦的书呆朋友。 \r\n　　学校里形形色色的学生都要面对他们各自的成长烦恼，Lindsay每日要面对家庭和学校的双重管教，Sam每日要忍受学校小流氓的滋扰。这是一个真实的故事，一个关于成长的故事，叛逆的怪胎和怪异的书呆，他们的生活在每一个高中校园里上演，折射出每一个人的青春。"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0193676",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "SH317005",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "2382",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "freaks-and-geeks",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/76321-4_t.jpg",
+   "translations": {
+    "ces": "Machři a šprti",
+    "deu": "Voll daneben, voll im Leben",
+    "eng": "Freaks and Geeks",
+    "fin": "Freaks and Geeks",
+    "fra": "Freaks and Geeks",
+    "heb": "פריקים וחנונים",
+    "hun": "Különcök és stréberek",
+    "ita": "Freaks and Geeks",
+    "nld": "Freaks and Geeks",
+    "por": "Freaks & Geeks",
+    "pt": "Aborrecentes",
+    "rus": "Чудики и чокнутые",
+    "spa": "Instituto McKinley",
+    "zho": "怪胎与书呆"
+   },
+   "tvdb_id": "76321",
+   "type": "series",
+   "year": "1999"
+  },
+  {
+   "aliases": [
+    "Sakigake!! Kuromati Kōkō"
+   ],
+   "country": "jpn",
+   "first_air_time": "2003-10-03",
+   "id": "series-76057",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/76057-4.jpg",
+   "name": "魁!!クロマティ高校",
+   "network": "TV Tokyo",
+   "objectID": "series-76057",
+   "overview": "不良ばかりが通うクロマティ高校に入学してしまった優等生、神山。\r\nワルたちによるワルたちのためのワル自慢は始まるわ、みんなヘンなものをくわえているわ、林田のモヒカンは揺れるわで、なんとも居心地が悪い。\r\nここは自分も！と一念発起して、高校デビューを果たそうとするが、高校に入ってからではもう遅い。\r\nついには、某ロックミュージシャン似の謎の外人（？）フレディやゴリラ、機械っぽい生徒まで現れる始末。\r\nこれから、神山はどうなってしまうのか？",
+   "overviews": {
+    "eng": "Takashi Kamiyama has enrolled at Cromartie High, where every student is a delinquent. Kamiyama apparently is the only non-delinquent in the school. Logically, therefore, he must be the toughest in his class - by the rather twisted logic that only a 'really tough rabbit would lie down with lions'. Thus begins a story that parodies every cliche of tough-guy anime that you've ever heard of, and some you haven't. Based of the manga by Eiji Nonaka.",
+    "fra": "L'histoire se passe à Cromartie High où une émeute éclate. Le sérieux et honnête Kamiyama, le roi des idiots Hayashida, le comédien Maeda, le robot mecha Zawa, le combattant Takenouchi et Hokuto qui dirigent toutes les grandes écoles japonaises avec Freddie l'homme mystère sont tous réunis ! Qui pourra les stopper ?",
+    "jpn": "不良ばかりが通うクロマティ高校に入学してしまった優等生、神山。\r\nワルたちによるワルたちのためのワル自慢は始まるわ、みんなヘンなものをくわえているわ、林田のモヒカンは揺れるわで、なんとも居心地が悪い。\r\nここは自分も！と一念発起して、高校デビューを果たそうとするが、高校に入ってからではもう遅い。\r\nついには、某ロックミュージシャン似の謎の外人（？）フレディやゴリラ、機械っぽい生徒まで現れる始末。\r\nこれから、神山はどうなってしまうのか？",
+    "kor": "노나카 에이지씨가 코단샤의 주간 소년 매거진에 연재중인 엽기 코믹 만화를 원작으로 하여 제작된 애니메이션. 2003년 10월 신작으로 매주 목요일 새벽 1시에 TV 도쿄를 통해 방영 개시된다. <다!다!다!>, <나나카 6/17> 등 비교적 밝고 건전한 드라마성 작품을 연출한 바 있던 사쿠라이 히로아키 감독이 그 자신을 히트 감독의 반열에 올려놓은 <디지캐럿> 시리즈의 전위적 코드를 전면에 부각시켜 다시 한번 이 작품의 감독을 맡았다. 제작사가 <패트레이버>, <공각기동대>, <인랑> 등 비교적 진지하고, 장중한 작품색으로 유명한 유명한 프로덕션IG 라는 것도 이색적이다.\r\n\r\n이 작품은 초불량배 학생들만 모이는 도립 크로마티 고교를 배경으로 외견상으로는 지극히 멀쩡해 보이는 주인공 카미야마 타카시의 상상을 초월하는 기행담을 선보인다. 작품 자체의 키치적인 성향을 드러내기 위해 애니메이션 본편 자체도 저예산, 저프레임, 굵은 선을 부각시킨 복고풍 그림체로 기획했다. 본편 진행 중에 노골적으로 원작인 만화책을 읽어보라고 권하기도 하는 이 작품은, 그 소재의 픽업과 기획 의도면에서 심야 애니메이션이 도전할 수 있는 또 다른 가능성을 제시힌다.",
+    "rus": "Такаси Камияма поступил в «Кромати», старшую школу для настоящих «падонкоф». Перваки Кромати плотно заняты поддержанием реального пацанского авторитета, драками с соседскими путягами и налаживанием чисто конкретно дружбанских отношений в группах. Это ничего, что рядом с ними учатся робот-Мехадзава, певец Фредди М. и настоящая горилла... Да, и кстати, еще неизвестно, зачислена горилла или ходит в Кромати просто так...",
+    "spa": "Se desarrolla en el instituto Cromartie, donde un grupo de delincuentes escolares llevan a cabo una rebelión: el serio y honesto Kamiyama, el Rey de los Idiotas Hayashida, el comediante Maeda, el robot mal estudiante Mecha Zawa, Takenouchi el experto luchador pero malo con los vehículos, Hokuto quien lleva el control de todos los institutos de Japón junto a un misterioso hombre de mediana edad llamado Freddie... ¿Podrán estos muchachos ser detenidos?",
+    "zho": "主角神山高志在國中時代是資優生，但常遭同學勒索，後由另一名不良少年山本一郎所搭救（但是失敗了），神山為了鼓勵這位認為自己無法升學的朋友，決定兩人一起去參加號稱「無論如何無可救藥的笨蛋都能考上」的克羅馬帝高校招生考試，但是神山沒有料到，山本一郎居然落榜了（以賣章魚燒為業），神山只好單獨面對克羅馬帝高校裏的世界。"
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0387775",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "12260",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "cromartie-high-school",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/76057-4_t.jpg",
+   "translations": {
+    "eng": "Cromartie High School",
+    "fra": "Le Bahut des tordus",
+    "jpn": "魁!!クロマティ高校",
+    "kor": "앞장서라! 크로마티 고교",
+    "rus": "Кромешная путяга",
+    "spa": "Sakigake!! Instituto Cromartie",
+    "zho": "魁！！天兵高校"
+   },
+   "tvdb_id": "76057",
+   "type": "series",
+   "year": "2003"
+  },
+  {
+   "aliases": [
+    "La escuela espía"
+   ],
+   "country": "usa",
+   "first_air_time": "2025-04-07",
+   "id": "series-459319",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/459319/posters/67eb3cc4a1a0d.jpg",
+   "name": "Spy High",
+   "network": "Prime Video",
+   "objectID": "series-459319",
+   "overview": "A high school student battles his Pennsylvania school district in court after discovering surveillance software on his laptop, igniting a debate about student privacy rights and digital monitoring.",
+   "overviews": {
+    "deu": "Als Teenager Blake Robbins eine Klage einreicht, in der er behauptet, dass seine Schule ihn ausspioniert, löst dies einen wilden Skandal mit alarmierenden Implikationen für die digitale Privatsphäre aus.",
+    "eng": "A high school student battles his Pennsylvania school district in court after discovering surveillance software on his laptop, igniting a debate about student privacy rights and digital monitoring.",
+    "fra": "Quand l'adolescent Blake Robbins porte plainte contre son lycée, déclarant qu'on l'espionne, cela déclenche un grand scandale aux implications alarmantes quant à la vie privée numérique.",
+    "hin": "ब्लेक रॉबिन्स नामक किशोर अपने स्कूल पर उसकी जासूसी करने का मुकदमा दायर करता है, जिससे एक बड़ा विवाद खड़ा होता है, साथ ही डिजिटल गोपनीयता पर भी गंभीर सवाल उठते हैं।",
+    "ita": "Quando l'adolescente Blake Robbins presenta un'azione legale sostenendo che la sua scuola lo sta spiando, si scatena uno scandalo selvaggio con allarmanti implicazioni sulla privacy digitale.",
+    "jpn": "高校が自分を監視しているとして訴訟を起こした10代のブレイク･ロビンス。事件は大きな話題を呼び、デジタルプライバシーについて警笛を鳴らすことに。",
+    "por": "O adolescente Blake Robbins entra com uma ação judicial alegando que sua escola o está espionando, o que desencadeia um escândalo com implicações alarmantes de privacidade digital.",
+    "pt": "O adolescente Blake Robbins entra com uma ação judicial alegando que sua escola o está espionando, o que desencadeia um escândalo com implicações alarmantes de privacidade digital.",
+    "spa": "La demanda interpuesta por el adolescente Blake Robbins en la que afirma que su instituto lo espía desata un enorme escándalo con serias implicaciones para la privacidad digital."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt35522920",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.amazon.com/gp/video/detail/B0DPRHH5ZS",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "282874",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "spy-high",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/459319/posters/67eb3cc4a1a0d_t.jpg",
+   "translations": {
+    "deu": "Großer Bruder Schule",
+    "eng": "Spy High",
+    "fra": "Espionnage au lycée",
+    "hin": "स्पाई हाई",
+    "ita": "Scuola senza privacy",
+    "jpn": "スパイ･ハイ",
+    "por": "Escola Espiã",
+    "pt": "Escola Espiã",
+    "spa": "Instituto espía"
+   },
+   "tvdb_id": "459319",
+   "type": "series",
+   "year": "2025"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2015-05-30",
+   "id": "series-288148",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/288148-2.jpg",
+   "name": "100 Things to Do Before High School",
+   "network": "Nickelodeon",
+   "objectID": "series-288148",
+   "overview": "With real life and teen drama awaiting her after 8th grade graduation, CJ Parker has only a short time left to make the most of her middle school years. Together with her two lifelong best friends Fenwick and Crispo, she is determined to get the most out of this time, using an ever-expanding list of challenges as a guide. For this group, growing up means trying everything and taking chances while they still can.",
+   "overviews": {
+    "deu": "Im Zentrum von „100 Dinge“ stehen drei beste Freunde und ihre Abenteuer, während sie in der Middle School sind, also der Vorstufe zur High School. Eine ‚Bucket List‘ mit Dingen, die sie vor dem Beginn der High School noch erledigt haben wollen, hilft ihnen dabei, sich gegen Cliquen und Mobbing zu wehren und auch ahnungslose Lehrer links liegen zu lassen.",
+    "eng": "With real life and teen drama awaiting her after 8th grade graduation, CJ Parker has only a short time left to make the most of her middle school years. Together with her two lifelong best friends Fenwick and Crispo, she is determined to get the most out of this time, using an ever-expanding list of challenges as a guide. For this group, growing up means trying everything and taking chances while they still can.",
+    "fra": "Depuis le jardin d’enfants, C.J., Fenwick et Crispo sont les meilleurs amis du monde. À la veille de sa rentrée en 4ème, la jeune fille panique à l’idée que le lycée qui approche à grands pas ne les éloigne. Elle va alors tout mettre en oeuvre pour les réunir à nouveau en leur proposant une foule de défis tous plus fous les uns que les autres ! Arriveront-ils au bout de la liste que C.J a rédigée ?",
+    "ita": "Le rocambolesche avventure di tre amici a scuola, in una spensierata sitcom statunitense con Isabela Moner. CJ Martin è una vivace ragazza di 12 anni che vuole vivere gli anni della scuola media nel modo più leggero e divertente possibile. Crea allora un elenco di cose 'estreme' da fare in compagnia di Fenwick e Crispo, i suoi migliori amici. E decide di affrontare queste difficili sfide che trasformeranno ogni giorno in una nuova avventura!",
+    "pol": "Widząc na niezbyt odległym horyzoncie trudy licealnego życia CJ i jej dwoje najlepszych przyjaciół postanawiają rzucić się w wir gimnazjalnych przygód. Już wkrótce dobre czasy pełne szalonych, a czasem ryzykownych zabaw się skończą.",
+    "por": "CJ Martin está determinada a fazer com que seus dias na escola sejam épicos! Ela e seus melhores amigos da vida toda, Fenwick e Crispo, estão fazendo uma lista ampla de desafios. Juntos eles vão arriscar, criar memórias e fazer com que cada dia seja uma aventura!",
+    "pt": "CJ Martin está determinada a fazer com que seus dias na escola sejam épicos! Ela e seus melhores amigos da vida toda, Fenwick e Crispo, estão fazendo uma lista ampla de desafios. Juntos eles vão arriscar, criar memórias e fazer com que cada dia seja uma aventura!",
+    "spa": "CJ está decidida a que la vida antes del instituto sea lo más increíble posible. Ella y sus amigos, Fenwick y Crispo, están dispuestos a afrontar grandes desafíos: se divertirán, crearán recuerdos inolvidables y harán que cada día se convierta en una gran aventura."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt3904078",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP02035418",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "63038",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "100-things-to-do-before-high-school",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/288148-2_t.jpg",
+   "translations": {
+    "deu": "100 Dinge bis zur Highschool",
+    "eng": "100 Things to Do Before High School",
+    "fra": "100 choses à faire avant le lycée",
+    "hun": "100 dolog a gimi előtt",
+    "ita": "100 cose da fare prima del liceo",
+    "pol": "100 rzeczy do przeżycia przed liceum",
+    "por": "100 Coisas Para Fazer Antes do High School",
+    "pt": "100 Coisas Para Fazer Antes do High School",
+    "spa": "100 cosas que hacer antes de ir al instituto"
+   },
+   "tvdb_id": "288148",
+   "type": "series",
+   "year": "2015"
+  }
+ ],
+ "links": {
+  "next": null,
+  "page_size": 50,
+  "prev": null,
+  "self": "https://api4.thetvdb.com/v4/search?query=L'Institut&type=series&limit=50&page=0",
+  "total_items": 26
+ },
+ "status": "success"
+}
