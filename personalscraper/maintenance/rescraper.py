@@ -736,13 +736,25 @@ def _rescrape_episode_nfos(
         match_episode_files,
     )
     from personalscraper.scraper.mediainfo import extract_stream_info  # noqa: PLC0415
+    from personalscraper.scraper.tv_service import _provider_season_numbers  # noqa: PLC0415
 
     season_nums = sorted({s for v in videos if (s := _extract_season_episode(v.name)[0]) is not None and s > 0})
     all_episodes = _fetch_episodes(show_dir, source, api_id, registry, season_nums) if season_nums else {}
-    # allow_synthetic_rename=False: a file with no provider record is left out, never given a made-up title.
-    matched = match_episode_files(videos, all_episodes, allow_synthetic_rename=False) if all_episodes else {}
-
     show_dict = _coerce_to_show_data(show_data)
+    # allow_synthetic_rename=False: a file with no provider record is left out, never given a made-up title.
+    # A season the provider lists is never a phantom, even when its episodes came back empty:
+    # remapping it would write another season's episode NFO next to the file.
+    matched = (
+        match_episode_files(
+            videos,
+            all_episodes,
+            allow_synthetic_rename=False,
+            provider_seasons=_provider_season_numbers(show_dict),
+        )
+        if all_episodes
+        else {}
+    )
+
     show_title = show_dict.get("name", "")
     mpaa = nfo_gen._extract_fr_rating(show_dict, tv=True)
     networks = show_dict.get("networks", [])
@@ -808,13 +820,19 @@ def _rescrape_episodes(
         dry_run: Preview without changes.
     """
     from personalscraper.naming_patterns import SEASON_DIR_RE
+    from personalscraper.scraper._movie_convert import _coerce_to_show_data
     from personalscraper.scraper.episode_manager import (
         create_season_dirs,
         match_episode_files,
         rename_episodes,
     )
+    from personalscraper.scraper.existing_validator_drift import _local_show_seasons
+    from personalscraper.scraper.tv_service import _provider_season_numbers
 
-    # Discover season numbers from local filesystem (show_data has no seasons array).
+    # Seasons to request: the ``Saison NN/`` folders UNION the season of every video file
+    # below the show folder. A season pack merged beside an existing ``Saison NN/`` (a show
+    # split across two torrent folders) carries a season no folder names yet; leaving it out
+    # of the request made the pack look like a phantom season and relabelled it.
     season_nums = sorted(
         {
             int(m.group(1))
@@ -822,6 +840,7 @@ def _rescrape_episodes(
             if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
             if int(m.group(1)) > 0
         }
+        | {s for s in _local_show_seasons(show_dir) if s > 0}
     )
     if not season_nums:
         return
@@ -841,7 +860,11 @@ def _rescrape_episodes(
     # a local file: matching the in-scraper rule, this avoids creating
     # 16 empty Saison NN dirs for shows whose catalog spans seasons we
     # do not own locally.
-    matched = match_episode_files(video_files, all_episodes)
+    matched = match_episode_files(
+        video_files,
+        all_episodes,
+        provider_seasons=_provider_season_numbers(_coerce_to_show_data(show_data)),
+    )
     if matched:
         needed_seasons = sorted({info["season"] for info in matched.values()})
         season_dicts = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
