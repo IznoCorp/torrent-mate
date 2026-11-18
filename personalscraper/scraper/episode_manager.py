@@ -474,6 +474,7 @@ def rename_episodes(
     show_dir: Path,
     patterns: NamingPatterns,
     dry_run: bool = False,
+    skipped: list[tuple[Path, Path]] | None = None,
 ) -> int:
     """Rename matched episodes and their subtitles to standard format.
 
@@ -487,6 +488,9 @@ def rename_episodes(
         show_dir: Path to the TV show root directory.
         patterns: Naming patterns for episode filenames.
         dry_run: If True, log without renaming/moving files.
+        skipped: When given, receives a ``(source, destination)`` pair for every
+            episode left where it was because its destination already exists, so
+            the caller can report them; ``None`` keeps them in the log only.
 
     Returns:
         Number of episodes successfully renamed.
@@ -535,6 +539,8 @@ def rename_episodes(
         # operator decides; ``Path.rename`` would overwrite without a word.
         if _destination_taken(video_path, dest):
             log.warning("episode_rename_collision", source=str(video_path), dest=str(dest))
+            if skipped is not None:
+                skipped.append((video_path, dest))
             continue
 
         if dry_run:

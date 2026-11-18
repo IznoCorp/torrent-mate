@@ -531,6 +531,27 @@ class TestRenameNeverOverwrites:
         assert not (season_dir / "S02E01 - Real Opener.fra.srt").exists()
         assert "episode_rename_collision" in caplog.text
 
+    def test_skipped_collisions_are_handed_back_to_the_caller(self, tmp_path: Path, patterns: NamingPatterns) -> None:
+        """Each skipped rename is returned as ``(source, destination)``; a renamed episode is not."""
+        season_dir = tmp_path / "Saison 01"
+        season_dir.mkdir()
+        existing = season_dir / "S01E01 - Pilot.mkv"
+        existing.write_text("kept")
+        duplicate = tmp_path / "Show.S01E01.REPACK.mkv"
+        duplicate.write_text("duplicate")
+        fresh = tmp_path / "Show.S01E02.mkv"
+        fresh.write_text("fresh")
+        matched = {
+            duplicate: {"season": 1, "episode": 1, "api_title": "Pilot"},
+            fresh: {"season": 1, "episode": 2, "api_title": "Second"},
+        }
+        skipped: list[tuple[Path, Path]] = []
+
+        count = rename_episodes(matched, tmp_path, patterns, skipped=skipped)
+
+        assert count == 1
+        assert skipped == [(duplicate, existing)]
+
     def test_collision_keeps_the_source_sidecars(self, tmp_path: Path, patterns: NamingPatterns) -> None:
         """The skipped source keeps its NFO and thumb: the orphan cleanup must not run."""
         season_dir = tmp_path / "Saison 01"

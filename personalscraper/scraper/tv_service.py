@@ -215,6 +215,30 @@ def _provider_season_numbers(show_data: dict[str, Any]) -> set[int]:
     }
 
 
+def _collision_warnings(collisions: list[tuple[Path, Path]], show_dir: Path) -> list[str]:
+    """Describe the episodes a rename skipped because their destination already exists.
+
+    The skipped file stays where it was, beside the episode that holds the name: only
+    a line in the scrape result tells the operator it is still there.
+
+    Args:
+        collisions: ``(source, destination)`` pair of each skipped rename.
+        show_dir: The show folder; the paths are shown relative to it.
+
+    Returns:
+        One line per skipped rename, then a closing line counting them; empty when none.
+    """
+    if not collisions:
+        return []
+    lines = [
+        f"Episode not renamed, destination already exists: "
+        f"{source.relative_to(show_dir).as_posix()} → {dest.relative_to(show_dir).as_posix()}"
+        for source, dest in collisions
+    ]
+    lines.append(f"{len(collisions)} episode(s) not renamed: destination already exists")
+    return lines
+
+
 class TvServiceMixin:
     """TV show scrape service methods.
 
@@ -783,7 +807,9 @@ class TvServiceMixin:
             episode_default_name: Fallback title prefix for unnamed episodes.
 
         Returns:
-            Tuple of (count of episodes renamed, list of NFO write failure warnings).
+            Tuple of (count of episodes renamed, warnings): the NFO write failures,
+            then one line per episode left in place because its destination already
+            exists and a closing line counting them.
         """
         # Pass the unmatched-episode policy through to ``match_episode_files``.
         # Default contract (``allow_synthetic_rename_on_unmatched=False``)
@@ -814,6 +840,8 @@ class TvServiceMixin:
         needed_seasons = sorted({info["season"] for info in matched.values()})
         ep_list = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
         create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
-        total = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
-        nfo_warnings = self._generate_episode_nfos(matched, show_dir, show_data)
-        return total, nfo_warnings
+        collisions: list[tuple[Path, Path]] = []
+        total = rename_episodes(matched, show_dir, self.patterns, self.dry_run, skipped=collisions)
+        warnings = self._generate_episode_nfos(matched, show_dir, show_data)
+        warnings.extend(_collision_warnings(collisions, show_dir))
+        return total, warnings
