@@ -11,8 +11,11 @@ Required parameters are filled by NAME from ``PARAM_SOURCES``, drawn from the fi
 (``unresolvable parameter <name>``), so a new parameter forces its source to be written.
 
 Red is: any status of 400 or more, bar the pairs in ``ALLOWED_STATUSES`` (a title with no
-poster is a 404), an empty library, a host that does not answer (the round stops at the first
-such GET), an unexpected failure (``internal.<ExceptionName>``), or a CLI that gives no token
+poster is a 404), a redirect (never followed, so the session cookie goes nowhere else), a 2xx
+whose ``Content-Type`` is not one the contract declares for it or whose JSON does not parse
+(``body.content_type``, ``body.not_json``: a host answering with its HTML fallback is not
+green), an empty library, a host that does not answer (the round stops at the first such GET),
+an unexpected failure (``internal.<ExceptionName>``), or a CLI that gives no token
 (``cli.no_token.<exit code>``, its last stderr line going to stderr).
 
 Output is ``SMOKE OK <n> GETs`` or one ``SMOKE RED <operationId> <status> <code>`` line per
@@ -34,6 +37,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
+from http.client import HTTPMessage
 from pathlib import Path
 from typing import Any, Final
 
@@ -45,6 +49,7 @@ LIBRARY_OPERATION: Final = "readLibraryItems"
 SIGN_OUT_PATH: Final = "/auth/logout"
 # The only ``(operationId, status)`` pairs at 400 or more that are not red.
 ALLOWED_STATUSES: Final = frozenset({("readMediaPoster", 404)})
+JSON_MEDIA_TYPE: Final = "application/json"
 CLI_COMMAND: Final = (sys.executable, "-m", "personalscraper", "accounts", "open-session", "--owner")
 TIMEOUT_SECONDS: Final = 30
 
@@ -54,6 +59,25 @@ PARAM_SOURCES: Final[Mapping[str, Callable[[Mapping[str, Any]], str]]] = {
     "provider": lambda ids: next(iter(ids)),
     "providerId": lambda ids: str(next(iter(ids.values()))),
 }
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse to follow a redirect: urllib would resend the ``Cookie`` header to wherever it points."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401 - the stdlib's own signature
+        """Decline the redirect, so the 3xx surfaces as an ``HTTPError`` of its own.
+
+        Args:
+            *args: The stdlib's arguments, unused.
+            **kwargs: The stdlib's keyword arguments, unused.
+
+        Returns:
+            ``None``, always.
+        """
+        return None
+
+
+_OPENER: Final = urllib.request.build_opener(_NoRedirect)
 
 
 class Red(Exception):
@@ -107,7 +131,19 @@ def open_token(cli: Sequence[str]) -> str:
     return token
 
 
-def call(base: str, method: str, path: str, token: str) -> tuple[int, Any]:
+def _media_type(headers: HTTPMessage) -> str:
+    """Read the answer's media type, parameters (``charset``…) left out.
+
+    Args:
+        headers: The answer's headers.
+
+    Returns:
+        The lower-cased media type, empty when the answer names none.
+    """
+    return headers.get("Content-Type", "").split(";")[0].strip().lower()
+
+
+def call(base: str, method: str, path: str, token: str) -> tuple[int, Any, str]:
     """Send one request as the session and read the answer.
 
     Args:
@@ -117,7 +153,7 @@ def call(base: str, method: str, path: str, token: str) -> tuple[int, Any]:
         token: The session value.
 
     Returns:
-        The status and the decoded JSON body (``None`` when it is not JSON).
+        The status, the decoded JSON body (``None`` when it is not JSON) and the media type.
 
     Raises:
         OSError: The host did not answer.
@@ -129,24 +165,25 @@ def call(base: str, method: str, path: str, token: str) -> tuple[int, Any]:
         headers={"Cookie": f"{SESSION_COOKIE}={token}"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310 - the base is an operator argument
-            status, raw = response.status, response.read()
+        with _OPENER.open(request, timeout=TIMEOUT_SECONDS) as response:
+            status, raw, media = response.status, response.read(), _media_type(response.headers)
     except urllib.error.HTTPError as exc:
-        status, raw = exc.code, exc.read()
+        status, raw, media = exc.code, exc.read(), _media_type(exc.headers)
     try:
-        return status, json.loads(raw)
+        return status, json.loads(raw), media
     except ValueError:
-        return status, None
+        return status, None, media
 
 
-def get_operations(contract: Path) -> list[tuple[str, str, list[str]]]:
+def get_operations(contract: Path) -> list[tuple[str, str, list[str], frozenset[str]]]:
     """List the contract's GETs, the library listing first (it holds the parameters' sample).
 
     Args:
         contract: The OpenAPI document.
 
     Returns:
-        ``(operation id, path template, required parameter names)`` per GET.
+        ``(operation id, path template, required parameter names, declared 2xx media types)`` per GET;
+        the media types are empty when the contract declares no content for any 2xx.
     """
     paths = json.loads(contract.read_text())["paths"]
     found = []
@@ -155,7 +192,13 @@ def get_operations(contract: Path) -> list[tuple[str, str, list[str]]]:
         if operation is None:
             continue
         required = [p["name"] for p in operation.get("parameters", []) if p.get("required")]
-        found.append((operation.get("operationId", template), template, required))
+        media = frozenset(
+            kind
+            for status, response in operation.get("responses", {}).items()
+            if status.startswith("2")
+            for kind in response.get("content", {})
+        )
+        found.append((operation.get("operationId", template), template, required, media))
     return sorted(found, key=lambda op: op[0] != LIBRARY_OPERATION)
 
 
@@ -192,6 +235,27 @@ def fill(template: str, names: Sequence[str], ids: Mapping[str, Any] | None, ope
     return f"{path}?{urllib.parse.urlencode(query)}" if query else path
 
 
+def body_problem(status: int, media_type: str, body: Any, declared: frozenset[str]) -> str | None:  # noqa: ANN401
+    """Say what is wrong with a 2xx answer's body, against what the contract declares.
+
+    Args:
+        status: The HTTP status.
+        media_type: The answer's media type.
+        body: The decoded JSON body, ``None`` when it did not parse.
+        declared: The 2xx media types the contract declares; empty means none to check.
+
+    Returns:
+        The red code, or ``None`` when the body is as declared (or no check applies).
+    """
+    if not 200 <= status < 300 or not declared:
+        return None
+    if media_type not in declared:
+        return "body.content_type"
+    if media_type == JSON_MEDIA_TYPE and body is None:
+        return "body.not_json"
+    return None
+
+
 def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
     """Call every GET of the contract and collect the failures.
 
@@ -206,13 +270,15 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
     reds: list[Red] = []
     called = 0
     ids: Mapping[str, Any] | None = None
-    for operation, template, names in get_operations(contract):
+    for operation, template, names, declared in get_operations(contract):
         try:
             path = fill(template, names, ids, operation)
-            status, body = call(base, "GET", path, token)
+            status, body, media_type = call(base, "GET", path, token)
             called += 1
             problem = body.get("code") if isinstance(body, dict) else None
             code = str(problem) if problem else "-"
+            if 300 <= status < 400:
+                code = "redirect"
             if operation == LIBRARY_OPERATION:
                 if status != 200:
                     raise Red(operation, status, code)
@@ -220,8 +286,10 @@ def check(base: str, contract: Path, token: str) -> tuple[int, list[Red]]:
                 if not items:
                     raise Red(operation, status, "library.empty")
                 ids = items[0].get("ids")
-            elif status >= 400 and (operation, status) not in ALLOWED_STATUSES:
+            elif status >= 300 and (operation, status) not in ALLOWED_STATUSES:
                 raise Red(operation, status, code)
+            elif (bad_body := body_problem(status, media_type, body, declared)) is not None:
+                raise Red(operation, status, bad_body)
         except Red as red:
             reds.append(red)
         except OSError:

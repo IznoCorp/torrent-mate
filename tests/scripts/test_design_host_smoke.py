@@ -97,18 +97,20 @@ def _cli(tmp_path: Path, token: str = TOKEN, exit_code: int = 0, stderr: str = "
 class FakeHost:
     """A fake v1 host that records every request and answers by a per-path table."""
 
-    def __init__(self, answers: dict[str, tuple[int, Any]]) -> None:
+    def __init__(self, answers: dict[str, tuple[Any, ...]]) -> None:
         """Start from the answers.
 
         Args:
-            answers: ``(status, JSON body)`` by ``METHOD path``; an unlisted GET is a 200 ``{}``.
+            answers: ``(status, body)`` or ``(status, body, headers)`` by ``METHOD path``; the body is
+                JSON-encoded unless it is ``bytes`` (sent as is), the headers override the default
+                ``Content-Type: application/json``; an unlisted GET is a 200 ``{}``.
         """
         self.answers = answers
         self.requests: list[tuple[str, str, str | None]] = []
 
 
 @contextmanager
-def _host(answers: dict[str, tuple[int, Any]] | None = None) -> Iterator[tuple[FakeHost, str]]:
+def _host(answers: dict[str, tuple[Any, ...]] | None = None) -> Iterator[tuple[FakeHost, str]]:
     """Serve a fake host on an ephemeral port (never a real one).
 
     Args:
@@ -131,10 +133,12 @@ def _host(answers: dict[str, tuple[int, Any]] | None = None) -> Iterator[tuple[F
             host.requests.append((self.command, path, sent))
             key = f"{self.command} {path.removeprefix('/api/v1')}"
             default = (200, items if key == "GET /library/items" else {})
-            status, body = host.answers.get(key, default)
-            payload = json.dumps(body).encode()
+            status, body, *extra = host.answers.get(key, default)
+            headers = {"Content-Type": "application/json", **(extra[0] if extra else {})}
+            payload = body if isinstance(body, bytes) else json.dumps(body).encode()
             self.send_response(status)
-            self.send_header("Content-Type", "application/json")
+            for name, value in headers.items():
+                self.send_header(name, value)
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
@@ -240,6 +244,7 @@ def test_the_token_never_appears_in_the_output(tmp_path: Path, run: Callable[...
     outputs.append(run("http://127.0.0.1:1", _contract(tmp_path))[1])
     assert all(TOKEN not in out for out in outputs)
     assert "SMOKE RED readVersion 401" in outputs[1]
+    assert "SMOKE RED readVersion 401 ***" in outputs[1]
 
 
 def test_an_empty_library_is_red(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
@@ -372,3 +377,70 @@ def test_a_cli_without_token_carries_its_exit_code_and_stderr_goes_to_stderr(
     assert captured.out.strip().splitlines() == ["SMOKE RED openSession 2 cli.no_token.2"]
     assert "not a dev checkout" in captured.err
     assert "not a dev checkout" not in captured.out
+
+
+def _typed_contract(tmp_path: Path, media: dict[str, list[str]]) -> Path:
+    """Write a contract whose GETs declare the media types of their 200, by operation id.
+
+    Args:
+        tmp_path: Where the file goes.
+        media: The declared 2xx media types, by operation id (``readVersion``, ``readLibraryItems``).
+
+    Returns:
+        The contract's path.
+    """
+    paths = {
+        "/version": {"get": {"operationId": "readVersion"}},
+        "/library/items": {"get": {"operationId": "readLibraryItems"}},
+    }
+    for item in paths.values():
+        operation = item["get"]
+        operation["responses"] = {"200": {"content": {kind: {} for kind in media[operation["operationId"]]}}}
+    target = tmp_path / "typed-contract.json"
+    target.write_text(json.dumps({"paths": paths}))
+    return target
+
+
+JSON_MEDIA = {"readVersion": ["application/json"], "readLibraryItems": ["application/json"]}
+
+
+def test_a_200_that_is_html_is_red(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """A host that answers a v1 path with its HTML fallback is red, not green on the 200."""
+    html = (200, b"<html>login</html>", {"Content-Type": "text/html"})
+    with _host({"GET /version": html}) as (_, base):
+        code, out = run(base, _typed_contract(tmp_path, JSON_MEDIA))
+    assert code == 1
+    assert out.strip().splitlines() == ["SMOKE RED readVersion 200 body.content_type"]
+
+
+def test_a_json_200_whose_body_is_not_json_is_red(tmp_path: Path, run: Callable[..., tuple[int, str]]) -> None:
+    """A 200 that claims JSON but does not parse is red."""
+    with _host({"GET /version": (200, b"{not json")}) as (_, base):
+        code, out = run(base, _typed_contract(tmp_path, JSON_MEDIA))
+    assert code == 1
+    assert out.strip().splitlines() == ["SMOKE RED readVersion 200 body.not_json"]
+
+
+def test_a_200_image_where_the_contract_declares_an_image_is_green(
+    tmp_path: Path, run: Callable[..., tuple[int, str]]
+) -> None:
+    """The check follows the contract: a poster's 200 is an image, and is not red for not being JSON."""
+    media = {**JSON_MEDIA, "readVersion": ["image/png", "image/jpeg"]}
+    png = (200, b"\x89PNG fake", {"Content-Type": "image/png"})
+    with _host({"GET /version": png}) as (_, base):
+        code, out = run(base, _typed_contract(tmp_path, media))
+    assert (code, out.strip()) == (0, "SMOKE OK 2 GETs")
+
+
+def test_a_redirect_is_red_and_not_followed_with_the_session(
+    tmp_path: Path, run: Callable[..., tuple[int, str]]
+) -> None:
+    """A 3xx is red, and the session cookie never reaches the place it points to (another origin included)."""
+    with _host() as (elsewhere, other_base):
+        redirect = (302, {}, {"Location": f"{other_base}/api/v1/version"})
+        with _host({"GET /version": redirect}) as (host, base):
+            code, out = run(base, _contract(tmp_path))
+    assert code == 1
+    assert out.strip().splitlines() == ["SMOKE RED readVersion 302 redirect"]
+    assert elsewhere.requests == []
+    assert [path for _, path, _ in host.requests if path.endswith("/version")] == ["/api/v1/version"]
