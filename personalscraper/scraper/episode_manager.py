@@ -284,6 +284,7 @@ def match_episode_files(
     episode_default_name: str = "Episode",
     allow_synthetic_rename: bool = True,
     season_pack_markers: list[str] | None = None,
+    provider_seasons: set[int] | None = None,
 ) -> dict[Path, dict[str, Any]]:
     """Match video files to API episode data by season/episode numbers.
 
@@ -296,7 +297,9 @@ def match_episode_files(
        releases mirror the main show's season, e.g. an S17 label on a show
        whose own catalog is S01..S04). When the provider's catalog does
        contain ``(max_season_in_catalog, episode)``, the file is remapped
-       to that season with the provider's title.
+       to that season with the provider's title. A season the provider
+       lists (``provider_seasons``) is never a phantom, even when it was not
+       fetched: remapping it would relabel a real season as another one.
     3. **Synthetic fallback** — no API entry available and no remap worked.
        Behavior depends on ``allow_synthetic_rename``:
 
@@ -327,6 +330,11 @@ def match_episode_files(
             whole-season single-file path (see :func:`_try_season_pack_match`).
             ``None`` (default) disables that path entirely — a file with no
             episode number keeps the pre-existing skip behavior.
+        provider_seasons: Season numbers the metadata provider lists for the
+            show, fetched or not. A labelled season in this set is matched as
+            itself and never remapped by Pass 2. ``None`` (default) means the
+            caller has no such list: only the seasons present in
+            ``api_episodes`` count as known (legacy behavior).
 
     Returns:
         Dict mapping video path to match info:
@@ -338,6 +346,9 @@ def match_episode_files(
     """
     matched: dict[Path, dict[str, Any]] = {}
     available_seasons = {s for s, _ in api_episodes.keys()}
+    # A season the provider lists but that was not fetched is a real season, not
+    # a phantom one: only a season the provider does not know may be remapped.
+    known_seasons = available_seasons | (provider_seasons or set())
     max_season = max(available_seasons) if available_seasons else None
 
     for video_path in video_files:
@@ -391,7 +402,7 @@ def match_episode_files(
             }
             continue
 
-        is_phantom_season = bool(available_seasons) and season not in available_seasons
+        is_phantom_season = bool(available_seasons) and season not in known_seasons
 
         # Pass 2: phantom-season remap via (max_season, episode).
         if is_phantom_season and max_season is not None:
@@ -518,6 +529,14 @@ def rename_episodes(
             renamed_count += 1
             continue
 
+        # Never replace a file already at the destination: a mislabelled or
+        # duplicate source would silently destroy the episode that is there.
+        # Both files stay (with the source's subtitles and sidecars) so the
+        # operator decides; ``Path.rename`` would overwrite without a word.
+        if _destination_taken(video_path, dest):
+            log.warning("episode_rename_collision", source=str(video_path), dest=str(dest))
+            continue
+
         if dry_run:
             log.info("episode_would_rename", source=video_path.name, dest=str(dest))
         else:
@@ -540,6 +559,29 @@ def rename_episodes(
         _cleanup_orphan_episode_siblings(video_path, dry_run)
 
     return renamed_count
+
+
+def _destination_taken(source: Path, dest: Path) -> bool:
+    """Whether renaming *source* to *dest* would replace a different existing file.
+
+    The filesystem is case-insensitive, so a rename that only changes the case
+    of a name finds ``dest`` existing: that one is the same file, not a clash.
+
+    Args:
+        source: The file about to be renamed.
+        dest: Its destination path.
+
+    Returns:
+        True when *dest* exists and is not *source* itself. When identity cannot
+        be established (an ``OSError``) the destination counts as taken: refusing
+        is the safe side of an overwrite.
+    """
+    if not dest.exists():
+        return False
+    try:
+        return not dest.samefile(source)
+    except OSError:
+        return True
 
 
 def _cleanup_orphan_episode_siblings(old_video_path: Path, dry_run: bool) -> None:

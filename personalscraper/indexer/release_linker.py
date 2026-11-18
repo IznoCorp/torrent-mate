@@ -394,3 +394,127 @@ def link_file_to_release(conn: sqlite3.Connection, file_id: int, abs_path: str) 
         (release_id, file_id),
     )
     return release_id
+
+
+_Identity = tuple[int, int | None, int | None, int | None]
+
+
+def _release_identity(conn: sqlite3.Connection, release_id: int) -> _Identity | None:
+    """Return what a release stands for: ``(item_id, season, episode)``.
+
+    Args:
+        conn: Open SQLite connection.
+        release_id: PK of the ``media_release`` row.
+
+    Returns:
+        ``(show_item_id, season_number, first_episode, last_episode)`` for an episode-level
+        release (``last_episode`` equals ``first_episode`` for a single-episode file),
+        ``(item_id, None, None, None)`` for a movie or show-level release, ``None`` when the
+        release row does not exist (or points at nothing).
+    """
+    row = conn.execute(
+        "SELECT mr.item_id, mr.episode_id, s.item_id, s.number, e.number, ee.number "
+        "FROM media_release mr "
+        "LEFT JOIN episode e ON e.id = mr.episode_id "
+        "LEFT JOIN episode ee ON ee.id = mr.episode_end_id "
+        "LEFT JOIN season s ON s.id = e.season_id "
+        "WHERE mr.id = ?",
+        (release_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    item_id, episode_id, show_id, season_number, first, last = row
+    if episode_id is not None:
+        return (show_id, season_number, first, last if last is not None else first) if show_id is not None else None
+    return (item_id, None, None, None) if item_id is not None else None
+
+
+def _path_identity(conn: sqlite3.Connection, abs_path: str) -> _Identity | None:
+    """Return what :func:`link_file_to_release` would link a path to, without writing anything.
+
+    Mirrors the decisions of :func:`link_file_to_release`: the owning item, then the
+    season directory and the episode marker for a show file.
+
+    Args:
+        conn: Open SQLite connection.
+        abs_path: Absolute path of the file.
+
+    Returns:
+        ``(item_id, season, first_episode, last_episode)`` for a show file inside a
+        ``Saison NN`` directory with a parseable marker (the span is part of the identity),
+        ``(item_id, None, None, None)`` for any other file of an item, ``None`` when no item
+        owns the path.
+    """
+    path = Path(abs_path)
+    resolved = find_item_for_path(conn, str(path.parent))
+    if resolved is None:
+        return None
+    item_id, kind, season_num = resolved
+    if kind == "show" and season_num is not None:
+        span = parse_episode_span(path.name)
+        if span is not None:
+            return (item_id, season_num, span[0], span[1])
+    return (item_id, None, None, None)
+
+
+def relink_after_rename(conn: sqlite3.Connection, file_id: int, abs_path: str) -> bool:
+    """Re-resolve the release of a file whose path changed (a drift rename matched by content hash).
+
+    A rename that keeps the identity the path names (same item, season, first and last episode)
+    changes nothing. When the identity changes — another episode, another season, another
+    item — the file is moved to the release the NEW path names through
+    :func:`link_file_to_release`, and queued for re-enrichment (``enriched_at`` cleared) so
+    its NFO and artwork are read against the new release. When no item owns the new path
+    the file is unlinked (``release_id`` NULL): the linker takes it once an item owns the
+    path, and it no longer claims the release of the old one.
+
+    The release the file leaves is deleted when no ``media_file`` row at all references it
+    any more (``media_file.release_id`` is ``ON DELETE CASCADE``, so a tombstoned row would
+    be lost with it). Without that, the old release keeps referencing its episode and the
+    item stage's phantom-episode purge spares the episode forever. The episode rows
+    themselves are removed by that purge on the next item stage (full scan pass 1), not here.
+
+    A file with no release yet is left to the enrich pass's linker.
+
+    Args:
+        conn: Open SQLite connection.
+        file_id: PK of the renamed ``media_file`` row (already at its new path).
+        abs_path: Absolute NEW path of the file.
+
+    Returns:
+        ``True`` when the file's release changed, ``False`` otherwise.
+
+    Raises:
+        sqlite3.Error: When a statement fails; the caller decides whether the scan goes on.
+    """
+    row = conn.execute("SELECT release_id FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    if row is None or row[0] is None:
+        return False
+    old_release_id = int(row[0])
+
+    new_identity = _path_identity(conn, abs_path)
+    if new_identity is not None and new_identity == _release_identity(conn, old_release_id):
+        return False
+
+    new_release_id: int | None = None
+    if new_identity is None:
+        conn.execute("UPDATE media_file SET release_id = NULL WHERE id = ?", (file_id,))
+    else:
+        new_release_id = link_file_to_release(conn, file_id, abs_path)
+    if new_release_id == old_release_id:
+        return False
+
+    conn.execute("UPDATE media_file SET enriched_at = NULL WHERE id = ?", (file_id,))
+    deleted = conn.execute(
+        "DELETE FROM media_release WHERE id = ? AND NOT EXISTS (SELECT 1 FROM media_file WHERE release_id = ?)",
+        (old_release_id, old_release_id),
+    ).rowcount
+    log.info(
+        "indexer.release_linker.relinked_after_rename",
+        file_id=file_id,
+        path=abs_path,
+        old_release_id=old_release_id,
+        new_release_id=new_release_id,
+        old_release_deleted=bool(deleted),
+    )
+    return True
