@@ -795,7 +795,7 @@ def _rescrape_episode_nfos(
 
 def _rescrape_episodes(
     show_dir: Path,
-    show_data: object,
+    show_data: Any,
     source: str,
     api_id: int,
     registry: ProviderRegistry,

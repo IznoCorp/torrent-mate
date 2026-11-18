@@ -1153,7 +1153,9 @@ def _tmdb_two_seasons(empty: frozenset[int] = frozenset()) -> MagicMock:
         episodes = (
             []
             if season in empty
-            else [EpisodeInfo(season_number=season, episode_number=e, title=f"S{season} title {e}") for e in range(1, 9)]
+            else [
+                EpisodeInfo(season_number=season, episode_number=e, title=f"S{season} title {e}") for e in range(1, 9)
+            ]
         )
         return SeasonDetails(season_number=season, tv_id=str(tv_id), episodes=episodes, provider="tmdb")
 
