@@ -26,7 +26,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.105.3",
     "@tanstack/react-router": "^1.170.46",
-    "@tanstack/react-virtual": "^3.14.13",
+    "@tanstack/react-virtual": "^3.14.26",
     "@tanstack/store": "^0.11.1",
     "class-variance-authority": "^0.7.1",
     "firebase": "13.4.0",
