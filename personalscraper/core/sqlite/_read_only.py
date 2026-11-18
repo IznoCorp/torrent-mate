@@ -65,8 +65,9 @@ def connect_read_only(db_path: Path, **connect_args: Any) -> sqlite3.Connection:
     The retry happens only when the first open (or the first page read) fails with
     « unable to open database file » **and** the file exists: that is a WAL store with no live
     ``-shm``. ``mode=rw`` never creates the database, so an absent file stays an error, and
-    ``query_only`` makes the connection refuse every write; the only files it can create are the
-    ``-wal``/``-shm`` side files, in the store's directory. A file that is no database, a locked
+    ``query_only`` makes the connection refuse every write; the files it creates are the
+    ``-wal``/``-shm`` side files, in the store's directory (and a non-empty ``-wal`` a crashed
+    writer left behind is recovered by that open, as any writer's open would). A file that is no database, a locked
     store or an unwritable directory (the retry fails the same way) raise as they would have.
 
     Args:
@@ -88,5 +89,7 @@ def connect_read_only(db_path: Path, **connect_args: Any) -> sqlite3.Connection:
             raise
         try:
             return _open(db_path, "rw", connect_args)
-        except sqlite3.Error:
-            raise first from None
+        except sqlite3.Error as second:
+            # The caller sees the error it would have had without the retry; the retry's own
+            # reason (locked, read-only volume …) stays on the chain for whoever logs it.
+            raise first from second

@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.core.sqlite import connect_read_only
+from personalscraper.core.sqlite._read_only import _cannot_open
 from tests._doubles.idle_wal import leave_wal_database, refuse_idle_wal_read_only
 
 
@@ -151,3 +152,111 @@ def test_an_idle_wal_database_is_read_with_the_real_sqlite(tmp_path: Path, monke
 
     with connect_read_only(path) as conn:
         assert conn.execute("SELECT x FROM t").fetchall() == [(1,)]
+
+
+def _spy_connect(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record the URI of every ``sqlite3.connect`` made from now on.
+
+    Args:
+        monkeypatch: The test's monkeypatch.
+
+    Returns:
+        The list the URIs are appended to, in order.
+    """
+    seen: list[str] = []
+    inner = sqlite3.connect
+
+    def connect(database: object, *args: object, **kwargs: object) -> sqlite3.Connection:
+        """Record the target, then open it.
+
+        Args:
+            database: The database, a path or a ``file:`` URI.
+            *args: Passed to ``sqlite3.connect``.
+            **kwargs: Passed to ``sqlite3.connect``.
+
+        Returns:
+            The connection.
+        """
+        seen.append(str(database))
+        return inner(database, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(sqlite3, "connect", connect)
+    return seen
+
+
+def test_a_database_that_opens_read_only_is_opened_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No retry when ``mode=ro`` works: one open, read-only."""
+    path = tmp_path / "plain.db"
+    sqlite3.connect(path).close()
+    seen = _spy_connect(monkeypatch)
+
+    connect_read_only(path).close()
+
+    assert [uri.rsplit("?", 1)[1] for uri in seen] == ["mode=ro"]
+
+
+def test_an_idle_wal_database_is_opened_ro_then_rw_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The retry is one ``mode=rw`` open, never ``rwc``, after the ``mode=ro`` one."""
+    path = tmp_path / "idle.db"
+    _idle_wal_db(path)
+    seen = _spy_connect(monkeypatch)
+
+    connect_read_only(path).close()
+
+    assert [uri.rsplit("?", 1)[1] for uri in seen] == ["mode=ro", "mode=rw"]
+
+
+def test_an_absent_file_is_opened_once_and_never_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The retry needs the file to exist: an absent one is refused after the single ``mode=ro`` open."""
+    seen = _spy_connect(monkeypatch)
+
+    with pytest.raises(sqlite3.OperationalError):
+        connect_read_only(tmp_path / "absent.db")
+
+    assert [uri.rsplit("?", 1)[1] for uri in seen] == ["mode=ro"]
+
+
+def test_the_error_code_of_a_real_refusal_is_recognised(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """SQLite's own ``SQLITE_CANTOPEN`` is told from another failure, without the message."""
+    monkeypatch.undo()
+    with pytest.raises(sqlite3.OperationalError) as absent:
+        sqlite3.connect(f"{(tmp_path / 'absent.db').as_uri()}?mode=ro", uri=True)
+    garbage = tmp_path / "junk.db"
+    garbage.write_bytes(b"not a database at all, just bytes" * 64)
+    with pytest.raises(sqlite3.DatabaseError) as junk:
+        sqlite3.connect(garbage).execute("SELECT 1 FROM sqlite_master")
+
+    assert _cannot_open(absent.value) is True
+    assert _cannot_open(junk.value) is False
+
+
+def test_a_failed_retry_is_chained_to_the_first_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The caller gets the first error; the retry's own failure stays on ``__cause__``."""
+    path = tmp_path / "idle.db"
+    _idle_wal_db(path)
+    inner = sqlite3.connect
+
+    def connect(database: object, *args: object, **kwargs: object) -> sqlite3.Connection:
+        """Refuse ``mode=rw`` as a read-only volume would.
+
+        Args:
+            database: The database URI.
+            *args: Passed on.
+            **kwargs: Passed on.
+
+        Returns:
+            The connection of a ``mode=ro`` open (which the autouse double refuses).
+
+        Raises:
+            sqlite3.OperationalError: ``mode=rw``.
+        """
+        if "mode=rw" in str(database):
+            raise sqlite3.OperationalError("attempt to write a readonly database")
+        return inner(database, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(sqlite3, "connect", connect)
+
+    with pytest.raises(sqlite3.OperationalError, match="unable to open database file") as refused:
+        connect_read_only(path)
+
+    assert "readonly" in str(refused.value.__cause__)

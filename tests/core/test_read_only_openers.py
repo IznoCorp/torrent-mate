@@ -10,11 +10,15 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore
-from personalscraper.commands.run_follow import _read_only
+from personalscraper.commands.run_follow import _read_only, lease_live
+from personalscraper.conf.environment import StoreName, store_path
+from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite import db_lock
 from personalscraper.indexer.db import IndexerLockError, ensure_library_schema
 from tests._doubles.idle_wal import leave_wal_database, refuse_idle_wal_read_only
@@ -79,3 +83,16 @@ def test_the_follower_reads_an_idle_wal_indexer(tmp_path: Path) -> None:
         assert reader.execute("SELECT run_uid FROM pipeline_run").fetchall() == [("r1",)]
         with pytest.raises(sqlite3.OperationalError):
             reader.execute("DELETE FROM pipeline_run")
+
+
+def test_the_lease_is_read_from_an_idle_wal_app_store(tmp_path: Path) -> None:
+    """``lease_live`` answers « no lease » for a readable store, not « unreadable » (it fails closed)."""
+    app_db = store_path(tmp_path, StoreName.APP)
+    conn = sqlite3.connect(app_db)
+    conn.execute("CREATE TABLE unrelated (a INTEGER)")
+    conn.commit()
+    conn.close()
+    leave_wal_database(app_db)
+    config = cast(Config, SimpleNamespace(paths=SimpleNamespace(data_dir=tmp_path)))
+
+    assert lease_live(config) is False

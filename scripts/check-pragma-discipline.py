@@ -70,8 +70,8 @@ ALLOWLIST: frozenset[str] = frozenset(
         # set — WAL ``journal_mode`` on a read-only connection raises. Only when SQLite answers
         # « unable to open database file » for a file that exists (a WAL store no process holds,
         # no ``-shm``) does it retry once ``mode=rw`` — never ``rwc``, so an absent file is never
-        # created — still ``query_only=ON``; the retry can create the ``-wal``/``-shm`` side files
-        # and nothing else.
+        # created — still ``query_only=ON``; the retry creates the ``-wal``/``-shm`` side files (and
+        # recovers a non-empty ``-wal`` a crashed writer left), nothing else.
         str(PACKAGE_ROOT / "core" / "sqlite" / "_read_only.py"),
     }
 )
