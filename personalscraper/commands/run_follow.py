@@ -31,6 +31,7 @@ from personalscraper.app.supervisor.model import RequestState, RunOptions, RunRe
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.core.sqlite._read_only import connect_read_only
 from personalscraper.i18n import t, t_code
 from personalscraper.logger import get_logger
 
@@ -83,18 +84,6 @@ def _trigger_of(reason: str) -> RunTrigger:
     return RunTrigger(reason) if reason else RunTrigger.CLI
 
 
-def _read_only_uri(db_path: Path) -> str:
-    """The SQLite URI opening a database file read-only.
-
-    Args:
-        db_path: The database file.
-
-    Returns:
-        A ``file:`` URI (percent-encoded, so a path with spaces holds) with ``mode=ro``.
-    """
-    return db_path.resolve().as_uri() + "?mode=ro"
-
-
 def lease_live(config: Config) -> bool:
     """Whether a supervisor's lease is live, read on its own and read-only.
 
@@ -116,7 +105,7 @@ def lease_live(config: Config) -> bool:
     if not app_db.exists():
         return False
     try:
-        with closing(sqlite3.connect(_read_only_uri(app_db), uri=True)) as conn:
+        with closing(connect_read_only(app_db)) as conn:
             try:
                 apply_pragmas(conn)
             except sqlite3.Error:
@@ -325,7 +314,7 @@ def _read_only(db_path: Path) -> Iterator[sqlite3.Connection]:
     Yields:
         The connection, closed afterwards.
     """
-    with closing(sqlite3.connect(_read_only_uri(db_path), uri=True, isolation_level=None)) as conn:
+    with closing(connect_read_only(db_path, isolation_level=None)) as conn:
         try:
             apply_pragmas(conn)
         except sqlite3.Error:

@@ -29,7 +29,7 @@ from typing import Protocol
 from personalscraper.acquire.errors import AcquireCorruptError, AcquireLockError, AcquireMigrationError
 from personalscraper.acquire.store import _MIGRATION_LOCK_TIMEOUT_S, _OPEN_DB_ERROR_FACTORIES
 from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails
-from personalscraper.core.sqlite import apply_migrations, db_lock, open_db
+from personalscraper.core.sqlite import apply_migrations, connect_read_only, db_lock, open_db
 from personalscraper.logger import get_logger
 
 log = get_logger("acquire.catalogue")
@@ -139,13 +139,7 @@ class CatalogueStore:
                 return None
             # The v1 web serves its routes from a thread pool, so the cached connection must not be
             # bound to the thread that opened it (as open_db does for the writable path).
-            conn = sqlite3.connect(
-                f"{self._db_path.resolve().as_uri()}?mode=ro",
-                uri=True,
-                timeout=_READ_TIMEOUT_S,
-                check_same_thread=False,
-            )
-            conn.execute("PRAGMA query_only = ON")
+            conn = connect_read_only(self._db_path, timeout=_READ_TIMEOUT_S, check_same_thread=False)
             self._conn = conn
         return self._conn
 
@@ -242,10 +236,12 @@ class CatalogueStore:
         """
         key = (provider, provider_id)
         if self._read_only:
-            conn = self._reader()
-            if conn is None:
-                return None
             try:
+                # The open reads the first page (a WAL store with no ``-shm`` is retried there), so a
+                # malformed file is refused by it: it is read under the same translation as the query.
+                conn = self._reader()
+                if conn is None:
+                    return None
                 return self._read_episodes(conn, key)
             except sqlite3.DatabaseError as exc:
                 if isinstance(exc, sqlite3.OperationalError) and "no such table" in str(exc):

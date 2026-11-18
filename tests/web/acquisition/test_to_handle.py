@@ -4,7 +4,10 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from personalscraper.app.acquisition.to_handle import build_to_handle
+from tests._doubles.idle_wal import leave_wal_database, refuse_idle_wal_read_only
 
 
 def _make_indexer(tmp_path: Path, rows: list[tuple]) -> Path:
@@ -224,3 +227,22 @@ def test_provenance_correlation_failure_returns_empty_rollup_not_crash(tmp_path,
     assert roll.items == ()
     assert roll.orphan_count == 0
     assert roll.degraded is True
+
+
+def test_an_idle_wal_indexer_is_read_not_degraded(tmp_path, acquire_store, monkeypatch: pytest.MonkeyPatch):
+    """An indexer whose last writer closed (no ``-shm``) is read: the rollup is not degraded."""
+    db = _make_indexer(
+        tmp_path,
+        [(1, "/staging/Top Chef S16E12", "tvshow", "Top Chef", 2010, "ambiguous", "[{}]", "pending", 1000.0)],
+    )
+    acquire_store.provenance.upsert_grab(
+        info_hash="abc", followed_id=42, kind="episode", media_ref=None, grabbed_at=800
+    )
+    acquire_store.provenance.set_ingest(info_hash="abc", ingest_path="/staging/Top Chef S16E12", ingested_at=900)
+    leave_wal_database(db)
+    refuse_idle_wal_read_only(monkeypatch)
+
+    roll = build_to_handle(indexer_db=db, store=acquire_store)
+
+    assert roll.degraded is False
+    assert [item.decision_id for item in roll.items] == [1]

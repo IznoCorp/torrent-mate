@@ -35,6 +35,7 @@ from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.delete_permit import ALLOW, ObligationsUnreadable
+from tests._doubles.idle_wal import leave_wal_database, refuse_idle_wal_read_only
 
 
 @pytest.fixture
@@ -516,6 +517,22 @@ def test_strict_permit_allows_without_obligation(store: ConcreteAcquireStore, tm
     decision = StrictDeletePermit(tmp_path / "acquire.db").may_delete(tmp_path / "movie.mkv")
 
     assert decision is ALLOW
+
+
+def test_strict_permit_reads_an_idle_wal_store(
+    store: ConcreteAcquireStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A store whose last writer closed (no ``-shm``) is read: the owed obligation still vetoes."""
+    folder = tmp_path / "Show"
+    folder.mkdir()
+    _owed_store(store, folder)
+    store.close()
+    leave_wal_database(tmp_path / "acquire.db")
+    refuse_idle_wal_read_only(monkeypatch)
+
+    decision = StrictDeletePermit(tmp_path / "acquire.db").may_delete(folder)
+
+    assert decision is not ALLOW
 
 
 def test_strict_permit_refuses_absent_store_and_creates_nothing(tmp_path: Path) -> None:

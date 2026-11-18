@@ -30,6 +30,7 @@ from types import TracebackType
 from typing import ContextManager, Final, Literal
 
 from personalscraper.core.identity import ItemId, MediaRef
+from personalscraper.core.sqlite import connect_read_only
 
 __all__ = [
     "LIBRARY_PAGE_SIZE",
@@ -748,9 +749,13 @@ class LibraryIndex:
         """Open a reader, at once, to be used as a context manager that closes it.
 
         Read-only at the file (``mode=ro``: an absent index is an error, never a new empty
-        file) and at the connection (``query_only``). The core table is read once before the
-        reader is handed out, so a file that is not a database is refused here rather than
-        by the first query.
+        file) and at the connection (``query_only``). A WAL index whose last writer closed
+        cleanly has no ``-shm``, and some SQLite builds then refuse ``mode=ro``: the open is
+        retried once ``mode=rw`` (never ``rwc``, so an absent file stays an error), still
+        ``query_only``, only on « unable to open database file » with the file present
+        (:func:`~personalscraper.core.sqlite.connect_read_only`). The core table is read once
+        before the reader is handed out, so a file that is not a database is refused here
+        rather than by the first query.
 
         Returns:
             The reader; its connection can take no writer lock.
@@ -759,16 +764,14 @@ class LibraryIndex:
             IndexUnavailable: When ``library.db`` is absent, cannot be opened or is not a
                 database; the ``sqlite3.Error`` is its cause.
         """
-        uri = f"{self._db_path.resolve().as_uri()}?mode=ro"
         try:
-            conn = sqlite3.connect(uri, uri=True, isolation_level=None, check_same_thread=False)
+            conn = connect_read_only(self._db_path, isolation_level=None, check_same_thread=False)
         except sqlite3.Error as exc:
             raise IndexUnavailable(str(exc)) from exc
         try:
             # Not the canonical writer PRAGMA set: WAL ``journal_mode`` raises on a read-only
-            # connection (scripts/check-pragma-discipline.py allow-lists this reader).
+            # connection (``connect_read_only`` already made it ``query_only``).
             conn.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
-            conn.execute("PRAGMA query_only=ON")
             # The core table, not ``sqlite_master``: a 0-byte or schema-less file opens and passes
             # that, and the first real query then dies on « no such table ».
             conn.execute("SELECT 1 FROM media_item LIMIT 1").fetchone()
