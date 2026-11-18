@@ -13,7 +13,7 @@
 // tap, and only then loads the SDK.
 //
 // THE TOKEN API, settled against the pinned SDK (firebase 13.4.0, `@firebase/messaging` 0.13.3 —
-// the same messaging package as firebase 12.19.0: the 13 major changed `@firebase/ai` only).
+// the same messaging package as firebase 12.19.0: the 13 major's breaking changes are in `@firebase/ai`).
 // `getToken` and `deleteToken` are marked deprecated there, in favour of `register` + `onRegistered`
 // and `onUnregistered`, which deliver and retire a Firebase Installation id. Both are kept:
 // `getToken` returns an FCM REGISTRATION TOKEN, the target `messages:send`'s `token` field is

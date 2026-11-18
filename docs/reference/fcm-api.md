@@ -141,7 +141,7 @@ Source: `https://firebase.google.com/docs/cloud-messaging/js/client`.
 - The permission is asked from a direct user gesture only.
 - **The token API, settled against the pinned SDK** (`firebase` 13.4.0, exact pin in
   `webui/design/package.json`; it carries `@firebase/messaging` 0.13.3, the very package of
-  `firebase` 12.19.0 — the 13.0.0 major changed `@firebase/ai` only, and no 13.x release note up to
+  `firebase` 12.19.0 — the 13.0.0 major's breaking changes are in `@firebase/ai`, and no 13.x release note up to
   13.4.0 mentions messaging; sources: the firebase-js-sdk releases `firebase@13.0.0` to `firebase@13.4.0`
   and the package's `index-public.d.ts`). `getToken` and `deleteToken` are both marked deprecated there:
   `getToken` in favour of `register` + `onRegistered`, which deliver a Firebase Installation id (FID),
