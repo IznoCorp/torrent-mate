@@ -79,6 +79,86 @@ def check(name, condition, detail=""):
     return _journal.check(name, condition, detail)
 
 
+LOCALES = ("fr-FR", "en-US")
+
+
+async def read_both_renderings(b, locale, errors):
+    """Reads the sign-in screen as the host serves it and as the prototype's gate draws it.
+
+    The locale is PINNED on the browser context: the host words its page by the visitor's
+    `Accept-Language`, and the runner's own locale would otherwise decide the verdict. The
+    prototype's gate follows the same browser language.
+
+    Args:
+        b: The Playwright browser.
+        locale: The browser's locale (`fr-FR`, `en-US`).
+        errors: The list the pages' uncaught errors are appended to.
+
+    Returns:
+        The host's reading, then the prototype's.
+    """
+    ctx = await b.new_context(viewport={"width": 390, "height": 844},
+                              device_scale_factor=2, is_mobile=True, has_touch=True, locale=locale)
+
+    pg = await ctx.new_page()
+    pg.on("pageerror", lambda e: errors.append(f"host {locale}: {e}"))
+    response = await pg.goto(HOST, wait_until="load")
+    ok, ip_address = read_through_localhost(await response.server_addr())
+    check(f"{READ_THROUGH_LOCALHOST} ({locale})", ok, str(ip_address))
+    await pg.wait_for_timeout(500)
+    arrival = await pg.evaluate(READ)
+
+    pg2 = await ctx.new_page()
+    pg2.on("pageerror", lambda e: errors.append(f"prototype {locale}: {e}"))
+    await pg2.goto(PROTOTYPE, wait_until="load")
+    await pg2.evaluate("()=>document.querySelector('#toastx').click()")
+    await pg2.wait_for_timeout(250)
+    # THE SIGN-OUT IS STARTED, NOT AWAITED THROUGH THE BRIDGE (as `account_language.py`): what
+    # is read is the gate once it is up, not a promise the page may let go of.
+    await pg2.evaluate("()=>{ void window.__entry.signOut(); }")
+    await pg2.wait_for_function("()=>document.querySelector('#login')?.hidden === false")
+    await pg2.wait_for_timeout(700)
+    await pg2.evaluate("()=>document.querySelector('[data-part=\"login/password-disclosure\"]')?.click()")
+    await pg2.wait_for_timeout(250)
+    signout = await pg2.evaluate(READ)
+    await ctx.close()
+    return arrival, signout
+
+
+def compare_renderings(locale, arrival, signout):
+    """Checks that the two renderings of one language agree on parts, words, colour, type and geometry.
+
+    Args:
+        locale: The language the two were read in; it names each check.
+        arrival: The host's reading.
+        signout: The prototype's reading.
+    """
+    check(f"both renderings carry the same parts ({locale})",
+          sorted(arrival) == sorted(signout)
+          and not [k for k in arrival if arrival[k] == "ABSENT"],
+          str([k for k in arrival if arrival[k] == "ABSENT"]))
+
+    check(f"and they say the same words ({locale})",
+          arrival["__words"] == signout["__words"],
+          f"{arrival['__words'][:44]!r} vs {signout['__words'][:44]!r}")
+
+    # Colour, type and radius are compared EXACTLY: a difference there is always a
+    # decision that drifted. Geometry allows one pixel, and only one: both boxes
+    # measure 390x844 to the pixel, so what is left is a flex centring landing on
+    # a half pixel and rounding two ways. Real drift is never one pixel.
+    GEOMETRY = {"w", "h", "dx", "dy"}
+    for key in [k for k in arrival if not k.startswith("__")]:
+        a, s = arrival[key], signout.get(key)
+        if not (isinstance(a, dict) and isinstance(s, dict)):
+            gaps = {"whole": (a, s)}
+        else:
+            gaps = {k: (a[k], s[k]) for k in a
+                    if (abs(a[k] - s[k]) > 1 if k in GEOMETRY else a[k] != s[k])}
+        check(f"« {key} » renders the same on both sides ({locale})", not gaps,
+              "; ".join(f"{k}: host={va} prototype={vs}"
+                        for k, (va, vs) in list(gaps.items())[:3]))
+
+
 async def main():
     global _journal
     _journal = Journal("R62 — one sign-in screen")
@@ -100,60 +180,14 @@ async def main():
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args(resolve_deployed_host_locally(HOST)))
-        # FRENCH, PINNED: the host side is the LIVE tm-design, which serves `develop` and words its
-        # page in French until the account's language is merged there; the runner's own locale
-        # would otherwise decide the verdict.
-        ctx = await b.new_context(viewport={"width": 390, "height": 844},
-                                  device_scale_factor=2, is_mobile=True, has_touch=True, locale="fr-FR")
         errors = []
-
-        pg = await ctx.new_page()
-        pg.on("pageerror", lambda e: errors.append(f"host: {e}"))
-        response = await pg.goto(HOST, wait_until="load")
-        ok, ip_address = read_through_localhost(await response.server_addr())
-        check(READ_THROUGH_LOCALHOST, ok, str(ip_address))
-        await pg.wait_for_timeout(500)
-        arrival = await pg.evaluate(READ)
-
-        pg2 = await ctx.new_page()
-        pg2.on("pageerror", lambda e: errors.append(f"prototype: {e}"))
-        await pg2.goto(PROTOTYPE, wait_until="load")
-        await pg2.evaluate("()=>document.querySelector('#toastx').click()")
-        await pg2.wait_for_timeout(250)
-        # THE SIGN-OUT IS STARTED, NOT AWAITED THROUGH THE BRIDGE (as `account_language.py`): what
-        # is read is the gate once it is up, not a promise the page may let go of.
-        await pg2.evaluate("()=>{ void window.__entry.signOut(); }")
-        await pg2.wait_for_function("()=>document.querySelector('#login')?.hidden === false")
-        await pg2.wait_for_timeout(700)
-        await pg2.evaluate("()=>document.querySelector('[data-part=\"login/password-disclosure\"]')?.click()")
-        await pg2.wait_for_timeout(250)
-        signout = await pg2.evaluate(READ)
+        readings = {}
+        for locale in LOCALES:
+            readings[locale] = await read_both_renderings(b, locale, errors)
         await b.close()
 
-    check("both renderings carry the same parts",
-          sorted(arrival) == sorted(signout)
-          and not [k for k in arrival if arrival[k] == "ABSENT"],
-          str([k for k in arrival if arrival[k] == "ABSENT"]))
-
-    check("and they say the same words",
-          arrival["__words"] == signout["__words"],
-          f"{arrival['__words'][:44]!r} vs {signout['__words'][:44]!r}")
-
-    # Colour, type and radius are compared EXACTLY: a difference there is always a
-    # decision that drifted. Geometry allows one pixel, and only one: both boxes
-    # measure 390x844 to the pixel, so what is left is a flex centring landing on
-    # a half pixel and rounding two ways. Real drift is never one pixel.
-    GEOMETRY = {"w", "h", "dx", "dy"}
-    for key in [k for k in arrival if not k.startswith("__")]:
-        a, s = arrival[key], signout.get(key)
-        if not (isinstance(a, dict) and isinstance(s, dict)):
-            gaps = {"whole": (a, s)}
-        else:
-            gaps = {k: (a[k], s[k]) for k in a
-                    if (abs(a[k] - s[k]) > 1 if k in GEOMETRY else a[k] != s[k])}
-        check(f"« {key} » renders the same on both sides", not gaps,
-              "; ".join(f"{k}: host={va} prototype={vs}"
-                        for k, (va, vs) in list(gaps.items())[:3]))
+    for locale, (arrival, signout) in readings.items():
+        compare_renderings(locale, arrival, signout)
 
     check("no JS error", not errors, str(errors))
 
