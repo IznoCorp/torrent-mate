@@ -32,6 +32,20 @@ def test_library_validate_list_checks_exits_zero(test_config) -> None:
     assert_no_python_traceback(result)
 
 
+def test_library_validate_list_checks_prints_each_checks_group_in_brackets(test_config) -> None:
+    """The group of a check is printed literally (``[nfo]``), not swallowed as Rich markup."""
+    from personalscraper.verify.checks.base import CheckStage
+    from personalscraper.verify.checks.catalog import list_checks
+
+    spec = next(s for s in list_checks() if s.stage == CheckStage.DISPATCH and s.name == "nfo_present")
+    with patch(_PATCH_LOAD_CONFIG, return_value=test_config):
+        result = run_cli(["library-validate", "--list-checks"])
+
+    assert result.exit_code == 0, result.output
+    row = next(line for line in result.output.splitlines() if "nfo_present" in line)
+    assert f"[{spec.group}]" in row
+
+
 # ── --check bogus_name ──
 
 

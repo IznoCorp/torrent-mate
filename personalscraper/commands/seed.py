@@ -25,6 +25,7 @@ import dataclasses
 import json
 import time
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 
 import typer
@@ -299,54 +300,63 @@ def seed_purge(
         log.error("seed_purge_not_staging", env=env.value)
         raise _purge_error(t("cli_acquisition.seed.purge.not_staging", env=env.value), 2)
     config = ctx.obj.config
-    # No purge without its journal: checked before the client is built, dry run included,
-    # so the operator's dry run shows the refusal a real run would meet.
-    library_db = store_path(config.paths.data_dir, StoreName.LIBRARY, env)
-    if not library_db.is_file():
-        log.error("seed_purge_no_journal", db_path=str(library_db))
-        raise _purge_error(t("cli_acquisition.seed.purge.no_journal", path=str(library_db)), 2)
-    settings = cli_helpers.get_settings()
-    with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
-        store = app_context.acquire.store if app_context.acquire is not None else None
-        if app_context.torrent_client is None or store is None:
-            log.error(
-                "seed_purge_not_configured",
-                has_client=app_context.torrent_client is not None,
-                has_store=store is not None,
-            )
-            raise _purge_error(t("cli_acquisition.seed.sweep.not_configured"), 1)
-        try:
-            decisions = purge_preprod_downloads(
-                store,
-                app_context.torrent_client,
-                config,
-                now=int(time.time()),
-                dry_run=dry_run,
-                max_purged=max_purged,
-                event_bus=app_context.event_bus,
-                journal=_purge_journal(library_db),
-            )
-        except SandboxGuardError as exc:
-            log.error("seed_purge_refused", reason=str(exc))
-            raise _purge_error(t("cli_acquisition.seed.purge.refused", reason=str(exc)), 2) from exc
-        except TorrentClientError as exc:
-            log.error("seed_purge_client_error", error=str(exc))
-            raise _purge_error(t("cli_acquisition.seed.purge.client_error", error=str(exc)), 1) from exc
-        for decision in decisions:
-            typer.echo(
-                t(
-                    "cli_acquisition.seed.purge.decision",
-                    verdict=decision.verdict.value,
-                    info_hash=decision.info_hash,
-                    name=decision.name,
+    # A dry run deletes nothing and records no row: `cli_run_row` closes every row it opens as a
+    # success, and a dry run must not stand as the cron's last run on Système. A real run opens its
+    # row before the refusals below, so a missing journal fails the row instead of staying silent.
+    row = nullcontext() if dry_run else cli_run_row(config, "seed-purge")
+    with row as run_rec:
+        # No purge without its journal: checked before the client is built, dry run included,
+        # so the operator's dry run shows the refusal a real run would meet.
+        library_db = store_path(config.paths.data_dir, StoreName.LIBRARY, env)
+        if not library_db.is_file():
+            log.error("seed_purge_no_journal", db_path=str(library_db))
+            raise _purge_error(t("cli_acquisition.seed.purge.no_journal", path=str(library_db)), 2)
+        settings = cli_helpers.get_settings()
+        with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
+            store = app_context.acquire.store if app_context.acquire is not None else None
+            if app_context.torrent_client is None or store is None:
+                log.error(
+                    "seed_purge_not_configured",
+                    has_client=app_context.torrent_client is not None,
+                    has_store=store is not None,
                 )
-            )
-        purged = sum(1 for d in decisions if d.verdict is PurgeVerdict.PURGED)
-        kept = len(decisions) - purged
-        if dry_run:
-            typer.echo(t("cli_acquisition.seed.purge.summary_dry_run", purged=purged, kept=kept))
-        else:
-            typer.echo(t("cli_acquisition.seed.purge.summary", purged=purged, kept=kept))
+                raise _purge_error(t("cli_acquisition.seed.sweep.not_configured"), 1)
+            try:
+                decisions = purge_preprod_downloads(
+                    store,
+                    app_context.torrent_client,
+                    config,
+                    now=int(time.time()),
+                    dry_run=dry_run,
+                    max_purged=max_purged,
+                    event_bus=app_context.event_bus,
+                    journal=_purge_journal(library_db),
+                )
+            except SandboxGuardError as exc:
+                log.error("seed_purge_refused", reason=str(exc))
+                raise _purge_error(t("cli_acquisition.seed.purge.refused", reason=str(exc)), 2) from exc
+            except TorrentClientError as exc:
+                log.error("seed_purge_client_error", error=str(exc))
+                raise _purge_error(t("cli_acquisition.seed.purge.client_error", error=str(exc)), 1) from exc
+            for decision in decisions:
+                typer.echo(
+                    t(
+                        "cli_acquisition.seed.purge.decision",
+                        verdict=decision.verdict.value,
+                        info_hash=decision.info_hash,
+                        name=decision.name,
+                    )
+                )
+            purged = sum(1 for d in decisions if d.verdict is PurgeVerdict.PURGED)
+            kept = len(decisions) - purged
+            if dry_run:
+                typer.echo(t("cli_acquisition.seed.purge.summary_dry_run", purged=purged, kept=kept))
+            else:
+                typer.echo(t("cli_acquisition.seed.purge.summary", purged=purged, kept=kept))
+            # §5 « résultat chiffré »: the pass's numbers on its pipeline_run row, so Système shows
+            # the purge's last run like the other scheduled jobs. A dry run has no row (run_rec is None).
+            if run_rec is not None:
+                run_rec.record_counts({"purged": purged, "kept": kept})
 
 
 # Register the seed sub-group on the root Typer app (import side-effect, called by cli.py).

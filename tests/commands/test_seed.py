@@ -605,3 +605,85 @@ def test_seed_purge_without_its_journal_db_is_refused_before_any_client_call(tmp
         assert not (roots.data / "library-staging.db").exists()
     finally:
         store.close()
+
+
+def test_seed_purge_records_its_run_like_the_other_scheduled_jobs(tmp_path, test_config, monkeypatch):
+    """The purge writes one ``pipeline_run`` row (command ``seed-purge``) with its counts, as the sweep does."""
+    import json
+    import sqlite3
+
+    from personalscraper.acquire.preprod_purge import PurgeDecision, PurgeVerdict
+    from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db
+
+    db_path = make_synthetic_db(tmp_path)
+    config = make_test_config_with_db(test_config, db_path)
+    journal = tmp_path / "library-staging.db"
+    journal.touch()
+    decisions = [
+        PurgeDecision("aaaa", "Release.A", PurgeVerdict.PURGED, 1),
+        PurgeDecision("bbbb", "Release.B", PurgeVerdict.KEPT_UNKNOWN, None),
+    ]
+    with (
+        patch("personalscraper.commands.seed.purge_preprod_downloads", return_value=decisions),
+        patch("personalscraper.commands.seed.store_path", return_value=journal),
+    ):
+        result, _ = _invoke_purge([], config, _fake_context(), monkeypatch)
+    assert result.exit_code == 0, result.output
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute("SELECT command, kind, outcome, steps_json FROM pipeline_run").fetchall()
+    finally:
+        conn.close()
+    assert [row[:3] for row in rows] == [("seed-purge", "maintenance", "success")]
+    assert json.loads(rows[0][3])[0]["counts"] == {"purged": 1, "kept": 1}
+
+
+def _purge_rows(db_path):
+    """Read every ``pipeline_run`` row of *db_path* as ``(command, outcome)``.
+
+    Args:
+        db_path: The ``library.db`` holding the run journal.
+
+    Returns:
+        The rows.
+    """
+    import sqlite3
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        return conn.execute("SELECT command, outcome FROM pipeline_run").fetchall()
+    finally:
+        conn.close()
+
+
+def test_seed_purge_dry_run_leaves_no_run_row(tmp_path, test_config, monkeypatch):
+    """A dry run is not the cron's last run: no ``pipeline_run`` row stands for it."""
+    from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db
+
+    db_path = make_synthetic_db(tmp_path)
+    config = make_test_config_with_db(test_config, db_path)
+    journal = tmp_path / "library-staging.db"
+    journal.touch()
+    with (
+        patch("personalscraper.commands.seed.purge_preprod_downloads", return_value=[]),
+        patch("personalscraper.commands.seed.store_path", return_value=journal),
+    ):
+        result, _ = _invoke_purge(["--dry-run"], config, _fake_context(), monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert _purge_rows(db_path) == []
+
+
+def test_seed_purge_without_its_journal_fails_its_run_row(tmp_path, test_config, monkeypatch):
+    """The nightly cron's missing-journal refusal shows on Système: its row ends in ``error``."""
+    from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db
+
+    db_path = make_synthetic_db(tmp_path)
+    config = make_test_config_with_db(test_config, db_path)
+    with (
+        patch("personalscraper.commands.seed.purge_preprod_downloads") as purge,
+        patch("personalscraper.commands.seed.store_path", return_value=tmp_path / "absent.db"),
+    ):
+        result, _ = _invoke_purge([], config, _fake_context(), monkeypatch)
+    assert result.exit_code == 2, result.output
+    purge.assert_not_called()
+    assert _purge_rows(db_path) == [("seed-purge", "error")]

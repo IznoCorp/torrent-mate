@@ -365,6 +365,8 @@ def library_validate(
 
     console = state["console"]
     if list_checks:
+        from rich.markup import escape
+
         from personalscraper.verify.checks.base import CheckStage
         from personalscraper.verify.checks.catalog import list_checks as _list
 
@@ -372,7 +374,8 @@ def library_validate(
             fix_label = t("cli_library.maintenance.fixable") if spec.fixable else "-"
             idx_label = t("cli_library.maintenance.indexable") if spec.indexable else "-"
             row = (
-                f"  {spec.name:<34} [{spec.group}] "
+                # Rich would read a bare ``[group]`` as a style tag and drop it from the row.
+                f"  {spec.name:<34} {escape(f'[{spec.group}]')} "
                 f"{spec.default_severity.value:<7} {fix_label:<8} {idx_label:<9} "
                 f"{spec.description}"
             )

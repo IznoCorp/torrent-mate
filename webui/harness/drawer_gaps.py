@@ -76,14 +76,16 @@ READ_STRANDED = """() => {
 
 # Brings group `index`'s last entry to the navigation's bottom edge. The scroll is moved to the
 # entry's own offset and clamped by the browser, so a group the scroll range cannot bring up stays
-# short of it. Returns the group's title, or null when the group has no entry.
+# short of it. Returns the group's title and whether it has no entry to bring up: an empty group
+# keeps its title, so the journal names the heading the reader sees.
 SCROLL_TO_LAST = """(index) => {
   const nav = document.querySelector('#drawer nav');
   const group = nav.querySelectorAll('.grp')[index];
   const last = [...group.querySelectorAll('a, button')].at(-1);
-  if (!last) return null;
+  const title = group.querySelector('.sect')?.textContent ?? '';
+  if (!last) return {title, empty: true};
   nav.scrollTop += last.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom;
-  return group.querySelector('.sect')?.textContent ?? '';
+  return {title, empty: false};
 }"""
 
 # Read AFTER the scroll has settled (the navigation snaps): whether group `index`'s last entry lies
@@ -173,10 +175,10 @@ async def unreachable_groups(page):
     """
     unreachable = []
     for index in range(await page.evaluate(READ_GROUP_COUNT)):
-        title = await page.evaluate(SCROLL_TO_LAST, index)
+        scrolled = await page.evaluate(SCROLL_TO_LAST, index)
         await page.wait_for_timeout(SETTLE_MS)
-        if title is None or not await page.evaluate(READ_REACHABLE, index):
-            unreachable.append(title or f"group {index}")
+        if scrolled["empty"] or not await page.evaluate(READ_REACHABLE, index):
+            unreachable.append(scrolled["title"] or f"group {index}")
     return unreachable
 
 
