@@ -345,6 +345,9 @@ module.exports = {
     // into the preprod's roots); reads only the preprod's qBittorrent category (torrent scope).
     // It runs the supervisor, which carries the watcher's poll and admits the queued runs; the
     // watcher's name is kept, and `args: "watch"` is the one-line rollback.
+    // `treekill: false`: a stop, restart or deploy signals the supervisor alone. Its workers are
+    // its children, and PM2's default tree kill ended the run in flight; a worker must outlive the
+    // supervisor so that the next one adopts its run.
     {
       name: "personalscraper-preprod-watch",
       script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
@@ -355,6 +358,7 @@ module.exports = {
       restart_delay: 5000,
       max_restarts: 10,
       kill_timeout: 30000,
+      treekill: false,
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_ENV: "staging",
