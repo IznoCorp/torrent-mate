@@ -32,6 +32,15 @@ _LINK_COLUMNS = (
     "account_id, plex_id, plex_uuid, plex_username, server_access,"
     " token_ciphertext, token_stored_at, linked_at, last_sign_in_at"
 )
+_ACCOUNT_COLUMN_COUNT = len(_ACCOUNT_COLUMNS.split(","))
+# One statement reads an account and its Plex link: a guarded request resolves its actor on every call.
+_ACCOUNT_WITH_LINK_SELECT = (
+    "SELECT "  # noqa: S608 — builds from the module's fixed column constants only
+    + ", ".join(f"account.{column.strip()}" for column in _ACCOUNT_COLUMNS.split(","))
+    + ", "
+    + ", ".join(f"plex_link.{column.strip()}" for column in _LINK_COLUMNS.split(","))
+    + " FROM account LEFT JOIN plex_link ON plex_link.account_id = account.id"
+)
 
 
 def _account(row: tuple[object, ...], link: PlexLink | None) -> Account:
@@ -51,6 +60,22 @@ def _account(row: tuple[object, ...], link: PlexLink | None) -> Account:
     return replace(
         account, sign_in_allowed=bool(account.sign_in_allowed), language=Language(account.language), plex_link=link
     )
+
+
+def _joined_account(row: tuple[object, ...]) -> Account:
+    """Build an account from a row of :data:`_ACCOUNT_WITH_LINK_SELECT`.
+
+    The ``LEFT JOIN`` leaves the link's columns ``NULL`` for an account with no link.
+
+    Args:
+        row: The account's columns, then the link's.
+
+    Returns:
+        The account, its Plex link attached when it has one.
+    """
+    link_columns = row[_ACCOUNT_COLUMN_COUNT:]
+    link = None if link_columns[0] is None else _link(link_columns)
+    return _account(row[:_ACCOUNT_COLUMN_COUNT], link)
 
 
 def _link(row: tuple[object, ...]) -> PlexLink:
@@ -86,19 +111,8 @@ class AccountRepository:
         Returns:
             The accounts.
         """
-        rows = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account ORDER BY created_at, rowid")  # noqa: S608 — interpolates the module's fixed column constants only
-        return [self._with_link(row) for row in rows.fetchall()]
-
-    def _with_link(self, row: tuple[object, ...]) -> Account:
-        """Build an account from its row, its Plex link read with it.
-
-        Args:
-            row: The row, in ``_ACCOUNT_COLUMNS`` order.
-
-        Returns:
-            The account.
-        """
-        return _account(row, self.plex_link(row[0]))  # type: ignore[arg-type]
+        rows = self._conn.execute(f"{_ACCOUNT_WITH_LINK_SELECT} ORDER BY account.created_at, account.rowid")
+        return [_joined_account(row) for row in rows.fetchall()]
 
     @serialised
     def account(self, account_id: AccountId) -> Account | None:
@@ -110,8 +124,8 @@ class AccountRepository:
         Returns:
             The account, or ``None``.
         """
-        row = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE id = ?", (account_id,)).fetchone()  # noqa: S608 — interpolates the module's fixed column constants only
-        return self._with_link(row) if row else None
+        row = self._conn.execute(f"{_ACCOUNT_WITH_LINK_SELECT} WHERE account.id = ?", (account_id,)).fetchone()
+        return _joined_account(row) if row else None
 
     @serialised
     def account_by_email(self, email: str) -> Account | None:
@@ -124,10 +138,10 @@ class AccountRepository:
             The account, or ``None``.
         """
         row = self._conn.execute(
-            f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE lower(email) = lower(?)",  # noqa: S608 — interpolates the module's fixed column constants only
+            f"{_ACCOUNT_WITH_LINK_SELECT} WHERE lower(account.email) = lower(?)",
             (email,),
         ).fetchone()
-        return self._with_link(row) if row else None
+        return _joined_account(row) if row else None
 
     @serialised
     def insert_account(self, account: Account) -> None:

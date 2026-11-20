@@ -21,7 +21,7 @@ from pydantic import ValidationError
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.accounts.model import Account
+from personalscraper.app.accounts.model import Account, PlexLink
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.roster import RosterService
 from personalscraper.app.accounts.sessions import (
@@ -215,6 +215,37 @@ class TestResolve:
         clock.now += SESSION_RENEWAL_INTERVAL_S * 2
         assert sessions.resolve(token) is not None
         assert _rows(store) == before
+
+    def test_resolving_the_actor_reads_the_plex_link_with_the_account(
+        self, sessions: SessionService, store: AppStore
+    ) -> None:
+        """A guarded request's actor resolution reads the account and its Plex link in one statement, not two."""
+        store.accounts.upsert_plex_link(
+            PlexLink(
+                account_id=_ACCOUNT_ID,
+                plex_id=42,
+                plex_uuid="uuid-42",
+                plex_username="alice",
+                server_access="shared",
+                token_ciphertext=None,
+                token_stored_at=None,
+                linked_at=2.0,
+                last_sign_in_at=None,
+            )
+        )
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        statements: list[str] = []
+        conn = store.accounts._conn
+        conn.set_trace_callback(statements.append)
+        try:
+            assert sessions.use(token) is not None
+        finally:
+            conn.set_trace_callback(None)
+        account_reads = [
+            statement for statement in statements if "FROM account " in statement or "FROM plex_link" in statement
+        ]
+        assert len(account_reads) == 1, account_reads
+        assert "plex_link" in account_reads[0]
 
     def test_a_revoked_session_is_nobody(self, sessions: SessionService) -> None:
         """``close`` ends the session."""
