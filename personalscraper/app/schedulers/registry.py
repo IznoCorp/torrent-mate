@@ -15,9 +15,10 @@ Ground truth (verified 2026-07-15 against the live ``library.db`` + the
   cron — it is surfaced separately by the route (enabled = ¬``watcher.paused``
   sentinel; last run = ``acquire.db`` ``watch_state.last_successful_run_at``).
 - The crons here (``follow detect``, ``grab``, ``library-index --mode
-  enrich``, ``seed sweep``) each write a ``pipeline_run`` row via ``cli_run_row`` with
-  ``kind='maintenance'`` and ``command`` set to ``'follow-detect'`` /
-  ``'grab'`` / ``'library-index'`` / ``'seed-sweep'``. A cron that has never fired simply has no
+  enrich``, ``seed sweep``, and on the preprod ``seed purge``) each write a
+  ``pipeline_run`` row via ``cli_run_row`` with ``kind='maintenance'`` and ``command`` set to
+  ``'follow-detect'`` / ``'grab'`` / ``'library-index'`` / ``'seed-sweep'`` / ``'seed-purge'``.
+  A cron that has never fired simply has no
   row ⇒ the route surfaces ``last_run_at=None`` (fail-soft, the designed
   behaviour).
 
@@ -85,5 +86,11 @@ CRON_JOBS: tuple[CronJob, ...] = (
         display_name="Suivi des obligations de seed",
         schedule="Toutes les heures à la 45ᵉ minute",
         command_prefix="seed-sweep",
+    ),
+    CronJob(
+        name="personalscraper-preprod-purge",
+        display_name="Purge des téléchargements de la préprod",  # french-ok: label the schedulers route serves as is
+        schedule="Tous les jours à 02:00",  # french-ok: label the schedulers route serves as is
+        command_prefix="seed-purge",
     ),
 )

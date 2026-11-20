@@ -142,6 +142,7 @@ class TestSchedulersRoute:
             "personalscraper-grab",
             "personalscraper-index-enrich",
             "personalscraper-seed-sweep",
+            "personalscraper-preprod-purge",
         }
         for cron in crons:
             assert cron["kind"] == "cron"
@@ -151,6 +152,12 @@ class TestSchedulersRoute:
             # No pipeline_run rows exist → last-run null (current reality).
             assert cron["last_run_at"] is None
             assert cron["last_outcome"] is None
+
+    def test_the_purge_cron_is_matched_by_the_command_its_run_row_records(self) -> None:
+        """The preprod's purge is registered under the ``seed-purge`` command ``seed purge`` records."""
+        purge = next(job for job in CRON_JOBS if job.name == "personalscraper-preprod-purge")
+        assert purge.command_prefix == "seed-purge"
+        assert purge.schedule == "Tous les jours à 02:00"
 
     def test_schedulers_watcher_paused_and_last_run(self, test_config, tmp_path: Path) -> None:
         """200 — sentinel present → watcher disabled; ``watch_state`` last-run surfaced."""

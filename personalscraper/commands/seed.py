@@ -306,7 +306,10 @@ def seed_purge(
         log.error("seed_purge_no_journal", db_path=str(library_db))
         raise _purge_error(t("cli_acquisition.seed.purge.no_journal", path=str(library_db)), 2)
     settings = cli_helpers.get_settings()
-    with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
+    with (
+        cli_run_row(config, "seed-purge") as run_rec,
+        per_step_boundary(config, settings, build_torrent_client=True) as app_context,
+    ):
         store = app_context.acquire.store if app_context.acquire is not None else None
         if app_context.torrent_client is None or store is None:
             log.error(
@@ -347,6 +350,11 @@ def seed_purge(
             typer.echo(t("cli_acquisition.seed.purge.summary_dry_run", purged=purged, kept=kept))
         else:
             typer.echo(t("cli_acquisition.seed.purge.summary", purged=purged, kept=kept))
+        # §5 « résultat chiffré »: the pass's numbers on its pipeline_run row, so Système shows
+        # the purge's last run like the other scheduled jobs. A dry run deletes nothing: it
+        # records no counts, its row stands for « ran, did nothing ».
+        if not dry_run:
+            run_rec.record_counts({"purged": purged, "kept": kept})
 
 
 # Register the seed sub-group on the root Typer app (import side-effect, called by cli.py).
