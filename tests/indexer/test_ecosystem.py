@@ -836,6 +836,19 @@ def test_preprod_watcher_runs_scoped_from_the_staging_clone() -> None:
     assert app.get("kill_timeout") == 30000
 
 
+def test_preprod_supervisor_restart_leaves_its_workers_running() -> None:
+    """A restart of the preprod's supervisor signals the supervisor alone, never the run it started.
+
+    The supervisor starts each run in a detached worker that must outlive it, so that the next
+    supervisor adopts the running request. PM2 kills an app's whole process tree by default
+    (``treekill``): its stop signal also reached the worker, a child of the supervisor, and a
+    ``pm2 restart`` of the preprod's supervisor ended the run it was carrying. Only
+    ``treekill: false`` keeps a deploy or a restart from killing the run in flight.
+    """
+    app = _get_app_by_name(_parse_ecosystem_apps(_ECOSYSTEM_PATH), _PREPROD_WATCH)
+    assert app.get("treekill") is False
+
+
 @pytest.mark.parametrize("app_name", sorted(_PREPROD_JOBS))
 def test_preprod_job_runs_its_job_at_its_offset(app_name: str) -> None:
     """Each preprod job runs its CLI job at the offset § 3.5 gives it.
