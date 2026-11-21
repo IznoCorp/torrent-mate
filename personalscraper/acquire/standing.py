@@ -21,12 +21,29 @@ from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import RatioSubStore
-    from personalscraper.conf.models.api_config import TrackerEconomyConfig
+    from personalscraper.conf.models.api_config import TrackerEconomyConfig, TrackerProviderConfig
 
-__all__ = ["RatioStanding", "TrackerRatioState"]
+__all__ = ["RatioStanding", "TrackerRatioState", "tracker_economies"]
 
 #: The members of a tracker's standing — the contract's ``trackerRatioState`` enum, minus its null.
 TrackerRatioState = Literal["under_floor", "under_target", "comfortable"]
+
+
+def tracker_economies(providers: Mapping[str, TrackerProviderConfig]) -> dict[str, TrackerEconomyConfig]:
+    """Collect the ``economy`` blocks of the configured trackers.
+
+    The ONE derivation of the tracker → economy map the delete authority, the grab's standing
+    resolver and the ``grab --dry-run`` preview all read, so none can see a tracker the others
+    do not.
+
+    Args:
+        providers: The configured trackers by name (``config.tracker.providers``).
+
+    Returns:
+        Tracker name → its economy, for the trackers that declare one; a tracker with no
+        ``economy`` block is absent.
+    """
+    return {name: provider.economy for name, provider in providers.items() if provider.economy is not None}
 
 
 class RatioStanding:

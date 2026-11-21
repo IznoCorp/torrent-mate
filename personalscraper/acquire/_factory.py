@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from personalscraper.acquire.context import AcquireContext
 from personalscraper.acquire.delete_authority import build_delete_authority
-from personalscraper.acquire.standing import RatioStanding
+from personalscraper.acquire.standing import RatioStanding, tracker_economies
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api.tracker._factory import build_tracker_registry
 from personalscraper.core.ownership import NullOwnershipChecker
@@ -108,9 +108,7 @@ def build_acquire_context(
     # declare an explicit `economy` block participate; activation-only trackers
     # (economy is None) are intentionally absent, so record_dispatch records an
     # honest tracker-unresolved MISS for their torrents.
-    economy = {
-        name: provider.economy for name, provider in config.tracker.providers.items() if provider.economy is not None
-    }
+    economy = tracker_economies(config.tracker.providers)
     # Stateless — fail-open when store is None, costs nothing at boot. The
     # torrent_client (read-only here) and economy feed record_dispatch's
     # basename+size correlation + tracker resolution.
@@ -120,6 +118,15 @@ def build_acquire_context(
         economy=economy,
         scope=config.torrent.active_scope(),
     )
+
+    # Ratio standing of a tracker (K3): the ``ratio_state`` row read against the tracker's
+    # economy. Built per call so ``store.ratio`` is not opened at boot. The ``grab --dry-run``
+    # preview builds the same ``RatioStanding`` over the same ``tracker_economies`` (F4: its Top
+    # is the real run's); a call is made only when a ranking criterion names
+    # ``tracker_ratio_state``, and every standing reads None until K5 writes a ratio.
+    def _tracker_ratio_state(tracker: str) -> str | None:
+        return RatioStanding(store.ratio, economy).of(tracker)
+
     # GrabCore is the single grab handle (orchestrator + service). It is built
     # ONLY here — the only frame holding registry + config.ranking +
     # torrent_client + event_bus + store together. It is None when there is no
@@ -178,13 +185,6 @@ def build_acquire_context(
                 return None
             aired = store.aired.list_for_followed(item.followed_id)
             return len([r for r in aired if r.season == item.season]) or None
-
-        # Ratio standing of a tracker (K3 P10): the ``ratio_state`` row read against the
-        # tracker's economy. Built per call so ``store.ratio`` is not opened at boot; the
-        # orchestrator calls it only when a ranking criterion names ``tracker_ratio_state``,
-        # and every standing reads None until K5 writes a ratio.
-        def _tracker_ratio_state(tracker: str) -> str | None:
-            return RatioStanding(store.ratio, economy).of(tracker)
 
         orchestrator = GrabOrchestrator(
             tracker_registry=tracker_registry,
