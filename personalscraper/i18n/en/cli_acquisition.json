@@ -249,6 +249,13 @@
       "done": "Backfilled {{updated}}, skipped {{skipped}}."
     }
   },
+  "follow_duplicates": {
+    "command_help": "Report the provider ids held by two or more followed_series rows.\n\nRead only. The output carries codes and counts: per shared id the provider, the id\nand the ``followed_ids`` holding it; then ``groups`` (shared ids) and ``follows``\n(distinct rows involved).",
+    "config_help": "Path to config.json5 or config dir.",
+    "db_help": "Path to acquire.db (overrides config).",
+    "db_not_found": "Database not found: {{path}}",
+    "db_path_not_configured": "acquire.db_path is not configured"
+  },
   "confidence": {
     "heading": "Matching: {{title}}",
     "none_of_these": "  [0] None of these results",
