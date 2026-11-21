@@ -174,6 +174,7 @@ def _build_search_service(
     from personalscraper.acquire.domain import WantedItem  # noqa: PLC0415
     from personalscraper.acquire.orchestrator import GrabOrchestrator  # noqa: PLC0415
     from personalscraper.acquire.service import AcquisitionService  # noqa: PLC0415
+    from personalscraper.acquire.standing import RatioStanding, tracker_economies  # noqa: PLC0415
 
     store = acquire.store
     assert store is not None  # caller already checked
@@ -215,6 +216,11 @@ def _build_search_service(
         row = store.follow.get(item.followed_id)
         return row.original_title if row is not None else None
 
+    # Ratio standing of a tracker (K3 P10) — same RatioStanding over the same single-source
+    # tracker_economies as the factory and ``grab --dry-run``: the search pass records its top
+    # release as the item's ``best``, so it must rank by the standing the grab ranks by.
+    standing = RatioStanding(store.ratio, tracker_economies(config.tracker.providers))
+
     orchestrator = GrabOrchestrator(
         tracker_registry=acquire.tracker_registry,
         torrent_client=None,  # the search pass adds nothing
@@ -225,6 +231,7 @@ def _build_search_service(
         original_title_resolver=_original_title_resolver,
         episode_count_resolver=_episode_count_resolver,
         bandwidth=config.acquire.bandwidth,
+        tracker_ratio_state_resolver=standing.of,
     )
     return AcquisitionService(
         store=store,

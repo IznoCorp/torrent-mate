@@ -29,11 +29,13 @@ from personalscraper.logger import get_logger
 from personalscraper.subscribers.redis_stream import build_redis_publisher
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from personalscraper.acquire.context import AcquireContext
     from personalscraper.acquire.reconcile import ReconcileSummary
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.tracker._base import TrackerResult
-    from personalscraper.conf.models.api_config import TorrentScope
+    from personalscraper.conf.models.api_config import TorrentScope, TrackerProviderConfig
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
@@ -130,7 +132,9 @@ def grab(
                 raise typer.Exit(1)
 
             if dry_run:
-                _run_dry(acquire, console, limit=limit, followed_id=followed_id)
+                _run_dry(
+                    acquire, console, limit=limit, followed_id=followed_id, tracker_providers=config.tracker.providers
+                )
             else:
                 grab_core = acquire.grab
                 if grab_core is None:
@@ -312,6 +316,7 @@ def _run_dry(
     *,
     limit: int | None,
     followed_id: int | None = None,
+    tracker_providers: Mapping[str, TrackerProviderConfig] | None = None,
 ) -> None:
     """Dry-run: search + filter + dedup + rank, print top candidates. No add.
 
@@ -321,6 +326,9 @@ def _run_dry(
         limit: Max items to inspect.
         followed_id: When set, restrict the dry-run to one followed series'
             pending items (mirrors the real run's OBJ3 per-series scoping).
+        tracker_providers: The configured trackers (``config.tracker.providers``), whose
+            ``economy`` blocks give each tracker's ratio standing, as the real grab reads it
+            (F4). ``None`` or empty leaves every standing ``None``.
     """
     from personalscraper.api._contracts import MediaType  # noqa: PLC0415
 
@@ -342,8 +350,10 @@ def _run_dry(
         return
 
     from personalscraper.acquire.orchestrator import build_search_query, rank_candidates  # noqa: PLC0415
+    from personalscraper.acquire.standing import RatioStanding, tracker_economies  # noqa: PLC0415
     from personalscraper.core._contracts import CircuitOpenError  # noqa: PLC0415
 
+    standing = RatioStanding(store.ratio, tracker_economies(tracker_providers or {}))
     registry = acquire.tracker_registry
     for item in pending:
         item_line = f"{item.media_ref} ({item.kind})"
@@ -451,7 +461,16 @@ def _run_dry(
         # candidate — so the operator validated a decision the real run would
         # never make (a lower-seeder / wrong-variant release); the dry-run-first
         # rule needs the Top to be the actual ranked winner, rank[0].
-        representatives, ranked = rank_candidates(results, profile, item.media_ref, registry.ranking)
+        # The SAME standing the real grab's orchestrator reads (``RatioStanding`` over the
+        # same tracker economies): without it a criterion on ``tracker_ratio_state`` would
+        # score 0 here and the Top could differ.
+        representatives, ranked = rank_candidates(
+            results,
+            profile,
+            item.media_ref,
+            registry.ranking,
+            tracker_ratio_state_of=standing.of,
+        )
         console.print("  " + t("cli_acquisition.grab.after_filter", candidates=len(representatives)))
         if not representatives:
             console.print("  [yellow]" + t("cli_acquisition.grab.all_filtered") + "[/yellow]")

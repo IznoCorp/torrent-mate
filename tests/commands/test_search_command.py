@@ -625,3 +625,103 @@ def test_search_reconcile_never_requeues_nor_confirms_a_hash_without_a_client(tm
         assert store.wanted.get(searching_id).status == "searching"  # type: ignore[union-attr]
     finally:
         store.close()
+
+
+def test_search_pass_and_grab_choose_the_same_release_with_a_ratio_standing_criterion(tmp_path: Path) -> None:
+    """The search pass ranks with the tracker standing the grab ranks with (K3 P10, DESIGN § 2.10).
+
+    ``_search_pass`` persists the search verdict's top release as the item's ``best``; a search
+    orchestrator left without the ratio-standing resolver would score a ``tracker_ratio_state``
+    criterion 0 and pick another release than the grab does. Both orchestrators read the same
+    stored ratio, so their ``chosen`` must be the same.
+    """
+    from types import SimpleNamespace
+
+    from personalscraper.acquire._dedup import SearchOutcome
+    from personalscraper.acquire._factory import build_acquire_context
+    from personalscraper.acquire.context import AcquireContext
+    from personalscraper.acquire.desired import QualityProfile
+    from personalscraper.acquire.domain import RatioState
+    from personalscraper.api.tracker._base import TrackerResult
+    from personalscraper.api.tracker._ranking import RankingConfig, RankingCriterion
+    from personalscraper.commands.search import _build_search_service
+    from personalscraper.conf.models.acquire import BandwidthConfig
+    from personalscraper.conf.models.api_config import TrackerEconomyConfig
+    from personalscraper.core.event_bus import EventBus
+    from personalscraper.core.units import ByteSize
+
+    def _result(provider: str, seeders: int, group: str) -> TrackerResult:
+        return TrackerResult(
+            provider=provider,
+            tracker_id=f"{provider}-1",
+            title=f"Movie 2010 MULTi 1080p BluRay x265-{group}",
+            size=ByteSize(5_000_000_000),
+            seeders=seeders,
+            leechers=0,
+            resolution="1080p",
+            info_hash=provider.encode().hex().ljust(40, "0")[:40],
+            download_url=f"https://{provider}.test/torrent/1",
+        )
+
+    # c411 lists first with far more seeders: only the standing criterion can put tr4ker ahead.
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(
+        results=[_result("c411", 99, "AAA"), _result("tr4ker", 1, "BBB")],
+        trackers_queried=2,
+        trackers_errored=0,
+    )
+    economy = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time="72h")
+    config = MagicMock()
+    config.acquire.db_path = tmp_path / "acquire.db"
+    config.acquire.bandwidth = BandwidthConfig()
+    config.ranking = RankingConfig(
+        criteria=[
+            RankingCriterion(
+                field="tracker_ratio_state", values={"under_floor": -50, "under_target": 0, "comfortable": 10}
+            )
+        ],
+        min_seeders=0,
+    )
+    config.tracker.providers = {
+        "c411": SimpleNamespace(economy=economy),
+        "tr4ker": SimpleNamespace(economy=economy),
+    }
+    config.torrent.active_scope.return_value = None
+    config.torrent.active_sandbox_categories.return_value = ()
+    with patch("personalscraper.acquire._factory.build_tracker_registry", return_value=registry):
+        grab_ctx = build_acquire_context(
+            config, MagicMock(), event_bus=EventBus(), cb_policy=MagicMock(), torrent_client=MagicMock()
+        )
+    try:
+        for tracker, ratio in (("c411", 0.3), ("tr4ker", 3.0)):
+            grab_ctx.store.ratio.upsert(
+                RatioState(
+                    tracker_name=tracker,
+                    observed_ratio=ratio,
+                    accumulated_seed_time_s=0,
+                    hnr_count=0,
+                    updated_at=1_700_000_000,
+                )
+            )
+        assert grab_ctx.grab is not None
+        search_service = _build_search_service(
+            AcquireContext(tracker_registry=registry, store=grab_ctx.store), config, EventBus()
+        )
+        item = WantedItem(
+            media_ref=MediaRef(tvdb_id=11111),
+            kind="movie",
+            status="searching",
+            enqueued_at=1_700_000_000,
+            attempts=1,
+        )
+
+        grabbed = grab_ctx.grab.orchestrator.search(item, QualityProfile()).chosen
+        searched = search_service._orchestrator.search(item, QualityProfile()).chosen
+
+        assert grabbed is not None
+        assert grabbed.provider == "tr4ker"
+        assert searched is not None
+        assert searched.provider == grabbed.provider
+        assert searched.tracker_ratio_state == grabbed.tracker_ratio_state == "comfortable"
+    finally:
+        grab_ctx.close()
