@@ -21,8 +21,10 @@ from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.ids import AccountId, RoleId
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.acquisition.ranking import RankingPreview
-from personalscraper.app.errors import AppForbidden
+from personalscraper.app.errors import AppForbidden, AppUnauthenticated
 from personalscraper.core.units import ByteSize
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 
@@ -30,7 +32,17 @@ _STATE_SCORES = {"under_floor": -50, "under_target": 0, "comfortable": 10}
 
 
 def _result(provider: str, seeders: int = 10, state: str | None = None, tid: str = "t") -> TrackerResult:
-    """Build a result differing only on the axes under test."""
+    """Build a result differing only on the axes under test.
+
+    Args:
+        provider: The tracker's name.
+        seeders: Its seeders.
+        state: Its ``tracker_ratio_state``.
+        tid: A suffix keeping two results of one tracker apart.
+
+    Returns:
+        The result.
+    """
     return TrackerResult(
         provider=provider,
         tracker_id=f"{provider}-{tid}",
@@ -44,12 +56,23 @@ def _result(provider: str, seeders: int = 10, state: str | None = None, tid: str
 
 
 def _admin() -> Actor:
-    """An Admin actor, who holds every right the ceiling leaves."""
+    """An Admin actor, who holds every right the ceiling leaves.
+
+    Returns:
+        The actor.
+    """
     return Actor.system(_NO_CEILING, account_id=AccountId("admin"), name="admin")
 
 
 def _ordinary(rights: frozenset[Right]) -> Actor:
-    """An ordinary-role actor carrying only *rights*."""
+    """An ordinary-role actor carrying only *rights*.
+
+    Args:
+        rights: The rights its role carries.
+
+    Returns:
+        The actor.
+    """
     return Actor(
         account_id=AccountId("a"),
         name="a",
@@ -115,17 +138,21 @@ class TestRankScoresTheState:
 class TestNoCriterionIsByteIdentical:
     """Without a criterion naming the field, the state moves no score."""
 
-    _SEEDERS = RankingCriterion(field="provider", values={"fed": 5, "starved": 3})
+    _PROVIDER_CRITERION = RankingCriterion(field="provider", values={"fed": 5, "starved": 3})
 
-    def test_states_do_not_change_scores_or_order(self) -> None:
-        """The same results with and without states rank identically."""
+    def test_rank_ignores_a_state_no_criterion_names(self) -> None:
+        """``rank()`` reads only the fields its criteria name: results with and without states tie out.
+
+        The grab-level guarantee (wired and unwired resolver rank identically) is pinned in
+        ``tests/acquire/test_ratio_standing.py``.
+        """
         bare = [_result("fed", 7, None, "1"), _result("starved", 90, None, "2"), _result("other", 4, None, "3")]
         stated = [
             _result("fed", 7, "comfortable", "1"),
             _result("starved", 90, "under_floor", "2"),
             _result("other", 4, "under_target", "3"),
         ]
-        ranking = RankingConfig(criteria=[self._SEEDERS], min_seeders=0)
+        ranking = RankingConfig(criteria=[self._PROVIDER_CRITERION], min_seeders=0)
 
         assert [(r.tracker_id, s) for r, s in rank(bare, ranking)] == [
             (r.tracker_id, s) for r, s in rank(stated, ranking)
@@ -133,7 +160,7 @@ class TestNoCriterionIsByteIdentical:
 
     def test_the_tracked_template_names_no_such_criterion(self) -> None:
         """No default criterion: the operator writes it in the ranking settings (DESIGN § 2.10)."""
-        raw = json5.loads(Path("config.example/ranking.json5").read_text())
+        raw = json5.loads((_REPO_ROOT / "config.example" / "ranking.json5").read_text())
 
         fields = {c["field"] for c in raw["ranking"]["criteria"]}
 
@@ -199,8 +226,16 @@ class TestRankingPreview:
         assert all(r.excluded == (r.seeders < 30) for r in rows)
         assert any(flags) and not all(flags)
 
-    def test_the_actor_needs_configuration_write(self) -> None:
-        """``previewRanking`` is ``configuration.write``: refused before any standing is read."""
+    def test_an_actor_holding_configuration_write_may_preview(self) -> None:
+        """The right the contract names, held alone, opens the preview."""
+        preview = RankingPreview(standing_of=lambda _tracker: None)
+
+        rows = preview.preview(_ordinary(frozenset({Right.CONFIGURATION_WRITE})), RankingConfig(min_seeders=0))
+
+        assert len(rows) == 12
+
+    def test_an_actor_without_configuration_write_is_refused_before_any_standing_is_read(self) -> None:
+        """Another right is not enough: ``right.missing`` names ``configuration.write``, no read happened."""
         asked: list[str] = []
 
         def standing_of(tracker: str) -> str | None:
@@ -209,7 +244,23 @@ class TestRankingPreview:
 
         preview = RankingPreview(standing_of=standing_of)
 
-        with pytest.raises(AppForbidden):
-            preview.preview(_ordinary(frozenset({Right.LIBRARY_READ})), RankingConfig())
+        with pytest.raises(AppForbidden) as refused:
+            preview.preview(_ordinary(frozenset({Right.LIBRARY_READ, Right.CONFIGURATION_VIEW})), RankingConfig())
 
+        assert refused.value.params == {"rights": ["configuration.write"]}
         assert asked == []
+
+    def test_an_instance_forbidding_the_write_refuses_even_admin(self) -> None:
+        """The instance's ceiling subtracts the right: ``instance.forbidden_write``."""
+        ceiling = InstanceCeiling(forbidden=frozenset({Right.CONFIGURATION_WRITE}), read_only=False)
+        admin = Actor.system(ceiling, account_id=AccountId("admin"), name="admin")
+
+        with pytest.raises(AppForbidden) as refused:
+            RankingPreview(standing_of=lambda _tracker: None).preview(admin, RankingConfig())
+
+        assert refused.value.params == {"right": "configuration.write"}
+
+    def test_no_actor_is_unauthenticated(self) -> None:
+        """No session at all: ``auth.required``."""
+        with pytest.raises(AppUnauthenticated):
+            RankingPreview(standing_of=lambda _tracker: None).preview(None, RankingConfig())  # type: ignore[arg-type]

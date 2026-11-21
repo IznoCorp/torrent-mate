@@ -13,18 +13,21 @@ import math
 from collections.abc import Iterator
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from personalscraper.acquire._dedup import SearchOutcome
+from personalscraper.acquire._factory import build_acquire_context
+from personalscraper.acquire.context import AcquireContext
 from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import RatioState, WantedItem
-from personalscraper.acquire.orchestrator import GrabOrchestrator
+from personalscraper.acquire.orchestrator import GrabOrchestrator, rank_candidates
 from personalscraper.acquire.standing import RatioStanding
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api.tracker._base import TrackerResult
-from personalscraper.api.tracker._ranking import RankingConfig, RankingCriterion, ThresholdEntry
+from personalscraper.api.tracker._ranking import RankingConfig, RankingCriterion
 from personalscraper.conf.models.acquire import AcquireConfig, BandwidthConfig
 from personalscraper.conf.models.api_config import TrackerEconomyConfig
 from personalscraper.core.event_bus import EventBus
@@ -35,7 +38,11 @@ _ECONOMY = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time="
 
 
 def _wanted() -> WantedItem:
-    """Build a movie WantedItem the search chain accepts."""
+    """Build a movie WantedItem the search chain accepts.
+
+    Returns:
+        The item.
+    """
     return WantedItem(
         media_ref=MediaRef(tvdb_id=11111),
         kind="movie",
@@ -171,7 +178,15 @@ class TestOf:
 
     @staticmethod
     def _state(tracker: str, ratio: float) -> RatioState:
-        """Build a ``ratio_state`` row."""
+        """Build a ``ratio_state`` row.
+
+        Args:
+            tracker: The tracker's name.
+            ratio: The observed ratio.
+
+        Returns:
+            The row.
+        """
         return RatioState(
             tracker_name=tracker,
             observed_ratio=ratio,
@@ -236,17 +251,18 @@ class TestOrchestratorFill:
         assert verdict.chosen is not None
         assert verdict.chosen.tracker_ratio_state is None
 
-    def test_no_resolver_changes_nothing(self) -> None:
-        """Unwired (every caller before P10): the field stays ``None`` and the order is the seeders'."""
-        ranking = RankingConfig(
-            criteria=[RankingCriterion(field="seeders", thresholds=[ThresholdEntry(at=1, score=10)])],
-            min_seeders=0,
-        )
-        orch = _orchestrator([_candidate("c411", 5, group="AAA"), _candidate("tr4ker", 9, group="BBB")], ranking)
+    def test_a_criterion_with_no_resolver_scores_nothing(self) -> None:
+        """Unwired (the ``grab --dry-run`` preview, every caller before P10): the criterion scores 0.
+
+        The field stays ``None``, so the ranking falls back to the input order — the release the
+        trackers listed first wins whatever the standings would have said.
+        """
+        orch = _orchestrator([_candidate("c411", 5, group="AAA"), _candidate("tr4ker", 9, group="BBB")], self._RANKING)
 
         verdict = orch.search(_wanted(), QualityProfile())
 
         assert verdict.chosen is not None
+        assert verdict.chosen.provider == "c411"
         assert verdict.chosen.tracker_ratio_state is None
 
     def test_a_ranking_without_the_criterion_never_asks_the_resolver(self) -> None:
@@ -283,3 +299,95 @@ class TestOrchestratorFill:
         orch.search(_wanted(), QualityProfile())
 
         assert asked == ["c411"]
+
+
+class TestNoCriterionLeavesTheRankingUntouched:
+    """With no criterion on the field, a wired resolver changes nothing the grab ranks."""
+
+    def test_wired_and_unwired_rank_identically(self) -> None:
+        """``rank_candidates`` returns equal lists with the resolver wired and unwired."""
+        results = [_candidate("c411", 99, group="AAA"), _candidate("tr4ker", 1, group="BBB")]
+        ranking = RankingConfig(
+            criteria=[RankingCriterion(field="provider", values={"c411": 1, "tr4ker": 3})], min_seeders=0
+        )
+        states = {"c411": "under_floor", "tr4ker": "comfortable"}
+
+        unwired = rank_candidates(list(results), QualityProfile(), None, ranking)
+        wired = rank_candidates(list(results), QualityProfile(), None, ranking, tracker_ratio_state_of=states.get)
+
+        assert wired == unwired
+        assert [r.tracker_ratio_state for r in wired[0]] == [None, None]
+
+    def test_naming_the_criterion_is_what_changes_the_ranking(self) -> None:
+        """The same wired resolver DOES move the ranking once a criterion names the field."""
+        results = [_candidate("c411", 99, group="AAA"), _candidate("tr4ker", 1, group="BBB")]
+        ranking = RankingConfig(
+            criteria=[RankingCriterion(field="tracker_ratio_state", values={"under_floor": -50, "comfortable": 10})],
+            min_seeders=0,
+        )
+        states = {"c411": "under_floor", "tr4ker": "comfortable"}
+
+        unwired = rank_candidates(list(results), QualityProfile(), None, ranking)
+        wired = rank_candidates(list(results), QualityProfile(), None, ranking, tracker_ratio_state_of=states.get)
+
+        assert [r.provider for r, _ in unwired[1]] == ["c411", "tr4ker"]
+        assert [r.provider for r, _ in wired[1]] == ["tr4ker", "c411"]
+
+
+class TestFactoryWiring:
+    """``build_acquire_context`` wires the orchestrator's resolver to the store and the economy."""
+
+    @staticmethod
+    def _context(tmp_path: Path) -> AcquireContext:
+        """Build an acquire context whose grab handle exists, over a temp ``acquire.db``.
+
+        Args:
+            tmp_path: Pytest temp directory.
+
+        Returns:
+            The context; ``c411`` declares an economy, ``tr4ker`` none.
+        """
+        config = MagicMock()
+        config.acquire.db_path = tmp_path / "acquire.db"
+        config.acquire.bandwidth = BandwidthConfig()
+        config.ranking = RankingConfig()
+        config.tracker.providers = {
+            "c411": SimpleNamespace(economy=_ECONOMY),
+            "tr4ker": SimpleNamespace(economy=None),
+        }
+        config.torrent.active_scope.return_value = None
+        config.torrent.active_sandbox_categories.return_value = ()
+        with patch("personalscraper.acquire._factory.build_tracker_registry", return_value=MagicMock()):
+            return build_acquire_context(
+                config, MagicMock(), event_bus=EventBus(), cb_policy=MagicMock(), torrent_client=MagicMock()
+            )
+
+    def test_the_resolver_reads_the_stored_ratio_through_the_economy(self, tmp_path: Path) -> None:
+        """A stored ratio under ``c411``'s floor reads ``under_floor``; ``tr4ker``, with no economy, ``None``."""
+        ctx = self._context(tmp_path)
+        try:
+            ctx.store.ratio.upsert(
+                RatioState(
+                    tracker_name="c411",
+                    observed_ratio=0.3,
+                    accumulated_seed_time_s=0,
+                    hnr_count=0,
+                    updated_at=1_700_000_000,
+                )
+            )
+            assert ctx.grab is not None
+            resolver = ctx.grab.orchestrator._tracker_ratio_state_resolver
+
+            assert resolver is not None
+            assert resolver("c411") == "under_floor"
+            assert resolver("tr4ker") is None
+        finally:
+            ctx.close()
+
+    def test_wiring_the_resolver_opens_nothing_at_boot(self, tmp_path: Path) -> None:
+        """The resolver is lazy: building the context creates no ``acquire.db``."""
+        ctx = self._context(tmp_path)
+        try:
+            assert not (tmp_path / "acquire.db").exists()
+        finally:
+            ctx.close()
