@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 from personalscraper.acquire.domain import (
     AiredEpisodeRow,
     FollowedSeries,
+    FollowKind,
     RatioState,
     SeedObligation,
     WantedItem,
@@ -56,16 +57,19 @@ class FollowSubStore(Protocol):
         """Return the :class:`FollowedSeries` for *followed_id*, or ``None``."""
         ...
 
-    def find_all_by_ref(self, media_ref: MediaRef) -> list[FollowedSeries]:
-        """Return every row holding ANY of *media_ref*'s ids (tvdb, tmdb, imdb), oldest first."""
+    def find_all_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> list[FollowedSeries]:
+        """Return every row holding one of *media_ref*'s ids, TVDB matches first, then TMDB, then IMDb.
+
+        TVDB and TMDB ids match rows of the medium's kind only (with no *kind*, a
+        ref holding a TVDB id is a show); IMDb ids match across kinds.
+        """
         ...
 
-    def find_by_ref(self, media_ref: MediaRef) -> FollowedSeries | None:
+    def find_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> FollowedSeries | None:
         """Return the follow of *media_ref*'s medium, or ``None``.
 
-        The single row :meth:`find_all_by_ref` finds; on two or more (a
-        duplicate) it logs ``acquire.follow.duplicate_id`` and returns the
-        oldest (first-by-id).
+        The first row :meth:`find_all_by_ref` finds; on two or more (a
+        duplicate) it logs ``acquire.follow.duplicate_id``.
         """
         ...
 

@@ -74,6 +74,7 @@ from personalscraper.acquire._wanted_store import _WantedSubStore
 from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
     FollowedSeries,
+    FollowKind,
     RatioState,
     SeedObligation,
 )
@@ -171,8 +172,8 @@ def _widened_ref(held: MediaRef, offered: MediaRef, others: list[MediaRef]) -> M
     The separation of ids: a slot the follow fills is never overwritten, and an id that
     another row of the same medium (*others*, a duplicate) already holds is not copied,
     since two rows holding the same ids would be the same whole JSON, which
-    ``ux_followed_media_ref`` refuses. Every id learned is held by no other row, so the
-    widened JSON is unique.
+    ``ux_followed_media_ref`` refuses. Every id learned is held by no other row of the
+    medium; a row of the other kind is checked by the caller before the write.
 
     Args:
         held: The ids of the row merged into.
@@ -190,7 +191,7 @@ def _widened_ref(held: MediaRef, offered: MediaRef, others: list[MediaRef]) -> M
     return None if widened == held else widened
 
 
-def _log_duplicate_id(media_ref: MediaRef, found: list[FollowedSeries]) -> None:
+def _log_duplicate_id(media_ref: MediaRef, rowids: list[int | None]) -> None:
     """Report that two or more follow rows hold one of *media_ref*'s ids.
 
     The rows are a medium written twice before ``add`` merged learned ids; they are
@@ -199,15 +200,41 @@ def _log_duplicate_id(media_ref: MediaRef, found: list[FollowedSeries]) -> None:
 
     Args:
         media_ref: The ids looked up.
-        found: The rows holding one of them, oldest first.
+        rowids: The rows holding them, in the lookup's order.
     """
     log.warning(
         "acquire.follow.duplicate_id",
         tvdb_id=media_ref.tvdb_id,
         tmdb_id=media_ref.tmdb_id,
         imdb_id=media_ref.imdb_id,
-        rowids=[follow.id for follow in found],
+        rowids=rowids,
     )
+
+
+def _log_id_conflicts(target: FollowedSeries, offered: MediaRef) -> None:
+    """Report each slot where the row merged into holds another id than the one offered.
+
+    The held id is kept (never overwritten); the offered one is not written. Two media
+    sharing one id, or a TVDB/TMDB mapping that changed, would otherwise vanish in silence.
+
+    Args:
+        target: The row merged into.
+        offered: The ids of the follow being added.
+    """
+    held = target.media_ref
+    for provider, held_id, offered_id in (
+        ("tvdb", held.tvdb_id, offered.tvdb_id),
+        ("tmdb", held.tmdb_id, offered.tmdb_id),
+        ("imdb", held.imdb_id, offered.imdb_id),
+    ):
+        if held_id is not None and offered_id is not None and held_id != offered_id:
+            log.warning(
+                "acquire.follow.id_conflict",
+                rowid=target.id,
+                provider=provider,
+                held=held_id,
+                offered=offered_id,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -229,22 +256,26 @@ class _FollowSubStore:
     def add(self, series: FollowedSeries) -> int:
         """Persist a :class:`FollowedSeries` on the row of its medium and return that rowid.
 
-        The medium is looked up first by ANY of its provider ids
+        The medium is looked up first by any of its provider ids, within its kind
         (:meth:`find_all_by_ref`). A row found is the follow: the ids it lacks are
         merged into its ``media_ref_json`` (widened, never narrowed, a held id never
-        overwritten) and it is reactivated and refreshed exactly as the
+        overwritten, a clash logged as ``acquire.follow.id_conflict``) and it is
+        reactivated and refreshed exactly as the
         ``ON CONFLICT`` path below does. So the same show stored ``{tvdb: X}`` and
         later followed from its TMDB card as ``{tvdb: X, tmdb: Y}`` stays ONE row,
         which the whole-JSON ``ux_followed_media_ref`` index (migration 004) never
         caught. Two or more rows found are a duplicate written before this merge
-        existed: the oldest is the follow (as :meth:`find_by_ref` answers), the
-        duplicate is logged, and the oldest learns only the ids no other row holds
+        existed: the first is the follow (as :meth:`find_by_ref` answers), the
+        duplicate is logged, and the first learns only the ids no other row holds
         (one another row already holds would make the two rows' JSON equal, which
-        the unique index refuses); nothing is folded.
+        the unique index refuses, a row of the other kind included); nothing is
+        folded.
 
-        No row found inserts, as before: ``ON CONFLICT(media_ref_json)`` stays the
-        backstop and ``RETURNING id`` reads the surviving rowid on both branches
-        (``cur.lastrowid`` is unreliable on the DO-UPDATE path).
+        No row of its kind found inserts, as before: ``ON CONFLICT(media_ref_json)``
+        stays the backstop (a row of the other kind holding the very same JSON, a film
+        once followed as a show, is reactivated and takes the new kind, as before) and
+        ``RETURNING id`` reads the surviving rowid on both branches (``cur.lastrowid``
+        is unreliable on the DO-UPDATE path).
 
         The lookup and the write share one ``BEGIN IMMEDIATE``: a second
         concurrent add serialises behind the first, then finds its row and merges
@@ -258,7 +289,7 @@ class _FollowSubStore:
             inserted one).
         """
         with _write_tx(self._conn):
-            found = self.find_all_by_ref(series.media_ref)
+            found = self.find_all_by_ref(series.media_ref, kind=series.kind)
             if found:
                 return self._merge_into(found, series)
             row = self._conn.execute(
@@ -309,8 +340,20 @@ class _FollowSubStore:
         target, others = found[0], found[1:]
         assert target.id is not None  # read from the table, so it carries its rowid
         if others:
-            _log_duplicate_id(series.media_ref, found)
+            _log_duplicate_id(series.media_ref, [follow.id for follow in found])
+        _log_id_conflicts(target, series.media_ref)
         widened = _widened_ref(target.media_ref, series.media_ref, [other.media_ref for other in others])
+        widened_json = _media_ref_to_json(widened) if widened is not None else None
+        if widened_json is not None:
+            # A row of the other kind is not among `found`, yet it may hold exactly the
+            # widened ids: the whole-JSON unique index would refuse the write.
+            clash = self._conn.execute(
+                "SELECT id FROM followed_series WHERE media_ref_json = ? AND id != ?",
+                (widened_json, target.id),
+            ).fetchone()
+            if clash is not None:
+                _log_duplicate_id(series.media_ref, [target.id, int(clash[0])])
+                widened_json = None
         self._conn.execute(
             """
             UPDATE followed_series SET
@@ -324,7 +367,7 @@ class _FollowSubStore:
             WHERE id = ?
             """,
             (
-                _media_ref_to_json(widened) if widened is not None else None,
+                widened_json,
                 series.title,
                 series.kind,
                 1 if series.replace_owned else 0,
@@ -355,59 +398,83 @@ class _FollowSubStore:
         ).fetchone()
         return _row_to_followed(row) if row is not None else None
 
-    def find_all_by_ref(self, media_ref: MediaRef) -> list[FollowedSeries]:
-        """Return every row holding ANY of *media_ref*'s provider ids, oldest first.
+    def find_all_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> list[FollowedSeries]:
+        """Return every row holding one of *media_ref*'s provider ids, by the id it matches.
 
-        Each id the ref carries is tried, tvdb, tmdb, then imdb, by ``json_extract``
-        on ``media_ref_json``: a lookup ``{tvdb: A, tmdb: Y}`` finds a row stored
-        ``{tmdb: Y}`` though its TVDB id misses. Active and inactive rows alike. An
-        id the ref does not carry is bound as ``NULL``, and ``= NULL`` matches
-        nothing.
+        Each id the ref carries is tried by ``json_extract`` on ``media_ref_json``, active
+        and inactive rows alike: a lookup ``{tvdb: A, tmdb: Y}`` finds a row stored
+        ``{tmdb: Y}`` though its TVDB id misses. Rows matched by the TVDB id come first,
+        then the TMDB id, then the IMDb id, each oldest first: the first row is the one
+        the lookup by the first id present always answered, and the fall-through only
+        speaks when that lookup found nothing.
+
+        TVDB and TMDB number films and shows apart, so their ids match only rows of the
+        medium's kind. With *kind* ``None``, a ref holding a TVDB id is a show (acquire
+        writes TVDB ids on shows only) for its TMDB id, and a ref holding none matches a
+        TMDB id whatever the row's kind, as the lookup always did. IMDb numbers both kinds
+        together: its id matches across kinds. An id the ref does not carry is bound as
+        ``NULL``, and ``= NULL`` matches nothing.
 
         Args:
             media_ref: The provider ids to look up.
+            kind: The medium's kind, when the caller knows it.
 
         Returns:
-            The matching rows by rowid (``id`` populated); empty when none holds any
-            of the ids. Two or more rows are one medium written twice (a duplicate).
+            The matching rows (``id`` populated); empty when none holds any of the ids. Two
+            or more rows are one medium written twice (a duplicate).
         """
+        tmdb_kind = kind if kind is not None else ("show" if media_ref.tvdb_id is not None else None)
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
             """
-            SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind, replace_owned,
-                   original_title
-            FROM followed_series
-            WHERE json_extract(media_ref_json, '$.tvdb_id') = ?
-               OR json_extract(media_ref_json, '$.tmdb_id') = ?
-               OR json_extract(media_ref_json, '$.imdb_id') = ?
-            ORDER BY id
+            SELECT * FROM (
+                SELECT id, media_ref_json, title, active,
+                       quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                       original_title,
+                       CASE
+                         WHEN json_extract(media_ref_json, '$.tvdb_id') = :tvdb
+                              AND (:kind IS NULL OR kind = :kind) THEN 0
+                         WHEN json_extract(media_ref_json, '$.tmdb_id') = :tmdb
+                              AND (:tmdb_kind IS NULL OR kind = :tmdb_kind) THEN 1
+                         WHEN json_extract(media_ref_json, '$.imdb_id') = :imdb THEN 2
+                       END AS match_rank
+                FROM followed_series
+            )
+            WHERE match_rank IS NOT NULL
+            ORDER BY match_rank, id
             """,
-            (media_ref.tvdb_id, media_ref.tmdb_id, media_ref.imdb_id),
+            {
+                "tvdb": media_ref.tvdb_id,
+                "tmdb": media_ref.tmdb_id,
+                "imdb": media_ref.imdb_id,
+                "kind": kind,
+                "tmdb_kind": tmdb_kind,
+            },
         ).fetchall()
         return [_row_to_followed(r) for r in rows]
 
-    def find_by_ref(self, media_ref: MediaRef) -> FollowedSeries | None:
+    def find_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> FollowedSeries | None:
         """Return the follow of *media_ref*'s medium, or ``None``.
 
-        The single row :meth:`find_all_by_ref` finds. Two or more rows are a
-        duplicate: logged as ``acquire.follow.duplicate_id`` (the ids and the
-        rowids), and the oldest is returned, as the lookup always answered on a
-        tie. Used by the follow CLI and v0's create route to enforce the
-        idempotent-add / reactivate logic.
+        The first row :meth:`find_all_by_ref` finds: the oldest row matched by the
+        highest-priority id. Two or more rows are a duplicate, logged as
+        ``acquire.follow.duplicate_id`` (the ids and the rowids). Used by the follow
+        CLI and v0's create route to enforce the idempotent-add / reactivate logic.
 
         Args:
             media_ref: Provider-ID key to look up.
+            kind: The medium's kind, when the caller knows it (see
+                :meth:`find_all_by_ref`).
 
         Returns:
             The :class:`FollowedSeries` (with ``id`` populated) if found, else
             ``None``.
         """
-        found = self.find_all_by_ref(media_ref)
+        found = self.find_all_by_ref(media_ref, kind=kind)
         if not found:
             return None
         if len(found) > 1:
-            _log_duplicate_id(media_ref, found)
+            _log_duplicate_id(media_ref, [follow.id for follow in found])
         return found[0]
 
     def list_active(self) -> list[FollowedSeries]:
