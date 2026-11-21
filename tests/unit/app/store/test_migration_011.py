@@ -126,6 +126,20 @@ def store_010(tmp_path: Path) -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+def _storage_classes(conn: sqlite3.Connection) -> list[tuple[str, ...]]:
+    """Read the SQLite storage class of every column of every ``run_request`` row.
+
+    Args:
+        conn: The connection of the store.
+
+    Returns:
+        One tuple of ``typeof()`` names per row, ordered by ``asked_at``.
+    """
+    typeofs = ", ".join(f"typeof({column})" for column in _COLUMNS.split(", "))
+    rows = conn.execute(f"SELECT {typeofs} FROM run_request ORDER BY asked_at").fetchall()  # noqa: S608 — fixed names
+    return [tuple(row) for row in rows]
+
+
 def _acquisition_row(uid: str, kind: str = "acquisition") -> tuple[object, ...]:
     """Build a queued request of *kind*.
 
@@ -148,10 +162,22 @@ def test_the_kind_acquisition_is_refused_before_the_migration(store_010: sqlite3
 
 def test_every_row_is_identical_after_the_migration(store_010: sqlite3.Connection, tmp_path: Path) -> None:
     """Each column of the queued, the running and the settled row survives the rebuild."""
+    types_before = _storage_classes(store_010)
     _apply_011(store_010, tmp_path)
 
     rows = store_010.execute(f"SELECT {_COLUMNS} FROM run_request ORDER BY asked_at").fetchall()  # noqa: S608 — fixed names
     assert [tuple(row) for row in rows] == _ROWS
+    # ``100 == 100.0`` in Python: the storage class of each value is compared too, so a column
+    # whose declared type (and so affinity) changed in the rebuild cannot hide behind equality.
+    assert _storage_classes(store_010) == types_before
+
+
+def test_the_columns_are_unchanged_by_the_migration(store_010: sqlite3.Connection, tmp_path: Path) -> None:
+    """Name, declared type, NOT NULL, default and primary key of every column are as 010 left them."""
+    columns_before = store_010.execute("PRAGMA table_info(run_request)").fetchall()
+    _apply_011(store_010, tmp_path)
+
+    assert store_010.execute("PRAGMA table_info(run_request)").fetchall() == columns_before
 
 
 def test_the_state_index_exists_and_user_version_reads_eleven(store_010: sqlite3.Connection, tmp_path: Path) -> None:
@@ -161,7 +187,7 @@ def test_the_state_index_exists_and_user_version_reads_eleven(store_010: sqlite3
     assert store_010.execute("PRAGMA user_version").fetchone()[0] == 11
     index = store_010.execute("PRAGMA index_info(run_request_state_asked)").fetchall()
     assert [row[2] for row in index] == ["state", "asked_at"]
-    assert store_010.execute("SELECT 1 FROM sqlite_master WHERE name = 'run_request_old'").fetchone() is None
+    assert store_010.execute("SELECT 1 FROM sqlite_master WHERE name = 'run_request_new'").fetchone() is None
 
 
 def test_the_kind_acquisition_is_accepted_after_the_migration(store_010: sqlite3.Connection, tmp_path: Path) -> None:
