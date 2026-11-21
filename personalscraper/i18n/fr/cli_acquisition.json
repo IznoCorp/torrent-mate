@@ -251,10 +251,11 @@
   },
   "follow_duplicates": {
     "command_help": "Signale les ids de fournisseur portés par deux lignes followed_series ou plus.\n\nLecture seule. La sortie contient des codes et des nombres : par id partagé, le\nfournisseur, l'id et les ``followed_ids`` qui le portent ; puis ``groups`` (ids\npartagés) et ``follows`` (lignes distinctes concernées).",
-    "config_help": "Chemin de config.json5 ou du dossier de configuration.",
+    "config_help": "Chemin de config.json5 ou du dossier de configuration (prioritaire sur le --config racine).",
     "db_help": "Chemin de acquire.db (prioritaire sur la configuration).",
     "db_not_found": "Base de données introuvable : {{path}}",
-    "db_path_not_configured": "acquire.db_path n'est pas configuré"
+    "db_path_not_configured": "acquire.db_path n'est pas configuré",
+    "db_unreadable": "Impossible de lire {{path}} comme une acquire.db : {{error}}"
   },
   "confidence": {
     "heading": "Correspondance : {{title}}",
