@@ -197,8 +197,10 @@ def _log_duplicate_id(media_ref: MediaRef, rowids: list[int | None]) -> None:
 
     The rows are a medium written twice: before ``add`` merged learned ids, or as a film
     and a show sharing an IMDb id, which ``add`` keeps apart (``acquire.follow.kind_conflict``).
-    They are reported, never folded here: they are measured first, and what becomes of them
-    is the operator's decision. ``acquisition-follow-duplicates`` lists them all.
+    A lookup given neither a kind nor a TVDB id matches a TMDB id in both kinds, so it may
+    also gather a film and a show that only share that number. They are reported, never
+    folded here: they are measured first, and what becomes of them is the operator's
+    decision. ``acquisition-follow-duplicates`` lists the shared ids.
 
     Args:
         media_ref: The ids looked up.
@@ -239,23 +241,26 @@ def _log_id_conflicts(target: FollowedSeries, offered: MediaRef) -> None:
             )
 
 
-def _log_kind_conflict(held: FollowedSeries, offered_kind: FollowKind) -> None:
-    """Report a row of another kind holding the IMDb id of the follow being added.
+def _log_kind_conflict(rowid: int | None, held_kind: str, offered_kind: FollowKind) -> None:
+    """Report a row of another kind in the way of the follow being added.
 
-    IMDb numbers films and shows together, so its id finds a row of either kind; an add
-    never merges into a row of another kind, which would rewrite a film as a show, and
-    goes on within its own kind. One case still takes the row over: when it holds the very
-    same ids, the unique index leaves no room for a second row and the insert's
-    ``ON CONFLICT`` backstop gives it the offered kind, as before this merge existed.
+    Two ways. IMDb numbers films and shows together, so the follow's IMDb id may find a
+    row of the other kind: an add never merges into it, which would rewrite a film as a
+    show, and goes on within its own kind. Or the row holds exactly the ids the follow's
+    row would learn: the unique index admits one row per JSON, so they stay unlearned.
+    One case still takes the row over: when no row of the follow's kind is found and the
+    row holds the follow's very ids, the insert's ``ON CONFLICT`` backstop gives it the
+    offered kind, as before this merge existed.
 
     Args:
-        held: The row of the other kind.
+        rowid: The row of the other kind.
+        held_kind: Its kind.
         offered_kind: The kind of the follow being added.
     """
     log.warning(
         "acquire.follow.kind_conflict",
-        rowid=held.id,
-        held_kind=held.kind,
+        rowid=rowid,
+        held_kind=held_kind,
         offered_kind=offered_kind,
     )
 
@@ -294,7 +299,7 @@ class _FollowSubStore:
         merge existed: the first is the follow, the duplicate is logged, and it learns
         only the ids no other row of its kind holds (copying one can make the two rows'
         JSON equal, which the unique index refuses; a row of the other kind is checked
-        for that too); nothing is folded.
+        for that too, a ``kind_conflict`` when it holds them all); nothing is folded.
 
         No row of its kind found inserts, as before: ``ON CONFLICT(media_ref_json)``
         stays the backstop and ``RETURNING id`` reads the surviving rowid on both
@@ -318,7 +323,7 @@ class _FollowSubStore:
             found = self.find_all_by_ref(series.media_ref, kind=series.kind)
             for follow in found:
                 if follow.kind != series.kind:
-                    _log_kind_conflict(follow, series.kind)
+                    _log_kind_conflict(follow.id, follow.kind, series.kind)
             target = next((follow for follow in found if follow.kind == series.kind), None)
             if target is not None:
                 return self._merge_into(target, found, series)
@@ -385,13 +390,16 @@ class _FollowSubStore:
         widened_json = _media_ref_to_json(widened) if widened is not None else None
         if widened_json is not None:
             # A row of the other kind is never among `others`, yet it may hold exactly the
-            # widened ids: the whole-JSON unique index would refuse the write.
+            # widened ids: the whole-JSON unique index would refuse the write. Only such a
+            # row can: one of the target's kind holding them holds an offered id, so it was
+            # found, and an id it holds is never learned.
             clash = self._conn.execute(
-                "SELECT id FROM followed_series WHERE media_ref_json = ? AND id != ?",
+                "SELECT id, kind FROM followed_series WHERE media_ref_json = ? AND id != ?",
                 (widened_json, target.id),
             ).fetchone()
             if clash is not None:
-                _log_duplicate_id(series.media_ref, [target.id, int(clash[0])])
+                if int(clash[0]) not in {follow.id for follow in found}:  # else logged by `add`
+                    _log_kind_conflict(int(clash[0]), str(clash[1]), series.kind)
                 widened_json = None
         self._conn.execute(
             """

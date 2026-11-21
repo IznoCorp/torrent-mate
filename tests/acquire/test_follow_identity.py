@@ -490,6 +490,41 @@ def test_add_never_widens_into_the_ids_of_a_row_of_the_other_kind(store: Concret
     assert row.media_ref == MediaRef(tvdb_id=_TVDB)
 
 
+def test_a_row_of_the_other_kind_holding_the_widened_ids_is_a_kind_conflict(
+    store: ConcreteAcquireStore, db_path: Path, logged_events: Any
+) -> None:
+    """The film whose ids keep the show from learning is logged as a kind conflict, not as the show's duplicate."""
+    show = _insert_raw(db_path, {"tvdb_id": _TVDB})
+    film = _insert_raw(db_path, {"tvdb_id": _TVDB, "tmdb_id": _TMDB}, title="A Film", kind="movie")
+
+    with logged_events() as events:
+        landed = store.follow.add(_follow(MediaRef(tvdb_id=_TVDB, tmdb_id=_TMDB)))
+
+    assert landed == show
+    conflicts = [e for e in events if e["event"] == "acquire.follow.kind_conflict"]
+    assert [(e["rowid"], e["held_kind"], e["offered_kind"]) for e in conflicts] == [(film, "movie", "show")]
+    assert [e for e in events if e["event"] == "acquire.follow.duplicate_id"] == []
+
+
+def test_a_film_found_by_imdb_and_holding_the_widened_ids_is_logged_once(
+    store: ConcreteAcquireStore, db_path: Path, logged_events: Any
+) -> None:
+    """The film the IMDb id finds, and whose ids keep the show from learning, is one kind conflict."""
+    show = _insert_raw(db_path, {"tvdb_id": _TVDB})
+    film = _insert_raw(db_path, {"tvdb_id": _TVDB, "imdb_id": _IMDB}, title="A Film", kind="movie")
+
+    with logged_events() as events:
+        landed = store.follow.add(_follow(MediaRef(tvdb_id=_TVDB, imdb_id=_IMDB)))
+
+    assert landed == show
+    row = store.follow.get(show)
+    assert row is not None
+    assert row.media_ref == MediaRef(tvdb_id=_TVDB)
+    conflicts = [e for e in events if e["event"] == "acquire.follow.kind_conflict"]
+    assert [(e["rowid"], e["held_kind"], e["offered_kind"]) for e in conflicts] == [(film, "movie", "show")]
+    assert [e for e in events if e["event"] == "acquire.follow.duplicate_id"] == []
+
+
 def test_find_follow_duplicates_names_every_shared_id(store: ConcreteAcquireStore, db_path: Path) -> None:
     """An id two rows of one kind hold is a group, inactive rows included; ids held once are not."""
     first = _insert_raw(db_path, {"tvdb_id": _TVDB, "tmdb_id": _TMDB})
