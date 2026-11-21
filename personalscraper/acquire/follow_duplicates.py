@@ -5,8 +5,9 @@ twice: stored ``{tvdb: X}``, then followed from its TMDB card as ``{tvdb: X, tmd
 a second row the whole-JSON unique index (migration ``004``) does not catch. This module
 names those rows: one :class:`FollowDuplicate` per provider id that two or more rows hold,
 inactive rows included. TVDB and TMDB number films and shows apart, so their ids are
-grouped within one kind, and an IMDb id names one medium whatever the kind. It writes
-nothing. What becomes of a duplicate is the operator's decision, and the
+grouped within one kind, and an IMDb id names one medium whatever the kind: a film and a
+show sharing one, which ``add`` keeps on two rows (``acquire.follow.kind_conflict``), are
+listed too. It writes nothing. What becomes of a duplicate is the operator's decision, and the
 ``acquisition-follow-duplicates`` command measures them first.
 
 Imports: ``acquire/``, ``core/`` + stdlib only.

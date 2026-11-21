@@ -271,12 +271,15 @@ def test_add_of_a_show_never_lands_on_a_film_sharing_its_imdb_id(
     assert (conflicts[0]["rowid"], conflicts[0]["held_kind"], conflicts[0]["offered_kind"]) == (film, "movie", "show")
 
 
-def test_add_matched_by_imdb_merges_into_the_row_of_its_own_kind(store: ConcreteAcquireStore, db_path: Path) -> None:
-    """An older film holding the IMDb id is passed over: the show's add merges into the show holding it."""
+def test_add_matched_by_imdb_merges_into_the_row_of_its_own_kind(
+    store: ConcreteAcquireStore, db_path: Path, logged_events: Any
+) -> None:
+    """An older film holding the IMDb id is passed over and logged: the show's add merges into the show holding it."""
     film = _insert_raw(db_path, {"tmdb_id": 10, "imdb_id": "tt0000001"}, title="A Film", kind="movie")
     show = _insert_raw(db_path, {"tmdb_id": 20, "imdb_id": "tt0000001"}, title="A Show", kind="show")
 
-    landed = store.follow.add(_follow(MediaRef(tvdb_id=5, imdb_id="tt0000001"), title="A Show"))
+    with logged_events() as events:
+        landed = store.follow.add(_follow(MediaRef(tvdb_id=5, imdb_id="tt0000001"), title="A Show"))
 
     assert landed == show
     assert len(store.follow.list_all()) == 2
@@ -286,6 +289,31 @@ def test_add_matched_by_imdb_merges_into_the_row_of_its_own_kind(store: Concrete
     untouched = store.follow.get(film)
     assert untouched is not None
     assert (untouched.kind, untouched.media_ref) == ("movie", MediaRef(tmdb_id=10, imdb_id="tt0000001"))
+    conflicts = [e for e in events if e["event"] == "acquire.follow.kind_conflict"]
+    assert [(e["rowid"], e["held_kind"], e["offered_kind"]) for e in conflicts] == [(film, "movie", "show")]
+    assert [e for e in events if e["event"] == "acquire.follow.duplicate_id"] == []
+
+
+def test_add_learns_numbered_ids_a_row_of_the_other_kind_holds(store: ConcreteAcquireStore, db_path: Path) -> None:
+    """A film found by the IMDb id never keeps the show from learning its own TMDB number, nor the IMDb id.
+
+    TMDB numbers films and shows apart: the film's TMDB 20 is not the show's. Counted as a
+    duplicate of the show, the film kept the show at ``{tvdb}``, and a later add of the show
+    by its TMDB id alone wrote a second show row.
+    """
+    show = _insert_raw(db_path, {"tvdb_id": 5})
+    film = _insert_raw(db_path, {"tmdb_id": 20, "imdb_id": "tt0000001"}, title="A Film", kind="movie")
+
+    landed = store.follow.add(_follow(MediaRef(tvdb_id=5, tmdb_id=20, imdb_id="tt0000001")))
+
+    assert landed == show
+    widened = store.follow.get(show)
+    assert widened is not None
+    assert widened.media_ref == MediaRef(tvdb_id=5, tmdb_id=20, imdb_id="tt0000001")
+    untouched = store.follow.get(film)
+    assert untouched is not None
+    assert (untouched.kind, untouched.media_ref) == ("movie", MediaRef(tmdb_id=20, imdb_id="tt0000001"))
+    assert store.follow.add(_follow(MediaRef(tmdb_id=20))) == show
 
 
 def test_a_lookup_holding_a_tvdb_id_finds_shows_only_by_it(store: ConcreteAcquireStore, db_path: Path) -> None:

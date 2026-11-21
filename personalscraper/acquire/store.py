@@ -170,15 +170,16 @@ def _widened_ref(held: MediaRef, offered: MediaRef, others: list[MediaRef]) -> M
     """Return *held* widened with the ids of *offered* it lacks, or ``None`` when it learns none.
 
     The separation of ids: a slot the follow fills is never overwritten, and an id that
-    another row of the same medium (*others*, a duplicate) already holds is not copied,
-    since two rows holding the same ids would be the same whole JSON, which
-    ``ux_followed_media_ref`` refuses. Every id learned is held by no other row of the
-    medium; a row of the other kind is checked by the caller before the write.
+    another row of the same medium and kind (*others*, a duplicate) already holds is not
+    copied: a duplicate already shares an id with the follow, so copying its other ids can
+    make the two rows the same whole JSON, which ``ux_followed_media_ref`` refuses. Every
+    id learned is held by no duplicate; a row of the other kind is checked by the caller
+    before the write.
 
     Args:
         held: The ids of the row merged into.
         offered: The ids of the follow being added.
-        others: The ids of the other rows holding one of *offered*'s ids.
+        others: The ids of the other rows of its kind holding one of *offered*'s ids.
 
     Returns:
         The widened ref, or ``None`` when *held* already says all it can learn.
@@ -194,9 +195,10 @@ def _widened_ref(held: MediaRef, offered: MediaRef, others: list[MediaRef]) -> M
 def _log_duplicate_id(media_ref: MediaRef, rowids: list[int | None]) -> None:
     """Report that two or more follow rows hold one of *media_ref*'s ids.
 
-    The rows are a medium written twice before ``add`` merged learned ids; they are
-    reported, never folded here: they are measured first, and what becomes of them is
-    the operator's decision. ``acquisition-follow-duplicates`` lists them all.
+    The rows are a medium written twice: before ``add`` merged learned ids, or as a film
+    and a show sharing an IMDb id, which ``add`` keeps apart (``acquire.follow.kind_conflict``).
+    They are reported, never folded here: they are measured first, and what becomes of them
+    is the operator's decision. ``acquisition-follow-duplicates`` lists them all.
 
     Args:
         media_ref: The ids looked up.
@@ -241,8 +243,10 @@ def _log_kind_conflict(held: FollowedSeries, offered_kind: FollowKind) -> None:
     """Report a row of another kind holding the IMDb id of the follow being added.
 
     IMDb numbers films and shows together, so its id finds a row of either kind; an add
-    never merges into a row of another kind, which would rewrite a film as a show. The
-    row is left untouched and the add goes on within its own kind.
+    never merges into a row of another kind, which would rewrite a film as a show, and
+    goes on within its own kind. One case still takes the row over: when it holds the very
+    same ids, the unique index leaves no room for a second row and the insert's
+    ``ON CONFLICT`` backstop gives it the offered kind, as before this merge existed.
 
     Args:
         held: The row of the other kind.
@@ -278,25 +282,26 @@ class _FollowSubStore:
         The medium is looked up first by any of its provider ids, within its kind
         (:meth:`find_all_by_ref`). An add never merges into a row of another kind,
         which its IMDb id may find (IMDb numbers both kinds together): such a row is
-        left untouched and logged as ``acquire.follow.kind_conflict``. The first row
-        of its kind found is the follow: the ids it lacks are
+        logged as ``acquire.follow.kind_conflict`` and the add goes on within its own
+        kind. The first row of its kind found is the follow: the ids it lacks are
         merged into its ``media_ref_json`` (widened, never narrowed, a held id never
         overwritten, a clash logged as ``acquire.follow.id_conflict``) and it is
         reactivated and refreshed exactly as the
         ``ON CONFLICT`` path below does. So the same show stored ``{tvdb: X}`` and
         later followed from its TMDB card as ``{tvdb: X, tmdb: Y}`` stays ONE row,
         which the whole-JSON ``ux_followed_media_ref`` index (migration 004) never
-        caught. Two or more rows found are a duplicate written before this merge
-        existed: the first of its kind is the follow, the duplicate is logged, and it
-        learns only the ids no other row holds (one another row already holds would
-        make the two rows' JSON equal, which the unique index refuses, a row of the
-        other kind included); nothing is folded.
+        caught. Two or more rows of its kind found are a duplicate written before this
+        merge existed: the first is the follow, the duplicate is logged, and it learns
+        only the ids no other row of its kind holds (copying one can make the two rows'
+        JSON equal, which the unique index refuses; a row of the other kind is checked
+        for that too); nothing is folded.
 
         No row of its kind found inserts, as before: ``ON CONFLICT(media_ref_json)``
-        stays the backstop (a row of the other kind holding the very same JSON, a film
-        once followed as a show, is reactivated and takes the new kind, as before) and
-        ``RETURNING id`` reads the surviving rowid on both branches (``cur.lastrowid``
-        is unreliable on the DO-UPDATE path).
+        stays the backstop and ``RETURNING id`` reads the surviving rowid on both
+        branches (``cur.lastrowid`` is unreliable on the DO-UPDATE path). A row of the
+        other kind holding the very same JSON (a film once followed as a show) leaves
+        the unique index no room for a second row: it is reactivated and takes the new
+        kind, as before, its ``kind_conflict`` logged first when its IMDb id found it.
 
         The lookup and the write share one ``BEGIN IMMEDIATE``: a second
         concurrent add serialises behind the first, then finds its row and merges
@@ -356,7 +361,10 @@ class _FollowSubStore:
         """Merge *series* into *target*, the first row of its kind found (inside :meth:`add`'s transaction).
 
         The row keeps its kind: *target* is of the series' kind, so the merge never
-        rewrites a film as a show.
+        rewrites a film as a show. Only the other rows of that kind are its duplicates:
+        a row of the other kind numbers its TVDB and TMDB ids apart, so it neither counts
+        as one nor keeps *target* from learning an id (the exact-JSON check below still
+        guards the unique index).
 
         Args:
             target: The row merged into, of the series' kind.
@@ -367,17 +375,17 @@ class _FollowSubStore:
         Returns:
             The rowid of the row merged into.
         """
-        others = [follow for follow in found if follow is not target]
+        same_kind = [follow for follow in found if follow.kind == target.kind]
+        others = [follow for follow in same_kind if follow is not target]
         assert target.id is not None  # read from the table, so it carries its rowid
         if others:
-            _log_duplicate_id(series.media_ref, [follow.id for follow in found])
+            _log_duplicate_id(series.media_ref, [follow.id for follow in same_kind])
         _log_id_conflicts(target, series.media_ref)
         widened = _widened_ref(target.media_ref, series.media_ref, [other.media_ref for other in others])
         widened_json = _media_ref_to_json(widened) if widened is not None else None
         if widened_json is not None:
-            # A row of the other kind sharing only a TVDB or TMDB id is not among `found`,
-            # yet it may hold exactly the widened ids: the whole-JSON unique index would
-            # refuse the write.
+            # A row of the other kind is never among `others`, yet it may hold exactly the
+            # widened ids: the whole-JSON unique index would refuse the write.
             clash = self._conn.execute(
                 "SELECT id FROM followed_series WHERE media_ref_json = ? AND id != ?",
                 (widened_json, target.id),
@@ -438,9 +446,10 @@ class _FollowSubStore:
         speaks when that lookup found nothing.
 
         TVDB and TMDB number films and shows apart, so their ids match only rows of the
-        medium's kind. With *kind* ``None``, a ref holding a TVDB id is a show (acquire
-        writes TVDB ids on shows only) for its TVDB and TMDB ids alike, and a ref holding
-        none matches a TMDB id whatever the row's kind, as the lookup always did. IMDb
+        medium's kind. With *kind* ``None``, a ref holding a TVDB id is taken for a show
+        (TVDB is the shows' provider) for its TVDB and TMDB ids alike: a film row holding
+        a TVDB id is found by a lookup given ``kind="movie"``. A ref holding none matches
+        a TMDB id whatever the row's kind, as the lookup always did. IMDb
         numbers both kinds together: its id matches across kinds. An id the ref does not
         carry is bound as ``NULL``, and ``= NULL`` matches nothing.
 
