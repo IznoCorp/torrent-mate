@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from personalscraper.acquire.context import AcquireContext
 from personalscraper.acquire.delete_authority import build_delete_authority
+from personalscraper.acquire.standing import RatioStanding
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api.tracker._factory import build_tracker_registry
 from personalscraper.core.ownership import NullOwnershipChecker
@@ -178,6 +179,13 @@ def build_acquire_context(
             aired = store.aired.list_for_followed(item.followed_id)
             return len([r for r in aired if r.season == item.season]) or None
 
+        # Ratio standing of a tracker (K3 P10): the ``ratio_state`` row read against the
+        # tracker's economy. Built per call so ``store.ratio`` is not opened at boot; the
+        # orchestrator calls it only when a ranking criterion names ``tracker_ratio_state``,
+        # and every standing reads None until K5 writes a ratio.
+        def _tracker_ratio_state(tracker: str) -> str | None:
+            return RatioStanding(store.ratio, economy).of(tracker)
+
         orchestrator = GrabOrchestrator(
             tracker_registry=tracker_registry,
             torrent_client=torrent_client,
@@ -190,6 +198,7 @@ def build_acquire_context(
             bandwidth=config.acquire.bandwidth,
             scope=config.torrent.active_scope(),
             sandbox_categories=config.torrent.active_sandbox_categories(),
+            tracker_ratio_state_resolver=_tracker_ratio_state,
         )
         service = AcquisitionService(
             store=store,

@@ -99,6 +99,14 @@ class TrackerResult:
             ONLY when the result AND the wanted item's ``media_ref`` both
             carry a TMDB id; either side ``None`` makes it a no-op, so an
             un-tagged release is never dropped for lack of an id.
+        tracker_ratio_state: Where this release's tracker's ratio stands against that
+            tracker's own economy — ``under_floor`` (below ``min_ratio``), ``under_target``
+            (below ``target_ratio``) or ``comfortable``; ``None`` when the tracker declares
+            no economy or no ratio was ever observed. Never set by a tracker client: the
+            grab orchestrator fills it before ``rank()`` (``acquire/standing.py``), so a
+            ranking criterion ``{field: "tracker_ratio_state", values: {...}}`` scores it
+            the way ``provider`` is scored. ``None`` everywhere until a criterion names it
+            AND a writer of ``ratio_state`` exists (K5).
     """
 
     provider: str
@@ -121,6 +129,7 @@ class TrackerResult:
     audio: str | None = None
     language: str | None = None
     tmdb_id: int | None = None
+    tracker_ratio_state: str | None = None
 
 
 @dataclass(frozen=True)

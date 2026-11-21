@@ -61,7 +61,7 @@ Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
@@ -242,6 +242,28 @@ class SearchVerdict:
     """
 
 
+def _with_ratio_standing(results: list[TrackerResult], standing_of: Callable[[str], str | None]) -> list[TrackerResult]:
+    """Return *results* each carrying its tracker's ratio standing.
+
+    The standing is read once per tracker, not once per result: one search holds many
+    results of the same few trackers. The inputs are left untouched (copies are returned).
+
+    Args:
+        results: The candidates, one or more per tracker.
+        standing_of: Tracker name → its standing, or ``None``.
+
+    Returns:
+        The same candidates, in the same order, with ``tracker_ratio_state`` set.
+    """
+    standings: dict[str, str | None] = {}
+    out: list[TrackerResult] = []
+    for result in results:
+        if result.provider not in standings:
+            standings[result.provider] = standing_of(result.provider)
+        out.append(replace(result, tracker_ratio_state=standings[result.provider]))
+    return out
+
+
 def rank_candidates(
     results: list[TrackerResult],
     profile: QualityProfile,
@@ -250,6 +272,7 @@ def rank_candidates(
     *,
     exclude_hashes: frozenset[str] = frozenset(),
     media_kind: str | None = None,
+    tracker_ratio_state_of: Callable[[str], str | None] | None = None,
 ) -> tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]:
     """Run the hard-filter → dedup → rank tail of the grab chain (DESIGN §15).
 
@@ -283,6 +306,13 @@ def rank_candidates(
             per-media-type size thresholds (#376). ``None`` (default) keeps the
             current byte-identical behaviour; passed by the orchestrator's
             ``_search_chain`` from the wanted item's ``.kind`` field.
+        tracker_ratio_state_of: Resolves a tracker's name to its ratio standing
+            (:class:`personalscraper.acquire.standing.RatioStanding`), or ``None``
+            for no standing. When set, every deduped candidate carries its
+            tracker's standing in ``tracker_ratio_state`` when ``rank()`` runs, so
+            a criterion naming that field scores it. Ignored (not even called)
+            when no criterion of ``ranking`` names the field. ``None`` (default)
+            leaves the field ``None`` and ``rank()`` byte-identical to before K3 P10.
 
     Returns:
         ``(representatives, ranked)`` — the deduped post-hard-filter survivors
@@ -291,6 +321,10 @@ def rank_candidates(
     """
     survivors = apply_hard_filters(results, profile, media_ref)
     representatives = dedup(survivors)
+    # Read the standings only when a criterion scores them: with none configured (the shipped
+    # template, every prod config) the store is not touched and the results are not copied.
+    if tracker_ratio_state_of is not None and any(c.field == "tracker_ratio_state" for c in ranking.criteria):
+        representatives = _with_ratio_standing(representatives, tracker_ratio_state_of)
     ranked = rank(representatives, ranking, exclude_hashes=exclude_hashes, media_kind=media_kind)
     return representatives, ranked
 
@@ -517,6 +551,7 @@ class GrabOrchestrator:
         bandwidth: BandwidthConfig,
         scope: TorrentScope | None = None,
         sandbox_categories: tuple[str, ...] = (),
+        tracker_ratio_state_resolver: Callable[[str], str | None] | None = None,
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -562,7 +597,13 @@ class GrabOrchestrator:
                 refused, and the global caps are left to the other instance.
             sandbox_categories: Unscoped instance only: the categories that belong to the
                 sandboxes sharing the client. A hash held under one is refused, never adopted.
+            tracker_ratio_state_resolver: Tracker name → its ratio standing
+                (:meth:`personalscraper.acquire.standing.RatioStanding.of`), a seam like the
+                title resolvers so the orchestrator keeps no store dependency. The standing is
+                put on each candidate before ``rank()``. ``None`` (default; every caller before
+                K3 P10) fills nothing.
         """
+        self._tracker_ratio_state_resolver = tracker_ratio_state_resolver
         self._scope = scope
         self._sandbox_categories = sandbox_categories if scope is None else ()
         self._tracker_registry = tracker_registry
@@ -885,7 +926,13 @@ class GrabOrchestrator:
         # hard-filter survivors (``dedup([])`` is ``[]``), so the two guards
         # below keep the all_filtered / no_seeders taxonomy bit-for-bit.
         representatives, ranked = rank_candidates(
-            results, profile, media_ref, self._ranking, exclude_hashes=exclude_hashes, media_kind=item.kind
+            results,
+            profile,
+            media_ref,
+            self._ranking,
+            exclude_hashes=exclude_hashes,
+            media_kind=item.kind,
+            tracker_ratio_state_of=self._tracker_ratio_state_resolver,
         )
         if not representatives:
             return _SearchChainResult(exit_path="all_filtered", ranked=[], top=None)
