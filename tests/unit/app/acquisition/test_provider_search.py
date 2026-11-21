@@ -161,24 +161,33 @@ class TestSearch:
         assert calls["movie"][1] == "movie"  # type: ignore[index]
 
     def test_search_kind_filter_movie_only(self) -> None:
-        """kind=movie must not run the TV chain."""
+        """kind=movie must not run the TV chain.
+
+        The calls are recorded and counted: the TV gatherer swallows a provider's exception, so a
+        fake that raises would pass even when the chain ran.
+        """
+        calls: list[str] = []
         movie = _movie("1", "Dune", 2021)
 
         class _MovieOnlyTmdb:
             def search_movie(self, query: str, year: object = None, **_kw: object) -> list[SearchResult]:
+                calls.append("search_movie")
                 return [movie]
 
             def search_tv(self, query: str, year: object = None, **_kw: object) -> list[SearchResult]:
-                raise AssertionError("TV chain must not run for kind=movie")
+                calls.append("search_tv")
+                return []
 
         class _MovieOnlyTvdb:
             def search_series(self, query: str, year: object = None, **_kw: object) -> list[SearchResult]:
-                raise AssertionError("TV chain must not run for kind=movie")
+                calls.append("search_series")
+                return []
 
         page = _service(_MovieOnlyTmdb(), _MovieOnlyTvdb()).search(_ACTOR, "dune", "movie")
 
         assert len(page.results) == 1
         assert page.results[0].kind == "movie"
+        assert calls == ["search_movie"]
 
     def test_total_counts_every_candidate_not_the_page(self) -> None:
         """Serving 5 of 30 says so: ``total`` is every ranked candidate."""
@@ -251,6 +260,25 @@ class TestSearch:
         assert tmdb.movie_calls == 1, "the second page called the provider again"
         assert first.total == second.total == 40
         assert {r.provider_id for r in first.results} & {r.provider_id for r in second.results} == set()
+
+    def test_a_cached_page_opens_no_provider_clients(self) -> None:
+        """A page served from the cache builds no registry: v0's route built one per page.
+
+        The accepted deviation from the copy: the answers are v0's, the wasted registry (and its
+        502 on a page the cache could have served) is not carried over.
+        """
+        opened: list[str] = []
+
+        def clients() -> object:
+            opened.append("opened")
+            return nullcontext((_Tmdb(_dunes(40, top=40.0), []), _Tvdb()))
+
+        service = ProviderSearch(clients=clients, indexer_db=None, cache=SearchResultCache())  # type: ignore[arg-type]
+
+        service.search(_ACTOR, "dune", "movie", limit=20, offset=0)
+        service.search(_ACTOR, "dune", "movie", limit=20, offset=20)
+
+        assert opened == ["opened"]
 
     def test_cache_key_separates_kinds(self) -> None:
         """« Movies » is never served the « All » lot from the cache."""
@@ -427,6 +455,101 @@ class TestPerimeterAndSeams:
         assert "sk-secret" not in refused.value.detail
 
 
+class TestScopedClientsTeardown:
+    """The registry's lifetime: bounded retry, closed on every path, a teardown failure never masks."""
+
+    @staticmethod
+    def _context(
+        monkeypatch: pytest.MonkeyPatch, *, registry: object, acquire: object = None
+    ) -> list[dict[str, object]]:
+        """Patch ``build_app_context`` to return a context over the given registry.
+
+        Returns:
+            The keyword arguments each build received.
+        """
+        built: list[dict[str, object]] = []
+
+        class _Context:
+            provider_registry = registry
+
+        _Context.acquire = acquire  # type: ignore[attr-defined]
+
+        def build(_config: object, _settings: object, **kwargs: object) -> object:
+            built.append(kwargs)
+            return _Context()
+
+        monkeypatch.setattr("personalscraper.app.composition.build_app_context", build)
+        return built
+
+    def test_the_scope_passes_the_bounded_retry_and_closes_on_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The registry is built with ONE attempt and closed after a normal ``with`` block."""
+        from personalscraper.app.composition import ONE_ATTEMPT
+
+        closed: list[str] = []
+
+        class _Registry:
+            def get(self, name: str) -> str:
+                return name
+
+            def close(self) -> None:
+                closed.append("registry")
+
+        built = self._context(monkeypatch, registry=_Registry())
+
+        with scoped_provider_clients(object(), object()):  # type: ignore[arg-type]
+            assert closed == []
+
+        assert built == [{"provider_retry": ONE_ATTEMPT}]
+        assert closed == ["registry"]
+
+    def test_a_registry_without_a_provider_is_closed_and_refused(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A built registry that cannot hand a client over is still closed (no leaked session)."""
+        closed: list[str] = []
+
+        class _Registry:
+            def get(self, name: str) -> str:
+                if name == "tvdb":
+                    raise KeyError(name)
+                return name
+
+            def close(self) -> None:
+                closed.append("registry")
+
+        self._context(monkeypatch, registry=_Registry())
+
+        with pytest.raises(AppUnavailable) as refused:
+            with scoped_provider_clients(object(), object()):  # type: ignore[arg-type]
+                pass
+
+        assert refused.value.code is RefusalCode.PROVIDER_UNAVAILABLE
+        assert closed == ["registry"]
+
+    def test_a_failing_teardown_never_masks_the_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A registry or acquisition handle that fails to close leaves the served answer intact."""
+        attempted: list[str] = []
+
+        class _Registry:
+            def get(self, name: str) -> str:
+                return name
+
+            def close(self) -> None:
+                attempted.append("registry")
+                raise RuntimeError("close failed")
+
+        class _Acquire:
+            def close(self) -> None:
+                attempted.append("acquire")
+                raise RuntimeError("close failed")
+
+        self._context(monkeypatch, registry=_Registry(), acquire=_Acquire())
+
+        with scoped_provider_clients(object(), object()) as clients:  # type: ignore[arg-type]
+            served = clients
+
+        assert served == ("tmdb", "tvdb")
+        assert attempted == ["registry", "acquire"]
+
+
 def test_the_ownership_probe_gets_the_provider_id_as_a_media_ref(tmp_path: Path) -> None:
     """A TVDB row is probed by ``MediaRef(tvdb_id=…)``, a TMDB row by ``MediaRef(tmdb_id=…)``."""
     seen: list[MediaRef] = []
@@ -459,3 +582,35 @@ def test_the_ownership_probe_gets_the_provider_id_as_a_media_ref(tmp_path: Path)
 
     assert MediaRef(tmdb_id=7) in seen
     assert MediaRef(tvdb_id=9) in seen
+
+
+def test_a_lookup_is_flagged_owned_like_a_search(tmp_path: Path) -> None:
+    """The by-id lookup runs the same ownership pass: a held film says so on its card."""
+
+    class _Held:
+        def __init__(self, _path: object) -> None:
+            pass
+
+        def owns(self, media_ref: MediaRef, *, kind: str, **_kw: object) -> bool:
+            return media_ref == MediaRef(tmdb_id=438631) and kind == "movie"
+
+        def owned_pairs(self, media_ref: MediaRef) -> set[tuple[int, int]]:
+            return set()
+
+        def close(self) -> None:
+            pass
+
+    class _Details:
+        title = "Dune"
+        year = 2021
+        overview = None
+        images: list[object] = []
+
+    class _LookupTmdb:
+        def get_movie(self, provider_id: int) -> object:
+            return _Details()
+
+    service = _service(_LookupTmdb(), object(), indexer_db=tmp_path / "library.db", ownership=_Held)
+
+    assert service.by_id(_ACTOR, "tmdb", 438631, "movie").already_owned is True
+    assert service.by_id(_ACTOR, "tmdb", 1, "movie").already_owned is False

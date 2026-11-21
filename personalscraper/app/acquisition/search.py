@@ -153,16 +153,23 @@ def scoped_provider_clients(config: Config, settings: Settings) -> Iterator[tupl
     Raises:
         AppUnavailable: ``provider.unavailable`` when the provider registry cannot be built.
     """
-    from personalscraper.app.composition import ONE_ATTEMPT, build_app_context  # noqa: PLC0415 — composition imports the app layer
+    from personalscraper.app.composition import (  # noqa: PLC0415 — composition imports the app layer
+        ONE_ATTEMPT,
+        build_app_context,
+    )
 
     try:
         app_context = build_app_context(config, settings, provider_retry=ONE_ATTEMPT)
-        tmdb_client = app_context.provider_registry.get("tmdb")
-        tvdb_client = app_context.provider_registry.get("tvdb")
     except Exception as exc:
         logger.error("acquisition_search_registry_failed", error=str(exc))
         raise AppUnavailable("A metadata provider did not answer.", code=RefusalCode.PROVIDER_UNAVAILABLE) from exc
     try:
+        try:
+            tmdb_client = app_context.provider_registry.get("tmdb")
+            tvdb_client = app_context.provider_registry.get("tvdb")
+        except Exception as exc:  # inside the teardown's scope: a built registry is always closed
+            logger.error("acquisition_search_registry_failed", error=str(exc))
+            raise AppUnavailable("A metadata provider did not answer.", code=RefusalCode.PROVIDER_UNAVAILABLE) from exc
         yield tmdb_client, tvdb_client
     finally:
         # Teardown mirrors the CLI's ``per_step_boundary``: registry first, then the acquisition
@@ -222,6 +229,11 @@ class ProviderSearch:
         deliberately NOT cached: it is recomputed from the indexer on every call, because the
         library changes while a search sits on screen and a stale « already owned » badge
         would drive a wrong choice.
+
+        The provider clients are opened only on a cache miss. v0's route opened them before
+        looking at the cache, so a page served from the cache still built and tore down a
+        registry (and answered 502 if it could not be built); the answers are the same, the
+        wasted registry and that one failure mode are not carried over.
 
         Args:
             actor: Who searches; authorised by ``@requires`` (``acquisition.request``).
