@@ -243,6 +243,61 @@ def test_add_of_a_show_never_lands_on_a_film_sharing_its_tmdb_number(store: Conc
     assert untouched.media_ref == MediaRef(tmdb_id=_TMDB)
 
 
+def test_add_of_a_show_never_lands_on_a_film_sharing_its_imdb_id(
+    store: ConcreteAcquireStore, logged_events: Any
+) -> None:
+    """IMDb matches across kinds, yet an add never merges into a row of another kind.
+
+    Merged through the IMDb id alone, the show's add rewrote the film's row as a show (its
+    kind, title and TVDB id written on it) and logged nothing. The show lands on a new row
+    and the clash is logged as ``acquire.follow.kind_conflict``.
+    """
+    film_ref = MediaRef(tmdb_id=10, imdb_id="tt0000001")
+    film = store.follow.add(_follow(film_ref, title="A Film", kind="movie"))
+
+    with logged_events() as events:
+        show = store.follow.add(_follow(MediaRef(tvdb_id=5, imdb_id="tt0000001"), title="A Show"))
+
+    assert show != film
+    assert len(store.follow.list_all()) == 2
+    untouched = store.follow.get(film)
+    assert untouched is not None
+    assert (untouched.kind, untouched.title, untouched.media_ref) == ("movie", "A Film", film_ref)
+    added = store.follow.get(show)
+    assert added is not None
+    assert (added.kind, added.media_ref) == ("show", MediaRef(tvdb_id=5, imdb_id="tt0000001"))
+    conflicts = [e for e in events if e["event"] == "acquire.follow.kind_conflict"]
+    assert len(conflicts) == 1
+    assert (conflicts[0]["rowid"], conflicts[0]["held_kind"], conflicts[0]["offered_kind"]) == (film, "movie", "show")
+
+
+def test_add_matched_by_imdb_merges_into_the_row_of_its_own_kind(store: ConcreteAcquireStore, db_path: Path) -> None:
+    """An older film holding the IMDb id is passed over: the show's add merges into the show holding it."""
+    film = _insert_raw(db_path, {"tmdb_id": 10, "imdb_id": "tt0000001"}, title="A Film", kind="movie")
+    show = _insert_raw(db_path, {"tmdb_id": 20, "imdb_id": "tt0000001"}, title="A Show", kind="show")
+
+    landed = store.follow.add(_follow(MediaRef(tvdb_id=5, imdb_id="tt0000001"), title="A Show"))
+
+    assert landed == show
+    assert len(store.follow.list_all()) == 2
+    widened = store.follow.get(show)
+    assert widened is not None
+    assert widened.media_ref == MediaRef(tvdb_id=5, tmdb_id=20, imdb_id="tt0000001")
+    untouched = store.follow.get(film)
+    assert untouched is not None
+    assert (untouched.kind, untouched.media_ref) == ("movie", MediaRef(tmdb_id=10, imdb_id="tt0000001"))
+
+
+def test_a_lookup_holding_a_tvdb_id_finds_shows_only_by_it(store: ConcreteAcquireStore, db_path: Path) -> None:
+    """With no kind given, a ref holding a TVDB id is a show for its TVDB id too: a film holding it is not found."""
+    film = _insert_raw(db_path, {"tvdb_id": 5}, title="A Film", kind="movie")
+
+    assert store.follow.find_by_ref(MediaRef(tvdb_id=5)) is None
+    found = store.follow.find_by_ref(MediaRef(tvdb_id=5), kind="movie")
+    assert found is not None
+    assert found.id == film
+
+
 def test_a_lookup_holding_a_tvdb_id_falls_through_to_shows_only(store: ConcreteAcquireStore, db_path: Path) -> None:
     """With no kind given, a ref holding a TVDB id is a show: its TMDB id finds a show, never a film."""
     _insert_raw(db_path, {"tmdb_id": _TMDB, "imdb_id": "tt0000001"}, title="A Film", kind="movie")

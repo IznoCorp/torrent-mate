@@ -237,6 +237,25 @@ def _log_id_conflicts(target: FollowedSeries, offered: MediaRef) -> None:
             )
 
 
+def _log_kind_conflict(held: FollowedSeries, offered_kind: FollowKind) -> None:
+    """Report a row of another kind holding the IMDb id of the follow being added.
+
+    IMDb numbers films and shows together, so its id finds a row of either kind; an add
+    never merges into a row of another kind, which would rewrite a film as a show. The
+    row is left untouched and the add goes on within its own kind.
+
+    Args:
+        held: The row of the other kind.
+        offered_kind: The kind of the follow being added.
+    """
+    log.warning(
+        "acquire.follow.kind_conflict",
+        rowid=held.id,
+        held_kind=held.kind,
+        offered_kind=offered_kind,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Sub-stores (method namespaces over the shared connection)
 # ---------------------------------------------------------------------------
@@ -257,7 +276,10 @@ class _FollowSubStore:
         """Persist a :class:`FollowedSeries` on the row of its medium and return that rowid.
 
         The medium is looked up first by any of its provider ids, within its kind
-        (:meth:`find_all_by_ref`). A row found is the follow: the ids it lacks are
+        (:meth:`find_all_by_ref`). An add never merges into a row of another kind,
+        which its IMDb id may find (IMDb numbers both kinds together): such a row is
+        left untouched and logged as ``acquire.follow.kind_conflict``. The first row
+        of its kind found is the follow: the ids it lacks are
         merged into its ``media_ref_json`` (widened, never narrowed, a held id never
         overwritten, a clash logged as ``acquire.follow.id_conflict``) and it is
         reactivated and refreshed exactly as the
@@ -265,11 +287,10 @@ class _FollowSubStore:
         later followed from its TMDB card as ``{tvdb: X, tmdb: Y}`` stays ONE row,
         which the whole-JSON ``ux_followed_media_ref`` index (migration 004) never
         caught. Two or more rows found are a duplicate written before this merge
-        existed: the first is the follow (as :meth:`find_by_ref` answers), the
-        duplicate is logged, and the first learns only the ids no other row holds
-        (one another row already holds would make the two rows' JSON equal, which
-        the unique index refuses, a row of the other kind included); nothing is
-        folded.
+        existed: the first of its kind is the follow, the duplicate is logged, and it
+        learns only the ids no other row holds (one another row already holds would
+        make the two rows' JSON equal, which the unique index refuses, a row of the
+        other kind included); nothing is folded.
 
         No row of its kind found inserts, as before: ``ON CONFLICT(media_ref_json)``
         stays the backstop (a row of the other kind holding the very same JSON, a film
@@ -290,8 +311,12 @@ class _FollowSubStore:
         """
         with _write_tx(self._conn):
             found = self.find_all_by_ref(series.media_ref, kind=series.kind)
-            if found:
-                return self._merge_into(found, series)
+            for follow in found:
+                if follow.kind != series.kind:
+                    _log_kind_conflict(follow, series.kind)
+            target = next((follow for follow in found if follow.kind == series.kind), None)
+            if target is not None:
+                return self._merge_into(target, found, series)
             row = self._conn.execute(
                 """
                 INSERT INTO followed_series
@@ -327,17 +352,22 @@ class _FollowSubStore:
         assert row is not None  # RETURNING always yields the affected row
         return int(row[0])
 
-    def _merge_into(self, found: list[FollowedSeries], series: FollowedSeries) -> int:
-        """Merge *series* into the oldest row found for its medium (inside :meth:`add`'s transaction).
+    def _merge_into(self, target: FollowedSeries, found: list[FollowedSeries], series: FollowedSeries) -> int:
+        """Merge *series* into *target*, the first row of its kind found (inside :meth:`add`'s transaction).
+
+        The row keeps its kind: *target* is of the series' kind, so the merge never
+        rewrites a film as a show.
 
         Args:
-            found: The rows holding one of the series' ids, oldest first (never empty).
+            target: The row merged into, of the series' kind.
+            found: Every row holding one of the series' ids, in the lookup's order,
+                *target* among them.
             series: The follow being added.
 
         Returns:
             The rowid of the row merged into.
         """
-        target, others = found[0], found[1:]
+        others = [follow for follow in found if follow is not target]
         assert target.id is not None  # read from the table, so it carries its rowid
         if others:
             _log_duplicate_id(series.media_ref, [follow.id for follow in found])
@@ -345,8 +375,9 @@ class _FollowSubStore:
         widened = _widened_ref(target.media_ref, series.media_ref, [other.media_ref for other in others])
         widened_json = _media_ref_to_json(widened) if widened is not None else None
         if widened_json is not None:
-            # A row of the other kind is not among `found`, yet it may hold exactly the
-            # widened ids: the whole-JSON unique index would refuse the write.
+            # A row of the other kind sharing only a TVDB or TMDB id is not among `found`,
+            # yet it may hold exactly the widened ids: the whole-JSON unique index would
+            # refuse the write.
             clash = self._conn.execute(
                 "SELECT id FROM followed_series WHERE media_ref_json = ? AND id != ?",
                 (widened_json, target.id),
@@ -361,7 +392,6 @@ class _FollowSubStore:
               media_ref_json = COALESCE(?, media_ref_json),
               active = 1,
               title = ?,
-              kind = ?,
               replace_owned = MAX(replace_owned, ?),
               original_title = COALESCE(?, original_title)
             WHERE id = ?
@@ -369,7 +399,6 @@ class _FollowSubStore:
             (
                 widened_json,
                 series.title,
-                series.kind,
                 1 if series.replace_owned else 0,
                 series.original_title,
                 target.id,
@@ -410,10 +439,10 @@ class _FollowSubStore:
 
         TVDB and TMDB number films and shows apart, so their ids match only rows of the
         medium's kind. With *kind* ``None``, a ref holding a TVDB id is a show (acquire
-        writes TVDB ids on shows only) for its TMDB id, and a ref holding none matches a
-        TMDB id whatever the row's kind, as the lookup always did. IMDb numbers both kinds
-        together: its id matches across kinds. An id the ref does not carry is bound as
-        ``NULL``, and ``= NULL`` matches nothing.
+        writes TVDB ids on shows only) for its TVDB and TMDB ids alike, and a ref holding
+        none matches a TMDB id whatever the row's kind, as the lookup always did. IMDb
+        numbers both kinds together: its id matches across kinds. An id the ref does not
+        carry is bound as ``NULL``, and ``= NULL`` matches nothing.
 
         Args:
             media_ref: The provider ids to look up.
@@ -423,7 +452,7 @@ class _FollowSubStore:
             The matching rows (``id`` populated); empty when none holds any of the ids. Two
             or more rows are one medium written twice (a duplicate).
         """
-        tmdb_kind = kind if kind is not None else ("show" if media_ref.tvdb_id is not None else None)
+        numbered_kind = kind if kind is not None else ("show" if media_ref.tvdb_id is not None else None)
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
             """
@@ -435,7 +464,7 @@ class _FollowSubStore:
                          WHEN json_extract(media_ref_json, '$.tvdb_id') = :tvdb
                               AND (:kind IS NULL OR kind = :kind) THEN 0
                          WHEN json_extract(media_ref_json, '$.tmdb_id') = :tmdb
-                              AND (:tmdb_kind IS NULL OR kind = :tmdb_kind) THEN 1
+                              AND (:kind IS NULL OR kind = :kind) THEN 1
                          WHEN json_extract(media_ref_json, '$.imdb_id') = :imdb THEN 2
                        END AS match_rank
                 FROM followed_series
@@ -447,8 +476,7 @@ class _FollowSubStore:
                 "tvdb": media_ref.tvdb_id,
                 "tmdb": media_ref.tmdb_id,
                 "imdb": media_ref.imdb_id,
-                "kind": kind,
-                "tmdb_kind": tmdb_kind,
+                "kind": numbered_kind,
             },
         ).fetchall()
         return [_row_to_followed(r) for r in rows]

@@ -50,7 +50,7 @@ class FollowSubStore(Protocol):
     """Writer + reader for the ``followed_series`` table."""
 
     def add(self, series: FollowedSeries) -> int:
-        """Persist a follow on its medium's row (learned ids merged), else insert it; return the rowid."""
+        """Persist a follow on its medium's row of its kind (learned ids merged), else insert it; return the rowid."""
         ...
 
     def get(self, followed_id: int) -> FollowedSeries | None:
