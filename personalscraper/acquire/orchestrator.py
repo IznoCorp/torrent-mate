@@ -226,12 +226,18 @@ class SearchVerdict:
             falsely claim « I looked, there is nothing » (panne ≠ absence).
         chosen: The top-ranked candidate, for logging only — the grab pass
             re-searches rather than re-using a stored reference.
+        ranked: Every ranked ``(result, score)`` pair, best first — the survivors of the hard
+            filters, the dedup and the ``min_seeders`` floor. The search pass stores the best
+            of them as the row's candidates (K3 P9b); the grab pass still re-searches and
+            takes the first, so the ranking is read, never changed. Empty off the
+            ``available`` outcome.
     """
 
     disposition: SearchDisposition
     outcome: str  # member of SEARCH_OUTCOMES
     found: int | None  # takeable count; None = not concluded (NEVER 0 on outage)
     chosen: TrackerResult | None = None  # top-ranked candidate, for logging only
+    ranked: tuple[tuple[TrackerResult, int], ...] = ()
     raw_results: tuple[TrackerResult, ...] | None = None
     """Raw results before the per-kind filter, captured for R2 conversion.
 
@@ -1034,6 +1040,7 @@ class GrabOrchestrator:
             outcome=outcome,
             found=found,
             chosen=chosen,
+            ranked=tuple(result.ranked),
             raw_results=raw_results,
         )
 
