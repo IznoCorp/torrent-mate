@@ -15,18 +15,20 @@ moved bodies keep resolving ``self._store`` / ``self._orchestrator`` /
 
 from __future__ import annotations
 
+import sqlite3
 import time
 from datetime import date
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire._pass_gates import PassGatesMixin
-from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedItem
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedCandidate, WantedItem
 from personalscraper.acquire.events import (
     SeasonAbsorbedEpisodes,
     SeasonEscalatedAfterEpisodeFailures,
     WantedAbandoned,
     WantedEnqueued,
 )
+from personalscraper.acquire.numbering import ReleaseNumbering
 from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
 from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.logger import get_logger
@@ -103,6 +105,10 @@ _STARVATION_OUTCOMES: frozenset[str] = frozenset({"no_candidates", "no_matching_
 #: :data:`_REFUNDED_OUTCOMES`), so this counter is never inflated by an outage —
 #: it really does mean « twice, the trackers answered and had nothing ».
 _STARVATION_THRESHOLD = 2
+
+#: How many ranked survivors a concluded search keeps as the row's candidates (K3 P9b). The
+#: release picker shows the head of the ranking, and a row's set is bounded.
+MAX_CANDIDATES = 20
 
 
 class SearchPassMixin(PassGatesMixin):
@@ -223,6 +229,7 @@ class SearchPassMixin(PassGatesMixin):
                 # (review F12). ``found`` is 0 — 'no_matching_episode' is a
                 # concluded not_found, never an outage.
                 self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, 0)
+                self._store_candidates(current, verdict)
                 converted = self._enqueue_season_from_conversion(current, now)
                 if converted is not None:
                     # The episode row is absorbed into the season row (R5); the
@@ -263,6 +270,7 @@ class SearchPassMixin(PassGatesMixin):
                     # Verdict BEFORE status (the #320 order): an absorbed episode
                     # must still state WHY its own search concluded.
                     self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, 0)
+                    self._store_candidates(current, verdict)
                     season_wid = self._enqueue_season_from_conversion(current, now)
                     if season_wid is not None:
                         self._event_bus.emit(
@@ -353,6 +361,10 @@ class SearchPassMixin(PassGatesMixin):
         self._store.wanted.record_search_outcome(
             wanted_id, verdict.outcome, found, best=_chosen_summary(verdict.chosen)
         )
+        # Right after the verdict, before the status (the #320 order): a crash in between
+        # leaves a 'searching' row the stale sweep re-searches, never a status over old candidates.
+        if found is not None:
+            self._store_candidates(item, verdict)
 
         if status == "abandoned":
             # Terminal verdict (broken passkey): the search pass emits nothing of
@@ -384,6 +396,62 @@ class SearchPassMixin(PassGatesMixin):
         # not_found concluded « nothing yet » (waiting); everything else did not
         # conclude at all (unverified) — never merge the two.
         return "waiting" if verdict.disposition == "not_found" else "unverified"
+
+    def _store_candidates(self, item: WantedItem, verdict: SearchVerdict) -> None:
+        """Replace the row's candidates with what a CONCLUDED search ranked (K3 P9b, DESIGN O-7).
+
+        Called only where the search concluded (``found`` is not ``None``): an outage is not
+        knowledge, so its caller leaves the previous set as it was. A concluded search that
+        ranked nothing (``not_found``) stores an empty set, which clears the old one — « I
+        looked, there is nothing ».
+
+        Each survivor is numbered once, here, by :meth:`ReleaseNumbering.parse`, so no reader
+        of the candidates parses a name. A SEASON row hands the parser the season's aired
+        episode count — the one :func:`~personalscraper.acquire.orchestrator.filter_to_season`
+        proves a pack by — so a span covering the whole season is stored as a pack; an
+        episode row passes none (DESIGN § 2.9).
+
+        Args:
+            item: The claimed item (``item.id`` non-None).
+            verdict: The orchestrator's verdict; its ``ranked`` is cut at
+                :data:`MAX_CANDIDATES`.
+
+        Raises:
+            sqlite3.OperationalError: On a DB lock (isolated by :meth:`run_search`). A row deleted
+                meanwhile (a foreign-key refusal) is logged and skipped, not raised.
+        """
+        assert item.id is not None  # caller claimed it by id
+        expected_count: int | None = None
+        if item.kind == "season" and item.followed_id is not None and item.season is not None:
+            expected_count = len(self._aired_episodes_for_season(item.followed_id, item.season)) or None
+        searched_at = int(time.time())
+        rows: list[WantedCandidate] = []
+        for rank, (result, score) in enumerate(verdict.ranked[:MAX_CANDIDATES], start=1):
+            season, episode = ReleaseNumbering.parse(result.title, expected_count=expected_count)
+            rows.append(
+                WantedCandidate(
+                    rank=rank,
+                    provider=result.provider,
+                    title=result.title,
+                    info_hash=result.info_hash,
+                    size_bytes=result.size.bytes,
+                    seeders=result.seeders,
+                    resolution=result.resolution,
+                    source=result.source,
+                    language=result.language,
+                    score=score,
+                    season=season,
+                    episode=episode,
+                    searched_at=searched_at,
+                )
+            )
+        try:
+            self._store.candidates.replace(item.id, rows)
+        except sqlite3.IntegrityError:
+            # The row was deleted (its follow removed) between the re-fetch and this write: the
+            # foreign key refuses the set. There is nothing left to attach candidates to, and
+            # one vanished row must not abort the pass for every row behind it.
+            log.warning("acquire.service.candidates_row_gone", wanted_id=item.id)
 
     # ------------------------------------------------------------------
     # R2: Episode→Season Conversion

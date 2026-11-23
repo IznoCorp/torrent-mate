@@ -14,12 +14,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import FollowedSeries, WantedCandidate, WantedItem
 from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api.tracker._base import TrackerResult
-from personalscraper.conf.models.acquire import AcquireConfig
+from personalscraper.api.tracker._ranking import RankingConfig
+from personalscraper.api.tracker._registry import TrackerRegistry
+from personalscraper.conf.models.acquire import AcquireConfig, BandwidthConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.units import ByteSize
 
@@ -322,3 +326,75 @@ def test_an_episode_row_never_reads_a_span_as_a_pack(store: ConcreteAcquireStore
     _search(store, _available((_result("Show S02E01-E12 1080p", info_hash="span"), 5)))
 
     assert [(c.season, c.episode) for c in _stored(store, wid)] == [(2, 1)]
+
+
+class _FixedTracker:
+    """Tracker stub answering every search with the same results."""
+
+    def __init__(self, results: list[TrackerResult]) -> None:
+        self._results = results
+
+    def search(self, query: str, media_type: object = None, year: int | None = None) -> list[TrackerResult]:
+        """Return the configured results.
+
+        Args:
+            query: Ignored.
+            media_type: Ignored.
+            year: Ignored.
+
+        Returns:
+            The results.
+        """
+        return list(self._results)
+
+    def get_categories(self) -> dict[str, str]:
+        """Return no categories (unused here)."""
+        return {}
+
+
+def test_the_verdict_carries_the_ranking_the_grab_takes_from() -> None:
+    """The verdict's ``ranked`` is the chain's own ranking: its first pair is ``chosen``, count ``found``."""
+    results = [
+        _result("Inception 2010 1080p", info_hash="low", seeders=5),
+        _result("Inception 2010 1080p", info_hash="high", seeders=500, provider="tr4ker"),
+    ]
+    registry = TrackerRegistry(
+        trackers={"c411": _FixedTracker(results[:1]), "tr4ker": _FixedTracker(results[1:])},  # type: ignore[dict-item]
+        priority=["c411", "tr4ker"],
+        ranking=RankingConfig(min_seeders=0),
+    )
+    orchestrator = GrabOrchestrator(
+        tracker_registry=registry,
+        torrent_client=None,
+        event_bus=EventBus(),
+        ranking=RankingConfig(min_seeders=0),
+        bandwidth=BandwidthConfig(),
+    )
+    movie = WantedItem(media_ref=MediaRef(tmdb_id=1), kind="movie", status="searching", enqueued_at=1, id=1)
+
+    verdict = orchestrator.search(movie, QualityProfile())
+
+    assert verdict.outcome == "available"
+    assert verdict.found == len(verdict.ranked) >= 1
+    assert verdict.chosen is verdict.ranked[0][0]
+
+
+def test_a_row_deleted_during_the_search_does_not_abort_the_pass(store: ConcreteAcquireStore) -> None:
+    """The follow is unfollowed mid-search: its row is gone, the candidates are skipped, the pass goes on."""
+    wid = _add(store, kind="episode", season=2, episode=5)
+    fid = _follow(store)
+    verdict = _available((_result("Severance S02E05 1080p", info_hash="aaa"), 10))
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.side_effect = lambda *_a, **_k: (store.follow.delete(fid), verdict)[1]
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+
+    AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=orch,  # type: ignore[arg-type]
+        event_bus=MagicMock(),
+        config=config,
+    ).run_search()
+
+    assert store.wanted.get(wid) is None
+    assert _stored(store, wid) == []
