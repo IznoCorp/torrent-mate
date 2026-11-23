@@ -117,6 +117,9 @@ def _end_finished_requests(store: AcquireStore, *, now: int) -> int:
     request, so none means nothing was asked yet, and ending it on that silence would end it
     before it began. The row, its wanted rows and its history stay (``removed_at``, inactive).
 
+    The conditions are checked by :meth:`end_request` inside its own write, never from a
+    snapshot read here: a row a concurrent pass opens meanwhile keeps the request standing.
+
     Args:
         store: The acquire store.
         now: Unix epoch seconds stamped as ``removed_at``.
@@ -124,18 +127,12 @@ def _end_finished_requests(store: AcquireStore, *, now: int) -> int:
     Returns:
         How many requests this pass removed.
     """
-    requests = store.follow.list_requests()
-    if not requests:
-        return 0
-    open_followed_ids = {row.followed_id for row in _list_open_rows(store)}
     ended = 0
-    for request in requests:
-        if request.id is None or request.id in open_followed_ids:
+    for request in store.follow.list_requests():
+        if request.id is None:
             continue
         try:
-            if not store.wanted.list_for_followed(request.id, kind="season"):
-                continue
-            if store.follow.mark_removed(request.id, now=now):
+            if store.follow.end_request(request.id, now=now):
                 ended += 1
                 log.info("acquire.reconcile.request_ended", followed_id=request.id, title=request.title)
         except Exception as exc:  # noqa: BLE001 — fail-soft per row: the next sweep ends it

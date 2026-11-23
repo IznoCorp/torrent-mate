@@ -151,6 +151,22 @@ class TestReaders:
 
         assert [r.id for r in store.follow.list_requests()] == [request_id]
 
+    def test_list_requests_skips_a_removed_row_whose_active_flag_is_stale(self, store: ConcreteAcquireStore) -> None:
+        """``removed_at`` alone excludes a request, ``active`` still 1 (a writer that forgot the projection)."""
+        request_id = _request(store, 2, "Requested")
+        stale_id = _request(store, 3, "Stale")
+        store._ensure_open().execute("UPDATE followed_series SET removed_at = 600 WHERE id = ?", (stale_id,))  # noqa: SLF001
+
+        assert [r.id for r in store.follow.list_requests()] == [request_id]
+
+    def test_list_requests_skips_an_inactive_request_that_is_not_removed(self, store: ConcreteAcquireStore) -> None:
+        """A paused request (``active = 0``, not removed) is not read by detect: ``active`` alone excludes it."""
+        request_id = _request(store, 2, "Requested")
+        paused_id = _request(store, 3, "Paused")
+        store.follow.set_active(paused_id, False)
+
+        assert [r.id for r in store.follow.list_requests()] == [request_id]
+
     def test_list_all_keeps_every_row(self, store: ConcreteAcquireStore) -> None:
         """The CLI's ``--all`` and the title maps still see requests and removed rows."""
         ids = [_follow(store, 1), _request(store, 2), _request(store, 3)]
@@ -271,6 +287,28 @@ class TestDetect:
         assert {w.followed_id for w in store.wanted.list_pending()} == {follow_id}
         assert len(store.aired.list_for_followed(request_id)) == 3
 
+    def test_a_request_of_a_followed_medium_never_takes_the_follows_episodes(self, store: ConcreteAcquireStore) -> None:
+        """One medium held by a follow AND a request row (forced by raw SQL) is the follow's alone.
+
+        P1 keeps one row per medium, so the state only arises from a hand-written row, but were
+        the request to own the ref in the poll, the follow's episodes would be filtered out of
+        the enqueue pass and never enqueued.
+        """
+        ref = MediaRef(tvdb_id=1)
+        follow_id = _follow(store, 1, "Followed")
+        # The same ids as the follow, written in another key order: ``ux_followed_media_ref`` is on the whole text.
+        store._ensure_open().execute(  # noqa: SLF001
+            "INSERT INTO followed_series (media_ref_json, title, active, added_at, kind, scope) "
+            "VALUES ('{\"imdb_id\": null, \"tmdb_id\": null, \"tvdb_id\": 1}', 'Request twin', 1, 1, 'show', 'request')"
+        )
+        catalog = SeriesCatalog(followed_id=follow_id, media_ref=ref, series_status=None, episodes=_aired(ref, 1, 1))
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=[catalog]) as poll:
+            _detect(store).run(series=None, dry_run=False, today=_TODAY, now=_NOW)
+
+        assert [f.id for f in poll.call_args.args[0]] == [follow_id]
+        assert len(store.wanted.list_for_followed(follow_id, kind="episode")) == 1
+
     def test_a_request_alone_is_polled_not_reported_as_no_active(self, store: ConcreteAcquireStore) -> None:
         """With no follow at all, a standing request is still read."""
         ref = MediaRef(tvdb_id=100)
@@ -315,6 +353,49 @@ class TestDetect:
             _detect(store).run(series=None, dry_run=True, today=_TODAY, now=_NOW)
 
         assert store.aired.list_for_followed(request_id) == []
+
+    def test_the_series_title_filter_reaches_a_request(self, store: ConcreteAcquireStore) -> None:
+        """A non-numeric ``--series`` is a title substring, matched on a request as on a follow."""
+        request_id = _request(store, 100, "Owned Show")
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=[]) as poll:
+            hit = _detect(store).run(series="owned", dry_run=False, today=_TODAY, now=_NOW)
+            miss = _detect(store).run(series="nomatch", dry_run=False, today=_TODAY, now=_NOW)
+
+        assert hit.status is DetectStatus.OK
+        assert [f.id for f in poll.call_args_list[0].args[0]] == [request_id]
+        assert miss.status is DetectStatus.NO_MATCH
+
+    def test_the_series_id_filter_leaves_a_request_out_when_it_names_a_follow(
+        self, store: ConcreteAcquireStore
+    ) -> None:
+        """With a follow and a request, ``--series <follow id>`` polls the follow only."""
+        follow_ref, request_ref = MediaRef(tvdb_id=1), MediaRef(tvdb_id=100)
+        follow_id = _follow(store, 1, "Followed")
+        request_id = _request(store, 100, "Owned Show")
+        catalogs = [
+            SeriesCatalog(followed_id=follow_id, media_ref=follow_ref, series_status=None, episodes=[]),
+            SeriesCatalog(
+                followed_id=request_id, media_ref=request_ref, series_status=None, episodes=_aired(request_ref, 1, 2)
+            ),
+        ]
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=catalogs) as poll:
+            _detect(store).run(series=str(follow_id), dry_run=False, today=_TODAY, now=_NOW)
+
+        assert [f.id for f in poll.call_args.args[0]] == [follow_id]
+
+    def test_the_series_title_filter_leaves_a_request_out_when_it_names_a_follow(
+        self, store: ConcreteAcquireStore
+    ) -> None:
+        """With a follow and a request, a title naming the follow polls the follow only."""
+        follow_id = _follow(store, 1, "Followed Show")
+        _request(store, 100, "Owned Show")
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=[]) as poll:
+            _detect(store).run(series="followed", dry_run=False, today=_TODAY, now=_NOW)
+
+        assert [f.id for f in poll.call_args.args[0]] == [follow_id]
 
     def test_the_series_filter_reaches_a_request(self, store: ConcreteAcquireStore) -> None:
         """``--series`` by id names a request row as it names a follow; another id matches none."""
@@ -422,6 +503,166 @@ class TestSeasonOfARequest:
 
         assert service._aired_episodes_for_season(request_id, 1) == [1, 2, 3]  # noqa: SLF001
         assert service._follow_titles(request_id) == ["Owned Show", None]  # noqa: SLF001
+
+
+# ---------------------------------------------------------------------------
+# end_request: the check and the write are one statement
+# ---------------------------------------------------------------------------
+
+
+class TestEndRequest:
+    """``end_request`` ends a closed request only if, at the write, nothing of it is open."""
+
+    def test_a_closed_season_ends_it(self, store: ConcreteAcquireStore) -> None:
+        """No open row, a season row: the request is removed and inactive."""
+        request_id = _request(store, 100)
+        store.wanted.set_status(_season_row(store, request_id, 100), "done")
+
+        assert store.follow.end_request(request_id, now=500) is True
+
+        row = store.follow.get(request_id)
+        assert row is not None
+        assert (row.removed_at, row.active) == (500, False)
+
+    @pytest.mark.parametrize("open_status", ["pending", "searching", "available", "grabbed"])
+    def test_an_open_row_present_at_the_call_keeps_the_request(
+        self, store: ConcreteAcquireStore, open_status: str
+    ) -> None:
+        """A closed season beside an open episode row of any open status: the write refuses."""
+        request_id = _request(store, 100)
+        store.wanted.set_status(_season_row(store, request_id, 100), "done")
+        episode_id = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=100),
+                kind="episode",
+                status="pending",
+                enqueued_at=_ENQUEUED_AT,
+                followed_id=request_id,
+                season=1,
+                episode=2,
+            )
+        )
+        store.wanted.set_status(episode_id, open_status)  # type: ignore[arg-type]
+
+        assert store.follow.end_request(request_id, now=500) is False
+        assert not _removed(store, request_id)
+
+    def test_no_season_row_keeps_the_request(self, store: ConcreteAcquireStore) -> None:
+        """Nothing asked yet: never ended on silence."""
+        request_id = _request(store, 100)
+
+        assert store.follow.end_request(request_id, now=500) is False
+
+    def test_a_follow_is_never_ended(self, store: ConcreteAcquireStore) -> None:
+        """Only a row of scope ``request`` ends."""
+        follow_id = _follow(store, 1)
+        store.wanted.set_status(_season_row(store, follow_id, 1), "done")
+
+        assert store.follow.end_request(follow_id, now=500) is False
+
+    def test_a_second_call_keeps_the_first_stamp(self, store: ConcreteAcquireStore) -> None:
+        """An ended request is not ended again."""
+        request_id = _request(store, 100)
+        store.wanted.set_status(_season_row(store, request_id, 100), "done")
+        assert store.follow.end_request(request_id, now=500) is True
+
+        assert store.follow.end_request(request_id, now=900) is False
+
+        row = store.follow.get(request_id)
+        assert row is not None and row.removed_at == 500
+
+    def test_a_row_opened_after_the_reconciliation_read_its_requests_keeps_the_request(
+        self, store: ConcreteAcquireStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A concurrent pass opens a row between the reconciliation's read and its write: the request stands."""
+        request_id = _request(store, 100)
+        store.wanted.set_status(_season_row(store, request_id, 100), "done")
+        read_requests = store.follow.list_requests
+
+        def read_then_a_row_opens() -> list[FollowedSeries]:
+            rows = read_requests()
+            store.wanted.add(
+                WantedItem(
+                    media_ref=MediaRef(tvdb_id=100),
+                    kind="episode",
+                    status="pending",
+                    enqueued_at=_ENQUEUED_AT,
+                    followed_id=request_id,
+                    season=1,
+                    episode=2,
+                )
+            )
+            return rows
+
+        monkeypatch.setattr(store.follow, "list_requests", read_then_a_row_opens)
+
+        _reconcile(store)
+
+        assert not _removed(store, request_id)
+
+
+# ---------------------------------------------------------------------------
+# Adding a medium a request row or a removed row holds makes it a follow, on the same row
+# ---------------------------------------------------------------------------
+
+
+class TestAddOverARequest:
+    """``follow.add`` on a medium held by a request (standing or ended) leaves one row, a standing follow."""
+
+    @staticmethod
+    def _add(store: ConcreteAcquireStore, *, tmdb_id: int | None = 7, kind: Literal["movie", "show"] = "show") -> int:
+        """Add the medium TVDB 100 (and *tmdb_id*) as a follow and return its rowid."""
+        return store.follow.add(
+            FollowedSeries(media_ref=MediaRef(tvdb_id=100, tmdb_id=tmdb_id), title="Owned Show", added_at=2, kind=kind)
+        )
+
+    def test_a_standing_request_becomes_a_follow(self, store: ConcreteAcquireStore) -> None:
+        """The merge path: one row, scope ``follow``, read by ``list_active``."""
+        request_id = _request(store, 100)
+
+        assert self._add(store) == request_id
+
+        assert [(f.id, f.scope, f.removed_at) for f in store.follow.list_all()] == [(request_id, "follow", None)]
+        assert [f.id for f in store.follow.list_active()] == [request_id]
+        assert store.follow.list_requests() == []
+
+    def test_an_ended_request_becomes_a_follow(self, store: ConcreteAcquireStore) -> None:
+        """The merge path on a removed, inactive request: revived as a follow, ``removed_at`` cleared."""
+        request_id = _request(store, 100)
+        store.follow.mark_removed(request_id, now=500)
+
+        assert self._add(store) == request_id
+
+        row = store.follow.get(request_id)
+        assert row is not None
+        assert (row.scope, row.removed_at, row.active) == ("follow", None, True)
+        assert [f.id for f in store.follow.list_active()] == [request_id]
+        assert len(store.follow.list_all()) == 1
+
+    def test_the_conflict_path_makes_a_follow_too(self, store: ConcreteAcquireStore) -> None:
+        """A row of the other kind holding the very same ids is reached by ``ON CONFLICT``, not the merge."""
+        request_id = _request(store, 100)
+        store.follow.mark_removed(request_id, now=500)
+
+        # A film asked of the ids a SHOW row holds: the lookup finds no row of its kind, the unique index catches it.
+        assert store.follow.add(
+            FollowedSeries(media_ref=MediaRef(tvdb_id=100), title="X", added_at=2, kind="movie")
+        ) == (request_id)
+
+        row = store.follow.get(request_id)
+        assert row is not None
+        assert (row.scope, row.removed_at, row.active) == ("follow", None, True)
+
+    def test_refollow_makes_a_row_a_standing_follow(self, store: ConcreteAcquireStore) -> None:
+        """The CLI's writer: active, scope ``follow``, not removed, whatever the row was."""
+        request_id = _request(store, 100)
+        store.follow.mark_removed(request_id, now=500)
+
+        store.follow.refollow(request_id)
+
+        row = store.follow.get(request_id)
+        assert row is not None
+        assert row.is_following is True
 
 
 # ---------------------------------------------------------------------------

@@ -89,6 +89,14 @@ class FollowSubStore(Protocol):
         """Mark a row removed and inactive; ``True`` when this call did it."""
         ...
 
+    def end_request(self, followed_id: int, *, now: int) -> bool:
+        """End a closed one-off request in one conditional statement; ``True`` when this call did it."""
+        ...
+
+    def refollow(self, followed_id: int) -> None:
+        """Make an existing row a standing follow again (active, scope ``follow``, not removed)."""
+        ...
+
     def set_active(self, followed_id: int, active: bool) -> None:
         """Set the ``active`` flag on a ``followed_series`` row."""
         ...

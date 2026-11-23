@@ -95,15 +95,17 @@ def follow_add(
             )
 
             existing = store.follow.find_by_ref(media_ref)
-            if existing is not None and existing.active:
+            # A one-off request or a removed row is no follow even when ``active`` reads true:
+            # adding the medium makes it one, on the same row.
+            if existing is not None and existing.is_following:
                 line = t("cli_acquisition.follow.series_line", title=existing.title, id=str(existing.id))
                 console.print("[yellow]" + t("cli_acquisition.follow.add.already_following") + "[/yellow] " + line)
                 return
 
-            if existing is not None and not existing.active:
-                # Reactivate (refollow after remove).
+            if existing is not None:
+                # Reactivate (refollow after remove, or a request / removed row made a follow).
                 assert existing.id is not None
-                store.follow.set_active(existing.id, True)
+                store.follow.refollow(existing.id)
                 app_context.event_bus.emit(SeriesFollowed(media_ref=media_ref, title=existing.title))
                 line = t("cli_acquisition.follow.series_line", title=existing.title, id=str(existing.id))
                 console.print("[green]" + t("cli_acquisition.follow.add.refollowing") + "[/green] " + line)
@@ -218,11 +220,12 @@ def follow_remove(
             else:
                 series = store.follow.get(followed_id)  # type: ignore[arg-type]
 
-            if series is None:
+            # A one-off request is no follow: there is nothing here to remove.
+            if series is None or series.scope == "request":
                 console.print("[yellow]" + t("cli_acquisition.follow.remove.not_found") + "[/yellow]")
                 return
 
-            if not series.active:
+            if not series.is_following:
                 line = t("cli_acquisition.follow.series_line", title=series.title, id=str(series.id))
                 console.print("[yellow]" + t("cli_acquisition.follow.remove.already_inactive") + "[/yellow] " + line)
                 return

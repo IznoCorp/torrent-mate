@@ -117,6 +117,19 @@ class FollowedSeries:
         if self.scope not in ("follow", "request"):
             raise ValueError(f'Invalid FollowedSeries.scope={self.scope!r}; must be "follow" or "request"')
 
+    @property
+    def is_following(self) -> bool:
+        """Whether this row is a standing follow: active, of scope ``follow`` and not removed.
+
+        A one-off request row (DESIGN O-2 A) or a removed row is not a follow even when its
+        ``active`` flag reads true, so a caller asking « is this medium followed? » reads
+        this and never ``active`` alone.
+
+        Returns:
+            ``True`` for a standing follow.
+        """
+        return self.active and self.scope == "follow" and self.removed_at is None
+
 
 @dataclass(frozen=True)
 class AiredEpisode:
