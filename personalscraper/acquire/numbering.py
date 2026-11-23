@@ -32,12 +32,14 @@ class ReleaseNumbering:
     """The numbering a release title carries: its season and its episode, each ``None`` when it has none."""
 
     @staticmethod
-    def parse(title: str) -> tuple[int | None, int | None]:
+    def parse(title: str, *, expected_count: int | None = None) -> tuple[int | None, int | None]:
         """Read the season and the episode a release title numbers.
 
         * An episode (``S02E05``, ``2x05``): both.
         * A multi-episode span (``S09E05-E06``, ``S09E05E06``): the season and the FIRST episode,
           the one ``filter_to_episode`` keeps the release for.
+        * A span running from E01 to *expected_count* (``S02E01-E12`` of a 12-episode season): a
+          pack, the season and no episode, the coverage rule ``filter_to_season`` applies.
         * A season pack (``S02``, ``Saison 2``, ``Season 2 Complete``): the season, episode ``None``.
         * A film, a pack of several seasons (``S01-S03``), an unreadable or markerless name:
           ``(None, None)``. An episode is only numbered together with its season: an absolute
@@ -45,19 +47,45 @@ class ReleaseNumbering:
 
         Args:
             title: The release's title as the tracker published it.
+            expected_count: The number of aired episodes of the season the release is read for,
+                when known. ``None`` leaves every span numbered by its first episode.
 
         Returns:
             ``(season, episode)``; each ``None`` when the title does not number it.
         """
         token = _EPISODE_TOKEN.search(title)
+        info: dict[str, object] | None = None
         if token is not None:
-            return int(token.group(1)), int(token.group(2))
-        info = _guess(title)
-        season = _single(info.get("season"))
-        if season is None:
-            return None, None
-        episodes = _episode_numbers(info.get("episode"))
-        return season, episodes[0] if episodes else None
+            season: int | None = int(token.group(1))
+            first: int | None = int(token.group(2))
+        else:
+            info = _guess(title)
+            season = _single(info.get("season"))
+            if season is None:
+                return None, None
+            episodes = _episode_numbers(info.get("episode"))
+            first = episodes[0] if episodes else None
+        if expected_count is not None:
+            info = info if info is not None else _guess(title)
+            if _runs_to(_episode_numbers(info.get("episode")), expected_count):
+                return season, None
+        return season, first
+
+
+def _runs_to(episodes: list[int], expected_count: int) -> bool:
+    """Whether an episode list is a span covering the season, E01 to its last episode.
+
+    The coverage ``filter_to_season`` proves a pack by: the list starts at E01 and reaches the
+    aired count. A lone episode is no span.
+
+    Args:
+        episodes: The episode numbers of the release, ascending.
+        expected_count: The number of aired episodes of the season.
+
+    Returns:
+        True when the list holds several episodes, starts at 1 and reaches *expected_count*.
+    """
+    return len(episodes) > 1 and episodes[0] == 1 and episodes[-1] >= expected_count
 
 
 def _guess(title: str) -> dict[str, object]:

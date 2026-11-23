@@ -201,12 +201,27 @@ def test_the_candidates_keep_their_numbering(store: ConcreteAcquireStore) -> Non
     assert (found.season, found.episode, found.info_hash) == (2, 5, "hash1")
 
 
-def test_another_episode_of_the_follow_is_not_answered(store: ConcreteAcquireStore) -> None:
-    """The read is of ONE item: the candidates of S02E06 never answer S02E05."""
+def test_each_coordinate_answers_its_own_row_not_the_latest_one(store: ConcreteAcquireStore) -> None:
+    """The read is of ONE item: a later row at another episode or another season never answers an earlier one."""
     follow = _follow(store, MediaRef(tvdb_id=81189))
     store.candidates.replace(_wanted(store, follow, season=2, episode=5), [_candidate(1, "Show.S02E05")])
     store.candidates.replace(_wanted(store, follow, season=2, episode=6), [_candidate(1, "Show.S02E06")])
-    assert _titles(store, _actor(ALICE), SHOW, 2, 6) == ["Show.S02E06"]
+    store.candidates.replace(_wanted(store, follow, season=3, episode=5), [_candidate(1, "Show.S03E05")])
+    actor = _actor(ALICE)
+    assert _titles(store, actor, SHOW, 2, 5) == ["Show.S02E05"]
+    assert _titles(store, actor, SHOW, 2, 6) == ["Show.S02E06"]
+    assert _titles(store, actor, SHOW, 3, 5) == ["Show.S03E05"]
+
+
+def test_a_season_pack_row_is_told_apart_by_its_season(store: ConcreteAcquireStore) -> None:
+    """Two season rows: the later season's packs never answer the earlier season's."""
+    follow = _follow(store, MediaRef(tvdb_id=81189))
+    store.candidates.replace(_wanted(store, follow, kind="season", season=2), [_candidate(1, "Show.S02.COMPLETE")])
+    store.candidates.replace(_wanted(store, follow, kind="season", season=3), [_candidate(1, "Show.S03.COMPLETE")])
+    actor = _actor(ALICE)
+    assert _titles(store, actor, SHOW, 2, None) == ["Show.S02.COMPLETE"]
+    assert _titles(store, actor, SHOW, 3, None) == ["Show.S03.COMPLETE"]
+    assert _titles(store, actor, SHOW, 4, None) == []
 
 
 def test_a_season_is_asked_with_no_episode(store: ConcreteAcquireStore) -> None:
