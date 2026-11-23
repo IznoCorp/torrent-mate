@@ -222,6 +222,25 @@ class Follow:
     removed_at: int | None
     legacy: InForce | None = None
 
+    @classmethod
+    def first_ask(cls, follow_id: FollowId, key: AcquisitionKey, scope: Scope, account: AccountId, now: int) -> Follow:
+        """The follow of a subject row just written for one account's ask: that account its only requester.
+
+        A fresh row has no v0 settings to carry, so it is never read as the owner's implied ask.
+
+        Args:
+            follow_id: The new subject row.
+            key: The medium's key.
+            scope: A standing follow, or a one-off request.
+            account: The asking account.
+            now: Epoch seconds of the ask.
+
+        Returns:
+            The follow, standing, the account asking as the scope says.
+        """
+        asker = Requester(account_id=account, via=Via(scope.value), floor=None, paused=False, since=now)
+        return cls(id=follow_id, key=key, scope=scope, requesters=(asker,), removed_at=None)
+
     def _members(self, owner: AccountId) -> Follow:
         """The follow with the owner's implied ask made explicit, when it stands with no requester.
 
@@ -306,9 +325,10 @@ class Follow:
     def with_requester(self, account: AccountId, via: Via, now: int, *, owner: AccountId) -> Follow:
         """An account asks for the follow: it joins, or nothing changes if it already asked.
 
-        A removed follow asked for again comes back, the asker its requester (§ 2.5). A
-        standing follow with no requester keeps its owner, with its v0 settings, beside the
-        asker.
+        A removed follow asked for again comes back, the asker its only requester (§ 2.5):
+        whoever asked before it was removed (a one-off request ended by its season keeps its
+        rows) no longer asks. A standing follow with no requester keeps its owner, with its v0
+        settings, beside the asker.
 
         Args:
             account: The asking account.
@@ -319,11 +339,79 @@ class Follow:
         Returns:
             The follow with the account among its requesters.
         """
+        if self.removed_at is not None:
+            revived = Requester(account_id=account, via=via, floor=None, paused=False, since=now)
+            return replace(self, requesters=(revived,), removed_at=None, legacy=None)
         members = self._members(owner)
         if members._find(account) is not None:
             return members
         joined = Requester(account_id=account, via=via, floor=None, paused=False, since=now)
         return replace(members, requesters=(*members.requesters, joined), removed_at=None, legacy=None)
+
+    def followed_by(self, account: AccountId, now: int, *, owner: AccountId) -> Follow:
+        """An account follows the medium: it joins as a follower, and the subject becomes a standing follow.
+
+        « Suivre » on a one-off request's card (§ 2.7) is this ask on the same subject: the
+        request's season carries on, the row is a follow from now. A requester who asked by
+        request keeps its own ask as it was.
+
+        Args:
+            account: The following account.
+            now: Epoch seconds of the ask.
+            owner: The account a requester-less follow is the ask of.
+
+        Returns:
+            The follow, of scope :attr:`Scope.FOLLOW`, with the account among its requesters.
+        """
+        return replace(self.with_requester(account, Via.FOLLOW, now, owner=owner), scope=Scope.FOLLOW)
+
+    def requested_by(self, account: AccountId, now: int, *, owner: AccountId) -> Follow:
+        """An account asks a one-off request of the medium (§ 2.7): it joins the standing subject.
+
+        A standing follow stays a follow (its season is asked of it); a removed subject comes
+        back as a request, the asker its only requester.
+
+        Args:
+            account: The asking account.
+            now: Epoch seconds of the ask.
+            owner: The account a requester-less follow is the ask of.
+
+        Returns:
+            The follow with the account among its requesters, of scope :attr:`Scope.REQUEST`
+            when it was removed.
+        """
+        scope = Scope.REQUEST if self.removed_at is not None else self.scope
+        return replace(self.with_requester(account, Via.REQUEST, now, owner=owner), scope=scope)
+
+    def paused_for_all(self, paused: bool, *, owner: AccountId) -> Follow:
+        """Every requester's pause set at once: the generic pause of whoever pilots every acquisition (§ 2.3).
+
+        Args:
+            paused: The pause asked.
+            owner: The account a requester-less follow is the ask of.
+
+        Returns:
+            The follow, each requester's ``paused`` the one asked.
+
+        Raises:
+            FollowRemoved: The follow is removed.
+        """
+        if self.removed_at is not None:
+            raise FollowRemoved(f"follow {self.id} is removed")
+        members = self._members(owner)
+        return replace(members, requesters=tuple(replace(one, paused=paused) for one in members.requesters))
+
+    def shared_beyond(self, account: AccountId, *, owner: AccountId) -> bool:
+        """Whether accounts other than *account* asked for the follow.
+
+        Args:
+            account: The account asking.
+            owner: The account a requester-less follow is the ask of.
+
+        Returns:
+            True when a requester other than the account exists.
+        """
+        return any(one.account_id != account for one in self.requesters_or_owner(owner))
 
     def without_requester(self, account: AccountId, now: int, *, owner: AccountId) -> Follow:
         """An account leaves the follow; the last one leaving removes it.
