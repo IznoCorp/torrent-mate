@@ -8,6 +8,7 @@ counts, the highest floor wins, and a follow is paused once every holder of the 
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 
 import pytest
 
@@ -180,6 +181,36 @@ class TestRequesters:
         follow = _follow(removed_at=300).with_requester(ALICE, Via.FOLLOW, now=500, owner=OWNER)
         assert follow.removed_at is None
         assert _ids(follow) == [ALICE]
+
+    def test_a_removed_follow_revives_with_the_asker_alone(self) -> None:
+        """Whoever asked before the removal no longer asks: the revived follow is the asker's alone (§ 2.5).
+
+        A request ended by its season keeps its requester rows; asked again, it must come back
+        standing, not merged with the stale asks.
+        """
+        stale = _follow(_requester(ALICE, floor=QualityFloor.P2160), _requester(BOB, paused=True), removed_at=300)
+        revived = stale.with_requester(CAROL, Via.REQUEST, now=500, owner=OWNER)
+        assert revived.removed_at is None
+        assert revived.requesters == (_requester(CAROL, since=500, via=Via.REQUEST),)
+
+    def test_following_a_request_makes_it_a_follow_keeping_the_request(self) -> None:
+        """« Suivre » on a request's card (§ 2.7): scope ``follow``, the request's asker kept ``via request``."""
+        request = replace(_follow(_requester(ALICE, via=Via.REQUEST)), scope=Scope.REQUEST)
+        followed = request.followed_by(BOB, now=500, owner=OWNER)
+        assert followed.scope is Scope.FOLLOW
+        assert followed.requesters == (_requester(ALICE, via=Via.REQUEST), _requester(BOB, since=500))
+
+    def test_a_request_on_a_removed_follow_revives_it_as_a_request(self) -> None:
+        """A removed row asked one season comes back of scope ``request``, the asker alone ``via request``."""
+        asked = _follow(_requester(ALICE), removed_at=300).requested_by(BOB, now=500, owner=OWNER)
+        assert asked.scope is Scope.REQUEST
+        assert asked.requesters == (_requester(BOB, since=500, via=Via.REQUEST),)
+
+    def test_a_request_on_a_standing_follow_keeps_it_a_follow(self) -> None:
+        """A season asked of a standing follow joins it; the follow stays a follow."""
+        asked = _follow(_requester(ALICE)).requested_by(BOB, now=500, owner=OWNER)
+        assert asked.scope is Scope.FOLLOW
+        assert _ids(asked) == [ALICE, BOB]
 
     def test_leaving_keeps_the_follow_for_the_others(self) -> None:
         """One requester leaving leaves the follow standing for the rest."""
@@ -377,6 +408,14 @@ class TestRequesterLessFollow:
         """The owner's implied ask moves like any other."""
         moved = _follow(legacy=self.V0).reassigned(OWNER, ALICE, now=500, owner=OWNER)
         assert moved.requesters == (_requester(ALICE, since=500),)
+
+    def test_the_owners_ask_is_written_out(self) -> None:
+        """``with_owner_ask`` makes the owner a requester with the v0 settings; a follow with requesters is kept."""
+        owned = _follow(legacy=self.V0).with_owner_ask(OWNER)
+        assert owned.requesters == (_requester(OWNER, floor=QualityFloor.P2160, paused=True, since=0),)
+        assert owned.legacy is None
+        asked = _follow(_requester(ALICE))
+        assert asked.with_owner_ask(OWNER) is asked
 
     def test_a_stranger_still_is_not_a_requester(self) -> None:
         """Another account acting on a requester-less follow is refused."""

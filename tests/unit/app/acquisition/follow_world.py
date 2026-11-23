@@ -41,6 +41,8 @@ ALICE = AccountId("account-alice")
 BOB = AccountId("account-bob")
 CAROL = AccountId("account-carol")
 DAVE = AccountId("account-dave")
+ERIN = AccountId("account-erin")
+FRANK = AccountId("account-frank")
 
 #: What an ordinary member's role holds: ask, follow, pilot its own, set its own quality and pause.
 MEMBER_RIGHTS = frozenset(
@@ -57,16 +59,29 @@ MEMBER = RoleId("role-member")
 SEER = RoleId("role-seer")
 #: A member who pilots every acquisition, without reading the others' follows.
 PILOT = RoleId("role-pilot")
-#: A role that may reassign.
+#: A role that may reassign, and pilots every acquisition (the primes a reassign asks are its).
 MANAGER = RoleId("role-manager")
+#: A member who may follow and restore, but not ask for a medium (no ``acquisition.request``).
+WATCHER = RoleId("role-watcher")
 
 ROLES: dict[RoleId, frozenset[Right]] = {
     MEMBER: MEMBER_RIGHTS,
     SEER: MEMBER_RIGHTS | {Right.ACQUISITION_SEE_OTHERS},
     PILOT: MEMBER_RIGHTS | {Right.ACQUISITION_PILOT_ANY},
-    MANAGER: MEMBER_RIGHTS | {Right.ACQUISITION_REASSIGN},
+    MANAGER: MEMBER_RIGHTS | {Right.ACQUISITION_REASSIGN, Right.ACQUISITION_PILOT_ANY},
+    WATCHER: MEMBER_RIGHTS - {Right.ACQUISITION_REQUEST},
 }
-ACCOUNTS: dict[AccountId, RoleId] = {ALICE: MEMBER, BOB: MEMBER, CAROL: PILOT, DAVE: SEER}
+ACCOUNTS: dict[AccountId, RoleId] = {
+    ALICE: MEMBER,
+    BOB: MEMBER,
+    CAROL: PILOT,
+    DAVE: SEER,
+    ERIN: MANAGER,
+    FRANK: WATCHER,
+}
+
+#: The system actor, the owner's: who primes a follow a re-projection turns on.
+SYSTEM = Actor.system(NO_CEILING, account_id=OWNER, name="owner")
 
 
 @dataclass
@@ -158,17 +173,18 @@ def _ids(ref: MediaRef) -> set[str]:
     return texts
 
 
-def actor(account: AccountId, *, ceiling: InstanceCeiling = NO_CEILING) -> Actor:
+def actor(account: AccountId, *, ceiling: InstanceCeiling = NO_CEILING, role: RoleId | None = None) -> Actor:
     """The actor of a seeded account, its role's rights as the roster holds them.
 
     Args:
         account: The account.
         ceiling: The instance's ceiling.
+        role: The role it acts with, when not its seeded one (the owner, whose seeded role is Admin).
 
     Returns:
         The actor.
     """
-    role = ACCOUNTS[account]
+    role = role if role is not None else ACCOUNTS[account]
     return Actor(
         account_id=account,
         name=account.removeprefix("account-"),
@@ -213,6 +229,7 @@ class FollowWorld:
             app_store=self.app_store,
             runs=self.runs,
             owner=lambda: OWNER,
+            system=lambda: SYSTEM,
             clock=lambda: self.clock,
             today=lambda: TODAY,
         )
@@ -312,6 +329,43 @@ class FollowWorld:
             request.settle(Settlement.SUCCESS, self.clock)
             with self.app_store.immediate():
                 self.app_store.runs.save(request)
+
+    def season_row(self, followed_id: int, season: int, status: str = "pending") -> int:
+        """Write one season row of a follow, as the engine's season rule would.
+
+        Args:
+            followed_id: The follow.
+            season: Its season.
+            status: Its status.
+
+        Returns:
+            Its row.
+        """
+        return self.store.wanted.add(
+            WantedItem(
+                media_ref=self.row(followed_id).media_ref,
+                kind="season",
+                status=status,  # type: ignore[arg-type]
+                enqueued_at=NOW - 10,
+                followed_id=followed_id,
+                season=season,
+                episode=None,
+                trigger="automatic",
+            )
+        )
+
+    def status(self, wanted_id: int) -> str:
+        """A wanted row's status.
+
+        Args:
+            wanted_id: The row.
+
+        Returns:
+            Its status.
+        """
+        found = self.store.wanted.get(wanted_id)
+        assert found is not None
+        return found.status
 
     def episode(self, followed_id: int, season: int, number: int, status: str) -> int:
         """Write one episode row of a follow; a ``grabbed`` one holds a torrent.

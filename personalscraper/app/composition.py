@@ -485,7 +485,8 @@ def _build_acquisition_services(
     The follows WRITE ``acquire.db`` (the requesters and their projection), so each call opens the
     store as v0's acquisition routes do (``build_acquire_store``: opened, and migrated when behind, on
     first access, closed after the call), and the library's ownership reader beside it. The follows
-    and the season ask share one lock: both write requesters.
+    and the season ask serialise their writes by the store's own transaction (``BEGIN IMMEDIATE``),
+    which holds across processes.
 
     Args:
         config: The typed configuration; ``acquire.db_path`` and ``indexer.db_path`` are resolved.
@@ -536,9 +537,13 @@ def _build_acquisition_services(
         """
         return IndexerOwnershipChecker(index_db)
 
-    lock = threading.Lock()
     follows = FollowService(
-        open_store=open_store, open_ownership=open_ownership, app_store=app_store, runs=runs, owner=owner, lock=lock
+        open_store=open_store,
+        open_ownership=open_ownership,
+        app_store=app_store,
+        runs=runs,
+        owner=owner,
+        system=credentials.system_actor,
     )
     follows.subscribe(event_bus)
     return AcquisitionServices(
@@ -550,7 +555,6 @@ def _build_acquisition_services(
             app_store=app_store,
             runs=runs,
             owner=owner,
-            lock=lock,
         ),
         completeness=FollowCompleteness(open_store=open_store, open_ownership=open_ownership, owner=owner),
     )

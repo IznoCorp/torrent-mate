@@ -3,13 +3,20 @@
 The subject is resolved by the medium's key: a standing follow asks its own season; else a show the
 library OWNS (by provider id) gets a ONE-OFF REQUEST (O-2 A): a subject row of scope ``request``, never
 listed among the follows and never detected for new episodes, the caller its requester ``via request``;
-else ``404 acquisition.not_found``. A standing request is asked again on its own row.
+else ``404 acquisition.not_found``. A standing request is asked again on its own row. A removed row
+asked again comes back as a request, of the asked season only: its kept open rows of other seasons,
+not yet holding a torrent, are abandoned, or the engine would take them all back (it reads ``active``).
+A follow written before requesters existed takes its owner's ask as a requester row, so the
+supervisor's target check reads the owner among its requesters.
+
+Everything is written in ONE store transaction (DESIGN § 2.7): the subject, its requesters and their
+projection, the season row and its absorptions commit together or not at all.
 
 The season row is written ``trigger = 'manual'`` (SR5) and absorbs the live episode rows of its season,
 pointing those already holding a torrent without touching them (SR2 under Q9) — the store's
-``absorb_episodes`` does both. An open season row answers ``reused`` and nothing is written. A fresh
-season asks the supervisor for a ``prime`` of its subject after the writes commit; a refused or failed
-ask is logged and answered ``queued: false``, the season standing.
+``absorb_episodes`` does both. An open season row answers ``reused`` and no season is written. A fresh
+season, or a subject the write turned on, asks the supervisor for a ``prime`` of its subject after the
+commit; a refused or failed ask is logged and answered ``queued: false``, the season standing.
 
 ``absorbedCount`` counts the season's AIRED episodes the library does not hold (B-380), from the
 follow's aired cache, or for a request from the library's aired catalogue — not the rows absorbed.
@@ -17,7 +24,6 @@ follow's aired cache, or for a request from the library's aired catalogue — no
 
 from __future__ import annotations
 
-import threading
 import time
 from collections.abc import Callable
 from contextlib import closing
@@ -40,6 +46,7 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
+    from personalscraper.acquire.domain import WantedKind
     from personalscraper.app.accounts.actor import Actor
     from personalscraper.app.accounts.ids import AccountId
     from personalscraper.app.library.completeness import CatalogueView
@@ -54,6 +61,12 @@ __all__ = ["HeldShow", "IndexedShows", "SeasonAsk", "SeasonAsked"]
 
 #: The episode rows a season ask takes in: the live ones are absorbed, a grabbed one only pointed (SR2).
 _TAKEN_IN = frozenset({"pending", "searching", "available", "grabbed"})
+
+#: The open rows a removed subject revived as a request gives up outside its season: those holding no torrent.
+_ABANDONED_OUTSIDE = frozenset({"pending", "searching", "available"})
+
+#: The row families a revived request is narrowed over.
+_NARROWED_KINDS: tuple[WantedKind, ...] = ("episode", "season")
 
 #: The field a season below 1 is refused on.
 _SEASON_FIELD = "season"
@@ -170,11 +183,13 @@ class _Subject:
         follow: The follow or request, as written.
         row: Its ``followed_series`` row.
         held: The library's show, for a request (its catalogue counts the aired episodes).
+        started: Whether writing the subject turned it on (``active`` false → true).
     """
 
     follow: Follow
     row: FollowedSeries
     held: HeldShow | None
+    started: bool
 
 
 class SeasonAsk:
@@ -189,7 +204,6 @@ class SeasonAsk:
         app_store: AppStore,
         runs: RunService,
         owner: Callable[[], AccountId],
-        lock: threading.Lock | None = None,
         clock: Callable[[], float] = time.time,
         today: Callable[[], date] = date.today,
     ) -> None:
@@ -202,7 +216,6 @@ class SeasonAsk:
             app_store: The environment's ``app.db``: the roles in force.
             runs: The supervisor's queue the prime is asked of.
             owner: The account a follow with no requester is the ask of (ruling 9).
-            lock: The follows' lock, shared with ``FollowService``: both write requesters.
             clock: The epoch clock.
             today: Today's date.
         """
@@ -212,7 +225,6 @@ class SeasonAsk:
         self._app_store = app_store
         self._runs = runs
         self._owner = owner
-        self._lock = lock if lock is not None else threading.Lock()
         self._clock = clock
         self._today = today
 
@@ -226,7 +238,8 @@ class SeasonAsk:
             season: The season, from 1.
 
         Returns:
-            The answer: ``reused`` when an open season row stands, else the season written and primed.
+            The answer: ``reused`` when an open season row stands (primed only when the ask turned
+            its subject on), else the season written and primed.
 
         Raises:
             AppBadRequest: ``request.invalid`` naming ``season`` for a season below 1.
@@ -239,36 +252,29 @@ class SeasonAsk:
                 "A season is numbered from 1.", code=RefusalCode.REQUEST_INVALID, params={"fields": [_SEASON_FIELD]}
             )
         now = int(self._clock())
-        with self._lock, closing(self._open_store()) as store, closing(self._open_ownership()) as ownership:
-            try:
-                subject = self._subject(store, actor, key, now)
-            except FollowAmbiguous as exc:
-                raise refuse_ambiguous(key) from exc
-            follow_id = subject.follow.id
-            absorbed_count = self._aired_unowned(store, ownership, subject, season)
-            if SeasonRecovery(store).covering(follow_id, season) is not None:
-                log.info("app.seasons.reused", followed_id=follow_id, season=season)
-                return SeasonAsked(
-                    season=season, absorbed_count=absorbed_count, queued=False, run_uid=None, reused=True
+        with closing(self._open_store()) as store, closing(self._open_ownership()) as ownership:
+            with store.transaction():
+                try:
+                    subject = self._subject(store, actor, key, season, now)
+                except FollowAmbiguous as exc:
+                    raise refuse_ambiguous(key) from exc
+                follow_id = subject.follow.id
+                absorbed_count = self._aired_unowned(store, ownership, subject, season)
+                covering = SeasonRecovery(store).covering(follow_id, season)
+                started = subject.started
+                if covering is None and subject.follow.legacy is not None:
+                    # The owner's ask on a follow made before requesters: written, so the prime's target check reads it.
+                    owned = subject.follow.with_owner_ask(self._owner())
+                    started = FollowRepository(store).save(owned, owned.in_force(account_rights(self._app_store)))
+                season_id, absorbed = (
+                    (None, 0) if covering is not None else self._write_season(store, subject, season, now)
                 )
-            season_id = store.wanted.add(
-                WantedItem(
-                    media_ref=subject.row.media_ref,
-                    kind="season",
-                    status="pending",
-                    enqueued_at=now,
-                    followed_id=follow_id,
-                    season=season,
-                    episode=None,
-                    trigger="manual",
-                )
+        if season_id is None:
+            log.info("app.seasons.reused", followed_id=follow_id, season=season, started=started)
+            run_uid = self._ask_prime(actor, follow_id) if started else None
+            return SeasonAsked(
+                season=season, absorbed_count=absorbed_count, queued=run_uid is not None, run_uid=run_uid, reused=True
             )
-            siblings = tuple(
-                item.id
-                for item in store.wanted.list_for_followed(follow_id, kind="episode")
-                if item.id is not None and item.season == season and item.status in _TAKEN_IN
-            )
-            absorbed = store.wanted.absorb_episodes(season_id, siblings) if siblings else 0
         log.info(
             "app.seasons.asked",
             followed_id=follow_id,
@@ -282,13 +288,48 @@ class SeasonAsk:
             season=season, absorbed_count=absorbed_count, queued=run_uid is not None, run_uid=run_uid, reused=False
         )
 
-    def _subject(self, store: AcquireStore, actor: Actor, key: AcquisitionKey, now: int) -> _Subject:
-        """Resolve and write the subject the season is asked of (inside the lock).
+    @staticmethod
+    def _write_season(store: AcquireStore, subject: _Subject, season: int, now: int) -> tuple[int, int]:
+        """Write the season row ``trigger='manual'`` and absorb its live episodes (inside the transaction).
 
         Args:
-            store: The open store.
+            store: The open store, its transaction open.
+            subject: The subject the season is asked of.
+            season: The season.
+            now: Epoch seconds of the ask.
+
+        Returns:
+            The season row's id, and how many episode rows it absorbed or pointed.
+        """
+        follow_id = subject.follow.id
+        season_id = store.wanted.add(
+            WantedItem(
+                media_ref=subject.row.media_ref,
+                kind="season",
+                status="pending",
+                enqueued_at=now,
+                followed_id=follow_id,
+                season=season,
+                episode=None,
+                trigger="manual",
+            )
+        )
+        siblings = tuple(
+            item.id
+            for item in store.wanted.list_for_followed(follow_id, kind="episode")
+            if item.id is not None and item.season == season and item.status in _TAKEN_IN
+        )
+        absorbed = store.wanted.absorb_episodes(season_id, siblings) if siblings else 0
+        return season_id, absorbed
+
+    def _subject(self, store: AcquireStore, actor: Actor, key: AcquisitionKey, season: int, now: int) -> _Subject:
+        """Resolve and write the subject the season is asked of (inside the transaction).
+
+        Args:
+            store: The open store, its transaction open.
             actor: Who asks.
             key: The show's key.
+            season: The season asked: a removed row revived as a request keeps only its open rows.
             now: Epoch seconds of the ask.
 
         Returns:
@@ -303,6 +344,7 @@ class SeasonAsk:
         repository = FollowRepository(store)
         follow = repository.get(key, "show")
         held: HeldShow | None = None
+        started = False
         if follow is None or follow.removed_at is not None:
             held = self._shows.held_show(key.ref())
             if held is None:
@@ -316,8 +358,11 @@ class SeasonAsk:
                 raise refuse_not_requester(key)
             asked = follow
         elif follow is not None:
+            revived = follow.removed_at is not None
             asked = follow.requested_by(actor.account_id, now, owner=owner)
-            repository.save(asked, asked.in_force(account_rights(self._app_store)))
+            if revived:
+                self._narrow(store, asked.id, season)
+            started = repository.save(asked, asked.in_force(account_rights(self._app_store)))
         else:
             assert held is not None  # no row: the library holds the show
             row_id = store.follow.add(
@@ -328,14 +373,36 @@ class SeasonAsk:
             asked = Follow.first_ask(
                 FollowId(row_id), AcquisitionKey.of(held.ref, "show"), Scope.REQUEST, actor.account_id, now
             )
-            repository.save(asked, asked.in_force(account_rights(self._app_store)))
+            started = repository.save(asked, asked.in_force(account_rights(self._app_store)))
             log.info("app.seasons.request_opened", followed_id=row_id, account_id=actor.account_id)
         row = repository.row(asked.id)
         if row is None:
             raise refuse_not_found(key)
         if asked.scope is Scope.REQUEST and held is None:
             held = self._shows.held_show(key.ref())
-        return _Subject(follow=asked, row=row, held=held)
+        return _Subject(follow=asked, row=row, held=held, started=started)
+
+    @staticmethod
+    def _narrow(store: AcquireStore, follow_id: FollowId, season: int) -> None:
+        """Abandon a revived row's open rows outside the asked season that hold no torrent.
+
+        A removed follow keeps its open rows (§ 2.5) and the engine takes every row of an active
+        subject: revived as a one-off request of ONE season (§ 2.7), it would search and grab
+        every season again. A row holding a torrent is left to the reconciliation that closes it.
+
+        Args:
+            store: The open store, its transaction open.
+            follow_id: The revived subject.
+            season: The season asked.
+        """
+        abandoned = 0
+        for kind in _NARROWED_KINDS:
+            for item in store.wanted.list_for_followed(follow_id, kind=kind):
+                if item.id is not None and item.season != season and item.status in _ABANDONED_OUTSIDE:
+                    store.wanted.set_status(item.id, "abandoned")
+                    abandoned += 1
+        if abandoned:
+            log.info("app.seasons.request_narrowed", followed_id=follow_id, season=season, abandoned=abandoned)
 
     def _aired_unowned(self, store: AcquireStore, ownership: OwnershipReader, subject: _Subject, season: int) -> int:
         """Count the season's aired episodes the library does not hold (B-380).

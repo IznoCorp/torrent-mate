@@ -4,8 +4,9 @@ Every use case loads the :class:`~personalscraper.app.acquisition.model.Follow` 
 rule of the model, and saves it through
 :class:`~personalscraper.app.acquisition.follow_repository.FollowRepository`, which writes the
 requesters and their PROJECTION (``min_resolution``, ``active``, DESIGN § 2.4) on the follow's row in
-one transaction. The load and the save of one follow are serialised by the service's lock: the save
-sets the requesters to the loaded snapshot, so two joins interleaved would otherwise lose one.
+one transaction. The load and the save of one follow share ONE store transaction (``BEGIN IMMEDIATE``,
+:meth:`AcquireStore.transaction`): the save sets the requesters to the loaded snapshot, so a join
+committed between them, by this process or another (a CLI's re-projection), would otherwise be lost.
 
 What is in force is read from the requesters whose ROLE holds the right (round 10 Q6); the roles are
 read from ``app.db``, never from the engine, which stores requesters as opaque account ids.
@@ -20,12 +21,12 @@ the answer, never a refusal; ``Actor.is_requester`` is the acts' own scope, not 
 
 ``AccountRightsChanged`` (a role's rights moved) re-projects the follows its accounts asked for, so a
 setting whose right was taken away stops counting; ``acquisition-follows-reproject`` does the same for
-every follow on demand.
+every follow on demand. A re-projection that turns a follow back on (a pause that stops counting) asks
+its ``prime`` as the system actor, the act being nobody's.
 """
 
 from __future__ import annotations
 
-import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager
@@ -209,7 +210,7 @@ class FollowService:
         app_store: AppStore,
         runs: RunService,
         owner: Callable[[], AccountId],
-        lock: threading.Lock | None = None,
+        system: Callable[[], Actor],
         clock: Callable[[], float] = time.time,
         today: Callable[[], date] = date.today,
     ) -> None:
@@ -221,8 +222,7 @@ class FollowService:
             app_store: The environment's ``app.db``: the roles in force, the requesters' names.
             runs: The supervisor's queue, which a follow starting to take work is primed through.
             owner: The account a follow with no requester is the ask of (ruling 9).
-            lock: Serialises the load and the save of a follow; shared with the season ask, which
-                writes requesters too. A fresh lock when not given.
+            system: The system actor, who asks the prime of a follow a re-projection turns on.
             clock: The epoch clock.
             today: Today's date.
         """
@@ -231,7 +231,7 @@ class FollowService:
         self._app_store = app_store
         self._runs = runs
         self._owner = owner
-        self._lock = lock if lock is not None else threading.Lock()
+        self._system = system
         self._clock = clock
         self._today = today
 
@@ -310,7 +310,9 @@ class FollowService:
 
         On a follow only the actor asked for, it is the actor's own pause. On a follow others asked
         for too it is refused, unless the actor pilots every acquisition, whose pause is the whole
-        follow's: every requester's pause is set (the validated maquette, DESIGN § 2.3).
+        follow's: every requester's pause is set (the validated maquette, DESIGN § 2.3). An actor
+        that did not ask for the follow is refused as on any own-scoped act, before its sharing is
+        looked at (§ 2.13).
 
         Args:
             actor: Who pauses; needs ``acquisition.follow``.
@@ -333,6 +335,8 @@ class FollowService:
             follow = self._standing(repository, key)
             if actor.holds(Right.ACQUISITION_PILOT_ANY):
                 changed = follow.paused_for_all(paused, owner=owner)
+            elif not any(one.account_id == actor.account_id for one in follow.requesters_or_owner(owner)):
+                raise refuse_not_requester(key)
             elif follow.shared_beyond(actor.account_id, owner=owner):
                 raise refuse_shared(key)
             else:
@@ -374,7 +378,10 @@ class FollowService:
         """Put back a removed follow as it was, the actor its requester; or take the actor back into a standing one.
 
         Same row, year, ``addedAt``, search count and open wanted rows; primed when it starts
-        taking work again.
+        taking work again. Only a FOLLOW is restored: a one-off request, ended or standing, is
+        not (it ends with its season, § 2.7). A standing follow takes back an actor that could
+        ask for it (``acquisition.request``, ``createFollow``'s own right): no leave is recorded,
+        so this is how « the caller had only left » (§ 2.5) is told from a join by the back door.
 
         Args:
             actor: Who restores; needs ``acquisition.follow``.
@@ -384,8 +391,9 @@ class FollowService:
             The follow as the actor reads it.
 
         Raises:
-            AppNotFound: ``follow.not_restorable`` when nothing is held under the key, or the actor
-                already asks for the standing follow (nothing removed to put back).
+            AppNotFound: ``follow.not_restorable`` when no follow is held under the key, the key
+                holds a one-off request, or the follow stands and the actor already asks for it
+                or may not ask for it.
             AppConflict: ``follow.ambiguous`` when two rows hold the key.
         """
         now = int(self._clock())
@@ -393,13 +401,14 @@ class FollowService:
         with self._guarded(key) as store:
             repository = FollowRepository(store)
             follow = repository.get(key)
-            if follow is None:
+            if follow is None or follow.scope is not Scope.FOLLOW:
                 raise refuse_not_restorable(key)
-            if follow.removed_at is None and any(
-                one.account_id == actor.account_id for one in follow.requesters_or_owner(owner)
+            if follow.removed_at is None and (
+                not actor.holds(Right.ACQUISITION_REQUEST)
+                or any(one.account_id == actor.account_id for one in follow.requesters_or_owner(owner))
             ):
                 raise refuse_not_restorable(key)
-            back = follow.with_requester(actor.account_id, Via(follow.scope.value), now, owner=owner)
+            back = follow.with_requester(actor.account_id, Via.FOLLOW, now, owner=owner)
             started = self._save(repository, back)
             log.info("app.follows.restored", followed_id=follow.id, account_id=actor.account_id)
         return self._after_write(actor, key, follow.id, started)
@@ -505,10 +514,11 @@ class FollowService:
         Returns:
             How many follows were re-projected.
         """
-        with self._lock, closing(self._open_store()) as store:
+        with closing(self._open_store()) as store, store.transaction():
             ids = [FollowId(row.id) for row in store.follow.list_all() if row.id is not None]
-            count = self._reproject(store, ids)
+            count, started = self._reproject(store, ids)
         log.info("app.follows.reprojected", count=count, cause="maintenance", account_id=actor.account_id)
+        self._prime_started(started)
         return count
 
     # ── the rights' subscriber ───────────────────────────────────────────
@@ -533,34 +543,40 @@ class FollowService:
             event: The accounts and why their rights moved.
         """
         try:
-            with self._lock, closing(self._open_store()) as store:
+            with closing(self._open_store()) as store, store.transaction():
                 ids = [FollowId(one) for one in store.requesters.follows_of(event.account_ids)]
-                count = self._reproject(store, ids)
+                count, started = self._reproject(store, ids)
         except Exception:  # a subscriber never breaks its publisher; the action repairs it
             log.exception("app.follows.reproject_failed", accounts=list(event.account_ids), cause=event.cause.value)
             return
         log.info("app.follows.reprojected", count=count, cause=event.cause.value)
+        self._prime_started(started)
 
     # ── internals ────────────────────────────────────────────────────────
 
     @contextmanager
     def _guarded(self, key: AcquisitionKey) -> Iterator[AcquireStore]:
-        """Hold the lock and a store for one load-and-save, mapping the model's errors to refusals.
+        """Open a store and ONE transaction for a load-and-save, mapping the model's errors to refusals.
+
+        The transaction takes the writer lock before the load, so no other writer, in any process,
+        commits between the load and the save; a refusal raised inside rolls back whatever was
+        written.
 
         Args:
             key: The key the act names, for the refusals.
 
         Yields:
-            The open store.
+            The open store, inside its transaction.
 
         Raises:
             AppConflict: ``follow.ambiguous`` (from :class:`FollowAmbiguous`).
             AppNotFound: ``acquisition.not_found`` (from :class:`FollowRemoved`).
             AppForbidden: ``acquisition.not_requester`` (from :class:`NotARequester`).
         """
-        with self._lock, closing(self._open_store()) as store:
+        with closing(self._open_store()) as store:
             try:
-                yield store
+                with store.transaction():
+                    yield store
             except FollowAmbiguous as exc:
                 raise refuse_ambiguous(key) from exc
             except FollowRemoved as exc:
@@ -599,26 +615,40 @@ class FollowService:
         """
         return repository.save(follow, follow.in_force(account_rights(self._app_store)))
 
-    def _reproject(self, store: AcquireStore, ids: list[FollowId]) -> int:
-        """Re-save each follow with what is in force now (inside the lock).
+    def _reproject(self, store: AcquireStore, ids: list[FollowId]) -> tuple[int, list[FollowId]]:
+        """Re-save each follow with what is in force now (inside the caller's transaction).
 
         Args:
-            store: The open store.
+            store: The open store, its transaction open.
             ids: The follows.
 
         Returns:
-            How many were saved.
+            How many were saved, and those the save turned on (taking work again).
         """
         repository = FollowRepository(store)
         holds = account_rights(self._app_store)
         count = 0
+        started: list[FollowId] = []
         for follow_id in ids:
             follow = repository.get_by_id(follow_id)
             if follow is None or follow.legacy is not None:
                 continue  # gone, or no requester: nothing but its own v0 settings is in force
-            repository.save(follow, follow.in_force(holds))
+            if repository.save(follow, follow.in_force(holds)):
+                started.append(follow_id)
             count += 1
-        return count
+        return count, started
+
+    def _prime_started(self, started: list[FollowId]) -> None:
+        """Prime each follow a re-projection turned on, as the system actor, after the commit (§ 2.3).
+
+        Args:
+            started: The follows turned on.
+        """
+        if not started:
+            return
+        system = self._system()
+        for follow_id in started:
+            self._ask_prime(system, follow_id)
 
     def _after_write(self, actor: Actor, key: AcquisitionKey, follow_id: FollowId, started: bool) -> FollowView:
         """Prime a follow that starts taking work, then read it back as the actor sees it.

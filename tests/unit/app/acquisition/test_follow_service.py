@@ -17,11 +17,14 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.acquire._requester_store import _RequesterSubStore
+from personalscraper.acquire.domain import FollowRequester
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.acquisition.follow_repository import FollowRepository
+from personalscraper.app.acquisition.follows import FollowService
 from personalscraper.app.acquisition.model import AcquisitionKey, QualityFloor
 from personalscraper.app.errors import AppForbidden, AppNotFound, AppRefusal, RefusalCode
 from personalscraper.core.event_bus import EventBus
@@ -32,12 +35,16 @@ from tests.unit.app.acquisition.follow_world import (
     BOB,
     CAROL,
     DAVE,
+    ERIN,
+    FRANK,
     MEMBER,
     MEMBER_RIGHTS,
     NO_CEILING,
     NOW,
     OWNER,
     READ_ONLY,
+    SYSTEM,
+    TODAY,
     FollowWorld,
     actor,
 )
@@ -424,3 +431,327 @@ class TestPrime:
         assert set(world.requesters(row)) == {ALICE}
         assert world.row(row).active is True
         assert "app.follows.prime_ask_failed" in [event["event"] for event in events]
+
+
+class TestRestoreScope:
+    """``restoreFollow`` puts back a removed FOLLOW; it is no back door into a follow or a request (§ 2.5)."""
+
+    def test_an_account_without_the_request_right_cannot_join_a_standing_follow_by_restore(
+        self, world: FollowWorld
+    ) -> None:
+        """Frank holds ``acquisition.follow`` but not ``acquisition.request``: Alice's follow refuses him."""
+        row = _create(world, ALICE)
+
+        with pytest.raises(AppNotFound) as refused:
+            world.follows.restore(actor(FRANK), SHOW)
+
+        assert _code(refused) is RefusalCode.FOLLOW_NOT_RESTORABLE
+        assert set(world.requesters(row)) == {ALICE}
+
+    def test_a_requester_who_left_a_shared_follow_is_taken_back(self, world: FollowWorld) -> None:
+        """Bob left a follow Alice still asks for; his restore takes him back (§ 2.5)."""
+        row = _create(world, ALICE)
+        _create(world, BOB)
+        world.follows.remove(actor(BOB), SHOW)
+
+        world.follows.restore(actor(BOB), SHOW)
+
+        assert set(world.requesters(row)) == {ALICE, BOB}
+
+    def test_an_ended_request_is_not_restorable(self, world: FollowWorld) -> None:
+        """A one-off request its season ended stays ended: ``follow.not_restorable``, nothing revived."""
+        row = world.legacy_follow(SHOW.ref(), title="Request")
+        world.store.requesters.save_follow(row, [], removed_at=None, min_resolution=None, active=True, scope="request")
+        world.season_row(row, 1, status="done")
+        assert world.store.follow.end_request(row, now=NOW)
+
+        with pytest.raises(AppNotFound) as refused:
+            world.follows.restore(actor(ALICE), SHOW)
+
+        assert _code(refused) is RefusalCode.FOLLOW_NOT_RESTORABLE
+        assert world.row(row).removed_at == NOW
+        assert world.row(row).active is False
+        assert world.requesters(row) == {}
+
+    def test_a_standing_request_is_not_restorable(self, world: FollowWorld) -> None:
+        """A request still open is no follow to restore."""
+        row = world.legacy_follow(SHOW.ref(), title="Request")
+        world.store.requesters.save_follow(row, [], removed_at=None, min_resolution=None, active=True, scope="request")
+
+        with pytest.raises(AppNotFound) as refused:
+            world.follows.restore(actor(ALICE), SHOW)
+
+        assert _code(refused) is RefusalCode.FOLLOW_NOT_RESTORABLE
+        assert world.requesters(row) == {}
+
+
+class TestGenericPauseRefusals:
+    """``updateFollow``: an own-scoped act, then a shared one (§ 2.13)."""
+
+    def test_a_non_requester_is_refused_as_not_requester_even_on_a_shared_follow(self, world: FollowWorld) -> None:
+        """Bob asked nothing of a follow Alice and Dave share: ``acquisition.not_requester``, not ``follow_shared``."""
+        row = _create(world, ALICE)
+        _create(world, DAVE)
+
+        with pytest.raises(AppForbidden) as refused:
+            world.follows.set_status(actor(BOB), SHOW, "disabled")
+
+        assert _code(refused) is RefusalCode.ACQUISITION_NOT_REQUESTER
+        assert world.row(row).active is True
+
+
+class TestReassign:
+    """``reassignRequester``: one requester's ask moved onto another account (§ 2.6, O-10 A)."""
+
+    def test_a_target_outside_the_roster_is_account_unknown(self, world: FollowWorld) -> None:
+        """No such account: ``account.unknown``, nothing moved."""
+        row = _create(world, ALICE)
+
+        with pytest.raises(AppNotFound) as refused:
+            world.follows.reassign(actor(ERIN), "follow", SHOW, ALICE, AccountId("account-nobody"))
+
+        assert _code(refused) is RefusalCode.ACCOUNT_UNKNOWN
+        assert set(world.requesters(row)) == {ALICE}
+
+    def test_a_follow_named_on_a_request_row_is_not_found(self, world: FollowWorld) -> None:
+        """``kind: follow`` on a one-off request: ``acquisition.not_found``; ``kind: card`` moves it."""
+        row = world.legacy_follow(SHOW.ref(), title="Request")
+        world.store.requesters.save_follow(row, [], removed_at=None, min_resolution=None, active=True, scope="request")
+        world.store.requesters.save_follow(
+            row,
+            [_stored_requester(row, ALICE, via="request")],
+            removed_at=None,
+            min_resolution=None,
+            active=True,
+        )
+
+        with pytest.raises(AppNotFound) as refused:
+            world.follows.reassign(actor(ERIN), "follow", SHOW, ALICE, BOB)
+        assert _code(refused) is RefusalCode.ACQUISITION_NOT_FOUND
+        assert set(world.requesters(row)) == {ALICE}
+
+        world.follows.reassign(actor(ERIN), "card", SHOW, ALICE, BOB)
+        assert world.requesters(row) == {BOB: ("request", None, False)}
+
+    def test_a_source_that_did_not_ask_is_not_requester(self, world: FollowWorld) -> None:
+        """Bob asked nothing: moving his ask is ``acquisition.not_requester``."""
+        row = _create(world, ALICE)
+
+        with pytest.raises(AppForbidden) as refused:
+            world.follows.reassign(actor(ERIN), "follow", SHOW, BOB, DAVE)
+
+        assert _code(refused) is RefusalCode.ACQUISITION_NOT_REQUESTER
+        assert set(world.requesters(row)) == {ALICE}
+
+    def test_the_moved_settings_do_not_travel_and_the_projection_drops_them(self, world: FollowWorld) -> None:
+        """Alice's floor leaves with her: Bob asks from now with none, the row's floor falls."""
+        row = _create(world, ALICE)
+        world.follows.set_quality(actor(ALICE), SHOW, QualityFloor.P2160)
+
+        world.clock += 60
+        world.follows.reassign(actor(ERIN), "follow", SHOW, ALICE, BOB)
+
+        assert world.requesters(row) == {BOB: ("follow", None, False)}
+        (moved,) = world.store.requesters.list_for(row)
+        assert moved.since == NOW + 60
+        assert world.profile_floor(row) is None
+
+    def test_a_target_already_asking_merges(self, world: FollowWorld) -> None:
+        """Bob already asks: Alice simply leaves, Bob's own settings kept."""
+        row = _create(world, ALICE)
+        _create(world, BOB)
+        world.follows.set_quality(actor(BOB), SHOW, QualityFloor.P720)
+
+        world.follows.reassign(actor(ERIN), "follow", SHOW, ALICE, BOB)
+
+        assert world.requesters(row) == {BOB: ("follow", 720, False)}
+
+    def test_a_reassign_that_turns_the_follow_on_primes_it(self, world: FollowWorld) -> None:
+        """Alice alone paused it; moved onto Bob, who paused nothing, it takes work again: one prime."""
+        row = _create(world, ALICE)
+        world.settle_all()
+        world.follows.set_pause(actor(ALICE), SHOW, True)
+        assert world.row(row).active is False
+
+        world.follows.reassign(actor(ERIN), "follow", SHOW, ALICE, BOB)
+
+        assert world.row(row).active is True
+        assert world.primes() == [row]
+
+
+class TestProjectionAfterEachWrite:
+    """The floor and the pause in force are written on the row after every write (§ 2.4)."""
+
+    def test_removal_by_the_highest_floor_drops_the_floor_and_by_the_last_turns_it_off(
+        self, world: FollowWorld
+    ) -> None:
+        """Bob's 2160p leaves with him, Alice's 1080p is in force; Alice leaving turns the row off."""
+        row = _create(world, ALICE)
+        _create(world, BOB)
+        world.follows.set_quality(actor(ALICE), SHOW, QualityFloor.P1080)
+        world.follows.set_quality(actor(BOB), SHOW, QualityFloor.P2160)
+
+        world.follows.remove(actor(BOB), SHOW)
+        assert (world.profile_floor(row), world.row(row).active) == (1080, True)
+
+        world.follows.remove(actor(ALICE), SHOW)
+        assert world.row(row).active is False
+
+    def test_restore_turns_the_row_back_on_with_the_restorers_settings(self, world: FollowWorld) -> None:
+        """Restored, the row takes work again with no floor: the settings left with the requesters."""
+        row = _create(world, ALICE)
+        world.follows.set_quality(actor(ALICE), SHOW, QualityFloor.P1080)
+        world.follows.remove(actor(ALICE), SHOW)
+
+        world.follows.restore(actor(ALICE), SHOW)
+
+        assert (world.profile_floor(row), world.row(row).active) == (None, True)
+
+    def test_a_join_lifts_a_pause_the_joiner_does_not_share(self, world: FollowWorld) -> None:
+        """Alice paused alone; Bob joining unpaused means not every holder paused: the row turns on."""
+        row = _create(world, ALICE)
+        world.follows.set_pause(actor(ALICE), SHOW, True)
+        assert world.row(row).active is False
+
+        _create(world, BOB)
+
+        assert world.row(row).active is True
+
+    def test_the_pilot_any_pause_and_resume_are_projected(self, world: FollowWorld) -> None:
+        """Carol's generic pause turns the row off; her resume turns it on."""
+        row = _create(world, ALICE)
+        _create(world, BOB)
+
+        world.follows.set_status(actor(CAROL), SHOW, "disabled")
+        assert world.row(row).active is False
+        world.follows.set_status(actor(CAROL), SHOW, "active")
+        assert world.row(row).active is True
+
+    def test_a_create_on_a_request_makes_it_a_follow_with_both_asks(self, world: FollowWorld) -> None:
+        """« Suivre » on a request's card: scope ``follow`` stored, the request's asker kept ``via request``."""
+        row = world.legacy_follow(SHOW.ref(), title="Breaking Bad")
+        world.store.requesters.save_follow(
+            row,
+            [_stored_requester(row, ALICE, via="request")],
+            removed_at=None,
+            min_resolution=None,
+            active=True,
+            scope="request",
+        )
+
+        world.follows.create(actor(BOB), SHOW, title="Breaking Bad", kind="show", year=2008)
+
+        assert world.row(row).scope == "follow"
+        assert world.requesters(row) == {ALICE: ("request", None, False), BOB: ("follow", None, False)}
+        assert [view.key for view in world.follows.read_follows(actor(BOB))] == [SHOW.wire]
+
+
+class TestOneTransaction:
+    """A write is one store transaction: a failure part-way leaves nothing behind (§ 2.7, § 2.4)."""
+
+    def test_a_create_whose_save_fails_leaves_no_row(self, world: FollowWorld) -> None:
+        """The row insert and the requesters commit together: the save failing undoes the insert."""
+        with (
+            patch.object(_RequesterSubStore, "save_follow", side_effect=RuntimeError("disk full")),
+            pytest.raises(RuntimeError),
+        ):
+            world.follows.create(actor(ALICE), SHOW, title="Breaking Bad", kind="show", year=2008)
+
+        assert world.store.follow.list_all() == []
+        assert world.primes() == []
+
+    def test_a_reprojection_in_another_process_never_drops_a_join(self, world: FollowWorld, tmp_path: Path) -> None:
+        """A second service on the same ``acquire.db`` (another process: its own connection, no shared lock).
+
+        Its re-projection loads Alice alone and is slowed before its save; Bob's join lands meanwhile.
+        The re-projection's transaction holds the writer lock from its load, so the join waits for it
+        and both requesters stand.
+        """
+        row = _create(world, ALICE)
+        other = FollowService(
+            open_store=world.open_store,
+            open_ownership=lambda: world.ownership,
+            app_store=world.app_store,
+            runs=world.runs,
+            owner=lambda: OWNER,
+            system=lambda: SYSTEM,
+            clock=lambda: world.clock,
+            today=lambda: TODAY,
+        )
+        load = FollowRepository.get_by_id
+        loaded = threading.Event()
+
+        def slow_get_by_id(repository: FollowRepository, *args: object, **kwargs: object) -> object:
+            found = load(repository, *args, **kwargs)  # type: ignore[arg-type]
+            if threading.current_thread().name == "reproject":
+                loaded.set()
+                time.sleep(0.2)
+            return found
+
+        errors: list[BaseException] = []
+
+        def reproject() -> None:
+            try:
+                other.reproject(SYSTEM)
+            except BaseException as exc:  # pragma: no cover — reported below
+                errors.append(exc)
+
+        with patch.object(FollowRepository, "get_by_id", slow_get_by_id):
+            thread = threading.Thread(target=reproject, name="reproject")
+            thread.start()
+            assert loaded.wait(5)
+            world.follows.create(actor(BOB), SHOW, title="Breaking Bad", kind="show", year=2008)
+            thread.join()
+
+        assert errors == []
+        assert set(world.requesters(row)) == {ALICE, BOB}
+
+
+class TestReprojectionPrimes:
+    """A re-projection that turns a follow back on asks its prime, as the system actor (§ 2.3)."""
+
+    def test_a_pause_that_stops_counting_primes_the_follow(self, world: FollowWorld) -> None:
+        """Alice alone paused it; her role loses ``pause.own``: the row turns on, one prime asked by the system."""
+        bus = EventBus()
+        world.follows.subscribe(bus)
+        row = _create(world, ALICE)
+        world.settle_all()
+        world.follows.set_pause(actor(ALICE), SHOW, True)
+        assert world.row(row).active is False
+
+        world.app_store.roles.update_role(
+            MEMBER, name=None, rights=MEMBER_RIGHTS - {Right.ACQUISITION_PAUSE_OWN}, now=2.0
+        )
+        bus.emit(AccountRightsChanged(account_ids=(ALICE,), cause=RightsChangeCause.ROLE_RIGHTS_CHANGED))
+
+        assert world.row(row).active is True
+        assert world.primes() == [row]
+        (request,) = world.runs.queue_view().acquisition_queued
+        assert request.asked_by == OWNER
+
+    def test_the_maintenance_action_primes_what_it_turns_on(self, world: FollowWorld) -> None:
+        """The same through ``acquisition-follows-reproject``."""
+        row = _create(world, ALICE)
+        world.settle_all()
+        world.follows.set_pause(actor(ALICE), SHOW, True)
+        world.app_store.roles.update_role(
+            MEMBER, name=None, rights=MEMBER_RIGHTS - {Right.ACQUISITION_PAUSE_OWN}, now=2.0
+        )
+
+        world.follows.reproject(SYSTEM)
+
+        assert world.primes() == [row]
+
+
+def _stored_requester(followed_id: int, account: AccountId, *, via: str) -> FollowRequester:
+    """A stored requester with no setting, asking since :data:`NOW`.
+
+    Args:
+        followed_id: The follow.
+        account: The asking account.
+        via: How it asked.
+
+    Returns:
+        The row.
+    """
+    return FollowRequester(followed_id=followed_id, account_id=account, via=via, floor=None, paused=False, since=NOW)  # type: ignore[arg-type]

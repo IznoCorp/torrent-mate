@@ -257,6 +257,21 @@ class Follow:
             return self
         return replace(self, requesters=self.requesters_or_owner(owner), legacy=None)
 
+    def with_owner_ask(self, owner: AccountId) -> Follow:
+        """The follow with the owner's implied ask written as a requester, when it stands with none.
+
+        A write on a follow made before the model materialises the owner's ask, as every own-scoped
+        act does: once saved, the owner is a requester the supervisor's target check reads.
+
+        Args:
+            owner: The account a requester-less follow is the ask of.
+
+        Returns:
+            The follow, the owner its requester with the row's v0 settings; unchanged when it has
+            requesters or is removed.
+        """
+        return self._members(owner)
+
     def _find(self, account: AccountId) -> Requester | None:
         """The requester of one account.
 
