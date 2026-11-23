@@ -40,6 +40,15 @@
     "not_found": "No media answers this provider id.",
     "ambiguous": "Several library rows or folders hold this provider id: settle the duplicate before deleting; nothing was deleted."
   },
+  "acquisition": {
+    "not_found": "This acquisition is unknown: nothing is followed or requested under this identifier, and the library does not hold it.",
+    "not_requester": "This acquisition is not yours: only those who asked for it set it.",
+    "follow_shared": "Other accounts follow this title too: each one pauses it for itself."
+  },
+  "follow": {
+    "not_restorable": "Nothing was removed under this title: there is nothing to put back.",
+    "ambiguous": "One identifier designates several follows: settle the duplicate before changing it."
+  },
   "provider": {
     "unavailable": "A metadata provider did not answer; try again later."
   },

@@ -40,6 +40,15 @@
     "not_found": "Aucun média ne répond à cet identifiant de fournisseur.",
     "ambiguous": "Plusieurs lignes ou dossiers de la médiathèque portent cet identifiant de fournisseur : réglez le doublon avant de supprimer ; rien n'a été supprimé."
   },
+  "acquisition": {
+    "not_found": "Cette acquisition est inconnue : rien n'est suivi ni demandé sous cet identifiant, et la médiathèque ne le possède pas.",
+    "not_requester": "Ce n'est pas votre acquisition : seuls ceux qui l'ont demandée la règlent.",
+    "follow_shared": "D'autres comptes suivent aussi ce titre : chacun le met en pause pour lui-même."
+  },
+  "follow": {
+    "not_restorable": "Rien de retiré sous ce titre : il n'y a rien à remettre.",
+    "ambiguous": "Un même identifiant désigne plusieurs suivis : réglez le doublon avant de le modifier."
+  },
   "provider": {
     "unavailable": "Un fournisseur de métadonnées n'a pas répondu ; réessayez plus tard."
   },
