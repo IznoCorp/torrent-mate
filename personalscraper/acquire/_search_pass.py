@@ -110,6 +110,10 @@ _STARVATION_THRESHOLD = 2
 #: release picker shows the head of the ranking, and a row's set is bounded.
 MAX_CANDIDATES = 20
 
+#: ``sqlite3.IntegrityError.sqlite_errorname`` of a foreign-key refusal: the one integrity error
+#: ``_store_candidates`` swallows, because it means the wanted row is gone.
+_FOREIGN_KEY_ERROR = "SQLITE_CONSTRAINT_FOREIGNKEY"
+
 
 class SearchPassMixin(PassGatesMixin):
     """The search pass: one item in, one persisted verdict out."""
@@ -419,6 +423,7 @@ class SearchPassMixin(PassGatesMixin):
         Raises:
             sqlite3.OperationalError: On a DB lock (isolated by :meth:`run_search`). A row deleted
                 meanwhile (a foreign-key refusal) is logged and skipped, not raised.
+            sqlite3.IntegrityError: Any other integrity failure (NOT NULL, a duplicate rank).
         """
         assert item.id is not None  # caller claimed it by id
         expected_count: int | None = None
@@ -447,11 +452,15 @@ class SearchPassMixin(PassGatesMixin):
             )
         try:
             self._store.candidates.replace(item.id, rows)
-        except sqlite3.IntegrityError:
+        except sqlite3.IntegrityError as exc:
+            if exc.sqlite_errorname != _FOREIGN_KEY_ERROR:
+                # A NOT NULL or a duplicate rank is a bug, not a vanished row: swallowing it would
+                # leave the old set under a fresh verdict with nothing saying so.
+                raise
             # The row was deleted (its follow removed) between the re-fetch and this write: the
             # foreign key refuses the set. There is nothing left to attach candidates to, and
             # one vanished row must not abort the pass for every row behind it.
-            log.warning("acquire.service.candidates_row_gone", wanted_id=item.id)
+            log.warning("acquire.service.candidates_row_gone", wanted_id=item.id, error=str(exc))
 
     # ------------------------------------------------------------------
     # R2: Episode→Season Conversion

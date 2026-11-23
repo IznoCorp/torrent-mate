@@ -8,7 +8,9 @@ and the release the grab takes are not touched: the search verdict only carries 
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import logging
+import sqlite3
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -142,19 +144,17 @@ def _seed_aired(store: ConcreteAcquireStore, season: int, count: int) -> None:
     """
     fid = _follow(store)
     store.aired.replace_for_followed(
-        fid, [(season, n, f"E{n}", f"2024-01-{n:02d}") for n in range(1, count + 1)], now=_ENQUEUED_AT
+        fid, [(season, n, f"E{n}", f"2023-01-{n:02d}") for n in range(1, count + 1)], now=_ENQUEUED_AT
     )
 
 
-def _search(store: ConcreteAcquireStore, verdict: SearchVerdict) -> None:
-    """Run one search pass whose orchestrator answers *verdict*.
+def _run_pass(store: ConcreteAcquireStore, orch: MagicMock) -> None:
+    """Run one search pass over *orch*.
 
     Args:
         store: The acquire store.
-        verdict: What the orchestrator concludes.
+        orch: The (mock) orchestrator the service searches with.
     """
-    orch = MagicMock(spec=GrabOrchestrator)
-    orch.search.return_value = verdict
     config = MagicMock()
     config.acquire = AcquireConfig()
     AcquisitionService(
@@ -163,6 +163,18 @@ def _search(store: ConcreteAcquireStore, verdict: SearchVerdict) -> None:
         event_bus=MagicMock(),
         config=config,
     ).run_search()
+
+
+def _search(store: ConcreteAcquireStore, *verdicts: SearchVerdict) -> None:
+    """Run one search pass whose orchestrator answers *verdicts* in order.
+
+    Args:
+        store: The acquire store.
+        *verdicts: What the orchestrator concludes, one per search it is asked for.
+    """
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.side_effect = list(verdicts)
+    _run_pass(store, orch)
 
 
 def _stored(store: ConcreteAcquireStore, wanted_id: int) -> list[WantedCandidate]:
@@ -379,22 +391,148 @@ def test_the_verdict_carries_the_ranking_the_grab_takes_from() -> None:
     assert verdict.chosen is verdict.ranked[0][0]
 
 
-def test_a_row_deleted_during_the_search_does_not_abort_the_pass(store: ConcreteAcquireStore) -> None:
+def test_a_row_deleted_during_the_search_does_not_abort_the_pass(
+    store: ConcreteAcquireStore, caplog: pytest.LogCaptureFixture
+) -> None:
     """The follow is unfollowed mid-search: its row is gone, the candidates are skipped, the pass goes on."""
     wid = _add(store, kind="episode", season=2, episode=5)
     fid = _follow(store)
     verdict = _available((_result("Severance S02E05 1080p", info_hash="aaa"), 10))
     orch = MagicMock(spec=GrabOrchestrator)
     orch.search.side_effect = lambda *_a, **_k: (store.follow.delete(fid), verdict)[1]
-    config = MagicMock()
-    config.acquire = AcquireConfig()
 
-    AcquisitionService(
-        store=store,  # type: ignore[arg-type]
-        orchestrator=orch,  # type: ignore[arg-type]
-        event_bus=MagicMock(),
-        config=config,
-    ).run_search()
+    with caplog.at_level(logging.WARNING):
+        _run_pass(store, orch)
 
     assert store.wanted.get(wid) is None
+    assert _stored(store, wid) == []
+    assert "acquire.service.candidates_row_gone" in caplog.text
+
+
+def test_an_integrity_error_that_is_not_a_vanished_row_propagates(store: ConcreteAcquireStore) -> None:
+    """A NOT NULL refusal is a bug, not a deleted row: it is not swallowed under a « row gone » log.
+
+    A ``None`` score (a type escape) makes the real insert fail ``NOT NULL`` on a row that exists.
+    """
+    wid = _add(store, kind="episode", season=2, episode=5)
+    _seed_previous(store, wid)
+    broken = _available((_result("Severance S02E05 1080p", info_hash="aaa"), None))  # type: ignore[arg-type]
+
+    with pytest.raises(sqlite3.IntegrityError) as raised:
+        _search(store, broken)
+
+    assert raised.value.sqlite_errorname == "SQLITE_CONSTRAINT_NOTNULL"
+    assert [c.info_hash for c in _stored(store, wid)] == ["old"], "the failed replace rolled back"
+
+
+def _record_calls(store: ConcreteAcquireStore, calls: list[str]) -> None:
+    """Make the three writes of a search verdict append their name to *calls*, then run.
+
+    Args:
+        store: The acquire store.
+        calls: The list the wrapped writes append to.
+    """
+    for owner, name in (
+        (store.wanted, "record_search_outcome"),
+        (store.candidates, "replace"),
+        (store.wanted, "set_status"),
+    ):
+        original: Callable[..., object] = getattr(owner, name)
+
+        def wrapper(
+            *args: object, _name: str = name, _original: Callable[..., object] = original, **kw: object
+        ) -> object:
+            calls.append(_name)
+            return _original(*args, **kw)
+
+        setattr(owner, name, wrapper)
+
+
+def test_the_candidates_are_written_between_the_verdict_and_the_status(store: ConcreteAcquireStore) -> None:
+    """The #320 order: verdict, then candidates, then status."""
+    _add(store, kind="episode", season=2, episode=5)
+    calls: list[str] = []
+    _record_calls(store, calls)
+
+    _search(store, _available((_result("Severance S02E05 1080p", info_hash="aaa"), 10)))
+
+    assert calls == ["record_search_outcome", "replace", "set_status"]
+
+
+def test_a_crash_between_the_verdict_and_the_status_leaves_a_searching_row(store: ConcreteAcquireStore) -> None:
+    """A lock on the candidates write leaves the verdict recorded and the row still ``searching``.
+
+    The stale sweep re-searches it: never a new status over the previous search's candidates.
+    """
+    wid = _add(store, kind="episode", season=2, episode=5)
+    _seed_previous(store, wid)
+
+    def locked(*_a: object, **_k: object) -> None:
+        raise sqlite3.OperationalError("database is locked")
+
+    with patch.object(store.candidates, "replace", locked):
+        _search(store, _available((_result("Severance S02E05 1080p", info_hash="aaa"), 10)))
+
+    row = store.wanted.get(wid)
+    assert row is not None
+    assert (row.status, row.last_search_outcome) == ("searching", "available")
+    assert [c.info_hash for c in _stored(store, wid)] == ["old"]
+
+
+def _season_pack() -> TrackerResult:
+    """A COMPLETE season-2 pack of the show, which the season filter accepts.
+
+    Returns:
+        The result.
+    """
+    return _result("Severance S02 COMPLETE 1080p", info_hash="seasonpack")
+
+
+def test_the_r2_conversion_clears_the_absorbed_rows_candidates(store: ConcreteAcquireStore) -> None:
+    """R2: the episode search found only a pack in the raw results, the episode is absorbed, its set cleared."""
+    wid = _add(store, kind="episode", season=2, episode=5)
+    _seed_aired(store, season=2, count=5)
+    _seed_previous(store, wid)
+
+    _search(
+        store,
+        SearchVerdict(
+            disposition="not_found",
+            outcome="no_matching_episode",
+            found=0,
+            raw_results=(_season_pack(),),
+        ),
+    )
+
+    row = store.wanted.get(wid)
+    assert row is not None and row.status == "absorbed"
+    assert _stored(store, wid) == []
+
+
+def test_the_d1_escalation_clears_the_absorbed_rows_candidates(store: ConcreteAcquireStore) -> None:
+    """D1: a starved episode whose season probe finds a pack is absorbed, its set cleared."""
+    fid = _follow(store)
+    wid = store.wanted.add(
+        WantedItem(
+            media_ref=_REF,
+            kind="episode",
+            status="pending",
+            enqueued_at=_ENQUEUED_AT,
+            followed_id=fid,
+            season=2,
+            episode=5,
+            attempts=1,
+        )
+    )
+    _seed_aired(store, season=2, count=5)
+    _seed_previous(store, wid)
+
+    _search(
+        store,
+        SearchVerdict(disposition="not_found", outcome="no_candidates", found=0),
+        _available((_season_pack(), 10)),
+    )
+
+    row = store.wanted.get(wid)
+    assert row is not None and row.status == "absorbed"
     assert _stored(store, wid) == []
