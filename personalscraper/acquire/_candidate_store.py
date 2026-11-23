@@ -2,7 +2,7 @@
 
 The ranked candidates a concluded search found for a wanted row, kept so a read of the
 releases needs no tracker call. A concluded search replaces the previous set wholesale.
-Nothing writes here yet: the search pass does, in a later phase.
+The search pass writes here (``_search_pass._store_candidates``), once per concluded search.
 
 Lives in its own module to keep ``store.py`` from growing — same pattern as
 ``_aired_store.py`` / ``_wanted_store.py``. Reads are lock-free (WAL); writes use
