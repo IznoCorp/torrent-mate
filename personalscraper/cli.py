@@ -107,6 +107,7 @@ import personalscraper.commands.config  # noqa: E402
 import personalscraper.commands.cross_seed  # noqa: E402
 import personalscraper.commands.follow  # noqa: E402
 import personalscraper.commands.follow_duplicates  # noqa: E402
+import personalscraper.commands.follows_reproject  # noqa: E402
 import personalscraper.commands.grab  # noqa: E402
 import personalscraper.commands.health_check  # noqa: E402
 import personalscraper.commands.library  # noqa: E402 — re-exports from library/{scan,query,maintenance,audit,analyze}
