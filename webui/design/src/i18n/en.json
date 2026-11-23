@@ -78,6 +78,7 @@
       "personalscraper-index-full": "Full index scan",
       "personalscraper-backfill-ids": "Cross-ID backfill",
       "personalscraper-seed-sweep": "Seed obligation tracking",
+      "personalscraper-preprod-purge": "Preproduction torrent purge",
       "torrent_complete_dir": "Folder where qBittorrent drops finished torrents",
       "staging_dir": "Staging folder before shelving",
       "data_dir": "Pipeline data folder",
