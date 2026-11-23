@@ -7,7 +7,9 @@ A lost race exits :data:`LOST_LOCK_EXIT` before anything is written (no ``pipeli
 supervisor puts the request back in the queue.
 
 Under the lock it runs today's body, unchanged: a pipeline run (:func:`execute_run`, the
-``--no-console`` semantics) or the rescrape of one item (:func:`rescrape_item`). A heartbeat thread
+``--no-console`` semantics) or the rescrape of one item (:func:`rescrape_item`). An acquisition request
+takes no lock (its lane is beside the pipeline's): it runs its pass in-process through the engine's
+services (:func:`run_acquisition_job`), never as a CLI step. A heartbeat thread
 writes the request's ``heartbeat_at`` meanwhile; the body knows nothing of it. The worker only
 exits: settling the request from its exit code is the supervisor's job.
 
@@ -32,10 +34,25 @@ from typing import TYPE_CHECKING, Final
 from rich.console import Console
 
 from personalscraper.app.store.store import AppStore, build_app_store
+from personalscraper.app.supervisor.acquisition_execution import (
+    NEEDS_TORRENT_CLIENT,
+    AcquisitionEngine,
+    AcquisitionUnavailable,
+    EngineOpener,
+    run_acquisition_job,
+)
 from personalscraper.app.supervisor.execution import RunRecorder, RunRowFactory, execute_run, rescrape_item
 from personalscraper.app.supervisor.ids import RunUid
 from personalscraper.app.supervisor.launcher import LOST_LOCK_EXIT, RUN_UID_ENV
-from personalscraper.app.supervisor.model import HEARTBEAT_INTERVAL_S, RequestState, RunKind, RunRequest, RunTrigger
+from personalscraper.app.supervisor.model import (
+    HEARTBEAT_INTERVAL_S,
+    AcquisitionJob,
+    JobKind,
+    RequestState,
+    RunKind,
+    RunRequest,
+    RunTrigger,
+)
 from personalscraper.conf.loader import load_config
 from personalscraper.config import get_settings
 from personalscraper.lock import acquire_pipeline_lock, release_lock, scrape_locks_dir_for
@@ -105,6 +122,84 @@ def _run_rescrape(config: Config, settings: Settings, request: RunRequest) -> in
     )
 
 
+@contextmanager
+def open_engine(config: Config, settings: Settings, job: AcquisitionJob) -> Iterator[AcquisitionEngine]:
+    """Open the engine services *job* needs over the CLI's per-invocation boundary, and close them after.
+
+    A grab or a prime connects the torrent client, which the grab adds torrents through; a detect or a
+    search never does, as their commands never did. The search service is built as the ``search`` command builds it
+    (no client), the grab's from the boundary's grab core.
+
+    Args:
+        config: Loaded configuration.
+        settings: Loaded settings.
+        job: The pass asked.
+
+    Yields:
+        The engine, filled with what the job needs.
+
+    Raises:
+        AcquisitionUnavailable: If the acquisition store, or the grab core of a job that grabs, is not wired.
+    """
+    from personalscraper.acquire import build_search_service  # noqa: PLC0415 — the engine loads only when a pass runs
+    from personalscraper.acquire.detect import DetectService  # noqa: PLC0415
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415 — the command layer, likewise
+
+    with per_step_boundary(config, settings, build_torrent_client=job.kind in NEEDS_TORRENT_CLIENT) as context:
+        acquire = context.acquire
+        if acquire is None or acquire.store is None:
+            raise AcquisitionUnavailable("the acquisition store is not wired")
+        detect = (
+            DetectService(
+                store=acquire.store,
+                ownership=acquire.ownership,
+                registry=context.provider_registry,
+                event_bus=context.event_bus,
+                config=config,
+            )
+            if job.kind in (JobKind.DETECT, JobKind.PRIME)
+            else None
+        )
+        if job.kind in NEEDS_TORRENT_CLIENT:
+            if acquire.grab is None:
+                raise AcquisitionUnavailable("no torrent client: the grab service is not wired")
+            # One service both searches and grabs: a prime's three passes share it.
+            search = acquire.grab.service if job.kind is JobKind.PRIME else None
+            yield AcquisitionEngine(detect=detect, search=search, grab=acquire.grab.service)
+        elif job.kind is JobKind.SEARCH:
+            yield AcquisitionEngine(search=build_search_service(acquire, config, context.event_bus))
+        else:
+            yield AcquisitionEngine(detect=detect)
+
+
+def acquisition_body(opener: EngineOpener = open_engine) -> Body:
+    """Make the body that runs an acquisition request's job through the engine *opener* opens.
+
+    Args:
+        opener: Opens the engine for a job; the CLI's boundary by default, a fake in a test.
+
+    Returns:
+        The body.
+    """
+
+    def run_acquisition(config: Config, settings: Settings, request: RunRequest) -> int:
+        """Run *request*'s job in this process: no CLI step, no ``pipeline.lock``.
+
+        Args:
+            config: Loaded configuration.
+            settings: Loaded settings.
+            request: The request; its job is the pass.
+
+        Returns:
+            The job's exit code (see :func:`run_acquisition_job`).
+        """
+        job = request.job
+        with opener(config, settings, job) as engine:
+            return run_acquisition_job(job, engine, run_uid=request.uid)
+
+    return run_acquisition
+
+
 @dataclass(frozen=True)
 class Bodies:
     """What the worker runs for each kind of request; today's bodies by default.
@@ -112,10 +207,12 @@ class Bodies:
     Attributes:
         pipeline: Runs a pipeline request.
         rescrape: Runs an item rescrape request.
+        acquisition: Runs an acquisition request's pass in-process.
     """
 
     pipeline: Body = field(default=_run_pipeline)
     rescrape: Body = field(default=_run_rescrape)
+    acquisition: Body = field(default_factory=acquisition_body)
 
 
 class _RequestRunRecorder:
@@ -252,7 +349,9 @@ def run_request(
     heartbeat_interval_s: float = HEARTBEAT_INTERVAL_S,
     clock: Callable[[], float] = time.time,
 ) -> int:
-    """Run request *uid* under ``pipeline.lock``, beating its heartbeat, and return the exit code.
+    """Run request *uid*, beating its heartbeat, and return the exit code.
+
+    A pipeline run or a rescrape runs under ``pipeline.lock``; an acquisition pass runs under none.
 
     Args:
         uid: The request.
@@ -264,7 +363,8 @@ def run_request(
         clock: The epoch clock of the heartbeats.
 
     Returns:
-        The body's exit code; :data:`LOST_LOCK_EXIT` when ``pipeline.lock`` is held (nothing ran);
+        The body's exit code; :data:`LOST_LOCK_EXIT` when ``pipeline.lock`` is held (nothing ran; never for
+        an acquisition request, which takes none);
         :data:`FAILED_EXIT` when the request is unknown, not ``running`` (the supervisor saves
         the admission before it starts the worker, so any other state means it did not admit
         this run), or the body raised.
@@ -279,10 +379,11 @@ def run_request(
         return FAILED_EXIT
     data_dir = config.paths.data_dir
     lock_file = data_dir / "pipeline.lock"
-    if not acquire_pipeline_lock(lock_file, scrape_locks_dir_for(data_dir)):
+    takes_lock = request.kind is not RunKind.ACQUISITION
+    if takes_lock and not acquire_pipeline_lock(lock_file, scrape_locks_dir_for(data_dir)):
         log.warning("worker.lost_lock", uid=uid)
         return LOST_LOCK_EXIT
-    body = bodies.pipeline if request.kind is RunKind.PIPELINE else bodies.rescrape
+    body = {RunKind.PIPELINE: bodies.pipeline, RunKind.RESCRAPE: bodies.rescrape}.get(request.kind, bodies.acquisition)
     log.info("worker.started", uid=uid, kind=request.kind, pid=os.getpid())
     try:
         with _Heartbeat(store, uid, heartbeat_interval_s, clock):
@@ -292,7 +393,8 @@ def run_request(
                 log.exception("worker.failed", uid=uid, kind=request.kind)
                 code = FAILED_EXIT
     finally:
-        release_lock(lock_file)
+        if takes_lock:
+            release_lock(lock_file)
     log.info("worker.ended", uid=uid, kind=request.kind, code=code)
     return code
 

@@ -41,6 +41,46 @@ class RunKind(StrEnum):
 
     PIPELINE = "pipeline"
     RESCRAPE = "rescrape"
+    ACQUISITION = "acquisition"
+
+    @property
+    def lane(self) -> Lane:
+        """The lane the supervisor admits this kind in.
+
+        Returns:
+            :attr:`Lane.ACQUISITION` for an acquisition pass, :attr:`Lane.PIPELINE` for the rest.
+        """
+        return Lane.ACQUISITION if self is RunKind.ACQUISITION else Lane.PIPELINE
+
+
+class Lane(StrEnum):
+    """One queue the supervisor admits from: at most one request runs per lane (DESIGN O-5 A).
+
+    The pipeline lane holds the runs and the rescrapes, which take ``pipeline.lock``. The acquisition
+    lane holds the detect, prime, search and grab passes, which take none: a grab never waits behind a
+    whole run, nor a run behind a grab.
+    """
+
+    PIPELINE = "pipeline"
+    ACQUISITION = "acquisition"
+
+    @property
+    def kinds(self) -> tuple[RunKind, ...]:
+        """The request kinds admitted in this lane.
+
+        Returns:
+            Every :class:`RunKind` whose :attr:`~RunKind.lane` is this one.
+        """
+        return tuple(kind for kind in RunKind if kind.lane is self)
+
+
+class JobKind(StrEnum):
+    """What an acquisition request runs."""
+
+    DETECT = "detect"
+    PRIME = "prime"
+    SEARCH = "search"
+    GRAB = "grab"
 
 
 class RunTrigger(StrEnum):
@@ -101,6 +141,53 @@ class RunOptions:
     item_id: ItemId | None = None
 
 
+@dataclass(frozen=True)
+class AcquisitionJob:
+    """What an acquisition request is asked to run: one pass of the acquisition engine, whole or for one follow.
+
+    A ``prime`` is the amorce of one follow: its detect, then its search, then its grab.
+
+    Attributes:
+        kind: The pass.
+        followed_id: The follow the pass is scoped to (its ``followed_series`` row); ``None`` for a whole pass
+            (the scheduled ones, DESIGN O-15 B).
+        limit: The most items the pass attempts; ``None`` for no cap. A search or a grab only.
+        release: The release name the grab is asked to take; ``None`` for the engine's own pick.
+            A grab of one follow only.
+    """
+
+    kind: JobKind
+    followed_id: int | None = None
+    limit: int | None = None
+    release: str | None = None
+
+    def __post_init__(self) -> None:
+        """Refuse a job no pass can run.
+
+        Raises:
+            ValueError: A ``prime`` with no follow, a limit on a pass that takes none or below 1, a release
+                on anything but the grab of one follow.
+        """
+        if self.kind is JobKind.PRIME and self.followed_id is None:
+            raise ValueError("a prime is the amorce of one follow: it needs a followed_id")
+        if self.limit is not None and (self.limit < 1 or self.kind not in (JobKind.SEARCH, JobKind.GRAB)):
+            raise ValueError(f"a limit is a positive cap on a search or a grab, not {self.limit} on a {self.kind}")
+        if self.release is not None and (self.kind is not JobKind.GRAB or self.followed_id is None):
+            raise ValueError("a release is asked of the grab of one follow")
+
+
+def _canonical(options: RunOptions | AcquisitionJob) -> str:
+    """The canonical text of what a request asks: sorted keys, so two equal asks have equal text.
+
+    Args:
+        options: The run's flags or the acquisition job.
+
+    Returns:
+        Its JSON.
+    """
+    return json.dumps(asdict(options), sort_keys=True)
+
+
 class RunRequestStateError(Exception):
     """A request was asked to make a move its state does not allow (a programming error, never a wire answer)."""
 
@@ -111,7 +198,7 @@ class RunRequest:
 
     Attributes:
         uid: Its key.
-        kind: A pipeline run or an item rescrape.
+        kind: A pipeline run, an item rescrape or an acquisition pass.
         trigger: Who asked.
         options_json: What was asked, canonical (sorted keys): two equal asks have equal text.
         asked_by: The account that asked.
@@ -152,7 +239,7 @@ class RunRequest:
         cls,
         kind: RunKind,
         trigger: RunTrigger,
-        options: RunOptions,
+        options: RunOptions | AcquisitionJob,
         asked_by: AccountId,
         now: float,
         uid: RunUid | None = None,
@@ -160,40 +247,65 @@ class RunRequest:
         """Make a new request, queued.
 
         Args:
-            kind: A pipeline run or an item rescrape.
+            kind: A pipeline run, an item rescrape or an acquisition pass.
             trigger: Who asks.
-            options: What the run is asked to do.
+            options: What the run is asked to do: an :class:`AcquisitionJob` for an acquisition pass,
+                :class:`RunOptions` for the others.
             asked_by: The account that asks.
             now: The epoch of the ask.
             uid: The request's key when the caller already minted one (it is kept); ``None`` for a new one.
 
         Returns:
             The queued request, under *uid* or a fresh uid.
+
+        Raises:
+            ValueError: If *options* is not the kind of options *kind* takes.
         """
+        if isinstance(options, AcquisitionJob) is not (kind is RunKind.ACQUISITION):
+            raise ValueError(f"a {kind} request cannot carry {type(options).__name__}")
         return cls(
             uid=RunUid(uuid.uuid4().hex) if uid is None else uid,
             kind=kind,
             trigger=trigger,
-            options_json=json.dumps(asdict(options), sort_keys=True),
+            options_json=_canonical(options),
             asked_by=asked_by,
             asked_at=now,
         )
 
     @property
     def options(self) -> RunOptions:
-        """What was asked, parsed back from its canonical text."""
+        """What a pipeline run or a rescrape was asked, parsed back from its canonical text.
+
+        Raises:
+            RunRequestStateError: If this is an acquisition request, which carries a :attr:`job`.
+        """
+        if self.kind is RunKind.ACQUISITION:
+            raise RunRequestStateError(f"request {self.uid} is an acquisition pass: it carries a job, not options")
         data = json.loads(self.options_json)
         if data["item_id"] is not None:
             data["item_id"] = ItemId(data["item_id"])
         return RunOptions(**data)
 
+    @property
+    def job(self) -> AcquisitionJob:
+        """What an acquisition pass was asked, parsed back from its canonical text.
+
+        Raises:
+            RunRequestStateError: If this is not an acquisition request.
+        """
+        if self.kind is not RunKind.ACQUISITION:
+            raise RunRequestStateError(f"request {self.uid} is a {self.kind}: it carries options, not a job")
+        data = json.loads(self.options_json)
+        return AcquisitionJob(kind=JobKind(data["kind"]), **{k: v for k, v in data.items() if k != "kind"})
+
     def joins(self, other: RunRequest) -> bool:
         """Whether this ask is answered by *other*, a request already in the queue.
 
         A pipeline run sweeps the whole staging, so an ask equal in kind and options to a request
-        still queued joins it; a running one does not absorb it (new arrivals may have come). A
-        rescrape joins a queued or a running request of the same item. Never a refusal: an ask that
-        does not join is queued.
+        still queued joins it; a running one does not absorb it (new arrivals may have come). An
+        acquisition pass follows the same rule (a running pass has already read the queue it works
+        on). A rescrape joins a queued or a running request of the same item. Never a refusal: an ask
+        that does not join is queued.
 
         Args:
             other: The request to join.

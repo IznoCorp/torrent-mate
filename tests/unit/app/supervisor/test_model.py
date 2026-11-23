@@ -112,7 +112,7 @@ class TestAsk:
     def test_every_trigger_code_is_the_designs(self) -> None:
         """Every trigger code is the designs."""
         assert {t.value for t in RunTrigger} == {"completion", "safety_net", "manual", "web", "cli", "scrape-resolve"}
-        assert {k.value for k in RunKind} == {"pipeline", "rescrape"}
+        assert {k.value for k in RunKind} == {"pipeline", "rescrape", "acquisition"}
         assert {s.value for s in RequestState} == {"queued", "running", "settled"}
         assert {s.value for s in Settlement} == {"success", "error", "killed", "interrupted", "abandoned"}
         assert {w.value for w in WaitReason} == {
