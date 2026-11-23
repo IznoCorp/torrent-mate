@@ -21,6 +21,7 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire.domain import WantedItem
+    from personalscraper.acquire.service import AcquisitionService
     from personalscraper.api.torrent.qbittorrent import QBitClient
     from personalscraper.api.torrent.transmission import TransmissionClient
     from personalscraper.api.transport._policy import CircuitPolicy
@@ -263,4 +264,94 @@ def build_acquire_context(
     )
 
 
-__all__ = ["build_acquire_context"]
+def build_search_service(
+    acquire: AcquireContext,
+    config: Config,
+    event_bus: EventBus,
+) -> AcquisitionService:
+    """Build orchestrator + service inline for the search pass.
+
+    ``acquire/_factory.py`` builds ``GrabCore`` (orchestrator + service) only when
+    a torrent client is present, and the search boundary deliberately has none —
+    so ``acquire.grab`` is always ``None`` here.  The orchestrator's
+    :meth:`~personalscraper.acquire.orchestrator.GrabOrchestrator.search` is a pure
+    search → filter → rank chain that never touches ``self._torrent_client``, so
+    this helper constructs the pair directly with ``torrent_client=None``.
+
+    Args:
+        acquire: The live ``AcquireContext`` (store + tracker_registry).
+        config: Typed JSON5 configuration.
+        event_bus: In-process event bus.
+
+    Returns:
+        A ready ``AcquisitionService`` wired for the search pass.
+    """
+    from personalscraper.acquire.orchestrator import GrabOrchestrator  # noqa: PLC0415
+    from personalscraper.acquire.service import AcquisitionService  # noqa: PLC0415
+
+    store = acquire.store
+    assert store is not None  # caller already checked
+
+    # Follow D3 title resolver: same pattern as the factory — resolves the
+    # followed-series title so tracker queries are "{title} SxxEyy", not a bare ID.
+    def _title_resolver(item: WantedItem) -> str | None:
+        if item.followed_id is None:
+            return None
+        row = store.follow.get(item.followed_id)
+        return row.title if row is not None else None
+
+    # #28 (review HIGH) — the search pass MUST resolve the year too, or its movie
+    # availability verdict counts the WRONG « Wicker* » film (query yearless +
+    # filter_to_movie year-disabled) while the grab pass, correctly year-wired,
+    # disagrees. Both feed the same _search_chain, so the wiring must match.
+    def _year_resolver(item: WantedItem) -> int | None:
+        if item.followed_id is None:
+            return None
+        row = store.follow.get(item.followed_id)
+        return row.year if row is not None else None
+
+    # Season-pack coverage resolver (review F4) — same wiring as the factory,
+    # so the search pass verdict and the grab never diverge on what counts as
+    # « the season ».
+    def _episode_count_resolver(item: WantedItem) -> int | None:
+        if item.followed_id is None or item.season is None:
+            return None
+        aired = store.aired.list_for_followed(item.followed_id)
+        return len([r for r in aired if r.season == item.season]) or None
+
+    # Original-title resolver (#435) — same wiring as the factory, so the
+    # search pass verdict and the grab never diverge on which releases count
+    # as « the movie » (a cross-language release must not read as available
+    # to one pass and all_filtered to the other).
+    def _original_title_resolver(item: WantedItem) -> str | None:
+        if item.followed_id is None:
+            return None
+        row = store.follow.get(item.followed_id)
+        return row.original_title if row is not None else None
+
+    # Ratio standing of a tracker (K3 P10) — same RatioStanding over the same single-source
+    # tracker_economies as the factory and ``grab --dry-run``: the search pass records its top
+    # release as the item's ``best``, so it must rank by the standing the grab ranks by.
+    standing = RatioStanding(store.ratio, tracker_economies(config.tracker.providers))
+
+    orchestrator = GrabOrchestrator(
+        tracker_registry=acquire.tracker_registry,
+        torrent_client=None,  # the search pass adds nothing
+        event_bus=event_bus,
+        ranking=config.ranking,
+        title_resolver=_title_resolver,
+        year_resolver=_year_resolver,
+        original_title_resolver=_original_title_resolver,
+        episode_count_resolver=_episode_count_resolver,
+        bandwidth=config.acquire.bandwidth,
+        tracker_ratio_state_resolver=standing.of,
+    )
+    return AcquisitionService(
+        store=store,
+        orchestrator=orchestrator,
+        event_bus=event_bus,
+        config=config,
+    )
+
+
+__all__ = ["build_acquire_context", "build_search_service"]

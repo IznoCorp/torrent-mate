@@ -20,12 +20,16 @@ from personalscraper.acquire.context import AcquireContext
 
 if TYPE_CHECKING:
     from personalscraper.acquire._factory import build_acquire_context as build_acquire_context
+    from personalscraper.acquire._factory import build_search_service as build_search_service
 
 #: Public name -> the module that defines it, imported on first access: the factory pulls the store, the
 #: tracker registry and the delete authority, which an eager import would load with every ``import``.
-_LAZY: dict[str, str] = {"build_acquire_context": "personalscraper.acquire._factory"}
+_LAZY: dict[str, str] = {
+    "build_acquire_context": "personalscraper.acquire._factory",
+    "build_search_service": "personalscraper.acquire._factory",
+}
 
-__all__ = ["AcquireContext", "build_acquire_context"]
+__all__ = ["AcquireContext", "build_acquire_context", "build_search_service"]
 
 
 def __getattr__(name: str) -> Any:

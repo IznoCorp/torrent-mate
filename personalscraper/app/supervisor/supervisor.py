@@ -7,9 +7,11 @@ One loop, two cadences (:meth:`Supervisor.run`):
   this process started), is gone (an adopted worker's pid no longer runs) or went silent (a stale
   heartbeat): the outcome of its ``pipeline_run`` row, else ``interrupted`` — or back to the queue
   for a gone worker that never beat and left no row (it lost ``pipeline.lock``); announce the
-  requests seen for the first time; then, when nothing runs, start the head of the queue — unless
-  ``pipeline.pause`` is present or ``pipeline.lock`` (or a scrape-resolve lock) is held, the head
-  then recording why it waits. The admission is saved BEFORE the worker is started, so a crash in
+  requests seen for the first time; then, in each of the two lanes (``Lane``), when nothing of that lane
+  runs, start its head — the pipeline lane's unless ``pipeline.pause`` is present or ``pipeline.lock``
+  (or a scrape-resolve lock) is held, the head then recording why it waits. The acquisition lane takes
+  neither (its passes take no ``pipeline.lock``): one acquisition request runs beside the one pipeline
+  request, so a grab never waits behind a whole run. The admission is saved BEFORE the worker is started, so a crash in
   between leaves a running request that goes stale, never a worker on a queued one.
 - **The watcher**, every ``watch.poll_interval_s`` (:meth:`Supervisor.tick_watcher`): today's poll and
   decision engine, unchanged, behind the :class:`WatcherHalf` port; a ``FIRE_RUN`` becomes an ask of
@@ -42,6 +44,7 @@ from personalscraper.app.supervisor.events import RunAdmitted, RunQueued, RunSet
 from personalscraper.app.supervisor.launcher import LOST_LOCK_EXIT, WorkerLauncher
 from personalscraper.app.supervisor.model import (
     LEASE_TTL_S,
+    Lane,
     RunKind,
     RunOptions,
     RunRequest,
@@ -557,7 +560,14 @@ class Supervisor:
                 self._settle(request, Settlement.INTERRUPTED, now, exit_code=None)
             return
         self._unreadable_reads.pop(request.uid, None)
-        if gone and outcome is None and request.heartbeat_at == request.admitted_at:
+        # Only a lane that takes ``pipeline.lock`` can lose it: an acquisition worker that vanished
+        # unseen may have run (its passes write as they go), so it is settled, never run a second time.
+        if (
+            gone
+            and outcome is None
+            and request.heartbeat_at == request.admitted_at
+            and request.kind is not RunKind.ACQUISITION
+        ):
             self._requeue_lost_lock(request)
             return
         settlement = (
@@ -634,35 +644,50 @@ class Supervisor:
         self._unreadable_reads = {uid: count for uid, count in self._unreadable_reads.items() if uid in live}
 
     def _admit(self, now: float) -> None:
-        """Start the head of the queue when nothing runs and nothing blocks it; else record why it waits.
+        """Admit each lane: start its head when nothing of the lane runs and nothing blocks it.
 
         Args:
             now: The tick's epoch.
         """
+        for lane in Lane:
+            self._admit_lane(lane, now)
+
+    def _admit_lane(self, lane: Lane, now: float) -> None:
+        """Start the head of *lane* when nothing of it runs and nothing blocks it; else record why it waits.
+
+        Args:
+            lane: The lane.
+            now: The tick's epoch.
+        """
         runs = self._store.runs
-        head = runs.first_queued()
+        head = runs.first_queued(lane)
         if head is None:
             return
-        if not runs.running():
-            blocker = self._blocker()
+        if not runs.running(lane):
+            blocker = self._blocker(lane)
             if blocker is not None:
                 self._wait(head, blocker)
                 return
             if not self._start(head, now):
                 return
-            head = runs.first_queued()
+            head = runs.first_queued(lane)
             if head is None:
                 return
         self._wait(head, WaitReason.BEHIND_RUN)
 
-    def _blocker(self) -> WaitReason | None:
-        """Why the head may not start now, if anything stops it.
+    def _blocker(self, lane: Lane) -> WaitReason | None:
+        """Why the head of *lane* may not start now, if anything stops it.
+
+        Args:
+            lane: The lane.
 
         Returns:
             ``paused`` when ``pipeline.pause`` is present; ``pipeline_lock_held`` when
             ``pipeline.lock`` or a scrape-resolve lock is held (the worker would lose the race);
-            ``None`` otherwise.
+            ``None`` otherwise, and always for the acquisition lane, which neither pauses nor locks.
         """
+        if lane is Lane.ACQUISITION:
+            return None
         data_dir = self._config.paths.data_dir
         if (data_dir / "pipeline.pause").exists():
             return WaitReason.PAUSED

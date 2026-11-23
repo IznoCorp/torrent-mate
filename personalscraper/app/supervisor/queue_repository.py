@@ -20,6 +20,7 @@ from typing import Any, Final
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.supervisor.ids import RunUid
 from personalscraper.app.supervisor.model import (
+    Lane,
     RequestState,
     RunKind,
     RunRequest,
@@ -93,6 +94,21 @@ def _values(request: RunRequest) -> tuple[object, ...]:
     )
 
 
+def _lane_clause(lane: Lane | None) -> tuple[str, tuple[str, ...]]:
+    """The ``AND kind IN (…)`` clause that narrows a read to one lane's kinds.
+
+    Args:
+        lane: The lane, or ``None`` for every kind.
+
+    Returns:
+        The clause (empty for every kind, else leading with ``AND``) and its parameters.
+    """
+    if lane is None:
+        return "", ()
+    kinds = tuple(kind.value for kind in lane.kinds)
+    return f" AND kind IN ({', '.join('?' * len(kinds))})", kinds
+
+
 class QueueRepository:
     """The ``run_request`` rows over one ``app.db`` connection it is GIVEN; it opens nothing."""
 
@@ -140,41 +156,53 @@ class QueueRepository:
         return None if row is None else _request(row)
 
     @serialised
-    def first_queued(self) -> RunRequest | None:
+    def first_queued(self, lane: Lane | None = None) -> RunRequest | None:
         """The head of the queue: the oldest request still queued.
+
+        Args:
+            lane: Read only this lane's requests; every kind when ``None``.
 
         Returns:
             The request, or ``None`` when nothing waits.
         """
+        clause, kinds = _lane_clause(lane)
         row = self._conn.execute(
-            f"SELECT {_COLUMNS} FROM run_request WHERE state = ? {_FIFO} LIMIT 1",  # noqa: S608 — fixed clauses
-            (RequestState.QUEUED.value,),
+            f"SELECT {_COLUMNS} FROM run_request WHERE state = ?{clause} {_FIFO} LIMIT 1",  # noqa: S608 — fixed clauses
+            (RequestState.QUEUED.value, *kinds),
         ).fetchone()
         return None if row is None else _request(row)
 
     @serialised
-    def queued(self) -> tuple[RunRequest, ...]:
+    def queued(self, lane: Lane | None = None) -> tuple[RunRequest, ...]:
         """Every request still queued, in FIFO order (oldest ask first, insertion order on a tie).
+
+        Args:
+            lane: Read only this lane's requests; every kind when ``None``.
 
         Returns:
             The queued requests; empty when nothing waits.
         """
+        clause, kinds = _lane_clause(lane)
         rows = self._conn.execute(
-            f"SELECT {_COLUMNS} FROM run_request WHERE state = ? {_FIFO}",  # noqa: S608 — fixed clauses
-            (RequestState.QUEUED.value,),
+            f"SELECT {_COLUMNS} FROM run_request WHERE state = ?{clause} {_FIFO}",  # noqa: S608 — fixed clauses
+            (RequestState.QUEUED.value, *kinds),
         ).fetchall()
         return tuple(_request(row) for row in rows)
 
     @serialised
-    def running(self) -> list[RunRequest]:
+    def running(self, lane: Lane | None = None) -> list[RunRequest]:
         """Every request being run, oldest ask first.
+
+        Args:
+            lane: Read only this lane's requests; every kind when ``None``.
 
         Returns:
             The running requests.
         """
+        clause, kinds = _lane_clause(lane)
         rows = self._conn.execute(
-            f"SELECT {_COLUMNS} FROM run_request WHERE state = ? {_FIFO}",  # noqa: S608 — fixed clauses
-            (RequestState.RUNNING.value,),
+            f"SELECT {_COLUMNS} FROM run_request WHERE state = ?{clause} {_FIFO}",  # noqa: S608 — fixed clauses
+            (RequestState.RUNNING.value, *kinds),
         ).fetchall()
         return [_request(row) for row in rows]
 
@@ -182,13 +210,13 @@ class QueueRepository:
     def queued_like(self, kind: RunKind, options_json: str, item_id: ItemId | None) -> RunRequest | None:
         """The oldest queued request an ask of this kind and options could join.
 
-        A rescrape is matched on its item; a pipeline run on its canonical options. The model's
+        A rescrape is matched on its item; a pipeline run or an acquisition pass on its canonical options. The model's
         :meth:`RunRequest.joins` stays the rule: this only narrows the rows it is asked about.
 
         Args:
             kind: The kind of the ask.
             options_json: Its canonical options.
-            item_id: Its item, for a rescrape; ``None`` for a pipeline run.
+            item_id: Its item, for a rescrape; ``None`` for any other kind.
 
         Returns:
             The request, or ``None`` (always, for a rescrape with no item: it joins nothing).
