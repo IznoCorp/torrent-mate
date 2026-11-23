@@ -61,9 +61,11 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from personalscraper.acquire._aired_store import _AiredSubStore
+from personalscraper.acquire._candidate_store import _CandidateSubStore
 from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore
 from personalscraper.acquire._download_marks import DownloadMarksStore
 from personalscraper.acquire._provenance_store import _ProvenanceSubStore
+from personalscraper.acquire._requester_store import _RequesterSubStore
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_followed,
@@ -436,7 +438,7 @@ class _FollowSubStore:
             """
             SELECT id, media_ref_json, title, active,
                    quality_profile_json, cadence_json, added_at, kind, year, replace_owned,
-                   original_title
+                   original_title, scope, removed_at
             FROM followed_series WHERE id = ?
             """,
             (followed_id,),
@@ -476,7 +478,7 @@ class _FollowSubStore:
             SELECT * FROM (
                 SELECT id, media_ref_json, title, active,
                        quality_profile_json, cadence_json, added_at, kind, replace_owned,
-                       original_title,
+                       original_title, scope, removed_at,
                        CASE
                          WHEN json_extract(media_ref_json, '$.tvdb_id') = :tvdb
                               AND (:kind IS NULL OR kind = :kind) THEN 0
@@ -534,7 +536,7 @@ class _FollowSubStore:
             """
             SELECT id, media_ref_json, title, active,
                    quality_profile_json, cadence_json, added_at, kind, replace_owned,
-                   original_title
+                   original_title, scope, removed_at
             FROM followed_series
             WHERE active = 1
             ORDER BY id
@@ -555,7 +557,7 @@ class _FollowSubStore:
             """
             SELECT id, media_ref_json, title, active,
                    quality_profile_json, cadence_json, added_at, kind, replace_owned,
-                   original_title
+                   original_title, scope, removed_at
             FROM followed_series
             ORDER BY id
             """
@@ -1174,6 +1176,8 @@ class ConcreteAcquireStore:
         cross_seed: ``cross_seed_history`` + ``cross_seed_quota`` sub-store (lazy).
         watch: ``watch_state`` KV sub-store (watcher daemon state, lazy).
         download_marks: ``download_marks`` advisory sub-store (O4/D7, lazy).
+        requesters: ``acquisition_requester`` sub-store (who asked for a follow, lazy).
+        candidates: ``wanted_candidate`` sub-store (a wanted row's ranked candidates, lazy).
     """
 
     def __init__(self, db_path: Path) -> None:
@@ -1197,6 +1201,8 @@ class ConcreteAcquireStore:
         self._watch: _WatchSubStore | None = None
         self._provenance: _ProvenanceSubStore | None = None
         self._download_marks: DownloadMarksStore | None = None
+        self._requesters: _RequesterSubStore | None = None
+        self._candidates: _CandidateSubStore | None = None
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -1305,6 +1311,20 @@ class ConcreteAcquireStore:
         if self._download_marks is None:
             self._download_marks = DownloadMarksStore(conn)
         return self._download_marks
+
+    @property
+    def requesters(self) -> _RequesterSubStore:
+        """``acquisition_requester`` sub-store: who asked for a follow (ensures open)."""
+        if self._requesters is None:
+            self._requesters = _RequesterSubStore(self._ensure_open(), _write_tx)
+        return self._requesters
+
+    @property
+    def candidates(self) -> _CandidateSubStore:
+        """``wanted_candidate`` sub-store: a wanted row's ranked candidates (ensures open)."""
+        if self._candidates is None:
+            self._candidates = _CandidateSubStore(self._ensure_open(), _write_tx)
+        return self._candidates
 
     def close(self) -> None:
         """Close the connection if one was opened (fail-soft, idempotent).

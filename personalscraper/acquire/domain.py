@@ -29,6 +29,15 @@ WantedStatus = Literal[
     "fallback_episodes",
 ]
 FollowKind = Literal["movie", "show"]
+#: Why a ``followed_series`` row exists: ``"follow"`` (a standing follow, every row written before
+#: migration 027) or ``"request"`` (a one-off request, DESIGN O-2 A).
+FollowScope = Literal["follow", "request"]
+#: How an account asked for a follow (``acquisition_requester.via``).
+RequesterVia = Literal["follow", "request"]
+#: What put a ``wanted`` row in the queue: a person's ask, or the engine's own rule.
+WantedTrigger = Literal["manual", "automatic"]
+#: The quality floors a requester can set, as vertical resolutions.
+REQUESTER_FLOORS: frozenset[int] = frozenset({720, 1080, 2160})
 
 #: The ``wanted`` statuses that describe an acquisition still in flight — the
 #: ONE definition of « open », so no reader can invent its own. ``done`` and
@@ -89,15 +98,24 @@ class FollowedSeries:
     #: sight and the replacement the UI promised never runs. Cleared as soon as
     #: the wanted row exists.
     replace_owned: bool = False
+    #: ``"follow"`` (every row written before migration 027) or ``"request"``: a one-off
+    #: request is a ``followed_series`` row with this scope (DESIGN O-2 A). Populated by
+    #: every ``followed_series`` reader; no writer sets it yet.
+    scope: FollowScope = "follow"
+    #: Unix epoch seconds when the last requester left, ``None`` while the follow stands.
+    removed_at: int | None = None
 
     def __post_init__(self) -> None:
-        """Validate the kind literal.
+        """Validate the kind and scope literals.
 
         Raises:
-            ValueError: If ``kind`` is not ``"movie"`` or ``"show"``.
+            ValueError: If ``kind`` is not ``"movie"`` or ``"show"``, or ``scope`` is not
+                ``"follow"`` or ``"request"``.
         """
         if self.kind not in ("movie", "show"):
             raise ValueError(f'Invalid FollowedSeries.kind={self.kind!r}; must be "movie" or "show"')
+        if self.scope not in ("follow", "request"):
+            raise ValueError(f'Invalid FollowedSeries.scope={self.scope!r}; must be "follow" or "request"')
 
 
 @dataclass(frozen=True)
@@ -227,6 +245,10 @@ class WantedItem:
             dead release. Empty tuple = none tried (the default for pre-existing
             rows and the ordinary first grab). Populated only by SELECTs that
             fetch ``tried_hashes_json``; other reads leave it empty.
+        trigger: What put the row in the queue: ``"manual"`` (a person's ask) or
+            ``"automatic"`` (detect, the search conversions). ``None`` is an honest
+            « unknown »: every row written before migration 027, and v0's frozen season
+            route, which writes none.
     """
 
     media_ref: MediaRef
@@ -245,12 +267,13 @@ class WantedItem:
     last_search_found: int | None = None
     tried_hashes: tuple[str, ...] = ()
     absorbed_by: int | None = None
+    trigger: WantedTrigger | None = None
 
     def __post_init__(self) -> None:
-        """Validate kind and status values.
+        """Validate kind, status and trigger values.
 
         Raises:
-            ValueError: If kind or status is not a valid literal.
+            ValueError: If kind, status or trigger is not a valid literal.
         """
         valid_kinds: tuple[str, ...] = ("movie", "episode", "season")
         valid_statuses: tuple[str, ...] = (
@@ -267,6 +290,8 @@ class WantedItem:
             raise ValueError(f"Invalid WantedItem.kind={self.kind!r}; must be one of {valid_kinds}")
         if self.status not in valid_statuses:
             raise ValueError(f"Invalid WantedItem.status={self.status!r}; must be one of {valid_statuses}")
+        if self.trigger not in (None, "manual", "automatic"):
+            raise ValueError(f'Invalid WantedItem.trigger={self.trigger!r}; must be "manual", "automatic" or None')
 
 
 @dataclass(frozen=True)
@@ -365,14 +390,97 @@ class AiredEpisodeRow:
     updated_at: int
 
 
+@dataclass(frozen=True)
+class FollowRequester:
+    """One account's ask for a follow (``acquisition_requester`` table).
+
+    The engine never learns of rights: ``account_id`` is an opaque id, and the rules over
+    requesters (what is in force, who may read) are the acquisition model's, not the store's.
+
+    Attributes:
+        followed_id: FK to the ``followed_series`` row asked for.
+        account_id: The asking account, opaque to the engine.
+        via: How the account asked: ``"follow"`` or ``"request"``.
+        floor: The requester's own quality floor as a vertical resolution (720, 1080 or
+            2160), ``None`` when none is set.
+        paused: Whether this requester paused its ask.
+        since: Unix epoch seconds when the account first asked.
+    """
+
+    followed_id: int
+    account_id: str
+    via: RequesterVia
+    floor: int | None
+    paused: bool
+    since: int
+
+    def __post_init__(self) -> None:
+        """Validate the via and the floor before the CHECK constraints would.
+
+        Raises:
+            ValueError: If ``via`` is not ``"follow"`` or ``"request"``, or ``floor`` is
+                neither ``None`` nor one of :data:`REQUESTER_FLOORS`.
+        """
+        if self.via not in ("follow", "request"):
+            raise ValueError(f'Invalid FollowRequester.via={self.via!r}; must be "follow" or "request"')
+        if self.floor is not None and self.floor not in REQUESTER_FLOORS:
+            raise ValueError(
+                f"Invalid FollowRequester.floor={self.floor!r}; must be None or one of {sorted(REQUESTER_FLOORS)}"
+            )
+
+
+@dataclass(frozen=True)
+class WantedCandidate:
+    """One ranked candidate a concluded search found for a wanted row (``wanted_candidate``).
+
+    The set of a wanted row is replaced wholesale by its next concluded search. The row
+    carries no ``wanted_id``: the set is read and written by the wanted row's id.
+
+    Attributes:
+        rank: Position in the ranked set, 1 the best; unique within a wanted row.
+        provider: The tracker that offered the release.
+        title: The release's title as the tracker published it.
+        info_hash: The torrent info-hash, ``None`` when the tracker gave none.
+        size_bytes: The release's size.
+        seeders: The seeders when searched.
+        resolution: The parsed resolution (``"1080p"``), ``None`` when unknown.
+        source: The parsed source (``"WEB"``), ``None`` when unknown.
+        language: The parsed language tag, ``None`` when unknown.
+        score: The ranking score.
+        season: The season the release numbers, ``None`` when it numbers none.
+        episode: The episode the release numbers, ``None`` for a pack or none.
+        searched_at: Unix epoch seconds of the concluded search that found it.
+    """
+
+    rank: int
+    provider: str
+    title: str
+    info_hash: str | None
+    size_bytes: int
+    seeders: int
+    resolution: str | None
+    source: str | None
+    language: str | None
+    score: int
+    season: int | None
+    episode: int | None
+    searched_at: int
+
+
 __all__ = [
     "OPEN_WANTED_STATUSES",
+    "REQUESTER_FLOORS",
     "AiredEpisode",
     "AiredEpisodeRow",
+    "FollowRequester",
+    "FollowScope",
     "FollowedSeries",
     "RatioState",
+    "RequesterVia",
     "SeedObligation",
+    "WantedCandidate",
     "WantedItem",
     "WantedKind",
     "WantedStatus",
+    "WantedTrigger",
 ]
