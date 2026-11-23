@@ -10,6 +10,7 @@ exposed as attribute namespaces:
   * ``store.ratio``      — ``ratio_state`` reader + upsert (data-carrier)
   * ``store.cross_seed`` — ``cross_seed_history`` + ``cross_seed_quota`` (watch-seed)
   * ``store.watch``      — ``watch_state`` KV store (watcher daemon state)
+  * ``store.requesters`` — ``acquisition_requester`` writer + reader (who asked for a follow)
 
 All five sub-stores share a single ``acquire.db`` connection.  Cross-process
 single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
@@ -36,6 +37,7 @@ from personalscraper.acquire.domain import (
     AiredEpisodeRow,
     FollowedSeries,
     FollowKind,
+    FollowRequester,
     RatioState,
     SeedObligation,
     WantedItem,
@@ -495,6 +497,39 @@ class CrossSeedSubStore(Protocol):
 
 
 @runtime_checkable
+class RequesterSubStore(Protocol):
+    """Writer + reader for the ``acquisition_requester`` table (migration 027)."""
+
+    def list_for(self, followed_id: int) -> list[FollowRequester]:
+        """Return the requesters of one follow, the oldest ask first."""
+        ...
+
+    def upsert(self, requester: FollowRequester) -> None:
+        """Insert a requester, or replace the row of its (follow, account) whole."""
+        ...
+
+    def delete(self, followed_id: int, account_id: str) -> bool:
+        """Remove one account's ask for a follow; ``True`` when a row was removed."""
+        ...
+
+    def save_follow(
+        self,
+        followed_id: int,
+        requesters: Sequence[FollowRequester],
+        *,
+        removed_at: int | None,
+        min_resolution: int | None,
+        active: bool,
+    ) -> bool:
+        """Write a follow's requesters and their projection in one transaction; return the prior ``active``."""
+        ...
+
+    def follows_of(self, account_ids: Iterable[str]) -> list[int]:
+        """Return the follows any of the given accounts asked for, ascending."""
+        ...
+
+
+@runtime_checkable
 class AcquireStore(Protocol):
     """Full store contract for the acquisition lobe (RP3).
 
@@ -550,6 +585,11 @@ class AcquireStore(Protocol):
     @property
     def download_marks(self) -> DownloadMarksSubStore:
         """``download_marks`` advisory sub-store (opens on access)."""
+        ...
+
+    @property
+    def requesters(self) -> RequesterSubStore:
+        """``acquisition_requester`` sub-store (opens on access)."""
         ...
 
     def close(self) -> None:
