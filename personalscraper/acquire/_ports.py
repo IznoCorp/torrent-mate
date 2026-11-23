@@ -74,11 +74,19 @@ class FollowSubStore(Protocol):
         ...
 
     def list_active(self) -> list[FollowedSeries]:
-        """Return all active ``followed_series`` rows, ordered by id."""
+        """Return the active FOLLOWS (scope ``follow``, not removed), ordered by id."""
+        ...
+
+    def list_requests(self) -> list[FollowedSeries]:
+        """Return the standing one-off request rows (scope ``request``, active, not removed), ordered by id."""
         ...
 
     def list_all(self) -> list[FollowedSeries]:
-        """Return all ``followed_series`` rows (active and inactive), ordered by id."""
+        """Return every ``followed_series`` row, any scope and state, ordered by id."""
+        ...
+
+    def mark_removed(self, followed_id: int, *, now: int) -> bool:
+        """Mark a row removed and inactive; ``True`` when this call did it."""
         ...
 
     def set_active(self, followed_id: int, active: bool) -> None:

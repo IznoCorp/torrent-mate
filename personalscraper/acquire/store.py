@@ -525,11 +525,17 @@ class _FollowSubStore:
         return found[0]
 
     def list_active(self) -> list[FollowedSeries]:
-        """Return all active ``followed_series`` rows, ordered by id.
+        """Return the active FOLLOWS, ordered by id.
+
+        A follow is a ``scope = 'follow'`` row that is neither inactive nor removed. A
+        one-off request row (``scope = 'request'``, DESIGN O-2 A) is not a follow: detect,
+        the airing poll and ``follow list`` all read this and never see one. The projection
+        writes ``active = 0`` for a removed row, and ``removed_at IS NULL`` holds the same
+        line for a writer that forgot it. Requests are read by :meth:`list_requests`.
 
         Returns:
-            A list of :class:`FollowedSeries` where ``active=True``,
-            possibly empty.
+            A list of :class:`FollowedSeries` where ``active=True``, of scope ``follow``
+            and not removed, possibly empty.
         """
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
@@ -538,16 +544,40 @@ class _FollowSubStore:
                    quality_profile_json, cadence_json, added_at, kind, replace_owned,
                    original_title, scope, removed_at
             FROM followed_series
-            WHERE active = 1
+            WHERE active = 1 AND scope = 'follow' AND removed_at IS NULL
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_followed(r) for r in rows]
+
+    def list_requests(self) -> list[FollowedSeries]:
+        """Return the standing one-off request rows, ordered by id.
+
+        A request is a ``scope = 'request'`` row that is active and not removed. Detect
+        reads it to keep its aired cache and series status fresh, and enqueues nothing for
+        it: the request's season wanted row is its whole work.
+
+        Returns:
+            A list of :class:`FollowedSeries` of scope ``request``, possibly empty.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, media_ref_json, title, active,
+                   quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                   original_title, scope, removed_at
+            FROM followed_series
+            WHERE active = 1 AND scope = 'request' AND removed_at IS NULL
             ORDER BY id
             """
         ).fetchall()
         return [_row_to_followed(r) for r in rows]
 
     def list_all(self) -> list[FollowedSeries]:
-        """Return all ``followed_series`` rows (active and inactive), ordered by id.
+        """Return every ``followed_series`` row (any scope, active, inactive or removed), ordered by id.
 
-        Used by ``follow list --all``.
+        Used by ``follow list --all`` and by the title maps, which want a title by id
+        whatever the row is.
 
         Returns:
             A list of all :class:`FollowedSeries`, possibly empty.
@@ -563,6 +593,28 @@ class _FollowSubStore:
             """
         ).fetchall()
         return [_row_to_followed(r) for r in rows]
+
+    def mark_removed(self, followed_id: int, *, now: int) -> bool:
+        """Mark a row removed and inactive: its last requester is gone or its request ended.
+
+        Writes ``removed_at`` and ``active = 0`` together (the projection of DESIGN § 2.4
+        for a removed row), in one transaction. The row, its wanted rows and its history
+        stay. A row already removed keeps its first stamp.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            now: Unix epoch seconds of the removal.
+
+        Returns:
+            ``True`` when this call removed the row, ``False`` when it was already removed
+            or does not exist.
+        """
+        with _write_tx(self._conn):
+            cursor = self._conn.execute(
+                "UPDATE followed_series SET removed_at = ?, active = 0 WHERE id = ? AND removed_at IS NULL",
+                (now, followed_id),
+            )
+        return cursor.rowcount > 0
 
     def set_active(self, followed_id: int, active: bool) -> None:
         """Set the ``active`` flag on a ``followed_series`` row.

@@ -181,16 +181,21 @@ class DetectService:
             actions) or ``OK`` with the per-item actions and counts.
         """
         active = self._store.follow.list_active()
-        if not active:
+        # A one-off request (DESIGN O-2 A) is polled for its aired cache and series status and
+        # never enqueued: it is no follow, and its season wanted row is its whole work.
+        requests = self._store.follow.list_requests()
+        if not active and not requests:
             return DetectResult(DetectStatus.NO_ACTIVE, [], DetectSummary())
 
         if series is not None:
             try:
                 filter_id = int(series)
                 active = [s for s in active if s.id == filter_id]
+                requests = [s for s in requests if s.id == filter_id]
             except ValueError:
                 active = [s for s in active if series.lower() in s.title.lower()]
-            if not active:
+                requests = [s for s in requests if series.lower() in s.title.lower()]
+            if not active and not requests:
                 return DetectResult(DetectStatus.NO_MATCH, [], DetectSummary())
 
         # §5 films produce ONE WantedItem(kind='movie') with no airing poll; a
@@ -199,16 +204,21 @@ class DetectService:
         movie_follows = [s for s in active if s.kind == "movie"]
         show_follows = [s for s in active if s.kind != "movie"]
         by_ref = {s.media_ref: s for s in show_follows}
+        # A request of a medium a follow already holds adds nothing to the poll: the follow's
+        # own pass covers it.
+        request_by_ref = {s.media_ref: s for s in requests if s.kind != "movie" and s.media_ref not in by_ref}
 
         # ONE poll per series (episode-states D1 + ACC-04): the catalogue poll
         # returns every known-date episode, futures included, plus the series'
         # production status — the same single provider poll, nothing added.
-        catalogs = self._poll(show_follows, today=today)
-        known = [ep for catalog in catalogs for ep in catalog.episodes]
+        catalogs = self._poll([*show_follows, *request_by_ref.values()], today=today)
+        known = [ep for catalog in catalogs for ep in catalog.episodes if ep.media_ref not in request_by_ref]
+        request_known = [ep for catalog in catalogs for ep in catalog.episodes if ep.media_ref in request_by_ref]
         if not dry_run:
             # The cache stores EVERY known episode — the future ones are what the
             # completeness matrix reads as ``announced``.
             self._persist_aired_cache(known, by_ref, now=now)
+            self._persist_aired_cache(request_known, request_by_ref, now=now)
             self._persist_series_status(catalogs)
 
         closed_owned = 0

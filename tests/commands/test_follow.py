@@ -9,11 +9,13 @@ from unittest.mock import MagicMock
 from typer.testing import CliRunner
 
 from personalscraper.acquire.context import AcquireContext
+from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.cli import app
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.identity import MediaRef
 
 runner = CliRunner()
 
@@ -344,6 +346,33 @@ def test_follow_list_hides_inactive_by_default(tmp_path: Path, monkeypatch) -> N
         f"Expected 'Breaking Bad' in 'follow list --all'; got:\n{result_all.output}"
     )
     acquire.store.close()  # type: ignore[union-attr]
+
+
+def test_follow_list_shows_no_request_row_but_all_does(tmp_path: Path, monkeypatch) -> None:
+    """K3 P6: a one-off request is not a follow — ``follow list`` omits it, ``--all`` keeps every row."""
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+    store = acquire.store
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="Followed Show", added_at=1))
+    request_id = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=2), title="Requested Show", added_at=1))
+    store._ensure_open().execute(  # noqa: SLF001 — no writer of scope exists yet: P7's SeasonAsk is the one
+        "UPDATE followed_series SET scope = 'request' WHERE id = ?", (request_id,)
+    )
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+
+    default = runner.invoke(app, ["follow", "list"])
+    everything = runner.invoke(app, ["follow", "list", "--all"])
+
+    assert default.exit_code == 0, default.output
+    assert "Followed Show" in default.output
+    assert "Requested Show" not in default.output, f"a request row must not be listed as a follow:\n{default.output}"
+    assert everything.exit_code == 0, everything.output
+    assert "Followed Show" in everything.output
+    assert "Requested Show" in everything.output, f"--all keeps every row:\n{everything.output}"
+    store.close()
 
 
 def test_follow_remove_not_found_prints_message(tmp_path: Path, monkeypatch) -> None:
