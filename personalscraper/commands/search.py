@@ -122,6 +122,7 @@ def search(
                     waiting=summary.waiting,
                     unverified=summary.unverified,
                     abandoned=summary.abandoned,
+                    absorbed=summary.absorbed,
                     skipped=summary.skipped,
                 )
                 console.print("[green]" + t("cli_acquisition.search.complete_label") + "[/green] " + counts)
@@ -137,6 +138,7 @@ def search(
                         "unverified": summary.unverified,
                         "abandoned": summary.abandoned,
                         "skipped": summary.skipped,
+                        "absorbed": summary.absorbed,
                         "closed_owned": reconcile.closed_owned,
                         "fell_back_to_episodes": reconcile.fell_back_to_episodes,
                     }

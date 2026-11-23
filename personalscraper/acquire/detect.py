@@ -534,7 +534,9 @@ class DetectService:
                     trigger="automatic",
                 )
             )
-            self._event_bus.emit(WantedEnqueued(media_ref=mf.media_ref, kind="movie", season=None, episode=None))
+            self._event_bus.emit(
+                WantedEnqueued(media_ref=mf.media_ref, kind="movie", season=None, episode=None, trigger="automatic")
+            )
             log.info("acquire.detect.enqueued", series=mf.title, kind="movie")
 
     def _detect_episode(
@@ -571,7 +573,14 @@ class DetectService:
         # ``abandoned`` aired-but-unowned episode still within its cadence cutoff
         # was abandoned wrongfully and is resurrected to pending.
         existing = self._store.wanted.find(followed_id=fs.id, kind="episode", season=ep.season, episode=ep.episode)
+        # SR3 — while a season wanted is open, no episode of that season goes on
+        # its own: neither a new row nor a resurrected one. A live row stays a
+        # duplicate (the passes absorb it); only a write is refused here.
+        cover = self._season_recovery.covering(fs.id, ep.season)
         if existing is not None:
+            if cover is not None and existing.status == "abandoned":
+                self._record_covered(ep, fs, cover, actions, counts)
+                return
             resurrectable = False
             if existing.status == "abandoned" and existing.id is not None:
                 cadence = effective_cadence(
@@ -604,29 +613,9 @@ class DetectService:
             counts.skipped_dup += 1
             return
 
-        # SR3 — while a season wanted is open, no episode of that season goes on
-        # its own, including one that never had a row: the season row governs it.
-        cover = self._season_recovery.covering(fs.id, ep.season)
         if cover is not None:
-            actions.append(
-                DetectAction(
-                    "episode",
-                    fs.title,
-                    ep.season,
-                    ep.episode,
-                    str(ep.air_date),
-                    ep.title,
-                    DetectOutcome.SKIPPED_COVERED,
-                )
-            )
-            counts.skipped_covered += 1
-            log.info(
-                "acquire.season.covered_skip",
-                series=fs.title,
-                season=ep.season,
-                episode=ep.episode,
-                season_wanted_id=cover.id,
-            )
+            # Including an episode that never had a row (SR3's letter).
+            self._record_covered(ep, fs, cover, actions, counts)
             return
 
         actions.append(
@@ -649,9 +638,52 @@ class DetectService:
                 )
             )
             self._event_bus.emit(
-                WantedEnqueued(media_ref=ep.media_ref, kind="episode", season=ep.season, episode=ep.episode)
+                WantedEnqueued(
+                    media_ref=ep.media_ref,
+                    kind="episode",
+                    season=ep.season,
+                    episode=ep.episode,
+                    trigger="automatic",
+                )
             )
             log.info("acquire.detect.enqueued", series=fs.title, season=ep.season, episode=ep.episode)
+
+    @staticmethod
+    def _record_covered(
+        ep: AiredEpisode,
+        fs: FollowedSeries,
+        cover: WantedItem,
+        actions: list[DetectAction],
+        counts: _MutableCounts,
+    ) -> None:
+        """Record an episode left to the open season wanted covering it (SR3) — no write.
+
+        Args:
+            ep: The aired episode.
+            fs: Its follow.
+            cover: The open season row covering it.
+            actions: Output list (mutated).
+            counts: Running counters (mutated).
+        """
+        actions.append(
+            DetectAction(
+                "episode",
+                fs.title,
+                ep.season,
+                ep.episode,
+                str(ep.air_date),
+                ep.title,
+                DetectOutcome.SKIPPED_COVERED,
+            )
+        )
+        counts.skipped_covered += 1
+        log.info(
+            "acquire.season.covered_skip",
+            series=fs.title,
+            season=ep.season,
+            episode=ep.episode,
+            season_wanted_id=cover.id,
+        )
 
     def _detect_seasons(
         self,
@@ -778,6 +810,7 @@ class DetectService:
                     kind="season",
                     season=season_num,
                     episode=None,
+                    trigger="automatic",
                 )
             )
             log.info(
@@ -790,7 +823,11 @@ class DetectService:
             )
 
             # --- R5: Absorb live episode wanteds for this season ---
+            # A sibling already holding a torrent (grabbed, or live with a hash)
+            # is not absorbed: it runs to its end and only receives the season
+            # pointer (SR2 under Q9). The event names the absorbed rows alone.
             absorbed_ids: list[int] = []
+            pointed_ids: list[int] = []
             for ep in eps:
                 ep_wanted = self._store.wanted.find(
                     followed_id=followed_id,
@@ -798,12 +835,23 @@ class DetectService:
                     season=ep.season,
                     episode=ep.episode,
                 )
-                if ep_wanted is not None and ep_wanted.id is not None:
-                    if ep_wanted.status in ("pending", "searching", "available"):
-                        absorbed_ids.append(ep_wanted.id)
+                if ep_wanted is None or ep_wanted.id is None:
+                    continue
+                live = ep_wanted.status in ("pending", "searching", "available")
+                if live and ep_wanted.grabbed_hash is None:
+                    absorbed_ids.append(ep_wanted.id)
+                elif live or ep_wanted.status == "grabbed":
+                    pointed_ids.append(ep_wanted.id)
 
+            if absorbed_ids or pointed_ids:
+                self._store.wanted.absorb_episodes(season_wid, (*absorbed_ids, *pointed_ids))
+            if pointed_ids:
+                log.info(
+                    "acquire.detect.season_pointed_grabbed",
+                    season_wanted_id=season_wid,
+                    pointed_count=len(pointed_ids),
+                )
             if absorbed_ids:
-                self._store.wanted.absorb_episodes(season_wid, tuple(absorbed_ids))
                 self._event_bus.emit(
                     SeasonAbsorbedEpisodes(
                         season_wanted_id=season_wid,

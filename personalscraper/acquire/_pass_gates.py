@@ -18,9 +18,10 @@ the moved bodies still resolves to the same object it did inline.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
-from personalscraper.acquire._season_fallback import fall_back_to_episodes
+from personalscraper.acquire._season_fallback import fall_back_to_episodes, remint_absorbed_episodes
 from personalscraper.acquire.cadence import is_due_by_cadence, is_past_cutoff
 from personalscraper.acquire.desired import (
     QualityProfile,
@@ -169,6 +170,25 @@ class PassGatesMixin:
             reenqueued=fallback.reenqueued,
         )
         return "abandoned"
+
+    def _remint_before_abandon(self, item: WantedItem) -> None:
+        """Re-queue the episodes a season row absorbed, before a terminal verdict abandons it.
+
+        The terminal search and grab verdicts close a row ``abandoned``, not
+        through R6: a season row's absorbed episodes would stay absorbed under a
+        season that never brings them. A no-op for any other row.
+
+        Args:
+            item: The row about to be set ``abandoned``.
+        """
+        reminted = remint_absorbed_episodes(self._store, item, now=int(time.time()))
+        if reminted:
+            log.info(
+                "acquire.season.abandoned_reminted",
+                wanted_id=item.id,
+                season=item.season,
+                reenqueued=reminted,
+            )
 
     def _apply_cadence_gates(self, item: WantedItem, now: int, *, cadence: Cadence) -> _GateVerdict:
         """Run the pre-claim gates of the SEARCH pass (DESIGN §7).

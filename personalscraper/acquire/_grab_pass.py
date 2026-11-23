@@ -51,7 +51,7 @@ class GrabPassMixin(PassGatesMixin):
         (DESIGN §6.2) without an over-broad try around the whole loop body.
 
         Before claiming, an episode of a season under recovery is absorbed into
-        its season row and returns ``"skipped"`` (SR3), then ONE gate runs
+        its season row and returns ``"absorbed"`` (SR3), then ONE gate runs
         (:meth:`_apply_cutoff_gate`): past the cadence cutoff → abandon and
         return ``"abandoned"``, NO claim. There is
         deliberately NO cadence gate here (it belongs to the search pass) and NO
@@ -85,7 +85,7 @@ class GrabPassMixin(PassGatesMixin):
         # now: absorb the episode rather than grab it. Before the cutoff gate, so
         # a covered row is absorbed rather than abandoned on its own clock.
         if SeasonRecovery(self._store).absorb_if_covered(item, event_bus=self._event_bus, door="grab"):
-            return "skipped"
+            return "absorbed"
 
         gate = self._apply_cutoff_gate(item, now, cadence=cadence)
         if gate != "proceed":
@@ -171,6 +171,8 @@ class GrabPassMixin(PassGatesMixin):
             # order as the search pass — a crash in between leaves a row the
             # stale sweep re-processes, never a status contradicting its verdict).
             self._store.wanted.record_search_outcome(wanted_id, outcome.reason or "terminal", None)
+            # A season row re-queues the episodes it absorbed first (review-930).
+            self._remint_before_abandon(current)
             self._store.wanted.set_status(wanted_id, "abandoned")
             return "abandoned"
         if outcome.disposition == "not_found":

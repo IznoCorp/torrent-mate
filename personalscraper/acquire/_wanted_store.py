@@ -730,10 +730,12 @@ class _WantedSubStore:
         Called when a season wanted absorbs its live episode siblings (R5).
         Runs inside a single ``BEGIN IMMEDIATE`` transaction.
 
-        A ``grabbed`` row among ``episode_ids`` is NOT absorbed (SR2 under Q9):
-        its torrent runs and the reconciliation closes it as any other, so its
-        status stays ``grabbed``. It only receives ``absorbed_by``, the pointer
-        its card follows to the season.
+        A row already holding a torrent is NOT absorbed (SR2 under Q9): a
+        ``grabbed`` row, or a live row whose ``grabbed_hash`` is set (the D2
+        crash window — the torrent was added, its status write lost). Its torrent
+        runs and the reconciliation closes it as any other, so its status stays
+        as it is. It only receives ``absorbed_by``, the pointer its card follows
+        to the season.
 
         Args:
             season_wanted_id: Rowid of the absorbing season ``wanted`` row.
@@ -741,8 +743,8 @@ class _WantedSubStore:
 
         Returns:
             Number of rows actually transitioned to ``absorbed`` (may be less
-            than len(episode_ids) if some were already absorbed/closed, or
-            grabbed — a pointed grabbed row is not counted).
+            than len(episode_ids) if some were already absorbed/closed, or hold
+            a torrent — a pointed row is not counted).
         """
         if not episode_ids:
             return 0
@@ -750,11 +752,14 @@ class _WantedSubStore:
         with self._write_tx(self._conn):
             cur = self._conn.execute(
                 f"UPDATE wanted SET status = 'absorbed', absorbed_by = ? "
-                f"WHERE id IN ({placeholders}) AND status IN ('pending', 'searching', 'available')",
+                f"WHERE id IN ({placeholders}) AND status IN ('pending', 'searching', 'available') "
+                f"AND grabbed_hash IS NULL",
                 (season_wanted_id, *episode_ids),
             )
             self._conn.execute(
-                f"UPDATE wanted SET absorbed_by = ? WHERE id IN ({placeholders}) AND status = 'grabbed'",
+                f"UPDATE wanted SET absorbed_by = ? WHERE id IN ({placeholders}) "
+                f"AND (status = 'grabbed' OR (status IN ('pending', 'searching', 'available') "
+                f"AND grabbed_hash IS NOT NULL))",
                 (season_wanted_id, *episode_ids),
             )
             return cur.rowcount

@@ -12,6 +12,7 @@ re-enqueued episodes go on their own again.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from datetime import date, timedelta
 from pathlib import Path
@@ -21,10 +22,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.acquire._season_fallback import fall_back_to_episodes
 from personalscraper.acquire.detect import DetectOutcome, DetectService
 from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, SeriesCatalog, WantedItem
-from personalscraper.acquire.events import SeasonAbsorbedEpisodes
-from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
+from personalscraper.acquire.events import SeasonAbsorbedEpisodes, WantedEnqueued
+from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, SearchVerdict
+from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api.tracker._base import TrackerResult
@@ -298,10 +301,12 @@ def test_search_pass_absorbs_a_pending_episode_of_a_covered_season(store: Concre
     orch.search.return_value = SearchVerdict(disposition="not_found", outcome="no_candidates", found=0)
     bus = MagicMock()
 
-    _service(store, orch, bus).run_search()
+    summary = _service(store, orch, bus).run_search()
 
     searched = [c.args[0].id for c in orch.search.call_args_list]
     assert eid not in searched
+    assert summary.absorbed == 1
+    assert summary.skipped == 0
     row = store.wanted.get(eid)
     assert row is not None and row.status == "absorbed" and row.absorbed_by == sid
     absorbed = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], SeasonAbsorbedEpisodes)]
@@ -343,6 +348,8 @@ def test_grab_pass_absorbs_an_available_episode_of_a_covered_season(store: Concr
 
     orch.grab.assert_not_called()
     assert summary.grabbed == 0
+    assert summary.absorbed == 1
+    assert summary.skipped == 0
     row = store.wanted.get(eid)
     assert row is not None and row.status == "absorbed" and row.absorbed_by == sid
     absorbed = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], SeasonAbsorbedEpisodes)]
@@ -440,3 +447,306 @@ def test_search_conversion_writes_its_season_row_automatic(store: ConcreteAcquir
     assert season is not None and season.trigger == "automatic"
     episode = store.wanted.get(eid)
     assert episode is not None and episode.status == "absorbed" and episode.absorbed_by == season.id
+
+
+# --- review-930: a row holding a torrent is reconciled, never absorbed ------
+
+
+def _hash_bearing_searching_row(store: ConcreteAcquireStore, fid: int) -> int:
+    """Insert an episode row in the D2 crash window: ``searching``, stale, holding a hash.
+
+    The torrent was added and the status write lost; only the reconciliation may close it.
+
+    Args:
+        store: The acquire store.
+        fid: The follow's rowid.
+
+    Returns:
+        The episode row's rowid.
+    """
+    eid = _episode_row(store, fid, 2, 3)
+    assert store.wanted.claim_for_search(eid, _PINNED_NOW - 7200)
+    assert store.wanted.record_grab_intent(eid, "deadbeef")
+    return eid
+
+
+@pytest.mark.parametrize("door", ["search", "grab"])
+def test_a_pass_leaves_a_hash_bearing_row_to_the_reconciliation(store: ConcreteAcquireStore, door: str) -> None:
+    """A stale ``searching`` row with a hash, under an open season, keeps its status and hash; it is pointed."""
+    fid = _follow(store)
+    eid = _hash_bearing_searching_row(store, fid)
+    sid = _season_row(store, fid, 2)
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.scope_allows_grab.return_value = True
+    orch.search.return_value = SearchVerdict(disposition="not_found", outcome="no_candidates", found=0)
+    bus = MagicMock()
+
+    service = _service(store, orch, bus)
+    summary = service.run_search() if door == "search" else service.run()
+
+    row = store.wanted.get(eid)
+    assert row is not None
+    assert row.status == "searching"
+    assert row.grabbed_hash == "deadbeef"
+    assert row.absorbed_by == sid
+    assert summary.absorbed == 0
+    orch.grab.assert_not_called()
+    assert eid not in [c.args[0].id for c in orch.search.call_args_list]
+    assert not [c for c in bus.emit.call_args_list if isinstance(c.args[0], SeasonAbsorbedEpisodes)]
+
+
+def test_absorb_points_a_live_row_holding_a_hash_without_absorbing_it(store: ConcreteAcquireStore) -> None:
+    """The store guard: ``absorb_episodes`` moves only hash-less live rows, and points the others."""
+    fid = _follow(store)
+    eid = _hash_bearing_searching_row(store, fid)
+    sid = _season_row(store, fid, 2)
+
+    assert store.wanted.absorb_episodes(sid, (eid,)) == 0
+
+    row = store.wanted.get(eid)
+    assert row is not None and row.status == "searching" and row.absorbed_by == sid
+
+
+def test_absorb_if_covered_answers_false_and_logs_when_nothing_moved(
+    store: ConcreteAcquireStore, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A covered row the guarded UPDATE cannot move is not reported absorbed: the caller's claim decides."""
+    fid = _follow(store)
+    eid = _episode_row(store, fid, 2, 3)
+    snapshot = store.wanted.get(eid)
+    assert snapshot is not None
+    store.wanted.set_status(eid, "done")  # a concurrent writer closed it after the queue was read
+    _season_row(store, fid, 2)
+    bus = MagicMock()
+
+    with caplog.at_level(logging.INFO):
+        absorbed = SeasonRecovery(store).absorb_if_covered(snapshot, event_bus=bus, door="search")
+
+    assert absorbed is False
+    bus.emit.assert_not_called()
+    assert any("acquire.season.absorb_missed" in r.getMessage() for r in caplog.records)
+    row = store.wanted.get(eid)
+    assert row is not None and row.status == "done"
+
+
+# --- review-930: detect resurrects nothing under a covered season ----------
+
+
+def test_detect_does_not_resurrect_an_abandoned_episode_of_a_covered_season(store: ConcreteAcquireStore) -> None:
+    """An abandoned episode still inside its cutoff stays abandoned while its season is under recovery."""
+    fid = _follow(store)
+    eid = _episode_row(store, fid, 2, 3)
+    store.wanted.set_status(eid, "abandoned")
+    _season_row(store, fid, 2)
+    today = date(2024, 6, 15)
+    episodes = [
+        AiredEpisode(media_ref=_REF, season=2, episode=3, air_date=today - timedelta(days=2), title="E3"),
+        AiredEpisode(media_ref=_REF, season=2, episode=4, air_date=today + timedelta(days=5), title="E4"),
+    ]
+
+    result = _detect(store, episodes, today=today)
+
+    row = store.wanted.get(eid)
+    assert row is not None and row.status == "abandoned"
+    covered = [a.outcome for a in result.actions if a.season == 2 and a.episode == 3]
+    assert covered == [DetectOutcome.SKIPPED_COVERED]
+    assert result.summary.resurrected == 0
+    assert result.summary.skipped_covered == 1
+
+
+# --- review-930: an abandoned season re-mints its absorbed episodes ----------
+
+
+def _season_with_absorbed(store: ConcreteAcquireStore, *, status: str = "pending") -> tuple[int, int, list[int]]:
+    """Insert a season row that absorbed two episode rows.
+
+    Args:
+        store: The acquire store.
+        status: The season row's status.
+
+    Returns:
+        ``(followed_id, season_row_id, absorbed_episode_row_ids)``.
+    """
+    fid = _follow(store)
+    episode_ids = [_episode_row(store, fid, 2, n) for n in (1, 2)]
+    sid = _season_row(store, fid, 2, status=status)
+    assert store.wanted.absorb_episodes(sid, tuple(episode_ids)) == 2
+    return fid, sid, episode_ids
+
+
+def _assert_reminted(store: ConcreteAcquireStore, fid: int, absorbed_ids: list[int]) -> None:
+    """Assert each absorbed episode is queued again on a fresh automatic row, the old row kept.
+
+    Args:
+        store: The acquire store.
+        fid: The follow's rowid.
+        absorbed_ids: The episode rows the season had absorbed.
+    """
+    for n, old_id in zip((1, 2), absorbed_ids, strict=True):
+        fresh = store.wanted.find(followed_id=fid, kind="episode", season=2, episode=n, statuses=("pending",))
+        assert fresh is not None and fresh.id != old_id
+        assert fresh.trigger == "automatic"
+        old = store.wanted.get(old_id)
+        assert old is not None and old.status == "absorbed"
+
+
+def test_a_season_abandoned_by_a_terminal_search_re_mints_its_episodes(store: ConcreteAcquireStore) -> None:
+    """A confirmed terminal search verdict abandons the season row and re-queues what it absorbed."""
+    fid, sid, absorbed_ids = _season_with_absorbed(store)
+    store.wanted.record_search_outcome(sid, "tracker_auth", None)  # the first all-auth verdict, debounced
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(disposition="terminal", outcome="tracker_auth", found=None)
+
+    _service(store, orch).run_search()
+
+    season = store.wanted.get(sid)
+    assert season is not None and season.status == "abandoned"
+    _assert_reminted(store, fid, absorbed_ids)
+
+
+def test_a_season_abandoned_by_a_terminal_grab_re_mints_its_episodes(store: ConcreteAcquireStore) -> None:
+    """A terminal grab abandons the season row and re-queues what it absorbed."""
+    fid, sid, absorbed_ids = _season_with_absorbed(store)
+    assert store.wanted.claim_for_search(sid, _PINNED_NOW)
+    store.wanted.record_search_outcome(sid, "available", 3)
+    store.wanted.set_status(sid, "available")
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.scope_allows_grab.return_value = True
+    orch.grab.return_value = GrabOutcome(disposition="terminal", reason="tracker_auth")
+
+    _service(store, orch).run()
+
+    season = store.wanted.get(sid)
+    assert season is not None and season.status == "abandoned"
+    _assert_reminted(store, fid, absorbed_ids)
+
+
+# --- review-930: the automatic season writers point their grabbed siblings ---
+
+
+def test_detect_season_rule_points_a_grabbed_sibling(store: ConcreteAcquireStore) -> None:
+    """R5 points a grabbed episode at the season (status kept); the event names the absorbed rows only."""
+    fid = _follow(store)
+    pending_id = _episode_row(store, fid, 2, 1)
+    grabbed_id = _episode_row(store, fid, 2, 2)
+    store.wanted.mark_grabbed(grabbed_id, "abcd1234")
+    today = date(2024, 6, 15)
+    episodes = [
+        AiredEpisode(media_ref=_REF, season=2, episode=n, air_date=today - timedelta(days=20 - n), title=f"E{n}")
+        for n in range(1, 5)
+    ]
+    bus = EventBus()
+    absorbed_events: list[SeasonAbsorbedEpisodes] = []
+    bus.subscribe(SeasonAbsorbedEpisodes, absorbed_events.append)
+
+    _detect(store, episodes, today=today, bus=bus)
+
+    season = store.wanted.find(followed_id=fid, kind="season", season=2, episode=None)
+    assert season is not None
+    grabbed = store.wanted.get(grabbed_id)
+    assert grabbed is not None and grabbed.status == "grabbed" and grabbed.absorbed_by == season.id
+    pending = store.wanted.get(pending_id)
+    assert pending is not None and pending.status == "absorbed"
+    assert len(absorbed_events) == 1
+    assert grabbed_id not in absorbed_events[0].absorbed_ids
+    assert pending_id in absorbed_events[0].absorbed_ids
+
+
+def test_search_conversion_points_a_grabbed_sibling(store: ConcreteAcquireStore) -> None:
+    """The R2 conversion points a grabbed sibling at its season row; the event names the absorbed rows only."""
+    fid = _follow(store)
+    grabbed_id = _episode_row(store, fid, 3, 1)
+    store.wanted.mark_grabbed(grabbed_id, "abcd1234")
+    eid = _episode_row(store, fid, 3, 5)
+    store.aired.replace_for_followed(fid, [(3, n, f"E{n}", f"2024-01-{n:02d}") for n in range(1, 6)], now=_ENQUEUED_AT)
+    pack = TrackerResult(
+        provider="c411",
+        tracker_id="t99",
+        title="Severance S03 COMPLETE 1080p",
+        size=ByteSize(20_000_000_000),
+        seeders=100,
+        leechers=0,
+        resolution="1080p",
+        info_hash="seasonpack99",
+        download_url="https://c411.test/torrent/99",
+    )
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(
+        disposition="not_found", outcome="no_matching_episode", found=0, raw_results=(pack,)
+    )
+    bus = MagicMock()
+
+    _service(store, orch, bus).run_search()
+
+    season = store.wanted.find(followed_id=fid, kind="season", season=3, episode=None)
+    assert season is not None
+    grabbed = store.wanted.get(grabbed_id)
+    assert grabbed is not None and grabbed.status == "grabbed" and grabbed.absorbed_by == season.id
+    absorbed = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], SeasonAbsorbedEpisodes)]
+    assert [e.absorbed_ids for e in absorbed] == [(eid,)]
+
+
+# --- review-930: R6 rows and the WantedEnqueued event carry the trigger ------
+
+
+def test_the_r6_fallback_writes_its_episode_rows_automatic(store: ConcreteAcquireStore) -> None:
+    """The fallback's re-enqueued episode rows are an engine writer's: ``trigger='automatic'``."""
+    fid = _follow(store)
+    sid = _season_row(store, fid, 2)
+    season = store.wanted.get(sid)
+    assert season is not None
+
+    fall_back_to_episodes(store, season, now=_PINNED_NOW, event_bus=MagicMock(), episodes=[1, 2])
+
+    for n in (1, 2):
+        row = store.wanted.find(followed_id=fid, kind="episode", season=2, episode=n)
+        assert row is not None and row.trigger == "automatic"
+
+
+def test_detect_announces_each_enqueue_with_its_trigger(store: ConcreteAcquireStore) -> None:
+    """Every ``WantedEnqueued`` detect emits (film, episode, season) carries ``trigger='automatic'``."""
+    _follow(store)
+    store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tmdb_id=1184918), title="Le Robot sauvage", added_at=1, kind="movie")
+    )
+    today = date(2024, 6, 15)
+    episodes = [
+        AiredEpisode(media_ref=_REF, season=2, episode=n, air_date=today - timedelta(days=20 - n), title=f"E{n}")
+        for n in range(1, 5)
+    ]
+    bus = EventBus()
+    enqueued: list[WantedEnqueued] = []
+    bus.subscribe(WantedEnqueued, enqueued.append)
+
+    _detect(store, episodes, today=today, bus=bus)
+
+    assert {e.kind for e in enqueued} == {"movie", "episode", "season"}
+    assert {e.trigger for e in enqueued} == {"automatic"}
+
+
+def test_the_search_conversion_announces_its_season_with_its_trigger(store: ConcreteAcquireStore) -> None:
+    """The conversion's ``WantedEnqueued(season)`` carries ``trigger='automatic'``."""
+    fid = _follow(store)
+    _episode_row(store, fid, 3, 5)
+    store.aired.replace_for_followed(fid, [(3, n, f"E{n}", f"2024-01-{n:02d}") for n in range(1, 6)], now=_ENQUEUED_AT)
+    pack = TrackerResult(
+        provider="c411",
+        tracker_id="t99",
+        title="Severance S03 COMPLETE 1080p",
+        size=ByteSize(20_000_000_000),
+        seeders=100,
+        leechers=0,
+        resolution="1080p",
+        info_hash="seasonpack99",
+        download_url="https://c411.test/torrent/99",
+    )
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(
+        disposition="not_found", outcome="no_matching_episode", found=0, raw_results=(pack,)
+    )
+    bus = MagicMock()
+
+    _service(store, orch, bus).run_search()
+
+    enqueued = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], WantedEnqueued)]
+    assert [(e.kind, e.trigger) for e in enqueued] == [("season", "automatic")]

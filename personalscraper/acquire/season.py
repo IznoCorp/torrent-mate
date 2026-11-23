@@ -69,8 +69,9 @@ class SeasonRecovery:
         """Absorb an episode row into the open season wanted covering it, if one does.
 
         The search and grab passes' door: a covered episode is absorbed instead of being
-        searched or grabbed. The absorption is guarded in SQL on the live statuses, so a row a
-        concurrent pass already moved is left alone and nothing is announced for it.
+        searched or grabbed. A covered row already holding a torrent (``grabbed_hash`` set — the
+        D2 crash window) is never absorbed: it only receives the season pointer (SR2) and goes on
+        through the pass's own gates, which leave it to the reconciliation.
 
         Args:
             item: The queued row (``item.id`` non-None). Only an ``episode`` row can be covered.
@@ -78,28 +79,49 @@ class SeasonRecovery:
             door: The pass that asks (``"search"`` or ``"grab"``), logged.
 
         Returns:
-            ``True`` when a covering season row exists — the caller must then neither search
-            nor grab the item, whether this call or a concurrent one absorbed it.
+            ``True`` when this call moved the row to ``absorbed`` — the caller must then neither
+            search nor grab it. ``False`` otherwise, including a covered row the guarded UPDATE
+            could not move (logged): the caller's own claim then decides.
         """
-        if item.kind != "episode" or item.id is None:
+        if item.kind != "episode" or item.id is None or item.season is None:
             return False
         cover = self.covering(item.followed_id, item.season)
-        if cover is None or cover.id is None or item.season is None:
+        if cover is None or cover.id is None:
             return False
-        if self._store.wanted.absorb_episodes(cover.id, (item.id,)) > 0:
-            event_bus.emit(
-                SeasonAbsorbedEpisodes(
-                    season_wanted_id=cover.id,
-                    media_ref=item.media_ref,
+        moved = self._store.wanted.absorb_episodes(cover.id, (item.id,))
+        if moved == 0:
+            if item.grabbed_hash is not None:
+                # The store pointed it instead: a row holding a torrent is reconciled, never absorbed.
+                log.info(
+                    "acquire.season.pointed_on_pass",
+                    door=door,
+                    wanted_id=item.id,
                     season=item.season,
-                    absorbed_ids=(item.id,),
-                ),
-            )
-            log.info(
-                "acquire.season.absorbed_on_pass",
-                door=door,
-                wanted_id=item.id,
-                season=item.season,
+                    season_wanted_id=cover.id,
+                )
+            else:
+                log.warning(
+                    "acquire.season.absorb_missed",
+                    door=door,
+                    wanted_id=item.id,
+                    status=item.status,
+                    season=item.season,
+                    season_wanted_id=cover.id,
+                )
+            return False
+        event_bus.emit(
+            SeasonAbsorbedEpisodes(
                 season_wanted_id=cover.id,
-            )
+                media_ref=item.media_ref,
+                season=item.season,
+                absorbed_ids=(item.id,),
+            ),
+        )
+        log.info(
+            "acquire.season.absorbed_on_pass",
+            door=door,
+            wanted_id=item.id,
+            season=item.season,
+            season_wanted_id=cover.id,
+        )
         return True

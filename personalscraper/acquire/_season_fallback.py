@@ -114,30 +114,7 @@ def fall_back_to_episodes(
     else:
         episode_numbers = sorted(set(episodes))
 
-    open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
-    reenqueued = 0
-    for episode_number in episode_numbers:
-        existing = store.wanted.find(
-            followed_id=followed_id,
-            kind="episode",
-            season=season_number,
-            episode=episode_number,
-            statuses=open_statuses,
-        )
-        if existing is not None:
-            continue
-        store.wanted.add(
-            WantedItem(
-                media_ref=item.media_ref,
-                kind="episode",
-                status="pending",
-                enqueued_at=now,
-                followed_id=followed_id,
-                season=season_number,
-                episode=episode_number,
-            ),
-        )
-        reenqueued += 1
+    reenqueued = _reenqueue_episodes(store, item, episode_numbers, now=now)
 
     # The CLAIM, and the whole reason it is read: ``fallback_season`` is guarded
     # in SQL on kind + open status, so of two passes racing on one row exactly
@@ -158,4 +135,83 @@ def fall_back_to_episodes(
     return SeasonFallback(claimed=True, reenqueued=reenqueued)
 
 
-__all__ = ["SeasonFallback", "fall_back_to_episodes"]
+def _reenqueue_episodes(store: AcquireStore, item: WantedItem, episode_numbers: Iterable[int], *, now: int) -> int:
+    """Queue each episode of the season row that holds no OPEN row yet.
+
+    A live row is reused as-is — a duplicate ``(follow, season, episode)`` would
+    double-search and double-grab. A row that only holds a terminal/absorbed
+    status DOES get a fresh one: absorption is irreversible by design. The rows
+    are an engine writer's, so they carry ``trigger='automatic'`` (SR5).
+
+    Args:
+        store: The acquire store.
+        item: The season ``wanted`` row (``followed_id`` and ``season`` non-None).
+        episode_numbers: The episode numbers to re-queue.
+        now: Unix epoch seconds, stamped on the re-enqueued rows.
+
+    Returns:
+        How many episode rows this call created.
+    """
+    assert item.followed_id is not None
+    assert item.season is not None
+    open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+    reenqueued = 0
+    for episode_number in episode_numbers:
+        existing = store.wanted.find(
+            followed_id=item.followed_id,
+            kind="episode",
+            season=item.season,
+            episode=episode_number,
+            statuses=open_statuses,
+        )
+        if existing is not None:
+            continue
+        store.wanted.add(
+            WantedItem(
+                media_ref=item.media_ref,
+                kind="episode",
+                status="pending",
+                enqueued_at=now,
+                followed_id=item.followed_id,
+                season=item.season,
+                episode=episode_number,
+                trigger="automatic",
+            ),
+        )
+        reenqueued += 1
+    return reenqueued
+
+
+def remint_absorbed_episodes(store: AcquireStore, item: WantedItem, *, now: int) -> int:
+    """Re-queue the episodes a season row absorbed, before it closes ``abandoned``.
+
+    A terminal verdict (a confirmed broken passkey on the search, a terminal
+    grab) closes a season row ``abandoned`` rather than through the R6 fallback.
+    Its absorbed episodes would then stay ``absorbed`` for good, under a season
+    that will never bring them: they are re-minted as R6 does (review-930
+    ruling). Called BEFORE the season row goes terminal, for R6's reason: a
+    crash in the gap leaves the episodes queued under a row still open, which
+    the next pass absorbs and re-mints again, rather than a terminal season
+    whose episodes were never queued.
+
+    Args:
+        store: The acquire store.
+        item: The season ``wanted`` row about to be abandoned.
+        now: Unix epoch seconds, stamped on the re-enqueued rows.
+
+    Returns:
+        How many episode rows were created (0 for a non-season or follow-less row).
+    """
+    if item.kind != "season" or item.id is None or item.followed_id is None or item.season is None:
+        return 0
+    absorbed = sorted(
+        {
+            int(row.episode)
+            for row in store.wanted.list_for_followed(item.followed_id, kind="episode")
+            if row.status == "absorbed" and row.absorbed_by == item.id and row.episode is not None
+        }
+    )
+    return _reenqueue_episodes(store, item, absorbed, now=now)
+
+
+__all__ = ["SeasonFallback", "fall_back_to_episodes", "remint_absorbed_episodes"]

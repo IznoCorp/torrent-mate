@@ -165,6 +165,7 @@ def grab(
                     grabbed=summary.grabbed,
                     retried=summary.retried,
                     abandoned=summary.abandoned,
+                    absorbed=summary.absorbed,
                     skipped=summary.skipped,
                 )
                 console.print("[green]" + t("cli_acquisition.grab.complete_label") + "[/green] " + counts)
@@ -177,6 +178,7 @@ def grab(
                         "retried": summary.retried,
                         "abandoned": summary.abandoned,
                         "skipped": summary.skipped,
+                        "absorbed": summary.absorbed,
                         "closed_owned": reconcile.closed_owned,
                         "requeued_missing": reconcile.requeued_missing,
                         # A grab recovered out of the add→confirm crash window is
