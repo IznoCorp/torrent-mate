@@ -262,5 +262,9 @@
     "heading": "Correspondance : {{title}}",
     "none_of_these": "  [0] Aucun de ces résultats",
     "choice_prompt": "Choix : "
+  },
+  "follows_reproject": {
+    "command_help": "Réécrit, pour chaque suivi, ce que ses demandeurs mettent en vigueur sur la ligne que lit le moteur : le plancher de qualité et la pause, d'après les rôles actuels. Action d'écriture ; répare une projection restée périmée après un évènement de droits manqué.",
+    "refused": "Refusé : {{code}}"
   }
 }

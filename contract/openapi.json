@@ -11777,7 +11777,12 @@
           "provider.unavailable",
           "library.locked",
           "library.obligations_unreadable",
-          "library.unavailable"
+          "library.unavailable",
+          "acquisition.not_found",
+          "acquisition.not_requester",
+          "acquisition.follow_shared",
+          "follow.not_restorable",
+          "follow.ambiguous"
         ],
         "description": "WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them."
       },

@@ -78,6 +78,7 @@
       "personalscraper-index-full": "Full index scan",
       "personalscraper-backfill-ids": "Cross-ID backfill",
       "personalscraper-seed-sweep": "Seed obligation tracking",
+      "personalscraper-preprod-purge": "Preproduction torrent purge",
       "torrent_complete_dir": "Folder where qBittorrent drops finished torrents",
       "staging_dir": "Staging folder before shelving",
       "data_dir": "Pipeline data folder",
@@ -2480,6 +2481,15 @@
       "locked": "The pipeline is running: the library cannot be modified while it runs. Try again when the run ends.",
       "obligations_unreadable": "The seeding obligations cannot be read: nothing is deleted while what a tracker is still owed is unknown.",
       "unavailable": "The library is unavailable: the server cannot read it right now. Try again in a moment."
+    },
+    "acquisition": {
+      "not_found": "This acquisition is unknown: nothing is followed or requested under this identifier, and the library does not hold it.",
+      "not_requester": "This acquisition is not yours: only those who asked for it set it.",
+      "follow_shared": "Other accounts follow this title too: each one pauses it for itself."
+    },
+    "follow": {
+      "not_restorable": "Nothing was removed under this title: there is nothing to put back.",
+      "ambiguous": "One identifier designates several follows: settle the duplicate before changing it."
     },
     "session": {
       "unknown": "This session no longer exists or is not yours.",

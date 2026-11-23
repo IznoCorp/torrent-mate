@@ -76,6 +76,7 @@ from personalscraper.acquire._wanted_store import _WantedSubStore
 from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
     OPEN_WANTED_STATUSES,
+    FollowCard,
     FollowedSeries,
     FollowKind,
     RatioState,
@@ -118,6 +119,10 @@ _OPEN_DB_ERROR_FACTORIES = OpenDbErrorFactories(corrupt=AcquireCorruptError)
 # ---------------------------------------------------------------------------
 
 
+#: The savepoint a write joining an open transaction runs under (SQLite stacks equal names).
+_NESTED_WRITE = "acquire_nested_write"
+
+
 @contextmanager
 def _write_tx(conn: sqlite3.Connection) -> Generator[None, None, None]:
     """Run a write transaction with explicit BEGIN IMMEDIATE / COMMIT / ROLLBACK.
@@ -126,6 +131,11 @@ def _write_tx(conn: sqlite3.Connection) -> Generator[None, None, None]:
     an explicit ``BEGIN IMMEDIATE`` is required to take the writer lock for the
     duration of the mutation.  On any exception the transaction is rolled back
     and the exception re-raised.
+
+    Inside a transaction already open on the connection (a unit of work,
+    :meth:`ConcreteAcquireStore.transaction`), the write JOINS it as a savepoint:
+    its own failure undoes only its statements, and nothing commits before the
+    outer transaction does.
 
     Args:
         conn: The shared :class:`sqlite3.Connection` to ``acquire.db``.
@@ -137,6 +147,16 @@ def _write_tx(conn: sqlite3.Connection) -> Generator[None, None, None]:
     Raises:
         Exception: Whatever the wrapped write raises (after rollback).
     """
+    if conn.in_transaction:
+        conn.execute(f"SAVEPOINT {_NESTED_WRITE}")
+        try:
+            yield
+        except BaseException:
+            conn.execute(f"ROLLBACK TO {_NESTED_WRITE}")
+            conn.execute(f"RELEASE {_NESTED_WRITE}")
+            raise
+        conn.execute(f"RELEASE {_NESTED_WRITE}")
+        return
     conn.execute("BEGIN IMMEDIATE")
     try:
         yield
@@ -833,6 +853,20 @@ class _FollowSubStore:
                 (cadence_json, followed_id),
             )
 
+    def card(self, followed_id: int) -> FollowCard | None:
+        """Return the card facts of one row: its poster and its show's production status.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+
+        Returns:
+            The facts, or ``None`` when the row does not exist.
+        """
+        row = self._conn.execute(
+            "SELECT poster_url, series_status FROM followed_series WHERE id = ?", (followed_id,)
+        ).fetchone()
+        return None if row is None else FollowCard(poster_url=row[0], series_status=row[1])
+
     def merge_metadata(
         self,
         followed_id: int,
@@ -1438,6 +1472,24 @@ class ConcreteAcquireStore:
         if self._candidates is None:
             self._candidates = _CandidateSubStore(self._ensure_open(), _write_tx)
         return self._candidates
+
+    @contextmanager
+    def transaction(self) -> Generator[None, None, None]:
+        """One unit of work: every write of the block in ONE ``BEGIN IMMEDIATE``, committed together.
+
+        The writer lock is taken at the start, so what the block reads stays what it writes
+        over: a load and a save inside it are serialised against every other writer, in any
+        process (WAL + ``busy_timeout``). Each sub-store write joins it as a savepoint; an
+        exception leaving the block rolls everything back.
+
+        Yields:
+            ``None`` while the transaction is open.
+
+        Raises:
+            Exception: Whatever the block raises (after rollback).
+        """
+        with _write_tx(self._ensure_open()):
+            yield
 
     def close(self) -> None:
         """Close the connection if one was opened (fail-soft, idempotent).

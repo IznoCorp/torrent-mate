@@ -142,6 +142,29 @@ class FollowRepository:
             raise FollowAmbiguous(key, [FollowId(row.id) for row in rows if row.id is not None])
         return self._aggregate(rows[0])
 
+    def get_by_id(self, follow_id: FollowId) -> Follow | None:
+        """Load a follow by its row, removed or not (a re-projection names follows by row).
+
+        Args:
+            follow_id: The ``followed_series`` row.
+
+        Returns:
+            The follow, or ``None`` when the row does not exist.
+        """
+        row = self._store.follow.get(follow_id)
+        return None if row is None else self._aggregate(row)
+
+    def row(self, follow_id: FollowId) -> FollowedSeries | None:
+        """Read the subject row of a follow: its title, kind, year and card facts.
+
+        Args:
+            follow_id: The ``followed_series`` row.
+
+        Returns:
+            The row, or ``None`` when it does not exist.
+        """
+        return self._store.follow.get(follow_id)
+
     def _aggregate(self, row: FollowedSeries) -> Follow:
         """Build the aggregate of one subject row and its requesters.
 
@@ -172,7 +195,7 @@ class FollowRepository:
         )
 
     def save(self, follow: Follow, in_force: InForce) -> bool:
-        """Write the follow's requesters and their projection, in one transaction.
+        """Write the follow's requesters, their projection and its scope, in one transaction.
 
         Args:
             follow: The follow as the model left it.
@@ -191,5 +214,6 @@ class FollowRepository:
             removed_at=follow.removed_at,
             min_resolution=int(in_force.floor) if in_force.floor is not None else None,
             active=active,
+            scope=follow.scope.value,
         )
         return active and not was_active

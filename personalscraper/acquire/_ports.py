@@ -26,6 +26,7 @@ domain VOs + stdlib — never from triage packages (layering, RP5c D3).
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -36,9 +37,11 @@ if TYPE_CHECKING:
 
 from personalscraper.acquire.domain import (
     AiredEpisodeRow,
+    FollowCard,
     FollowedSeries,
     FollowKind,
     FollowRequester,
+    FollowScope,
     RatioState,
     SeedObligation,
     WantedCandidate,
@@ -119,6 +122,10 @@ class FollowSubStore(Protocol):
 
     def set_series_status(self, followed_id: int, series_status: str) -> None:
         """Record the provider's production status ('Ended', 'Continuing', …)."""
+        ...
+
+    def card(self, followed_id: int) -> FollowCard | None:
+        """Return the card facts of one row (poster, show status), or ``None``."""
         ...
 
     def merge_metadata(
@@ -522,8 +529,9 @@ class RequesterSubStore(Protocol):
         removed_at: int | None,
         min_resolution: int | None,
         active: bool,
+        scope: FollowScope | None = None,
     ) -> bool:
-        """Write a follow's requesters and their projection in one transaction; return the prior ``active``."""
+        """Write a follow's requesters, projection and scope in one transaction; return the prior ``active``."""
         ...
 
     def follows_of(self, account_ids: Iterable[str]) -> list[int]:
@@ -610,6 +618,10 @@ class AcquireStore(Protocol):
     @property
     def candidates(self) -> CandidateSubStore:
         """``wanted_candidate`` sub-store (opens on access)."""
+        ...
+
+    def transaction(self) -> AbstractContextManager[None]:
+        """One unit of work: every write of the block in one ``BEGIN IMMEDIATE``, committed together."""
         ...
 
     def close(self) -> None:

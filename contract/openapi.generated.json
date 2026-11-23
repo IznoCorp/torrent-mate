@@ -1383,7 +1383,12 @@
           "provider.unavailable",
           "library.locked",
           "library.obligations_unreadable",
-          "library.unavailable"
+          "library.unavailable",
+          "acquisition.not_found",
+          "acquisition.not_requester",
+          "acquisition.follow_shared",
+          "follow.not_restorable",
+          "follow.ambiguous"
         ],
         "title": "RefusalCode",
         "type": "string"

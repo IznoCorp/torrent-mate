@@ -262,5 +262,9 @@
     "heading": "Matching: {{title}}",
     "none_of_these": "  [0] None of these results",
     "choice_prompt": "Choice: "
+  },
+  "follows_reproject": {
+    "command_help": "Re-project every follow's requesters onto the row the engine reads: the quality floor and the pause in force, from the roles as they stand. A write action; repairs a projection a missed rights event left stale.",
+    "refused": "Refused: {{code}}"
   }
 }

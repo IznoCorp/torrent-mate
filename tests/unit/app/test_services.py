@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 
 import pytest
 
 from personalscraper.acquire.delete_authority import StrictDeletePermit
+from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.plex import PlexClient
-from personalscraper.app.accounts.actor import Actor
+from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.accounts.model import Account
+from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
+from personalscraper.app.accounts.ids import AccountId, RoleId
+from personalscraper.app.accounts.model import Account, Role
 from personalscraper.app.accounts.plex_sign_in import PRODUCTS
+from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.sign_in_notice import SignInNotifier
+from personalscraper.app.acquisition.model import AcquisitionKey, QualityFloor
 from personalscraper.app.composition import ONE_ATTEMPT, LazyProviders, build_app_services, build_provider_registry
 from personalscraper.app.library.listing import LibrarySort
 from personalscraper.app.library.reads import LibraryReads
@@ -65,6 +71,59 @@ def test_the_web_process_never_creates_acquire_db(test_config: Config) -> None:
     assert [entry.title for entry in page.items] == ["Outer Range"]
     assert not config.acquire.db_path.exists()
     assert not config.acquire.db_path.with_name(config.acquire.db_path.name + ".lock").exists()
+
+
+def test_the_built_follows_listen_to_the_rights_on_the_services_bus(test_config: Config) -> None:
+    """The composition subscribes the follows: a role losing ``quality.own``, emitted on its bus, re-projects."""
+    config = test_config
+    config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    services = build_app_services(config, Settings(_env_file=None), event_bus=EventBus())  # type: ignore[call-arg]
+    member = RoleId("role-member")
+    rights = frozenset({Right.ACQUISITION_REQUEST, Right.ACQUISITION_FOLLOW, Right.ACQUISITION_QUALITY_OWN})
+    alice = AccountId("account-alice")
+    key = AcquisitionKey.parse("tvdb:81189")
+    try:
+        services.app_store.roles.insert_role(
+            Role(id=member, name="Member", kind=RoleKind.ORDINARY, rights=rights), now=1.0
+        )
+        services.app_store.accounts.insert_account(
+            Account(
+                id=alice,
+                name="Alice",
+                email="alice@example.org",
+                avatar="",
+                role_id=member,
+                password_hash=None,
+                created_at=1.0,
+                updated_at=1.0,
+            )
+        )
+        actor = Actor(
+            account_id=alice,
+            name="Alice",
+            role_id=member,
+            role_kind=RoleKind.ORDINARY,
+            role_rights=rights,
+            ceiling=InstanceCeiling(forbidden=frozenset(), read_only=False),
+        )
+        follows = services.acquisition.follows
+        follows.create(actor, key, title="Breaking Bad", kind="show", year=2008)
+        assert follows.set_quality(actor, key, QualityFloor.P2160).quality is QualityFloor.P2160
+
+        services.app_store.roles.update_role(
+            member, name=None, rights=rights - {Right.ACQUISITION_QUALITY_OWN}, now=2.0
+        )
+        services.event_bus.emit(AccountRightsChanged(account_ids=(alice,), cause=RightsChangeCause.ROLE_RIGHTS_CHANGED))
+
+        store = build_acquire_store(config.acquire)
+        try:
+            (row,) = store.follow.list_all()
+        finally:
+            store.close()
+        assert row.quality_profile_json is not None
+        assert json.loads(row.quality_profile_json)["min_resolution"] is None  # the row the engine reads
+    finally:
+        services.close()
 
 
 def test_the_configured_idle_lifetime_reaches_the_sessions(test_config: Config) -> None:
