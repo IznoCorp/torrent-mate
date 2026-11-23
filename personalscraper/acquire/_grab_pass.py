@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from personalscraper.acquire._pass_gates import PassGatesMixin
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import GrabSucceeded
+from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -49,8 +50,10 @@ class GrabPassMixin(PassGatesMixin):
         Extracted so :meth:`run` can wrap each item in error isolation
         (DESIGN §6.2) without an over-broad try around the whole loop body.
 
-        Before claiming, ONE gate runs (:meth:`_apply_cutoff_gate`): past the
-        cadence cutoff → abandon and return ``"abandoned"``, NO claim. There is
+        Before claiming, an episode of a season under recovery is absorbed into
+        its season row and returns ``"absorbed"`` (SR3), then ONE gate runs
+        (:meth:`_apply_cutoff_gate`): past the cadence cutoff → abandon and
+        return ``"abandoned"``, NO claim. There is
         deliberately NO cadence gate here (it belongs to the search pass) and NO
         attempts cap (``attempts`` counts cadence-paced searches; capping the
         grab pass on it would abandon a known-available item after one flaky
@@ -77,6 +80,12 @@ class GrabPassMixin(PassGatesMixin):
         """
         assert item.id is not None  # ensured by the SELECTs in run()
         wanted_id = item.id
+
+        # SR3 — a season asked after this episode's search concluded governs it
+        # now: absorb the episode rather than grab it. Before the cutoff gate, so
+        # a covered row is absorbed rather than abandoned on its own clock.
+        if SeasonRecovery(self._store).absorb_if_covered(item, event_bus=self._event_bus, door="grab"):
+            return "absorbed"
 
         gate = self._apply_cutoff_gate(item, now, cadence=cadence)
         if gate != "proceed":
@@ -162,6 +171,8 @@ class GrabPassMixin(PassGatesMixin):
             # order as the search pass — a crash in between leaves a row the
             # stale sweep re-processes, never a status contradicting its verdict).
             self._store.wanted.record_search_outcome(wanted_id, outcome.reason or "terminal", None)
+            # A season row re-queues the episodes it absorbed first (review-930).
+            self._remint_before_abandon(current)
             self._store.wanted.set_status(wanted_id, "abandoned")
             return "abandoned"
         if outcome.disposition == "not_found":

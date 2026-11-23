@@ -28,6 +28,7 @@ from personalscraper.acquire.events import (
     WantedEnqueued,
 )
 from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
+from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -150,6 +151,12 @@ class SearchPassMixin(PassGatesMixin):
         """
         assert item.id is not None  # ensured by the SELECTs in run_search()
         wanted_id = item.id
+
+        # SR3 — an episode of a season under recovery is the season row's to
+        # fetch: absorb it rather than search it. Before the gates, so a row the
+        # cadence would hold back is absorbed now rather than at its next turn.
+        if SeasonRecovery(self._store).absorb_if_covered(item, event_bus=self._event_bus, door="search"):
+            return "absorbed"
 
         gate = self._apply_cadence_gates(item, now, cadence=cadence)
         if gate != "proceed":
@@ -352,6 +359,8 @@ class SearchPassMixin(PassGatesMixin):
             # its own, so the service emits WantedAbandoned here — an abandon the
             # operator never hears about is exactly the silent failure the
             # constitution forbids. Emit-after-persist, as everywhere else.
+            # A season row re-queues the episodes it absorbed first (review-930).
+            self._remint_before_abandon(item)
             self._store.wanted.set_status(wanted_id, "abandoned")
             self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason=verdict.outcome))
             log.warning("acquire.service.search_abandoned", wanted_id=wanted_id, outcome=verdict.outcome)
@@ -465,6 +474,7 @@ class SearchPassMixin(PassGatesMixin):
                     followed_id=fid,
                     season=season_num,
                     episode=None,
+                    trigger="automatic",
                 ),
             )
             self._event_bus.emit(
@@ -473,6 +483,7 @@ class SearchPassMixin(PassGatesMixin):
                     kind="season",
                     season=season_num,
                     episode=None,
+                    trigger="automatic",
                 ),
             )
             log.info(
@@ -486,7 +497,11 @@ class SearchPassMixin(PassGatesMixin):
         # filter targets the LIVE row directly: after an R6 fallback an older
         # 'absorbed' row shares the coordinates of the freshly re-enqueued one,
         # and the status-agnostic find would return that dead shadow (review F1).
+        # A sibling already holding a torrent (grabbed, or live with a hash) is
+        # not absorbed: it runs to its end and only receives the season pointer
+        # (SR2 under Q9). The event names the absorbed rows alone.
         live_episode_ids: list[int] = []
+        pointed_ids: list[int] = []
         for ep_num in self._aired_episodes_for_season(fid, season_num):
             ep_wanted = self._store.wanted.find(
                 followed_id=fid,
@@ -496,7 +511,20 @@ class SearchPassMixin(PassGatesMixin):
                 statuses=("pending", "searching", "available"),
             )
             if ep_wanted is not None and ep_wanted.id is not None:
-                live_episode_ids.append(ep_wanted.id)
+                if ep_wanted.grabbed_hash is None:
+                    live_episode_ids.append(ep_wanted.id)
+                else:
+                    pointed_ids.append(ep_wanted.id)
+                continue
+            grabbed = self._store.wanted.find(
+                followed_id=fid,
+                kind="episode",
+                season=season_num,
+                episode=ep_num,
+                statuses=("grabbed",),
+            )
+            if grabbed is not None and grabbed.id is not None:
+                pointed_ids.append(grabbed.id)
 
         # Always absorb the TRIGGERING episode: it is live by construction (it
         # was just claimed to 'searching'), but an empty aired-episode cache
@@ -505,6 +533,13 @@ class SearchPassMixin(PassGatesMixin):
         if episode_item.id is not None and episode_item.id not in live_episode_ids:
             live_episode_ids.append(episode_item.id)
 
+        if pointed_ids:
+            self._store.wanted.absorb_episodes(season_wid, tuple(pointed_ids))
+            log.info(
+                "acquire.service.season_conversion_pointed_grabbed",
+                season_wanted_id=season_wid,
+                pointed_count=len(pointed_ids),
+            )
         if live_episode_ids:
             self._store.wanted.absorb_episodes(season_wid, tuple(live_episode_ids))
             self._event_bus.emit(

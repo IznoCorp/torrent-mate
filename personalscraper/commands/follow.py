@@ -334,6 +334,7 @@ def follow_detect(
                 enqueued=s.enqueued,
                 skipped_owned=s.skipped_owned,
                 skipped_dup=s.skipped_dup,
+                skipped_covered=s.skipped_covered,
                 resurrected=s.resurrected,
                 closed_owned=s.closed_owned,
             )
@@ -348,6 +349,7 @@ def follow_detect(
                     "enqueued": s.enqueued,
                     "skipped_owned": s.skipped_owned,
                     "skipped_dup": s.skipped_dup,
+                    "skipped_covered": s.skipped_covered,
                     "resurrected": s.resurrected,
                     "closed_owned": s.closed_owned,
                 }
@@ -376,6 +378,8 @@ def _detect_action_cell(action: DetectAction, *, dry_run: bool) -> str:
         return "[yellow]" + t("cli_acquisition.follow.detect.cell_skipped_owned") + "[/yellow]"
     if outcome is DetectOutcome.SKIPPED_DUP:
         return "[dim]" + t("cli_acquisition.follow.detect.cell_skipped_dup") + "[/dim]"
+    if outcome is DetectOutcome.SKIPPED_COVERED:
+        return "[dim]" + t("cli_acquisition.follow.detect.cell_skipped_covered") + "[/dim]"
     if outcome is DetectOutcome.RESURRECTED:
         return (
             "[dim]" + t("cli_acquisition.follow.detect.cell_resurrect_dry") + "[/dim]"

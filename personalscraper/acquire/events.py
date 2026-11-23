@@ -82,12 +82,16 @@ class WantedEnqueued(Event):
         kind: ``"movie"`` or ``"episode"``.
         season: Season number (episodes only; ``None`` for movies).
         episode: Episode number (episodes only; ``None`` for movies).
+        trigger: What put the row in the queue, as written on it (SR5):
+            ``"manual"`` (a person's ask), ``"automatic"`` (an engine writer),
+            or ``None`` (unknown).
     """
 
     media_ref: MediaRef
     kind: Literal["movie", "episode", "season"]
     season: int | None
     episode: int | None
+    trigger: Literal["manual", "automatic"] | None = None
 
 
 @dataclass(frozen=True, kw_only=True)

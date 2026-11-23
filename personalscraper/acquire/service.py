@@ -98,10 +98,10 @@ if TYPE_CHECKING:
 log = get_logger("acquire.service")
 
 # Per-item outcome tag (maps onto a RunSummary counter in run()).
-_ItemOutcome = Literal["grabbed", "retried", "abandoned", "skipped"]
+_ItemOutcome = Literal["grabbed", "retried", "abandoned", "absorbed", "skipped"]
 
 # Per-item outcome tag of the SEARCH pass (maps onto a SearchRunSummary counter).
-_SearchItemOutcome = Literal["available", "waiting", "unverified", "abandoned", "skipped"]
+_SearchItemOutcome = Literal["available", "waiting", "unverified", "abandoned", "absorbed", "skipped"]
 
 # Verdict of the pre-claim gates. The cutoff gate
 # (:meth:`AcquisitionService._apply_cutoff_gate`) is shared by both passes; the
@@ -123,6 +123,8 @@ class RunSummary:
         abandoned: Items abandoned (orchestrator ``terminal``, the cadence
             cutoff aging the item out, OR a corrupt-criteria-JSON row isolated
             out of the batch — DESIGN §6.2).
+        absorbed: Episode items absorbed into the open season wanted covering
+            their season instead of being grabbed (SR3) — status ``'absorbed'``.
         skipped: Items not grabbed without a status change — the atomic claim was
             lost to a concurrent process, the row was already grabbed (hash-guard
             short-circuit), or a DB lock left it for the stale-searching sweep
@@ -133,6 +135,7 @@ class RunSummary:
     retried: int = 0
     abandoned: int = 0
     skipped: int = 0
+    absorbed: int = 0
 
 
 @dataclass(frozen=True)
@@ -154,6 +157,8 @@ class SearchRunSummary:
         abandoned: Items abandoned — a terminal verdict (broken passkey), the
             cadence cutoff aging the item out, or a corrupt-criteria-JSON row
             isolated out of the batch (DESIGN §6.2).
+        absorbed: Episode items absorbed into the open season wanted covering
+            their season instead of being searched (SR3) — status ``'absorbed'``.
         skipped: Items not searched without a status change — cadence-gated, the
             atomic claim lost to a concurrent process, or a DB lock left the row
             for the stale-searching sweep.
@@ -164,6 +169,7 @@ class SearchRunSummary:
     unverified: int = 0
     abandoned: int = 0
     skipped: int = 0
+    absorbed: int = 0
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -292,7 +298,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         global_cadence = cadence_from_config(self._config.acquire.cadence)
         follow_map = self._load_follow_map(queue)
 
-        grabbed = retried = abandoned = skipped = 0
+        grabbed = retried = abandoned = skipped = absorbed = 0
 
         for item in queue:
             assert item.id is not None  # ensured by the SELECTs above
@@ -331,6 +337,8 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 retried += 1
             elif outcome_tag == "abandoned":
                 abandoned += 1
+            elif outcome_tag == "absorbed":
+                absorbed += 1
             else:  # "skipped"
                 skipped += 1
 
@@ -340,8 +348,9 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             retried=retried,
             abandoned=abandoned,
             skipped=skipped,
+            absorbed=absorbed,
         )
-        return RunSummary(grabbed=grabbed, retried=retried, abandoned=abandoned, skipped=skipped)
+        return RunSummary(grabbed=grabbed, retried=retried, abandoned=abandoned, skipped=skipped, absorbed=absorbed)
 
     def run_search(self, *, limit: int | None = None, followed_id: int | None = None) -> SearchRunSummary:
         """Run the SEARCH pass over the pending + stale-searching queue.
@@ -398,7 +407,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         global_cadence = cadence_from_config(self._config.acquire.cadence)
         follow_map = self._load_follow_map(queue)
 
-        available = waiting = unverified = abandoned = skipped = 0
+        available = waiting = unverified = abandoned = skipped = absorbed = 0
 
         # D1 — per-PASS memo bounding the starvation season probe to ONE extra
         # tracker query per (follow, season). Ten starved siblings of the same
@@ -442,6 +451,8 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 unverified += 1
             elif outcome_tag == "abandoned":
                 abandoned += 1
+            elif outcome_tag == "absorbed":
+                absorbed += 1
             else:  # "skipped"
                 skipped += 1
 
@@ -452,6 +463,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             unverified=unverified,
             abandoned=abandoned,
             skipped=skipped,
+            absorbed=absorbed,
         )
         return SearchRunSummary(
             available=available,
@@ -459,6 +471,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             unverified=unverified,
             abandoned=abandoned,
             skipped=skipped,
+            absorbed=absorbed,
         )
 
     # ------------------------------------------------------------------
