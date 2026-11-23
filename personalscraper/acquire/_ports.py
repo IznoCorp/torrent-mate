@@ -11,6 +11,7 @@ exposed as attribute namespaces:
   * ``store.cross_seed`` — ``cross_seed_history`` + ``cross_seed_quota`` (watch-seed)
   * ``store.watch``      — ``watch_state`` KV store (watcher daemon state)
   * ``store.requesters`` — ``acquisition_requester`` writer + reader (who asked for a follow)
+  * ``store.candidates`` — ``wanted_candidate`` writer + reader (a wanted row's ranked candidates)
 
 All five sub-stores share a single ``acquire.db`` connection.  Cross-process
 single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
@@ -43,6 +44,7 @@ from personalscraper.acquire.domain import (
     FollowScope,
     RatioState,
     SeedObligation,
+    WantedCandidate,
     WantedItem,
     WantedKind,
     WantedStatus,
@@ -538,6 +540,19 @@ class RequesterSubStore(Protocol):
 
 
 @runtime_checkable
+class CandidateSubStore(Protocol):
+    """Writer + reader for the ``wanted_candidate`` table (migration 027)."""
+
+    def replace(self, wanted_id: int, rows: Sequence[WantedCandidate]) -> None:
+        """Replace the whole candidate set of one wanted row, in one transaction."""
+        ...
+
+    def list_for(self, wanted_id: int) -> list[WantedCandidate]:
+        """Return the candidate set of one wanted row, the best rank first."""
+        ...
+
+
+@runtime_checkable
 class AcquireStore(Protocol):
     """Full store contract for the acquisition lobe (RP3).
 
@@ -598,6 +613,11 @@ class AcquireStore(Protocol):
     @property
     def requesters(self) -> RequesterSubStore:
         """``acquisition_requester`` sub-store (opens on access)."""
+        ...
+
+    @property
+    def candidates(self) -> CandidateSubStore:
+        """``wanted_candidate`` sub-store (opens on access)."""
         ...
 
     def transaction(self) -> AbstractContextManager[None]:
@@ -778,6 +798,7 @@ class DownloadMarksSubStore(Protocol):
 __all__ = [
     "AcquireStore",
     "AiredSubStore",
+    "CandidateSubStore",
     "CrossSeedSubStore",
     "DownloadMarksSubStore",
     "FollowSubStore",
