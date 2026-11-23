@@ -3,7 +3,9 @@
 Who asked for a follow: one row per (follow, account). The engine never learns of rights,
 so an account is an opaque id and the rules over requesters (what is in force, who may
 read, when the last one leaving removes the follow) belong to the acquisition model; this
-store only holds and reads the rows. Nothing writes here yet: the follow service does.
+store only holds and reads the rows. Nothing writes here yet: the follow service does, through
+the acquisition model's repository (``save_follow``: the requesters and their projection on the
+follow's row in one transaction).
 
 Lives in its own module to keep ``store.py`` from growing — same pattern as
 ``_aired_store.py`` / ``_wanted_store.py``. Reads are lock-free (WAL); writes use
@@ -12,8 +14,9 @@ Lives in its own module to keep ``store.py`` from growing — same pattern as
 
 from __future__ import annotations
 
+import json
 import sqlite3
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from contextlib import AbstractContextManager
 
 from personalscraper.acquire._store_rows import _row_to_requester
@@ -112,6 +115,81 @@ class _RequesterSubStore:
                 (followed_id, account_id),
             )
         return cur.rowcount > 0
+
+    def save_follow(
+        self,
+        followed_id: int,
+        requesters: Sequence[FollowRequester],
+        *,
+        removed_at: int | None,
+        min_resolution: int | None,
+        active: bool,
+    ) -> bool:
+        """Write a follow's requesters and what they put in force, in one transaction.
+
+        The follow's requesters become exactly *requesters* (an account absent is deleted,
+        every other row replaced whole), and its ``followed_series`` row takes
+        ``removed_at``, ``active`` and the ``min_resolution`` key of its quality profile,
+        the profile's other keys kept. A NULL profile stays NULL while no floor is given:
+        NULL already reads as the permissive default.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            requesters: Every requester of the follow, each naming *followed_id*.
+            removed_at: Epoch seconds the last requester left, ``None`` while it stands.
+            min_resolution: The floor in force as a vertical resolution, ``None`` for none.
+            active: Whether the engine takes work for the follow.
+
+        Returns:
+            The row's ``active`` flag BEFORE the write.
+
+        Raises:
+            LookupError: If the follow does not exist (nothing is written).
+            sqlite3.IntegrityError: If a requester breaks a constraint (nothing is written).
+        """
+        accounts = [requester.account_id for requester in requesters]
+        with self._write_tx(self._conn):
+            row = self._conn.execute(
+                "SELECT active, quality_profile_json FROM followed_series WHERE id = ?", (followed_id,)
+            ).fetchone()
+            if row is None:
+                raise LookupError(f"followed_series {followed_id} does not exist")
+            was_active, profile_json = bool(row[0]), row[1]
+            placeholders = ", ".join("?" for _ in accounts)
+            self._conn.execute(
+                "DELETE FROM acquisition_requester "  # noqa: S608 — placeholders only
+                f"WHERE followed_id = ? AND account_id NOT IN ({placeholders})",
+                (followed_id, *accounts),
+            )
+            for requester in requesters:
+                self._conn.execute(
+                    """
+                    INSERT INTO acquisition_requester (followed_id, account_id, via, floor, paused, since)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(followed_id, account_id) DO UPDATE SET
+                      via = excluded.via,
+                      floor = excluded.floor,
+                      paused = excluded.paused,
+                      since = excluded.since
+                    """,
+                    (
+                        followed_id,
+                        requester.account_id,
+                        requester.via,
+                        requester.floor,
+                        1 if requester.paused else 0,
+                        requester.since,
+                    ),
+                )
+            if profile_json is not None or min_resolution is not None:
+                profile = json.loads(profile_json) if profile_json else {}
+                profile["min_resolution"] = min_resolution
+                profile_json = json.dumps(profile)
+            self._conn.execute(
+                "UPDATE followed_series SET active = ?, removed_at = ?, quality_profile_json = ? WHERE id = ?",
+                (1 if active else 0, removed_at, profile_json, followed_id),
+            )
+        return was_active
 
     def follows_of(self, account_ids: Iterable[str]) -> list[int]:
         """Return the follows any of the given accounts asked for.
