@@ -31,12 +31,30 @@ from personalscraper.app.supervisor.service import RunService
 from personalscraper.core.event_bus import EventBus
 
 if TYPE_CHECKING:
+    from personalscraper.app.acquisition.completeness import FollowCompleteness
+    from personalscraper.app.acquisition.follows import FollowService
+    from personalscraper.app.acquisition.seasons import SeasonAsk
     from personalscraper.app.composition import LazyProviders
     from personalscraper.app.library.completeness import CatalogueView
     from personalscraper.app.library.deleting import LibraryDeletion
     from personalscraper.app.library.reads import LibraryReads
     from personalscraper.app.library.rescrape import LibraryRescrape
     from personalscraper.app.library.sheets import MediaSheets
+
+
+@dataclass(frozen=True)
+class AcquisitionServices:
+    """The acquisition's services (K3 DESIGN § 2.1), one bundle so ``AppServices`` gains one field.
+
+    Attributes:
+        follows: The follows, their requesters, quality, pause, removal, restore and reassign.
+        seasons: A season asked by medium, of a follow or as a one-off request.
+        completeness: A follow's aired catalogue against the library, season by season.
+    """
+
+    follows: FollowService
+    seasons: SeasonAsk
+    completeness: FollowCompleteness
 
 
 @dataclass(frozen=True)
@@ -64,6 +82,7 @@ class AppServices:
         runs: The in-process enqueue of a run or an item rescrape.
         sign_in_notifier: The Plex sign-in notifier, whose pending pushes ``close`` drains.
         idempotency: The v1 writes' idempotency keys and their first answers.
+        acquisition: The acquisition's services (K3).
         owned_providers: The provider registry these services built for themselves, closed
             with them; ``None`` when the process handed its own over, which its owner closes.
     """
@@ -85,6 +104,7 @@ class AppServices:
     notices: NoticeService
     runs: RunService
     idempotency: IdempotencyService
+    acquisition: AcquisitionServices
     owned_providers: LazyProviders | None = None
     sign_in_notifier: SignInNotifier | None = None
 

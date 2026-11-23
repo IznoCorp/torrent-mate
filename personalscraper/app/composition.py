@@ -24,7 +24,7 @@ from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault
 from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
-from personalscraper.app.services import AppServices
+from personalscraper.app.services import AcquisitionServices, AppServices
 from personalscraper.app.store.store import build_app_store
 from personalscraper.app.supervisor.requesters import AcquireRequesters
 from personalscraper.app.supervisor.service import RunService
@@ -44,7 +44,9 @@ ONE_ATTEMPT: Final[RetryPolicy] = RetryPolicy(max_attempts=1)
 
 if TYPE_CHECKING:
     from personalscraper.acquire.catalogue import ProviderLookup, TvCatalogueClient
+    from personalscraper.acquire.store import ConcreteAcquireStore
     from personalscraper.api.metadata.registry import ProviderRegistry
+    from personalscraper.app.accounts.ids import AccountId
     from personalscraper.app.library.completeness import CatalogueView
     from personalscraper.app.library.deleting import LibraryDeletion
     from personalscraper.app.library.reads import LibraryReads
@@ -55,6 +57,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.providers import ProvidersConfig
     from personalscraper.config import Settings
     from personalscraper.core.ownership import OwnershipChecker
+    from personalscraper.indexer.ownership import IndexerOwnershipChecker
 
 
 def build_app_context(
@@ -442,6 +445,7 @@ def build_app_services(
     # No FCM sender is configured yet: the in-app notice is written, the push is logged unsent.
     sign_in_notifier = SignInNotifier(app_store, UnconfiguredPush())
     sign_in_notifier.subscribe(event_bus)
+    acquisition = _build_acquisition_services(config, app_store, runs, credentials, view, event_bus)
     return AppServices(
         event_bus=event_bus,
         build_info=BUILD_INFO,
@@ -462,8 +466,93 @@ def build_app_services(
         idempotency=IdempotencyService(
             app_store, key_path=fingerprint_key_path(store_path(config.paths.data_dir, StoreName.APP))
         ),
+        acquisition=acquisition,
         owned_providers=owned,
         sign_in_notifier=sign_in_notifier,
+    )
+
+
+def _build_acquisition_services(
+    config: Config,
+    app_store: AppStore,
+    runs: RunService,
+    credentials: CredentialService,
+    view: CatalogueView,
+    event_bus: EventBus,
+) -> AcquisitionServices:
+    """Build the acquisition's services (K3), inert, and subscribe the follows to the rights' moves.
+
+    The follows WRITE ``acquire.db`` (the requesters and their projection), so each call opens the
+    store as v0's acquisition routes do (``build_acquire_store``: opened, and migrated when behind, on
+    first access, closed after the call), and the library's ownership reader beside it. The follows
+    and the season ask share one lock: both write requesters.
+
+    Args:
+        config: The typed configuration; ``acquire.db_path`` and ``indexer.db_path`` are resolved.
+        app_store: The environment's ``app.db``.
+        runs: The supervisor's queue the primes are asked of.
+        credentials: Names the account an unattended or requester-less act is the ask of (ruling 9).
+        view: The aired catalogue and the ownership the library services share.
+        event_bus: The process's bus, whose ``AccountRightsChanged`` re-projects the follows.
+
+    Returns:
+        The bundle.
+    """
+    from personalscraper.acquire.store import (  # noqa: PLC0415 — the acquisition tree loads when these services are built
+        build_acquire_store,
+    )
+    from personalscraper.app.acquisition.completeness import (  # noqa: PLC0415 — idem
+        FollowCompleteness,
+    )
+    from personalscraper.app.acquisition.follows import FollowService  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.seasons import IndexedShows, SeasonAsk  # noqa: PLC0415 — idem
+    from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415 — idem
+    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415 — idem
+
+    index_db = config.indexer.db_path
+    assert index_db is not None  # resolved by the config loader
+
+    def owner() -> AccountId:
+        """The account a requester-less follow is the ask of: the system actor's (ruling 9).
+
+        Returns:
+            Its key.
+        """
+        return credentials.system_actor().account_id
+
+    def open_store() -> ConcreteAcquireStore:
+        """Open the acquire store for one call.
+
+        Returns:
+            The store, inert until first access.
+        """
+        return build_acquire_store(config.acquire)
+
+    def open_ownership() -> IndexerOwnershipChecker:
+        """Open the library's ownership reader for one call.
+
+        Returns:
+            The reader, inert until first lookup.
+        """
+        return IndexerOwnershipChecker(index_db)
+
+    lock = threading.Lock()
+    follows = FollowService(
+        open_store=open_store, open_ownership=open_ownership, app_store=app_store, runs=runs, owner=owner, lock=lock
+    )
+    follows.subscribe(event_bus)
+    return AcquisitionServices(
+        follows=follows,
+        seasons=SeasonAsk(
+            open_store=open_store,
+            open_ownership=open_ownership,
+            shows=IndexedShows(index=LibraryIndex(index_db), view=view),
+            app_store=app_store,
+            runs=runs,
+            owner=owner,
+            lock=lock,
+        ),
+        completeness=FollowCompleteness(open_store=open_store, open_ownership=open_ownership, owner=owner),
     )
 
 
