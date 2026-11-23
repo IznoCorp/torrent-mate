@@ -9,7 +9,7 @@ readers returning ``scope`` and ``removed_at``, and ``WantedItem.trigger`` writt
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -135,15 +135,19 @@ class TestRequesters:
         assert store.requesters.list_for(followed_id) == [_requester(followed_id, "acc-1", floor=1080, paused=True)]
 
     def test_list_for_orders_by_since_then_account(self, store: ConcreteAcquireStore) -> None:
-        """The requesters read oldest ask first, ties by account id."""
+        """The requesters read oldest ask first, ties by account id, not in the primary key's order.
+
+        The alphabetically first account asked last: the primary key (follow, account) would
+        read it first, so only the ``ORDER BY since`` puts it last.
+        """
         followed_id = _follow(store)
-        store.requesters.upsert(_requester(followed_id, "acc-c", since=500))
+        store.requesters.upsert(_requester(followed_id, "acc-a", since=500))
+        store.requesters.upsert(_requester(followed_id, "acc-c", since=300))
         store.requesters.upsert(_requester(followed_id, "acc-b", since=300))
-        store.requesters.upsert(_requester(followed_id, "acc-a", since=300))
 
         accounts = [r.account_id for r in store.requesters.list_for(followed_id)]
 
-        assert accounts == ["acc-a", "acc-b", "acc-c"]
+        assert accounts == ["acc-b", "acc-c", "acc-a"]
 
     def test_list_for_is_scoped_to_its_follow(self, store: ConcreteAcquireStore) -> None:
         """Another follow's requesters are not listed."""
@@ -170,12 +174,13 @@ class TestRequesters:
         first = _follow(store, 1, "One")
         second = _follow(store, 2, "Two")
         third = _follow(store, 3, "Three")
-        store.requesters.upsert(_requester(first, "acc-1"))
-        store.requesters.upsert(_requester(first, "acc-2"))
-        store.requesters.upsert(_requester(second, "acc-2"))
+        # Written out of id order, and listed accounts out of order too.
         store.requesters.upsert(_requester(third, "acc-3"))
+        store.requesters.upsert(_requester(second, "acc-2"))
+        store.requesters.upsert(_requester(first, "acc-2"))
+        store.requesters.upsert(_requester(first, "acc-1"))
 
-        assert store.requesters.follows_of(["acc-1", "acc-2"]) == [first, second]
+        assert store.requesters.follows_of(["acc-2", "acc-1"]) == [first, second]
 
     def test_follows_of_nobody_is_empty(self, store: ConcreteAcquireStore) -> None:
         """No account, no follow — and no query with an empty IN list."""
@@ -205,6 +210,47 @@ class TestRequesters:
         """A via off the two values never reaches the CHECK: the row refuses it first."""
         with pytest.raises(ValueError, match="via"):
             _requester(1, via="qbittorrent")
+
+
+class TestReadsOrderExplicitly:
+    """The reads whose order the contract states carry an explicit ORDER BY.
+
+    SQLite serves each of these three from the primary key's index today, so no data can
+    tell a missing clause from a present one (a mutation removing it passes every
+    behavioural test above): the clause is what keeps the order if the key ever changes,
+    and the only observable of it is the statement the store sends.
+    """
+
+    @staticmethod
+    def _sent(store: ConcreteAcquireStore, read: Callable[[], object]) -> str:
+        """Run *read* and return the SQL of its SELECT, whitespace collapsed.
+
+        Args:
+            store: The store, opened here.
+            read: A call on one of its sub-stores that sends one SELECT.
+
+        Returns:
+            The text of the SELECT statement the call sent.
+        """
+        statements: list[str] = []
+        store._ensure_open().set_trace_callback(statements.append)  # noqa: SLF001 — the statement is the observable
+        try:
+            read()
+        finally:
+            store._ensure_open().set_trace_callback(None)  # noqa: SLF001
+        return " ".join(next(sql for sql in statements if sql.lstrip().upper().startswith("SELECT")).split())
+
+    def test_requesters_are_read_by_since_then_account(self, store: ConcreteAcquireStore) -> None:
+        """list_for orders by the ask's date, then the account id."""
+        assert "ORDER BY since, account_id" in self._sent(store, lambda: store.requesters.list_for(1))
+
+    def test_candidates_are_read_by_rank(self, store: ConcreteAcquireStore) -> None:
+        """list_for orders by rank, the best first."""
+        assert self._sent(store, lambda: store.candidates.list_for(1)).endswith("ORDER BY rank")
+
+    def test_follows_of_reads_by_id(self, store: ConcreteAcquireStore) -> None:
+        """follows_of orders by the follow's id."""
+        assert self._sent(store, lambda: store.requesters.follows_of(["acc-1"])).endswith("ORDER BY followed_id")
 
 
 class TestCandidates:
@@ -239,7 +285,11 @@ class TestCandidates:
     def test_replace_then_list_round_trips_in_rank_order(self, store: ConcreteAcquireStore) -> None:
         """The candidates read back as written, best rank first, whatever the insertion order."""
         wanted_id = self._wanted(store)
-        rows = [_candidate(2), _candidate(1), _candidate(3, info_hash=None, resolution=None, season=None, episode=None)]
+        rows = [
+            _candidate(3, info_hash=None, resolution=None, season=None, episode=None),
+            _candidate(1),
+            _candidate(2),
+        ]
 
         store.candidates.replace(wanted_id, rows)
 

@@ -117,10 +117,24 @@ class TestFreshStore:
 
 
 class TestOn026Store:
-    """027 applied on top of a 026 store that already holds rows."""
+    """027 applied on top of a 026 store that already holds rows, every column set."""
+
+    _FOLLOWED_SEED = (
+        "INSERT INTO followed_series (id, media_ref_json, title, active, quality_profile_json, cadence_json, "
+        "added_at, poster_url, overview, year, season_count, kind, replace_owned, series_status, original_title) "
+        "VALUES (?, ?, ?, ?, '{\"floor\": 1080}', '{\"every\": \"daily\"}', ?, 'http://poster', "
+        "'An overview', 2008, 5, ?, ?, 'Ended', 'Original Title')"
+    )
+    _WANTED_SEED = (
+        "INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode, status, criteria_json, "
+        "enqueued_at, last_search_at, attempts, grabbed_hash, last_search_outcome, last_search_found, "
+        "tried_hashes_json, absorbed_by, last_search_best_json, last_grab_reason, last_grab_at) "
+        "VALUES (?, ?, ?, 'episode', ?, ?, ?, '{\"q\": 1}', ?, 250, 4, 'abcdef0123', 'available', 3, "
+        "'[\"dead\"]', ?, '{\"best\": 1}', 'a reason', 260)"
+    )
 
     def _store_at_026(self, tmp_path: Path) -> sqlite3.Connection:
-        """Build a store stopped at 026 and seed a follow and a wanted row.
+        """Build a store stopped at 026 and seed two follows and two wanted rows, no column left at its default.
 
         Args:
             tmp_path: Pytest temp directory.
@@ -136,24 +150,64 @@ class TestOn026Store:
         connection = open_db(tmp_path / "acquire.db")
         apply_migrations(connection, subset)
         assert connection.execute("PRAGMA user_version").fetchone()[0] == 26
-        _seed_follow_and_wanted(connection)
+        connection.execute(self._FOLLOWED_SEED, (1, _REF, "Show", 0, 100, "show", 1))
+        connection.execute(
+            self._FOLLOWED_SEED, (2, '{"tvdb_id": null, "tmdb_id": 603, "imdb_id": null}', "Film", 1, 101, "movie", 0)
+        )
+        connection.execute(self._WANTED_SEED, (11, 1, _REF, 2, 4, "absorbed", 199, None))
+        connection.execute(self._WANTED_SEED, (10, 1, _REF, 2, 3, "grabbed", 200, 11))
         return connection
 
-    def test_rows_are_kept_with_the_defaults(self, tmp_path: Path) -> None:
-        """A 026 follow becomes scope 'follow', not removed; a 026 wanted row has trigger NULL."""
+    @staticmethod
+    def _rows(connection: sqlite3.Connection, table: str, columns: list[str]) -> list[tuple]:
+        """Read the given columns of every row of a table, by id.
+
+        Args:
+            connection: An open connection.
+            table: ``followed_series`` or ``wanted``.
+            columns: The columns to read, in order.
+
+        Returns:
+            The rows as tuples.
+        """
+        return connection.execute(f"SELECT {', '.join(columns)} FROM {table} ORDER BY id").fetchall()  # noqa: S608 — test literals
+
+    def test_every_old_column_of_every_row_is_kept(self, tmp_path: Path) -> None:
+        """No 026 column of a followed_series or wanted row is rewritten, nulled or dropped by 027."""
+        connection = self._store_at_026(tmp_path)
+        try:
+            old_columns = {table: list(_columns(connection, table)) for table in ("followed_series", "wanted")}
+            before = {table: self._rows(connection, table, cols) for table, cols in old_columns.items()}
+            assert all(None not in row for row in before["followed_series"][:1] + before["wanted"][:1]), (
+                "the seed must leave no column NULL, or a column nulled by the migration would go unseen"
+            )
+
+            apply_migrations(connection, MIGRATIONS_DIR)
+
+            after = {table: self._rows(connection, table, cols) for table, cols in old_columns.items()}
+        finally:
+            connection.close()
+
+        assert after == before
+        assert len(before["followed_series"]) == 2
+        assert len(before["wanted"]) == 2
+
+    def test_the_new_columns_take_their_defaults_on_old_rows(self, tmp_path: Path) -> None:
+        """Every 026 follow becomes scope 'follow' and not removed, every 026 wanted row has trigger NULL."""
         connection = self._store_at_026(tmp_path)
         try:
             apply_migrations(connection, MIGRATIONS_DIR)
 
-            follow = connection.execute("SELECT title, active, scope, removed_at FROM followed_series").fetchall()
-            wanted = connection.execute("SELECT status, trigger FROM wanted").fetchall()
+            follows = connection.execute("SELECT scope, removed_at FROM followed_series ORDER BY id").fetchall()
+            wanted = connection.execute("SELECT trigger FROM wanted ORDER BY id").fetchall()
             requesters = connection.execute("SELECT COUNT(*) FROM acquisition_requester").fetchone()[0]
+            candidates = connection.execute("SELECT COUNT(*) FROM wanted_candidate").fetchone()[0]
         finally:
             connection.close()
 
-        assert follow == [("Show", 1, "follow", None)]
-        assert wanted == [("pending", None)]
-        assert requesters == 0, "no backfill of requesters (K9's reprise)"
+        assert follows == [("follow", None), ("follow", None)]
+        assert wanted == [(None,), (None,)]
+        assert (requesters, candidates) == (0, 0), "no backfill of requesters (K9's reprise), no candidate invented"
 
 
 class TestCascade:
