@@ -11,12 +11,15 @@ ownership checker: nothing here reaches a provider, a server or ``library.db``.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Literal
 
 import pytest
 
+from personalscraper.acquire.domain import FollowedSeries, FollowKind
+from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api.metadata._base import SearchResult
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
@@ -24,6 +27,7 @@ from personalscraper.app.accounts.rights import Right
 from personalscraper.app.acquisition.search import ProviderSearch, scoped_provider_clients
 from personalscraper.app.acquisition.search_cache import SEARCH_CACHE, SearchResultCache
 from personalscraper.app.errors import AppForbidden, AppNotFound, AppUnavailable, RefusalCode
+from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
 
 _ACTOR = Actor(
@@ -154,8 +158,8 @@ class TestSearch:
         page = service.search(_ACTOR, "kaamelott", None)
 
         by_kind = {r.kind: r for r in page.results}
-        assert by_kind["tv"].already_owned is True
-        assert by_kind["movie"].already_owned is True
+        assert by_kind["tv"].owned is True
+        assert by_kind["movie"].owned is True
         # The series went through the episode-presence predicate with its id.
         assert getattr(calls["pairs"], "tmdb_id", None) == 202
         assert calls["movie"][1] == "movie"  # type: ignore[index]
@@ -612,5 +616,193 @@ def test_a_lookup_is_flagged_owned_like_a_search(tmp_path: Path) -> None:
 
     service = _service(_LookupTmdb(), object(), indexer_db=tmp_path / "library.db", ownership=_Held)
 
-    assert service.by_id(_ACTOR, "tmdb", 438631, "movie").already_owned is True
-    assert service.by_id(_ACTOR, "tmdb", 1, "movie").already_owned is False
+    assert service.by_id(_ACTOR, "tmdb", 438631, "movie").owned is True
+    assert service.by_id(_ACTOR, "tmdb", 1, "movie").owned is False
+
+
+class _Held:
+    """A fake ownership checker holding the films and shows it is built with."""
+
+    def __init__(self, movies: set[int] = frozenset(), shows: set[int] = frozenset()) -> None:  # type: ignore[assignment]
+        self.movies = movies
+        self.shows = shows
+
+    def __call__(self, _path: object) -> _Held:
+        """Act as the factory the service takes: the same instance answers."""
+        return self
+
+    def owns(self, media_ref: MediaRef, *, kind: str, **_kw: object) -> bool:
+        return kind == "movie" and media_ref.tmdb_id in self.movies
+
+    def owned_pairs(self, media_ref: MediaRef) -> set[tuple[int, int]]:
+        held = media_ref.tmdb_id in self.shows or media_ref.tvdb_id in self.shows
+        return {(1, 1)} if held else set()
+
+    def close(self) -> None:
+        pass
+
+
+@pytest.fixture
+def follows(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
+    """Yield a migrated acquire store on a temp file and close it afterwards."""
+    store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    try:
+        yield store
+    finally:
+        store.close()
+
+
+def _follow(store: ConcreteAcquireStore, ref: MediaRef, title: str, *, kind: FollowKind = "show") -> int:
+    """Store a follow of the medium and return its rowid."""
+    return store.follow.add(FollowedSeries(media_ref=ref, title=title, added_at=1, kind=kind))
+
+
+def _facts_service(
+    tmdb: object, tvdb: object, store: ConcreteAcquireStore | None, tmp_path: Path, held: _Held | None = None
+) -> ProviderSearch:
+    """Build the service over the fakes, the follow lookup over the real store."""
+    return ProviderSearch(
+        clients=lambda: nullcontext((tmdb, tvdb)),
+        indexer_db=tmp_path / "library.db",
+        ownership=held or _Held(),
+        cache=SearchResultCache(),
+        follows=store.follow if store is not None else None,
+    )
+
+
+class TestFollowedAndOwned:
+    """``followed`` (a standing follow holds the id) and ``owned`` (a live file holds it), by id."""
+
+    def test_a_followed_film_is_flagged_by_its_tmdb_id(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """The follow holding the TMDB id flags that result, and only that result."""
+        _follow(follows, MediaRef(tmdb_id=1), "Dune", kind="movie")
+        page = _facts_service(
+            _Tmdb([_movie("1", "Dune", 2021, 9.0), _movie("2", "Dune Two", 2024, 8.0)], []), _Tvdb(), follows, tmp_path
+        ).search(_ACTOR, "dune", "movie")
+
+        assert {r.provider_id: r.followed for r in page.results} == {1: True, 2: False}
+
+    def test_a_followed_show_is_flagged_by_its_tvdb_id(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """A TVDB-keyed show follow flags the TVDB result."""
+        _follow(follows, MediaRef(tvdb_id=255968), "Kaamelott")
+        service = _facts_service(
+            object(), type("_T", (), {"get_series": lambda self, i: _Named("Kaamelott")})(), follows, tmp_path
+        )
+
+        assert service.by_id(_ACTOR, "tvdb", 255968, "tv").followed is True
+        assert service.by_id(_ACTOR, "tvdb", 1, "tv").followed is False
+
+    def test_a_follow_is_matched_by_id_never_by_title(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """A follow of another id with the very same title does not flag the result."""
+        _follow(follows, MediaRef(tmdb_id=99), "Dune", kind="movie")
+        page = _facts_service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), follows, tmp_path).search(
+            _ACTOR, "dune", "movie"
+        )
+
+        assert page.results[0].followed is False
+
+    def test_a_follow_found_by_a_learned_id_flags_the_result(
+        self, follows: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
+        """A show followed as ``{tvdb, tmdb}`` is flagged from its TMDB card too (P1's lookup)."""
+        _follow(follows, MediaRef(tvdb_id=5, tmdb_id=202), "Kaamelott")
+        page = _facts_service(_Tmdb([], [_show("202", "Kaamelott", 2005)]), _Tvdb(), follows, tmp_path).search(
+            _ACTOR, "kaamelott", "tv"
+        )
+
+        assert page.results[0].followed is True
+
+    def test_a_film_follow_does_not_flag_the_show_numbered_alike(
+        self, follows: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
+        """TMDB numbers films and shows apart: the film 7's follow is not the show 7's."""
+        _follow(follows, MediaRef(tmdb_id=7), "Seven", kind="movie")
+        page = _facts_service(_Tmdb([], [_show("7", "Seven Show", 2020)]), _Tvdb(), follows, tmp_path).search(
+            _ACTOR, "seven", "tv"
+        )
+
+        assert page.results[0].followed is False
+
+    def test_a_removed_follow_is_not_followed(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """A follow whose last requester left (``removed_at``) no longer counts."""
+        rowid = _follow(follows, MediaRef(tmdb_id=1), "Dune", kind="movie")
+        follows._ensure_open().execute("UPDATE followed_series SET removed_at = 777 WHERE id = ?", (rowid,))
+        page = _facts_service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), follows, tmp_path).search(
+            _ACTOR, "dune", "movie"
+        )
+
+        assert page.results[0].followed is False
+
+    def test_a_request_row_is_not_followed(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """A one-off request (scope ``request``) is not a follow, though it holds the id."""
+        rowid = _follow(follows, MediaRef(tmdb_id=1), "Dune", kind="movie")
+        follows._ensure_open().execute("UPDATE followed_series SET scope = 'request' WHERE id = ?", (rowid,))
+        page = _facts_service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), follows, tmp_path).search(
+            _ACTOR, "dune", "movie"
+        )
+
+        assert page.results[0].followed is False
+
+    def test_a_paused_follow_is_still_followed(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """Pausing (``active`` off) is not removing: the follow stands."""
+        rowid = _follow(follows, MediaRef(tmdb_id=1), "Dune", kind="movie")
+        follows.follow.set_active(rowid, False)
+        page = _facts_service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), follows, tmp_path).search(
+            _ACTOR, "dune", "movie"
+        )
+
+        assert page.results[0].followed is True
+
+    def test_a_removed_row_does_not_hide_a_standing_one(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """Two rows holding the id (a legacy duplicate): one standing follow is enough."""
+        conn = follows._ensure_open()
+        removed = _follow(follows, MediaRef(tvdb_id=5), "Old")
+        conn.execute("UPDATE followed_series SET removed_at = 777 WHERE id = ?", (removed,))
+        conn.execute(
+            "INSERT INTO followed_series (media_ref_json, title, active, added_at, kind) "
+            "VALUES ('{\"tvdb_id\": 5, \"tmdb_id\": 1}', 'New', 1, 2, 'show')"
+        )
+        service = _facts_service(
+            object(), type("_T", (), {"get_series": lambda self, i: _Named("New")})(), follows, tmp_path
+        )
+
+        assert service.by_id(_ACTOR, "tvdb", 5, "tv").followed is True
+
+    def test_no_store_means_nothing_is_followed(self, tmp_path: Path) -> None:
+        """Without a follow lookup the flag degrades to ``False``; the search does not fail."""
+        page = _facts_service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), None, tmp_path).search(
+            _ACTOR, "dune", "movie"
+        )
+
+        assert page.results[0].followed is False
+
+    def test_owned_and_followed_are_independent(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """A film can be owned and not followed, followed and not owned, both, or neither."""
+        _follow(follows, MediaRef(tmdb_id=2), "Two", kind="movie")
+        _follow(follows, MediaRef(tmdb_id=3), "Three", kind="movie")
+        held = _Held(movies={1, 3})
+        movies = [_movie(str(i), f"Dune {i}", 2020 + i, 10.0 - i) for i in range(1, 5)]
+        page = _facts_service(_Tmdb(movies, []), _Tvdb(), follows, tmp_path, held).search(_ACTOR, "dune", "movie")
+
+        facts = {r.provider_id: (r.followed, r.owned) for r in page.results}
+        assert facts == {1: (False, True), 2: (True, False), 3: (True, True), 4: (False, False)}
+
+    def test_followed_is_recomputed_on_a_cached_page(self, follows: ConcreteAcquireStore, tmp_path: Path) -> None:
+        """The ranked lot is cached, the flag is not: a follow added between two pages shows."""
+        service = _facts_service(_Tmdb(_dunes(3, top=3.0), []), _Tvdb(), follows, tmp_path)
+        before = service.search(_ACTOR, "dune-facts", "movie")
+        _follow(follows, MediaRef(tmdb_id=0), "Dune 0", kind="movie")
+        after = service.search(_ACTOR, "dune-facts", "movie")
+
+        assert [r.followed for r in before.results] == [False, False, False]
+        assert [r.followed for r in after.results if r.provider_id == 0] == [True]
+
+
+class _Named:
+    """A provider details object carrying only a title."""
+
+    def __init__(self, title: str) -> None:
+        self.title = title
+        self.year = None
+        self.overview = None
+        self.images: list[object] = []

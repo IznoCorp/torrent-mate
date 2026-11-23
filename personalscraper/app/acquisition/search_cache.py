@@ -8,9 +8,9 @@ not changed in the meantime.
 
 This cache stores the RANKED CANDIDATE LIST per ``(query, kind)``, so every page
 after the first is served from memory. What it deliberately does NOT store is
-anything derived per request — the ``already_owned`` library flag is recomputed on
-every call from the indexer, because the library changes while a search sits on
-screen and a stale "already owned" badge would drive a wrong decision.
+anything derived per request — the library's ``owned`` flag and the ``followed`` flag are
+recomputed on every call, because the library and the follows change while a search sits
+on screen and a stale badge would drive a wrong decision.
 
 Bounded and TTL'd: the web process is long-lived, so an unbounded cache is a slow
 memory leak, and provider data that never expires is data that silently drifts.
