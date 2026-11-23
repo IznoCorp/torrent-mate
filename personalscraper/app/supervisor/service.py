@@ -174,7 +174,11 @@ class RunService:
         )
         return self._ask(asked)
 
-    @requires("dismissClosure")  # the session gate every ask passes; the rights are the job's, checked below
+    # ``dismissClosure`` stands only for « a session write »: a signed-in actor, refused on a read-only
+    # instance. The table holds contract operations alone (tests/http_v1/test_rights_table.py,
+    # ``test_keys_are_the_contract_operations_and_the_pending_ones``, refuses another id), so this ask has
+    # none of its own: the job's rights are checked in the body.
+    @requires("dismissClosure")
     def ask_acquisition(self, actor: Actor, job: AcquisitionJob, *, trigger: RunTrigger = RunTrigger.WEB) -> RunAsked:
         """Ask one acquisition pass: join the equal one waiting, else queue it in the acquisition lane.
 
