@@ -77,6 +77,11 @@ class RefusalCode(StrEnum):
     LIBRARY_LOCKED = "library.locked"
     LIBRARY_OBLIGATIONS_UNREADABLE = "library.obligations_unreadable"
     LIBRARY_UNAVAILABLE = "library.unavailable"
+    ACQUISITION_NOT_FOUND = "acquisition.not_found"
+    ACQUISITION_NOT_REQUESTER = "acquisition.not_requester"
+    ACQUISITION_FOLLOW_SHARED = "acquisition.follow_shared"
+    FOLLOW_NOT_RESTORABLE = "follow.not_restorable"
+    FOLLOW_AMBIGUOUS = "follow.ambiguous"
 
 
 class AppRefusal(Exception):

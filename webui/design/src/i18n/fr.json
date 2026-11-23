@@ -2481,6 +2481,15 @@
       "obligations_unreadable": "Les obligations de partage sont illisibles : rien n'est supprimé tant qu'on ne sait pas ce qu'un tracker attend encore.",
       "unavailable": "La médiathèque est indisponible : le serveur ne peut pas la lire pour le moment. Réessayez dans un instant."
     },
+    "acquisition": {
+      "not_found": "Cette acquisition est inconnue : rien n'est suivi ni demandé sous cet identifiant, et la médiathèque ne le possède pas.",
+      "not_requester": "Ce n'est pas votre acquisition : seuls ceux qui l'ont demandée la règlent.",
+      "follow_shared": "D'autres comptes suivent aussi ce titre : chacun le met en pause pour lui-même."
+    },
+    "follow": {
+      "not_restorable": "Rien de retiré sous ce titre : il n'y a rien à remettre.",
+      "ambiguous": "Un même identifiant désigne plusieurs suivis : réglez le doublon avant de le modifier."
+    },
     "session": {
       "unknown": "Cette session n'existe plus ou n'est pas la vôtre.",
       "current": "Cette session est celle que vous utilisez : déconnectez-vous pour la fermer."

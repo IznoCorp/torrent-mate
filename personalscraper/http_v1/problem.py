@@ -80,6 +80,11 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.LIBRARY_LOCKED: "The pipeline holds the library.",
     RefusalCode.LIBRARY_OBLIGATIONS_UNREADABLE: "The seed obligations cannot be read.",
     RefusalCode.LIBRARY_UNAVAILABLE: "The library index cannot be read.",
+    RefusalCode.ACQUISITION_NOT_FOUND: "No follow, request or owned medium answers this acquisition key.",
+    RefusalCode.ACQUISITION_NOT_REQUESTER: "The signed-in account did not ask for this acquisition.",
+    RefusalCode.ACQUISITION_FOLLOW_SHARED: "Other accounts asked for this follow too: each pauses it for itself.",
+    RefusalCode.FOLLOW_NOT_RESTORABLE: "Nothing removed under this acquisition key can be put back.",
+    RefusalCode.FOLLOW_AMBIGUOUS: "Several follow rows hold this provider identity.",
 }
 
 _INTERNAL_DETAIL: Final[str] = "An unexpected error occurred."
