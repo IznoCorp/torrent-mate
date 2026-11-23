@@ -3,7 +3,7 @@
 Who asked for a follow: one row per (follow, account). The engine never learns of rights,
 so an account is an opaque id and the rules over requesters (what is in force, who may
 read, when the last one leaving removes the follow) belong to the acquisition model; this
-store only holds and reads the rows. Nothing writes here yet: the follow service does, through
+store only holds and reads the rows. The follow service writes them, through
 the acquisition model's repository (``save_follow``: the requesters and their projection on the
 follow's row in one transaction).
 
@@ -20,7 +20,7 @@ from collections.abc import Callable, Iterable, Sequence
 from contextlib import AbstractContextManager
 
 from personalscraper.acquire._store_rows import _row_to_requester
-from personalscraper.acquire.domain import FollowRequester
+from personalscraper.acquire.domain import FollowRequester, FollowScope
 
 
 class _RequesterSubStore:
@@ -124,6 +124,7 @@ class _RequesterSubStore:
         removed_at: int | None,
         min_resolution: int | None,
         active: bool,
+        scope: FollowScope | None = None,
     ) -> bool:
         """Write a follow's requesters and what they put in force, in one transaction.
 
@@ -139,6 +140,8 @@ class _RequesterSubStore:
             removed_at: Epoch seconds the last requester left, ``None`` while it stands.
             min_resolution: The floor in force as a vertical resolution, ``None`` for none.
             active: Whether the engine takes work for the follow.
+            scope: The row's new scope (a request followed, a removed row asked as a request,
+                DESIGN § 2.7), written in the same transaction; ``None`` keeps it.
 
         Returns:
             The row's ``active`` flag BEFORE the write.
@@ -186,8 +189,9 @@ class _RequesterSubStore:
                 profile["min_resolution"] = min_resolution
                 profile_json = json.dumps(profile)
             self._conn.execute(
-                "UPDATE followed_series SET active = ?, removed_at = ?, quality_profile_json = ? WHERE id = ?",
-                (1 if active else 0, removed_at, profile_json, followed_id),
+                "UPDATE followed_series SET active = ?, removed_at = ?, quality_profile_json = ?, "
+                "scope = COALESCE(?, scope) WHERE id = ?",
+                (1 if active else 0, removed_at, profile_json, scope, followed_id),
             )
         return was_active
 

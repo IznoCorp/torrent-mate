@@ -404,6 +404,20 @@ class AiredEpisodeRow:
 
 
 @dataclass(frozen=True)
+class FollowCard:
+    """The card facts of a ``followed_series`` row the follow readers show, beside its identity.
+
+    Attributes:
+        poster_url: The poster's address the add path or the backfill stored, or ``None``.
+        series_status: The provider's raw production status of a show (« Continuing »,
+            « Ended »), or ``None`` when unknown or for a film.
+    """
+
+    poster_url: str | None
+    series_status: str | None
+
+
+@dataclass(frozen=True)
 class FollowRequester:
     """One account's ask for a follow (``acquisition_requester`` table).
 

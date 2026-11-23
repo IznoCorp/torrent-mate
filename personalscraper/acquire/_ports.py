@@ -35,9 +35,11 @@ if TYPE_CHECKING:
 
 from personalscraper.acquire.domain import (
     AiredEpisodeRow,
+    FollowCard,
     FollowedSeries,
     FollowKind,
     FollowRequester,
+    FollowScope,
     RatioState,
     SeedObligation,
     WantedItem,
@@ -117,6 +119,10 @@ class FollowSubStore(Protocol):
 
     def set_series_status(self, followed_id: int, series_status: str) -> None:
         """Record the provider's production status ('Ended', 'Continuing', …)."""
+        ...
+
+    def card(self, followed_id: int) -> FollowCard | None:
+        """Return the card facts of one row (poster, show status), or ``None``."""
         ...
 
     def merge_metadata(
@@ -520,8 +526,9 @@ class RequesterSubStore(Protocol):
         removed_at: int | None,
         min_resolution: int | None,
         active: bool,
+        scope: FollowScope | None = None,
     ) -> bool:
-        """Write a follow's requesters and their projection in one transaction; return the prior ``active``."""
+        """Write a follow's requesters, projection and scope in one transaction; return the prior ``active``."""
         ...
 
     def follows_of(self, account_ids: Iterable[str]) -> list[int]:

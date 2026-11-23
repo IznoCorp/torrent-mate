@@ -76,6 +76,7 @@ from personalscraper.acquire._wanted_store import _WantedSubStore
 from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
     OPEN_WANTED_STATUSES,
+    FollowCard,
     FollowedSeries,
     FollowKind,
     RatioState,
@@ -832,6 +833,20 @@ class _FollowSubStore:
                 "UPDATE followed_series SET cadence_json = ? WHERE id = ?",
                 (cadence_json, followed_id),
             )
+
+    def card(self, followed_id: int) -> FollowCard | None:
+        """Return the card facts of one row: its poster and its show's production status.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+
+        Returns:
+            The facts, or ``None`` when the row does not exist.
+        """
+        row = self._conn.execute(
+            "SELECT poster_url, series_status FROM followed_series WHERE id = ?", (followed_id,)
+        ).fetchone()
+        return None if row is None else FollowCard(poster_url=row[0], series_status=row[1])
 
     def merge_metadata(
         self,
