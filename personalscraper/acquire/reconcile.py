@@ -107,6 +107,39 @@ def _list_open_rows(store: AcquireStore) -> list[WantedItem]:
     ]
 
 
+def _end_finished_requests(store: AcquireStore, *, now: int) -> int:
+    """Remove every one-off request whose season is closed and whose rows are all closed (DESIGN § 2.7).
+
+    A request (``scope = 'request'``, O-2 A) lives for its season: it ends when its season
+    wanted row has closed (``done``, ``abandoned`` or ``fallback_episodes``) AND nothing of
+    it is open any more, the episodes a fallback re-queued included. A request with no
+    season row at all is never ended: the ask writes that row in the same transaction as the
+    request, so none means nothing was asked yet, and ending it on that silence would end it
+    before it began. The row, its wanted rows and its history stay (``removed_at``, inactive).
+
+    The conditions are checked by :meth:`end_request` inside its own write, never from a
+    snapshot read here: a row a concurrent pass opens meanwhile keeps the request standing.
+
+    Args:
+        store: The acquire store.
+        now: Unix epoch seconds stamped as ``removed_at``.
+
+    Returns:
+        How many requests this pass removed.
+    """
+    ended = 0
+    for request in store.follow.list_requests():
+        if request.id is None:
+            continue
+        try:
+            if store.follow.end_request(request.id, now=now):
+                ended += 1
+                log.info("acquire.reconcile.request_ended", followed_id=request.id, title=request.title)
+        except Exception as exc:  # noqa: BLE001 — fail-soft per row: the next sweep ends it
+            log.warning("acquire.reconcile.request_end_failed", followed_id=request.id, error=str(exc))
+    return ended
+
+
 @dataclass(frozen=True)
 class _SeasonOwnership:
     """What the library can say about one season of one follow.
@@ -398,6 +431,8 @@ class ReconcileSummary:
             their pack REACHED the library without carrying every aired
             episode — the season attempt is over, the remainder is queued
             episode by episode.
+        ended_requests: One-off requests removed because their season wanted row and every
+            row of theirs had closed (DESIGN § 2.7).
         closed_movie_followed_ids: ``followed_id`` of every ``kind == "movie"``
             row this pass ACTUALLY transitioned to ``done`` (mark_done returned
             ``True``). The D2-A retirement rule — a followed film leaves the
@@ -415,6 +450,7 @@ class ReconcileSummary:
     still_in_flight: int = 0
     fell_back_to_episodes: int = 0
     closed_movie_followed_ids: tuple[int, ...] = ()
+    ended_requests: int = 0
 
 
 def reconcile_wanted(
@@ -660,6 +696,10 @@ def reconcile_wanted(
     except Exception as exc:  # noqa: BLE001 — fail-soft: advisory prune
         log.warning("acquire.reconcile.marks_prune_failed", error=str(exc))
 
+    # A one-off request ends with its season: judged AFTER the sweep above, so the pass that
+    # closes the season row ends the request in the same breath.
+    ended_requests = _end_finished_requests(store, now=now)
+
     summary = ReconcileSummary(
         checked=checked,
         closed_owned=closed,
@@ -668,6 +708,7 @@ def reconcile_wanted(
         still_in_flight=in_flight,
         fell_back_to_episodes=fell_back,
         closed_movie_followed_ids=tuple(closed_movie_followed_ids),
+        ended_requests=ended_requests,
     )
     log.info(
         "acquire.reconcile.complete",

@@ -6,14 +6,18 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from typer.testing import CliRunner
 
 from personalscraper.acquire.context import AcquireContext
+from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.cli import app
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.identity import MediaRef
+from personalscraper.i18n import t
 
 runner = CliRunner()
 
@@ -343,6 +347,90 @@ def test_follow_list_hides_inactive_by_default(tmp_path: Path, monkeypatch) -> N
     assert "Breaking Bad" in result_all.output, (
         f"Expected 'Breaking Bad' in 'follow list --all'; got:\n{result_all.output}"
     )
+    acquire.store.close()  # type: ignore[union-attr]
+
+
+def test_follow_list_shows_no_request_row_but_all_does(tmp_path: Path, monkeypatch) -> None:
+    """K3 P6: a one-off request is not a follow — ``follow list`` omits it, ``--all`` keeps every row."""
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+    store = acquire.store
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="Followed Show", added_at=1))
+    request_id = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=2), title="Requested Show", added_at=1))
+    store._ensure_open().execute(  # noqa: SLF001 — no writer of scope exists yet: P7's SeasonAsk is the one
+        "UPDATE followed_series SET scope = 'request' WHERE id = ?", (request_id,)
+    )
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+
+    default = runner.invoke(app, ["follow", "list"])
+    everything = runner.invoke(app, ["follow", "list", "--all"])
+
+    assert default.exit_code == 0, default.output
+    assert "Followed Show" in default.output
+    assert "Requested Show" not in default.output, f"a request row must not be listed as a follow:\n{default.output}"
+    assert everything.exit_code == 0, everything.output
+    assert "Followed Show" in everything.output
+    assert "Requested Show" in everything.output, f"--all keeps every row:\n{everything.output}"
+    store.close()
+
+
+def _seed_request(store, tvdb_id: int, title: str, *, ended: bool = False) -> int:
+    """Seed a one-off request row, as the season ask will leave it, and return its rowid."""
+    request_id = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=tvdb_id), title=title, added_at=1))
+    store._ensure_open().execute(  # noqa: SLF001 — no writer of scope exists yet: P7's SeasonAsk is the one
+        "UPDATE followed_series SET scope = 'request' WHERE id = ?", (request_id,)
+    )
+    if ended:
+        store.follow.mark_removed(request_id, now=500)
+    return request_id
+
+
+@pytest.mark.parametrize("ended", [False, True], ids=["standing request", "ended request"])
+def test_follow_add_over_a_request_row_makes_it_a_follow(tmp_path: Path, monkeypatch, ended: bool) -> None:
+    """K3 P6: a request is no follow, so ``follow add`` follows the medium on the same row."""
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(tmp_path / "acquire.db", event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+    request_id = _seed_request(acquire.store, 100, "Owned Show", ended=ended)
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title", lambda ref, registry, **kw: "Owned Show"
+    )
+
+    result = runner.invoke(app, ["follow", "add", "--tvdb", "100"])
+
+    assert result.exit_code == 0, result.output
+    assert "already following" not in result.output.lower(), result.output
+    rows = acquire.store.follow.list_all()
+    assert [(r.id, r.scope, r.removed_at, r.active) for r in rows] == [(request_id, "follow", None, True)]
+    assert [r.id for r in acquire.store.follow.list_active()] == [request_id]
+    acquire.store.close()  # type: ignore[union-attr]
+
+
+def test_follow_remove_leaves_a_request_row_alone(tmp_path: Path, monkeypatch) -> None:
+    """K3 P6: ``follow remove`` has no follow to remove on a request row, and writes nothing."""
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(tmp_path / "acquire.db", event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+    request_id = _seed_request(acquire.store, 100, "Owned Show")
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+
+    by_tvdb = runner.invoke(app, ["follow", "remove", "--tvdb", "100"])
+    by_id = runner.invoke(app, ["follow", "remove", "--id", str(request_id)])
+
+    assert by_tvdb.exit_code == 0, by_tvdb.output
+    assert by_id.exit_code == 0, by_id.output
+    # « not found », not « already inactive »: an active request is no follow, it is not an inactive one.
+    for result in (by_tvdb, by_id):
+        assert t("cli_acquisition.follow.remove.not_found") in result.output, result.output
+        assert t("cli_acquisition.follow.remove.already_inactive") not in result.output, result.output
+    row = acquire.store.follow.get(request_id)
+    assert row is not None
+    assert (row.scope, row.active, row.removed_at) == ("request", True, None)
+    assert [r.id for r in acquire.store.follow.list_requests()] == [request_id]
     acquire.store.close()  # type: ignore[union-attr]
 
 

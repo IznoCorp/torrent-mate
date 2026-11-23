@@ -75,6 +75,7 @@ from personalscraper.acquire._store_rows import (
 from personalscraper.acquire._wanted_store import _WantedSubStore
 from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
+    OPEN_WANTED_STATUSES,
     FollowedSeries,
     FollowKind,
     RatioState,
@@ -294,7 +295,9 @@ class _FollowSubStore:
         merged into its ``media_ref_json`` (widened, never narrowed, a held id never
         overwritten, a clash logged as ``acquire.follow.id_conflict``) and it is
         reactivated and refreshed exactly as the
-        ``ON CONFLICT`` path below does. So the same show stored ``{tvdb: X}`` and
+        ``ON CONFLICT`` path below does. Both paths also make the row a standing follow
+        (``scope = 'follow'``, ``removed_at`` cleared): adding a medium a one-off request
+        or a removed row holds is how it becomes a follow, on the same row. So the same show stored ``{tvdb: X}`` and
         later followed from its TMDB card as ``{tvdb: X, tmdb: Y}`` stays ONE row,
         which the whole-JSON ``ux_followed_media_ref`` index (migration 004) never
         caught. Two or more rows of its kind found are a duplicate written before this
@@ -338,6 +341,10 @@ class _FollowSubStore:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(media_ref_json) DO UPDATE SET
                   active = 1,
+                  -- Adding a medium makes it a standing follow, whatever the row was: a
+                  -- one-off request or a removed row comes back as the follow asked for.
+                  scope = 'follow',
+                  removed_at = NULL,
                   title = excluded.title,
                   kind = excluded.kind,
                   -- Re-following an owned film to replace it must carry the
@@ -409,6 +416,8 @@ class _FollowSubStore:
               -- NULL keeps the stored JSON byte for byte when no id was learned.
               media_ref_json = COALESCE(?, media_ref_json),
               active = 1,
+              scope = 'follow',
+              removed_at = NULL,
               title = ?,
               replace_owned = MAX(replace_owned, ?),
               original_title = COALESCE(?, original_title)
@@ -525,11 +534,17 @@ class _FollowSubStore:
         return found[0]
 
     def list_active(self) -> list[FollowedSeries]:
-        """Return all active ``followed_series`` rows, ordered by id.
+        """Return the active FOLLOWS, ordered by id.
+
+        A follow is a ``scope = 'follow'`` row that is neither inactive nor removed. A
+        one-off request row (``scope = 'request'``, DESIGN O-2 A) is not a follow: detect,
+        the airing poll and ``follow list`` all read this and never see one. The projection
+        writes ``active = 0`` for a removed row, and ``removed_at IS NULL`` holds the same
+        line for a writer that forgot it. Requests are read by :meth:`list_requests`.
 
         Returns:
-            A list of :class:`FollowedSeries` where ``active=True``,
-            possibly empty.
+            A list of :class:`FollowedSeries` where ``active=True``, of scope ``follow``
+            and not removed, possibly empty.
         """
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
@@ -538,16 +553,40 @@ class _FollowSubStore:
                    quality_profile_json, cadence_json, added_at, kind, replace_owned,
                    original_title, scope, removed_at
             FROM followed_series
-            WHERE active = 1
+            WHERE active = 1 AND scope = 'follow' AND removed_at IS NULL
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_followed(r) for r in rows]
+
+    def list_requests(self) -> list[FollowedSeries]:
+        """Return the standing one-off request rows, ordered by id.
+
+        A request is a ``scope = 'request'`` row that is active and not removed. Detect
+        reads it to keep its aired cache and series status fresh, and enqueues nothing for
+        it: the request's season wanted row is its whole work.
+
+        Returns:
+            A list of :class:`FollowedSeries` of scope ``request``, possibly empty.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, media_ref_json, title, active,
+                   quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                   original_title, scope, removed_at
+            FROM followed_series
+            WHERE active = 1 AND scope = 'request' AND removed_at IS NULL
             ORDER BY id
             """
         ).fetchall()
         return [_row_to_followed(r) for r in rows]
 
     def list_all(self) -> list[FollowedSeries]:
-        """Return all ``followed_series`` rows (active and inactive), ordered by id.
+        """Return every ``followed_series`` row (any scope, active, inactive or removed), ordered by id.
 
-        Used by ``follow list --all``.
+        Used by ``follow list --all`` and by the title maps, which want a title by id
+        whatever the row is.
 
         Returns:
             A list of all :class:`FollowedSeries`, possibly empty.
@@ -563,6 +602,80 @@ class _FollowSubStore:
             """
         ).fetchall()
         return [_row_to_followed(r) for r in rows]
+
+    def mark_removed(self, followed_id: int, *, now: int) -> bool:
+        """Mark a row removed and inactive: its last requester is gone or its request ended.
+
+        Writes ``removed_at`` and ``active = 0`` together (the projection of DESIGN § 2.4
+        for a removed row), in one transaction. The row, its wanted rows and its history
+        stay. A row already removed keeps its first stamp.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            now: Unix epoch seconds of the removal.
+
+        Returns:
+            ``True`` when this call removed the row, ``False`` when it was already removed
+            or does not exist.
+        """
+        with _write_tx(self._conn):
+            cursor = self._conn.execute(
+                "UPDATE followed_series SET removed_at = ?, active = 0 WHERE id = ? AND removed_at IS NULL",
+                (now, followed_id),
+            )
+        return cursor.rowcount > 0
+
+    def end_request(self, followed_id: int, *, now: int) -> bool:
+        """End a one-off request whose season is closed, deciding and writing in ONE statement.
+
+        The request is marked removed and inactive only if, at the instant of the write, it
+        is a standing request (scope ``request``, not removed), none of its wanted rows is
+        open (:data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`) and it holds at
+        least one season row. The conditions live inside the ``UPDATE``, so a row opened
+        or inserted by a concurrent pass between a caller's read and this write keeps the
+        request standing: the check and the write cannot be separated.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            now: Unix epoch seconds of the removal.
+
+        Returns:
+            ``True`` when this call ended the request, ``False`` when a condition did not hold.
+        """
+        open_statuses = sorted(OPEN_WANTED_STATUSES)
+        placeholders = ", ".join("?" for _ in open_statuses)
+        with _write_tx(self._conn):
+            cursor = self._conn.execute(
+                f"""
+                UPDATE followed_series SET removed_at = ?, active = 0
+                WHERE id = ? AND scope = 'request' AND removed_at IS NULL
+                  AND NOT EXISTS (
+                    SELECT 1 FROM wanted
+                    WHERE wanted.followed_id = followed_series.id AND wanted.status IN ({placeholders})
+                  )
+                  AND EXISTS (
+                    SELECT 1 FROM wanted
+                    WHERE wanted.followed_id = followed_series.id AND wanted.kind = 'season'
+                  )
+                """,  # noqa: S608 — the placeholders are literal '?' marks, every value is bound
+                (now, followed_id, *open_statuses),
+            )
+        return cursor.rowcount > 0
+
+    def refollow(self, followed_id: int) -> None:
+        """Make an existing row a standing follow again: active, scope ``follow``, not removed.
+
+        The row keeps its id, its wanted rows and its history. Used by ``follow add`` on a
+        medium whose row is inactive, a one-off request or removed.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET active = 1, scope = 'follow', removed_at = NULL WHERE id = ?",
+                (followed_id,),
+            )
 
     def set_active(self, followed_id: int, active: bool) -> None:
         """Set the ``active`` flag on a ``followed_series`` row.

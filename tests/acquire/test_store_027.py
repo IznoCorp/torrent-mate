@@ -387,7 +387,6 @@ class TestFollowReadersReturnScopeAndRemoval:
             store.follow.get(followed_id),
             store.follow.find_by_ref(ref),
             store.follow.find_all_by_ref(ref)[0],
-            store.follow.list_active()[0],
             store.follow.list_all()[0],
         ]
 
