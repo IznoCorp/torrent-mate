@@ -14,9 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.acquire.domain import FollowedSeries, FollowKind, FollowRequester
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.app.accounts.ids import AccountId
+from personalscraper.app.accounts.rights import Right
 from personalscraper.app.acquisition.follow_repository import FollowAmbiguous, FollowRepository
 from personalscraper.app.acquisition.model import (
     AcquisitionKey,
@@ -31,6 +32,7 @@ from personalscraper.core.identity import MediaRef
 
 ALICE = AccountId("account-alice")
 BOB = AccountId("account-bob")
+OWNER = AccountId("account-owner")
 SHOW = AcquisitionKey.parse("tvdb:81189")
 NOTHING = InForce(floor=None, paused=False)
 
@@ -67,6 +69,20 @@ def _add_show(store: ConcreteAcquireStore, *, profile: str | None = None, active
         FollowedSeries(
             media_ref=MediaRef(tvdb_id=81189), title="Show", added_at=100, quality_profile_json=profile, active=active
         )
+    )
+
+
+def _asked(store: ConcreteAcquireStore, rowid: int, account: AccountId, since: int = 200) -> None:
+    """Store one requester row, so the follow is no longer the owner's implied ask.
+
+    Args:
+        store: The store.
+        rowid: The follow's row.
+        account: The asking account.
+        since: When it asked.
+    """
+    store.requesters.upsert(
+        FollowRequester(followed_id=rowid, account_id=account, via="follow", floor=None, paused=False, since=since)
     )
 
 
@@ -115,29 +131,37 @@ def test_save_then_get(store: ConcreteAcquireStore) -> None:
     """Requesters saved are read back, in the order they asked."""
     _add_show(store)
     repository = FollowRepository(store)
-    follow = _loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200).with_requester(BOB, Via.REQUEST, now=300)
-    follow = follow.with_setting(BOB, floor=QualityFloor.P1080, paused=True)
+    follow = (
+        _loaded(repository)
+        .with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER)
+        .with_requester(BOB, Via.REQUEST, now=300, owner=OWNER)
+    )
+    follow = follow.with_setting(BOB, floor=QualityFloor.P1080, paused=True, owner=OWNER)
     repository.save(follow, NOTHING)
     assert _loaded(repository).requesters == follow.requesters
 
 
 def test_a_second_ask_keeps_since_through_save_and_get(store: ConcreteAcquireStore) -> None:
     """An account asking again keeps its first ask's ``since`` once saved and read back."""
-    _add_show(store)
+    _asked(store, _add_show(store), ALICE)
     repository = FollowRepository(store)
-    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200), NOTHING)
-    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=900), NOTHING)
+    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER), NOTHING)
+    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=900, owner=OWNER), NOTHING)
     (alice,) = _loaded(repository).requesters
     assert alice.since == 200
 
 
 def test_a_requester_who_left_is_deleted(store: ConcreteAcquireStore) -> None:
     """Saving a follow one requester left removes its row."""
-    _add_show(store)
+    _asked(store, _add_show(store), ALICE)
     repository = FollowRepository(store)
-    both = _loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200).with_requester(BOB, Via.FOLLOW, now=300)
+    both = (
+        _loaded(repository)
+        .with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER)
+        .with_requester(BOB, Via.FOLLOW, now=300, owner=OWNER)
+    )
     repository.save(both, NOTHING)
-    repository.save(_loaded(repository).without_requester(ALICE, now=400), NOTHING)
+    repository.save(_loaded(repository).without_requester(ALICE, now=400, owner=OWNER), NOTHING)
     assert [one.account_id for one in _loaded(repository).requesters] == [BOB]
 
 
@@ -146,7 +170,9 @@ def test_the_projection_writes_the_floor_keeping_the_other_profile_keys(store: C
     profile = json.dumps({"min_resolution": None, "required_audio": ["VF"], "exclude_3d": False})
     rowid = _add_show(store, profile=profile)
     repository = FollowRepository(store)
-    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200), InForce(QualityFloor.P2160, False))
+    repository.save(
+        _loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER), InForce(QualityFloor.P2160, False)
+    )
     row = store.follow.get(rowid)
     assert row is not None
     assert json.loads(row.quality_profile_json or "") == {
@@ -190,9 +216,10 @@ def test_the_projection_writes_active_from_the_pause(store: ConcreteAcquireStore
 def test_a_removed_follow_is_written_removed_and_inactive(store: ConcreteAcquireStore) -> None:
     """The last requester leaving writes ``removed_at`` and ``active = 0``, its rows gone."""
     rowid = _add_show(store)
+    _asked(store, rowid, ALICE)
     repository = FollowRepository(store)
-    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200), NOTHING)
-    repository.save(_loaded(repository).without_requester(ALICE, now=500), NOTHING)
+    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER), NOTHING)
+    repository.save(_loaded(repository).without_requester(ALICE, now=500, owner=OWNER), NOTHING)
     row = store.follow.get(rowid)
     assert row is not None
     assert (row.removed_at, row.active) == (500, False)
@@ -212,11 +239,11 @@ def test_save_answers_true_only_when_active_goes_from_false_to_true(store: Concr
 
 def test_a_revived_follow_answers_true(store: ConcreteAcquireStore) -> None:
     """A removed follow asked for again starts taking work: the save answers true."""
-    _add_show(store)
+    _asked(store, _add_show(store), ALICE)
     repository = FollowRepository(store)
-    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200), NOTHING)
-    repository.save(_loaded(repository).without_requester(ALICE, now=300), NOTHING)
-    revived = _loaded(repository).with_requester(BOB, Via.FOLLOW, now=400)
+    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER), NOTHING)
+    repository.save(_loaded(repository).without_requester(ALICE, now=300, owner=OWNER), NOTHING)
+    revived = _loaded(repository).with_requester(BOB, Via.FOLLOW, now=400, owner=OWNER)
     assert repository.save(revived, NOTHING) is True
     assert _loaded(repository).removed_at is None
 
@@ -245,3 +272,116 @@ def test_an_ambiguous_key_raises(store: ConcreteAcquireStore, tmp_path: Path) ->
         conn.close()
     with pytest.raises(FollowAmbiguous):
         FollowRepository(store).get(SHOW)
+
+
+def _row(store: ConcreteAcquireStore, rowid: int) -> FollowedSeries:
+    """Read a follow row that must exist.
+
+    Args:
+        store: The store.
+        rowid: The row's id.
+
+    Returns:
+        The row.
+    """
+    row = store.follow.get(rowid)
+    assert row is not None
+    return row
+
+
+def test_a_film_named_tvdb_comes_back_through_get(store: ConcreteAcquireStore) -> None:
+    """A film holding only a TVDB id is named ``tvdb:`` and found by that key and its kind."""
+    rowid = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=111), title="Film", added_at=100, kind="movie"))
+    key = AcquisitionKey.of(MediaRef(tvdb_id=111), "movie")
+    assert _loaded_kind(FollowRepository(store), key, "movie").id == rowid
+
+
+def test_a_tmdb_key_resolves_each_medium_by_its_kind(store: ConcreteAcquireStore) -> None:
+    """TMDB numbers films and shows apart: the same id finds the film or the show by the kind given."""
+    film = store.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=603), title="Film", added_at=100, kind="movie"))
+    show = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=81189, tmdb_id=603), title="Show", added_at=100))
+    repository = FollowRepository(store)
+    key = AcquisitionKey.parse("tmdb:603")
+    assert _loaded_kind(repository, key, "movie").id == film
+    assert _loaded_kind(repository, key, "show").id == show
+
+
+def _loaded_kind(repository: FollowRepository, key: AcquisitionKey, kind: FollowKind) -> Follow:
+    """Load a follow of a known kind that must exist.
+
+    Args:
+        repository: The repository.
+        key: The follow's key.
+        kind: The medium's kind.
+
+    Returns:
+        The follow.
+    """
+    follow = repository.get(key, kind)
+    assert follow is not None
+    return follow
+
+
+def test_a_v0_follow_keeps_its_floor_pause_and_owner_when_another_joins(store: ConcreteAcquireStore) -> None:
+    """A paused v0 follow with a 2160 floor: a second account joins, and nothing the owner set is lost."""
+    rowid = _add_show(store, profile=json.dumps({"min_resolution": 2160, "exclude_3d": True}), active=False)
+    repository = FollowRepository(store)
+    joined = _loaded(repository).with_requester(BOB, Via.FOLLOW, now=500, owner=OWNER)
+    holds = {OWNER: set(Right), BOB: {Right.ACQUISITION_QUALITY_OWN}}
+    assert repository.save(joined, joined.in_force(lambda account, right: right in holds.get(account, set()))) is False
+    row = _row(store, rowid)
+    assert json.loads(row.quality_profile_json or "")["min_resolution"] == 2160
+    assert row.active is False
+    owner, bob = _loaded(repository).requesters
+    assert (owner.account_id, owner.floor, owner.paused) == (OWNER, QualityFloor.P2160, True)
+    assert bob.account_id == BOB
+
+
+def test_a_v0_follow_saved_untouched_keeps_its_settings(store: ConcreteAcquireStore) -> None:
+    """Loading and saving a requester-less follow writes back its own v0 floor and pause."""
+    rowid = _add_show(store, profile=json.dumps({"min_resolution": 1080}), active=False)
+    repository = FollowRepository(store)
+    follow = _loaded(repository)
+    assert repository.save(follow, follow.in_force(lambda account, right: False)) is False
+    row = _row(store, rowid)
+    assert (json.loads(row.quality_profile_json or "")["min_resolution"], row.active) == (1080, False)
+
+
+def test_a_floor_is_written_onto_a_null_profile(store: ConcreteAcquireStore) -> None:
+    """A row with no profile takes the floor in force as its only key."""
+    rowid = _add_show(store)
+    repository = FollowRepository(store)
+    repository.save(
+        _loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER), InForce(QualityFloor.P1080, False)
+    )
+    assert json.loads(_row(store, rowid).quality_profile_json or "") == {"min_resolution": 1080}
+
+
+def test_a_changed_setting_is_written_over_the_stored_requester(store: ConcreteAcquireStore) -> None:
+    """A requester already stored takes its new floor and pause on the next save."""
+    _asked(store, _add_show(store), ALICE)
+    repository = FollowRepository(store)
+    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER), NOTHING)
+    repository.save(
+        _loaded(repository).with_setting(ALICE, floor=QualityFloor.P2160, paused=True, owner=OWNER), NOTHING
+    )
+    (alice,) = _loaded(repository).requesters
+    assert (alice.floor, alice.paused, alice.since) == (QualityFloor.P2160, True, 200)
+
+
+def test_a_failed_save_writes_nothing(store: ConcreteAcquireStore) -> None:
+    """A requester the table refuses rolls the whole save back: requesters and projection as they were."""
+    rowid = _add_show(store)
+    _asked(store, rowid, ALICE)
+    repository = FollowRepository(store)
+    repository.save(_loaded(repository).with_requester(ALICE, Via.FOLLOW, now=200, owner=OWNER), NOTHING)
+    bob = FollowRequester(followed_id=rowid, account_id=BOB, via="follow", floor=None, paused=False, since=300)
+    # ``since`` is NOT NULL: the third write fails, after ALICE's delete and BOB's insert ran.
+    broken = FollowRequester(
+        followed_id=rowid, account_id="account-carol", via="follow", floor=None, paused=False, since=None
+    )  # type: ignore[arg-type]
+    with pytest.raises(sqlite3.IntegrityError):
+        store.requesters.save_follow(rowid, [bob, broken], removed_at=None, min_resolution=2160, active=False)
+    assert [one.account_id for one in store.requesters.list_for(rowid)] == [ALICE]
+    row = _row(store, rowid)
+    assert (row.quality_profile_json, row.active) == (None, True)

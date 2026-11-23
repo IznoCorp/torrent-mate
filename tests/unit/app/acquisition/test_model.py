@@ -61,17 +61,20 @@ def _requester(
     return Requester(account_id=account, via=via, floor=floor, paused=paused, since=since)
 
 
-def _follow(*requesters: Requester, removed_at: int | None = None) -> Follow:
+def _follow(*requesters: Requester, removed_at: int | None = None, legacy: InForce | None = None) -> Follow:
     """Build a standing follow of :data:`KEY` with the given requesters.
 
     Args:
         *requesters: Its requesters, in order.
         removed_at: When its last requester left, ``None`` while it stands.
+        legacy: The v0 settings of a follow with no requester row.
 
     Returns:
         The follow, id 7.
     """
-    return Follow(id=FollowId(7), key=KEY, scope=Scope.FOLLOW, requesters=requesters, removed_at=removed_at)
+    return Follow(
+        id=FollowId(7), key=KEY, scope=Scope.FOLLOW, requesters=requesters, removed_at=removed_at, legacy=legacy
+    )
 
 
 def _holds(table: dict[AccountId, set[Right]]) -> Callable[[AccountId, Right], bool]:
@@ -164,59 +167,59 @@ class TestRequesters:
     def test_a_second_ask_joins_with_one_requester(self) -> None:
         """An account asking again stays one requester, its first ask's ``since`` kept."""
         follow = _follow(_requester(ALICE, since=100))
-        again = follow.with_requester(ALICE, Via.FOLLOW, now=500)
+        again = follow.with_requester(ALICE, Via.FOLLOW, now=500, owner=OWNER)
         assert again.requesters == (_requester(ALICE, since=100),)
 
     def test_another_account_joins(self) -> None:
         """A second account is added after the first, asking now, with no setting."""
-        follow = _follow(_requester(ALICE)).with_requester(BOB, Via.REQUEST, now=500)
+        follow = _follow(_requester(ALICE)).with_requester(BOB, Via.REQUEST, now=500, owner=OWNER)
         assert follow.requesters[1] == _requester(BOB, since=500, via=Via.REQUEST)
 
     def test_an_ask_on_a_removed_follow_revives_it(self) -> None:
         """Asking for a removed follow brings it back with the asker as requester (§ 2.5)."""
-        follow = _follow(removed_at=300).with_requester(ALICE, Via.FOLLOW, now=500)
+        follow = _follow(removed_at=300).with_requester(ALICE, Via.FOLLOW, now=500, owner=OWNER)
         assert follow.removed_at is None
         assert _ids(follow) == [ALICE]
 
     def test_leaving_keeps_the_follow_for_the_others(self) -> None:
         """One requester leaving leaves the follow standing for the rest."""
-        follow = _follow(_requester(ALICE), _requester(BOB)).without_requester(ALICE, now=500)
+        follow = _follow(_requester(ALICE), _requester(BOB)).without_requester(ALICE, now=500, owner=OWNER)
         assert _ids(follow) == [BOB]
         assert follow.removed_at is None
 
     def test_the_last_leaving_removes_the_follow(self) -> None:
         """The last requester leaving sets ``removed_at``."""
-        follow = _follow(_requester(ALICE)).without_requester(ALICE, now=500)
+        follow = _follow(_requester(ALICE)).without_requester(ALICE, now=500, owner=OWNER)
         assert follow.requesters == ()
         assert follow.removed_at == 500
 
     def test_leaving_a_follow_one_never_asked_for_raises(self) -> None:
         """A non-requester cannot leave."""
         with pytest.raises(NotARequester):
-            _follow(_requester(ALICE)).without_requester(BOB, now=500)
+            _follow(_requester(ALICE)).without_requester(BOB, now=500, owner=OWNER)
 
     def test_reassign_moves_the_requester_without_its_settings(self) -> None:
         """The target takes the source's place, starting with no setting (O-10 A)."""
         follow = _follow(_requester(ALICE, floor=QualityFloor.P1080, paused=True), _requester(BOB))
-        moved = follow.reassigned(ALICE, CAROL, now=500)
+        moved = follow.reassigned(ALICE, CAROL, now=500, owner=OWNER)
         assert _ids(moved) == [BOB, CAROL]
         assert moved.requesters[1] == _requester(CAROL, since=500)
 
     def test_reassign_onto_an_existing_requester_merges(self) -> None:
         """A target already asking keeps its own ask; the source is simply removed."""
         follow = _follow(_requester(ALICE), _requester(BOB, floor=QualityFloor.P720, since=200))
-        moved = follow.reassigned(ALICE, BOB, now=500)
+        moved = follow.reassigned(ALICE, BOB, now=500, owner=OWNER)
         assert moved.requesters == (_requester(BOB, floor=QualityFloor.P720, since=200),)
 
     def test_reassign_from_a_non_requester_raises(self) -> None:
         """Only a requester can be moved."""
         with pytest.raises(NotARequester):
-            _follow(_requester(ALICE)).reassigned(BOB, CAROL, now=500)
+            _follow(_requester(ALICE)).reassigned(BOB, CAROL, now=500, owner=OWNER)
 
     def test_reassign_on_a_removed_follow_raises(self) -> None:
         """A removed follow has nobody to move."""
         with pytest.raises(FollowRemoved):
-            _follow(removed_at=300).reassigned(ALICE, BOB, now=500)
+            _follow(removed_at=300).reassigned(ALICE, BOB, now=500, owner=OWNER)
 
 
 class TestSettings:
@@ -225,29 +228,29 @@ class TestSettings:
     def test_a_requester_sets_its_own_floor(self) -> None:
         """The floor is written on the caller's requester only, the pause untouched."""
         follow = _follow(_requester(ALICE), _requester(BOB, paused=True))
-        changed = follow.with_setting(BOB, floor=QualityFloor.P2160)
+        changed = follow.with_setting(BOB, floor=QualityFloor.P2160, owner=OWNER)
         assert changed.requesters == (_requester(ALICE), _requester(BOB, floor=QualityFloor.P2160, paused=True))
 
     def test_a_requester_sets_its_own_pause_keeping_its_floor(self) -> None:
         """The pause is written alone when the floor is not given."""
         follow = _follow(_requester(ALICE, floor=QualityFloor.P720))
-        changed = follow.with_setting(ALICE, paused=True)
+        changed = follow.with_setting(ALICE, paused=True, owner=OWNER)
         assert changed.requesters == (_requester(ALICE, floor=QualityFloor.P720, paused=True),)
 
     def test_a_floor_can_be_cleared(self) -> None:
         """``floor=None`` clears the requester's floor."""
-        follow = _follow(_requester(ALICE, floor=QualityFloor.P720)).with_setting(ALICE, floor=None)
+        follow = _follow(_requester(ALICE, floor=QualityFloor.P720)).with_setting(ALICE, floor=None, owner=OWNER)
         assert follow.requesters[0].floor is None
 
     def test_a_setting_by_a_non_requester_raises(self) -> None:
         """Only a requester sets its own settings."""
         with pytest.raises(NotARequester):
-            _follow(_requester(ALICE)).with_setting(BOB, paused=True)
+            _follow(_requester(ALICE)).with_setting(BOB, paused=True, owner=OWNER)
 
     def test_a_setting_on_a_removed_follow_raises(self) -> None:
         """A removed follow takes no setting."""
         with pytest.raises(FollowRemoved):
-            _follow(removed_at=300).with_setting(ALICE, paused=True)
+            _follow(removed_at=300).with_setting(ALICE, paused=True, owner=OWNER)
 
 
 class TestInForce:
@@ -335,3 +338,47 @@ class TestReads:
         """A requester-less follow is the owner's to read, and nobody else's without ``see.others``."""
         assert _follow().readable_by(_actor(OWNER), OWNER) is True
         assert _follow().readable_by(_actor(ALICE), OWNER) is False
+
+
+class TestRequesterLessFollow:
+    """A follow written before the model: the owner's, with the v0 settings its row holds (ruling 9)."""
+
+    V0 = InForce(floor=QualityFloor.P2160, paused=True)
+
+    def test_the_owner_asks_with_the_v0_settings(self) -> None:
+        """``requesters_or_owner`` gives the owner the row's floor and pause."""
+        (only,) = _follow(legacy=self.V0).requesters_or_owner(OWNER)
+        assert (only.account_id, only.floor, only.paused) == (OWNER, QualityFloor.P2160, True)
+
+    def test_the_v0_settings_are_in_force(self) -> None:
+        """Untouched, the follow keeps its v0 floor and pause in force, whoever holds what."""
+        assert _follow(legacy=self.V0).in_force(_holds({})) == self.V0
+
+    def test_a_joiner_keeps_the_owner_and_its_settings(self) -> None:
+        """A second account joining materialises the owner's ask first, its v0 settings kept."""
+        joined = _follow(legacy=self.V0).with_requester(BOB, Via.FOLLOW, now=500, owner=OWNER)
+        assert joined.requesters == (
+            _requester(OWNER, floor=QualityFloor.P2160, paused=True, since=0),
+            _requester(BOB, since=500),
+        )
+        holds = _holds({OWNER: set(Right), BOB: {Right.ACQUISITION_QUALITY_OWN}})
+        assert joined.in_force(holds) == self.V0
+
+    def test_the_owner_sets_its_own_setting(self) -> None:
+        """The owner acts on a requester-less follow as its requester."""
+        changed = _follow(legacy=self.V0).with_setting(OWNER, paused=False, owner=OWNER)
+        assert changed.requesters == (_requester(OWNER, floor=QualityFloor.P2160, since=0),)
+
+    def test_the_owner_leaving_removes_it(self) -> None:
+        """The owner is the last requester of a requester-less follow."""
+        assert _follow(legacy=self.V0).without_requester(OWNER, now=500, owner=OWNER).removed_at == 500
+
+    def test_the_owner_is_reassigned(self) -> None:
+        """The owner's implied ask moves like any other."""
+        moved = _follow(legacy=self.V0).reassigned(OWNER, ALICE, now=500, owner=OWNER)
+        assert moved.requesters == (_requester(ALICE, since=500),)
+
+    def test_a_stranger_still_is_not_a_requester(self) -> None:
+        """Another account acting on a requester-less follow is refused."""
+        with pytest.raises(NotARequester):
+            _follow(legacy=self.V0).with_setting(ALICE, paused=False, owner=OWNER)

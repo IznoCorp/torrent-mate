@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from personalscraper.acquire.domain import FollowedSeries, FollowRequester
+from personalscraper.acquire.desired import quality_profile_from_json
+from personalscraper.acquire.domain import FollowedSeries, FollowKind, FollowRequester
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.acquisition.model import (
     AcquisitionKey,
@@ -90,6 +91,22 @@ def _stored(follow_id: FollowId, requester: Requester) -> FollowRequester:
     )
 
 
+def _legacy(row: FollowedSeries) -> InForce:
+    """The v0 settings a follow row holds: its profile's floor and its pause.
+
+    Args:
+        row: The ``followed_series`` row.
+
+    Returns:
+        The floor (``None`` when the profile names none, or one no requester can set) and the
+        pause (``not active``).
+    """
+    floor = quality_profile_from_json(row.quality_profile_json).min_resolution
+    if floor is None or int(floor) not in {int(one) for one in QualityFloor}:
+        return InForce(floor=None, paused=not row.active)
+    return InForce(floor=QualityFloor(int(floor)), paused=not row.active)
+
+
 class FollowRepository:
     """Loads and saves :class:`Follow` aggregates on the acquire store."""
 
@@ -101,11 +118,16 @@ class FollowRepository:
         """
         self._store = store
 
-    def get(self, key: AcquisitionKey) -> Follow | None:
+    def get(self, key: AcquisitionKey, kind: FollowKind | None = None) -> Follow | None:
         """Load the follow of the medium *key* names, removed or not.
+
+        TVDB and TMDB number films and shows apart: the kind, when the caller knows it, keeps a
+        film's key from finding a show (and a film named ``tvdb:`` findable at all). Without it,
+        the store's lookup takes a TVDB id for a show's and matches a TMDB id in either kind.
 
         Args:
             key: The medium's key.
+            kind: The medium's kind, ``"show"`` or ``"movie"``, when the caller knows it.
 
         Returns:
             The follow, named by its row's own ids; ``None`` when no row holds the key.
@@ -113,7 +135,7 @@ class FollowRepository:
         Raises:
             FollowAmbiguous: Two or more rows hold the key's id.
         """
-        rows = self._store.follow.find_all_by_ref(key.ref())
+        rows = self._store.follow.find_all_by_ref(key.ref(), kind=kind)
         if not rows:
             return None
         if len(rows) > 1:
@@ -122,6 +144,10 @@ class FollowRepository:
 
     def _aggregate(self, row: FollowedSeries) -> Follow:
         """Build the aggregate of one subject row and its requesters.
+
+        A standing row with no requester (every follow written before the model) carries its
+        v0 settings as the owner's: the floor of its quality profile and the pause its
+        ``active`` flag records.
 
         Args:
             row: The ``followed_series`` row, its id set.
@@ -135,12 +161,14 @@ class FollowRepository:
         if row.id is None:
             raise LookupError("a stored follow row carries its rowid")
         follow_id = FollowId(row.id)
+        requesters = tuple(_requester(one) for one in self._store.requesters.list_for(follow_id))
         return Follow(
             id=follow_id,
             key=AcquisitionKey.of(row.media_ref, row.kind),
             scope=Scope(row.scope),
-            requesters=tuple(_requester(one) for one in self._store.requesters.list_for(follow_id)),
+            requesters=requesters,
             removed_at=row.removed_at,
+            legacy=None if requesters or row.removed_at is not None else _legacy(row),
         )
 
     def save(self, follow: Follow, in_force: InForce) -> bool:

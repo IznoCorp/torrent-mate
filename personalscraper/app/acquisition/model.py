@@ -211,6 +211,8 @@ class Follow:
         requesters: Who asked, in the order they first asked; empty for a follow written
             before the model (read as the owner's, :meth:`requesters_or_owner`).
         removed_at: Epoch seconds the last requester left, ``None`` while the follow stands.
+        legacy: The settings a follow with no requester row holds on its row (v0's floor and
+            pause), the owner's own; ``None`` once requesters are stored.
     """
 
     id: FollowId
@@ -218,6 +220,23 @@ class Follow:
     scope: Scope
     requesters: tuple[Requester, ...]
     removed_at: int | None
+    legacy: InForce | None = None
+
+    def _members(self, owner: AccountId) -> Follow:
+        """The follow with the owner's implied ask made explicit, when it stands with no requester.
+
+        An act on a follow written before the model starts from the owner's ask, carrying the
+        row's v0 settings, so neither the owner nor what it set is lost by the act.
+
+        Args:
+            owner: The account a requester-less follow is the ask of.
+
+        Returns:
+            The follow, its requesters :meth:`requesters_or_owner`'s when it had none and stands.
+        """
+        if self.requesters or self.removed_at is not None:
+            return self
+        return replace(self, requesters=self.requesters_or_owner(owner), legacy=None)
 
     def _find(self, account: AccountId) -> Requester | None:
         """The requester of one account.
@@ -257,12 +276,15 @@ class Follow:
             owner: The account unattended acts are attributed to.
 
         Returns:
-            The requesters; for a follow with none, the owner alone, with no setting, asking
-            as the follow's scope does, ``since`` 0 (unknown).
+            The requesters; for a follow with none, the owner alone, with the row's v0 settings
+            (none without them), asking as the follow's scope does, ``since`` 0 (unknown).
         """
         if self.requesters:
             return self.requesters
-        return (Requester(account_id=owner, via=Via(self.scope.value), floor=None, paused=False, since=0),)
+        legacy = self.legacy or InForce(floor=None, paused=False)
+        return (
+            Requester(account_id=owner, via=Via(self.scope.value), floor=legacy.floor, paused=legacy.paused, since=0),
+        )
 
     def readable_by(self, actor: Actor, owner: AccountId) -> bool:
         """Whether an actor reads this follow: ``acquisition.see.others``, else membership.
@@ -281,30 +303,35 @@ class Follow:
             return True
         return any(one.account_id == actor.account_id for one in self.requesters_or_owner(owner))
 
-    def with_requester(self, account: AccountId, via: Via, now: int) -> Follow:
+    def with_requester(self, account: AccountId, via: Via, now: int, *, owner: AccountId) -> Follow:
         """An account asks for the follow: it joins, or nothing changes if it already asked.
 
-        A removed follow asked for again comes back, the asker its requester (§ 2.5).
+        A removed follow asked for again comes back, the asker its requester (§ 2.5). A
+        standing follow with no requester keeps its owner, with its v0 settings, beside the
+        asker.
 
         Args:
             account: The asking account.
             via: How it asks.
             now: Epoch seconds of the ask.
+            owner: The account a requester-less follow is the ask of.
 
         Returns:
             The follow with the account among its requesters.
         """
-        if self._find(account) is not None:
-            return self
+        members = self._members(owner)
+        if members._find(account) is not None:
+            return members
         joined = Requester(account_id=account, via=via, floor=None, paused=False, since=now)
-        return replace(self, requesters=(*self.requesters, joined), removed_at=None)
+        return replace(members, requesters=(*members.requesters, joined), removed_at=None, legacy=None)
 
-    def without_requester(self, account: AccountId, now: int) -> Follow:
+    def without_requester(self, account: AccountId, now: int, *, owner: AccountId) -> Follow:
         """An account leaves the follow; the last one leaving removes it.
 
         Args:
             account: The leaving account.
             now: Epoch seconds of the removal.
+            owner: The account a requester-less follow is the ask of.
 
         Returns:
             The follow without the account, ``removed_at`` set when nobody is left.
@@ -313,11 +340,12 @@ class Follow:
             FollowRemoved: The follow is already removed.
             NotARequester: The account did not ask for it.
         """
-        self._standing_requester(account)
-        left = tuple(one for one in self.requesters if one.account_id != account)
-        return replace(self, requesters=left, removed_at=None if left else now)
+        members = self._members(owner)
+        members._standing_requester(account)
+        left = tuple(one for one in members.requesters if one.account_id != account)
+        return replace(members, requesters=left, removed_at=None if left else now)
 
-    def reassigned(self, source: AccountId, target: AccountId, now: int) -> Follow:
+    def reassigned(self, source: AccountId, target: AccountId, now: int, *, owner: AccountId) -> Follow:
         """Move one requester's ask onto another account (§ 2.6).
 
         The settings do not travel (O-10 A): the target asks from now, with none. A target
@@ -327,6 +355,7 @@ class Follow:
             source: The requester moved.
             target: The account taking its place.
             now: Epoch seconds of the move.
+            owner: The account a requester-less follow is the ask of.
 
         Returns:
             The follow with the target in the source's stead.
@@ -335,17 +364,19 @@ class Follow:
             FollowRemoved: The follow is removed.
             NotARequester: The source did not ask for it.
         """
-        moved = self._standing_requester(source)
-        rest = tuple(one for one in self.requesters if one.account_id != source)
+        members = self._members(owner)
+        moved = members._standing_requester(source)
+        rest = tuple(one for one in members.requesters if one.account_id != source)
         if any(one.account_id == target for one in rest):
-            return replace(self, requesters=rest)
+            return replace(members, requesters=rest)
         arrival = Requester(account_id=target, via=moved.via, floor=None, paused=False, since=now)
-        return replace(self, requesters=(*rest, arrival))
+        return replace(members, requesters=(*rest, arrival))
 
     def with_setting(
         self,
         account: AccountId,
         *,
+        owner: AccountId,
         floor: QualityFloor | None | _Unset = _UNSET,
         paused: bool | _Unset = _UNSET,
     ) -> Follow:
@@ -353,6 +384,7 @@ class Follow:
 
         Args:
             account: The requester.
+            owner: The account a requester-less follow is the ask of.
             floor: Its new floor (``None`` clears it); left as it is when not given.
             paused: Its new pause; left as it is when not given.
 
@@ -363,13 +395,14 @@ class Follow:
             FollowRemoved: The follow is removed.
             NotARequester: The account did not ask for it.
         """
-        own = self._standing_requester(account)
+        members = self._members(owner)
+        own = members._standing_requester(account)
         changed = replace(
             own,
             floor=own.floor if isinstance(floor, _Unset) else floor,
             paused=own.paused if isinstance(paused, _Unset) else paused,
         )
-        return replace(self, requesters=tuple(changed if one is own else one for one in self.requesters))
+        return replace(members, requesters=tuple(changed if one is own else one for one in members.requesters))
 
     def in_force(self, holds: RightCheck) -> InForce:
         """The settings in force: only a requester whose role holds the right counts.
@@ -379,8 +412,11 @@ class Follow:
 
         Returns:
             The highest floor among the holders of ``acquisition.quality.own``; paused when
-            every holder of ``acquisition.pause.own`` paused and at least one holds it.
+            every holder of ``acquisition.pause.own`` paused and at least one holds it. A
+            standing follow with no requester keeps its row's v0 settings in force.
         """
+        if not self.requesters and self.removed_at is None and self.legacy is not None:
+            return self.legacy
         floors = [
             one.floor
             for one in self.requesters
