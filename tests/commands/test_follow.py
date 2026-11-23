@@ -17,6 +17,7 @@ from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
+from personalscraper.i18n import t
 
 runner = CliRunner()
 
@@ -422,6 +423,10 @@ def test_follow_remove_leaves_a_request_row_alone(tmp_path: Path, monkeypatch) -
 
     assert by_tvdb.exit_code == 0, by_tvdb.output
     assert by_id.exit_code == 0, by_id.output
+    # « not found », not « already inactive »: an active request is no follow, it is not an inactive one.
+    for result in (by_tvdb, by_id):
+        assert t("cli_acquisition.follow.remove.not_found") in result.output, result.output
+        assert t("cli_acquisition.follow.remove.already_inactive") not in result.output, result.output
     row = acquire.store.follow.get(request_id)
     assert row is not None
     assert (row.scope, row.active, row.removed_at) == ("request", True, None)
