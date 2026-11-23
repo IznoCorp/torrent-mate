@@ -4,7 +4,7 @@ The ranked candidates a concluded search found for a wanted row, kept so a read 
 releases needs no tracker call. A concluded search replaces the previous set wholesale.
 Nothing writes here yet: the search pass does, in a later phase.
 
-Lives in its own module to keep ``store.py`` from growing — same precedent as
+Lives in its own module to keep ``store.py`` from growing — same pattern as
 ``_aired_store.py`` / ``_wanted_store.py``. Reads are lock-free (WAL); writes use
 ``BEGIN IMMEDIATE`` via the shared ``_write_tx`` context manager.
 """

@@ -247,7 +247,7 @@ class WantedItem:
             fetch ``tried_hashes_json``; other reads leave it empty.
         trigger: What put the row in the queue: ``"manual"`` (a person's ask) or
             ``"automatic"`` (detect, the search conversions). ``None`` is an honest
-            « unknown »: every row written before migration 027, and v0's frozen season
+            "unknown": every row written before migration 027, and v0's frozen season
             route, which writes none.
     """
 

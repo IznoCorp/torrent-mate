@@ -5,7 +5,7 @@ so an account is an opaque id and the rules over requesters (what is in force, w
 read, when the last one leaving removes the follow) belong to the acquisition model; this
 store only holds and reads the rows. Nothing writes here yet: the follow service does.
 
-Lives in its own module to keep ``store.py`` from growing — same precedent as
+Lives in its own module to keep ``store.py`` from growing — same pattern as
 ``_aired_store.py`` / ``_wanted_store.py``. Reads are lock-free (WAL); writes use
 ``BEGIN IMMEDIATE`` via the shared ``_write_tx`` context manager.
 """

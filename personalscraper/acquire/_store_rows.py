@@ -137,7 +137,7 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
     # absorbed_by is optional: only SELECTs that fetch it populate the field.
     # Decode defensively — pre-013 databases lack the column.
     absorbed_by = int(row["absorbed_by"]) if ("absorbed_by" in row.keys() and row["absorbed_by"] is not None) else None
-    # trigger is optional the same way (migration 027); NULL is « unknown ».
+    # trigger is optional the same way (migration 027); NULL is "unknown".
     trigger = cast(WantedTrigger | None, row["trigger"]) if "trigger" in row.keys() else None
     return WantedItem(
         media_ref=_media_ref_from_json(row["media_ref_json"]),
