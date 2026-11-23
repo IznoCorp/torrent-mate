@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date
 from typing import TYPE_CHECKING, Protocol
 
+from personalscraper.acquire.detect import DetectResult, DetectStatus
+from personalscraper.acquire.service import RunSummary, SearchRunSummary
 from personalscraper.app.supervisor.model import AcquisitionJob, JobKind
 from personalscraper.logger import get_logger
 
@@ -35,7 +37,7 @@ class AcquisitionUnavailable(RuntimeError):
 class DetectPass(Protocol):
     """What the worker asks of the detect service (:meth:`DetectService.run`)."""
 
-    def run(self, *, series: str | None, dry_run: bool, today: date, now: int) -> object:
+    def run(self, *, series: str | None, dry_run: bool, today: date, now: int) -> DetectResult:
         """Run one detect pass over the active followed set.
 
         Args:
@@ -45,7 +47,7 @@ class DetectPass(Protocol):
             now: The epoch stamped on new rows.
 
         Returns:
-            The pass's result.
+            The pass's result: its status, its actions and its counts.
         """
         ...
 
@@ -53,7 +55,7 @@ class DetectPass(Protocol):
 class SearchPass(Protocol):
     """What the worker asks of the acquisition service for a search (:meth:`AcquisitionService.run_search`)."""
 
-    def run_search(self, *, limit: int | None = None, followed_id: int | None = None) -> object:
+    def run_search(self, *, limit: int | None = None, followed_id: int | None = None) -> SearchRunSummary:
         """Run the search pass over the pending wanted items.
 
         Args:
@@ -61,7 +63,7 @@ class SearchPass(Protocol):
             followed_id: Restrict the pass to one follow; ``None`` for the whole queue.
 
         Returns:
-            The pass's summary.
+            The pass's counts.
         """
         ...
 
@@ -69,7 +71,9 @@ class SearchPass(Protocol):
 class GrabPass(Protocol):
     """What the worker asks of the acquisition service for a grab (:meth:`AcquisitionService.run`)."""
 
-    def run(self, *, limit: int | None = None, followed_id: int | None = None, run_uid: str | None = None) -> object:
+    def run(
+        self, *, limit: int | None = None, followed_id: int | None = None, run_uid: str | None = None
+    ) -> RunSummary:
         """Run the grab pass over the available wanted items.
 
         Args:
@@ -78,7 +82,7 @@ class GrabPass(Protocol):
             run_uid: The run the grabbed items are stamped with.
 
         Returns:
-            The pass's summary.
+            The pass's counts.
         """
         ...
 
@@ -112,10 +116,14 @@ def run_acquisition_job(
     run_uid: RunUid,
     clock: Callable[[], float] = time.time,
 ) -> int:
-    """Run the passes of *job* through *engine*, each scoped to the job's follow.
+    """Run the passes of *job* through *engine*, each scoped to the job's follow, and settle by what they did.
 
-    A ``prime`` runs its follow's detect, then search, then grab, as the v0 runner's three steps did.
-    A pass that raises ends the job: the exception goes to the caller, which turns it into an exit 1.
+    A ``prime`` runs its follow's detect, then search, then grab, as the v0 runner's three steps did; with
+    no grab service (no torrent client) it runs the first two, logs the grab it skipped and exits 1. Every
+    pass logs its counts (``worker.acquisition_pass``). A pass scoped to a follow that the detect cannot find
+    (no such follow, or not active) ends the job with exit 1, and so does a search that concluded on nothing
+    (every item unverified: « panne ≠ absence »). A pass that raises ends the job: the exception goes to the
+    caller, which turns it into an exit 1.
 
     Args:
         job: What is asked.
@@ -124,36 +132,50 @@ def run_acquisition_job(
         clock: The epoch clock.
 
     Returns:
-        The exit code: 0 when every pass ran; 1 when the job asks for what the engine cannot do.
+        The exit code: 0 when every pass ran and did what was asked of it; 1 otherwise.
 
     Raises:
-        AcquisitionUnavailable: If a service the job needs is not in *engine*.
+        AcquisitionUnavailable: If a service the job needs is not in *engine* (a prime's grab excepted).
     """
     if job.release is not None:
         # The engine takes no named release yet: grabbing the follow's ordinary pick instead would be a silent
         # substitute for what was asked (DESIGN O-14), so nothing runs.
         log.error("worker.acquisition_release_unsupported", uid=run_uid, followed_id=job.followed_id)
         return 1
-    if job.kind in (JobKind.DETECT, JobKind.PRIME):
-        _detect(job, engine, clock)
+    code = 0
+    if job.kind in (JobKind.DETECT, JobKind.PRIME) and not _detect(job, engine, clock, run_uid):
+        return 1
     if job.kind in (JobKind.SEARCH, JobKind.PRIME):
         if engine.search is None:
             raise AcquisitionUnavailable("the engine has no search service")
-        engine.search.run_search(limit=job.limit, followed_id=job.followed_id)
+        searched = engine.search.run_search(limit=job.limit, followed_id=job.followed_id)
+        _log_pass("search", job, run_uid, asdict(searched))
+        if searched.unverified and not (searched.available or searched.waiting or searched.abandoned):
+            log.error("worker.acquisition_search_inconclusive", uid=run_uid, followed_id=job.followed_id)
+            code = 1
     if job.kind in (JobKind.GRAB, JobKind.PRIME):
         if engine.grab is None:
-            raise AcquisitionUnavailable("the engine has no grab service")
-        engine.grab.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid)
-    return 0
+            if job.kind is not JobKind.PRIME:
+                raise AcquisitionUnavailable("the engine has no grab service")
+            log.warning("worker.acquisition_grab_skipped", uid=run_uid, followed_id=job.followed_id, reason="no_client")
+            return 1
+        grabbed = engine.grab.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid)
+        _log_pass("grab", job, run_uid, asdict(grabbed))
+    return code
 
 
-def _detect(job: AcquisitionJob, engine: AcquisitionEngine, clock: Callable[[], float]) -> None:
-    """Run the detect pass of *job*.
+def _detect(job: AcquisitionJob, engine: AcquisitionEngine, clock: Callable[[], float], run_uid: RunUid) -> bool:
+    """Run the detect pass of *job* and judge its result.
 
     Args:
         job: The job; its follow, when it has one, is the pass's ``series`` filter.
         engine: The services.
         clock: The epoch clock.
+        run_uid: The request's uid, for the log.
+
+    Returns:
+        ``False`` when the job names a follow the pass did not find at work (``no_match``: it does not
+        exist, or ``no_active``: it is not active), so nothing further can be done for it; ``True`` otherwise.
 
     Raises:
         AcquisitionUnavailable: If *engine* has no detect service.
@@ -161,9 +183,28 @@ def _detect(job: AcquisitionJob, engine: AcquisitionEngine, clock: Callable[[], 
     if engine.detect is None:
         raise AcquisitionUnavailable("the engine has no detect service")
     now = clock()
-    engine.detect.run(
+    result = engine.detect.run(
         series=None if job.followed_id is None else str(job.followed_id),
         dry_run=False,
         today=date.fromtimestamp(now),
         now=int(now),
     )
+    _log_pass("detect", job, run_uid, {"status": result.status.value, **asdict(result.summary)})
+    if job.followed_id is not None and result.status is not DetectStatus.OK:
+        log.error("worker.acquisition_follow_not_found", uid=run_uid, followed_id=job.followed_id, status=result.status)
+        return False
+    return True
+
+
+def _log_pass(name: str, job: AcquisitionJob, run_uid: RunUid, counts: dict[str, object]) -> None:
+    """Log what a pass did; a pass scoped to a follow that did nothing at all is a warning.
+
+    Args:
+        name: The pass.
+        job: The job it ran for.
+        run_uid: The request's uid.
+        counts: What the pass reported.
+    """
+    log.info("worker.acquisition_pass", uid=run_uid, step=name, followed_id=job.followed_id, **counts)
+    if job.followed_id is not None and not any(value for key, value in counts.items() if key != "status"):
+        log.warning("worker.acquisition_pass_idle", uid=run_uid, step=name, followed_id=job.followed_id)

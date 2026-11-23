@@ -18,6 +18,9 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.acquire.detect import DetectResult, DetectStatus, DetectSummary
+from personalscraper.acquire.service import RunSummary, SearchRunSummary
+from personalscraper.acquire.watcher import WatcherDecision, WatcherInput, WatcherOutput, WatcherState
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.ids import AccountId, RoleId
@@ -44,7 +47,8 @@ from personalscraper.app.supervisor.supervisor import Supervisor
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
 from personalscraper.lock import is_lock_held
-from tests.unit.app.supervisor.fakes import FakeWorkerLauncher
+from tests.conftest import LoggedEvents
+from tests.unit.app.supervisor.fakes import FakeWatcherHalf, FakeWorkerLauncher
 
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 _ADMIN = Actor.system(_NO_CEILING, account_id=AccountId("account-admin"), name="admin")
@@ -118,9 +122,24 @@ def clock() -> _Clock:
     return _Clock()
 
 
+class _Requesters:
+    """Who asked for each follow: follow 7 is account-a's, follow 8 is someone else's, the rest nobody's."""
+
+    def requesters_of(self, followed_id: int) -> tuple[str, ...]:
+        """The accounts that asked for a follow.
+
+        Args:
+            followed_id: The follow.
+
+        Returns:
+            Their account ids.
+        """
+        return {7: ("account-a",), 8: ("account-b",)}.get(followed_id, ())
+
+
 @pytest.fixture
 def runs(store: AppStore, test_config: Config, clock: _Clock) -> RunService:
-    """The run service over the test's store.
+    """The run service over the test's store, knowing who asked for follows 7 and 8.
 
     Args:
         store: The store.
@@ -130,7 +149,7 @@ def runs(store: AppStore, test_config: Config, clock: _Clock) -> RunService:
     Returns:
         The service.
     """
-    return RunService(store=store, data_dir=test_config.paths.data_dir, clock=clock)
+    return RunService(store=store, data_dir=test_config.paths.data_dir, clock=clock, requesters=_Requesters())
 
 
 @pytest.fixture
@@ -282,39 +301,118 @@ class TestCoalescing:
         assert not grab.joined
         assert grab.uid != run.uid
 
-    def test_the_view_keeps_the_pipeline_lane_apart(self, runs: RunService) -> None:
+    def test_the_view_keeps_the_pipeline_lane_apart(self, store: AppStore, runs: RunService, clock: _Clock) -> None:
         """``running`` and ``queued`` are the pipeline lane's, what the watcher reads; the passes are beside them."""
         run = runs.ask_run(_ADMIN, trigger=RunTrigger.WEB, options=RunOptions())
         grab = runs.ask_acquisition(_ADMIN, _GRAB_7)
+        queued = runs.queue_view()
 
+        assert [r.uid for r in queued.queued] == [run.uid]
+        assert [r.uid for r in queued.acquisition_queued] == [grab.uid]
+        assert queued.running is None
+        assert queued.acquisition_running is None
+
+        grabbing = store.runs.get(grab.uid)
+        assert grabbing is not None
+        grabbing.admit(4000, clock())
+        store.runs.save(grabbing)
         view = runs.queue_view()
 
+        assert view.running is None, "a running grab is not the pipeline lane's"
+        assert view.acquisition_running is not None
+        assert view.acquisition_running.uid == grab.uid
         assert [r.uid for r in view.queued] == [run.uid]
-        assert [r.uid for r in view.acquisition_queued] == [grab.uid]
-        assert view.running is None
-        assert view.acquisition_running is None
+
+
+_REQUEST, _FOLLOW = Right.ACQUISITION_REQUEST, Right.ACQUISITION_FOLLOW
+_PILOT_OWN, _PILOT_ANY = Right.ACQUISITION_PILOT_OWN, Right.ACQUISITION_PILOT_ANY
+_PAUSE_OWN, _CONTROL = Right.ACQUISITION_PAUSE_OWN, Right.PIPELINE_CONTROL
+
+_SEARCH_7 = AcquisitionJob(JobKind.SEARCH, followed_id=7)
+_PRIME_7 = AcquisitionJob(JobKind.PRIME, followed_id=7)
+
+#: Per job: each right that alone opens it for a follow the actor requested (account-a's follow 7), and the
+#: rights that alone do not. A prime is asked under the rights of every operation that makes a follow take work.
+_RIGHTS_BY_JOB = [
+    pytest.param(AcquisitionJob(JobKind.DETECT), [_CONTROL], [_PILOT_OWN, _PILOT_ANY, _REQUEST], id="detect"),
+    pytest.param(
+        AcquisitionJob(JobKind.DETECT, followed_id=7),
+        [_CONTROL],
+        [_PILOT_OWN, _PILOT_ANY, _REQUEST],
+        id="detect-follow",
+    ),
+    pytest.param(_SEARCH_7, [_PILOT_OWN, _PILOT_ANY], [_REQUEST, _FOLLOW, _PAUSE_OWN, _CONTROL], id="search"),
+    pytest.param(_GRAB_7, [_PILOT_OWN, _PILOT_ANY], [_REQUEST, _FOLLOW, _PAUSE_OWN, _CONTROL], id="grab"),
+    pytest.param(_PRIME_7, [_REQUEST, _FOLLOW, _PILOT_OWN, _PILOT_ANY, _PAUSE_OWN], [_CONTROL], id="prime"),
+]
 
 
 class TestAuthorisation:
-    """The ask needs the rights of the pass's operation, and nothing is written before."""
+    """The ask needs the rights of the pass's operation and a target the actor may act on, before any write."""
 
-    def test_a_pilot_may_grab_and_search_but_not_detect(self, store: AppStore, runs: RunService) -> None:
-        """``grabForFollow`` and ``searchForFollow`` open on pilot rights; ``runDetection`` asks the pipeline's."""
-        pilot = _ordinary(Right.ACQUISITION_PILOT_OWN)
+    @pytest.mark.parametrize(("job", "opening", "not_opening"), _RIGHTS_BY_JOB)
+    def test_each_right_of_the_operation_alone_opens_the_job_and_no_other_does(
+        self, store: AppStore, runs: RunService, job: AcquisitionJob, opening: list[Right], not_opening: list[Right]
+    ) -> None:
+        """Every right a job's operations name opens it alone, and a right outside them is refused."""
+        for right in opening:
+            assert runs.ask_acquisition(_ordinary(right), job).state in ("queued", "running")
+        asked = len(store.runs.queued(Lane.ACQUISITION))
 
-        assert runs.ask_acquisition(pilot, _GRAB_7).state == "queued"
-        assert runs.ask_acquisition(pilot, AcquisitionJob(JobKind.SEARCH, followed_id=7)).state == "queued"
+        for right in not_opening:
+            with pytest.raises(AppForbidden) as refused:
+                runs.ask_acquisition(_ordinary(right), job)
+            assert refused.value.code is RefusalCode.RIGHT_MISSING
+
+        assert asked >= 1
+        assert len(store.runs.queued(Lane.ACQUISITION)) == asked, "a refused ask wrote a row"
+
+    @pytest.mark.parametrize("job", [_SEARCH_7, _GRAB_7, _PRIME_7], ids=["search", "grab", "prime"])
+    def test_an_own_actor_is_refused_a_follow_it_did_not_ask_for(
+        self, store: AppStore, runs: RunService, job: AcquisitionJob
+    ) -> None:
+        """Follow 8 is account-b's: ``pilot.own`` does not reach it, ``pilot.any`` does."""
+        other = AcquisitionJob(job.kind, followed_id=8)
+        own = _ordinary(_PILOT_OWN, _REQUEST)
+
         with pytest.raises(AppForbidden) as refused:
-            runs.ask_acquisition(pilot, AcquisitionJob(JobKind.DETECT))
-
+            runs.ask_acquisition(own, other)
         assert refused.value.code is RefusalCode.RIGHT_MISSING
-        assert len(store.runs.queued(Lane.ACQUISITION)) == 2
+        assert refused.value.params == {"rights": ["acquisition.pilot.any"]}
+        assert store.runs.queued() == ()
 
-    def test_a_requester_may_prime_the_follow_it_made(self, runs: RunService) -> None:
-        """A prime is asked under the rights of the use case that made the follow take work."""
-        requester = _ordinary(Right.ACQUISITION_REQUEST)
+        assert runs.ask_acquisition(_ordinary(_PILOT_ANY), other).state == "queued"
 
-        assert runs.ask_acquisition(requester, AcquisitionJob(JobKind.PRIME, followed_id=7)).state == "queued"
+    def test_a_follow_nobody_asked_for_is_the_any_holders_alone(self, store: AppStore, runs: RunService) -> None:
+        """No requester (or no follow): ``pilot.own`` is refused whatever the follow, ``pilot.any`` is not."""
+        unknown = AcquisitionJob(JobKind.GRAB, followed_id=99)
+
+        with pytest.raises(AppForbidden):
+            runs.ask_acquisition(_ordinary(_PILOT_OWN), unknown)
+        assert runs.ask_acquisition(_ordinary(_PILOT_ANY), unknown).state == "queued"
+
+    def test_with_no_requester_lookup_only_an_any_holder_may_ask_a_follow(
+        self, store: AppStore, test_config: Config, clock: _Clock
+    ) -> None:
+        """A service that knows nobody fails closed for ``pilot.own``."""
+        blind = RunService(store=store, data_dir=test_config.paths.data_dir, clock=clock)
+
+        with pytest.raises(AppForbidden):
+            blind.ask_acquisition(_ordinary(_PILOT_OWN), _GRAB_7)
+        assert blind.ask_acquisition(_ordinary(_PILOT_ANY), _GRAB_7).state == "queued"
+
+    @pytest.mark.parametrize("kind", [JobKind.SEARCH, JobKind.GRAB], ids=["search", "grab"])
+    def test_a_whole_queue_pass_needs_the_any_right(self, store: AppStore, runs: RunService, kind: JobKind) -> None:
+        """No follow named: every requester's items are in play, so ``pilot.own`` is refused."""
+        whole = AcquisitionJob(kind)
+
+        with pytest.raises(AppForbidden) as refused:
+            runs.ask_acquisition(_ordinary(_PILOT_OWN), whole)
+        assert refused.value.code is RefusalCode.RIGHT_MISSING
+        assert store.runs.queued() == ()
+
+        assert runs.ask_acquisition(_ordinary(_PILOT_ANY), whole).state == "queued"
+        assert runs.ask_acquisition(_ADMIN, AcquisitionJob(kind, limit=2)).state == "queued"
 
     def test_an_actor_with_no_right_is_refused_before_any_write(self, store: AppStore, runs: RunService) -> None:
         """No right, no row."""
@@ -357,14 +455,23 @@ class TestLanes:
     def test_one_acquisition_request_runs_at_a_time(
         self, store: AppStore, runs: RunService, supervisor: Supervisor, launcher: FakeWorkerLauncher
     ) -> None:
-        """A second pass waits behind the first, in its own lane."""
+        """A second pass waits behind the first, tick after tick, until the first settles."""
         first = runs.ask_acquisition(_ADMIN, _GRAB_7)
         second = runs.ask_acquisition(_ADMIN, AcquisitionJob(JobKind.SEARCH))
 
         supervisor.tick_admission()
+        supervisor.tick_admission()
+        supervisor.tick_admission()
 
         assert launcher.started == [first.uid]
         assert _state(store, second.uid) == (RequestState.QUEUED, None, WaitReason.BEHIND_RUN)
+
+        launcher.exit(first.uid, 0)
+        supervisor.tick_admission()
+        supervisor.tick_admission()
+
+        assert _state(store, first.uid)[:2] == (RequestState.SETTLED, Settlement.SUCCESS)
+        assert launcher.started == [first.uid, second.uid]
 
     def test_a_running_grab_does_not_hold_the_pipeline_lane(
         self, store: AppStore, runs: RunService, supervisor: Supervisor, launcher: FakeWorkerLauncher
@@ -412,57 +519,184 @@ class TestLanes:
         assert _state(store, grab.uid) == (RequestState.SETTLED, Settlement.INTERRUPTED, None)
 
 
+class _Engine:
+    """A decision engine that decides nothing and keeps the inputs it was handed.
+
+    Attributes:
+        seen: The inputs evaluated.
+    """
+
+    def __init__(self) -> None:
+        """Start with nothing seen."""
+        self.seen: list[WatcherInput] = []
+
+    def evaluate(self, inp: WatcherInput, state: WatcherState) -> WatcherOutput:
+        """Record the input and decide to idle.
+
+        Args:
+            inp: The input.
+            state: The state.
+
+        Returns:
+            An IDLE decision.
+        """
+        self.seen.append(inp)
+        return WatcherOutput(decision=WatcherDecision.IDLE, new_state=state)
+
+
+class TestWatcherBusy:
+    """The watcher is told « busy » by the pipeline lane only: a grab never defers a run (DESIGN O-5 A)."""
+
+    @staticmethod
+    def _watched(
+        store: AppStore, test_config: Config, runs: RunService, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> tuple[Supervisor, _Engine]:
+        """A supervisor whose watcher polls one quiet input per tick.
+
+        Args:
+            store: The store.
+            test_config: The synthetic configuration.
+            runs: The run service.
+            launcher: The fake launcher.
+            clock: The clock.
+
+        Returns:
+            The supervisor and the engine that records what it is asked.
+        """
+        config = test_config.model_copy(update={"watch": test_config.watch.model_copy(update={"enabled": True})})
+        half = FakeWatcherHalf()
+        half.inputs = [
+            WatcherInput(
+                completed_hashes=frozenset(),
+                ingested_hashes=frozenset(),
+                triage_skipped_hashes=frozenset(),
+                sentinel_present=False,
+                pipeline_lock_held=False,
+                now=clock(),
+                downloading_count=0,
+            )
+        ]
+        engine = _Engine()
+        return (
+            Supervisor(
+                store=store,
+                runs=runs,
+                system_actor=lambda: _ADMIN,
+                event_bus=EventBus(),
+                config=config,
+                launcher=launcher,
+                watcher=half,
+                watcher_service=engine,
+                clock=clock,
+                pid=100,
+                host="host-a",
+                pid_alive=lambda _pid: True,
+            ),
+            engine,
+        )
+
+    def test_a_running_and_a_queued_pass_do_not_make_the_watcher_busy(
+        self, store: AppStore, test_config: Config, runs: RunService, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """With only acquisition requests in the queue the watcher's input says the pipeline is free."""
+        supervisor, engine = self._watched(store, test_config, runs, launcher, clock)
+        runs.ask_acquisition(_ADMIN, _GRAB_7)
+        runs.ask_acquisition(_ADMIN, AcquisitionJob(JobKind.SEARCH))
+        supervisor.tick_admission()  # the grab runs, the search waits behind it
+
+        supervisor.tick_watcher()
+
+        assert [inp.pipeline_lock_held for inp in engine.seen] == [False]
+
+    def test_a_pipeline_request_does_make_the_watcher_busy(
+        self, store: AppStore, test_config: Config, runs: RunService, launcher: FakeWorkerLauncher, clock: _Clock
+    ) -> None:
+        """The control: a queued or running run is what the watcher is told about."""
+        supervisor, engine = self._watched(store, test_config, runs, launcher, clock)
+        runs.ask_run(_ADMIN, trigger=RunTrigger.WEB, options=RunOptions())
+        supervisor.tick_admission()
+
+        supervisor.tick_watcher()
+
+        assert [inp.pipeline_lock_held for inp in engine.seen] == [True]
+
+
 class _Fake:
-    """An engine service that records the calls it is handed.
+    """An engine service that records the calls it is handed and answers what the test scripted.
 
     Attributes:
         calls: ``(name, keyword arguments)`` of each call, in order.
+        detected: What a detect call answers.
+        searched: What a search call answers.
+        grabbed: What a grab call answers.
     """
 
     def __init__(self, calls: list[tuple[str, dict[str, object]]]) -> None:
-        """Share the call log.
+        """Share the call log; answer a pass that did its work.
 
         Args:
             calls: The log every fake of the engine appends to.
         """
         self.calls = calls
+        self.detected = DetectResult(DetectStatus.OK, [], DetectSummary(enqueued=2))
+        self.searched = SearchRunSummary(available=1, waiting=0, unverified=0, abandoned=0, skipped=0)
+        self.grabbed = RunSummary(grabbed=1)
 
-    def run(self, **kwargs: object) -> object:
+    def run(self, **kwargs: object) -> DetectResult | RunSummary:
         """Record a detect or grab call: the ones with a ``series`` are detects.
 
         Args:
             **kwargs: The call's keywords.
 
         Returns:
-            Nothing of interest.
+            The scripted answer of that pass.
         """
-        self.calls.append(("detect" if "series" in kwargs else "grab", kwargs))
-        return object()
+        if "series" in kwargs:
+            self.calls.append(("detect", kwargs))
+            return self.detected
+        self.calls.append(("grab", kwargs))
+        return self.grabbed
 
-    def run_search(self, **kwargs: object) -> object:
+    def run_search(self, **kwargs: object) -> SearchRunSummary:
         """Record a search call.
 
         Args:
             **kwargs: The call's keywords.
 
         Returns:
-            Nothing of interest.
+            The scripted answer.
         """
         self.calls.append(("search", kwargs))
-        return object()
+        return self.searched
 
 
-def _engine(calls: list[tuple[str, dict[str, object]]]) -> AcquisitionEngine:
+def _event_names(events: list[dict[str, object]]) -> set[object]:
+    """The names of the logged events.
+
+    Args:
+        events: What :func:`logged_events` captured.
+
+    Returns:
+        Each ``event`` once.
+    """
+    return {event["event"] for event in events}
+
+
+def _engine(
+    calls: list[tuple[str, dict[str, object]]], fake: _Fake | None = None, *, grab: bool = True
+) -> AcquisitionEngine:
     """An engine of fakes sharing one call log.
 
     Args:
         calls: The log.
+        fake: The fake to serve every pass with; a fresh one over *calls* when ``None``.
+        grab: Whether the engine holds a grab service (a torrent client).
 
     Returns:
         The engine.
     """
-    fake = _Fake(calls)
-    return AcquisitionEngine(detect=fake, search=fake, grab=fake)
+    fake = fake if fake is not None else _Fake(calls)
+    return AcquisitionEngine(detect=fake, search=fake, grab=fake if grab else None)
 
 
 def _running(store: AppStore, job: AcquisitionJob) -> RunRequest:
@@ -640,6 +874,93 @@ class TestWorker:
         code = _run_worker(store, test_config, request.uid, AcquisitionEngine())
 
         assert code == worker.FAILED_EXIT
+
+    def test_a_prime_with_no_torrent_client_detects_and_searches_then_fails_at_the_grab(
+        self, store: AppStore, test_config: Config, logged_events: LoggedEvents
+    ) -> None:
+        """As v0's runner did: the first two steps run without a client, the grab is skipped (logged), exit 1."""
+        request = _running(store, AcquisitionJob(JobKind.PRIME, followed_id=7))
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        with logged_events() as events:
+            code = _run_worker(store, test_config, request.uid, _engine(calls, grab=False))
+
+        assert code == worker.FAILED_EXIT
+        assert [name for name, _ in calls] == ["detect", "search"]
+        assert "worker.acquisition_grab_skipped" in _event_names(events)
+
+    @pytest.mark.parametrize("status", [DetectStatus.NO_MATCH, DetectStatus.NO_ACTIVE])
+    @pytest.mark.parametrize("kind", [JobKind.DETECT, JobKind.PRIME])
+    def test_a_follow_the_detect_does_not_find_fails_the_request(
+        self, store: AppStore, test_config: Config, logged_events: LoggedEvents, kind: JobKind, status: DetectStatus
+    ) -> None:
+        """A detect or prime of a follow that does not exist or is not active fails; a prime stops there."""
+        request = _running(store, AcquisitionJob(kind, followed_id=7))
+        calls: list[tuple[str, dict[str, object]]] = []
+        fake = _Fake(calls)
+        fake.detected = DetectResult(status, [], DetectSummary())
+
+        with logged_events() as events:
+            code = _run_worker(store, test_config, request.uid, _engine(calls, fake))
+
+        assert code == worker.FAILED_EXIT
+        assert [name for name, _ in calls] == ["detect"]
+        assert "worker.acquisition_follow_not_found" in _event_names(events)
+
+    def test_a_whole_detect_with_nothing_followed_is_a_success(self, store: AppStore, test_config: Config) -> None:
+        """The scheduled pass over an empty follow set did all it was asked: exit 0, as the command."""
+        request = _running(store, AcquisitionJob(JobKind.DETECT))
+        calls: list[tuple[str, dict[str, object]]] = []
+        fake = _Fake(calls)
+        fake.detected = DetectResult(DetectStatus.NO_ACTIVE, [], DetectSummary())
+
+        assert _run_worker(store, test_config, request.uid, _engine(calls, fake)) == 0
+
+    def test_every_pass_logs_its_counts(
+        self, store: AppStore, test_config: Config, logged_events: LoggedEvents
+    ) -> None:
+        """What each pass reported is in the log, the request settling on it."""
+        request = _running(store, AcquisitionJob(JobKind.PRIME, followed_id=7))
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        with logged_events() as events:
+            _run_worker(store, test_config, request.uid, _engine(calls))
+
+        passes = {e["step"]: e for e in events if e["event"] == "worker.acquisition_pass"}
+        assert passes["detect"]["enqueued"] == 2
+        assert passes["detect"]["status"] == "ok"
+        assert passes["search"]["available"] == 1
+        assert passes["grab"]["grabbed"] == 1
+
+    def test_a_pass_scoped_to_a_follow_that_did_nothing_is_a_warning(
+        self, store: AppStore, test_config: Config, logged_events: LoggedEvents
+    ) -> None:
+        """A grab of one follow that took, retried and skipped nothing is logged idle, not passed in silence."""
+        request = _running(store, _GRAB_7)
+        calls: list[tuple[str, dict[str, object]]] = []
+        fake = _Fake(calls)
+        fake.grabbed = RunSummary()
+
+        with logged_events() as events:
+            code = _run_worker(store, test_config, request.uid, _engine(calls, fake))
+
+        assert code == 0
+        assert "worker.acquisition_pass_idle" in _event_names(events)
+
+    def test_a_search_that_concluded_on_nothing_fails_the_request(
+        self, store: AppStore, test_config: Config, logged_events: LoggedEvents
+    ) -> None:
+        """Every item unverified (trackers down) is « could not tell », never a success (panne ≠ absence)."""
+        request = _running(store, AcquisitionJob(JobKind.SEARCH, followed_id=7))
+        calls: list[tuple[str, dict[str, object]]] = []
+        fake = _Fake(calls)
+        fake.searched = SearchRunSummary(available=0, waiting=0, unverified=3, abandoned=0, skipped=0)
+
+        with logged_events() as events:
+            code = _run_worker(store, test_config, request.uid, _engine(calls, fake))
+
+        assert code == worker.FAILED_EXIT
+        assert "worker.acquisition_search_inconclusive" in _event_names(events)
 
 
 class _Context:

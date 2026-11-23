@@ -26,6 +26,7 @@ from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
 from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import build_app_store
+from personalscraper.app.supervisor.requesters import AcquireRequesters
 from personalscraper.app.supervisor.service import RunService
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.app_context import AppContext
@@ -430,7 +431,9 @@ def build_app_services(
         lookup = LazyProviders(lambda: given)
     plex = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
     app_store = build_app_store(config)
-    runs = RunService(store=app_store, data_dir=config.paths.data_dir)
+    acquire_db = config.acquire.db_path
+    assert acquire_db is not None  # resolved by the config loader
+    runs = RunService(store=app_store, data_dir=config.paths.data_dir, requesters=AcquireRequesters(acquire_db))
     view, library, sheets, rescrape, deletion = _build_library_services(config, lookup, plex, runs)
     sessions = SessionService(app_store, idle_days=config.web.session_idle_days)
     accounts = RosterService(app_store, event_bus)

@@ -160,16 +160,18 @@ def open_engine(config: Config, settings: Settings, job: AcquisitionJob) -> Iter
             if job.kind in (JobKind.DETECT, JobKind.PRIME)
             else None
         )
-        if job.kind in NEEDS_TORRENT_CLIENT:
-            if acquire.grab is None:
-                raise AcquisitionUnavailable("no torrent client: the grab service is not wired")
-            # One service both searches and grabs: a prime's three passes share it.
-            search = acquire.grab.service if job.kind is JobKind.PRIME else None
-            yield AcquisitionEngine(detect=detect, search=search, grab=acquire.grab.service)
-        elif job.kind is JobKind.SEARCH:
-            yield AcquisitionEngine(search=build_search_service(acquire, config, context.event_bus))
-        else:
-            yield AcquisitionEngine(detect=detect)
+        core = acquire.grab if job.kind in NEEDS_TORRENT_CLIENT else None
+        if job.kind is JobKind.GRAB and core is None:
+            raise AcquisitionUnavailable("no torrent client: the grab service is not wired")
+        # A prime with no client still detects and searches, as v0's runner did: only its grab needs the client.
+        search = core.service if core is not None else None
+        if search is None and job.kind in (JobKind.SEARCH, JobKind.PRIME):
+            search = build_search_service(acquire, config, context.event_bus)
+        yield AcquisitionEngine(
+            detect=detect,
+            search=search if job.kind in (JobKind.SEARCH, JobKind.PRIME) else None,
+            grab=core.service if core is not None else None,
+        )
 
 
 def acquisition_body(opener: EngineOpener = open_engine) -> Body:
