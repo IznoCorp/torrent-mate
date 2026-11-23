@@ -2,9 +2,10 @@
 
 A copy of v0's ``run_media_search`` and ``run_media_lookup`` (``web/acquisition/service.py``),
 kept apart on purpose: v1 never imports ``web/``, and v0 stays untouched until the switchover
-removes it. The answers are v0's, nothing added: the same candidates, the same ranking, the
-same page and total, the same ownership flag, the same 404 on an id the provider does not
-know. The cache is the one v0 already fills (:mod:`personalscraper.app.acquisition.search_cache`).
+removes it. The answers are v0's: the same candidates, the same ranking, the same page and
+total, the same ownership flag, the same 404 on an id the provider does not know. Two things
+are not: the ownership flag is named ``owned``, and every result also says whether it is
+``followed`` (K3 P11b). The cache is the one v0 already fills (:mod:`personalscraper.app.acquisition.search_cache`).
 
 What the layer changes is the seam, not the behaviour:
 
@@ -22,7 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal, Protocol
@@ -38,6 +39,7 @@ from personalscraper.logger import get_logger
 from personalscraper.scraper.search_ranking import RankedResult, gather_tv_candidates, rank_search_results
 
 if TYPE_CHECKING:
+    from personalscraper.acquire.domain import FollowedSeries, FollowKind
     from personalscraper.api.metadata._base import SearchResult
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
@@ -79,6 +81,14 @@ class _OwnershipProbe(Protocol):
         ...
 
 
+class _FollowLookup(Protocol):
+    """The part of the acquire store's follow sub-store the search reads."""
+
+    def find_all_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> list[FollowedSeries]:
+        """Every follow row holding any of the ref's ids, within the medium's kind."""
+        ...
+
+
 @dataclass(frozen=True)
 class SearchedMedium:
     """One medium a provider knows, as the search and the lookup answer it.
@@ -92,9 +102,13 @@ class SearchedMedium:
         poster_url: The poster URL, or ``None``.
         overview: The synopsis, or ``None``.
         score: The ranking score (``1.0`` for a lookup, which ranks nothing).
-        already_owned: Whether the library holds it by provider id; a show counts as soon as
-            ANY live episode file exists (presence, not completeness). ``False`` when the
-            indexer cannot be read: the flag degrades, the search does not fail.
+        owned: Whether the library holds it by provider id; a show counts as soon as
+            ANY live episode file exists (presence, not completeness). ``False`` when no
+            indexer is configured: the flag degrades, the search does not fail. (P11a named it
+            ``already_owned``, v0's wire name; the plan's name is ``owned``.)
+        followed: Whether a standing follow holds its provider id: a ``followed_series`` row of
+            scope ``follow`` that is not removed (paused counts, a request row and a removed
+            follow do not). By id, never by title. ``False`` when no follow store is wired.
     """
 
     provider: str
@@ -105,7 +119,8 @@ class SearchedMedium:
     poster_url: str | None
     overview: str | None
     score: float
-    already_owned: bool = False
+    owned: bool = False
+    followed: bool = False
 
 
 @dataclass(frozen=True)
@@ -195,6 +210,7 @@ class ProviderSearch:
         indexer_db: Path | None,
         ownership: Callable[[Path], _OwnershipProbe] | None = None,
         cache: SearchResultCache = SEARCH_CACHE,
+        follows: _FollowLookup | None = None,
     ) -> None:
         """Hold the seams; no provider is asked and no database opened yet.
 
@@ -206,11 +222,15 @@ class ProviderSearch:
             ownership: Builds the ownership probe over ``library.db``; the indexer's own
                 checker when ``None``.
             cache: The ranked-lot cache; the process-wide one v0 already fills by default.
+            follows: The acquire store's follow sub-store, read for ``followed``; ``None`` when
+                no acquire store is configured (no result is then flagged followed). The
+                composer owns its lifecycle.
         """
         self._clients = clients
         self._indexer_db = indexer_db
         self._ownership: Callable[[Path], _OwnershipProbe] = ownership or IndexerOwnershipChecker
         self._cache = cache
+        self._follows = follows
 
     @requires("searchProviders")
     def search(
@@ -225,10 +245,10 @@ class ProviderSearch:
         """Run the movie and TV search chains and answer one page of the ranked lot.
 
         Paging does not replay the provider sweep: the ranked lot of an exact ``(query, kind)``
-        is cached, so page 2 and beyond cost nothing at the providers. ``already_owned`` is
-        deliberately NOT cached: it is recomputed from the indexer on every call, because the
-        library changes while a search sits on screen and a stale « already owned » badge
-        would drive a wrong choice.
+        is cached, so page 2 and beyond cost nothing at the providers. ``owned`` and
+        ``followed`` are deliberately NOT cached: they are recomputed on every call (the
+        indexer, the follow store), because the library and the follows change while a search
+        sits on screen and a stale badge would drive a wrong choice.
 
         The provider clients are opened only on a cache miss. v0's route opened them before
         looking at the cache, so a page served from the cache still built and tore down a
@@ -256,14 +276,14 @@ class ProviderSearch:
             ranked = self._ranked(query, kind)
             self._cache.put(query, kind, ranked)
         page = [_medium_of(item) for item in ranked[offset : offset + limit]]
-        return SearchPage(results=tuple(self._flag_owned(page)), total=len(ranked), offset=offset, limit=limit)
+        return SearchPage(results=tuple(self._flag_facts(page)), total=len(ranked), offset=offset, limit=limit)
 
     @requires("searchProviderById")
     def by_id(self, actor: Actor, provider: str, id: int, kind: SearchKind) -> SearchedMedium:
         """Resolve ONE medium by provider id into a search result.
 
         It RESOLVES and returns, it never follows. The same ownership pass as the search, so
-        « already owned » is as true here as there.
+        ``owned`` and ``followed`` are as true here as there.
 
         Args:
             actor: Who looks up; authorised by ``@requires`` (``acquisition.request``).
@@ -305,7 +325,7 @@ class ProviderSearch:
             overview=overview if isinstance(overview, str) and overview.strip() else None,
             score=1.0,
         )
-        return self._flag_owned([medium])[0]
+        return self._flag_facts([medium])[0]
 
     def _ranked(self, query: str, kind: SearchKind | None) -> list[RankedResult]:
         """Gather the candidates of the asked kinds and rank them in ONE pass.
@@ -346,26 +366,33 @@ class ProviderSearch:
         # gap erased, with recency then breaking the tie the wrong way.
         return rank_search_results(query, candidates, kind=kind or "all", now_year=datetime.now(tz=UTC).year)
 
-    def _flag_owned(self, media: list[SearchedMedium]) -> list[SearchedMedium]:
-        """Flag the media the library already holds, by provider id, live files only.
+    def _flag_facts(self, media: list[SearchedMedium]) -> list[SearchedMedium]:
+        """Flag what the library and the follows already hold, by provider id.
 
-        The pipeline REPLACES an existing version, so the interface asks before following one.
-        A film is owned when a live file holds it; a show as soon as ANY live episode file
-        exists. Nothing is probed when no indexer is configured or there is nothing to flag.
+        ``owned``: the pipeline REPLACES an existing version, so the interface asks before
+        following one. A film is owned when a live file holds it; a show as soon as ANY live
+        episode file exists. ``followed``: a standing follow holds the id. Neither probe runs
+        when it is not wired (no indexer, no follow store) or there is nothing to flag.
 
         Args:
             media: The media to flag.
 
         Returns:
-            The same media, in the same order, with ``already_owned`` set.
+            The same media, in the same order, with ``owned`` and ``followed`` set.
         """
-        if self._indexer_db is None or not media:
+        if not media:
             return media
-        checker = self._ownership(Path(self._indexer_db))
-        try:
-            return [_with_ownership(checker, medium) for medium in media]
-        finally:
-            checker.close()
+        flagged = media
+        if self._indexer_db is not None:
+            checker = self._ownership(Path(self._indexer_db))
+            try:
+                flagged = [replace(medium, owned=_is_owned(checker, medium)) for medium in flagged]
+            finally:
+                checker.close()
+        follows = self._follows
+        if follows is not None:
+            flagged = [replace(medium, followed=_is_followed(follows, medium)) for medium in flagged]
+        return flagged
 
 
 def _poster_url_of(details: Any) -> str | None:
@@ -390,29 +417,49 @@ def _poster_url_of(details: Any) -> str | None:
     return None
 
 
-def _with_ownership(checker: _OwnershipProbe, medium: SearchedMedium) -> SearchedMedium:
-    """Return the medium with ``already_owned`` answered by the probe.
+def _ref_of(medium: SearchedMedium) -> MediaRef:
+    """Return the provider id the medium is known by, as the stores key it.
+
+    Args:
+        medium: The medium.
+
+    Returns:
+        A :class:`MediaRef` holding the medium's TMDB or TVDB id.
+    """
+    return MediaRef(tmdb_id=medium.provider_id) if medium.provider == "tmdb" else MediaRef(tvdb_id=medium.provider_id)
+
+
+def _is_owned(checker: _OwnershipProbe, medium: SearchedMedium) -> bool:
+    """Whether the library holds the medium, by its provider id, live files only.
 
     Args:
         checker: The ownership probe.
         medium: The medium.
 
     Returns:
-        The medium, flagged.
+        ``True`` for a film a live file holds, or a show with any live episode file.
     """
-    ref = MediaRef(tmdb_id=medium.provider_id) if medium.provider == "tmdb" else MediaRef(tvdb_id=medium.provider_id)
-    owned = checker.owns(ref, kind="movie") if medium.kind == "movie" else len(checker.owned_pairs(ref)) > 0
-    return SearchedMedium(
-        provider=medium.provider,
-        provider_id=medium.provider_id,
-        title=medium.title,
-        year=medium.year,
-        kind=medium.kind,
-        poster_url=medium.poster_url,
-        overview=medium.overview,
-        score=medium.score,
-        already_owned=owned,
-    )
+    ref = _ref_of(medium)
+    return checker.owns(ref, kind="movie") if medium.kind == "movie" else len(checker.owned_pairs(ref)) > 0
+
+
+def _is_followed(follows: _FollowLookup, medium: SearchedMedium) -> bool:
+    """Whether a standing follow holds the medium's provider id.
+
+    The lookup is P1's, within the medium's kind (TMDB numbers films and shows apart). A row
+    stands when its scope is ``follow`` (a one-off request is not a follow) and it is not
+    removed; a paused follow stands.
+
+    Args:
+        follows: The follow lookup.
+        medium: The medium.
+
+    Returns:
+        ``True`` when at least one matching row stands.
+    """
+    kind: FollowKind = "movie" if medium.kind == "movie" else "show"
+    rows = follows.find_all_by_ref(_ref_of(medium), kind=kind)
+    return any(row.scope == "follow" and row.removed_at is None for row in rows)
 
 
 def _medium_of(candidate: RankedResult) -> SearchedMedium:
