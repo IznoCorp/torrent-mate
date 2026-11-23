@@ -730,13 +730,19 @@ class _WantedSubStore:
         Called when a season wanted absorbs its live episode siblings (R5).
         Runs inside a single ``BEGIN IMMEDIATE`` transaction.
 
+        A ``grabbed`` row among ``episode_ids`` is NOT absorbed (SR2 under Q9):
+        its torrent runs and the reconciliation closes it as any other, so its
+        status stays ``grabbed``. It only receives ``absorbed_by``, the pointer
+        its card follows to the season.
+
         Args:
             season_wanted_id: Rowid of the absorbing season ``wanted`` row.
             episode_ids: Rowids of the episode rows to absorb.
 
         Returns:
-            Number of rows actually transitioned (may be less than len(episode_ids)
-            if some were already absorbed/closed).
+            Number of rows actually transitioned to ``absorbed`` (may be less
+            than len(episode_ids) if some were already absorbed/closed, or
+            grabbed — a pointed grabbed row is not counted).
         """
         if not episode_ids:
             return 0
@@ -745,6 +751,10 @@ class _WantedSubStore:
             cur = self._conn.execute(
                 f"UPDATE wanted SET status = 'absorbed', absorbed_by = ? "
                 f"WHERE id IN ({placeholders}) AND status IN ('pending', 'searching', 'available')",
+                (season_wanted_id, *episode_ids),
+            )
+            self._conn.execute(
+                f"UPDATE wanted SET absorbed_by = ? WHERE id IN ({placeholders}) AND status = 'grabbed'",
                 (season_wanted_id, *episode_ids),
             )
             return cur.rowcount

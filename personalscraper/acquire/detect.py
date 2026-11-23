@@ -32,6 +32,7 @@ from personalscraper.acquire.desired import cadence_from_config, cadence_from_js
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import FilmAcquired, SeasonAbsorbedEpisodes, WantedEnqueued
 from personalscraper.acquire.reconcile import reconcile_wanted
+from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -68,6 +69,7 @@ class DetectOutcome(str, Enum):
     FILM_ACQUIRED = "film_acquired"
     SKIPPED_OWNED = "skipped_owned"
     SKIPPED_DUP = "skipped_dup"
+    SKIPPED_COVERED = "skipped_covered"
     RESURRECTED = "resurrected"
     ENQUEUED = "enqueued"
 
@@ -105,6 +107,8 @@ class DetectSummary:
         skipped_owned: Items skipped because the library owns them (includes
             retired films).
         skipped_dup: Items skipped because a live wanted row already exists.
+        skipped_covered: Episodes not enqueued because an open season wanted
+            covers their season (SR3) — counted, never written.
         resurrected: Wrongfully-abandoned episode rows re-opened to pending.
         closed_owned: Grabbed rows closed ``done`` by the pre-pass reconcile.
     """
@@ -112,13 +116,14 @@ class DetectSummary:
     enqueued: int = 0
     skipped_owned: int = 0
     skipped_dup: int = 0
+    skipped_covered: int = 0
     resurrected: int = 0
     closed_owned: int = 0
 
     @property
     def detected(self) -> int:
-        """Total items considered (enqueued + owned + dup + resurrected)."""
-        return self.enqueued + self.skipped_owned + self.skipped_dup + self.resurrected
+        """Total items considered (enqueued + owned + dup + covered + resurrected)."""
+        return self.enqueued + self.skipped_owned + self.skipped_dup + self.skipped_covered + self.resurrected
 
 
 @dataclass(frozen=True)
@@ -164,6 +169,7 @@ class DetectService:
         self._registry = registry
         self._event_bus = event_bus
         self._config = config
+        self._season_recovery = SeasonRecovery(store)
 
     def run(self, *, series: str | None, dry_run: bool, today: date, now: int) -> DetectResult:
         """Run one detect pass over the active followed set.
@@ -261,6 +267,7 @@ class DetectService:
             enqueued=counts.enqueued,
             skipped_owned=counts.skipped_owned,
             skipped_dup=counts.skipped_dup,
+            skipped_covered=counts.skipped_covered,
             resurrected=counts.resurrected,
             closed_owned=closed_owned,
         )
@@ -518,7 +525,14 @@ class DetectService:
         counts.enqueued += 1
         if not dry_run:
             self._store.wanted.add(
-                WantedItem(media_ref=mf.media_ref, kind="movie", status="pending", enqueued_at=now, followed_id=mf.id)
+                WantedItem(
+                    media_ref=mf.media_ref,
+                    kind="movie",
+                    status="pending",
+                    enqueued_at=now,
+                    followed_id=mf.id,
+                    trigger="automatic",
+                )
             )
             self._event_bus.emit(WantedEnqueued(media_ref=mf.media_ref, kind="movie", season=None, episode=None))
             log.info("acquire.detect.enqueued", series=mf.title, kind="movie")
@@ -590,6 +604,31 @@ class DetectService:
             counts.skipped_dup += 1
             return
 
+        # SR3 — while a season wanted is open, no episode of that season goes on
+        # its own, including one that never had a row: the season row governs it.
+        cover = self._season_recovery.covering(fs.id, ep.season)
+        if cover is not None:
+            actions.append(
+                DetectAction(
+                    "episode",
+                    fs.title,
+                    ep.season,
+                    ep.episode,
+                    str(ep.air_date),
+                    ep.title,
+                    DetectOutcome.SKIPPED_COVERED,
+                )
+            )
+            counts.skipped_covered += 1
+            log.info(
+                "acquire.season.covered_skip",
+                series=fs.title,
+                season=ep.season,
+                episode=ep.episode,
+                season_wanted_id=cover.id,
+            )
+            return
+
         actions.append(
             DetectAction("episode", fs.title, ep.season, ep.episode, str(ep.air_date), ep.title, DetectOutcome.ENQUEUED)
         )
@@ -606,6 +645,7 @@ class DetectService:
                     followed_id=fs.id,
                     season=ep.season,
                     episode=ep.episode,
+                    trigger="automatic",
                 )
             )
             self._event_bus.emit(
@@ -729,6 +769,7 @@ class DetectService:
                     followed_id=followed_id,
                     season=season_num,
                     episode=None,
+                    trigger="automatic",
                 )
             )
             self._event_bus.emit(
@@ -785,6 +826,7 @@ class _MutableCounts:
     enqueued: int = 0
     skipped_owned: int = 0
     skipped_dup: int = 0
+    skipped_covered: int = 0
     resurrected: int = 0
 
 

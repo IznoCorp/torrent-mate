@@ -28,6 +28,7 @@ from personalscraper.acquire.events import (
     WantedEnqueued,
 )
 from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
+from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -150,6 +151,12 @@ class SearchPassMixin(PassGatesMixin):
         """
         assert item.id is not None  # ensured by the SELECTs in run_search()
         wanted_id = item.id
+
+        # SR3 — an episode of a season under recovery is the season row's to
+        # fetch: absorb it rather than search it. Before the gates, so a row the
+        # cadence would hold back is absorbed now rather than at its next turn.
+        if SeasonRecovery(self._store).absorb_if_covered(item, event_bus=self._event_bus, door="search"):
+            return "skipped"
 
         gate = self._apply_cadence_gates(item, now, cadence=cadence)
         if gate != "proceed":
@@ -465,6 +472,7 @@ class SearchPassMixin(PassGatesMixin):
                     followed_id=fid,
                     season=season_num,
                     episode=None,
+                    trigger="automatic",
                 ),
             )
             self._event_bus.emit(
