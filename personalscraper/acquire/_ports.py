@@ -25,6 +25,7 @@ domain VOs + stdlib — never from triage packages (layering, RP5c D3).
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -597,6 +598,10 @@ class AcquireStore(Protocol):
     @property
     def requesters(self) -> RequesterSubStore:
         """``acquisition_requester`` sub-store (opens on access)."""
+        ...
+
+    def transaction(self) -> AbstractContextManager[None]:
+        """One unit of work: every write of the block in one ``BEGIN IMMEDIATE``, committed together."""
         ...
 
     def close(self) -> None:

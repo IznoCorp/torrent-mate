@@ -235,6 +235,40 @@ def test_write_tx_issues_begin_immediate(tmp_path: Path) -> None:
         s.close()
 
 
+def test_a_unit_of_work_commits_its_writes_together(store: ConcreteAcquireStore) -> None:
+    """Writes inside ``transaction()`` join it: none is visible to another connection before the block ends."""
+    other = sqlite3.connect(str(store._db_path))
+    try:
+        with store.transaction():
+            followed_id = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="A", added_at=1))
+            store.follow.set_active(followed_id, False)
+            assert other.execute("SELECT COUNT(*) FROM followed_series").fetchone()[0] == 0
+        assert other.execute("SELECT active FROM followed_series").fetchone()[0] == 0
+    finally:
+        other.close()
+
+
+def test_a_unit_of_work_that_raises_leaves_nothing(store: ConcreteAcquireStore) -> None:
+    """An exception leaving the block rolls back every write it joined."""
+    with pytest.raises(RuntimeError), store.transaction():
+        store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="A", added_at=1))
+        raise RuntimeError("part-way")
+
+    assert store.follow.list_all() == []
+
+
+def test_a_joined_write_that_fails_undoes_only_itself(store: ConcreteAcquireStore) -> None:
+    """A write failing inside the unit (caught by its caller) rolls back to its savepoint; the rest commits."""
+    with store.transaction():
+        kept = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="A", added_at=1))
+        with pytest.raises(RuntimeError), _write_tx(store._conn):  # type: ignore[arg-type]
+            store._conn.execute("UPDATE followed_series SET title = 'B' WHERE id = ?", (kept,))  # type: ignore[union-attr]
+            raise RuntimeError("this write only")
+
+    (row,) = store.follow.list_all()
+    assert (row.id, row.title) == (kept, "A")
+
+
 # ---------------------------------------------------------------------------
 # close() — fail-soft, idempotent, no-op when never opened
 # ---------------------------------------------------------------------------
