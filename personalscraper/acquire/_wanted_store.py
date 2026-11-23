@@ -64,8 +64,8 @@ class _WantedSubStore:
                 INSERT INTO wanted
                   (followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   last_search_outcome, last_search_found, absorbed_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   last_search_outcome, last_search_found, absorbed_by, trigger)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.followed_id,
@@ -81,6 +81,7 @@ class _WantedSubStore:
                     item.last_search_outcome,
                     item.last_search_found,
                     item.absorbed_by,
+                    item.trigger,
                 ),
             )
             row_id = cur.lastrowid
@@ -102,7 +103,7 @@ class _WantedSubStore:
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
                    grabbed_hash, last_search_outcome, last_search_found,
-                   tried_hashes_json, absorbed_by
+                   tried_hashes_json, absorbed_by, trigger
             FROM wanted WHERE id = ?
             """,
             (wanted_id,),
@@ -136,7 +137,7 @@ class _WantedSubStore:
         rows = self._conn.execute(
             "SELECT id, followed_id, media_ref_json, kind, season, episode, "
             "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash, "
-            "last_search_outcome, last_search_found, tried_hashes_json, absorbed_by "
+            "last_search_outcome, last_search_found, tried_hashes_json, absorbed_by, trigger "
             "FROM wanted WHERE status = ? ORDER BY " + order_by,  # order_by is an internal literal
             (status,),
         ).fetchall()
@@ -533,7 +534,7 @@ class _WantedSubStore:
                 f"""
                 SELECT id, followed_id, media_ref_json, kind, season, episode,
                        status, criteria_json, enqueued_at, last_search_at, attempts,
-                       grabbed_hash, last_search_outcome, last_search_found, absorbed_by
+                       grabbed_hash, last_search_outcome, last_search_found, absorbed_by, trigger
                 FROM wanted
                 WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)
                 """,  # noqa: S608 — placeholders are generated from an internal frozenset
@@ -891,7 +892,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by
+                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by, trigger
             FROM wanted
             WHERE status = 'searching' AND last_search_at < ?
             ORDER BY id
@@ -922,7 +923,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by
+                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by, trigger
             FROM wanted
             WHERE followed_id IS ? AND kind = ?
             ORDER BY id
@@ -968,7 +969,7 @@ class _WantedSubStore:
         query = """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by
+                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by, trigger
             FROM wanted
             WHERE followed_id IS ?
               AND kind = ?

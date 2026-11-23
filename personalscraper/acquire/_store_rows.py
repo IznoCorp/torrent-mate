@@ -13,11 +13,16 @@ from typing import cast
 
 from personalscraper.acquire.domain import (
     FollowedSeries,
+    FollowRequester,
+    FollowScope,
     RatioState,
+    RequesterVia,
     SeedObligation,
+    WantedCandidate,
     WantedItem,
     WantedKind,
     WantedStatus,
+    WantedTrigger,
 )
 from personalscraper.core.identity import MediaRef
 
@@ -67,6 +72,9 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
     keys = row.keys()
     replace_owned = bool(row["replace_owned"]) if "replace_owned" in keys else False
     original_title = row["original_title"] if "original_title" in keys else None
+    # scope / removed_at (migration 027) are decoded defensively like the optional columns above.
+    scope = cast(FollowScope, row["scope"]) if "scope" in keys else "follow"
+    removed_at = row["removed_at"] if "removed_at" in keys else None
     return FollowedSeries(
         id=row["id"],
         media_ref=_media_ref_from_json(row["media_ref_json"]),
@@ -79,6 +87,8 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
         year=year,
         replace_owned=replace_owned,
         original_title=original_title,
+        scope=scope,
+        removed_at=removed_at,
     )
 
 
@@ -127,6 +137,8 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
     # absorbed_by is optional: only SELECTs that fetch it populate the field.
     # Decode defensively — pre-013 databases lack the column.
     absorbed_by = int(row["absorbed_by"]) if ("absorbed_by" in row.keys() and row["absorbed_by"] is not None) else None
+    # trigger is optional the same way (migration 027); NULL is "unknown".
+    trigger = cast(WantedTrigger | None, row["trigger"]) if "trigger" in row.keys() else None
     return WantedItem(
         media_ref=_media_ref_from_json(row["media_ref_json"]),
         # kind/status are CHECK-constrained columns; cast the raw string to the
@@ -146,6 +158,52 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
         last_search_found=row["last_search_found"],
         tried_hashes=decode_tried_hashes(tried_blob),
         absorbed_by=absorbed_by,
+        trigger=trigger,
+    )
+
+
+def _row_to_requester(row: sqlite3.Row) -> FollowRequester:
+    """Map an ``acquisition_requester`` row to a :class:`FollowRequester`.
+
+    Args:
+        row: A :class:`sqlite3.Row` holding every ``acquisition_requester`` column.
+
+    Returns:
+        The frozen :class:`FollowRequester`.
+    """
+    return FollowRequester(
+        followed_id=row["followed_id"],
+        account_id=row["account_id"],
+        via=cast(RequesterVia, row["via"]),
+        floor=row["floor"],
+        paused=bool(row["paused"]),
+        since=row["since"],
+    )
+
+
+def _row_to_candidate(row: sqlite3.Row) -> WantedCandidate:
+    """Map a ``wanted_candidate`` row to a :class:`WantedCandidate`.
+
+    Args:
+        row: A :class:`sqlite3.Row` holding every ``wanted_candidate`` column.
+
+    Returns:
+        The frozen :class:`WantedCandidate` (the row's ``wanted_id`` is the caller's).
+    """
+    return WantedCandidate(
+        rank=row["rank"],
+        provider=row["provider"],
+        title=row["title"],
+        info_hash=row["info_hash"],
+        size_bytes=row["size_bytes"],
+        seeders=row["seeders"],
+        resolution=row["resolution"],
+        source=row["source"],
+        language=row["language"],
+        score=row["score"],
+        season=row["season"],
+        episode=row["episode"],
+        searched_at=row["searched_at"],
     )
 
 

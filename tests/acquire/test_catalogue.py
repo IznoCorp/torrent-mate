@@ -59,7 +59,7 @@ class TestMigration026:
 
         apply_migrations(conn, MIGRATIONS_DIR)
 
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 26
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 27  # the full chain: 026 and 027 applied
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"catalogue_show", "catalogue_episode"} <= tables
 
