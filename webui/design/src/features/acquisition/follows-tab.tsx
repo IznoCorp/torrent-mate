@@ -24,6 +24,7 @@ import {
   cadenceSentence,
   followFraction,
   followGroups,
+  followYear,
   followStatusLabel,
   gridBadge,
   nextSearchTime,
@@ -88,7 +89,7 @@ export function FollowsTab(): ReactElement {
     poster: follow.poster,
     k: follow.kind,
     secondaryLine: [
-      String(follow.year),
+      followYear(follow),
       follow.kind === "movie"
         ? t("screens.acquisition.movie")
         : t("screens.acquisition.series"),
@@ -170,7 +171,7 @@ export function FollowsTab(): ReactElement {
       title: follow.title,
       // The year remains the fallback for a tile with nothing else to say — a
       // film that is neither paused nor counted.
-      subtitle: said.length ? said.join(" · ") : String(follow.year),
+      subtitle: said.length ? said.join(" · ") : followYear(follow),
       artwork: posterArtwork(icons, follow.poster, follow.title, follow.kind),
       muted: paused,
       badge: tileBadgeOf(gridBadge(follow)),
