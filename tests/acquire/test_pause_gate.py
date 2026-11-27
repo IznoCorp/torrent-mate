@@ -8,12 +8,15 @@ keep their status untouched; a row with no follow is unaffected.
 
 from __future__ import annotations
 
+import io
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog
+from rich.console import Console
 from structlog.testing import capture_logs
 
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
@@ -316,3 +319,31 @@ def test_search_pass_skips_the_rows_of_a_removed_follow(store: ConcreteAcquireSt
 
     orch.search.assert_not_called()
     assert _status(store, wid) == "pending"
+
+
+# --- the search command's dry-run preview --------------------------------------
+
+
+def test_search_dry_run_preview_leaves_out_a_paused_follows_rows(store: ConcreteAcquireStore) -> None:
+    """The preview builds its queue like the pass, so a paused follow's row is not listed as « would search »."""
+    from personalscraper.commands.search import _run_dry
+
+    paused = _follow(store, 11, active=False)
+    live = _follow(store, 12)
+    _row(store, paused, 11, 1)
+    _row(store, live, 12, 1)
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    out = io.StringIO()
+
+    _run_dry(
+        SimpleNamespace(store=store),  # type: ignore[arg-type]
+        config,
+        Console(file=out, width=300),
+        _service(store, _orchestrator()),
+        limit=None,
+    )
+
+    text = out.getvalue()
+    assert "tvdb_id=12" in text
+    assert "tvdb_id=11" not in text
