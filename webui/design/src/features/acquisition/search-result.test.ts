@@ -130,6 +130,15 @@ describe("the result of a queued search", () => {
     expect(asked).toBeLessThan(40);
   });
 
+  it("stops once the session is gone, rather than knock at the sign-in gate again", async () => {
+    server.states = [Object.assign(new Error("no session"), { status: 401, title: "no session", detail: "no session" })];
+    await searchWithThePickerOpen();
+
+    await vi.advanceTimersByTimeAsync(600_000);
+
+    expect(server.statusReads).toHaveLength(1);
+  });
+
   it("stops at once when no run answers to the uid", async () => {
     server.states = [null];
     await searchWithThePickerOpen();

@@ -94,8 +94,8 @@ async def searches_of(page, title):
     return follow["searches"], follow["key"]
 
 
-# The run is read « running » then « settled » by the layer, 1 s and 2 s after the 202; this is how long
-# the rule waits for the follows to be read again after that.
+# The layer reads the run « running » then « settled »: the interface asks about 1 s after the 202 and 2 s
+# after that. This is how long the rule waits, from the tap, for the follows to be read again.
 SETTLEMENT_TIMEOUT = 15000
 # TRUE once, after the search sent past `before`, the run was read twice and the follows after that.
 READ_AFTER_SETTLEMENT = """(before) => {
