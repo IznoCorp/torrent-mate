@@ -830,15 +830,50 @@ class TestWorker:
         assert is_lock_held(lock)
         assert lock.read_text() == str(os.getpid())
 
-    def test_a_named_release_is_never_replaced_by_the_engines_pick(self, store: AppStore, test_config: Config) -> None:
-        """The engine cannot take a named release yet: nothing runs, the request fails."""
+    def test_a_named_release_is_handed_to_the_grab_of_its_follow(self, store: AppStore, test_config: Config) -> None:
+        """K3 P9c: the grab service gets the name; a release it took settles the request ``0``."""
         request = _running(store, AcquisitionJob(JobKind.GRAB, followed_id=7, release="Show.S01E01.1080p"))
         calls: list[tuple[str, dict[str, object]]] = []
 
         code = _run_worker(store, test_config, request.uid, _engine(calls))
 
+        assert code == 0
+        assert calls == [
+            ("grab", {"limit": None, "followed_id": 7, "run_uid": request.uid, "release": "Show.S01E01.1080p"})
+        ]
+
+    def test_a_named_release_that_is_gone_fails_the_request_and_says_why(
+        self, store: AppStore, test_config: Config, logged_events: LoggedEvents
+    ) -> None:
+        """O-14, a person's choice: nothing grabbed, no substitute; exit 1 with the reason in the log."""
+        request = _running(store, AcquisitionJob(JobKind.GRAB, followed_id=7, release="Show.S01E01.1080p"))
+        calls: list[tuple[str, dict[str, object]]] = []
+        fake = _Fake(calls)
+        fake.grabbed = RunSummary(release_gone=1)
+
+        with logged_events() as events:
+            code = _run_worker(store, test_config, request.uid, _engine(calls, fake))
+
         assert code == worker.FAILED_EXIT
-        assert calls == []
+        [gone] = [e for e in events if e["event"] == "worker.acquisition_release_gone"]
+        assert (gone["followed_id"], gone["release"], gone["gone"]) == (7, "Show.S01E01.1080p", 1)
+
+    def test_a_named_release_that_was_not_taken_for_another_reason_fails_the_request(
+        self, store: AppStore, test_config: Config, logged_events: LoggedEvents
+    ) -> None:
+        """No open row, an outage: not « gone », but never a success for a release that was not taken."""
+        request = _running(store, AcquisitionJob(JobKind.GRAB, followed_id=7, release="Show.S01E01.1080p"))
+        calls: list[tuple[str, dict[str, object]]] = []
+        fake = _Fake(calls)
+        fake.grabbed = RunSummary(retried=1)
+
+        with logged_events() as events:
+            code = _run_worker(store, test_config, request.uid, _engine(calls, fake))
+
+        assert code == worker.FAILED_EXIT
+        names = _event_names(events)
+        assert "worker.acquisition_release_not_taken" in names
+        assert "worker.acquisition_release_gone" not in names
 
     def test_an_engine_that_cannot_open_fails_the_request(self, store: AppStore, test_config: Config) -> None:
         """No torrent client, no store: exit 1, as the command's ``Exit(1)``."""

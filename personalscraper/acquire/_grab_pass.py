@@ -13,10 +13,11 @@ moved bodies keep resolving ``self._store`` / ``self._orchestrator`` /
 from __future__ import annotations
 
 import time
+from functools import partial
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire._pass_gates import PassGatesMixin
-from personalscraper.acquire.domain import SeedObligation
+from personalscraper.acquire.domain import CHOSEN_RELEASE_FAILED, CHOSEN_RELEASE_GONE, SeedObligation
 from personalscraper.acquire.events import GrabSucceeded
 from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.logger import get_logger
@@ -44,7 +45,9 @@ class GrabPassMixin(PassGatesMixin):
     # entry from its CliRunRecorder). None outside a recorded grab run.
     _grab_run_uid: str | None
 
-    def _process_item(self, item: WantedItem, now: int, *, cadence: Cadence) -> _ItemOutcome:
+    def _process_item(
+        self, item: WantedItem, now: int, *, cadence: Cadence, release: str | None = None
+    ) -> _ItemOutcome:
         """Claim, grab and persist the result for ONE queued item.
 
         Extracted so :meth:`run` can wrap each item in error isolation
@@ -67,6 +70,10 @@ class GrabPassMixin(PassGatesMixin):
             cadence: Effective cadence policy for this item (resolved in
                 :meth:`run` — series override over the global default); only its
                 cutoff is consulted on this path.
+            release: The release a person named (K3 P9c, DESIGN O-14), or ``None`` for the
+                engine's own choice. Handed to :meth:`GrabOrchestrator.grab`; when it is no longer
+                offered the outcome is ``"gone"``, the row records ``chosen_release_gone`` and keeps
+                the status its recorded verdict claims — never a substitute.
 
         Returns:
             A one-word outcome tag mapped onto a :class:`RunSummary` counter by
@@ -136,7 +143,9 @@ class GrabPassMixin(PassGatesMixin):
         # 'searching' row through the hook, immediately before its ``add()``.
         # A crash in the add→``mark_grabbed`` window then leaves an INTENT the
         # reconciliation can replay against the client, not an orphan torrent.
-        outcome = self._orchestrator.grab(
+        # ``release`` reaches the orchestrator only when a person named one: every other grab calls it as ever.
+        grab = self._orchestrator.grab if release is None else partial(self._orchestrator.grab, release=release)
+        outcome = grab(
             current,
             profile,
             on_intent=lambda info_hash: self._record_grab_intent(wanted_id, info_hash),
@@ -163,7 +172,13 @@ class GrabPassMixin(PassGatesMixin):
         # the row already records. Calling that « récupération en échec » would
         # name the wrong thing.
         if outcome.disposition != "not_found":
-            self._store.wanted.record_grab_failure(wanted_id, outcome.reason or outcome.disposition, int(time.time()))
+            reason = outcome.reason or outcome.disposition
+            if release is not None and outcome.disposition == "retryable" and reason != CHOSEN_RELEASE_GONE:
+                # A person's pick that ended any other way (an outage, a dead swarm, an add failure) is still
+                # unmet: hold the row as for a gone release, the cause stays in the grab's own log and event.
+                log.warning("acquire.service.chosen_release_failed", wanted_id=wanted_id, reason=reason)
+                reason = CHOSEN_RELEASE_FAILED
+            self._store.wanted.record_grab_failure(wanted_id, reason, int(time.time()))
 
         if outcome.disposition == "terminal":
             # The orchestrator already emitted WantedAbandoned on this path, so
@@ -182,7 +197,15 @@ class GrabPassMixin(PassGatesMixin):
             # conclude) rather than adding something else or freezing the row on
             # « À récupérer ».
             self._store.wanted.record_search_outcome(wanted_id, outcome.reason or "no_candidates", 0)
+            # This re-search concluded (found = 0), so the stored candidates are stale as the search
+            # pass would have cleared them: the release picker must never offer a set the grab found
+            # empty. After the verdict, before the status (the #320 order).
+            self._store.candidates.replace(wanted_id, [])
             self._store.wanted.set_status(wanted_id, "pending")
+            if release is not None:
+                # Nothing is offered at all, so what a person named is gone: hold the row, its verdict stands.
+                self._store.wanted.record_grab_failure(wanted_id, CHOSEN_RELEASE_GONE, int(time.time()))
+                return "gone"
             return "retried"
         # "retryable" — the grab's own search did NOT conclude (circuit, API
         # error, add failure). The SEARCH pass's verdict stands untouched:
@@ -201,7 +224,7 @@ class GrabPassMixin(PassGatesMixin):
             self._store.wanted.set_status(wanted_id, "available")
         else:
             self._store.wanted.set_status(wanted_id, "pending")
-        return "retried"
+        return "gone" if outcome.reason == CHOSEN_RELEASE_GONE else "retried"
 
     def _record_grab_intent(self, wanted_id: int, info_hash: str) -> None:
         """Reserve *info_hash* on the claimed row before the torrent is added (D2).

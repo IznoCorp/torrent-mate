@@ -72,7 +72,12 @@ class GrabPass(Protocol):
     """What the worker asks of the acquisition service for a grab (:meth:`AcquisitionService.run`)."""
 
     def run(
-        self, *, limit: int | None = None, followed_id: int | None = None, run_uid: str | None = None
+        self,
+        *,
+        limit: int | None = None,
+        followed_id: int | None = None,
+        run_uid: str | None = None,
+        release: str | None = None,
     ) -> RunSummary:
         """Run the grab pass over the available wanted items.
 
@@ -80,6 +85,8 @@ class GrabPass(Protocol):
             limit: The most items attempted; ``None`` for all.
             followed_id: Restrict the pass to one follow; ``None`` for the whole queue.
             run_uid: The run the grabbed items are stamped with.
+            release: The release a person named, taken if it is still offered; passed ONLY when the
+                job names one, so a grab without it is called exactly as before.
 
         Returns:
             The pass's counts.
@@ -125,6 +132,11 @@ def run_acquisition_job(
     (every item unverified: « panne ≠ absence »). A pass that raises ends the job: the exception goes to the
     caller, which turns it into an exit 1.
 
+    A grab that names a release (a person's choice, DESIGN O-14) asks the engine for that release alone. When
+    it was not taken the request ends with exit 1 and says why: ``worker.acquisition_release_gone`` when the
+    release is no longer offered (the wanted row records ``chosen_release_gone``, nothing was added, no other
+    release stands in), ``worker.acquisition_release_not_taken`` when nothing was grabbed for another reason.
+
     Args:
         job: What is asked.
         engine: The services to call.
@@ -137,11 +149,6 @@ def run_acquisition_job(
     Raises:
         AcquisitionUnavailable: If a service the job needs is not in *engine* (a prime's grab excepted).
     """
-    if job.release is not None:
-        # The engine takes no named release yet: grabbing the follow's ordinary pick instead would be a silent
-        # substitute for what was asked (DESIGN O-14), so nothing runs.
-        log.error("worker.acquisition_release_unsupported", uid=run_uid, followed_id=job.followed_id)
-        return 1
     code = 0
     if job.kind in (JobKind.DETECT, JobKind.PRIME) and not _detect(job, engine, clock, run_uid):
         return 1
@@ -159,8 +166,21 @@ def run_acquisition_job(
                 raise AcquisitionUnavailable("the engine has no grab service")
             log.warning("worker.acquisition_grab_skipped", uid=run_uid, followed_id=job.followed_id, reason="no_client")
             return 1
-        grabbed = engine.grab.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid)
+        # ``release`` goes to the service only when the job names one: a grab without it is called as ever.
+        if job.release is None:
+            grabbed = engine.grab.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid)
+        else:
+            grabbed = engine.grab.run(
+                limit=job.limit, followed_id=job.followed_id, run_uid=run_uid, release=job.release
+            )
         _log_pass("grab", job, run_uid, asdict(grabbed))
+        if job.release is not None and not grabbed.grabbed:
+            # What a person chose was not taken, and no other release stands in for it (DESIGN O-14).
+            event = (
+                "worker.acquisition_release_gone" if grabbed.release_gone else "worker.acquisition_release_not_taken"
+            )
+            log.error(event, uid=run_uid, followed_id=job.followed_id, release=job.release, gone=grabbed.release_gone)
+            code = 1
     return code
 
 

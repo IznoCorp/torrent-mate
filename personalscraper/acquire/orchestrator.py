@@ -73,6 +73,7 @@ from personalscraper.acquire._filters import (
 )
 from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
+from personalscraper.acquire.domain import CHOSEN_RELEASE_GONE
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.torrent._base import TorrentLimits, category_refusal, in_sandbox
@@ -1051,6 +1052,7 @@ class GrabOrchestrator:
         *,
         on_intent: Callable[[str], None] | None = None,
         exclude_hashes: frozenset[str] = frozenset(),
+        release: str | None = None,
     ) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
@@ -1099,6 +1101,14 @@ class GrabOrchestrator:
                 releases already grabbed-and-failed for this item (reswitch
                 #342), so a re-grab after an auto-reswitch never re-picks the
                 same dead release. Empty by default (the ordinary first grab).
+            release: The name of a release a PERSON chose (K3 P9c, DESIGN O-14). The grab still
+                re-searches and keeps every filter and the ranking, but takes only a release of that
+                name: if the re-search offers releases but not that one, nothing is added and the
+                outcome is a retryable ``chosen_release_gone``, never a substitute. A re-search that
+                concludes nothing is offered at all keeps its ``not_found`` mapping (the service
+                records the verdict, clears the candidates and holds the row).
+                ``None`` (default) is the engine's own choice: the best-ranked release
+                of the re-search, whatever the search pass ranked first earlier.
 
         Returns:
             The :class:`GrabOutcome` describing success / retryable / terminal.
@@ -1139,7 +1149,16 @@ class GrabOrchestrator:
         # ``top`` is guaranteed present here; assert it so the invariant is
         # checked rather than implied by the exit-path chain above.
         assert result.top is not None  # "available" always carries a top
-        top, _score = result.top
+        ranked = result.ranked
+        if release is None:
+            top, _score = result.top
+        else:
+            # Only the release a person named, by its exact name: the dedup already keeps one ranked
+            # representative per release across trackers, and any other name is a substitute.
+            ranked = [pair for pair in ranked if pair[0].title == release]
+            if not ranked:
+                return self._retryable(media_ref, CHOSEN_RELEASE_GONE)
+            top = ranked[0][0]
 
         # --- No torrent client → cannot add (search-only / dry-run). RETRYABLE. ---
         if self._torrent_client is None:
@@ -1168,7 +1187,7 @@ class GrabOrchestrator:
             # same top (only failed hashes are excluded), starving the item.
             # The check runs BEFORE ``on_intent``: an intent, once reserved, is
             # never rewritten, so it must name the candidate that is added.
-            remaining = result.ranked
+            remaining = ranked
             while True:
                 attempt = resolve_first_available(remaining, self._tracker_registry.transports(), top=top)
                 if attempt.source is None:
@@ -1358,6 +1377,7 @@ class GrabOrchestrator:
 
 
 __all__ = [
+    "CHOSEN_RELEASE_GONE",
     "GrabOrchestrator",
     "build_search_query",
     "GrabOutcome",
