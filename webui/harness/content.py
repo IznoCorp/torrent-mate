@@ -136,9 +136,21 @@ async def main():
         cadence = await pg.evaluate("(cron)=>cadenceFR(cron)", cron)
         check("the hour announced is the cadence's own",
               bool(hour) and hour in cadence, f"{hour} in « {cadence} »")
-        check("and the cards announce it",
-              any(hour in s["reason"] for s in follows if s["reason"]),
-              hour or "no hour")
+        # The cards announce the server's `nextSearch`, never the cadence's hour: none
+        # scheduled when it is null, else the instant's clock time. Read from the same
+        # query cache the tab draws from, and worded by the page's own catalogue.
+        next_search = await pg.evaluate(
+            "()=>window.__queries.getQueryData(['/api/v1/acquisition/status'])?.nextSearch ?? null")
+        if next_search is None:
+            expected = await pg.evaluate("()=>window.__i18n.t('screens.acquisition.nextSearchNone')")
+        else:
+            expected = await pg.evaluate("""(instant)=>{const at = new Date(instant);
+              return window.__i18n.t('screens.acquisition.nextSearch', {at: window.__i18n.t(
+                'surfaces.clock.timeOfDay', {hour: at.getHours(),
+                  minute: String(at.getMinutes()).padStart(2, '0')})});}""", next_search)
+        check("and the cards announce the next search the server states",
+              any(expected in s["reason"] for s in follows if s["reason"]),
+              f"{expected} vs {[s['reason'] for s in follows if s['reason']][:1]}; cache nextSearch={next_search!r}")
 
         # ── the library says what a medium is ABOUT ─────────────────────────
         for lens, name in (("cat", "Médias"), ("rec", "Récents")):
