@@ -203,6 +203,27 @@ def _cursor_of(after: str | None) -> int | None:
     return int(after)
 
 
+def _cursor_after_title(store: AcquireStore, title: str) -> int | None:
+    """Find the deck key of the first card that bears ``title``.
+
+    Args:
+        store: The acquire store.
+        title: The title of the card a page continues past.
+
+    Returns:
+        That card's key, or ``None`` when no card of the deck bears the title (read from the head).
+    """
+    cursor: int | None = None
+    while True:
+        rows = store.suggestions.after(cursor, _BATCH)
+        if not rows:
+            return None
+        for row in rows:
+            if row.title == title:
+                return row.id
+        cursor = rows[-1].id
+
+
 def _key_of(row: SuggestionRow) -> SuggestionKey:
     """Return a row's identity.
 
@@ -238,27 +259,44 @@ class Suggestions:
         self._rejections: RejectionFilter = rejections if rejections is not None else _NoRejections()
 
     @requires("readSuggestions")
-    def read(self, actor: Actor, after: str | None, *, limit: int = DEFAULT_LIMIT) -> SuggestionPage:
+    def read(
+        self, actor: Actor, after: str | None, *, limit: int = DEFAULT_LIMIT, after_title: str | None = None
+    ) -> SuggestionPage:
         """Read one page of the deck: what the reader neither owns, follows nor rejected.
 
         The page is filled from the rows that survive, in deck order: a title left out costs the
         page no card. ``after`` is the cursor of a card (the previous page's last, or any card of
         it); a cursor of a deck since replaced starts the new deck at its head.
 
+        The contract's card carries no cursor, and the interface continues a deck from the last
+        card's TITLE; ``after_title`` is that way in: the deck continues past the first card of
+        that title, whatever the reader's filters leave of it. A title no card holds (a deck
+        replaced since) starts the deck at its head, as a stale cursor does.
+
         Args:
             actor: Who reads; authorised by ``@requires`` (``acquisition.request``).
             after: The ``after`` of the previous page, ``None`` for the first.
             limit: The most cards the page carries.
+            after_title: The title of the card to continue past, instead of ``after``.
 
         Returns:
             The page; its ``after`` is ``None`` when the deck has no more to read.
 
         Raises:
-            AppBadRequest: ``request.invalid`` when ``after`` is not a cursor the deck gave.
+            AppBadRequest: ``request.invalid`` when ``after`` is not a cursor the deck gave, or
+                when both ``after`` and ``after_title`` are given.
         """
+        if after is not None and after_title is not None:
+            raise AppBadRequest(
+                "A deck continues from a cursor or from a title, not both.",
+                code=RefusalCode.REQUEST_INVALID,
+                params={"fields": ["after"]},
+            )
         cursor = _cursor_of(after)
         items: list[SuggestedMedium] = []
         with closing(self._open_store()) as store, closing(self._open_ownership()) as ownership:
+            if after_title is not None:
+                cursor = _cursor_after_title(store, after_title)
             while len(items) < limit:
                 rows = store.suggestions.after(cursor, _BATCH)
                 if not rows:

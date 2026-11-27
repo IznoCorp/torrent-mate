@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Final, get_args
 
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedKind
 from personalscraper.app.acquisition.follow_repository import FollowRepository
+from personalscraper.app.acquisition.model import FollowId
 from personalscraper.app.errors import AppBadRequest, RefusalCode
 
 if TYPE_CHECKING:
@@ -244,7 +245,7 @@ class ReleaseReads:
         for stored in self._store.follow.list_all():
             if stored.id is None or stored.removed_at is not None:
                 continue
-            follow = self._follows.get_by_id(stored.id)
+            follow = self._follows.get_by_id(FollowId(stored.id))
             if follow is None or follow.removed_at is not None or not follow.readable_by(actor, self._owner):
                 continue
             for kind in get_args(WantedKind):
