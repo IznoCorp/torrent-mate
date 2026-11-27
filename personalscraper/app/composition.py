@@ -7,7 +7,8 @@ borrow it too. Every client of the application layer (CLI, web) enters here.
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import closing
 from typing import TYPE_CHECKING, Final, cast
 
 from personalscraper.api.plex import PlexClient
@@ -43,7 +44,9 @@ log = get_logger("app.composition")
 ONE_ATTEMPT: Final[RetryPolicy] = RetryPolicy(max_attempts=1)
 
 if TYPE_CHECKING:
+    from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.catalogue import ProviderLookup, TvCatalogueClient
+    from personalscraper.acquire.domain import FollowedSeries, FollowKind
     from personalscraper.acquire.store import ConcreteAcquireStore
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.app.accounts.ids import AccountId
@@ -53,9 +56,11 @@ if TYPE_CHECKING:
     from personalscraper.app.library.rescrape import LibraryRescrape
     from personalscraper.app.library.sheets import MediaSheets
     from personalscraper.app.store.store import AppStore
+    from personalscraper.conf.models.api_config import TrackerEconomyConfig
     from personalscraper.conf.models.config import Config
     from personalscraper.conf.models.providers import ProvidersConfig
     from personalscraper.config import Settings
+    from personalscraper.core.identity import MediaRef
     from personalscraper.core.ownership import OwnershipChecker
     from personalscraper.indexer.ownership import IndexerOwnershipChecker
 
@@ -124,7 +129,48 @@ def build_app_context(
     event_bus = EventBus()
     cb_policy = _circuit_policy(config)
     provider_registry = build_provider_registry(config, settings, event_bus=event_bus, retry=provider_retry)
+    try:
+        return _finish_app_context(
+            config,
+            settings,
+            event_bus=event_bus,
+            cb_policy=cb_policy,
+            provider_registry=provider_registry,
+            build_torrent_client=build_torrent_client,
+        )
+    except BaseException:
+        # The registry holds sessions and connection pools: a step after it that raises (a torrent
+        # client that refuses, a tracker misconfigured) must not leave them open. A request-scoped
+        # caller builds a context per call and would leak one registry each time.
+        provider_registry.close()
+        raise
 
+
+def _finish_app_context(
+    config: Config,
+    settings: Settings,
+    *,
+    event_bus: EventBus,
+    cb_policy: CircuitPolicy,
+    provider_registry: ProviderRegistry,
+    build_torrent_client: bool,
+) -> AppContext:
+    """Build the rest of the :class:`AppContext` around a registry already built.
+
+    Split from :func:`build_app_context` so the caller can close the registry when a step here
+    raises. Its steps are documented there.
+
+    Args:
+        config: The typed configuration.
+        settings: The env-var settings.
+        event_bus: The process's bus.
+        cb_policy: The providers' circuit policy.
+        provider_registry: The registry built for this context, which this function never closes.
+        build_torrent_client: Whether to resolve and validate the torrent client at boot.
+
+    Returns:
+        The context.
+    """
     # D3/D9: Boot-wire the torrent client when configured; fail-fast if
     # incapable. Gated on ``build_torrent_client`` so only commands that
     # consume the client (run/ingest/torrents_list) pay the connect+login —
@@ -445,7 +491,7 @@ def build_app_services(
     # No FCM sender is configured yet: the in-app notice is written, the push is logged unsent.
     sign_in_notifier = SignInNotifier(app_store, UnconfiguredPush())
     sign_in_notifier.subscribe(event_bus)
-    acquisition = _build_acquisition_services(config, app_store, runs, credentials, view, event_bus)
+    acquisition = _build_acquisition_services(config, settings, app_store, runs, credentials, view, event_bus)
     return AppServices(
         event_bus=event_bus,
         build_info=BUILD_INFO,
@@ -474,6 +520,7 @@ def build_app_services(
 
 def _build_acquisition_services(
     config: Config,
+    settings: Settings,
     app_store: AppStore,
     runs: RunService,
     credentials: CredentialService,
@@ -490,6 +537,7 @@ def _build_acquisition_services(
 
     Args:
         config: The typed configuration; ``acquire.db_path`` and ``indexer.db_path`` are resolved.
+        settings: The env-var settings (the provider API keys the search asks with).
         app_store: The environment's ``app.db``.
         runs: The supervisor's queue the primes are asked of.
         credentials: Names the account an unattended or requester-less act is the ask of (ruling 9).
@@ -499,6 +547,7 @@ def _build_acquisition_services(
     Returns:
         The bundle.
     """
+    from personalscraper.acquire.standing import tracker_economies  # noqa: PLC0415 — idem
     from personalscraper.acquire.store import (  # noqa: PLC0415 — the acquisition tree loads when these services are built
         build_acquire_store,
     )
@@ -506,7 +555,14 @@ def _build_acquisition_services(
         FollowCompleteness,
     )
     from personalscraper.app.acquisition.follows import FollowService  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.ranking import RankingPreview  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.releases import ReleaseOffers  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.search import (  # noqa: PLC0415 — idem
+        ProviderSearch,
+        scoped_provider_clients,
+    )
     from personalscraper.app.acquisition.seasons import IndexedShows, SeasonAsk  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.suggestions import Suggestions  # noqa: PLC0415 — idem
     from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415 — idem
     from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415 — idem
 
@@ -557,7 +613,78 @@ def _build_acquisition_services(
             owner=owner,
         ),
         completeness=FollowCompleteness(open_store=open_store, open_ownership=open_ownership, owner=owner),
+        releases=ReleaseOffers(open_store=open_store, owner=owner),
+        ranking=RankingPreview(
+            standing_of=ratio_standing_of(open_store, tracker_economies(config.tracker.providers)),
+            known_trackers=list(config.tracker.providers),
+        ),
+        search=ProviderSearch(
+            clients=lambda: scoped_provider_clients(config, settings),
+            indexer_db=index_db,
+            follows=_PerCallFollowLookup(open_store),
+        ),
+        suggestions=Suggestions(open_store=open_store, open_ownership=open_ownership),
     )
+
+
+def ratio_standing_of(
+    open_store: Callable[[], AcquireStore], economies: Mapping[str, TrackerEconomyConfig]
+) -> Callable[[str], str | None]:
+    """Build the resolver of a tracker's ratio standing, reading ``ratio_state`` on each call.
+
+    The ONE derivation :class:`~personalscraper.acquire.standing.RatioStanding` is, over a store
+    opened for the call, so a ratio written after boot is seen by the next one; a tracker that
+    declares no economy opens nothing. Dormant until K5 writes ``ratio_state`` (O-8 A): every
+    standing then reads ``None``.
+
+    Args:
+        open_store: Opens the acquire store for one call (closed after it).
+        economies: Tracker name → its ``economy`` block, for the trackers that declare one.
+
+    Returns:
+        Tracker name → its standing, or ``None``.
+    """
+    from personalscraper.acquire.standing import RatioStanding  # noqa: PLC0415 — the acquisition tree loads when these services are built
+
+    def standing_of(tracker: str) -> str | None:
+        """Say where one tracker's ratio stands now.
+
+        Args:
+            tracker: The tracker's name.
+
+        Returns:
+            The standing, or ``None`` when it declares no economy or no ratio was recorded.
+        """
+        if tracker not in economies:
+            return None
+        with closing(open_store()) as store:
+            return RatioStanding(store.ratio, economies).of(tracker)
+
+    return standing_of
+
+
+class _PerCallFollowLookup:
+    """The provider search's follow lookup over an acquire store opened for each call."""
+
+    def __init__(self, open_store: Callable[[], AcquireStore]) -> None:
+        """Hold the opener; nothing is opened yet.
+
+        Args:
+            open_store: Opens the acquire store for one call (closed after it).
+        """
+        self._open_store = open_store
+
+    def find_all_by_refs(self, lookups: Sequence[tuple[MediaRef, FollowKind | None]]) -> list[list[FollowedSeries]]:
+        """Look up a page of media in one query.
+
+        Args:
+            lookups: The ``(ref, kind)`` pairs of the page.
+
+        Returns:
+            One list of rows per lookup.
+        """
+        with closing(self._open_store()) as store:
+            return store.follow.find_all_by_refs(lookups)
 
 
 def _build_plex_sign_in(

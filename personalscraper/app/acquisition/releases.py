@@ -13,6 +13,8 @@ actor holds ``acquisition.see.others`` or asked for it, and otherwise answers an
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
+from contextlib import closing
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, get_args
 
@@ -28,7 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.app.accounts.ids import AccountId
     from personalscraper.app.acquisition.model import AcquisitionKey
 
-__all__ = ["ReleaseOffer", "ReleaseReads", "release_handle"]
+__all__ = ["ReleaseOffer", "ReleaseOffers", "ReleaseReads", "release_handle"]
 
 #: Hex digits of a release's digest kept in its handle: 64 bits, far past a collision among the few
 #: dozen candidates one row holds.
@@ -254,3 +256,43 @@ class ReleaseReads:
                     if (season is None or row.season == season) and (episode is None or row.episode == episode):
                         offers.extend(self._offers_of_row(row))
         return tuple(offers)
+
+
+class ReleaseOffers:
+    """:class:`ReleaseReads` over an acquire store opened for each call, as the services of the bundle are.
+
+    The process holds no ``acquire.db`` connection across requests: each call opens the store, reads,
+    and closes it. The door's right (``acquisition.pilot.own`` or ``.any``) is the perimeter's, as for
+    :class:`ReleaseReads`.
+    """
+
+    def __init__(self, *, open_store: Callable[[], AcquireStore], owner: Callable[[], AccountId]) -> None:
+        """Hold the seams; nothing is opened yet.
+
+        Args:
+            open_store: Opens the acquire store for one call (closed after it).
+            owner: The account a follow with no requester row is the ask of (DESIGN § 2.4).
+        """
+        self._open_store = open_store
+        self._owner = owner
+
+    def offers(
+        self, actor: Actor, key: AcquisitionKey | None, season: int | None, episode: int | None
+    ) -> tuple[ReleaseOffer, ...]:
+        """Read the offers of one item, or of every item the reader may see.
+
+        Args:
+            actor: The reader.
+            key: The medium's key, or ``None`` for every item.
+            season: The season asked.
+            episode: The episode asked.
+
+        Returns:
+            What :meth:`ReleaseReads.offers` answers.
+
+        Raises:
+            AppBadRequest: ``request.invalid`` naming ``episode``, when an episode is asked with no season.
+            FollowAmbiguous: Two follow rows hold the key's id.
+        """
+        with closing(self._open_store()) as store:
+            return ReleaseReads(store, owner=self._owner()).offers(actor, key, season, episode)
