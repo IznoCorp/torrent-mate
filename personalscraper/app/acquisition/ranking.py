@@ -12,7 +12,7 @@ Every standing reads ``None`` until K5 writes ``ratio_state`` (O-8 A).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 
 from personalscraper.api.tracker import RankingConfig, TrackerResult, rank
@@ -233,14 +233,25 @@ class PreviewedRelease:
 class RankingPreview:
     """``previewRanking``: the fixed samples scored under a candidate ranking, standing included."""
 
-    def __init__(self, *, standing_of: Callable[[str], str | None]) -> None:
-        """Hold the standing resolver.
+    def __init__(self, *, standing_of: Callable[[str], str | None], known_trackers: Sequence[str] = ()) -> None:
+        """Hold the standing resolver and the trackers a criterion may name.
 
         Args:
             standing_of: Tracker name → its ratio standing
                 (:meth:`personalscraper.acquire.standing.RatioStanding.of`), or ``None``.
+            known_trackers: The configured trackers, the values a tracker-keyed criterion is offered.
         """
         self._standing_of = standing_of
+        self._known_trackers = tuple(sorted(known_trackers))
+
+    @property
+    def known_trackers(self) -> tuple[str, ...]:
+        """The configured trackers, sorted.
+
+        Returns:
+            Their names; empty when none is configured.
+        """
+        return self._known_trackers
 
     @requires("previewRanking")
     def preview(self, actor: Actor, ranking: RankingConfig) -> list[PreviewedRelease]:
