@@ -6,13 +6,13 @@ real acquire store; the library's index is a fake reader (no ``library.db`` is o
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 
 import pytest
 
-from personalscraper.acquire.domain import FollowedSeries, SuggestionReason, SuggestionRow
+from personalscraper.acquire.domain import FollowedSeries, FollowRequester, SuggestionReason, SuggestionRow
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
@@ -30,16 +30,17 @@ _KEY = ("tmdb", "1", "show")
 _OTHER_KEY = ("tmdb", "1", "movie")
 _MINE = "account-mine"
 _THEIRS = "account-theirs"
+_OWNER = "account-owner"
 
 
-def _actor(account: str = _MINE, *, read_only: bool = False) -> Actor:
-    """An actor of an account holding ``acquisition.request``."""
+def _actor(account: str = _MINE, *, read_only: bool = False, see_others: bool = False) -> Actor:
+    """An actor of an account holding ``acquisition.request``, and ``acquisition.see.others`` when asked."""
     return Actor(
         account_id=account,
         name=account,
         role_id="household",
         role_kind=RoleKind.ORDINARY,
-        role_rights=frozenset({Right.ACQUISITION_REQUEST}),
+        role_rights=frozenset({Right.ACQUISITION_REQUEST, *({Right.ACQUISITION_SEE_OTHERS} if see_others else set())}),
         ceiling=InstanceCeiling(forbidden=WRITE_RIGHTS if read_only else frozenset(), read_only=read_only),
     )
 
@@ -94,23 +95,37 @@ def acquire(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
 class _Item:
     """An index row, as far as a title is read off it."""
 
-    def __init__(self, title: str, kind: str) -> None:
+    def __init__(self, item_id: int, title: str, kind: str) -> None:
+        self.item_id = item_id
         self.title = title
         self.kind = kind
 
 
 class _Index:
-    """A fake library reader: the titles it holds, by ``(provider, provider_id)``, as films."""
+    """A fake library reader: the titles it holds, by ``(provider, provider_id)``, as films.
 
-    def __init__(self, titles: Mapping[tuple[str, str], str]) -> None:
-        self.titles = dict(titles)
+    ``gone`` names the titles no live file holds any more: their rows stay in the index.
+    """
+
+    def __init__(self, titles: Mapping[tuple[str, str], str | tuple[str, ...]], *, gone: Collection[str] = ()) -> None:
+        self.rows = {key: [named] if isinstance(named, str) else list(named) for key, named in titles.items()}
+        self.gone = set(gone)
         self.asked: list[tuple[str, str]] = []
+        self._held: dict[int, str] = {}
 
     def holders(self, provider: str, provider_id: str) -> list[_Item]:
-        """The rows bearing one provider id."""
+        """The rows bearing one provider id, live or not."""
         self.asked.append((provider, provider_id))
-        title = self.titles.get((provider, provider_id))
-        return [] if title is None else [_Item(title, "movie")]
+        items = []
+        for title in self.rows.get((provider, provider_id), []):
+            item_id = len(self._held) + 1
+            self._held[item_id] = title
+            items.append(_Item(item_id, title, "movie"))
+        return items
+
+    def live_folders(self, item_ids: Sequence[int]) -> dict[int, set[str]]:
+        """The folders of the rows' live files: none for a title that is gone."""
+        return {one: {"1:films/x"} for one in item_ids if self._held[one] not in self.gone}
 
 
 class _Library:
@@ -141,6 +156,7 @@ def _service(tmp_path: Path, app_store: AppStore, index: _Index | None = None, *
         open_ownership=_Library,  # type: ignore[arg-type]
         open_index=(lambda: nullcontext(held)) if readable else _unreadable,  # type: ignore[arg-type,return-value]
         cursor_key=lambda: b"k" * 32,
+        owner=lambda: _OWNER,
         rejections=AccountRejections(app_store),
     )
 
@@ -159,6 +175,37 @@ def _row(provider_id: str, reason: SuggestionReason, seed_key: str, kind: str = 
         seed_key=seed_key,
         refreshed_at=1_800_000_000,
     )
+
+
+def _follow(
+    acquire: ConcreteAcquireStore, title: str, ref: MediaRef, *, asked_by: str | None, scope: str = "follow"
+) -> int:
+    """Store one show's row, asked for by ``asked_by`` (``None``: no requester, the owner's)."""
+    row = acquire.follow.add(FollowedSeries(media_ref=ref, title=title, added_at=1, kind="show"))
+    if asked_by is not None:
+        requester = FollowRequester(
+            followed_id=row,
+            account_id=asked_by,
+            via=scope,
+            floor=None,
+            paused=False,
+            since=2,  # type: ignore[arg-type]
+        )
+        acquire.requesters.save_follow(
+            row,
+            [requester],
+            removed_at=None,
+            min_resolution=None,
+            active=True,
+            scope=scope,  # type: ignore[arg-type]
+        )
+    return row
+
+
+def _titles_told(tmp_path: Path, app_store: AppStore, actor: Actor, index: _Index | None = None) -> tuple[str, ...]:
+    """The titles the reason of the deck's one card names to ``actor``."""
+    (card,) = _service(tmp_path, app_store, index).read(actor, None).items
+    return card.reason_titles
 
 
 class TestTheStore:
@@ -213,7 +260,7 @@ class TestTheReasonsTitles:
         self, app_store: AppStore, acquire: ConcreteAcquireStore, tmp_path: Path
     ) -> None:
         """``similar_to_followed``: the follow's own title."""
-        acquire.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=81189), title="Silo", added_at=1, kind="show"))
+        _follow(acquire, "Silo", MediaRef(tvdb_id=81189), asked_by=_MINE)
         acquire.suggestions.replace_deck([_row("1", "similar_to_followed", "tvdb:81189")])
 
         (card,) = _service(tmp_path, app_store).read(_actor(), None).items
@@ -263,3 +310,78 @@ class TestTheReasonsTitles:
         (card,) = _service(tmp_path, app_store, readable=False).read(_actor(), None).items
 
         assert card.reason_titles == ()
+
+
+class TestWhoIsToldASeedsTitle:
+    """A followed seed is named only to a reader of that follow (DESIGN § 2.3), while it stands."""
+
+    @pytest.fixture(autouse=True)
+    def _card(self, acquire: ConcreteAcquireStore) -> None:
+        """One card, suggested after the show ``tvdb:81189``."""
+        acquire.suggestions.replace_deck([_row("1", "similar_to_followed", "tvdb:81189")])
+
+    @pytest.mark.parametrize("scope", ["follow", "request"])
+    def test_another_accounts_ask_is_named_to_no_one_without_see_others(
+        self, app_store: AppStore, acquire: ConcreteAcquireStore, tmp_path: Path, scope: str
+    ) -> None:
+        """Neither another account's follow nor its one-off request is told to a non-member."""
+        _follow(acquire, "Silo", MediaRef(tvdb_id=81189), asked_by=_THEIRS, scope=scope)
+
+        assert _titles_told(tmp_path, app_store, _actor()) == ()
+
+    def test_a_reader_of_every_acquisition_is_told_another_accounts_follow(
+        self, app_store: AppStore, acquire: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
+        """``acquisition.see.others`` reads every follow, so every followed seed."""
+        _follow(acquire, "Silo", MediaRef(tvdb_id=81189), asked_by=_THEIRS)
+
+        assert _titles_told(tmp_path, app_store, _actor(see_others=True)) == ("Silo",)
+
+    def test_a_follow_with_no_requester_is_read_as_the_owners(
+        self, app_store: AppStore, acquire: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
+        """A row written before the model is the owner's: told to them, to no other."""
+        _follow(acquire, "Silo", MediaRef(tvdb_id=81189), asked_by=None)
+
+        assert _titles_told(tmp_path, app_store, _actor(_OWNER)) == ("Silo",)
+        assert _titles_told(tmp_path, app_store, _actor()) == ()
+
+    @pytest.mark.parametrize("see_others", [False, True])
+    def test_a_removed_follow_is_named_to_no_one(
+        self, app_store: AppStore, acquire: ConcreteAcquireStore, tmp_path: Path, see_others: bool
+    ) -> None:
+        """Nobody follows it any more: « vous suivez » would be false."""
+        row = _follow(acquire, "Silo", MediaRef(tvdb_id=81189), asked_by=_MINE)
+        acquire.follow.mark_removed(row, now=3)
+
+        assert _titles_told(tmp_path, app_store, _actor(see_others=see_others)) == ()
+
+    @pytest.mark.parametrize("see_others", [False, True])
+    def test_a_one_off_request_is_not_a_follow(
+        self, app_store: AppStore, acquire: ConcreteAcquireStore, tmp_path: Path, see_others: bool
+    ) -> None:
+        """A request row follows nothing, whoever reads it."""
+        _follow(acquire, "Silo", MediaRef(tvdb_id=81189), asked_by=_MINE, scope="request")
+
+        assert _titles_told(tmp_path, app_store, _actor(see_others=see_others)) == ()
+
+
+class TestAnOwnedSeedIsStillHeld:
+    """An owned seed is named only while a live file holds it."""
+
+    @pytest.fixture(autouse=True)
+    def _card(self, acquire: ConcreteAcquireStore) -> None:
+        """One card, suggested after the film ``tmdb:603``."""
+        acquire.suggestions.replace_deck([_row("1", "similar_to_owned", "tmdb:603", "movie")])
+
+    def test_a_row_with_no_live_file_names_nothing(self, app_store: AppStore, tmp_path: Path) -> None:
+        """The index keeps a deleted medium's row; the reason does not say the reader has it."""
+        index = _Index({("tmdb", "603"): "The Matrix"}, gone={"The Matrix"})
+
+        assert _titles_told(tmp_path, app_store, _actor(), index) == ()
+
+    def test_the_live_row_names_it_beside_a_dead_one(self, app_store: AppStore, tmp_path: Path) -> None:
+        """Two rows under one id: the title is the one a live file holds."""
+        index = _Index({("tmdb", "603"): ("Old row", "The Matrix")}, gone={"Old row"})
+
+        assert _titles_told(tmp_path, app_store, _actor(), index) == ("The Matrix",)

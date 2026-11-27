@@ -7,15 +7,19 @@ here are two signed-in clients over the same ``app.db`` and ``acquire.db``.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from personalscraper.acquire.domain import SuggestionRow
+from personalscraper.acquire.domain import FollowedSeries, FollowRequester, SuggestionRow
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
 from personalscraper.conf.models.config import Config
+from personalscraper.core.identity import MediaRef
+from tests.unit.app.library.world import FixtureIndex
 
 _REQUEST = frozenset({Right.ACQUISITION_REQUEST})
 _LIBRARY = frozenset({Right.LIBRARY_READ})
@@ -100,6 +104,44 @@ def _titles(client: TestClient) -> list[object]:
 def _rejection(suggestion_id: object) -> str:
     """The address of one suggestion's rejection."""
     return f"/acquisition/suggestions/{suggestion_id}/rejection"
+
+
+class TestTheReasonOnTheWire:
+    """``why.titles`` as the composed services serve it: the real index, the real follows."""
+
+    def test_an_owned_seed_is_served_with_the_librarys_title(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore, test_config: Config
+    ) -> None:
+        """The title is read through the environment's ``library.db`` and reaches ``why.titles``."""
+        library_db = Path(test_config.indexer.db_path)  # type: ignore[arg-type]
+        library_db.parent.mkdir(parents=True, exist_ok=True)
+        index = FixtureIndex(library_db)
+        index.movie_file(index.item("The Matrix", tmdb="603"), "films/The Matrix (1999)")
+        index.conn.close()
+
+        cards = _deck(v1_client(rights=_REQUEST))
+
+        assert cards[1]["why"] == {"code": "similar_to_owned", "titles": ["The Matrix"], "count": None}
+
+    def test_a_followed_seed_is_served_to_its_requester_and_not_to_another_account(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
+    ) -> None:
+        """A household member without ``acquisition.see.others`` is told no one else's follow."""
+        mine, theirs = v1_client(rights=_REQUEST), v1_client(role="household")
+        follow = acquire.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=81189), title="Silo", added_at=1))
+        acquire.requesters.upsert(
+            FollowRequester(followed_id=follow, account_id="account-1", via="follow", floor=None, paused=False, since=2)
+        )
+        acquire.suggestions.replace_deck(
+            [replace(_row("tmdb", "1", "show"), reason="similar_to_followed", seed_key="tvdb:81189")]
+        )
+
+        told = [_deck(client)[0]["why"] for client in (mine, theirs)]
+
+        assert told == [
+            {"code": "similar_to_followed", "titles": ["Silo"], "count": None},
+            {"code": "similar_to_followed", "titles": [], "count": None},
+        ]
 
 
 class TestReject:

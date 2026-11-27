@@ -84,6 +84,10 @@ class _NoTitles:
         """No row bears any id."""
         return []
 
+    def live_folders(self, item_ids: Sequence[int]) -> dict[int, set[str]]:
+        """No row holds a file."""
+        return {}
+
 
 class _Rejections:
     """A fake rejection filter, per account: what an account rejected, by key."""
@@ -137,6 +141,7 @@ def _service(
         open_index=lambda: nullcontext(_NoTitles()),
         cursor_key=lambda: key,
         rejections=rejections if rejections is not None else _Rejections({}),
+        owner=lambda: "account-owner",
     )
     return service, held
 

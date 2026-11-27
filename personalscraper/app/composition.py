@@ -631,6 +631,7 @@ def _build_acquisition_services(
             open_index=LibraryIndex(index_db).reader,
             cursor_key=partial(load_or_make_key, cursor_key_path(store_path(config.paths.data_dir, StoreName.APP))),
             rejections=AccountRejections(app_store),
+            owner=owner,
         ),
     )
 

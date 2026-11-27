@@ -22,7 +22,10 @@ A card is addressed by its suggestion id, ``<kind>:<provider>:<providerId>``: a 
 which a refresh of the deck keeps. The wire carries it opaque.
 
 A card's reason names the title whose recommendation it is, read where that title lives: a follow's
-own title, or the library's through the index. A title neither holds any more is not named.
+own title, or the library's through the index. A title neither holds any more is not named: only a
+standing follow names its seed, and only an index row a live file holds. A follow's title is told to a
+reader of that follow alone (a requester of it, or ``acquisition.see.others``; DESIGN § 2.3); to any
+other reader the reason names no title.
 
 A cursor is the key of the card a page continues past, sealed under a key the environment keeps
 (:func:`cursor_key_path`): only a cursor the server issued is read, and it stays readable across a
@@ -40,6 +43,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final, Protocol
 
 from personalscraper.app.accounts.authorise import requires
+from personalscraper.app.acquisition.follow_repository import FollowRepository
+from personalscraper.app.acquisition.model import FollowId
 from personalscraper.app.errors import AppBadRequest, AppNotFound, RefusalCode
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.library_view import IndexUnavailable
@@ -47,10 +52,11 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
-    from personalscraper.acquire.domain import FollowKind, SuggestionReason, SuggestionRow
+    from personalscraper.acquire.domain import FollowedSeries, FollowKind, SuggestionReason, SuggestionRow
     from personalscraper.app.accounts.actor import Actor
+    from personalscraper.app.accounts.ids import AccountId
     from personalscraper.app.acquisition.completeness import OwnershipReader
-    from personalscraper.indexer.library_view import IndexItem
+    from personalscraper.indexer.library_view import IndexItem, ItemId
 
 log = get_logger("app.acquisition.suggestions")
 
@@ -158,7 +164,11 @@ class _IndexReader(Protocol):
     """What is read of the library index to name a seed."""
 
     def holders(self, provider: str, provider_id: str) -> list[IndexItem]:
-        """Read every row bearing one provider id."""
+        """Read every row bearing one provider id, live or not."""
+        ...
+
+    def live_folders(self, item_ids: Sequence[ItemId]) -> Mapping[ItemId, set[str]]:
+        """Name the folders of each row's live files; a row with none is left out."""
         ...
 
 
@@ -177,7 +187,8 @@ class SuggestedMedium:
         suggestion_id: The card's handle, which a rejection and its undo address it by.
         reason: Why it is suggested, as a code the interface words.
         seed_key: The title whose recommendation this is (``"tmdb:603"``).
-        reason_titles: The titles the reason names: the seed's, or none when nothing holds it.
+        reason_titles: The titles the reason names: the seed's, or none when nothing holds it or
+            the reader may not read the follow that does.
         cursor: The ``after`` that continues the deck past this card.
         ids: The ids the library and the follows know the title by (:func:`media_ref_of`), or
             ``None`` when it has none.
@@ -336,6 +347,7 @@ class Suggestions:
         open_index: Callable[[], AbstractContextManager[_IndexReader]],
         cursor_key: Callable[[], bytes],
         rejections: RejectionStore,
+        owner: Callable[[], AccountId],
     ) -> None:
         """Hold the seams; nothing is opened yet.
 
@@ -346,12 +358,14 @@ class Suggestions:
                 ``IndexUnavailable`` when the index cannot be read.
             cursor_key: Reads the key the cursors are sealed under, the same across restarts.
             rejections: The titles each account rejected.
+            owner: The account a follow with no requester is the ask of (ruling 9).
         """
         self._open_store = open_store
         self._open_ownership = open_ownership
         self._open_index = open_index
         self._cursor_key = cursor_key
         self._rejections = rejections
+        self._owner = owner
 
     @requires("readSuggestions")
     def read(self, actor: Actor, after: str | None, *, limit: int = DEFAULT_LIMIT) -> SuggestionPage:
@@ -389,7 +403,7 @@ class Suggestions:
                     kept.append(row)
                     if len(kept) == limit:
                         break
-            titles = self._seed_titles(store, kept)
+            titles = self._seed_titles(actor, store, kept)
         items = tuple(_medium_of(row, key, titles.get((row.reason, row.seed_key, row.kind))) for row in kept)
         # A page short of its limit read the deck to its end: nothing follows it.
         return SuggestionPage(items=items, after=items[-1].cursor if len(items) == limit else None)
@@ -431,19 +445,21 @@ class Suggestions:
         if not self._rejections.undo(actor, _keyed_by(suggestion_id)):
             raise AppNotFound("This account rejected no suggestion of this id.", code=RefusalCode.SUGGESTION_NOT_FOUND)
 
-    def _seed_titles(self, store: AcquireStore, rows: Sequence[SuggestionRow]) -> dict[_Seed, str]:
+    def _seed_titles(self, actor: Actor, store: AcquireStore, rows: Sequence[SuggestionRow]) -> dict[_Seed, str]:
         """Name the seeds of a page's cards by their titles, each seed read once.
 
-        A followed seed's title is its follow's; an owned one's is the library's, read through the
-        index (opened only when a card asks it).
+        A followed seed's title is its standing follow's, told to a reader of that follow alone; an
+        owned one's is the library's, read through the index (opened only when a card asks it) off a
+        row a live file holds.
 
         Args:
+            actor: Who reads: the follows named are those it may read.
             store: The acquire store (the follows).
             rows: The page's rows.
 
         Returns:
-            ``(reason, seed_key, kind)`` → the title, for the seeds something still holds; the
-            owned ones are all absent when the index cannot be read.
+            ``(reason, seed_key, kind)`` → the title, for the seeds something still holds and the
+            reader may be told; the owned ones are all absent when the index cannot be read.
         """
         titles: dict[_Seed, str] = {}
         seeds = dict.fromkeys((r.reason, r.seed_key, r.kind) for r in rows)
@@ -452,7 +468,7 @@ class Suggestions:
                 continue
             ref = media_ref_of(*_split_seed(seed_key))
             follows = [] if ref is None else store.follow.find_all_by_ref(ref, kind=kind)
-            title = next((f.title for f in follows if f.title), None)
+            title = next((f.title for f in follows if f.title and _stands(f) and self._reads(actor, store, f)), None)
             if title is not None:
                 titles[(reason, seed_key, kind)] = title
         owned = [seed for seed in seeds if seed[0] == "similar_to_owned"]
@@ -461,13 +477,40 @@ class Suggestions:
         try:
             with self._open_index() as index:
                 for reason, seed_key, kind in owned:
-                    held = index.holders(*_split_seed(seed_key))
-                    title = next((item.title for item in held if item.kind == kind and item.title), None)
+                    held = [item for item in index.holders(*_split_seed(seed_key)) if item.kind == kind and item.title]
+                    live = index.live_folders([item.item_id for item in held])
+                    title = next((item.title for item in held if item.item_id in live), None)
                     if title is not None:
                         titles[(reason, seed_key, kind)] = title
         except IndexUnavailable:
             log.warning("app.acquisition.suggestions.index_unavailable")
         return titles
+
+    def _reads(self, actor: Actor, store: AcquireStore, row: FollowedSeries) -> bool:
+        """Whether the reader may read a follow, and so be told its title (DESIGN § 2.3).
+
+        Args:
+            actor: Who reads.
+            store: The acquire store (the follow's requesters).
+            row: The follow's row.
+
+        Returns:
+            ``True`` for a requester of the follow, or a holder of ``acquisition.see.others``.
+        """
+        follow = None if row.id is None else FollowRepository(store).get_by_id(FollowId(row.id))
+        return follow is not None and follow.readable_by(actor, self._owner())
+
+
+def _stands(row: FollowedSeries) -> bool:
+    """Whether a row is a follow still held: of scope ``follow`` and not removed (paused included).
+
+    Args:
+        row: The ``followed_series`` row.
+
+    Returns:
+        ``False`` for a one-off request and a removed follow.
+    """
+    return row.scope == "follow" and row.removed_at is None
 
 
 def _split_seed(seed_key: str) -> tuple[str, str]:
@@ -499,7 +542,7 @@ def _is_followed(store: AcquireStore, row: SuggestionRow) -> bool:
     ref = media_ref_of(row.provider, row.provider_id, row.external_ids)
     if ref is None:
         return False
-    return any(f.scope == "follow" and f.removed_at is None for f in store.follow.find_all_by_ref(ref, kind=row.kind))
+    return any(_stands(f) for f in store.follow.find_all_by_ref(ref, kind=row.kind))
 
 
 def _is_owned(ownership: OwnershipReader, row: SuggestionRow) -> bool:
