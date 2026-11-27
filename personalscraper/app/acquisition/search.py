@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "DEFAULT_LIMIT",
+    "MAX_LIMIT",
     "ProviderSearch",
     "SearchKind",
     "SearchPage",
@@ -67,6 +68,9 @@ type SearchKind = Literal["movie", "tv"]
 
 #: Rows a search page carries when the caller names no limit (v0's default).
 DEFAULT_LIMIT: Final[int] = 20
+
+#: The most rows one search page may carry: the bound the contract declares on ``limit``.
+MAX_LIMIT: Final[int] = 100
 
 #: The provider the movie chain asks, named in the refusal when it fails.
 _MOVIE_PROVIDER: Final[str] = "tmdb"

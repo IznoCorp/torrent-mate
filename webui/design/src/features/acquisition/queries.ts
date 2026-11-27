@@ -19,10 +19,14 @@ import { sentIdentity } from "./sent-identity";
 /**
  * The suggestions the discover deck draws, as a query definition.
  *
- * ONE READ, NOT A PAGE. The layer pages them by the last title seen; the deck
- * asks for the whole batch, because its own paging is by INDEX into a list it
+ * ONE READ, NOT THE WHOLE DECK. The layer pages it by the cursor it issues; the
+ * deck asks for one batch, because its own paging is by INDEX into a list it
  * holds, and rewriting that is rewriting the deck — drawing, which is L13's.
  * What this lot takes away is the FIXTURE.
+ *
+ * WHAT THE CACHE HOLDS IS A PAGE THAT GROWS: every card read so far, and the
+ * cursor the last answer gave. The cursor lives with the cards it continues, so
+ * whatever empties or re-reads the one does the same to the other.
  *
  * IT IS A DEFINITION RATHER THAN A HOOK BECAUSE NO COMPONENT HOLDS IT. The deck
  * is drawn by the engine, so there is nobody to subscribe: the boot asks for it
@@ -42,7 +46,7 @@ export const suggestionsQuery = {
     // So the reserve GROWS instead. `loadMoreSuggestions` appends the next
     // page, indices already held keep their meaning, and what was dismissed
     // stays dismissed because `sugGone` holds positions into this same list.
-    read<Schemas["Suggestion"][]>("/api/v1/acquisition/suggestions", new URLSearchParams()),
+    read<Schemas["SuggestionPage"]>("/api/v1/acquisition/suggestions", new URLSearchParams()),
 };
 
 // The cache the deck's paging reads, captured where it is already handed over.
@@ -78,24 +82,23 @@ export function isReserveExhausted(): boolean {
  */
 export async function loadMoreSuggestions(): Promise<number> {
   if (suggestionsCache === null) return 0;
-  const held =
-    suggestionsCache.getQueryData<unknown[]>(suggestionsQuery.queryKey) ?? [];
-  const parameters = new URLSearchParams();
-  // THE CONTRACT'S OWN FIELD NAME, because what is held is the suggestion list
-  // as the layer served it: the last card's `title` is where the next page
-  // starts, and a name the cache does not hold would page from the beginning
-  // for ever.
-  const last = held[held.length - 1] as { title?: string } | undefined;
-  if (last?.title !== undefined) parameters.set("after", last.title);
-  const batch = await read<Schemas["Suggestion"][]>("/api/v1/acquisition/suggestions", parameters);
-  if (batch.length === 0) {
+  const held = suggestionsCache.getQueryData<Schemas["SuggestionPage"]>(suggestionsQuery.queryKey);
+  // NO CURSOR ON A PAGE HELD IS THE END OF THE DECK: asking without one would
+  // read the first page again and append what is already there.
+  if (held !== undefined && held.nextCursor === null) {
     reserveExhausted = true;
     return 0;
   }
-  reserveExhausted = false;
-  const arrived = batch;
-  suggestionsCache.setQueryData(suggestionsQuery.queryKey, [...held, ...arrived]);
-  return arrived.length;
+  const parameters = new URLSearchParams();
+  // THE CURSOR GOES BACK AS IT CAME: the layer issues it and nobody here reads it.
+  if (held?.nextCursor) parameters.set("cursor", held.nextCursor);
+  const page = await read<Schemas["SuggestionPage"]>("/api/v1/acquisition/suggestions", parameters);
+  reserveExhausted = page.suggestions.length === 0;
+  suggestionsCache.setQueryData<Schemas["SuggestionPage"]>(suggestionsQuery.queryKey, {
+    suggestions: [...(held?.suggestions ?? []), ...page.suggestions],
+    nextCursor: page.nextCursor,
+  });
+  return page.suggestions.length;
 }
 
 /**
@@ -111,7 +114,7 @@ export async function loadMoreSuggestions(): Promise<number> {
 export function installSuggestionsLookup(queryClient: QueryClient): void {
   suggestionsCache = queryClient;
   suggestions = () =>
-    (queryClient.getQueryData(suggestionsQuery.queryKey) as Schemas["Suggestion"][] | undefined) ?? [];
+    queryClient.getQueryData<Schemas["SuggestionPage"]>(suggestionsQuery.queryKey)?.suggestions ?? [];
   // AND IT IS ASKED FOR, because nothing else will. Every other read in this
   // file belongs to a component that subscribes; the deck belongs to the
   // engine, and a seam over a cache nobody filled answers empty for ever.

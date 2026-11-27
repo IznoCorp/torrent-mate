@@ -350,6 +350,28 @@ def tmdb(monkeypatch: pytest.MonkeyPatch) -> _Tmdb:
     search_module.SEARCH_CACHE.clear()
 
 
+def _films(count: int) -> list[SearchResult]:
+    """Films a search for « dune » finds, the most popular first.
+
+    Args:
+        count: How many.
+
+    Returns:
+        The films, titled ``Dune 0`` … ``Dune <count - 1>``.
+    """
+    return [
+        SearchResult(
+            provider="tmdb",
+            provider_id=str(1000 + n),
+            title=f"Dune {n}",
+            year=2000 + n,
+            media_type="movie",
+            popularity=100.0 - n,
+        )
+        for n in range(count)
+    ]
+
+
 class TestSearchProviders:
     """``GET /acquisition/search``."""
 
@@ -387,7 +409,7 @@ class TestSearchProviders:
     def test_a_page_holds_twenty_results_and_the_total_says_how_many_there_are(
         self, v1_client: Callable[..., TestClient], tmdb: _Tmdb
     ) -> None:
-        """The contract declares no offset or limit: the first twenty are served, ``total`` names the rest."""
+        """With no ``limit`` asked the first twenty are served, and ``total`` names how many there are."""
         tmdb.movies = [
             SearchResult(
                 provider="tmdb",
@@ -404,6 +426,43 @@ class TestSearchProviders:
         body = v1_client(rights=_REQUEST).get("/acquisition/search", params={"query": "dune"}).json()
 
         assert (body["shown"], body["total"], len(body["results"])) == (20, 25, 20)
+
+    def test_the_second_page_of_a_search_is_reached_by_offset(
+        self, v1_client: Callable[..., TestClient], tmdb: _Tmdb
+    ) -> None:
+        """K3-G14: ``offset`` reaches what the first page left, under the same total."""
+        tmdb.movies = _films(25)
+        tmdb.shows = []
+        client = v1_client(rights=_REQUEST)
+
+        first = client.get("/acquisition/search", params={"query": "dune"}).json()
+        second = client.get("/acquisition/search", params={"query": "dune", "offset": 20}).json()
+
+        assert (second["shown"], second["total"], len(second["results"])) == (5, 25, 5)
+        assert not {r["title"] for r in first["results"]} & {r["title"] for r in second["results"]}
+
+    def test_a_limit_bounds_the_page(self, v1_client: Callable[..., TestClient], tmdb: _Tmdb) -> None:
+        """K3-G14: ``limit`` sets how many results the page carries, from the offset on."""
+        tmdb.movies = _films(25)
+        tmdb.shows = []
+        client = v1_client(rights=_REQUEST)
+
+        whole = client.get("/acquisition/search", params={"query": "dune", "limit": 100}).json()
+        page = client.get("/acquisition/search", params={"query": "dune", "limit": 3, "offset": 3}).json()
+
+        assert (whole["shown"], whole["total"]) == (25, 25)
+        assert (page["shown"], page["results"]) == (3, whole["results"][3:6])
+
+    @pytest.mark.parametrize(("name", "value"), [("limit", 0), ("limit", 101), ("offset", -1)])
+    def test_a_page_out_of_bounds_is_request_invalid_naming_it(
+        self, v1_client: Callable[..., TestClient], tmdb: _Tmdb, name: str, value: int
+    ) -> None:
+        """K3-G14: a page the contract's bounds refuse is 400 ``request.invalid``, and no provider is asked."""
+        response = v1_client(rights=_REQUEST).get("/acquisition/search", params={"query": "dune", name: value})
+
+        assert (response.status_code, response.json()["code"]) == (400, "request.invalid")
+        assert response.json()["params"]["fields"] == [f"query.{name}"]
+        assert tmdb.asked == []
 
     def test_a_follow_store_that_cannot_be_read_fails_the_search_never_says_not_followed(
         self, v1_client: Callable[..., TestClient], tmdb: _Tmdb, monkeypatch: pytest.MonkeyPatch
@@ -606,7 +665,7 @@ class TestReadSuggestions:
         """A show of the deck: its year as text, the reason's code as ``why``, its ids, no full-screen poster."""
         _deck(acquire, 3)
 
-        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()
+        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
 
         assert cards[0] == {
             "title": "Title 1",
@@ -625,34 +684,30 @@ class TestReadSuggestions:
         """The contract types ``year`` as text and ``rating`` as a number: an unknown year is ``""``, a rating ``0``."""
         _deck(acquire, 3)
 
-        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()
+        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
 
         assert (cards[1]["year"], cards[2]["rating"]) == ("", 0)
 
-    def test_the_deck_continues_past_the_last_title_the_reader_holds(
+    def test_the_next_cursor_continues_the_deck_to_its_end(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
     ) -> None:
-        """``after`` is the title of the last card (the interface's own way); an exhausted deck is an empty list."""
+        """K3-G13: each page carries the ``nextCursor`` the next one is asked with; the last carries ``null``."""
         _deck(acquire, 25)
         client = v1_client(rights=_REQUEST)
 
         first = client.get("/acquisition/suggestions").json()
-        second = client.get("/acquisition/suggestions", params={"after": first[-1]["title"]}).json()
-        third = client.get("/acquisition/suggestions", params={"after": second[-1]["title"]}).json()
+        second = client.get("/acquisition/suggestions", params={"cursor": first["nextCursor"]}).json()
 
-        assert [c["title"] for c in first] == [f"Title {n}" for n in range(1, 21)]
-        assert [c["title"] for c in second] == [f"Title {n}" for n in range(21, 26)]
-        assert third == []
+        assert [c["title"] for c in first["suggestions"]] == [f"Title {n}" for n in range(1, 21)]
+        assert [c["title"] for c in second["suggestions"]] == [f"Title {n}" for n in range(21, 26)]
+        assert second["nextCursor"] is None
 
-    def test_after_a_title_two_cards_bear_restarts_past_the_first_of_them(
+    def test_two_cards_bearing_one_title_do_not_restart_the_deck(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
     ) -> None:
-        """A LIMIT OF THE CONTRACT, pinned: ``after`` is a title, and a title is not unique in the deck.
-
-        A film and a show can bear one title. The page continues past the FIRST card of that title, so a
-        reader whose last card is the second one is served the cards between the two again.
-        """
-        titles = ["Dune", "Arrival", "Dune", "Tenet"]
+        """K3-G13: a page ending on the second card of a title continues past THAT card, not the first."""
+        titles = [f"Title {n}" for n in range(1, 23)]
+        titles[4] = titles[19] = "Dune"
         acquire.suggestions.replace_deck(
             [
                 SuggestionRow(
@@ -670,10 +725,52 @@ class TestReadSuggestions:
                 for n, title in enumerate(titles, start=1)
             ]
         )
+        client = v1_client(rights=_REQUEST)
 
-        served = v1_client(rights=_REQUEST).get("/acquisition/suggestions", params={"after": "Dune"}).json()
+        first = client.get("/acquisition/suggestions").json()
+        second = client.get("/acquisition/suggestions", params={"cursor": first["nextCursor"]}).json()
 
-        assert [(c["title"], c["kind"]) for c in served] == [("Arrival", "show"), ("Dune", "movie"), ("Tenet", "show")]
+        assert first["suggestions"][-1]["title"] == "Dune"
+        assert [(c["title"], c["kind"]) for c in second["suggestions"]] == [("Title 21", "movie"), ("Title 22", "show")]
+
+    def test_the_cursor_past_the_last_card_answers_an_empty_page_that_ends_the_deck(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
+    ) -> None:
+        """K3-G13: a deck that ends on a full page gives one cursor more, which reads no card and no cursor."""
+        _deck(acquire, 20)
+        client = v1_client(rights=_REQUEST)
+
+        first = client.get("/acquisition/suggestions").json()
+        past = client.get("/acquisition/suggestions", params={"cursor": first["nextCursor"]})
+
+        assert first["nextCursor"] is not None
+        assert (past.status_code, past.json()) == (200, {"suggestions": [], "nextCursor": None})
+
+    def test_a_well_formed_cursor_the_server_never_issued_is_request_invalid(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
+    ) -> None:
+        """K3-G13: the form is not enough: bare card numbers and an issued cursor moved to another card are refused."""
+        _deck(acquire, 25)
+        client = v1_client(rights=_REQUEST)
+        issued = client.get("/acquisition/suggestions").json()["nextCursor"]
+
+        for forged in ("7", "999999999", f"1{issued}"):
+            response = client.get("/acquisition/suggestions", params={"cursor": forged})
+
+            assert (response.status_code, response.json().get("code")) == (400, "request.invalid"), forged
+            assert response.json()["params"]["fields"] == ["cursor"]
+
+    @pytest.mark.parametrize("cursor", ["Dune", "-1", "1.5"])
+    def test_a_cursor_the_deck_never_gave_is_request_invalid_naming_it(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore, cursor: str
+    ) -> None:
+        """K3-G13: a cursor is the server's own; anything else is refused, never guessed."""
+        _deck(acquire, 3)
+
+        response = v1_client(rights=_REQUEST).get("/acquisition/suggestions", params={"cursor": cursor})
+
+        assert (response.status_code, response.json()["code"]) == (400, "request.invalid")
+        assert response.json()["params"]["fields"] == ["cursor"]
 
     def test_a_followed_title_is_left_out(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
@@ -682,7 +779,8 @@ class TestReadSuggestions:
         _deck(acquire, 3)
         acquire.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=1), title="Title 1", added_at=1, kind="show"))
 
-        titles = [c["title"] for c in v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()]
+        served = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
+        titles = [c["title"] for c in served]
 
         assert titles == ["Title 2", "Title 3"]
 

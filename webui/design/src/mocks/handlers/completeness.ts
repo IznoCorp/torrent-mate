@@ -5,8 +5,7 @@
 // follow names. A follow whose seasons nobody catalogued answers
 // `source: unknown` and no season, never a fabricated all-missing grid.
 import { GET, route } from "./shared";
-import { followForKey } from "../follow-key";
-import { mockState } from "../state";
+import { followForKey, keyOfMedium } from "../follow-key";
 import { refused, type MockRoute } from "../router";
 import { seasonsAnswerFor } from "./media";
 import type { components } from "../../contract/types";
@@ -48,7 +47,7 @@ function completenessOf(followedId: string): unknown {
     };
   });
   return {
-    followedId: mockState().follows.indexOf(follow),
+    followedId: keyOfMedium(follow),
     title: follow.title,
     kind: follow.kind,
     seasons,

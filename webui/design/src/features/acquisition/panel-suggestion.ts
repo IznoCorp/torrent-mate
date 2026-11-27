@@ -32,7 +32,7 @@ type Suggestion = Schemas["Suggestion"];
  *     reach that far.
  */
 function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor | null {
-  const reserve = cache.held<Suggestion[]>(suggestionsQuery.queryKey);
+  const reserve = cache.held<Schemas["SuggestionPage"]>(suggestionsQuery.queryKey)?.suggestions;
   const suggestion = reserve?.[Number(position)];
   if (suggestion === undefined) return null;
   const translate = i18next.t.bind(i18next);

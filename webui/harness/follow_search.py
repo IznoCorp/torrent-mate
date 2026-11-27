@@ -38,7 +38,7 @@ FOLLOWS = "async () => {" + KEY_OF + """
 # A suggestion the seeds hold no release for, followed through the layer.
 UNFOUND = "async () => {" + KEY_OF + """
   const deck = await (await fetch('/api/v1/acquisition/suggestions')).json();
-  for (const one of deck) {
+  for (const one of deck.suggestions) {
     if (one.ids?.tmdb === undefined) continue;
     const kind = one.kind === 'Film' ? 'movie' : 'show';
     const answer = await fetch('/api/v1/acquisition/followed', {
