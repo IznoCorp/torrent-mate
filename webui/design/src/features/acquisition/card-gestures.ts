@@ -13,13 +13,9 @@
 // which is what keeps the browser from taking the gesture and cancelling it at
 // the first pixel — the reason the pull gesture, inside the scrollport, cannot
 // use the pointer path at all.
-import i18next from "i18next";
-import { advanceDeck, dismissSug, fillSug, forgetDrawnFeed, passerSug, refreshDeck, sugFoot } from "./discover-feed";
+import { advanceDeck, dismissSug, fillSug, forgetDrawnFeed, passerSug, redrawFeed, sugFoot } from "./discover-feed";
+import { rejectSuggestion } from "./rejection-verb";
 import { installCommitSwipe } from "../../lib/commit-swipe";
-import type { Suggestion } from "./discover-cards";
-import { suggestions } from "./queries";
-import { store } from "../../lib/store-access";
-import { toast } from "../../lib/shell-doors";
 
 /** How far a finger travels before either gesture commits to an axis. */
 const AXIS_DEAD_ZONE_PIXELS = 6;
@@ -161,20 +157,10 @@ export function installDiscoverSwipe(frame: HTMLElement): void {
       if (released.offset > 0) {
         /* THE PILE IS ANIMATED, NOT REBUILT: `advanceDeck` moves the existing
            nodes, which is the only way the card underneath can rise rather than
-           appear. The state is updated alongside, and the bump is explicit so
-           the components learn the card left the deck. */
-        (store.read().state.sugGone as Set<number>).add(position);
-        store.touch();
+           appear. The rejection spends the card first, so the pile is fed from
+           the order without it. */
+        void rejectSuggestion(position, redrawFeed);
         advanceDeck(position, 1);
-        const gone = (suggestions?.() ?? [])[position] as Suggestion | undefined;
-        toast?.show({
-          message: i18next.t("discover.dismissed", { title: gone?.title ?? "" }),
-          undo: () => {
-            (store.read().state.sugGone as Set<number>).delete(position);
-            store.touch();
-            refreshDeck();
-          },
-        });
       } else {
         passerSug(position);
         advanceDeck(position, -1);

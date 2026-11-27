@@ -12,8 +12,7 @@ import { registerProducer, type PanelCache, type PanelDescriptor } from "../../u
 import { suggestionsQuery } from "./queries";
 
 // THE KIND A FILM IS SERVED AS; every other kind is a series.
-// french-ok: a data VALUE — the kind the suggestions serve
-const FILM = "Film";
+const FILM: Schemas["Suggestion"]["kind"] = "movie";
 
 /**
  * The header's sentence, from the suggestions read.

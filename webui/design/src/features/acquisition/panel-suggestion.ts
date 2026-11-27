@@ -15,6 +15,7 @@ import type { Schemas } from "../../lib/contract-schemas";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { suggestionsQuery } from "./queries";
+import { factsLine, reasonSegments } from "./suggestion-words";
 
 
 /** One suggestion, as the deck draws it. */
@@ -36,17 +37,12 @@ function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor |
   const suggestion = reserve?.[Number(position)];
   if (suggestion === undefined) return null;
   const translate = i18next.t.bind(i18next);
-  const isFilm = suggestion.kind === "Film";
+  const isFilm = suggestion.kind === "movie";
   return {
     title: suggestion.title,
-    meta: translate("panels.suggestion.metaRating", {
-      year: suggestion.year,
-      kind: suggestion.kind,
-      rating: suggestion.rating,
-    }),
+    meta: translate("panels.suggestion.metaRating", { facts: factsLine(suggestion), rating: suggestion.rating }),
     blocs: [
-      // The panel's rich text marks emphasis as `e`; the served reason says `emphasis`.
-      { type: "note", text: suggestion.why.map((part) => (typeof part === "string" ? part : { e: part.emphasis })) },
+      { type: "note", text: reasonSegments(suggestion.why) },
       {
         type: "actions",
         actions: [
@@ -59,7 +55,7 @@ function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor |
               : "panels.suggestion.followSeries"),
             icone: icons.plus,
             ton: "primary",
-            target: { follow: suggestion.title, sugidx: position },
+            target: { follow: suggestion.title, sugid: suggestion.id },
           },
           {
             text: translate("panels.suggestion.seeSheet"),
@@ -76,7 +72,7 @@ function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor |
             text: translate("panels.suggestion.notInterested"),
             icone: icons.x,
             ton: "danger",
-            target: { dropsug: position },
+            target: { dropsug: suggestion.id },
           },
         ],
       },

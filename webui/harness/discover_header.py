@@ -49,7 +49,7 @@ COUNTED = """() => {
   const reserve = window.__suggestions?.() ?? [];
   const gone = window.state?.sugGone ?? new Set();
   const left = reserve.filter((_, position) => !gone.has(position));
-  const films = left.filter((one) => one.kind === 'Film').length;
+  const films = left.filter((one) => one.kind === 'movie').length;
   return {series: left.length - films, films};
 }"""
 

@@ -22,8 +22,10 @@ import { actionButton, emptyNote, endMark, loadFooterAction, posterGrid, skeleto
 import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
 import { isReserveExhausted, suggestions } from "./queries";
+import { rejectSuggestion } from "./rejection-verb";
+import { onReserveReplaced } from "./reserve-positions";
 import { store } from "../../lib/store-access";
-import { toast, icons } from "../../lib/shell-doors";
+import { icons } from "../../lib/shell-doors";
 import { deckPile } from "./variants";
 import { svgIcon } from "../../lib/markup-text";
 
@@ -308,53 +310,41 @@ export function fillSug(): void {
   box.innerHTML = drawn;
 }
 
+/** Draws the feed again in the shape being read: a card came back, or the reserve moved. */
+export function redrawFeed(): void {
+  if (uiState().sugMode === "deck") {
+    refreshDeck();
+    return;
+  }
+  forgetDrawnFeed();
+  fillSug();
+  sugFoot();
+}
+
+onReserveReplaced(redrawFeed);
+
 /**
- * « Pas intéressé » — reversible, because a quick gesture gets it wrong more
- * often than a pressing finger does.
+ * « Pas intéressé » — a rejection, reversible because a quick gesture gets it wrong more often
+ * than a pressing finger does.
  *
  * Args:
  *     position: The suggestion's index into the reserve.
  */
 export function dismissSug(position: number): void {
-  const gone = uiState().sugGone as Set<number>;
-  const undo = () => {
-    gone.delete(position);
-    store.touch();
-  };
-  const message = say("dismissed", { title: reserve()[position].title });
   if (uiState().sugMode === "deck") {
-    // In the deck the whole pile changes, not one row: re-render, and the undo
-    // restores both the suggestion and its place in the order. `sugGone` is a
-    // Set mutated in place, so React needs the explicit bump a `write` would
-    // otherwise have given it for free.
-    gone.add(position);
-    store.touch();
+    // In the deck the whole pile changes, not one row: re-render. The card keeps
+    // its place in the order, so an undo restores both.
+    void rejectSuggestion(position, redrawFeed);
     refreshDeck();
-    toast?.show({
-      message,
-      undo: () => {
-        undo();
-        refreshDeck();
-      },
-    });
     return;
   }
   const row = document.querySelector<HTMLElement>(`[data-dismissable="${position}"]`);
   if (!row) return;
-  gone.add(position);
-  store.touch();
+  void rejectSuggestion(position, redrawFeed);
   forgetDrawnFeed();
   row.style.height = row.getBoundingClientRect().height + "px";
   requestAnimationFrame(() => row.classList.add("gone"));
   window.setTimeout(() => row.remove(), COLLAPSE);
-  toast?.show({
-    message,
-    undo: () => {
-      undo();
-      fillSug();
-      sugFoot();
-    },
-  });
 }
 
 /** The footer: the end mark, or the sentinel that asks for more. */

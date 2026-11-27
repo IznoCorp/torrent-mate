@@ -21,6 +21,7 @@ import { posterArtwork } from "../../lib/engine-drawing";
 import { escapeHtml, svgIcon } from "../../lib/markup-text";
 import { mediumCardMarkup } from "./card-markup";
 import { richTextMarkup } from "./rich-text";
+import { factsLine, reasonPieces } from "./suggestion-words";
 import { posterArtworkMarkup } from "../../ui/poster";
 import { tileMarkup } from "../../ui/tile";
 import { commitRowMarkup } from "../../ui/rows";
@@ -49,10 +50,10 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
   return commitRowMarkup(
     mediumCardMarkup({
       title: suggestion.title,
-      k: suggestion.kind === "Film" ? "movie" : "show",
-      secondaryLine: `${suggestion.year} · ${suggestion.kind}`,
+      k: suggestion.kind,
+      secondaryLine: factsLine(suggestion),
       note: suggestion.rating,
-      reason: suggestion.why,
+      reason: reasonPieces(suggestion.why),
       panel: `sug:${position}`,
       poster: suggestion.poster,
       ids: suggestion.ids,
@@ -80,8 +81,8 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
 export function suggestionTile(suggestion: Suggestion, position: number): string {
   return tileMarkup({
     title: suggestion.title,
-    subtitle: `${suggestion.year} · ${suggestion.kind}`,
-    artwork: posterArtwork(icons, suggestion.poster, suggestion.title, suggestion.kind === "Film" ? "movie" : "show"),
+    subtitle: factsLine(suggestion),
+    artwork: posterArtwork(icons, suggestion.poster, suggestion.title, suggestion.kind),
     badge: { tone: "overlay", text: String(suggestion.rating) },
     // The sheet before the panel: the registry answers the first registered
     // key in attribute order, and `data-dismissable` is a gesture's marker
@@ -118,7 +119,7 @@ export function deckCard(
   const escape = escapeHtml;
   const poster = suggestion.posterHighDefinition
     ? `<img src="${escape(suggestion.posterHighDefinition)}" alt="" loading="lazy">`
-    : posterArtworkMarkup(posterArtwork(icons, suggestion.poster, suggestion.title, suggestion.kind === "Film" ? "movie" : "show"));
+    : posterArtworkMarkup(posterArtwork(icons, suggestion.poster, suggestion.title, suggestion.kind));
   // THE GESTURE LABELS BELONG TO THE TOP CARD ALONE — it is the only one a
   // finger can reach, and `advanceDeck` moves them with the place rather than
   // with the card.
@@ -132,8 +133,8 @@ export function deckCard(
         ${poster}
         <span class="cap ${deckCaption()}">
           <span class="t ${deckTitle()}" data-part="deck/title">${escape(suggestion.title)}</span>
-          <span class="m ${deckMeta()}">${escape(suggestion.year)} · ${escape(suggestion.kind)} · ${escape(String(suggestion.rating))}${say("onTmdb")}</span>
-          <span class="why ${deckReason()}">${richTextMarkup(suggestion.why)}</span>
+          <span class="m ${deckMeta()}">${escape(factsLine(suggestion))} · ${escape(String(suggestion.rating))}${say("onTmdb")}</span>
+          <span class="why ${deckReason()}">${richTextMarkup(reasonPieces(suggestion.why))}</span>
         </span>
       </button>
       ${hints}
