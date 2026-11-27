@@ -98,7 +98,7 @@ if TYPE_CHECKING:
 log = get_logger("acquire.service")
 
 # Per-item outcome tag (maps onto a RunSummary counter in run()).
-_ItemOutcome = Literal["grabbed", "retried", "abandoned", "absorbed", "skipped"]
+_ItemOutcome = Literal["grabbed", "retried", "abandoned", "absorbed", "skipped", "gone"]
 
 # Per-item outcome tag of the SEARCH pass (maps onto a SearchRunSummary counter).
 _SearchItemOutcome = Literal["available", "waiting", "unverified", "abandoned", "absorbed", "skipped"]
@@ -129,6 +129,9 @@ class RunSummary:
             lost to a concurrent process, the row was already grabbed (hash-guard
             short-circuit), or a DB lock left it for the stale-searching sweep
             (DESIGN §6.2).
+        release_gone: Items whose NAMED release (K3 P9c, DESIGN O-14) was no longer offered at
+            grab time: nothing was added and ``chosen_release_gone`` is on the row. Always 0 when no
+            release was named.
     """
 
     grabbed: int = 0
@@ -136,6 +139,7 @@ class RunSummary:
     abandoned: int = 0
     skipped: int = 0
     absorbed: int = 0
+    release_gone: int = 0
 
 
 @dataclass(frozen=True)
@@ -246,7 +250,12 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         self._grab_run_uid: str | None = None
 
     def run(
-        self, *, limit: int | None = None, followed_id: int | None = None, run_uid: str | None = None
+        self,
+        *,
+        limit: int | None = None,
+        followed_id: int | None = None,
+        run_uid: str | None = None,
+        release: str | None = None,
     ) -> RunSummary:
         """Run the GRAB pass over the available + stale-searching queue.
 
@@ -276,10 +285,22 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             run_uid: The grab command's ``pipeline_run.run_uid`` (hex, from its
                 ``CliRunRecorder``), stamped onto each grabbed item's provenance row
                 (F3). ``None`` when grab runs with no run row.
+            release: The name of a release a person chose (K3 P9c, DESIGN O-14); needs
+                *followed_id*. Only the follow's available rows whose stored candidates carry that
+                name are grabbed, and only that release is taken: a row where it is no longer offered
+                adds nothing and records ``chosen_release_gone`` (counted in
+                :attr:`RunSummary.release_gone`). When no row's stored set carries the name (the set
+                was replaced since the choice), every available row of the follow is asked and
+                records the same. ``None`` (default) is the engine's own choice, as ever.
 
         Returns:
             A :class:`RunSummary` of outcome counts.
+
+        Raises:
+            ValueError: If *release* is named with no *followed_id*.
         """
+        if release is not None and followed_id is None:
+            raise ValueError("a named release is grabbed for one follow: it needs a followed_id")
         self._grab_run_uid = run_uid  # F3: per-run grab-stage run stamp (see _persist_success)
         # O4/D5: re-assert global transfer caps at every run start — idempotent,
         # self-healing (a client restart that lost the limits gets them back here).
@@ -289,16 +310,14 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         if not self._orchestrator.scope_allows_grab():
             return RunSummary(grabbed=0, retried=0, abandoned=0, skipped=0)
         now = int(time.time())
-        queue = self._build_queue(
-            self._store.wanted.list_available(),
-            now=now,
-            limit=limit,
-            followed_id=followed_id,
-        )
+        available = self._store.wanted.list_available()
+        if release is not None:
+            available = self._rows_of_release([item for item in available if item.followed_id == followed_id], release)
+        queue = self._build_queue(available, now=now, limit=limit, followed_id=followed_id)
         global_cadence = cadence_from_config(self._config.acquire.cadence)
         follow_map = self._load_follow_map(queue)
 
-        grabbed = retried = abandoned = skipped = absorbed = 0
+        grabbed = retried = abandoned = skipped = absorbed = release_gone = 0
 
         for item in queue:
             assert item.id is not None  # ensured by the SELECTs above
@@ -312,7 +331,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             # errors (NOT a bare ``except Exception`` — a genuine programming bug
             # must still surface and crash loudly).
             try:
-                outcome_tag = self._process_item(item, now, cadence=cadence)
+                outcome_tag = self._process_item(item, now, cadence=cadence, release=release)
             except sqlite3.OperationalError as exc:
                 # DB lock (RETRYABLE, §6.2): leave the row for the stale-searching
                 # sweep to recover (do NOT abort the run). Count as skipped.
@@ -339,6 +358,8 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 abandoned += 1
             elif outcome_tag == "absorbed":
                 absorbed += 1
+            elif outcome_tag == "gone":
+                release_gone += 1
             else:  # "skipped"
                 skipped += 1
 
@@ -349,8 +370,38 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             abandoned=abandoned,
             skipped=skipped,
             absorbed=absorbed,
+            release_gone=release_gone,
         )
-        return RunSummary(grabbed=grabbed, retried=retried, abandoned=abandoned, skipped=skipped, absorbed=absorbed)
+        return RunSummary(
+            grabbed=grabbed,
+            retried=retried,
+            abandoned=abandoned,
+            skipped=skipped,
+            absorbed=absorbed,
+            release_gone=release_gone,
+        )
+
+    def _rows_of_release(self, queue: list[WantedItem], release: str) -> list[WantedItem]:
+        """Keep the rows a person's named release was chosen for.
+
+        A release belongs to the row whose stored candidates (the last concluded search's ranked
+        survivors) carry its name. A set replaced since the choice may no longer carry it: nothing
+        then says which row it was, so every row of *queue* is asked and each records that nothing
+        was taken, rather than guessing one or recording nothing.
+
+        Args:
+            queue: The follow's available rows.
+            release: The release name a person chose.
+
+        Returns:
+            The rows that carry it, or all of *queue* when none does.
+        """
+        owners = [
+            item
+            for item in queue
+            if item.id is not None and any(c.title == release for c in self._store.candidates.list_for(item.id))
+        ]
+        return owners or queue
 
     def run_search(self, *, limit: int | None = None, followed_id: int | None = None) -> SearchRunSummary:
         """Run the SEARCH pass over the pending + stale-searching queue.
