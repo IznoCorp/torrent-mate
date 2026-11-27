@@ -25,6 +25,7 @@ from personalscraper.api.metadata._tmdb_parsers import parse_search_result as pa
 from personalscraper.api.metadata._tvdb_parsers import parse_search_result as parse_tvdb
 from personalscraper.api.metadata._tvdb_parsers import unwrap
 from personalscraper.scraper.search_ranking import (
+    TvProvidersFailed,
     gather_tv_candidates,
     merge_tv_results,
     rank_search_results,
@@ -351,6 +352,29 @@ class TestProviderFailSoft:
     def test_both_down_returns_empty_without_raising(self) -> None:
         """Total provider outage yields no candidates — never an exception."""
         assert gather_tv_candidates(self._Boom(), self._Boom(), "monarch") == []
+
+    def test_both_down_raises_when_the_caller_asks_to_tell_it_from_no_match(self) -> None:
+        """With ``raise_when_all_fail`` a total outage is a failure, not « nothing found »."""
+        with pytest.raises(TvProvidersFailed):
+            gather_tv_candidates(self._Boom(), self._Boom(), "monarch", raise_when_all_fail=True)
+
+    def test_one_down_still_serves_the_other_when_the_caller_asks_to_raise(self) -> None:
+        """Only BOTH providers failing raises: one answering is a degraded answer, served."""
+        row = SearchResult(provider="tmdb", provider_id="1", title="Monarch", year=2023, media_type="tv")
+        out = gather_tv_candidates(self._Boom(), self._Ok(row), "monarch", raise_when_all_fail=True)
+        assert [r.provider for r in out] == ["tmdb"]
+
+    def test_both_empty_is_no_match_not_a_failure_when_the_caller_asks_to_raise(self) -> None:
+        """Two providers that answer with nothing are « no match »: no exception."""
+
+        class _Empty:
+            def search_series(self, query: str, year: int | None) -> list[SearchResult]:
+                return []
+
+            def search_tv(self, query: str, year: int | None) -> list[SearchResult]:
+                return []
+
+        assert gather_tv_candidates(_Empty(), _Empty(), "monarch", raise_when_all_fail=True) == []
 
 
 class TestYearAgreement:
