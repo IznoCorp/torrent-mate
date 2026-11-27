@@ -68,6 +68,22 @@ V0_TWINS: Final[Mapping[tuple[str, str], V0Twin]] = {
         date(2026, 11, 27),
         _FOLLOWS,
     ),
+    ("GET", "/api/acquisition/status"): V0Twin(
+        "readAcquisitionStatus", "/api/v1/acquisition/status", date(2026, 11, 27)
+    ),
+    ("POST", "/api/acquisition/detect"): V0Twin("runDetection", "/api/v1/acquisition/detect", date(2026, 11, 27)),
+    ("POST", "/api/acquisition/followed/{followed_id}/search"): V0Twin(
+        "searchForFollow", "/api/v1/acquisition/followed/{followedId}/search", date(2026, 11, 27), _FOLLOWS
+    ),
+    ("POST", "/api/acquisition/followed/{followed_id}/grab"): V0Twin(
+        "grabForFollow", "/api/v1/acquisition/followed/{followedId}/grab", date(2026, 11, 27), _FOLLOWS
+    ),
+    ("POST", "/api/acquisition/follows/{followed_id}/seasons/{season}/grab"): V0Twin(
+        "grabSeasonForFollow",
+        "/api/v1/acquisition/follows/{followedId}/seasons/{season}/grab",
+        date(2026, 11, 27),
+        _FOLLOWS,
+    ),
     ("GET", "/api/acquisition/search"): V0Twin("searchProviders", "/api/v1/acquisition/search", date(2026, 11, 27)),
     ("GET", "/api/acquisition/lookup"): V0Twin(
         "searchProviderById", "/api/v1/acquisition/search/by-id", date(2026, 11, 27)

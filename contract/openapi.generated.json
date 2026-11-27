@@ -141,6 +141,50 @@
         "title": "Acknowledgement",
         "type": "object"
       },
+      "AcquisitionStatusModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``readAcquisitionStatus`` answer.\n\nAttributes:\n    cadence: The cron the grab pass runs on.\n    next_search: When the next search runs, ISO 8601 with its offset; ``None`` on an instance that\n        schedules none.\n    run_state: Where the acquisition run asked about stands; ``None`` when none is.",
+        "properties": {
+          "cadence": {
+            "description": "the cron expression the scheduler runs on",
+            "title": "Cadence",
+            "type": "string"
+          },
+          "nextSearch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when the next search runs",
+            "title": "Nextsearch"
+          },
+          "runState": {
+            "description": "where the acquisition run named by `runUid` stands; null with no `runUid`, or when it names none",
+            "enum": [
+              "queued",
+              "running",
+              "settled",
+              null
+            ],
+            "title": "Runstate",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cadence",
+          "nextSearch",
+          "runState"
+        ],
+        "title": "AcquisitionStatusModel",
+        "type": "object"
+      },
       "CastMemberModel": {
         "additionalProperties": false,
         "description": "The contract's ``CastMember``.\n\nAttributes:\n    name: The actor's name.\n    role: The character played.",
@@ -328,6 +372,21 @@
           "media"
         ],
         "title": "DeleteLibraryItemsResult",
+        "type": "object"
+      },
+      "DetectionLaunched": {
+        "additionalProperties": false,
+        "description": "The contract's ``runDetection`` answer.\n\nAttributes:\n    run_uid: The request answering the ask, whose figures are read from the run.",
+        "properties": {
+          "runUid": {
+            "title": "Runuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "runUid"
+        ],
+        "title": "DetectionLaunched",
         "type": "object"
       },
       "EpisodeCompletenessModel": {
@@ -733,6 +792,47 @@
         ],
         "title": "GenreId",
         "type": "string"
+      },
+      "GrabLaunched": {
+        "additionalProperties": false,
+        "description": "The contract's ``grabForFollow`` answer.\n\nAttributes:\n    run_uid: The request answering the ask. The contract lets ``null`` through (the maquette's mock\n        holds no runner); the service always names one.",
+        "properties": {
+          "runUid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runuid"
+          }
+        },
+        "required": [
+          "runUid"
+        ],
+        "title": "GrabLaunched",
+        "type": "object"
+      },
+      "GrabReleaseBody": {
+        "additionalProperties": false,
+        "description": "The contract's ``grabForFollow`` body, optional.\n\nAttributes:\n    release_id: The chosen release, by its ``Release.id``; absent, the grab takes what the last\n        search marked takeable.",
+        "properties": {
+          "releaseId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releaseid"
+          }
+        },
+        "title": "GrabReleaseBody",
+        "type": "object"
       },
       "IncompleteShow": {
         "additionalProperties": false,
@@ -2099,6 +2199,7 @@
           "acquisition.not_found",
           "acquisition.not_requester",
           "acquisition.follow_shared",
+          "acquisition.release_unavailable",
           "follow.not_restorable",
           "follow.ambiguous",
           "suggestion.not_found"
@@ -2410,6 +2511,26 @@
         "title": "RunAnswer",
         "type": "object"
       },
+      "SearchQueued": {
+        "additionalProperties": false,
+        "description": "The contract's ``searchForFollow`` answer (O-6 B): the search is \u00ab en file \u00bb.\n\nWhat it found is read afterwards, from the follow and its releases.\n\nAttributes:\n    queued: The search waits in the supervisor's queue.\n    run_uid: The request answering the ask.",
+        "properties": {
+          "queued": {
+            "title": "Queued",
+            "type": "boolean"
+          },
+          "runUid": {
+            "title": "Runuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "queued",
+          "runUid"
+        ],
+        "title": "SearchQueued",
+        "type": "object"
+      },
       "SearchResultModel": {
         "additionalProperties": false,
         "description": "The contract's ``SearchResult``: one medium a provider knows.\n\nAttributes:\n    title: The provider's title.\n    year: The release or first-air year, ``None`` when the provider gives none.\n    kind: ``movie`` or ``show``.\n    overview: The synopsis, ``\"\"`` when none.\n    owned: Whether the library holds it.\n    followed: Whether a standing follow holds it.\n    ids: Its provider identity, ``None`` when no sheet identifies it.\n    poster: The poster's address, ``None`` when none is known.",
@@ -2564,6 +2685,48 @@
           "episodes"
         ],
         "title": "SeasonCompletenessModel",
+        "type": "object"
+      },
+      "SeasonGrabbed": {
+        "additionalProperties": false,
+        "description": "The contract's ``grabSeasonForFollow`` answer, on its 201 and its 200.\n\nAttributes:\n    season: The season asked.\n    absorbed_count: Its aired episodes the library does not hold.\n    queued: The ask is WAITING on the pipeline. Never here: a prime runs in the supervisor's\n        acquisition lane, which takes no pipeline lock.\n    run_uid: That request's uid; ``None`` when none was asked (a season already being recovered\n        that the ask did not turn on, or an ask the supervisor refused).\n    reused: Whether the season was already being recovered (a 200); false on a 201.",
+        "properties": {
+          "absorbedCount": {
+            "title": "Absorbedcount",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "boolean"
+          },
+          "reused": {
+            "title": "Reused",
+            "type": "boolean"
+          },
+          "runUid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runuid"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season",
+          "absorbedCount",
+          "queued",
+          "runUid",
+          "reused"
+        ],
+        "title": "SeasonGrabbed",
         "type": "object"
       },
       "SeasonModel": {
@@ -3683,6 +3846,108 @@
         "summary": "Reset Account Password"
       }
     },
+    "/acquisition/detect": {
+      "post": {
+        "description": "Ask a detection of every follow.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The queued request's uid.",
+        "operationId": "runDetection",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectionLaunched"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Run Detection"
+      }
+    },
     "/acquisition/followed": {
       "get": {
         "description": "Everything the signed-in account may read of what is followed.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    scenario: The maquette's data dial; ignored.\n\nReturns:\n    The standing follows the account asked for, or every one with ``acquisition.see.others``.",
@@ -4256,6 +4521,146 @@
         "summary": "Read Follow Completeness"
       }
     },
+    "/acquisition/followed/{followedId}/grab": {
+      "post": {
+        "description": "Ask a grab of one acquisition, of a chosen release or of what the last search marked takeable.\n\nArgs:\n    followed_id: The medium's key.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    body: The chosen release's handle, or nothing.\n\nReturns:\n    The queued request's uid.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` or ``releaseId``.\n    AppNotFound: ``acquisition.not_found`` when nothing stands under the key.\n    AppForbidden: ``acquisition.not_requester`` when the caller did not ask for it.\n    AppConflict: ``acquisition.release_unavailable`` when the picked release's row cannot take it.",
+        "operationId": "grabForFollow",
+        "parameters": [
+          {
+            "description": "the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title",
+            "in": "path",
+            "name": "followedId",
+            "required": true,
+            "schema": {
+              "description": "the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title",
+              "title": "Followedid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GrabReleaseBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrabLaunched"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Grab For Follow"
+      }
+    },
     "/acquisition/followed/{followedId}/pause": {
       "put": {
         "description": "Set the caller's pause on one acquisition.\n\nArgs:\n    followed_id: The medium's key.\n    body: Whether the caller pauses its own ask.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The follow, its pause recomputed.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` for a malformed key.\n    AppNotFound: ``acquisition.not_found`` when no follow holds the key.\n    AppForbidden: ``acquisition.not_requester`` when the caller did not ask for it.",
@@ -4643,6 +5048,273 @@
           }
         },
         "summary": "Restore Follow"
+      }
+    },
+    "/acquisition/followed/{followedId}/search": {
+      "post": {
+        "description": "Ask a search of one acquisition, queued like a grab.\n\nArgs:\n    followed_id: The medium's key.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    \u00ab En file \u00bb, with the queued request's uid.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` for a malformed key.\n    AppNotFound: ``acquisition.not_found`` when nothing stands under the key.\n    AppForbidden: ``acquisition.not_requester`` when the caller did not ask for it.",
+        "operationId": "searchForFollow",
+        "parameters": [
+          {
+            "description": "the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title",
+            "in": "path",
+            "name": "followedId",
+            "required": true,
+            "schema": {
+              "description": "the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title",
+              "title": "Followedid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchQueued"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Search For Follow"
+      }
+    },
+    "/acquisition/follows/{followedId}/seasons/{season}/grab": {
+      "post": {
+        "description": "Take one season of a medium: of its follow, or as a one-off request when nobody follows it.\n\nArgs:\n    followed_id: The medium's key.\n    season: The season, from 1.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    response: The response, whose status says whether the season was already being recovered.\n\nReturns:\n    201 the season taken, or 200 ``reused``.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` or ``season``.\n    AppNotFound: ``acquisition.not_found`` when no follow, request or owned show answers the key.\n    AppForbidden: ``acquisition.not_requester`` on a follow that is not the caller's.",
+        "operationId": "grabSeasonForFollow",
+        "parameters": [
+          {
+            "description": "the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title",
+            "in": "path",
+            "name": "followedId",
+            "required": true,
+            "schema": {
+              "description": "the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title",
+              "title": "Followedid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "the season, 1-based",
+            "in": "path",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "the season, 1-based",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonGrabbed"
+                }
+              }
+            },
+            "description": "the season was already being recovered"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonGrabbed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Grab Season For Follow"
       }
     },
     "/acquisition/ranking/preview": {
@@ -5259,6 +5931,105 @@
           }
         },
         "summary": "Search Provider By Id"
+      }
+    },
+    "/acquisition/status": {
+      "get": {
+        "description": "The grab's cadence, when the next search runs, and where an asked run stands.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    run_uid: The run to follow, or nothing.\n\nReturns:\n    The schedule.",
+        "operationId": "readAcquisitionStatus",
+        "parameters": [
+          {
+            "description": "an acquisition run to follow, by the uid its ask answered",
+            "in": "query",
+            "name": "runUid",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "an acquisition run to follow, by the uid its ask answered",
+              "title": "Runuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcquisitionStatusModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Acquisition Status"
       }
     },
     "/acquisition/suggestions": {

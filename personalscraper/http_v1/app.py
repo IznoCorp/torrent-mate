@@ -30,6 +30,7 @@ from personalscraper.http_v1.routes import (
     accounts,
     acquisition,
     acquisition_reads,
+    acquisition_runs,
     authentication,
     library,
     media,
@@ -180,6 +181,7 @@ def create_v1_app(
     include_v1_router(app, pipeline.router)
     include_v1_router(app, acquisition.router)
     include_v1_router(app, acquisition_reads.router)
+    include_v1_router(app, acquisition_runs.router)
     return app
 
 

@@ -68,8 +68,11 @@ _ABANDONED_OUTSIDE = frozenset({"pending", "searching", "available"})
 #: The row families a revived request is narrowed over.
 _NARROWED_KINDS: tuple[WantedKind, ...] = ("episode", "season")
 
-#: The field a season below 1 is refused on.
+#: The field a season outside the numbered range is refused on.
 _SEASON_FIELD = "season"
+
+#: The last season number asked: it holds the year-numbered seasons, and SQLite binds no unbounded integer.
+_LAST_SEASON = 9999
 
 
 @dataclass(frozen=True)
@@ -242,14 +245,16 @@ class SeasonAsk:
             its subject on), else the season written and primed.
 
         Raises:
-            AppBadRequest: ``request.invalid`` naming ``season`` for a season below 1.
+            AppBadRequest: ``request.invalid`` naming ``season`` for a season outside 1 to 9999.
             AppNotFound: ``acquisition.not_found`` when no follow, request or owned show answers the key.
             AppForbidden: ``acquisition.not_requester`` on a follow the actor neither asked for nor pilots.
             AppConflict: ``follow.ambiguous`` when two rows hold the key.
         """
-        if season < 1:
+        if not 1 <= season <= _LAST_SEASON:
             raise AppBadRequest(
-                "A season is numbered from 1.", code=RefusalCode.REQUEST_INVALID, params={"fields": [_SEASON_FIELD]}
+                f"A season is numbered from 1 to {_LAST_SEASON}.",
+                code=RefusalCode.REQUEST_INVALID,
+                params={"fields": [_SEASON_FIELD]},
             )
         now = int(self._clock())
         with closing(self._open_store()) as store, closing(self._open_ownership()) as ownership:

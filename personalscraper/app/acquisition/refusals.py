@@ -14,6 +14,7 @@ __all__ = [
     "refuse_not_found",
     "refuse_not_requester",
     "refuse_not_restorable",
+    "refuse_release_unavailable",
     "refuse_shared",
 ]
 
@@ -63,6 +64,22 @@ def refuse_shared(key: AcquisitionKey) -> AppForbidden:
     return AppForbidden(
         "Other accounts asked for this follow too.",
         code=RefusalCode.ACQUISITION_FOLLOW_SHARED,
+        params={_KEY_PARAM: key.wire},
+    )
+
+
+def refuse_release_unavailable(key: AcquisitionKey) -> AppConflict:
+    """A release picked on a row that cannot take it now: its pick would be dropped (O-14).
+
+    Args:
+        key: The key asked.
+
+    Returns:
+        The ``409 acquisition.release_unavailable`` refusal.
+    """
+    return AppConflict(
+        "The release's row is not waiting to be taken.",
+        code=RefusalCode.ACQUISITION_RELEASE_UNAVAILABLE,
         params={_KEY_PARAM: key.wire},
     )
 

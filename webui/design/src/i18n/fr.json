@@ -610,7 +610,7 @@
       "scopeThisFollow": "ce suivi seulement",
       "scopeAllFollows": "tous les suivis",
       "rankingWeights": "Poids du classement (global) →",
-      "rulenote": "Si ce profil n'accepte plus aucun torrent, le suivi le signale et sa recherche répond « aucun torrent trouvé ».",
+      "rulenote": "Si ce profil n'accepte plus aucun torrent, le suivi le signale une fois la recherche en file terminée.",
       "saveToast": "Profil enregistré — la prochaine recherche l'appliquera.",
       "save": "Enregistrer",
       "audioOptions": {
@@ -2100,9 +2100,7 @@
     },
     "acquisition": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
-      "searchFoundNone": "Aucun torrent trouvé pour « {{title}} ».",
-      "searchFound_one": "« {{title}} » : {{count}} torrent trouvé.",
-      "searchFound_other": "« {{title}} » : {{count}} torrents trouvés.",
+      "searchQueued": "« {{title}} » : recherche en file — le résultat arrivera sur la fiche et dans le choix des sorties.",
       "completionStarted": "« {{title}} » : recherche des épisodes manquants lancée.",
       "tmdbConnected": "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
       "identified": "« {{target}} » identifié comme « {{title}} » — le scrape reprend, aucun suivi créé.",
@@ -2514,7 +2512,8 @@
     "acquisition": {
       "not_found": "Cette acquisition est inconnue : rien n'est suivi ni demandé sous cet identifiant, et la médiathèque ne le possède pas.",
       "not_requester": "Ce n'est pas votre acquisition : seuls ceux qui l'ont demandée la règlent.",
-      "follow_shared": "D'autres comptes suivent aussi ce titre : chacun le met en pause pour lui-même."
+      "follow_shared": "D'autres comptes suivent aussi ce titre : chacun le met en pause pour lui-même.",
+      "release_unavailable": "Cette release ne peut pas être récupérée maintenant : sa recherche ou sa récupération est en cours, ou terminée."
     },
     "follow": {
       "not_restorable": "Rien de retiré sous ce titre : il n'y a rien à remettre.",

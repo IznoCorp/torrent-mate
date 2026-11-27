@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from personalscraper.app.acquisition.search import ProviderSearch
     from personalscraper.app.acquisition.seasons import SeasonAsk
     from personalscraper.app.acquisition.suggestions import Suggestions
+    from personalscraper.app.acquisition.triggers import AcquisitionRuns
     from personalscraper.app.composition import LazyProviders
     from personalscraper.app.library.completeness import CatalogueView
     from personalscraper.app.library.deleting import LibraryDeletion
@@ -58,6 +59,7 @@ class AcquisitionServices:
         ranking: The ranking editor's preview, its samples scored with each tracker's ratio standing.
         search: The metadata providers' search and lookup by identifier.
         suggestions: The deck of titles worth following.
+        triggers: The detect, search and grab passes asked of the supervisor, and the schedule.
     """
 
     follows: FollowService
@@ -67,6 +69,7 @@ class AcquisitionServices:
     ranking: RankingPreview
     search: ProviderSearch
     suggestions: Suggestions
+    triggers: AcquisitionRuns
 
 
 @dataclass(frozen=True)

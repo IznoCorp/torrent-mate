@@ -565,6 +565,7 @@ def _build_acquisition_services(
     )
     from personalscraper.app.acquisition.seasons import IndexedShows, SeasonAsk  # noqa: PLC0415 — idem
     from personalscraper.app.acquisition.suggestions import Suggestions, cursor_key_path  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.triggers import AcquisitionRuns  # noqa: PLC0415 — idem
     from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415 — idem
     from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415 — idem
 
@@ -633,6 +634,7 @@ def _build_acquisition_services(
             rejections=AccountRejections(app_store),
             owner=owner,
         ),
+        triggers=AcquisitionRuns(open_store=open_store, runs=runs, owner=owner),
     )
 
 

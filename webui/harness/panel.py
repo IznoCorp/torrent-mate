@@ -851,10 +851,10 @@ async def main():
             await acquisition_page.wait_for_timeout(700)
             closed = not await acquisition_page.evaluate(panel_open)
             message = await acquisition_page.evaluate(said)
-            # RE-AIMED OUT LOUD: a search is no longer announced before anything
-            # is sent — the act sends the follow's search and says what it FOUND
-            # (R237 holds the call and the count). « trouvé » is in both answers.
-            expected = "récupéré" if status == "to_grab" else "trouvé"
+            # RE-AIMED OUT LOUD: a search is queued like the grab (O-6 B) — the
+            # act sends the follow's search and says it is « en file », with no
+            # result (R237 holds the call, the answer and the read afterwards).
+            expected = "récupéré" if status == "to_grab" else "en file"
             check("and its tap closes the panel and acts — the take recorded or the search said",
                   closed and expected in message,
                   f"{found['primary']}: closed={closed} said={message!r}")

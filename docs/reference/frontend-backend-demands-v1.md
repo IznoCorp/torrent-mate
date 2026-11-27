@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 111 |
-| operations v1 serves | 47 |
-| required and not served | 64 |
+| operations v1 serves | 52 |
+| required and not served | 59 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -47,7 +47,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/acquisition/downloads` | `readDownloads` | Every entry the download client holds, one per tracker it is active on |
 | `GET /api/v1/acquisition/journeys/{infoHash}` | `readJourney` | One medium's ladder, rung by rung |
 | `GET /api/v1/acquisition/obligations` | `readObligations` | Every seeding obligation, open or ended |
-| `GET /api/v1/acquisition/status` | `readAcquisitionStatus` | The grab cadence, and when the next search runs |
 | `GET /api/v1/acquisition/to-handle` | `readAcquisitionQueue` | What the acquisition side is holding, by bucket |
 | `GET /api/v1/config/files` | `readConfigurationFiles` | The configuration files, and which have pending edits |
 | `GET /api/v1/config/files/{name}` | `readConfigurationFile` | Read one configuration file's content |
@@ -73,10 +72,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/v1/system/services` | `readServices` | The services, and whether each answers |
 | `GET /api/v1/trackers` | `readTrackers` | Every configured tracker, its ratio, volumes, trend, alert threshold and health |
-| `POST /api/v1/acquisition/detect` | `runDetection` | Look now for everything that could be taken |
-| `POST /api/v1/acquisition/followed/{followedId}/grab` | `grabForFollow` | Claim now what the last search found for one follow |
-| `POST /api/v1/acquisition/followed/{followedId}/search` | `searchForFollow` | Search now for one follow |
-| `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` | `grabSeasonForFollow` | Take one season of a medium, as a one-off request when it is not followed |
 | `POST /api/v1/acquisition/journeys/{infoHash}/closure/seen` | `dismissClosure` | Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4) |
 | `POST /api/v1/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/v1/acquisition/journeys/{infoHash}/requeue` | `requeueJourney` | Put one journey back in the queue |

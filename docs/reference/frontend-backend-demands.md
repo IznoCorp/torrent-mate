@@ -29,7 +29,7 @@ than a blank page.
 | required and missing | 58 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
-| declared by both, answered with a different status | 11 |
+| declared by both, answered with a different status | 10 |
 | fields carried pre-formatted | 19 |
 | the backend has and the interface does not use | 12 |
 
@@ -111,7 +111,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/v1/acquisition/followed/{followedId}/completeness` (`readFollowCompleteness`) | `airDate`, `catalogRefreshedAt`, `followedId`, `lastSearchOutcome`, `providerCatalogEmpty` | `air_date`, `catalog_refreshed_at`, `followed_id`, `last_search_outcome`, `provider_catalog_empty` |
 | `GET /api/v1/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `crossSeedOf`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `media`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `releasedBy`, `requiredRatio`, `satisfiedAt`, `satisfiedBy`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
 | `GET /api/v1/acquisition/search` (`searchProviders`) | `followed`, `ids`, `owned`, `poster`, `shown` | `already_owned`, `limit`, `offset`, `poster_url`, `provider`, `provider_id`, `score` |
-| `GET /api/v1/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
+| `GET /api/v1/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch`, `runState` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
 | `GET /api/v1/acquisition/to-handle` (`readAcquisitionQueue`) | `absorbedBy`, `arrivals`, `at`, `blocked`, `blockedSince`, `blocks`, `chip`, `closure`, `droppedByHand`, `failedStep`, `id`, `ids`, `inFlight`, `keptNewer`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `provider`, `release`, `requester`, `requesters`, `resumedAt`, `resumes`, `rung`, `secondaryLine`, `since`, `size`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `winner`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `followed_id`, `info_hash`, `items`, `orphan_count`, `stage`, `year` |
 | `GET /api/v1/auth/me` (`readAccount`) | `avatar`, `defaultFor`, `email`, `forbiddenWrites`, `id`, `kind`, `language`, `name`, `rights`, `role`, `signInKind` | — |
 | `GET /api/v1/config/files` (`readConfigurationFiles`) | `changed` | `files`, `mtime`, `owned_keys`, `sha256`, `shadowed_keys`, `size` |
@@ -136,7 +136,7 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/v1/acquisition/detect` (`runDetection`) | `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/followed` (`createFollow`) | `addedAt`, `aired`, `fresh`, `ids`, `name`, `nextAirDate`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/v1/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `runUid` | `run_uid` |
-| `POST /api/v1/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
+| `POST /api/v1/acquisition/followed/{followedId}/search` (`searchForFollow`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `queued`, `runUid` | `absorbed_count`, `run_started`, `run_uid`, `season_wanted_id` |
 | `POST /api/v1/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
@@ -203,7 +203,6 @@ a 200 is not a defect in either document, it is a decision nobody had written do
 | --- | --- | --- | --- |
 | `DELETE /api/v1/acquisition/followed/{followedId}` | `deleteFollow` | `200` | `204` |
 | `POST /api/v1/acquisition/followed` | `createFollow` | `200` | `201` |
-| `POST /api/v1/acquisition/followed/{followedId}/search` | `searchForFollow` | `200` | `202` |
 | `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` | `grabSeasonForFollow` | `200`, `201` | `201` |
 | `POST /api/v1/auth/login` | `signIn` | `200` | `204` |
 | `POST /api/v1/auth/logout` | `signOut` | `200` | `204` |

@@ -28,7 +28,10 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { createHeldActions } from "./held-actions";
 import { followKeyOfTitle, followSegment } from "./follow-key";
-import { HELD, read, send } from "./query-client";
+import i18next from "i18next";
+import { HELD, isRequestFailure, read, send } from "./query-client";
+import { refusalWords } from "./refusal";
+import { toast } from "./shell-doors";
 import type { QueueCard } from "./engine-queue";
 import type { Schemas } from "./contract-schemas";
 import { store } from "./store-access";
@@ -412,6 +415,13 @@ export function installQueueActions(queryClient: QueryClient): void {
         })
         .catch((refusal) => {
           putBack(queryClient, scenario, held);
+          // SAID, in the refusal's own words: the tap announced the take, and a card
+          // coming back with no reason would leave that sentence standing.
+          toast?.show({
+            message: isRequestFailure(refusal)
+              ? refusalWords(refusal, "verbs.acquisition.refused")
+              : i18next.t("verbs.acquisition.failed"),
+          });
           throw refusal;
         })
         .then((outcome) => {

@@ -1,20 +1,26 @@
-"""R237 — « Chercher maintenant » on a follow searches, and says what it found.
+"""R237 — « Chercher maintenant » on a follow queues its search, and says it is « en file ».
 
-What was not found reads on the follow, and a live search CONFIRMS it (« une
-recherche en direct le confirme par « aucun torrent trouvé » »). The follow
-sheet's primary act on a follow with nothing to take used to close the sheet
-and announce a search that nothing sent, pointing at a card that no longer
-exists. Now the tap sends `searchForFollow` for THAT follow and reads its
-answer:
+THE SEARCH IS QUEUED, LIKE THE GRAB (operator ruling O-6 B, 2026-11-27: « la page
+reçoit « en file » tout de suite, le résultat arrive sur la fiche et dans le
+sélecteur une fois la recherche finie »). The follow sheet's primary act on a
+follow with nothing to take sends `searchForFollow` for THAT follow:
 
 1. the tap sends the follow's own search — one POST to its address;
-2. a search that found releases says how many;
-3. a search that found none says « aucun torrent trouvé » for that title.
+2. it is answered 202 `{queued, runUid}`, with no result in the answer;
+3. it says the search is « en file » for that title, and announces no result;
+4. the result is read afterwards: the interface follows the run it was named
+   (`readAcquisitionStatus`) until it is settled, and only then reads the follows
+   again; the follow counts one more search, and `readReleases` answers what it
+   holds for the medium;
+5. a follow sheet reopened while the search waits draws what the search left once
+   its run is settled: the new status and its primary act, from a page whose own
+   lists do not read the follows. The layer concludes no search, so the rule makes
+   the follows answer « to take » from the settlement on.
 
-Every expected sentence is read from the interface's resources, and every count
-from the layer's own releases for the title (`readReleases`), never written
-here. The zero case is a follow CREATED on a suggestion the seeds hold no
-release for — every seeded follow has at least one.
+The expected sentence is read from the interface's resources, and what the follow
+and its releases hold from the layer itself, never written here. The follow with
+nothing to read is a follow CREATED on a suggestion the seeds hold no release
+for — every seeded follow has at least one.
 """
 import asyncio
 import json
@@ -22,7 +28,7 @@ import pathlib
 from urllib.parse import unquote
 
 from common import ACTED, KEY_OF_JS, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError, async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
@@ -34,7 +40,20 @@ RELEASES = """async (key) => (await (await fetch(
   '/api/v1/acquisition/releases?followedId=' + encodeURIComponent(key))).json()).length"""
 FOLLOWS = "async () => {" + KEY_OF + """
   return (await (await fetch('/api/v1/acquisition/followed')).json())
-    .map((follow) => ({ title: follow.title, status: follow.status, key: keyOf(follow) })); }"""
+    .map((follow) => ({ title: follow.title, status: follow.status, searches: follow.searches,
+      key: keyOf(follow) })); }"""
+# THE ANSWER'S BODY, which the layer's record of calls does not hold: kept as the interface receives it.
+KEEP_ANSWERS = """() => {
+  window.__searchAnswers = [];
+  const answer = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const response = await answer(input, init);
+    const asked = new Request(input, init);
+    if (asked.method === 'POST' && new URL(asked.url).pathname.endsWith('/search'))
+      window.__searchAnswers.push(await response.clone().json());
+    return response;
+  };
+}"""
 # A suggestion the seeds hold no release for, followed through the layer.
 UNFOUND = "async () => {" + KEY_OF + """
   const deck = await (await fetch('/api/v1/acquisition/suggestions')).json();
@@ -59,6 +78,26 @@ UNFOUND = "async () => {" + KEY_OF + """
   }
   return null;
 }"""
+# THE LAYER CONCLUDES NO SEARCH: from the read that answers its run « settled », the follows answer TITLE as found.
+FOUND_AT_SETTLEMENT = """(title) => {
+  let settled = false;
+  const answer = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const response = await answer(input, init);
+    const asked = new Request(input, init);
+    const path = new URL(asked.url).pathname;
+    if (asked.method !== 'GET') return response;
+    if (path.endsWith('/acquisition/status')) {
+      if ((await response.clone().json()).runState === 'settled') settled = true;
+      return response;
+    }
+    if (!settled || !path.endsWith('/acquisition/followed')) return response;
+    const follows = (await response.clone().json())
+      .map((follow) => (follow.title === title ? { ...follow, status: 'to_grab' } : follow));
+    return new Response(JSON.stringify(follows), { status: response.status, headers: response.headers });
+  };
+}"""
+SHEET_ACT = "()=>document.querySelector('#sheet [data-sheetprim]')?.getAttribute('data-sheetprim') || ''"
 
 
 def base_title(title):
@@ -68,13 +107,28 @@ def base_title(title):
                     if not (word.startswith("(") and word.endswith(")") and word[1:-1].isdigit())).strip()
 
 
-def sentence(count, title):
-    """What the search says, from the resources."""
-    if count == 0:
-        template = SAID["searchFoundNone"]
-    else:
-        template = SAID["searchFound_one" if count == 1 else "searchFound_other"]
-    return template.replace("{{count}}", str(count)).replace("{{title}}", base_title(title))
+def queued(title):
+    """What the tap says, from the resources."""
+    return SAID["searchQueued"].replace("{{title}}", base_title(title))
+
+
+async def searches_of(page, title):
+    """How many searches the layer counts on the follow, and its key."""
+    follow = next(follow for follow in await page.evaluate(FOLLOWS) if follow["title"] == title)
+    return follow["searches"], follow["key"]
+
+
+# The layer reads the run « running » then « settled »: the interface asks about 1 s after the 202 and 2 s
+# after that. This is how long the rule waits, from the tap, for the follows to be read again.
+SETTLEMENT_TIMEOUT = 15000
+# TRUE once, after the search sent past `before`, the run was read twice and the follows after that.
+READ_AFTER_SETTLEMENT = """(before) => {
+  const operations = window.__mocks.answered().slice(before).map((call) => call.operationId);
+  const sent = operations.indexOf('searchForFollow');
+  const reads = operations.map((name, index) => (name === 'readAcquisitionStatus' && index > sent ? index : -1))
+    .filter((index) => index !== -1);
+  return sent !== -1 && reads.length >= 2 && operations.indexOf('readFollows', reads[1]) !== -1;
+}"""
 
 
 async def search(page, title):
@@ -84,14 +138,19 @@ async def search(page, title):
     await page.wait_for_timeout(ACTED)
     await page.click("#sheet [data-sheetprim]")
     await page.wait_for_timeout(ACTED)
+    said = (await page.evaluate(TOAST)).strip()
+    try:
+        await page.wait_for_function(READ_AFTER_SETTLEMENT, arg=before, timeout=SETTLEMENT_TIMEOUT)
+    except TimeoutError:
+        pass  # the check on the calls reports what was and was not read
     await page.evaluate("()=>window.__mocks.quiet()")
     await page.wait_for_timeout(ACTED)
     calls = (await page.evaluate("()=>window.__mocks.answered()"))[before:]
-    return calls, (await page.evaluate(TOAST)).strip()
+    return calls, said
 
 
 async def main():
-    journal = Journal("R237 — « Chercher maintenant » searches, and says what it found")
+    journal = Journal("R237 — « Chercher maintenant » queues the search, and says it is « en file »")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
@@ -100,28 +159,73 @@ async def main():
         await page.evaluate("()=>window.__go('acq-follows-list')")
         await page.wait_for_timeout(SETTLED)
 
+        await page.evaluate(KEEP_ANSWERS)
         follows = await page.evaluate(FOLLOWS)
         pending = next((follow for follow in follows if follow["status"] == "pending"), None)
         searched = pending["title"] if pending else None
         journal.check("a follow waiting for a release is seeded", searched is not None, str(follows))
         if searched is not None:
-            found = await page.evaluate(RELEASES, pending["key"])
             calls, said = await search(page, searched)
             address = f"/api/v1/acquisition/followed/{pending['key']}/search"  # the recorded path is read decoded
-            sent = [unquote(call.get("path", "")) for call in calls
+            sent = [(unquote(call.get("path", "")), call.get("status")) for call in calls
                     if call.get("operationId") == "searchForFollow" and call.get("method") == "POST"]
-            journal.check(f"the tap on « {searched} » sends its own search, once",
-                          sent == [address], json.dumps(calls, ensure_ascii=False))
-            journal.check(f"it says how many releases the search found ({found})",
-                          found > 0 and said == sentence(found, searched), f"said {said!r}")
+            journal.check(f"the tap on « {searched} » sends its own search, once, answered 202",
+                          sent == [(address, 202)], json.dumps(calls, ensure_ascii=False))
+            answers = await page.evaluate("()=>window.__searchAnswers")
+            journal.check("the answer says queued, names its run, and carries no result",
+                          len(answers) == 1 and sorted(answers[0]) == ["queued", "runUid"]
+                          and answers[0]["queued"] is True and bool(answers[0]["runUid"]), str(answers))
+            journal.check("it says the search is « en file » for that title",
+                          said == queued(searched), f"said {said!r}")
+            operations = [call.get("operationId") for call in calls]
+            after = operations[operations.index("searchForFollow") + 1:] if "searchForFollow" in operations else []
+            statuses = [index for index, name in enumerate(after) if name == "readAcquisitionStatus"]
+            journal.check("the run is followed until it is settled, then no further",
+                          len(statuses) == 2, str(operations))
+            journal.check("the follows are read again, once the run is read settled",
+                          len(statuses) >= 2 and "readFollows" in after[statuses[1]:], str(operations))
+            count, key = await searches_of(page, searched)
+            journal.check("the follow, read afterwards, counts one more search",
+                          count == pending["searches"] + 1, f"{pending['searches']} -> {count}")
+            held = await page.evaluate(RELEASES, key)
+            journal.check("its releases are read afterwards from `readReleases`", held > 0, f"{held} release(s)")
 
         unfound = await page.evaluate(UNFOUND)
         journal.check("a follow the seeds hold no release for can be created", unfound is not None, str(unfound))
         if unfound is not None:
             await page.wait_for_timeout(SETTLED)
+            before, key = await searches_of(page, unfound)
             calls, said = await search(page, unfound)
-            journal.check("a search that found nothing says « aucun torrent trouvé » for that title",
-                          said == sentence(0, unfound), f"said {said!r}")
+            journal.check("its search is « en file » too, and announces no result",
+                          said == queued(unfound), f"said {said!r}")
+            count, _ = await searches_of(page, unfound)
+            held = await page.evaluate(RELEASES, key)
+            journal.check("afterwards the follow counts the search and `readReleases` answers none",
+                          count == before + 1 and held == 0, f"{before} -> {count}, {held} release(s)")
+
+        if searched is not None:
+            await page.evaluate("()=>window.__go('lib-list')")
+            await page.wait_for_timeout(SETTLED)
+            await page.evaluate(FOUND_AT_SETTLEMENT, searched)
+            await page.evaluate("(t)=>window.__panel.produce('follow', t)", searched)
+            await page.wait_for_timeout(ACTED)
+            await page.click("#sheet [data-sheetprim]")
+            await page.wait_for_timeout(ACTED)
+            await page.evaluate("(t)=>window.__panel.produce('follow', t)", searched)
+            await page.wait_for_timeout(ACTED)
+            waiting = await page.evaluate(SHEET_ACT)
+            journal.check("a sheet reopened while the search waits still says the follow waits",
+                          waiting == f"{searched}|pending", repr(waiting))
+            try:
+                await page.wait_for_function(
+                    "(wanted)=>document.querySelector('#sheet [data-sheetprim]')"
+                    "?.getAttribute('data-sheetprim') === wanted",
+                    arg=f"{searched}|to_grab", timeout=SETTLEMENT_TIMEOUT)
+            except TimeoutError:
+                pass  # the check reports what the sheet still draws
+            drawn = await page.evaluate(SHEET_ACT)
+            journal.check("once the run is settled, the open sheet draws what the search left",
+                          drawn == f"{searched}|to_grab", repr(drawn))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

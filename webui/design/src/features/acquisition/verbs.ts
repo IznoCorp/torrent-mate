@@ -20,6 +20,8 @@ import { registerVerb } from "../../lib/verbs";
 import { followKeyOfTitle, followSegment } from "../../lib/follow-key";
 import { refusalWords } from "../../lib/refusal";
 import { sendVerb } from "./verb-outcome";
+import { runSettled } from "./run-settled";
+import { sharedQueryClient } from "../../lib/query-client";
 import { queueActions } from "../../lib/queue";
 import { fillLandingDoor, followLink, panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
@@ -68,13 +70,16 @@ registerVerb("sheetprim", (value) => {
   void searchNow(title);
 });
 
+/** What a search leaves behind, read afterwards: the follow's card and the release picker. */
+const SEARCH_RESULTS_READ_FROM = [["/api/v1/acquisition/followed"], ["/api/v1/acquisition/releases"]];
+
 /**
- * Searches for one follow now, and says what the search found.
+ * Asks a search for one follow now, and says it is « en file ».
  *
- * WHAT WAS NOT FOUND IS CONFIRMED BY A LIVE SEARCH: the act sends the follow's
- * own search and reads its answer — « aucun torrent trouvé » or how many. A search the
- * outbox holds, the layer refuses or the network loses is said in its own words, never thrown.
- * Announcing a search nothing sent was the promise of a result no surface drew.
+ * THE SEARCH IS QUEUED, LIKE THE GRAB (operator ruling O-6 B): the answer carries no result. What the
+ * search finds arrives on the follow and in the release picker, so both reads are marked stale once its
+ * run has settled — not at the answer, when the search has not run. A search the outbox holds, the layer refuses or the network loses is said in its own words, never
+ * thrown. Announcing a search nothing sent was the promise of a result no surface drew.
  *
  * @param title The follow's title, crossed to its key at the door.
  */
@@ -82,19 +87,30 @@ async function searchNow(title: string): Promise<void> {
   // THE FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1), crossed from the title at the door.
   const key = await followKeyOfTitle(title);
   if (key === null) return void toast?.show({ message: i18next.t("verbs.acquisition.refused") });
-  const sent = await sendVerb<{ found: number }>(
+  const sent = await sendVerb<{ queued: boolean; runUid: string }>(
     "POST", `/api/v1/acquisition/followed/${followSegment(key)}/search`);
-  // HELD: the outbox keeps the search, nothing was searched, and nothing is announced as found.
+  // HELD: the outbox keeps the search, nothing was queued, and nothing is announced as queued.
   if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
   if (sent.kind === "refused") return void toast?.show({ message: refusalWords(sent.failure, "verbs.acquisition.refused") });
   if (sent.kind === "failed") return void toast?.show({ message: i18next.t("verbs.acquisition.failed") });
-  if (sent.answer === undefined) return;
-  const named = baseTitle(title);
-  toast?.show({
-    message: sent.answer.found === 0
-      ? i18next.t("verbs.acquisition.searchFoundNone", { title: named })
-      : i18next.t("verbs.acquisition.searchFound", { title: named, count: sent.answer.found }),
-  });
+  toast?.show({ message: i18next.t("verbs.acquisition.searchQueued", { title: baseTitle(title) }) });
+  if (sent.answer !== undefined) void readResultsOnceSettled(sent.answer.runUid);
+}
+
+/**
+ * Reads a search's results again once its run has settled, and draws them on the open sheet.
+ *
+ * THE SHEET IS PRODUCED ONCE FROM THE CACHE and subscribes to nothing, so it is redrawn after the reads
+ * have landed. « all », because a sheet may stand over a page that reads no follows: a read nothing
+ * observes is otherwise only marked stale, and the redraw would find the old answer.
+ *
+ * @param runUid The run the search was answered with.
+ */
+async function readResultsOnceSettled(runUid: string): Promise<void> {
+  await runSettled(runUid);
+  await Promise.all(SEARCH_RESULTS_READ_FROM.map(
+    (queryKey) => sharedQueryClient?.invalidateQueries({ queryKey, refetchType: "all" })));
+  panel.redraw();
 }
 // An incomplete series: the search for its missing episodes is said where it
 // will be seen moving, on « Maintenant ». A LINK from the panel, followed as

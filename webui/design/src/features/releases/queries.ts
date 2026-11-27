@@ -8,7 +8,11 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { followKeyOfTitle } from "../../lib/follow-key";
+import { baseTitle } from "../../lib/titles";
 import type { Release } from "./types";
+
+/** The cache key of one title's releases; the empty title is the list of every release. */
+const releasesKey = (title: string) => ["/api/v1/acquisition/releases", title];
 
 /**
  * The releases a search turned up, for one title.
@@ -28,7 +32,7 @@ import type { Release } from "./types";
  */
 export function useReleases(title = "") {
   return useQuery({
-    queryKey: ["/api/v1/acquisition/releases", title],
+    queryKey: releasesKey(title),
     queryFn: async () => {
       const key = title === "" ? null : await followKeyOfTitle(title);
       if (title !== "" && key === null) return [] as Release[];
@@ -44,28 +48,23 @@ export function useReleases(title = "") {
  * shape as the decision lookup and the deck's cards. It goes with the
  * delegation at L13.
  *
+ * THE LIST IS ASKED BY THE TITLE ON SCREEN, never taken as the one answered
+ * last: a settled search reads every cached list again, and the last to answer
+ * may be another title's, or the one counting every release. A row's index read
+ * against it takes a release the person never saw (O-14).
+ *
  * @param queryClient The cache the surfaces read.
  */
 export function installReleasesLookup(queryClient: QueryClient): void {
-  // WHICHEVER LIST IS IN FORCE. The engine indexes into « the releases on
-  // screen », and since the key carries the title there is one entry per title
-  // rather than one entry. The most recently answered is the one being looked
-  // at — the same reading the redraw bridge takes, and for the same reason.
-  releases = () => {
-    const answered = queryClient.getQueryCache().getAll()
-      .filter((entry) => entry.queryKey[0] === "/api/v1/acquisition/releases"
-              && entry.state.data !== undefined)
-      .sort((left, right) => right.state.dataUpdatedAt - left.state.dataUpdatedAt);
-    return (answered[0]?.state.data as Release[] | undefined) ?? [];
-  };
+  releases = (title) => queryClient.getQueryData<Release[]>(releasesKey(baseTitle(title))) ?? [];
 }
 
 declare global {
   interface Window {
-    /** The releases, read synchronously by the dying engine. */
-    __releases?: () => Release[];
+    /** One title's releases, read synchronously by the dying engine. */
+    __releases?: (title: string) => Release[];
   }
 }
 
-/** The releases on screen — filled at install. */
+/** One title's releases, as its picker draws them — filled at install. */
 export let releases: Window["__releases"];

@@ -137,19 +137,20 @@ SHOWN = """()=>(document.querySelector('#toastmsg')?.textContent || '').trim()""
 # refusal is that the attribute must vanish when false, which is not a thing an
 # index does.
 THE_OFFER = """()=>{
-  const offered = (window.__releases?.() || [])[0];
   const screen = [...document.querySelectorAll(
                     '[data-part="screen"][data-open]')]
                  .find((one) => (one.dataset.key || '').startsWith('releases:'));
   const foot = [...document.querySelectorAll('[data-part="card/foot"]')]
                .find((one) => 'pickRelease' in one.dataset);
-  if (!offered || !screen || !foot) return null;
+  if (!screen || !foot) return null;
   const bar = screen.querySelector('[data-part="screen/bar"]');
   const back = bar?.querySelector('[data-part="screen/back"]');
   const whole = (bar?.textContent || '').trim();
   const wayBack = (back?.textContent || '').trim();
-  return {resolution: offered.resolution,
-          subject: (wayBack ? whole.replace(wayBack, '') : whole).trim()};}"""
+  const subject = (wayBack ? whole.replace(wayBack, '') : whole).trim();
+  const offered = (window.__releases?.(subject) || [])[0];
+  if (!offered) return null;
+  return {resolution: offered.resolution, subject};}"""
 
 TAP = """()=>{
   [...document.querySelectorAll('[data-part="card/foot"]')]

@@ -177,6 +177,8 @@ export type MockState = {
    * `pipeline_run` rows; a launched veille appends to it.
    */
   pipelineRuns: Schemas["RunDetail"][];
+  /** How many times each asked search's run was read by `readAcquisitionStatus`, by the uid its 202 named. */
+  searchRuns: Record<string, number>;
   /**
    * Whether the automatic trigger opens runs on its own. ONE field: the
    * pipeline's status projects it and the locks project it inverted (§13).
@@ -329,6 +331,7 @@ const seeded = (): MockState => ({
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
   pipelineRuns: copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS),
+  searchRuns: {},
   watcherEnabled: true,
   watcherDown: false,
   pipelineSince: null,

@@ -86,7 +86,7 @@ from personalscraper.acquire.desired import (
     cadence_from_json,
     effective_cadence,
 )
-from personalscraper.acquire.domain import HOLD_REASONS
+from personalscraper.acquire.domain import CHOSEN_RELEASE_FAILED, HOLD_REASONS
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -97,6 +97,9 @@ if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.service")
+
+#: The statuses of a wanted row still waiting for a release: a person's pick unmet on one holds it.
+_WAITING_STATUSES = ("pending", "searching")
 
 # Per-item outcome tag (maps onto a RunSummary counter in run()).
 _ItemOutcome = Literal["grabbed", "retried", "abandoned", "absorbed", "skipped", "gone"]
@@ -275,6 +278,8 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         followed_id: int | None = None,
         run_uid: str | None = None,
         release: str | None = None,
+        wanted_id: int | None = None,
+        release_id: str | None = None,
     ) -> RunSummary:
         """Run the GRAB pass over the available + stale-searching queue.
 
@@ -310,18 +315,31 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 adds nothing and records ``chosen_release_gone`` (counted in
                 :attr:`RunSummary.release_gone`) and is held. When no row's stored set carries the
                 name (the set was replaced since the choice), no row is asked and none is held (see
-                :meth:`_rows_of_release`). ``None`` (default) is the engine's own choice, as ever,
-                except that a held row (:data:`HOLD_REASONS`) is left alone until a person's new
-                pick for it is grabbed (see :meth:`_without_held`).
+                :meth:`_rows_of_release`). A picked row the pause gate or the scope refusal keeps from
+                being asked is held too (:meth:`_hold_unasked`). ``None`` (default) is the engine's
+                own choice, as ever, except that a held row (:data:`HOLD_REASONS`) is left alone until
+                a person's new pick for it is grabbed (see :meth:`_without_held`).
+            wanted_id: The row the person's pick was made on; needs *release*. That one row is asked,
+                when it is an available row of the follow, whatever its stored set now carries (a set
+                replaced since the choice: the release is then « gone » on that row, which is held);
+                otherwise no row is, and the row is held when it is still waiting
+                (:meth:`_bound_row`). ``None`` finds the rows by the name (:meth:`_rows_of_release`).
+            release_id: The handle of the very release picked on *wanted_id*'s row; needs *wanted_id*.
+                Only that release is taken, never another published under its name.
 
         Returns:
             A :class:`RunSummary` of outcome counts.
 
         Raises:
-            ValueError: If *release* is named with no *followed_id*.
+            ValueError: If *release* is named with no *followed_id*, *wanted_id* with no *release*, or
+                *release_id* with no *wanted_id*.
         """
         if release is not None and followed_id is None:
             raise ValueError("a named release is grabbed for one follow: it needs a followed_id")
+        if wanted_id is not None and release is None:
+            raise ValueError("a wanted row binds a named release: it needs a release")
+        if release_id is not None and wanted_id is None:
+            raise ValueError("a release handle names a release on one wanted row: it needs a wanted_id")
         self._grab_run_uid = run_uid  # F3: per-run grab-stage run stamp (see _persist_success)
         # O4/D5: re-assert global transfer caps at every run start — idempotent,
         # self-healing (a client restart that lost the limits gets them back here).
@@ -329,23 +347,30 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         # A scoped instance whose category cannot receive adds skips the whole pass
         # (one logged cause) rather than searching trackers for every item to refuse each.
         if not self._orchestrator.scope_allows_grab():
+            if release is not None:
+                now = int(time.time())
+                self._hold_unasked(
+                    self._picked_rows(release, followed_id=followed_id, wanted_id=wanted_id, now=now), now
+                )
             return RunSummary(grabbed=0, retried=0, abandoned=0, skipped=0)
         now = int(time.time())
-        head = self._store.wanted.list_available()
+        picked: list[WantedItem] = []
         keep: set[int] | None = None
         held: frozenset[int] = frozenset()
         if release is not None:
-            head = self._rows_of_release([item for item in head if item.followed_id == followed_id], release)
+            head = picked = self._picked_rows(release, followed_id=followed_id, wanted_id=wanted_id, now=now)
             keep = {item.id for item in head if item.id is not None}
         else:
             held = self._store.wanted.ids_with_grab_reason(HOLD_REASONS)
-            head = self._without_held(head, held)
+            head = self._without_held(self._store.wanted.list_available(), held)
         pass_queue = self._build_queue(head, now=now, limit=limit, followed_id=followed_id)
         # The queue adds the follow's stale-'searching' rows after the head: a named run asks only the rows
         # the release was chosen for, and an unnamed one leaves a held row alone, whichever list it came from.
         queue, follow_map = pass_queue.items, pass_queue.follow_map
         if keep is not None:
             queue = [item for item in queue if item.id in keep]
+            asked = {item.id for item in queue}
+            self._hold_unasked([item for item in picked if item.id not in asked], now)
         elif held:
             queue = [item for item in queue if item.id not in held]
         global_cadence = cadence_from_config(self._config.acquire.cadence)
@@ -366,7 +391,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             # errors (NOT a bare ``except Exception`` — a genuine programming bug
             # must still surface and crash loudly).
             try:
-                outcome_tag = self._process_item(item, now, cadence=cadence, release=release)
+                outcome_tag = self._process_item(item, now, cadence=cadence, release=release, release_id=release_id)
             except sqlite3.OperationalError as exc:
                 # DB lock (RETRYABLE, §6.2): leave the row for the stale-searching
                 # sweep to recover (do NOT abort the run). Count as skipped.
@@ -436,14 +461,75 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 log.info("acquire.service.grab_held_for_chosen_release", wanted_id=item.id)
         return [item for item in queue if item.id not in held]
 
+    def _picked_rows(
+        self, release: str, *, followed_id: int | None, wanted_id: int | None, now: int
+    ) -> list[WantedItem]:
+        """Read the available rows a person's pick was made on.
+
+        Args:
+            release: The release name a person chose.
+            followed_id: The follow the pick is of.
+            wanted_id: The row the pick names; ``None`` finds the rows by the release's name.
+            now: The epoch a hold is stamped with.
+
+        Returns:
+            The bound row (:meth:`_bound_row`) or the rows carrying the name (:meth:`_rows_of_release`).
+        """
+        own = [item for item in self._store.wanted.list_available() if item.followed_id == followed_id]
+        if wanted_id is None:
+            return self._rows_of_release(own, release)
+        return self._bound_row(own, wanted_id, followed_id=followed_id, now=now)
+
+    def _hold_unasked(self, rows: list[WantedItem], now: int) -> None:
+        """Hold the rows of a person's pick that this pass does not ask.
+
+        A paused follow's rows leave the queue (O-3 A) and a scope refusal skips the whole pass: the row
+        keeps its status, but the pick is unmet, so it waits for the person as any unmet pick does
+        (DESIGN O-14) and the engine's own choice never stands in once the gate opens.
+
+        Args:
+            rows: The picked rows the pass does not ask.
+            now: The epoch the hold is stamped with.
+        """
+        for item in rows:
+            assert item.id is not None  # read from the store
+            log.warning("acquire.service.pick_held_unasked", wanted_id=item.id)
+            self._store.wanted.record_grab_failure(item.id, CHOSEN_RELEASE_FAILED, now)
+
+    def _bound_row(
+        self, queue: list[WantedItem], wanted_id: int, *, followed_id: int | None, now: int
+    ) -> list[WantedItem]:
+        """Keep the one row a person's pick was made on.
+
+        The pick was accepted on an available row; one that stopped being available before the pass ran
+        (a search put it back to waiting) leaves the pick unmet. While the row still waits it is held,
+        as for any other unmet pick (DESIGN O-14), so no later grab takes the engine's own choice.
+
+        Args:
+            queue: The follow's available rows.
+            wanted_id: The row the pick names.
+            followed_id: The follow the pick is of.
+            now: The epoch the hold is stamped with.
+
+        Returns:
+            That row alone; empty when it is not among them (logged): no other row stands in for it.
+        """
+        bound = [item for item in queue if item.id == wanted_id]
+        if not bound:
+            log.warning("acquire.service.release_row_unavailable", wanted_id=wanted_id, open_rows=len(queue))
+            row = self._store.wanted.get(wanted_id)
+            if row is not None and row.followed_id == followed_id and row.status in _WAITING_STATUSES:
+                self._store.wanted.record_grab_failure(wanted_id, CHOSEN_RELEASE_FAILED, now)
+        return bound
+
     def _rows_of_release(self, queue: list[WantedItem], release: str) -> list[WantedItem]:
         """Keep the rows a person's named release was chosen for.
 
         A release belongs to the row whose stored candidates (the last concluded search's ranked
         survivors) carry its name. When no row's set carries it (a set replaced since the choice),
         nothing says which row it was: no row is asked and none is held, since a hold on a row no
-        person chose would stop its scheduled grabs. The pass logs it and the request ends 1
-        (the job's exact row comes with the route that builds it).
+        person chose would stop its scheduled grabs. The pass logs it and the request ends 1.
+        A job that names the row (``wanted_id``) never comes here (:meth:`_bound_row`).
 
         Args:
             queue: The follow's available rows.

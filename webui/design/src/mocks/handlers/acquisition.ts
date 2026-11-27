@@ -34,6 +34,10 @@ const INFORMATIVE = "info";
 
 const BATCH_SIZE = 30;
 
+// What the queued search's uid starts with: the layer holds no runner, so it names the run itself.
+const SEARCH_RUN_PREFIX = "search-run-";
+// The status read a queued search is settled at: the one before it reads the run « running ».
+const SETTLED_AT_READ = 2;
 // THE CURSOR THE DECK ISSUES (K3-G13). Opaque to the interface, which sends it back as it came;
 // here it says where the next page starts.
 const CURSOR_PREFIX = "deck-";
@@ -195,6 +199,19 @@ function searchPage(request: MockRequest, total: number, results: typeof SEARCH_
   return { ...SEARCH_RESULTS, total, shown: page.length, results: page };
 }
 
+/**
+ * Where an asked search's run stands, moved on by being read: running first, then settled.
+ *
+ * @param runUid The uid asked about, if any.
+ * @returns Its state, or null when no uid is asked about or the layer named no run by it.
+ */
+function searchRunState(runUid: string | null): "running" | "settled" | null {
+  const runs = mockState().searchRuns;
+  if (runUid === null || !(runUid in runs)) return null;
+  runs[runUid] += 1;
+  return runs[runUid] < SETTLED_AT_READ ? "running" : "settled";
+}
+
 /** Every route this subject answers. */
 export function acquisitionRoutes(): MockRoute[] {
   return [
@@ -348,10 +365,15 @@ export function acquisitionRoutes(): MockRoute[] {
       (request) => {
         const found = followFor(request.parameters.followedId);
         if (found === undefined) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
+        // QUEUED, LIKE THE GRAB (operator ruling O-6 B): the answer says « en file »
+        // and carries no result. What the search leaves is read afterwards, once
+        // `readAcquisitionStatus` answers its run settled. THE LAYER HOLDS NO
+        // RUNNER, so the follow counts the search as soon as it is asked.
         found.searches += 1;
-        // Derived from the seeded releases OF THIS FOLLOW: a search is for one
-        // title, and counting every release answered the same number to all.
-        return { found: releasesFor(found.title).length };
+        const runs = mockState().searchRuns;
+        const runUid = SEARCH_RUN_PREFIX + String(Object.keys(runs).length + 1);
+        runs[runUid] = 0;
+        return { queued: true, runUid };
       },
     ),
     route(
@@ -450,9 +472,10 @@ export function acquisitionRoutes(): MockRoute[] {
       rejected.splice(rejected.indexOf(id), 1);
       return { ok: true };
     }),
-    route("readAcquisitionStatus", GET, "/acquisition/status", () => ({
+    route("readAcquisitionStatus", GET, "/acquisition/status", (request) => ({
       cadence: GRAB_CADENCE,
       nextSearch: null,
+      runState: searchRunState(request.query.get("runUid")),
     })),
     // THE VEILLE IS A RUN, and the 202 names it. Its figures are read from the
     // run once it has ended — an answer carrying them at once would be a lie

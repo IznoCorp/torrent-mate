@@ -610,7 +610,7 @@
       "scopeThisFollow": "this follow only",
       "scopeAllFollows": "all follows",
       "rankingWeights": "Ranking weights (global) →",
-      "rulenote": "If this profile no longer accepts any torrent, the follow reports it and its search answers “no torrent found”.",
+      "rulenote": "If this profile no longer accepts any torrent, the follow reports it once the queued search has run.",
       "saveToast": "Profile saved — the next search will apply it.",
       "save": "Save",
       "audioOptions": {
@@ -2100,9 +2100,7 @@
     },
     "acquisition": {
       "taken": "“{{title}}” grabbed — follow it in “In flight”.",
-      "searchFoundNone": "No torrent found for “{{title}}”.",
-      "searchFound_one": "“{{title}}”: {{count}} torrent found.",
-      "searchFound_other": "“{{title}}”: {{count}} torrents found.",
+      "searchQueued": "“{{title}}”: search queued — the result will arrive on its sheet and in the release picker.",
       "completionStarted": "“{{title}}”: search for the missing episodes started.",
       "tmdbConnected": "TMDB account connected — the reserve is filling up, your ratings are being read.",
       "identified": "“{{target}}” identified as “{{title}}” — scraping resumes, no follow created.",
@@ -2514,7 +2512,8 @@
     "acquisition": {
       "not_found": "This acquisition is unknown: nothing is followed or requested under this identifier, and the library does not hold it.",
       "not_requester": "This acquisition is not yours: only those who asked for it set it.",
-      "follow_shared": "Other accounts follow this title too: each one pauses it for itself."
+      "follow_shared": "Other accounts follow this title too: each one pauses it for itself.",
+      "release_unavailable": "This release cannot be grabbed now: it is still being searched or grabbed, or already done."
     },
     "follow": {
       "not_restorable": "Nothing was removed under this title: there is nothing to put back.",

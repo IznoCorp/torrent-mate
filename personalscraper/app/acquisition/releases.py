@@ -12,13 +12,13 @@ actor holds ``acquisition.see.others`` or asked for it, and otherwise answers an
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Final, get_args
+from typing import TYPE_CHECKING, get_args
 
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedKind
+from personalscraper.acquire.domain import release_handle as identity_handle
 from personalscraper.app.acquisition.follow_repository import FollowRepository
 from personalscraper.app.acquisition.model import FollowId
 from personalscraper.app.errors import AppBadRequest, RefusalCode
@@ -32,13 +32,6 @@ if TYPE_CHECKING:
 
 __all__ = ["ReleaseOffer", "ReleaseOffers", "ReleaseReads", "release_handle"]
 
-#: Hex digits of a release's digest kept in its handle: 64 bits, far past a collision among the few
-#: dozen candidates one row holds.
-_DIGEST_LENGTH: Final[int] = 16
-
-#: Separates a handle's wanted row from its digest.
-_HANDLE_SEPARATOR: Final[str] = ":"
-
 #: The field an episode asked with no season is refused on.
 _EPISODE_FIELD = "episode"
 
@@ -46,11 +39,10 @@ _EPISODE_FIELD = "episode"
 def release_handle(wanted_id: int, candidate: WantedCandidate) -> str:
     """Name one candidate of one wanted row: the handle a grab chooses a release by.
 
-    ``<wantedId>:<digest>``: the row, so the grab finds where the choice was made without reading
-    every row; and a digest of what the candidate IS (its tracker, title, hash and size), never of
-    its rank. A re-search that replaces the set and still offers the release leaves the handle
-    valid; one that no longer offers it leaves a handle that names nothing, and the grab says the
-    release is gone rather than taking another in its place.
+    :func:`personalscraper.acquire.domain.release_handle` of what the candidate is, so the grab names
+    the release it finds the same way. A re-search that replaces the set and still offers the release
+    leaves the handle valid; one that no longer offers it leaves a handle that names nothing, and the
+    grab says the release is gone rather than taking another in its place.
 
     Args:
         wanted_id: The wanted row the candidate was found for.
@@ -59,9 +51,13 @@ def release_handle(wanted_id: int, candidate: WantedCandidate) -> str:
     Returns:
         The handle.
     """
-    identity = "\x1f".join((candidate.provider, candidate.title, candidate.info_hash or "", str(candidate.size_bytes)))
-    digest = hashlib.sha256(identity.encode()).hexdigest()[:_DIGEST_LENGTH]
-    return f"{wanted_id}{_HANDLE_SEPARATOR}{digest}"
+    return identity_handle(
+        wanted_id,
+        provider=candidate.provider,
+        title=candidate.title,
+        info_hash=candidate.info_hash,
+        size_bytes=candidate.size_bytes,
+    )
 
 
 @dataclass(frozen=True)
