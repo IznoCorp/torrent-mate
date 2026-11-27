@@ -63,7 +63,7 @@ import json
 import pathlib
 import time
 
-from common import Journal, open_page, browser_channel, chrome_launch_args
+from common import Journal, follow_segment, open_page, browser_channel, chrome_launch_args
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONTRACT = ROOT.parent / "contract" / "openapi.json"
@@ -174,9 +174,10 @@ async def main():
 
         # ── mutation, and the reset ─────────────────────────────────────────
         before = json.loads(first["body"])
+        # THE FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1): a title names nothing, a 404.
         await body_of(
             page,
-            f"{probe}/{before[0]['title']}",
+            f"{probe}/{follow_segment(before[0]['title'])}",
             json.dumps({"method": "DELETE"}),
         )
         after = json.loads((await body_of(page, probe))["body"])
