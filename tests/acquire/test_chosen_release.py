@@ -367,6 +367,91 @@ def test_a_release_no_stored_set_carries_is_asked_of_every_open_row_of_the_follo
 
 
 # ---------------------------------------------------------------------------
+# A row whose person-named release is gone waits for the person (operator, O-14)
+# ---------------------------------------------------------------------------
+
+
+def test_a_row_whose_named_release_is_gone_is_not_taken_by_the_next_scheduled_grab(
+    store: ConcreteAcquireStore,
+) -> None:
+    """« C'est moi qui dois refaire ce choix, donc on attend »: the engine's pick never stands in."""
+    held = _available(store, 5, candidates=[_GONE, _BEST])
+    client = _Client()
+    _grab(store, client, [_result(_BEST, seeders=90)], release=_GONE)
+    assert _last_grab(store, held)[0] == "chosen_release_gone"
+
+    summary, registry = _grab(store, client, [_result(_BEST, seeders=90), _result(_SECOND, seeders=40)])
+
+    assert client.added == []
+    assert summary.grabbed == 0
+    assert registry.search_candidates.call_count == 0
+    row = store.wanted.get(held)
+    assert row is not None
+    assert (row.status, row.grabbed_hash) == ("available", None)
+    assert _last_grab(store, held)[0] == "chosen_release_gone"
+
+
+def test_a_whole_queue_scheduled_grab_leaves_a_held_row_alone_and_takes_the_others(
+    store: ConcreteAcquireStore,
+) -> None:
+    """The hold is the row's: another open row of the same follow is grabbed as ever."""
+    held = _available(store, 5, candidates=[_GONE])
+    free = _available(store, 6, candidates=[_OTHER_EPISODE])
+    client = _Client()
+    _grab(store, client, [_result(_BEST, seeders=90)], release=_GONE)
+    assert _last_grab(store, held)[0] == "chosen_release_gone"
+    assert _last_grab(store, free)[0] is None
+
+    summary, _ = _grab(store, client, [_result(_BEST, seeders=90), _result(_OTHER_EPISODE, seeders=80)])
+
+    assert summary.grabbed == 1
+    assert client.added == ["hash-ccc"]
+    taken = store.wanted.get(free)
+    assert taken is not None
+    assert taken.status == "grabbed"
+    assert _last_grab(store, held)[0] == "chosen_release_gone"
+
+
+def test_a_new_manual_pick_lifts_the_hold_and_is_taken(store: ConcreteAcquireStore) -> None:
+    """The person chooses again: the held row is asked, and the release is taken."""
+    held = _available(store, 5, candidates=[_GONE, _BEST])
+    client = _Client()
+    _grab(store, client, [_result(_BEST, seeders=90)], release=_GONE)
+
+    summary, _ = _grab(store, client, [_result(_BEST, seeders=90), _result(_SECOND, seeders=40)], release=_SECOND)
+
+    assert summary.grabbed == 1
+    assert client.added == ["hash-bbb"]
+    row = store.wanted.get(held)
+    assert row is not None
+    assert row.status == "grabbed"
+    assert _last_grab(store, held)[0] is None
+
+
+def test_a_failure_other_than_a_gone_release_holds_nothing(store: ConcreteAcquireStore) -> None:
+    """Only a gone person-named release holds a row: an outage leaves it to the next scheduled grab."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    client = _Client()
+    down = SearchOutcome(
+        results=[],
+        trackers_queried=1,
+        trackers_errored=1,
+        errored_names=[_PROVIDER],
+        errors={_PROVIDER: "api"},
+        queried_names=[_PROVIDER],
+    )
+    _grab(store, client, down)
+
+    summary, _ = _grab(store, client, [_result(_BEST, seeders=90)])
+
+    assert summary.grabbed == 1
+    assert client.added == ["hash-aaa"]
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "grabbed"
+
+
+# ---------------------------------------------------------------------------
 # A release the engine chose itself, or none named
 # ---------------------------------------------------------------------------
 
