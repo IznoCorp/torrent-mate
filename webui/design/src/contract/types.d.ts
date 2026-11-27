@@ -2026,7 +2026,7 @@ export interface components {
             owned?: number;
             /** @description episodes aired. Shows only */
             aired?: number;
-            /** @description added recently enough to be marked as such */
+            /** @description added recently enough to be marked as such: true for the first 24 hours after `addedAt`, false from then on; the server derives it at each answer, from its own clock */
             fresh?: boolean;
             /** @description the medium's provider identity. Never null: following a title is having identified the medium, and an identified medium has a sheet (B-366) */
             ids: components["schemas"]["ProviderIds"];
@@ -2085,6 +2085,13 @@ export interface components {
             poster: string | null;
             /** @description the poster at full-screen definition, for the card that shows one poster over the whole screen, or null when none was taken */
             posterHighDefinition: string | null;
+        };
+        /** @description one page of the suggestions deck */
+        SuggestionPage: {
+            /** @description the page's cards, in deck order; empty when the deck has no more */
+            suggestions: components["schemas"]["Suggestion"][];
+            /** @description the `cursor` the next page is asked with, opaque; null once the server knows the deck has no more (a cursor may still lead to an empty page) */
+            nextCursor: string | null;
         };
         Release: {
             /** @description the candidate's handle: `grabForFollow` chooses a release by it, never by its name */
@@ -2938,7 +2945,8 @@ export interface components {
             episodes: components["schemas"]["EpisodeCompleteness"][];
         };
         FollowCompleteness: {
-            followedId: number;
+            /** @description the follow's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A), as every follow operation names it in its path */
+            followedId: string;
             title: string;
             kind: string;
             seasons: components["schemas"]["SeasonCompleteness"][];
@@ -4412,6 +4420,10 @@ export interface operations {
                 query?: string;
                 /** @description restrict to films or to shows */
                 kind?: string;
+                /** @description how many results the page carries, at most */
+                limit?: number;
+                /** @description how many of the best-ranked results to skip; one past the last answers an empty page under the same `total` */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -4470,8 +4482,8 @@ export interface operations {
     readSuggestions: {
         parameters: {
             query?: {
-                /** @description continue a deck already started */
-                after?: string;
+                /** @description continue a deck already started: the `nextCursor` of the page before, sent back as it came — opaque, issued by the server, never composed or read by the client. Absent, the first page. A cursor of a deck since replaced starts the new deck at its head; one the server never issued is refused 400 `request.invalid` */
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -4479,13 +4491,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description the deck */
+            /** @description one page of the deck */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Suggestion"][];
+                    "application/json": components["schemas"]["SuggestionPage"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -6465,6 +6477,15 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            /** @description refused: `account.unknown` when `to` is no account of the roster, `acquisition.not_found` when no acquisition of the `kind` asked answers to the `acquisition` key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

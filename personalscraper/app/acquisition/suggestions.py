@@ -19,14 +19,20 @@ stands in for an id.
 The per-account rejection store (``suggestion_rejection`` in ``app.db``, and the writes that fill
 it) waits the operator's ruling O-9: the seam is here, the store is not. Until it lands nothing is
 rejected.
+
+A cursor is the key of the card a page continues past, sealed under a key the environment keeps
+(:func:`cursor_key_path`): only a cursor the server issued is read, and it stays readable across a
+restart (K3-G13).
 """
 
 from __future__ import annotations
 
+import hmac
 import re
 from collections.abc import Callable, Collection, Mapping, Sequence
 from contextlib import closing
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Final, Protocol
 
 from personalscraper.app.accounts.authorise import requires
@@ -46,6 +52,7 @@ __all__ = [
     "SuggestionKey",
     "SuggestionPage",
     "Suggestions",
+    "cursor_key_path",
     "media_ref_of",
 ]
 
@@ -59,7 +66,36 @@ _BATCH: Final[int] = 50
 type SuggestionKey = tuple[str, str, str]
 
 _IMDB_ID = re.compile(r"tt\d+")
-_CURSOR = re.compile(r"[0-9]{1,18}")
+#: A cursor: the key of the card it continues past, then the server's seal on that key.
+_CURSOR = re.compile(r"([0-9]{1,18})\.([0-9a-f]{32})")
+
+#: What the seal covers ahead of the card's key.
+_SEALED: Final = b"suggestions-cursor:"
+
+
+def cursor_key_path(app_db: Path) -> Path:
+    """Where an environment's cursor key file lives: beside its ``app.db``, never in it.
+
+    Args:
+        app_db: The environment's ``app`` store file.
+
+    Returns:
+        ``<data_dir>/<app store stem>.cursor.key``.
+    """
+    return app_db.with_name(f"{app_db.stem}.cursor.key")
+
+
+def _cursor_to(card: str, key: bytes) -> str:
+    """Issue the cursor that continues the deck past a card.
+
+    Args:
+        card: The card's key in the deck.
+        key: The environment's cursor key.
+
+    Returns:
+        The card's key and the server's seal on it.
+    """
+    return f"{card}.{hmac.new(key, _SEALED + card.encode(), 'sha256').hexdigest()[:32]}"
 
 
 class RejectionFilter(Protocol):
@@ -185,46 +221,27 @@ def _is_number(value: str) -> bool:
     return value.isascii() and value.isdigit()
 
 
-def _cursor_of(after: str | None) -> int | None:
+def _cursor_of(after: str | None, key: bytes) -> int | None:
     """Read the deck key a caller continues from.
 
     Args:
         after: The ``after`` a previous page gave, or ``None`` to start at the head.
+        key: The environment's cursor key.
 
     Returns:
         The key, or ``None`` for the head.
 
     Raises:
-        AppBadRequest: ``request.invalid`` when ``after`` is not a cursor this deck gives.
+        AppBadRequest: ``request.invalid`` when ``after`` is not a cursor the server issued.
     """
     if after is None:
         return None
-    if not _CURSOR.fullmatch(after):
+    read = _CURSOR.fullmatch(after)
+    if read is None or not hmac.compare_digest(after, _cursor_to(read[1], key)):
         raise AppBadRequest(
-            "The cursor is not one the deck gave.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["after"]}
+            "The cursor is not one the deck gave.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["cursor"]}
         )
-    return int(after)
-
-
-def _cursor_after_title(store: AcquireStore, title: str) -> int | None:
-    """Find the deck key of the first card that bears ``title``.
-
-    Args:
-        store: The acquire store.
-        title: The title of the card a page continues past.
-
-    Returns:
-        That card's key, or ``None`` when no card of the deck bears the title (read from the head).
-    """
-    cursor: int | None = None
-    while True:
-        rows = store.suggestions.after(cursor, _BATCH)
-        if not rows:
-            return None
-        for row in rows:
-            if row.title == title:
-                return row.id
-        cursor = rows[-1].id
+    return int(read[1])
 
 
 def _key_of(row: SuggestionRow) -> SuggestionKey:
@@ -247,6 +264,7 @@ class Suggestions:
         *,
         open_store: Callable[[], AcquireStore],
         open_ownership: Callable[[], OwnershipReader],
+        cursor_key: Callable[[], bytes],
         rejections: RejectionFilter | None = None,
     ) -> None:
         """Hold the seams; nothing is opened yet.
@@ -254,52 +272,39 @@ class Suggestions:
         Args:
             open_store: Opens the acquire store for one call (closed after it).
             open_ownership: Opens the library's ownership reader for one call (closed after it).
+            cursor_key: Reads the key the cursors are sealed under, the same across restarts.
             rejections: Names the titles a reader rejected; ``None`` until the rejection store
                 (O-9) lands, when nothing is rejected.
         """
         self._open_store = open_store
         self._open_ownership = open_ownership
+        self._cursor_key = cursor_key
         self._rejections: RejectionFilter = rejections if rejections is not None else _NoRejections()
 
     @requires("readSuggestions")
-    def read(
-        self, actor: Actor, after: str | None, *, limit: int = DEFAULT_LIMIT, after_title: str | None = None
-    ) -> SuggestionPage:
+    def read(self, actor: Actor, after: str | None, *, limit: int = DEFAULT_LIMIT) -> SuggestionPage:
         """Read one page of the deck: what the reader neither owns, follows nor rejected.
 
         The page is filled from the rows that survive, in deck order: a title left out costs the
         page no card. ``after`` is the cursor of a card (the previous page's last, or any card of
-        it); a cursor of a deck since replaced starts the new deck at its head.
-
-        The contract's card carries no cursor, and the interface continues a deck from the last
-        card's TITLE; ``after_title`` is that way in: the deck continues past the first card of
-        that title, whatever the reader's filters leave of it. A title no card holds (a deck
-        replaced since) starts the deck at its head, as a stale cursor does.
+        it); a cursor of a deck since replaced starts the new deck at its head. The wire carries it
+        opaque, as ``cursor`` going in and ``nextCursor`` coming out (K3-G13).
 
         Args:
             actor: Who reads; authorised by ``@requires`` (``acquisition.request``).
             after: The ``after`` of the previous page, ``None`` for the first.
             limit: The most cards the page carries.
-            after_title: The title of the card to continue past, instead of ``after``.
 
         Returns:
             The page; its ``after`` is ``None`` when the deck has no more to read.
 
         Raises:
-            AppBadRequest: ``request.invalid`` when ``after`` is not a cursor the deck gave, or
-                when both ``after`` and ``after_title`` are given.
+            AppBadRequest: ``request.invalid`` naming ``cursor`` when ``after`` is not a cursor the deck gave.
         """
-        if after is not None and after_title is not None:
-            raise AppBadRequest(
-                "A deck continues from a cursor or from a title, not both.",
-                code=RefusalCode.REQUEST_INVALID,
-                params={"fields": ["after"]},
-            )
-        cursor = _cursor_of(after)
+        key = self._cursor_key()
+        cursor = _cursor_of(after, key)
         items: list[SuggestedMedium] = []
         with closing(self._open_store()) as store, closing(self._open_ownership()) as ownership:
-            if after_title is not None:
-                cursor = _cursor_after_title(store, after_title)
             while len(items) < limit:
                 rows = store.suggestions.after(cursor, _BATCH)
                 if not rows:
@@ -309,7 +314,7 @@ class Suggestions:
                     cursor = row.id
                     if _key_of(row) in rejected or _is_followed(store, row) or _is_owned(ownership, row):
                         continue
-                    items.append(_medium_of(row))
+                    items.append(_medium_of(row, key))
                     if len(items) == limit:
                         break
         return SuggestionPage(items=tuple(items), after=items[-1].cursor if items else None)
@@ -351,14 +356,15 @@ def _is_owned(ownership: OwnershipReader, row: SuggestionRow) -> bool:
     return ownership.owns(ref, kind="movie") if row.kind == "movie" else len(ownership.owned_pairs(ref)) > 0
 
 
-def _medium_of(row: SuggestionRow) -> SuggestedMedium:
+def _medium_of(row: SuggestionRow, key: bytes) -> SuggestedMedium:
     """Map a deck row to a card.
 
     Args:
         row: The deck row, its key set.
+        key: The environment's cursor key.
 
     Returns:
-        The card; its cursor is the row's key.
+        The card; its cursor continues the deck past the row.
     """
     return SuggestedMedium(
         provider=row.provider,
@@ -370,6 +376,6 @@ def _medium_of(row: SuggestionRow) -> SuggestedMedium:
         poster=row.poster,
         reason=row.reason,
         seed_key=row.seed_key,
-        cursor=str(row.id),
+        cursor=_cursor_to(str(row.id), key),
         ids=media_ref_of(row.provider, row.provider_id, row.external_ids),
     )

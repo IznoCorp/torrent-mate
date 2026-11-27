@@ -55,6 +55,38 @@ export function removedIndexForKey(key: string): number {
   return mockState().removedFollows.findIndex((follow) => keyOfMedium(follow) === key);
 }
 
+/** The cards of the queue, whatever stage they stand at. */
+function queueCards(): { title: string; ids?: unknown; kind?: string | null }[] {
+  const state = mockState();
+  return [...state.takeable, ...state.blocked, ...state.inFlight, ...state.inFlightReel, ...state.moving];
+}
+
+/**
+ * Every card the queue serves, in either world: its own rows, and the folders it serves as arrivals.
+ */
+function servedCards(): { title: string; ids?: unknown; kind?: string | null }[] {
+  const state = mockState();
+  return [...queueCards(), ...state.stuck, ...state.stuckLoaded, ...state.movingReel,
+    ...state.settled, ...state.settledLoaded];
+}
+
+/**
+ * Whether an acquisition of one kind stands under a key, as a server holds them.
+ *
+ * A FOLLOW is a standing follow. A CARD is a follow too, or a card of the queue. A medium the
+ * layer only knows a sheet of was asked for by nobody, so no acquisition answers to its key.
+ *
+ * @param kind What the key is said to name: `follow` or `card`.
+ * @param key The medium's key.
+ * @returns True when such an acquisition stands.
+ */
+export function acquisitionStands(kind: string, key: string): boolean {
+  if (followForKey(key) !== undefined) return true;
+  if (kind !== "card") return false;
+  const drawn = new Set(titlesOfKey(key).map(withoutYear));
+  return servedCards().some((card) => drawn.has(withoutYear(card.title)));
+}
+
 /**
  * Every title the layer holds one medium under: its follow's, and the ones its cards carry.
  *
@@ -66,8 +98,7 @@ export function removedIndexForKey(key: string): number {
  * @returns The titles, the follow's first when there is one; empty when nothing known answers to the key.
  */
 export function titlesOfKey(key: string): string[] {
-  const state = mockState();
-  const cards = [...state.takeable, ...state.blocked, ...state.inFlight, ...state.inFlightReel, ...state.moving];
+  const cards = servedCards();
   const known = [
     followForKey(key)?.title,
     ...cards.filter((one) => keyOfMedium(one) === key).map((one) => one.title),
@@ -100,9 +131,7 @@ function withoutYear(title: string): string {
 export function mediumOfKey(key: string): { title: string; follow?: Follow } | null {
   const follow = followForKey(key);
   if (follow !== undefined) return { title: follow.title, follow };
-  const state = mockState();
-  const card = [...state.takeable, ...state.blocked, ...state.inFlight, ...state.inFlightReel, ...state.moving]
-    .find((one) => keyOfMedium(one) === key);
+  const card = queueCards().find((one) => keyOfMedium(one) === key);
   if (card !== undefined) return { title: card.title };
   const incomplete = (INCOMPLETE_SHOWS as { title: string; ids: unknown; kind?: string }[])
     .find((one) => keyOfMedium({ ids: one.ids, kind: one.kind ?? "show" }) === key);

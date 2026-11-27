@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import closing
+from functools import partial
 from typing import TYPE_CHECKING, Final, cast
 
 from personalscraper.api.plex import PlexClient
@@ -24,7 +25,7 @@ from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.sign_in_notice import SignInNotifier
 from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault
 from personalscraper.app.build_info import BUILD_INFO
-from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path
+from personalscraper.app.idempotency.service import IdempotencyService, fingerprint_key_path, load_or_make_key
 from personalscraper.app.services import AcquisitionServices, AppServices
 from personalscraper.app.store.store import build_app_store
 from personalscraper.app.supervisor.requesters import AcquireRequesters
@@ -562,7 +563,7 @@ def _build_acquisition_services(
         scoped_provider_clients,
     )
     from personalscraper.app.acquisition.seasons import IndexedShows, SeasonAsk  # noqa: PLC0415 — idem
-    from personalscraper.app.acquisition.suggestions import Suggestions  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.suggestions import Suggestions, cursor_key_path  # noqa: PLC0415 — idem
     from personalscraper.app.acquisition.triggers import AcquisitionRuns  # noqa: PLC0415 — idem
     from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415 — idem
     from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415 — idem
@@ -624,7 +625,11 @@ def _build_acquisition_services(
             indexer_db=index_db,
             follows=_PerCallFollowLookup(open_store),
         ),
-        suggestions=Suggestions(open_store=open_store, open_ownership=open_ownership),
+        suggestions=Suggestions(
+            open_store=open_store,
+            open_ownership=open_ownership,
+            cursor_key=partial(load_or_make_key, cursor_key_path(store_path(config.paths.data_dir, StoreName.APP))),
+        ),
         triggers=AcquisitionRuns(open_store=open_store, runs=runs, owner=owner),
     )
 

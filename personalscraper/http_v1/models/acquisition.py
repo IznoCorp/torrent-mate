@@ -27,9 +27,9 @@ from personalscraper.core.identity import MediaRef
 from personalscraper.http_v1.contract import ContractModel
 from personalscraper.http_v1.models.media import ProviderIdValue
 
-#: How long a follow is « fresh » after it was made: the interface marks it and sorts it first
-#: (``Follow.fresh``, « added recently enough to be marked as such »). One day: a follow made today. The
-#: value is PROVISIONAL, no ruling gives it (an open contract question): the tests pin both sides of it.
+#: How long a follow is « fresh » after it was made: the interface marks it and sorts it first. The
+#: contract's ``Follow.fresh`` describes it as 24 hours (K3-G17, chosen on recommendation, no ruling
+#: gives it); this constant is the one value, and the tests pin both sides of it.
 FRESH_WINDOW_SECONDS: Final = 24 * 60 * 60
 
 #: The wire's names of the quality floors the contract's profile enum lists.
@@ -370,7 +370,7 @@ class FollowCompletenessModel(ContractModel):
     """The contract's ``FollowCompleteness``: what has aired against what the library holds, per season.
 
     Attributes:
-        followed_id: The follow's row, the integer the contract declares (the medium's key names it on the path).
+        followed_id: The follow's key, ``<provider>:<providerId>``, as the follow operations name it (K3-G15).
         title: Its title.
         kind: ``show`` or ``movie`` (a film has no seasons).
         seasons: Its seasons, newest first; empty for a film or with no cached catalogue.
@@ -379,7 +379,7 @@ class FollowCompletenessModel(ContractModel):
         catalog_refreshed_at: Epoch seconds of the detect pass that wrote the cache, ``None`` without one.
     """
 
-    followed_id: int
+    followed_id: Annotated[str, Field(pattern="^(tvdb|tmdb|imdb):.+$")]
     title: str
     kind: str
     seasons: list[SeasonCompletenessModel]
@@ -398,7 +398,7 @@ class FollowCompletenessModel(ContractModel):
             The body.
         """
         return cls(
-            followed_id=fact.follow_id,
+            followed_id=fact.key,
             title=fact.title,
             kind=fact.kind,
             seasons=[SeasonCompletenessModel.from_fact(one) for one in fact.seasons],

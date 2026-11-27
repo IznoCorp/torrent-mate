@@ -122,7 +122,7 @@ export function DiscoverTab(): ReactElement {
                 ? t("screens.acquisition.headerUnavailable")
                 : state.phase === "loading" || read.data === undefined
                   ? t("screens.acquisition.headerLoading")
-                  : headerSentence(read.data, state.sugGone as Set<number>)}
+                  : headerSentence(read.data.suggestions, state.sugGone as Set<number>)}
             </span>
           </button>
         </div>

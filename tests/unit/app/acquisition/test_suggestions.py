@@ -118,13 +118,14 @@ def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
 
 
 def _service(
-    tmp_path: Path, library: _Library | None = None, rejections: _Rejections | None = None
+    tmp_path: Path, library: _Library | None = None, rejections: _Rejections | None = None, key: bytes = b"k" * 32
 ) -> tuple[Suggestions, _Library]:
     """The service over the test's acquire store path and a fake library."""
     held = library if library is not None else _Library()
     service = Suggestions(
         open_store=lambda: build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db")),
         open_ownership=lambda: held,
+        cursor_key=lambda: key,
         rejections=rejections,
     )
     return service, held
@@ -333,6 +334,17 @@ class TestPaging:
         store.suggestions.replace_deck([_row("tmdb", "new1"), _row("tmdb", "new2")])
 
         assert _titles(service.read(_actor(), stale).items) == ["new1", "new2"]
+
+    def test_a_cursor_is_read_under_the_key_it_was_issued_under_and_no_other(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
+        """Another service holding the same key (a restart) continues the deck; one holding another refuses."""
+        store.suggestions.replace_deck([_row("tmdb", str(i)) for i in range(3)])
+        cursor = _service(tmp_path)[0].read(_actor(), None, limit=1).after
+
+        assert _titles(_service(tmp_path)[0].read(_actor(), cursor).items) == ["1", "2"]
+        with pytest.raises(AppBadRequest):
+            _service(tmp_path, key=b"o" * 32)[0].read(_actor(), cursor)
 
     @pytest.mark.parametrize("after", ["", "abc", "-1", "1.5"])
     def test_a_cursor_that_is_not_one_is_a_bad_request(

@@ -20,7 +20,7 @@ from pydantic import Field, WithJsonSchema
 from personalscraper.app.acquisition.ranking import PreviewedRelease
 from personalscraper.app.acquisition.releases import ReleaseOffer
 from personalscraper.app.acquisition.search import SearchedMedium, SearchPage
-from personalscraper.app.acquisition.suggestions import SuggestedMedium
+from personalscraper.app.acquisition.suggestions import SuggestedMedium, SuggestionPage
 from personalscraper.conf.models._ranking import RankingBonuses, RankingConfig, RankingCriterion, ThresholdEntry
 from personalscraper.core.identity import MediaRef
 from personalscraper.http_v1.contract import ContractModel
@@ -300,6 +300,33 @@ class SuggestionModel(ContractModel):
             ids=ids_of(card.ids),
             poster=card.poster,
             poster_high_definition=None,
+        )
+
+
+class SuggestionPageModel(ContractModel):
+    """The contract's ``SuggestionPage``: one page of the suggestions deck.
+
+    Attributes:
+        suggestions: The page's cards, in deck order.
+        next_cursor: The ``cursor`` the next page is asked with, ``None`` once the deck has no more.
+    """
+
+    suggestions: list[SuggestionModel]
+    next_cursor: str | None
+
+    @classmethod
+    def from_page(cls, page: SuggestionPage) -> SuggestionPageModel:
+        """Map one page of the deck.
+
+        Args:
+            page: The service's page.
+
+        Returns:
+            The body.
+        """
+        return cls(
+            suggestions=[SuggestionModel.from_card(card) for card in page.items],
+            next_cursor=page.after,
         )
 
 

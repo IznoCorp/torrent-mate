@@ -503,7 +503,7 @@
       },
       "FollowCompletenessModel": {
         "additionalProperties": false,
-        "description": "The contract's ``FollowCompleteness``: what has aired against what the library holds, per season.\n\nAttributes:\n    followed_id: The follow's row, the integer the contract declares (the medium's key names it on the path).\n    title: Its title.\n    kind: ``show`` or ``movie`` (a film has no seasons).\n    seasons: Its seasons, newest first; empty for a film or with no cached catalogue.\n    source: ``cache``, or ``unknown`` when no aired catalogue is cached.\n    provider_catalog_empty: Reserved for a detect-confirmed empty catalogue: never set today.\n    catalog_refreshed_at: Epoch seconds of the detect pass that wrote the cache, ``None`` without one.",
+        "description": "The contract's ``FollowCompleteness``: what has aired against what the library holds, per season.\n\nAttributes:\n    followed_id: The follow's key, ``<provider>:<providerId>``, as the follow operations name it (K3-G15).\n    title: Its title.\n    kind: ``show`` or ``movie`` (a film has no seasons).\n    seasons: Its seasons, newest first; empty for a film or with no cached catalogue.\n    source: ``cache``, or ``unknown`` when no aired catalogue is cached.\n    provider_catalog_empty: Reserved for a detect-confirmed empty catalogue: never set today.\n    catalog_refreshed_at: Epoch seconds of the detect pass that wrote the cache, ``None`` without one.",
         "properties": {
           "catalogRefreshedAt": {
             "anyOf": [
@@ -517,8 +517,9 @@
             "title": "Catalogrefreshedat"
           },
           "followedId": {
+            "pattern": "^(tvdb|tmdb|imdb):.+$",
             "title": "Followedid",
-            "type": "integer"
+            "type": "string"
           },
           "kind": {
             "title": "Kind",
@@ -3058,6 +3059,36 @@
         "title": "SuggestionModel",
         "type": "object"
       },
+      "SuggestionPageModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``SuggestionPage``: one page of the suggestions deck.\n\nAttributes:\n    suggestions: The page's cards, in deck order.\n    next_cursor: The ``cursor`` the next page is asked with, ``None`` once the deck has no more.",
+        "properties": {
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextcursor"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionModel"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suggestions",
+          "nextCursor"
+        ],
+        "title": "SuggestionPageModel",
+        "type": "object"
+      },
       "TrailerModel": {
         "additionalProperties": false,
         "description": "The contract's ``Trailer``: a trailer's key beside its name.\n\nAttributes:\n    key: The YouTube key.\n    name: The trailer's title.\n    language: Its language code, as the provider gives it.",
@@ -5492,7 +5523,7 @@
     },
     "/acquisition/requesters/reassign": {
       "post": {
-        "description": "Move one requester of an acquisition to another account.\n\nArgs:\n    body: What the key names, the key, the requester moved off and the account moved on.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acquisition's requesters after the move.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``acquisition`` for a malformed key.\n    AppNotFound: ``account.unknown`` when the target is no account of the roster (a 404 the\n        contract does not declare on this operation), ``acquisition.not_found`` when no such\n        subject holds the key.\n    AppForbidden: ``acquisition.not_requester`` when the source did not ask for it.",
+        "description": "Move one requester of an acquisition to another account.\n\nArgs:\n    body: What the key names, the key, the requester moved off and the account moved on.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acquisition's requesters after the move.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``acquisition`` for a malformed key.\n    AppNotFound: ``account.unknown`` when the target is no account of the roster,\n        ``acquisition.not_found`` when no such subject holds the key.\n    AppForbidden: ``acquisition.not_requester`` when the source did not ask for it.",
         "operationId": "reassignRequester",
         "parameters": [
           {
@@ -5568,6 +5599,16 @@
             },
             "description": "A refusal, answered as a Problem."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
           "409": {
             "content": {
               "application/json": {
@@ -5604,7 +5645,7 @@
     },
     "/acquisition/search": {
       "get": {
-        "description": "Search the metadata providers for a title to follow.\n\nNothing typed is nothing to search for: an answer with no result, not a refusal (the add screen asks\non opening, before a letter is typed).\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    query: What was typed.\n    kind: ``movie`` or ``show`` to restrict the search; absent, both.\n\nReturns:\n    The best-ranked page, with the total the providers hold.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``kind`` when it is neither ``movie`` nor ``show``.\n    AppUnavailable: ``provider.unavailable`` when no provider could answer.",
+        "description": "Search the metadata providers for a title to follow.\n\nNothing typed is nothing to search for: an answer with no result, not a refusal (the add screen asks\non opening, before a letter is typed).\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    query: What was typed.\n    kind: ``movie`` or ``show`` to restrict the search; absent, both.\n    limit: The most results the page carries.\n    offset: How many of the best-ranked results to skip.\n\nReturns:\n    The page asked for, best ranked first, with the total the providers hold.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``kind`` when it is neither ``movie`` nor ``show``, or\n        ``limit`` or ``offset`` when out of bounds.\n    AppUnavailable: ``provider.unavailable`` when no provider could answer.",
         "operationId": "searchProviders",
         "parameters": [
           {
@@ -5641,6 +5682,33 @@
               ],
               "description": "restrict to films or to shows",
               "title": "Kind"
+            }
+          },
+          {
+            "description": "how many results the page carries, at most",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "how many results the page carries, at most",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "how many of the best-ranked results to skip; one past the last answers an empty page under the same `total`",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "how many of the best-ranked results to skip; one past the last answers an empty page under the same `total`",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
             }
           }
         ],
@@ -5908,13 +5976,13 @@
     },
     "/acquisition/suggestions": {
       "get": {
-        "description": "The titles worth following, minus what the reader owns, follows or rejected.\n\nLIMIT OF THE CONTRACT: ``after`` is a title, and a title is not unique in the deck (a film and a show can\nbear the same one). The deck continues past the FIRST card of that title, so a reader whose last card is a\nsecond one of the same title is served again the cards between the two. An opaque cursor would lift it.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    after: The title of the last card the reader holds, to continue the deck past it.\n\nReturns:\n    One page of the deck; empty when the deck has no more.",
+        "description": "The titles worth following, minus what the reader owns, follows or rejected.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    cursor: The ``nextCursor`` of the page before; absent, the first page.\n\nReturns:\n    One page of the deck and the cursor of the next; no card and no cursor when the deck has no more.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``cursor`` when it is not one the deck gave.",
         "operationId": "readSuggestions",
         "parameters": [
           {
-            "description": "continue a deck already started",
+            "description": "continue a deck already started: the `nextCursor` of the page before, sent back as it came \u2014 opaque, issued by the server, never composed or read by the client. Absent, the first page. A cursor of a deck since replaced starts the new deck at its head; one the server never issued is refused 400 `request.invalid`",
             "in": "query",
-            "name": "after",
+            "name": "cursor",
             "required": false,
             "schema": {
               "anyOf": [
@@ -5925,8 +5993,8 @@
                   "type": "null"
                 }
               ],
-              "description": "continue a deck already started",
-              "title": "After"
+              "description": "continue a deck already started: the `nextCursor` of the page before, sent back as it came \u2014 opaque, issued by the server, never composed or read by the client. Absent, the first page. A cursor of a deck since replaced starts the new deck at its head; one the server never issued is refused 400 `request.invalid`",
+              "title": "Cursor"
             }
           }
         ],
@@ -5935,11 +6003,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SuggestionModel"
-                  },
-                  "title": "Response Readsuggestions",
-                  "type": "array"
+                  "$ref": "#/components/schemas/SuggestionPageModel"
                 }
               }
             },
