@@ -1,12 +1,13 @@
-// « Chercher maintenant » says held, refused and failed in its own words, and lets nothing escape.
+// « Chercher maintenant » says queued, held, refused and failed in its own words, and lets nothing escape.
 //
 // WHAT MAKES THIS NON-VACUOUS. The verb is RUN as the tap runs it (`sheetprim` with a status that is
 // not « to_grab »), as a detached promise: a refusal that escaped `searchNow` would be an unhandled
-// rejection, a held search worded as found would announce a search nothing sent.
+// rejection, a held search worded as queued would announce a search nothing sent.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18next from "../../lib/unit-words";
 
 const said: string[] = [];
+const stale: unknown[] = [];
 const verbs = new Map<string, (value: string, element?: unknown) => void>();
 const HELD_ANSWER = Symbol.for("test-held");
 let refusal: unknown = null;
@@ -20,7 +21,9 @@ vi.mock("../../lib/query-client", () => ({
   },
   read: async () => [],
   isRequestFailure: (failure: unknown) => typeof failure === "object" && failure !== null && "status" in failure,
-  sharedQueryClient: null,
+  sharedQueryClient: {
+    invalidateQueries: async ({ queryKey }: { queryKey: unknown }) => void stale.push(queryKey),
+  },
 }));
 // THE KEY CROSSING is the module `lib/follow-key.test.ts` proves; here it answers a key, so the verb's own words are what is read.
 vi.mock("../../lib/follow-key", () => ({
@@ -53,20 +56,21 @@ async function search(): Promise<void> {
 describe("« chercher maintenant »", () => {
   beforeEach(() => {
     said.length = 0;
+    stale.length = 0;
     refusal = null;
     answer = undefined;
   });
 
-  it("says what the search found", async () => {
-    answer = { found: 2 };
+  it("says the search is queued, « en file », for that title", async () => {
+    answer = { queued: true, runUid: "run-1" };
     await search();
-    expect(said).toEqual([i18next.t("verbs.acquisition.searchFound", { title: "Lucky", count: 2 })]);
+    expect(said).toEqual([i18next.t("verbs.acquisition.searchQueued", { title: "Lucky" })]);
   });
 
-  it("says nothing was found", async () => {
-    answer = { found: 0 };
+  it("leaves the result to be read later, from the follow and its releases", async () => {
+    answer = { queued: true, runUid: "run-1" };
     await search();
-    expect(said).toEqual([i18next.t("verbs.acquisition.searchFoundNone", { title: "Lucky" })]);
+    expect(stale).toEqual([["/api/v1/acquisition/followed"], ["/api/v1/acquisition/releases"]]);
   });
 
   it("says a held search is held, not found", async () => {
