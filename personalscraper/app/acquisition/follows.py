@@ -465,7 +465,7 @@ class FollowService:
     @requires("reassignRequester")
     def reassign(
         self, actor: Actor, kind: Reassigned, key: AcquisitionKey, source: AccountId, target: AccountId
-    ) -> None:
+    ) -> tuple[AccountRef, ...]:
         """Move one requester's ask onto another account of the roster (§ 2.6, O-10 A).
 
         A target already asking keeps its own ask and the source simply leaves; the moved settings
@@ -478,6 +478,9 @@ class FollowService:
             key: The medium's key.
             source: The requester moved.
             target: The account taking its place.
+
+        Returns:
+            The acquisition's requesters after the move.
 
         Raises:
             AppNotFound: ``account.unknown`` when the target is no account of the roster;
@@ -505,6 +508,10 @@ class FollowService:
             # A consequence of the move, not the reassigning actor's act: the system asks it (as the rights'
             # re-projection does), so it needs no ``acquisition.pilot.any`` of them and says whose it is.
             self._ask_prime(self._system(), follow.id, RunTrigger.SYSTEM)
+        return tuple(
+            AccountRef(id=one.account_id, name=self._name(one.account_id))
+            for one in moved.requesters_or_owner(self._owner())
+        )
 
     @requires("runMaintenanceAction")
     def reproject(self, actor: Actor) -> int:

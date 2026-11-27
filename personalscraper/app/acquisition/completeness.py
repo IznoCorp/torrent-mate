@@ -140,6 +140,7 @@ class Completeness:
     """A follow's completeness.
 
     Attributes:
+        follow_id: The follow's row: the integer the contract's ``FollowCompleteness.followedId`` declares.
         key: The follow's wire key.
         title: Its title.
         kind: ``"show"`` or ``"movie"`` (a film has no seasons).
@@ -148,6 +149,7 @@ class Completeness:
         catalog_refreshed_at: Epoch seconds of the detect pass that wrote the cache, ``None`` without one.
     """
 
+    follow_id: int
     key: str
     title: str
     kind: str
@@ -317,6 +319,7 @@ class FollowCompleteness:
             with closing(self._open_ownership()) as ownership:
                 episodes, refreshed_at = episode_states(store, ownership, row, self._today())
         return Completeness(
+            follow_id=int(follow.id),
             key=follow.key.wire,
             title=row.title,
             kind=row.kind,
