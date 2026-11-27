@@ -11,14 +11,15 @@ differed only in their sentence, so Suivis, the follow panel and the sheet went
 on reading the follow. WHAT IS READ: on `mediasheet-series` (« Silo (2023) »,
 followed as « Silo »), the sheet's « Supprimer », then the confirmation —
   1. « Supprimer et arrêter le suivi »: the layer is asked to remove the follow
-     « Silo » and answers 200, and the follows the surfaces read hold no « Silo »;
+     « Silo », addressed by its medium's key (K3-G1), and answers 200, and the follows the
+     surfaces read hold no « Silo »;
   2. « Supprimer, garder le suivi », on a fresh layer: no follow is removed, and
      « Silo » is still followed.
 """
 import asyncio
 import json
 
-from common import SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
+from common import SETTLED, Journal, follow_segment, open_page, read_at, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The words of the two confirmations, read from the one place they live.
@@ -106,7 +107,8 @@ async def main():
         await confirm(page, DELETE["deleteAndStop"])
         after = await page.evaluate(FOLLOWS)
         journal.check("« Supprimer et arrêter le suivi »: the layer removed the follow « Silo »",
-                      any(call.endswith("/Silo 200") for call in after["removals"]), str(after["removals"]))
+                      any(call.endswith(f"/{follow_segment('Silo')} 200") for call in after["removals"]),
+                      str(after["removals"]))
         journal.check("« Supprimer et arrêter le suivi »: no surface reads « Silo » followed",
                       "Silo" not in after["titles"], str(after["titles"]))
 
