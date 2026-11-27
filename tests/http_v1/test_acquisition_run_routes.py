@@ -13,7 +13,9 @@ the library's owned shows are faked (``IndexedShows.held_show``), so no ``librar
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 import pytest
@@ -21,10 +23,21 @@ from fastapi.testclient import TestClient
 
 from personalscraper.acquire.domain import WantedCandidate, WantedItem
 from personalscraper.app.accounts.ceiling import InstanceCeiling
+from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
 from personalscraper.app.acquisition.releases import release_handle
 from personalscraper.app.acquisition.seasons import HeldShow, IndexedShows
-from personalscraper.app.supervisor.model import AcquisitionJob, JobKind, Lane
+from personalscraper.app.supervisor.model import (
+    AcquisitionJob,
+    JobKind,
+    Lane,
+    RunKind,
+    RunOptions,
+    RunRequest,
+    RunTrigger,
+    Settlement,
+)
+from personalscraper.conf.environment import Environment
 from personalscraper.core.identity import MediaRef
 
 ClientFactory = Callable[..., TestClient]
@@ -92,12 +105,13 @@ def _follow(client: TestClient) -> None:
     assert response.status_code == 200, response.text
 
 
-def _offer(client: TestClient, title: str) -> tuple[int, str]:
-    """Store one release found for an available episode of the one follow.
+def _offer(client: TestClient, title: str, status: str = "available") -> tuple[int, str]:
+    """Store one release found for an episode of the one follow.
 
     Args:
         client: A client of the services holding the follow.
         title: The release's name.
+        status: The status the episode's row stands in.
 
     Returns:
         The wanted row and the release's handle.
@@ -110,7 +124,7 @@ def _offer(client: TestClient, title: str) -> tuple[int, str]:
             WantedItem(
                 media_ref=row.media_ref,
                 kind="episode",
-                status="available",
+                status=status,  # type: ignore[arg-type]
                 enqueued_at=1_700_000_000,
                 followed_id=row.id,
                 season=1,
@@ -223,6 +237,42 @@ def test_a_release_no_stored_set_holds_is_a_400_naming_it(v1_client: ClientFacto
     assert _jobs(client, JobKind.GRAB) == []
 
 
+@pytest.mark.parametrize("status", ["pending", "searching", "grabbed", "done", "abandoned"])
+def test_a_pick_on_an_unavailable_row_is_a_409_and_queues_nothing(v1_client: ClientFactory, status: str) -> None:
+    """A pick the row cannot honour is refused at ask time (O-14): ``acquisition.release_unavailable``, never a 202."""
+    client = v1_client()
+    _follow(client)
+    _, handle = _offer(client, "Silo S01E01 1080p-AAA", status)
+
+    response = client.post(f"/acquisition/followed/{SILO_KEY}/grab", json={"releaseId": handle})
+
+    assert (response.status_code, response.json().get("code")) == (409, "acquisition.release_unavailable")
+    assert response.json()["params"] == {"followedId": SILO_KEY}
+    assert _jobs(client, JobKind.GRAB) == []
+
+
+@pytest.mark.parametrize("act", ["search", "grab"])
+def test_two_rows_under_one_key_are_a_409_and_queue_nothing(v1_client: ClientFactory, act: str) -> None:
+    """Two rows hold the key: ``follow.ambiguous``, no pass asked of either."""
+    client = v1_client(role="admin")
+    _follow(client)
+    store = _services(client).acquisition.triggers._open_store()
+    try:
+        with store.follow._conn as conn:
+            conn.execute(
+                "INSERT INTO followed_series (media_ref_json, title, active, added_at, kind) VALUES (?, ?, 1, 1, ?)",
+                (json.dumps({"tvdb_id": 403245, "tmdb_id": 1, "imdb_id": None}), "Silo again", "show"),
+            )
+    finally:
+        store.close()
+    before = _queued(client)
+
+    response = client.post(f"/acquisition/followed/{SILO_KEY}/{act}")
+
+    assert (response.status_code, response.json()["code"]) == (409, "follow.ambiguous")
+    assert _queued(client) == before
+
+
 def test_a_release_named_by_its_name_is_not_the_contracts_body(v1_client: ClientFactory) -> None:
     """``releaseName`` is gone from the contract: the body names a handle."""
     client = v1_client()
@@ -243,7 +293,8 @@ def test_a_season_is_taken_201_then_reused_200(v1_client: ClientFactory) -> None
 
     assert first.status_code == 201, first.text
     body = first.json()
-    assert (body["season"], body["queued"], body["reused"], body["absorbedCount"]) == (1, True, False, 0)
+    # ``queued`` means WAITING on the pipeline, which no acquisition pass does: its own lane takes no lock.
+    assert (body["season"], body["queued"], body["reused"], body["absorbedCount"]) == (1, False, False, 0)
     assert body["runUid"] in [uid for uid, _ in _jobs(client, JobKind.PRIME)]
     assert second.status_code == 200, second.text
     assert second.json() == {"season": 1, "absorbedCount": 0, "queued": False, "runUid": None, "reused": True}
@@ -256,7 +307,7 @@ def test_an_owned_unfollowed_show_gets_a_request_never_a_follow(v1_client: Clien
     response = client.post(f"/acquisition/follows/{OWNED_KEY}/seasons/1/grab")
 
     assert response.status_code == 201, response.text
-    assert (response.json()["queued"], response.json()["absorbedCount"]) == (True, 2)
+    assert (response.json()["queued"], response.json()["absorbedCount"]) == (False, 2)
     assert client.get("/acquisition/followed").json() == []
     assert len(_jobs(client, JobKind.PRIME)) == 1
 
@@ -268,9 +319,12 @@ def test_a_season_of_a_medium_neither_followed_nor_owned_is_a_404(v1_client: Cli
     assert (response.status_code, response.json()["code"]) == (404, "acquisition.not_found")
 
 
-@pytest.mark.parametrize(("season", "field"), [("0", "season"), ("-1", "season"), ("deux", "path.season")])
+@pytest.mark.parametrize(
+    ("season", "field"),
+    [("0", "season"), ("-1", "season"), ("deux", "path.season"), ("10000", "season"), (str(2**63), "season")],
+)
 def test_a_season_that_is_not_one_is_a_400(v1_client: ClientFactory, season: str, field: str) -> None:
-    """A season is numbered from 1: ``request.invalid`` naming it, as the service or the path's parsing names it."""
+    """A season is numbered from 1 to 9999: ``request.invalid`` naming it, as the service or the path's parsing does."""
     response = v1_client().post(f"/acquisition/follows/{SILO_KEY}/seasons/{season}/grab")
 
     assert (response.status_code, response.json()["code"]) == (400, "request.invalid")
@@ -278,13 +332,76 @@ def test_a_season_that_is_not_one_is_a_400(v1_client: ClientFactory, season: str
 
 
 def test_the_status_answers_the_cadence_and_the_next_search(v1_client: ClientFactory) -> None:
-    """``readAcquisitionStatus``: 200 ``{cadence, nextSearch}``, for any signed-in account."""
+    """``readAcquisitionStatus``: 200 ``{cadence, nextSearch, runState}``, for any signed-in account."""
     response = v1_client(rights=frozenset({Right.LIBRARY_READ})).get("/acquisition/status")
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"cadence", "nextSearch"}
+    assert set(body) == {"cadence", "nextSearch", "runState"}
     assert len(body["cadence"].split()) == 5
+
+
+def test_the_last_season_number_is_still_a_season(v1_client: ClientFactory) -> None:
+    """9999 holds the year-numbered seasons: taken like any other."""
+    client = v1_client()
+    _follow(client)
+
+    response = client.post(f"/acquisition/follows/{SILO_KEY}/seasons/9999/grab")
+
+    assert response.status_code == 201, response.text
+
+
+def test_the_status_sends_the_schedule_it_is_given(v1_client: ClientFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The whole body, on a pinned environment and clock: the cadence AND the next search reach the wire."""
+    client = v1_client()
+    triggers = _services(client).acquisition.triggers
+    monkeypatch.setattr(triggers, "_environment", lambda: Environment.PROD)
+    noon = datetime(2026, 11, 27, 12, 0)
+    monkeypatch.setattr(triggers, "_clock", noon.timestamp)
+
+    response = client.get("/acquisition/status")
+
+    assert response.json() == {
+        "cadence": "20 3,15 * * *",
+        "nextSearch": datetime(2026, 11, 27, 15, 10).astimezone().isoformat(),
+        "runState": None,
+    }
+
+
+def test_the_status_follows_the_run_asked_until_it_settles(v1_client: ClientFactory) -> None:
+    """``runUid``: queued, then running, then settled, read from the supervisor's queue (O-6 B)."""
+    client = v1_client()
+    _follow(client)
+    uid = client.post(f"/acquisition/followed/{SILO_KEY}/search").json()["runUid"]
+    runs = _services(client).app_store.runs
+
+    def state() -> str | None:
+        """The run's state as the status answers it."""
+        answered: str | None = client.get("/acquisition/status", params={"runUid": uid}).json()["runState"]
+        return answered
+
+    assert state() == "queued"
+    request = runs.get(uid)
+    request.admit(None, 1.0)
+    with _services(client).app_store.immediate():
+        runs.save(request)
+    assert state() == "running"
+    request.settle(Settlement.SUCCESS, 2.0)
+    with _services(client).app_store.immediate():
+        runs.save(request)
+    assert state() == "settled"
+
+
+def test_a_uid_naming_no_acquisition_run_has_no_state(v1_client: ClientFactory) -> None:
+    """An unknown uid, or the uid of a run that is not an acquisition's: ``runState`` null."""
+    client = v1_client(role="admin")
+    actor_run = RunRequest.ask(RunKind.PIPELINE, RunTrigger.WEB, RunOptions(), AccountId("someone"), 1.0)
+    with _services(client).app_store.immediate():
+        _services(client).app_store.runs.insert(actor_run)
+
+    for uid in ("nothing", str(actor_run.uid)):
+        response = client.get("/acquisition/status", params={"runUid": uid})
+        assert (response.status_code, response.json()["runState"]) == (200, None), uid
 
 
 # ── what is refused, and to whom ────────────────────────────────────────────

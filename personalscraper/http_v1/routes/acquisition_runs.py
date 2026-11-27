@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, Response
+from fastapi import APIRouter, Body, Depends, Path, Query, Response
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.acquisition.model import AcquisitionKey
@@ -43,17 +43,21 @@ _KEYED_RESPONSES = {**PROBLEM_RESPONSES, 404: PROBLEM_RESPONSES[400]}
 def read_acquisition_status(
     signed_in: Annotated[Actor, Depends(actor)],
     app_services: Annotated[AppServices, Depends(services)],
+    run_uid: Annotated[
+        str | None, Query(alias="runUid", description="an acquisition run to follow, by the uid its ask answered")
+    ] = None,
 ) -> AcquisitionStatusModel:
-    """The grab's cadence, and when the next search runs.
+    """The grab's cadence, when the next search runs, and where an asked run stands.
 
     Args:
         signed_in: The signed-in actor.
         app_services: The application services.
+        run_uid: The run to follow, or nothing.
 
     Returns:
         The schedule.
     """
-    return AcquisitionStatusModel.from_schedule(app_services.acquisition.triggers.status(signed_in))
+    return AcquisitionStatusModel.from_schedule(app_services.acquisition.triggers.status(signed_in, run_uid))
 
 
 @router.post(
@@ -138,6 +142,7 @@ def grab_for_follow(
         AppBadRequest: ``request.invalid`` naming ``followedId`` or ``releaseId``.
         AppNotFound: ``acquisition.not_found`` when nothing stands under the key.
         AppForbidden: ``acquisition.not_requester`` when the caller did not ask for it.
+        AppConflict: ``acquisition.release_unavailable`` when the picked release's row cannot take it.
     """
     release_id = None if body is None else body.release_id
     uid = app_services.acquisition.triggers.grab(signed_in, AcquisitionKey.parse(followed_id), release_id)

@@ -80,6 +80,7 @@ class RefusalCode(StrEnum):
     ACQUISITION_NOT_FOUND = "acquisition.not_found"
     ACQUISITION_NOT_REQUESTER = "acquisition.not_requester"
     ACQUISITION_FOLLOW_SHARED = "acquisition.follow_shared"
+    ACQUISITION_RELEASE_UNAVAILABLE = "acquisition.release_unavailable"
     FOLLOW_NOT_RESTORABLE = "follow.not_restorable"
     FOLLOW_AMBIGUOUS = "follow.ambiguous"
 

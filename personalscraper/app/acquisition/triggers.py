@@ -10,7 +10,8 @@ are the caller's own to ask (or ``acquisition.pilot.any``'s). A grab that names 
 its HANDLE (:func:`~personalscraper.app.acquisition.releases.release_handle`): the job then carries the
 release's name, the one wanted row it was chosen on and the handle itself, so the pick binds that row
 and that very release, never a namesake. A handle no stored set of the acquisition holds is refused,
-never taken for another release.
+never taken for another release, and so is a pick on a row that is not waiting to be taken: the pass
+would drop it, then take the engine's own choice.
 
 The schedule is the environment's own: what PM2's ``schedule`` apps of ``ecosystem.config.js`` run
 (:data:`PASS_CRONS`), which this process never reads at run time.
@@ -27,10 +28,16 @@ from typing import TYPE_CHECKING, Final
 
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.acquisition.follow_repository import FollowAmbiguous, FollowRepository
-from personalscraper.app.acquisition.refusals import refuse_ambiguous, refuse_not_found, refuse_not_requester
+from personalscraper.app.acquisition.refusals import (
+    refuse_ambiguous,
+    refuse_not_found,
+    refuse_not_requester,
+    refuse_release_unavailable,
+)
 from personalscraper.app.acquisition.releases import release_handle
 from personalscraper.app.errors import AppBadRequest, RefusalCode
-from personalscraper.app.supervisor.model import AcquisitionJob, JobKind
+from personalscraper.app.supervisor.ids import RunUid
+from personalscraper.app.supervisor.model import AcquisitionJob, JobKind, RequestState, RunKind
 from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.logger import get_logger
 from personalscraper.scheduler import next_fire
@@ -85,10 +92,13 @@ class AcquisitionSchedule:
         cadence: The cron the grab pass runs on.
         next_search: When the search pass next runs, ISO 8601 with its offset; ``None`` on an
             instance that schedules none.
+        run_state: Where the acquisition run asked about stands; ``None`` when none was asked about,
+            or no acquisition request answers to that uid.
     """
 
     cadence: str
     next_search: str | None
+    run_state: RequestState | None = None
 
 
 class AcquisitionRuns:
@@ -173,14 +183,15 @@ class AcquisitionRuns:
             AppNotFound: ``acquisition.not_found`` when no standing follow or request holds the key.
             AppForbidden: ``acquisition.not_requester`` on an acquisition that is not the actor's, or
                 the instance's own refusals.
-            AppConflict: ``follow.ambiguous`` when two rows hold the key.
+            AppConflict: ``follow.ambiguous`` when two rows hold the key;
+                ``acquisition.release_unavailable`` when the picked release's row is not ``available``.
         """
         release: str | None = None
         wanted_id: int | None = None
         with closing(self._open_store()) as store:
             follow = self._own(store, actor, key)
             if release_id is not None:
-                wanted_id, release = _picked(store, int(follow.id), release_id)
+                wanted_id, release = _picked(store, int(follow.id), key, release_id)
         job = AcquisitionJob(
             JobKind.GRAB,
             followed_id=int(follow.id),
@@ -191,23 +202,39 @@ class AcquisitionRuns:
         return str(self._runs.ask_acquisition(actor, job).uid)
 
     @requires("readAcquisitionStatus")
-    def status(self, actor: Actor) -> AcquisitionSchedule:
-        """Read the grab's cadence and the next search of this environment.
+    def status(self, actor: Actor, run_uid: str | None = None) -> AcquisitionSchedule:
+        """Read the grab's cadence, the next search of this environment, and where an asked run stands.
 
         Args:
             actor: Who reads; any signed-in account.
+            run_uid: The run an ask answered with, to follow it; ``None`` asks about none.
 
         Returns:
             The schedule. An environment that schedules no pass answers prod's cadence and no next
             search.
         """
+        run_state = None if run_uid is None else self._run_state(RunUid(run_uid))
         crons = PASS_CRONS.get(self._environment())
         if crons is None:
-            return AcquisitionSchedule(cadence=PASS_CRONS[Environment.PROD].grab, next_search=None)
+            return AcquisitionSchedule(cadence=PASS_CRONS[Environment.PROD].grab, next_search=None, run_state=run_state)
         # PM2's loop reads its cron in the machine's local time; the offset is read at the fire time,
         # so a fire past a daylight-saving change carries the new one.
         fire = next_fire(crons.search, datetime.fromtimestamp(self._clock()))
-        return AcquisitionSchedule(cadence=crons.grab, next_search=fire.astimezone().isoformat())
+        return AcquisitionSchedule(cadence=crons.grab, next_search=fire.astimezone().isoformat(), run_state=run_state)
+
+    def _run_state(self, uid: RunUid) -> RequestState | None:
+        """Where an acquisition run stands.
+
+        Args:
+            uid: Its key.
+
+        Returns:
+            Its state; ``None`` when no request, or a request of another kind, answers to the uid.
+        """
+        request = self._runs.request(uid)
+        if request is None or request.kind is not RunKind.ACQUISITION:
+            return None
+        return request.state
 
     def _own(self, store: AcquireStore, actor: Actor, key: AcquisitionKey) -> Follow:
         """The standing follow or request the key names, the actor's to pilot.
@@ -236,12 +263,13 @@ class AcquisitionRuns:
         return follow
 
 
-def _picked(store: AcquireStore, followed_id: int, release_id: str) -> tuple[int, str]:
+def _picked(store: AcquireStore, followed_id: int, key: AcquisitionKey, release_id: str) -> tuple[int, str]:
     """The wanted row and the release name a handle stands for.
 
     Args:
         store: The open acquire store.
         followed_id: The acquisition the handle must be of.
+        key: Its wire key, which a refusal names it by.
         release_id: The handle.
 
     Returns:
@@ -250,6 +278,7 @@ def _picked(store: AcquireStore, followed_id: int, release_id: str) -> tuple[int
     Raises:
         AppBadRequest: ``request.invalid`` naming ``releaseId``: a malformed handle, a row that is not
             the acquisition's, or a release its stored set no longer holds.
+        AppConflict: ``acquisition.release_unavailable`` when the release's row is not ``available``.
     """
     head = release_id.partition(_HANDLE_SEPARATOR)[0]
     # The length first: Python refuses to parse a number of thousands of digits (a ValueError, not a miss).
@@ -258,6 +287,9 @@ def _picked(store: AcquireStore, followed_id: int, release_id: str) -> tuple[int
         if row is not None and row.id is not None and row.followed_id == followed_id:
             for candidate in store.candidates.list_for(row.id):
                 if release_handle(row.id, candidate) == release_id:
+                    if row.status != "available":
+                        log.info("app.acquisition.release_unavailable", followed_id=followed_id, status=row.status)
+                        raise refuse_release_unavailable(key)
                     return row.id, candidate.title
     log.info("app.acquisition.release_unknown", followed_id=followed_id, release_id=release_id)
     raise AppBadRequest(

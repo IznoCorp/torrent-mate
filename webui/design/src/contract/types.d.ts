@@ -3194,7 +3194,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "session.unknown" | "session.current" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable" | "acquisition.not_found" | "acquisition.not_requester" | "acquisition.follow_shared" | "follow.not_restorable" | "follow.ambiguous";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "session.unknown" | "session.current" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable" | "acquisition.not_found" | "acquisition.not_requester" | "acquisition.follow_shared" | "acquisition.release_unavailable" | "follow.not_restorable" | "follow.ambiguous";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -4326,7 +4326,7 @@ export interface operations {
                         absorbedCount: number;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Null when the ask queued no request: a season already being recovered that the ask did not turn on, or a request the supervisor refused. */
                         runUid: string | null;
                         /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
                         reused: boolean;
@@ -4346,7 +4346,7 @@ export interface operations {
                         absorbedCount: number;
                         /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
                         queued: boolean;
-                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null. */
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Null when the ask queued no request: a season already being recovered that the ask did not turn on, or a request the supervisor refused. */
                         runUid: string | null;
                         /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
                         reused: boolean;
@@ -4408,7 +4408,15 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            409: components["responses"]["Problem"];
+            /** @description refused: `acquisition.release_unavailable` when the release picked sits on an item that is not waiting to be taken (still pending or searching, already grabbed, done or abandoned), whose pick would be dropped — nothing is queued; or `follow.ambiguous` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };
@@ -4510,7 +4518,10 @@ export interface operations {
     };
     readAcquisitionStatus: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description an acquisition run to follow, by the `runUid` its ask answered with */
+                runUid?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4528,6 +4539,11 @@ export interface operations {
                         cadence: string;
                         /** @description when the next search runs */
                         nextSearch: string | null;
+                        /**
+                         * @description where the acquisition run named by `runUid` stands, so a page that asked a search reads its result once it is `settled` (O-6 B); null with no `runUid`, or when no acquisition request answers to it
+                         * @enum {string|null}
+                         */
+                        runState: "queued" | "running" | "settled" | null;
                     };
                 };
             };

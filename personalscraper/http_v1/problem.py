@@ -83,6 +83,7 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.ACQUISITION_NOT_FOUND: "No follow, request or owned medium answers this acquisition key.",
     RefusalCode.ACQUISITION_NOT_REQUESTER: "The signed-in account did not ask for this acquisition.",
     RefusalCode.ACQUISITION_FOLLOW_SHARED: "Other accounts asked for this follow too: each pauses it for itself.",
+    RefusalCode.ACQUISITION_RELEASE_UNAVAILABLE: "The picked release's row cannot take it now.",
     RefusalCode.FOLLOW_NOT_RESTORABLE: "Nothing removed under this acquisition key can be put back.",
     RefusalCode.FOLLOW_AMBIGUOUS: "Several follow rows hold this provider identity.",
 }

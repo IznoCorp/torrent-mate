@@ -2101,7 +2101,7 @@
             "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
-        "x-unseeded": "an acknowledgement naming the queued request. No fixture holds one: the layer holds no runner, so it names a run of its own and counts one more search on the follow, which its sheet and the picker read.",
+        "x-unseeded": "an acknowledgement naming the queued request. No fixture holds one: the layer holds no runner, so it names a run of its own, which `readAcquisitionStatus` reads running then settled, and counts one more search on the follow, which its sheet and the picker read.",
         "description": "Queued like the grab (operator ruling O-6 B, 2026-11-27): the answer says « en file » at once, and the result arrives on the follow and in the release picker once the search has run."
       }
     },
@@ -2141,7 +2141,7 @@
                         "string",
                         "null"
                       ],
-                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null."
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Null when the ask queued no request: a season already being recovered that the ask did not turn on, or a request the supervisor refused."
                     },
                     "reused": {
                       "type": "boolean",
@@ -2183,7 +2183,7 @@
                         "string",
                         "null"
                       ],
-                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Always the request's uid, never null."
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it. Null when the ask queued no request: a season already being recovered that the ask did not turn on, or a request the supervisor refused."
                     },
                     "reused": {
                       "type": "boolean",
@@ -2305,7 +2305,14 @@
             }
           },
           "409": {
-            "$ref": "#/components/responses/Problem"
+            "description": "refused: `acquisition.release_unavailable` when the release picked sits on an item that is not waiting to be taken (still pending or searching, already grabbed, done or abandoned), whose pick would be dropped — nothing is queued; or `follow.ambiguous`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/Problem"
@@ -2583,11 +2590,25 @@
                         "null"
                       ],
                       "description": "when the next search runs"
+                    },
+                    "runState": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "queued",
+                        "running",
+                        "settled",
+                        null
+                      ],
+                      "description": "where the acquisition run named by `runUid` stands, so a page that asked a search reads its result once it is `settled` (O-6 B); null with no `runUid`, or when no acquisition request answers to it"
                     }
                   },
                   "required": [
                     "cadence",
-                    "nextSearch"
+                    "nextSearch",
+                    "runState"
                   ]
                 }
               }
@@ -2614,6 +2635,17 @@
         },
         "x-seeded-from": [
           "CADENCE_CRON"
+        ],
+        "parameters": [
+          {
+            "name": "runUid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "an acquisition run to follow, by the `runUid` its ask answered with"
+          }
         ]
       }
     },
@@ -11973,6 +12005,7 @@
           "acquisition.not_found",
           "acquisition.not_requester",
           "acquisition.follow_shared",
+          "acquisition.release_unavailable",
           "follow.not_restorable",
           "follow.ambiguous"
         ],

@@ -143,7 +143,7 @@
       },
       "AcquisitionStatusModel": {
         "additionalProperties": false,
-        "description": "The contract's ``readAcquisitionStatus`` answer.\n\nAttributes:\n    cadence: The cron the grab pass runs on.\n    next_search: When the next search runs, ISO 8601 with its offset; ``None`` on an instance that\n        schedules none.",
+        "description": "The contract's ``readAcquisitionStatus`` answer.\n\nAttributes:\n    cadence: The cron the grab pass runs on.\n    next_search: When the next search runs, ISO 8601 with its offset; ``None`` on an instance that\n        schedules none.\n    run_state: Where the acquisition run asked about stands; ``None`` when none is.",
         "properties": {
           "cadence": {
             "description": "the cron expression the scheduler runs on",
@@ -161,11 +161,26 @@
             ],
             "description": "when the next search runs",
             "title": "Nextsearch"
+          },
+          "runState": {
+            "description": "where the acquisition run named by `runUid` stands; null with no `runUid`, or when it names none",
+            "enum": [
+              "queued",
+              "running",
+              "settled",
+              null
+            ],
+            "title": "Runstate",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
           "cadence",
-          "nextSearch"
+          "nextSearch",
+          "runState"
         ],
         "title": "AcquisitionStatusModel",
         "type": "object"
@@ -2199,6 +2214,7 @@
           "acquisition.not_found",
           "acquisition.not_requester",
           "acquisition.follow_shared",
+          "acquisition.release_unavailable",
           "follow.not_restorable",
           "follow.ambiguous"
         ],
@@ -2687,7 +2703,7 @@
       },
       "SeasonGrabbed": {
         "additionalProperties": false,
-        "description": "The contract's ``grabSeasonForFollow`` answer, on its 201 and its 200.\n\nAttributes:\n    season: The season asked.\n    absorbed_count: Its aired episodes the library does not hold.\n    queued: Whether a pass of its subject was asked of the supervisor.\n    run_uid: That request's uid; ``None`` when none was asked (a season already being recovered\n        that the ask did not turn on, or an ask the supervisor refused).\n    reused: Whether the season was already being recovered (a 200); false on a 201.",
+        "description": "The contract's ``grabSeasonForFollow`` answer, on its 201 and its 200.\n\nAttributes:\n    season: The season asked.\n    absorbed_count: Its aired episodes the library does not hold.\n    queued: The ask is WAITING on the pipeline. Never here: a prime runs in the supervisor's\n        acquisition lane, which takes no pipeline lock.\n    run_uid: That request's uid; ``None`` when none was asked (a season already being recovered\n        that the ask did not turn on, or an ask the supervisor refused).\n    reused: Whether the season was already being recovered (a 200); false on a 201.",
         "properties": {
           "absorbedCount": {
             "title": "Absorbedcount",
@@ -4485,7 +4501,7 @@
     },
     "/acquisition/followed/{followedId}/grab": {
       "post": {
-        "description": "Ask a grab of one acquisition, of a chosen release or of what the last search marked takeable.\n\nArgs:\n    followed_id: The medium's key.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    body: The chosen release's handle, or nothing.\n\nReturns:\n    The queued request's uid.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` or ``releaseId``.\n    AppNotFound: ``acquisition.not_found`` when nothing stands under the key.\n    AppForbidden: ``acquisition.not_requester`` when the caller did not ask for it.",
+        "description": "Ask a grab of one acquisition, of a chosen release or of what the last search marked takeable.\n\nArgs:\n    followed_id: The medium's key.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    body: The chosen release's handle, or nothing.\n\nReturns:\n    The queued request's uid.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` or ``releaseId``.\n    AppNotFound: ``acquisition.not_found`` when nothing stands under the key.\n    AppForbidden: ``acquisition.not_requester`` when the caller did not ask for it.\n    AppConflict: ``acquisition.release_unavailable`` when the picked release's row cannot take it.",
         "operationId": "grabForFollow",
         "parameters": [
           {
@@ -5897,8 +5913,28 @@
     },
     "/acquisition/status": {
       "get": {
-        "description": "The grab's cadence, and when the next search runs.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The schedule.",
+        "description": "The grab's cadence, when the next search runs, and where an asked run stands.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    run_uid: The run to follow, or nothing.\n\nReturns:\n    The schedule.",
         "operationId": "readAcquisitionStatus",
+        "parameters": [
+          {
+            "description": "an acquisition run to follow, by the uid its ask answered",
+            "in": "query",
+            "name": "runUid",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "an acquisition run to follow, by the uid its ask answered",
+              "title": "Runuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
