@@ -9,15 +9,15 @@ keep their status untouched; a row with no follow is unaffected.
 from __future__ import annotations
 
 import io
+import logging
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-import structlog
 from rich.console import Console
-from structlog.testing import capture_logs
 
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, SearchVerdict
@@ -47,13 +47,6 @@ def _pin_service_clock() -> Iterator[None]:
     """Pin ``service.time.time`` so the fixture rows stay due."""
     with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
         yield
-
-
-@pytest.fixture(autouse=True)
-def _structlog_defaults() -> Iterator[None]:
-    """Reset structlog so ``capture_logs`` sees the service's events whatever ran before."""
-    structlog.reset_defaults()
-    yield
 
 
 def _follow(store: ConcreteAcquireStore, tvdb_id: int, *, active: bool = True) -> int:
@@ -155,20 +148,25 @@ def _service(store: ConcreteAcquireStore, orchestrator: MagicMock) -> Acquisitio
 # --- the grab pass ------------------------------------------------------------
 
 
-def test_grab_pass_leaves_an_available_row_of_a_paused_follow(store: ConcreteAcquireStore) -> None:
+def test_grab_pass_leaves_an_available_row_of_a_paused_follow(
+    store: ConcreteAcquireStore, caplog: pytest.LogCaptureFixture
+) -> None:
     """An ``available`` row of an inactive follow is not grabbed and stays ``available``."""
     fid = _follow(store, 11, active=False)
     wid = _row(store, fid, 11, 1, status="available")
     orch = _orchestrator()
 
-    with capture_logs() as logs:
+    with caplog.at_level(logging.INFO):
         summary = _service(store, orch).run()
 
     orch.grab.assert_not_called()
     assert _status(store, wid) == "available"
     assert (summary.grabbed, summary.skipped) == (0, 1)
-    paused = [e for e in logs if e["event"] == "acquire.service.follow_paused_skip"]
-    assert [(e["wanted_id"], e["followed_id"]) for e in paused] == [(wid, fid)]
+    paused = [r.getMessage() for r in caplog.records if "acquire.service.follow_paused_skip" in r.getMessage()]
+    assert len(paused) == 1
+    # The renderer decides between `wanted_id=1` and a dict repr: accept both.
+    assert re.search(rf"wanted_id['\"]?[:=] ?{wid}\b", paused[0])
+    assert re.search(rf"followed_id['\"]?[:=] ?{fid}\b", paused[0])
 
 
 def test_grab_pass_takes_the_row_again_once_the_follow_resumes(store: ConcreteAcquireStore) -> None:
@@ -234,13 +232,15 @@ def test_grab_pass_scoped_to_a_paused_follow_takes_nothing(store: ConcreteAcquir
 # --- the search pass ----------------------------------------------------------
 
 
-def test_search_pass_leaves_a_pending_row_of_a_paused_follow(store: ConcreteAcquireStore) -> None:
+def test_search_pass_leaves_a_pending_row_of_a_paused_follow(
+    store: ConcreteAcquireStore, caplog: pytest.LogCaptureFixture
+) -> None:
     """A ``pending`` row of an inactive follow is not searched and stays ``pending`` (not claimed)."""
     fid = _follow(store, 11, active=False)
     wid = _row(store, fid, 11, 1)
     orch = _orchestrator()
 
-    with capture_logs() as logs:
+    with caplog.at_level(logging.INFO):
         summary = _service(store, orch).run_search()
 
     orch.search.assert_not_called()
@@ -248,8 +248,11 @@ def test_search_pass_leaves_a_pending_row_of_a_paused_follow(store: ConcreteAcqu
     row = store.wanted.get(wid)
     assert row is not None and row.attempts == 0 and row.last_search_at is None
     assert summary.skipped == 1
-    paused = [e for e in logs if e["event"] == "acquire.service.follow_paused_skip"]
-    assert [(e["wanted_id"], e["followed_id"]) for e in paused] == [(wid, fid)]
+    paused = [r.getMessage() for r in caplog.records if "acquire.service.follow_paused_skip" in r.getMessage()]
+    assert len(paused) == 1
+    # The renderer decides between `wanted_id=1` and a dict repr: accept both.
+    assert re.search(rf"wanted_id['\"]?[:=] ?{wid}\b", paused[0])
+    assert re.search(rf"followed_id['\"]?[:=] ?{fid}\b", paused[0])
 
 
 def test_search_pass_takes_the_row_again_once_the_follow_resumes(store: ConcreteAcquireStore) -> None:
