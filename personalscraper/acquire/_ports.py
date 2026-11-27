@@ -26,7 +26,7 @@ domain VOs + stdlib — never from triage packages (layering, RP5c D3).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -558,8 +558,12 @@ class CandidateSubStore(Protocol):
 class SuggestionSubStore(Protocol):
     """Writer + reader for the ``suggestion`` deck (migration 028)."""
 
-    def replace_deck(self, rows: Sequence[SuggestionRow]) -> None:
-        """Replace the whole deck with *rows*, in one transaction."""
+    def replace_deck(self, rows: Sequence[SuggestionRow], *, asked_seeds: Mapping[str, int] | None = None) -> None:
+        """Replace the whole deck with *rows* and record *asked_seeds*' times, in one transaction."""
+        ...
+
+    def seeds_asked_at(self) -> dict[str, int]:
+        """Return when each seed was last asked (``seed_key`` → unix time); a seed never asked is absent."""
         ...
 
     def after(self, cursor: int | None, limit: int) -> list[SuggestionRow]:

@@ -231,7 +231,8 @@ module.exports = {
     },
 
     // The suggestions deck: the providers' recommendations over the titles the follows and the
-    // library hold, replaced wholesale. Weekly (a deck younger than a week is not asked again),
+    // library hold, replaced wholesale. Weekly (a deck younger than six days is not asked again,
+    // so a run that starts a few seconds before the last one's weekly mark is not skipped),
     // Sunday 05:30 after backfill-ids so the library's ids are complete, and a day before the
     // Monday 05:00 reboot. At most 25 seeds per run (`--max`); inert while no provider is
     // configured under `providers.RecommendationProvider`.

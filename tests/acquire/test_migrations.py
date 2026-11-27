@@ -48,6 +48,7 @@ _EXPECTED_TABLES = {
     "acquisition_requester",
     "wanted_candidate",
     "suggestion",
+    "suggestion_seed",
     "schema_version",
 }
 

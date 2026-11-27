@@ -268,9 +268,9 @@
     "refused": "Refused: {{code}}"
   },
   "suggestions_refresh": {
-    "command_help": "Rebuild the suggestions deck: titles worth following, from the providers' recommendations over the titles the follows and the library hold.\n\nPolite: a deck refreshed less than a week ago is not asked again (--force lifts it), and --max bounds the seeds asked in one run; the rest wait for the next. A provider failure on one seed is counted and the run goes on; when no provider answers, the previous deck stands. Prints a JSON summary. Meant to run under `personalscraper schedule` (weekly).",
+    "command_help": "Rebuild the suggestions deck: titles worth following, from the providers' recommendations over the titles the follows and the library hold.\n\nPolite: a deck refreshed less than six days ago is not asked again (--force lifts it), and --max bounds the seeds asked in one run; the least recently asked go first, so the rest are the next run's first. A provider failure on one seed is counted and the run goes on; when no provider answers, the previous deck stands. Prints a JSON summary. Meant to run under `personalscraper schedule` (weekly).",
     "max_help": "The most seeds (library or followed titles) asked of the providers in this run.",
-    "force_help": "Ask the providers even when the deck was refreshed less than a week ago.",
+    "force_help": "Ask the providers even when the deck was refreshed less than six days ago.",
     "db_paths_not_configured": "acquire.db_path and indexer.db_path must both be configured.",
     "no_provider": "No recommendation provider is configured (providers.RecommendationProvider): nothing was asked."
   }

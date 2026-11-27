@@ -8,6 +8,7 @@ otherwise. The acquire store is a real one on ``tmp_path``.
 from __future__ import annotations
 
 import json
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
@@ -25,10 +26,12 @@ from personalscraper.acquire.suggestions_refresh import refresh_suggestions as _
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import Recommendation
 from personalscraper.app.acquisition.held_titles import held_titles
+from personalscraper.app.schedulers.registry import CRON_JOBS
 from personalscraper.cli import app
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.library_view import IndexItem, IndexUnavailable
+from tests.indexer.test_ecosystem import _ECOSYSTEM_PATH, _get_app_by_name, _job_schedule, _parse_ecosystem_apps
 
 runner = CliRunner()
 _MODULE = "personalscraper.commands.suggestions_refresh"
@@ -100,6 +103,24 @@ def _item(kind: Literal["movie", "show"], title: str, **ids: int | str) -> Index
 def _rec(provider_id: str, title: str, media_type: MediaType = MediaType.TV, provider: str = "trakt") -> Recommendation:
     """A recommendation as a provider answers it."""
     return Recommendation(provider=provider, provider_id=provider_id, title=title, year=2019, media_type=media_type)
+
+
+@pytest.fixture(autouse=True)
+def no_sql_on_the_library(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make any ``sqlite3.connect`` on a ``library.db`` fail: the library is read through the index.
+
+    PLAN P11c asks the refresh tested "with the library read through a fake index — no
+    ``library.db`` opened by SQL". The fakes alone do not enforce that: code that opened the file
+    itself, beside the fake index, would pass. This refuses the open.
+    """
+    real_connect = sqlite3.connect
+
+    def guarded(database: object, *args: object, **kwargs: object) -> sqlite3.Connection:
+        if "library.db" in str(database):
+            raise AssertionError(f"the library was opened by SQL, not through the index: {database}")
+        return real_connect(database, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(sqlite3, "connect", guarded)
 
 
 @pytest.fixture
@@ -259,6 +280,56 @@ class TestPoliteness:
         assert len(provider.calls) == 2
         assert report.asked == 2 and report.remaining == 3
 
+    def test_the_seeds_left_over_are_the_next_runs_first(self, store: ConcreteAcquireStore) -> None:
+        """With more seeds than ``max_seeds`` every seed is asked within a few runs, not the same head each time."""
+        index = _FakeIndex([_item("show", f"S{i}", imdb=f"tt{i}") for i in (1, 2, 3)])
+        provider = _Provider()
+
+        first = refresh_suggestions(store, index, [provider], now=_NOW, max_seeds=2, force=True)
+        second = refresh_suggestions(store, index, [provider], now=_NOW + 10, max_seeds=2, force=True)
+        third = refresh_suggestions(store, index, [provider], now=_NOW + 20, max_seeds=2, force=True)
+
+        asked = [c[0] for c in provider.calls]
+        assert asked[:2] == ["tt1", "tt2"]
+        assert asked[2] == "tt3"  # the seed left over by the first run goes first in the second
+        assert asked[4] == "tt2"  # and the one asked longest ago, in the third
+        assert (first.remaining, second.remaining, third.remaining) == (1, 1, 1)
+
+    def test_a_follow_goes_before_the_library_among_seeds_never_asked(self, store: ConcreteAcquireStore) -> None:
+        """No run has asked anyone yet: the follows go first, the library after, as before."""
+        store.follow.add(FollowedSeries(media_ref=MediaRef(imdb_id="tt9"), title="Followed", added_at=1))
+        index = _FakeIndex([_item("show", "Held", imdb="tt1")])
+        provider = _Provider()
+
+        refresh_suggestions(store, index, [provider], now=_NOW, max_seeds=1)
+
+        assert [c[0] for c in provider.calls] == ["tt9"]
+
+    def test_a_seed_that_failed_is_not_marked_asked_and_is_retried_first(self, store: ConcreteAcquireStore) -> None:
+        """Only a seed a provider answered for moves to the back of the line."""
+        index = _FakeIndex([_item("show", f"S{i}", imdb=f"tt{i}") for i in (1, 2, 3)])
+        provider = _Provider(failing={"tt1"})
+        refresh_suggestions(store, index, [provider], now=_NOW, max_seeds=2, force=True)
+        provider.calls.clear()
+        provider.failing = set()
+
+        refresh_suggestions(store, index, [provider], now=_NOW + 10, max_seeds=2, force=True)
+
+        assert [c[0] for c in provider.calls] == ["tt1", "tt3"]
+
+    def test_a_weekly_cron_is_not_skipped_by_the_gate(self, store: ConcreteAcquireStore) -> None:
+        """The cron fires a week apart, give or take the start-up time: a run a few seconds early still asks."""
+        week = 7 * 86400
+        index = _FakeIndex([_item("show", "A", imdb="tt1")])
+        provider = _Provider(answers={"tt1": [_rec("x", "X")]})
+        refresh_suggestions(store, index, [provider], now=_NOW, max_seeds=10)
+        provider.calls.clear()
+
+        report = refresh_suggestions(store, index, [provider], now=_NOW + week - 5, max_seeds=10)
+
+        assert not report.fresh
+        assert provider.calls == [("tt1", MediaType.TV)]
+
     def test_a_deck_refreshed_within_the_interval_asks_nobody(self, store: ConcreteAcquireStore) -> None:
         """A second run inside the period makes no provider call and leaves the deck as it is."""
         index = _FakeIndex([_item("show", "A", imdb="tt1")])
@@ -327,8 +398,13 @@ def configured(tmp_path: Path, test_config) -> Path:
     return tmp_path / "acquire.db"
 
 
-def _invoke(provider: _Provider, index: _FakeIndex, *args: str, test_config) -> object:
-    """Run the command with a registry serving ``provider`` and the fake ``index``."""
+def _invoke(
+    provider: _Provider, index: _FakeIndex, *args: str, test_config, recorded: list[str] | None = None
+) -> object:
+    """Run the command with a registry serving ``provider`` and the fake ``index``.
+
+    ``recorded`` collects the command name the run's ``pipeline_run`` row is written under.
+    """
     registry = MagicMock()
     registry.providers_for.return_value = [provider]
 
@@ -337,7 +413,9 @@ def _invoke(provider: _Provider, index: _FakeIndex, *args: str, test_config) -> 
         yield SimpleNamespace(provider_registry=registry)
 
     @contextmanager
-    def fake_run_row(*_a, **_k):
+    def fake_run_row(_config, name, *_a, **_k):
+        if recorded is not None:
+            recorded.append(name)
         yield MagicMock()
 
     with (
@@ -370,11 +448,47 @@ class TestCommand:
         assert result.exit_code == 0, result.output  # type: ignore[attr-defined]
         line = next(ln for ln in result.output.splitlines() if ln.startswith("{"))  # type: ignore[attr-defined]
         assert json.loads(line) == {"asked": 1, "failed": 0, "stored": 1, "remaining": 0, "fresh": False}
+        assert not test_config.indexer.db_path.exists()  # the library went through the index, never opened by SQL
         store = build_acquire_store(AcquireConfig(db_path=configured))
         try:
             assert [r.provider_id for r in _deck(store)] == ["x"]
         finally:
             store.close()
+
+    def test_max_reaches_the_engine(self, configured: Path, test_config) -> None:
+        """``--max 2`` over three seeds asks two and leaves one: the option is not ignored by the command."""
+        provider = _Provider()
+        index = _FakeIndex([_item("show", f"S{i}", imdb=f"tt{i}") for i in (1, 2, 3)])
+
+        result = _invoke(provider, index, "--max", "2", test_config=test_config)
+
+        assert result.exit_code == 0, result.output  # type: ignore[attr-defined]
+        line = next(ln for ln in result.output.splitlines() if ln.startswith("{"))  # type: ignore[attr-defined]
+        summary = json.loads(line)
+        assert (summary["asked"], summary["remaining"]) == (2, 1)
+        assert len(provider.calls) == 2
+
+    def test_the_scheduler_entry_its_registry_row_and_the_recorded_command_agree(
+        self, configured: Path, test_config
+    ) -> None:
+        """The PM2 app runs the command whose run row the schedulers route matches by prefix, at the cron it shows.
+
+        Three strings name one cron: the app's argv, the registry row's ``command_prefix`` and the
+        ``schedule`` label, and the command the run records. A change to one alone would leave the
+        route's ``last_run_at`` at ``None`` for ever, or show a time the cron does not fire at.
+        """
+        recorded: list[str] = []
+        _invoke(_Provider(), _FakeIndex([]), test_config=test_config, recorded=recorded)
+        (command,) = recorded
+        app_entry = _get_app_by_name(_parse_ecosystem_apps(_ECOSYSTEM_PATH), "personalscraper-suggestions-refresh")
+        cron, job_argv = _job_schedule(app_entry)
+        row = next(job for job in CRON_JOBS if job.name == app_entry["name"])
+        minute, hour, _, _, weekday = cron.split()
+
+        assert job_argv == [command]  # the app runs the command that records the run
+        assert command.startswith(row.command_prefix)  # the route finds the run by this prefix
+        assert (weekday, f"{int(hour):02d}:{int(minute):02d}") == ("0", "05:30")
+        assert "05:30" in row.schedule and "dimanche" in row.schedule  # french-ok: the label the route serves
 
     def test_a_second_run_inside_the_period_is_fresh(self, configured: Path, test_config) -> None:
         """The politeness gate holds through the CLI; ``--force`` lifts it."""

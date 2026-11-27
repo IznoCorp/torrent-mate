@@ -87,6 +87,7 @@ class TestMigration028:
         } <= columns
         assert conn.execute("PRAGMA user_version").fetchone()[0] >= 28
         assert conn.execute("SELECT 1 FROM schema_version WHERE version = 28").fetchone() is not None
+        assert {row[1] for row in conn.execute("PRAGMA table_info(suggestion_seed)")} == {"seed_key", "asked_at"}
 
     def test_a_027_store_gains_the_table_and_keeps_its_rows(self, tmp_path: Path) -> None:
         """Additive: a store migrated to 027 keeps its follow when 028 applies."""
@@ -181,6 +182,25 @@ class TestDeck:
         store.suggestions.replace_deck([])
         assert store.suggestions.after(None, 10) == []
         assert store.suggestions.refreshed_at() is None
+
+    def test_the_seeds_asked_are_remembered_across_decks(self, store: ConcreteAcquireStore) -> None:
+        """A refresh notes the time of the seeds it asked; the next deck's replacement keeps the others' times."""
+        assert store.suggestions.seeds_asked_at() == {}
+
+        store.suggestions.replace_deck([_row("a")], asked_seeds={"tmdb:1": 100, "tmdb:2": 100})
+        store.suggestions.replace_deck([_row("b")], asked_seeds={"tmdb:2": 200, "tmdb:3": 200})
+        store.suggestions.replace_deck([_row("c")])
+
+        assert store.suggestions.seeds_asked_at() == {"tmdb:1": 100, "tmdb:2": 200, "tmdb:3": 200}
+
+    def test_a_refused_replacement_leaves_the_seed_times(self, store: ConcreteAcquireStore) -> None:
+        """The seeds are written in the deck's transaction: a rollback keeps both."""
+        store.suggestions.replace_deck([_row("keep")], asked_seeds={"tmdb:1": 100})
+
+        with pytest.raises(sqlite3.IntegrityError):
+            store.suggestions.replace_deck([_row("dup"), _row("dup")], asked_seeds={"tmdb:1": 999, "tmdb:2": 999})
+
+        assert store.suggestions.seeds_asked_at() == {"tmdb:1": 100}
 
     def test_after_pages_by_the_last_key_read(self, store: ConcreteAcquireStore) -> None:
         """``after`` returns the rows past a key, ``limit`` at most, in order, without overlap."""

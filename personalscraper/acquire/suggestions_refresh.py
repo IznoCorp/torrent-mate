@@ -8,10 +8,13 @@ library THROUGH THE INDEXER (``app.acquisition.held_titles``), never ``library.d
 
 Politeness, as ``library-catalogue-refresh``'s: a deck refreshed within
 :data:`DEFAULT_MIN_INTERVAL_S` is not asked again (unless forced), and at most ``max_seeds`` seeds
-are asked per run; the rest wait for the next. A provider failure on one seed is counted and the
-run goes on; a run in which no provider answered leaves the previous deck and its date untouched,
-so an outage neither empties the deck nor makes it look fresh. A title that two seeds recommend is
-stored once, for the first seed.
+are asked per run. The seeds rotate: the store remembers when each was asked
+(``suggestion_seed``) and a run takes the seeds least recently asked first, the follows before the
+library among equals, so the seeds a run left over are the next run's first. A provider failure on
+one seed is counted and the run goes on (that seed is not marked asked, and is retried first); a
+run in which no provider answered leaves the previous deck and its date untouched, so an outage
+neither empties the deck nor makes it look fresh. A title that two seeds recommend is stored once,
+for the first seed asked.
 
 Each provider is asked by the id it numbers titles with (TMDB's, TVDB's; IMDb's for Trakt and the
 rest): a seed holding no such id costs the provider no call and the run no slot.
@@ -43,8 +46,10 @@ __all__ = [
     "refresh_suggestions",
 ]
 
-#: A deck refreshed less than this long ago is not asked again (a week, the catalogue's period).
-DEFAULT_MIN_INTERVAL_S: Final[int] = 7 * 86400
+#: A deck refreshed less than this long ago is not asked again. Six days, not a week: the weekly
+#: cron's runs start a few seconds apart from one week to the next, and a gate of exactly the cron's
+#: period would skip a run that starts a second earlier than the last.
+DEFAULT_MIN_INTERVAL_S: Final[int] = 6 * 86400
 
 #: Seeds asked in one run unless the operator says otherwise (each costs one call per provider).
 DEFAULT_MAX_SEEDS: Final[int] = 25
@@ -83,7 +88,8 @@ class SuggestionsRefreshReport:
         asked: Provider calls that answered.
         failed: Provider calls that failed (the run went on).
         stored: Titles the new deck holds; ``0`` when the deck was left as it was.
-        remaining: Seeds not asked in this run because ``max_seeds`` was reached.
+        remaining: Seeds not asked in this run because ``max_seeds`` was reached (they come first
+            in the next run).
         fresh: Whether the run asked nobody because the deck is younger than the interval.
     """
 
@@ -160,7 +166,8 @@ def _seeds(store: AcquireStore, library_titles: Callable[[], Iterable[HeldTitle]
         library_titles: Reads the titles the library holds, most recently added first.
 
     Returns:
-        The seeds, the follows first, the library most recently added first.
+        The seeds, the follows first, the library most recently added first (the order of the
+        seeds no run has asked yet; :func:`refresh_suggestions` reorders the others by their age).
     """
     seeds: list[_Seed] = []
     seen: set[tuple[str, ...]] = set()
@@ -210,7 +217,7 @@ def refresh_suggestions(
         library_titles: Reads the titles the library holds (through the indexer), most recently added first.
         providers: The recommending providers, in priority order; none means nothing is asked.
         now: Current unix time (stamped as ``refreshed_at``).
-        max_seeds: The most seeds asked in this run.
+        max_seeds: The most seeds asked in this run; the least recently asked go first.
         min_interval_s: A deck refreshed less than this long ago is left alone.
         force: Ask even when the deck is fresh.
 
@@ -226,7 +233,10 @@ def refresh_suggestions(
 
     deck: dict[tuple[str, str, str], SuggestionRow] = {}
     asked = failed = remaining = seeds_asked = 0
-    for seed in _seeds(store, library_titles):
+    asked_seeds: dict[str, int] = {}
+    last_asked = store.suggestions.seeds_asked_at()
+    # Least recently asked first; the sort is stable, so seeds never asked keep the follows-first order.
+    for seed in sorted(_seeds(store, library_titles), key=lambda s: last_asked.get(s.key, -1)):
         usable = [(p, media_id) for p in providers if (media_id := _native_id(p, seed.ref)) is not None]
         if not usable:
             continue  # no provider can be asked by this seed's ids: no call, no slot
@@ -237,10 +247,12 @@ def refresh_suggestions(
         answered, unanswered = _ask_seed(usable, seed, now, deck)
         asked += answered
         failed += unanswered
+        if answered:
+            asked_seeds[seed.key] = now
 
     if asked == 0:
         return SuggestionsRefreshReport(failed=failed, remaining=remaining)
-    store.suggestions.replace_deck(list(deck.values()))
+    store.suggestions.replace_deck(list(deck.values()), asked_seeds=asked_seeds)
     return SuggestionsRefreshReport(asked=asked, failed=failed, stored=len(deck), remaining=remaining)
 
 

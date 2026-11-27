@@ -2,9 +2,9 @@
 
 Seeds the configured recommendation providers with the titles the follows and the library hold
 (the library read through the index, never ``library.db`` by SQL) and replaces the deck in
-``acquire.db``. Polite, as ``library-catalogue-refresh`` is: a deck younger than a week is not
-asked again (``--force`` lifts it) and ``--max`` bounds the seeds asked in one run. Meant to run
-under ``personalscraper schedule`` (weekly).
+``acquire.db``. Polite, as ``library-catalogue-refresh`` is: a deck younger than six days is not
+asked again (``--force`` lifts it) and ``--max`` bounds the seeds asked in one run, the least
+recently asked first. Meant to run under ``personalscraper schedule`` (weekly).
 
 Examples:
     personalscraper acquisition-suggestions-refresh --max 10
@@ -56,7 +56,7 @@ def acquisition_suggestions_refresh(
     Args:
         ctx: Typer context carrying the loaded configuration.
         max_seeds: The most seeds asked in this run.
-        force: Ask even when the deck was refreshed less than a week ago.
+        force: Ask even when the deck was refreshed less than six days ago.
 
     Raises:
         typer.Exit: Code 1 when ``acquire.db_path`` or ``indexer.db_path`` is not configured.

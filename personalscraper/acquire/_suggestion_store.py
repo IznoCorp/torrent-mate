@@ -12,7 +12,7 @@ shared ``_write_tx`` context manager.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from typing import cast
 
@@ -41,8 +41,8 @@ class _SuggestionSubStore:
         self._conn = conn
         self._write_tx = write_tx
 
-    def replace_deck(self, rows: Sequence[SuggestionRow]) -> None:
-        """Replace the whole deck with ``rows``, in one transaction.
+    def replace_deck(self, rows: Sequence[SuggestionRow], *, asked_seeds: Mapping[str, int] | None = None) -> None:
+        """Replace the whole deck with ``rows`` and note the seeds asked, in one transaction.
 
         The rows take rising keys in the order given, all later than any key a previous deck
         held (the key is never reused), so a cursor of an older deck lands before every row of
@@ -51,6 +51,9 @@ class _SuggestionSubStore:
         Args:
             rows: The new deck, in the order it is shown; each ``(provider, provider_id, kind)``
                 unique within it. An empty sequence clears the deck.
+            asked_seeds: The seeds this refresh asked, ``seed_key`` → unix time, written over what
+                the table held for them; the seeds not named keep their time. ``None`` or empty
+                writes none.
 
         Raises:
             sqlite3.IntegrityError: On a duplicate title or a value the table refuses, after the
@@ -80,6 +83,21 @@ class _SuggestionSubStore:
                     for r in rows
                 ],
             )
+            if asked_seeds:
+                self._conn.executemany(
+                    "INSERT OR REPLACE INTO suggestion_seed (seed_key, asked_at) VALUES (?, ?)",
+                    list(asked_seeds.items()),
+                )
+
+    def seeds_asked_at(self) -> dict[str, int]:
+        """Return when each seed was last asked.
+
+        Returns:
+            ``seed_key`` → the unix time of the last refresh in which a provider answered for the
+            seed; a seed never asked is absent.
+        """
+        rows = self._conn.execute("SELECT seed_key, asked_at FROM suggestion_seed").fetchall()
+        return {str(key): int(asked_at) for key, asked_at in rows}
 
     def after(self, cursor: int | None, limit: int) -> list[SuggestionRow]:
         """Return the deck's rows past a key, in the order they are shown.

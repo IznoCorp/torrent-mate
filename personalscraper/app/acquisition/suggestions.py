@@ -1,7 +1,7 @@
 """``Suggestions``: the deck of titles worth following, minus what the reader already holds (K3 P11c).
 
 A refresh (``personalscraper acquisition-suggestions-refresh``,
-:mod:`personalscraper.app.acquisition.suggestions_refresh`) stores the deck in ``acquire.db``;
+:mod:`personalscraper.acquire.suggestions_refresh`) stores the deck in ``acquire.db``;
 :meth:`Suggestions.read` serves it a page at a time. A title leaves a reader's page when
 
 * the library OWNS it: a film a live file holds, a show with any live episode file (the indexer's

@@ -18,6 +18,13 @@
 -- ``poster`` are NULL when the provider's recommendation gives none. ``refreshed_at`` is the
 -- unix time of the refresh that wrote the row (every row of a deck shares it).
 --
+-- ``suggestion_seed`` is the refresh's memory of the seeds it asked: ``seed_key`` is the key a
+-- seed carries in the deck (``suggestion.seed_key``), ``asked_at`` the unix time of the last refresh
+-- in which a provider answered for it. The refresh asks the seeds least recently asked first, so a
+-- run bounded by ``--max`` reaches the whole library and the whole set of follows over the weeks
+-- instead of the same head every time. It survives the deck's replacement (a seed whose
+-- recommendations were all duplicates leaves no row in the deck, and was asked all the same).
+--
 -- Reads exclude what the reader owns or follows by provider id; the rejection a reader made
 -- of a title is a per-account fact that lives in ``app.db`` (O-9), never here.
 --
@@ -39,6 +46,11 @@ CREATE TABLE suggestion (
     seed_key     TEXT    NOT NULL,
     refreshed_at INTEGER NOT NULL,
     UNIQUE (provider, provider_id, kind)
+);
+
+CREATE TABLE suggestion_seed (
+    seed_key TEXT    PRIMARY KEY,
+    asked_at INTEGER NOT NULL
 );
 
 INSERT OR IGNORE INTO schema_version(version) VALUES (28);
