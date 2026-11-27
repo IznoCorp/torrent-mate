@@ -72,6 +72,7 @@ from personalscraper.acquire._store_rows import (
     _row_to_ratio,
     _row_to_seed,
 )
+from personalscraper.acquire._suggestion_store import _SuggestionSubStore
 from personalscraper.acquire._wanted_store import _WantedSubStore
 from personalscraper.acquire._watch_store import _WatchSubStore
 from personalscraper.acquire.domain import (
@@ -1325,6 +1326,7 @@ class ConcreteAcquireStore:
         download_marks: ``download_marks`` advisory sub-store (O4/D7, lazy).
         requesters: ``acquisition_requester`` sub-store (who asked for a follow, lazy).
         candidates: ``wanted_candidate`` sub-store (a wanted row's ranked candidates, lazy).
+        suggestions: ``suggestion`` sub-store (the deck of titles worth following, lazy).
     """
 
     def __init__(self, db_path: Path) -> None:
@@ -1350,6 +1352,7 @@ class ConcreteAcquireStore:
         self._download_marks: DownloadMarksStore | None = None
         self._requesters: _RequesterSubStore | None = None
         self._candidates: _CandidateSubStore | None = None
+        self._suggestions: _SuggestionSubStore | None = None
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -1472,6 +1475,13 @@ class ConcreteAcquireStore:
         if self._candidates is None:
             self._candidates = _CandidateSubStore(self._ensure_open(), _write_tx)
         return self._candidates
+
+    @property
+    def suggestions(self) -> _SuggestionSubStore:
+        """``suggestion`` sub-store: the deck of titles worth following (ensures open)."""
+        if self._suggestions is None:
+            self._suggestions = _SuggestionSubStore(self._ensure_open(), _write_tx)
+        return self._suggestions
 
     @contextmanager
     def transaction(self) -> Generator[None, None, None]:

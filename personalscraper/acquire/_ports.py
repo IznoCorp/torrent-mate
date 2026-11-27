@@ -12,6 +12,7 @@ exposed as attribute namespaces:
   * ``store.watch``      — ``watch_state`` KV store (watcher daemon state)
   * ``store.requesters`` — ``acquisition_requester`` writer + reader (who asked for a follow)
   * ``store.candidates`` — ``wanted_candidate`` writer + reader (a wanted row's ranked candidates)
+  * ``store.suggestions`` — ``suggestion`` deck writer + paged reader (titles worth following)
 
 All five sub-stores share a single ``acquire.db`` connection.  Cross-process
 single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
@@ -44,6 +45,7 @@ from personalscraper.acquire.domain import (
     FollowScope,
     RatioState,
     SeedObligation,
+    SuggestionRow,
     WantedCandidate,
     WantedItem,
     WantedKind,
@@ -553,6 +555,23 @@ class CandidateSubStore(Protocol):
 
 
 @runtime_checkable
+class SuggestionSubStore(Protocol):
+    """Writer + reader for the ``suggestion`` deck (migration 028)."""
+
+    def replace_deck(self, rows: Sequence[SuggestionRow]) -> None:
+        """Replace the whole deck with *rows*, in one transaction."""
+        ...
+
+    def after(self, cursor: int | None, limit: int) -> list[SuggestionRow]:
+        """Return at most *limit* rows with a key above *cursor* (``None`` = the head), in deck order."""
+        ...
+
+    def refreshed_at(self) -> int | None:
+        """Return when the deck was last refreshed, ``None`` when it is empty."""
+        ...
+
+
+@runtime_checkable
 class AcquireStore(Protocol):
     """Full store contract for the acquisition lobe (RP3).
 
@@ -618,6 +637,11 @@ class AcquireStore(Protocol):
     @property
     def candidates(self) -> CandidateSubStore:
         """``wanted_candidate`` sub-store (opens on access)."""
+        ...
+
+    @property
+    def suggestions(self) -> SuggestionSubStore:
+        """``suggestion`` deck sub-store (opens on access)."""
         ...
 
     def transaction(self) -> AbstractContextManager[None]:
@@ -804,6 +828,7 @@ __all__ = [
     "FollowSubStore",
     "RatioSubStore",
     "SeedSubStore",
+    "SuggestionSubStore",
     "WantedSubStore",
     "WatchSubStore",
 ]

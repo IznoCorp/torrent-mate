@@ -36,6 +36,9 @@ FollowScope = Literal["follow", "request"]
 RequesterVia = Literal["follow", "request"]
 #: What put a ``wanted`` row in the queue: a person's ask, or the engine's own rule.
 WantedTrigger = Literal["manual", "automatic"]
+#: Why a title is suggested, as the CODE the interface words: it resembles one the library holds, or one
+#: an account follows (``suggestion.reason``).
+SuggestionReason = Literal["similar_to_owned", "similar_to_followed"]
 #: The quality floors a requester can set, as vertical resolutions.
 REQUESTER_FLOORS: frozenset[int] = frozenset({720, 1080, 2160})
 
@@ -494,6 +497,40 @@ class WantedCandidate:
     searched_at: int
 
 
+@dataclass(frozen=True)
+class SuggestionRow:
+    """One title of the suggestions deck (``suggestion``, migration 028).
+
+    The deck is replaced wholesale by each refresh; a title is in it once, by
+    ``(provider, provider_id, kind)``.
+
+    Attributes:
+        provider: The provider that recommended the title (``"trakt"``, ``"tmdb"``…).
+        provider_id: The title's id at that provider: a number, an IMDb id or a slug.
+        kind: ``"movie"`` or ``"show"``.
+        title: The provider's title.
+        year: The release or first-air year, ``None`` when the provider gave none.
+        rating: The provider's rating, ``None`` when the recommendation carried none.
+        poster: The poster's address, ``None`` when the recommendation carried none.
+        reason: Why it is suggested, as a code.
+        seed_key: The title whose recommendation this is (``"tmdb:603"``, ``"imdb:tt0133093"``).
+        refreshed_at: Unix epoch seconds of the refresh that wrote the row.
+        id: The row's rising key (the deck's order and its cursor); ``None`` until persisted.
+    """
+
+    provider: str
+    provider_id: str
+    kind: FollowKind
+    title: str
+    year: int | None
+    rating: float | None
+    poster: str | None
+    reason: SuggestionReason
+    seed_key: str
+    refreshed_at: int
+    id: int | None = None
+
+
 __all__ = [
     "OPEN_WANTED_STATUSES",
     "REQUESTER_FLOORS",
@@ -505,6 +542,8 @@ __all__ = [
     "RatioState",
     "RequesterVia",
     "SeedObligation",
+    "SuggestionReason",
+    "SuggestionRow",
     "WantedCandidate",
     "WantedItem",
     "WantedKind",

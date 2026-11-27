@@ -78,8 +78,8 @@ class TestFreshStore:
     """027 applied on a fresh store."""
 
     def test_user_version_is_27(self, conn: sqlite3.Connection) -> None:
-        """The chain ends at 027 and records its schema_version marker."""
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 27
+        """The full chain records 027's schema_version marker (028 follows it)."""
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 28  # the full chain: 027 then 028
         assert conn.execute("SELECT 1 FROM schema_version WHERE version = 27").fetchone() is not None
 
     def test_new_tables_and_columns_exist(self, conn: sqlite3.Connection) -> None:

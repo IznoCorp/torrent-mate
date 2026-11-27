@@ -153,7 +153,12 @@ class TestDeck:
         assert [r.provider_id for r in rows] == ["b", "a"]
         first = rows[0]
         assert first.id is not None and rows[1].id is not None and first.id < rows[1].id
-        assert (first.year, first.rating, first.poster, first.reason) == (1999, 7.5, "https://img/b.jpg", "similar_to_followed")
+        assert (first.year, first.rating, first.poster, first.reason) == (
+            1999,
+            7.5,
+            "https://img/b.jpg",
+            "similar_to_followed",
+        )
         assert (first.provider, first.kind, first.title, first.seed_key) == ("trakt", "show", "Title b", "tmdb:603")
         assert store.suggestions.refreshed_at() == 1_800_000_000
 
