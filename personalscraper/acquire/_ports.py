@@ -74,6 +74,10 @@ class FollowSubStore(Protocol):
         """
         ...
 
+    def find_all_by_refs(self, lookups: Sequence[tuple[MediaRef, FollowKind | None]]) -> list[list[FollowedSeries]]:
+        """Answer many :meth:`find_all_by_ref` lookups at once: one list of rows per lookup, in the order asked."""
+        ...
+
     def find_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> FollowedSeries | None:
         """Return the follow of *media_ref*'s medium, or ``None``.
 

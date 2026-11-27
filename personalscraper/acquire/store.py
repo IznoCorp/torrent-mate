@@ -56,7 +56,7 @@ event names ``acquire.store.*``.  Imports: ``core/``, ``conf/`` + stdlib only.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -287,6 +287,11 @@ def _log_kind_conflict(rowid: int | None, held_kind: str, offered_kind: FollowKi
         held_kind=held_kind,
         offered_kind=offered_kind,
     )
+
+
+#: Lookups one :meth:`_FollowSubStore.find_all_by_refs` statement carries: five bound values each,
+#: so a chunk stays far under SQLite's variable limit whatever the build's default.
+_LOOKUP_CHUNK = 100
 
 
 # ---------------------------------------------------------------------------
@@ -529,6 +534,68 @@ class _FollowSubStore:
             },
         ).fetchall()
         return [_row_to_followed(r) for r in rows]
+
+    def find_all_by_refs(self, lookups: Sequence[tuple[MediaRef, FollowKind | None]]) -> list[list[FollowedSeries]]:
+        """Answer many :meth:`find_all_by_ref` lookups with one query per :data:`_LOOKUP_CHUNK`.
+
+        A page of search results is flagged ``followed`` from this: a query per result is the
+        cost it replaces. Each lookup gets what the single lookup gives it, by the same rule
+        (TVDB, then TMDB, then IMDb matches, each oldest first; the kind restricting the TVDB
+        and TMDB ids), in its own slot, so the answer lines up with the ask.
+
+        Args:
+            lookups: ``(media_ref, kind)`` pairs, as :meth:`find_all_by_ref` takes them.
+
+        Returns:
+            One list of rows per lookup, in the order asked; ``[]`` for a medium no row holds.
+        """
+        answers: list[list[FollowedSeries]] = []
+        for start in range(0, len(lookups), _LOOKUP_CHUNK):
+            answers.extend(self._find_chunk(lookups[start : start + _LOOKUP_CHUNK]))
+        return answers
+
+    def _find_chunk(self, lookups: Sequence[tuple[MediaRef, FollowKind | None]]) -> list[list[FollowedSeries]]:
+        """Answer one chunk of lookups with a single statement.
+
+        Args:
+            lookups: At most :data:`_LOOKUP_CHUNK` ``(media_ref, kind)`` pairs.
+
+        Returns:
+            One list of rows per lookup, in the order asked.
+        """
+        answers: list[list[FollowedSeries]] = [[] for _ in lookups]
+        if not lookups:
+            return answers
+        values: list[object] = []
+        for number, (media_ref, kind) in enumerate(lookups):
+            numbered_kind = kind if kind is not None else ("show" if media_ref.tvdb_id is not None else None)
+            values.extend((number, media_ref.tvdb_id, media_ref.tmdb_id, media_ref.imdb_id, numbered_kind))
+        placeholders = ", ".join("(?, ?, ?, ?, ?)" for _ in lookups)
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            f"""
+            WITH asked(n, tvdb, tmdb, imdb, kind) AS (VALUES {placeholders})
+            SELECT * FROM (
+                SELECT asked.n AS n, f.id, f.media_ref_json, f.title, f.active,
+                       f.quality_profile_json, f.cadence_json, f.added_at, f.kind, f.replace_owned,
+                       f.original_title, f.scope, f.removed_at,
+                       CASE
+                         WHEN json_extract(f.media_ref_json, '$.tvdb_id') = asked.tvdb
+                              AND (asked.kind IS NULL OR f.kind = asked.kind) THEN 0
+                         WHEN json_extract(f.media_ref_json, '$.tmdb_id') = asked.tmdb
+                              AND (asked.kind IS NULL OR f.kind = asked.kind) THEN 1
+                         WHEN json_extract(f.media_ref_json, '$.imdb_id') = asked.imdb THEN 2
+                       END AS match_rank
+                FROM asked CROSS JOIN followed_series AS f
+            )
+            WHERE match_rank IS NOT NULL
+            ORDER BY n, match_rank, id
+            """,  # noqa: S608 — only the placeholder groups are interpolated; every value is bound
+            values,
+        ).fetchall()
+        for row in rows:
+            answers[row["n"]].append(_row_to_followed(row))
+        return answers
 
     def find_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> FollowedSeries | None:
         """Return the follow of *media_ref*'s medium, or ``None``.
