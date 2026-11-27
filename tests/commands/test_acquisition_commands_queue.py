@@ -395,6 +395,32 @@ class TestSeries:
         [request] = _requests(test_config)
         assert request.job == AcquisitionJob(JobKind.DETECT, followed_id=first)
 
+    def test_a_number_asks_no_follow_whose_title_holds_it(
+        self, test_config: Config, store: AppStore, library_db: Path
+    ) -> None:
+        """v0's prime passes ``--series <id>``: a title holding that number must not widen the pass."""
+        first = _follow(test_config, "Other", 1)
+        _follow(test_config, f"Show {first}", 2)
+        with patch(_SLEEP, _settle_all(store, Settlement.SUCCESS)):
+            result = runner.invoke(app, ["follow", "detect", "--series", str(first)])
+
+        assert result.exit_code == 0, result.output
+        assert [request.job.followed_id for request in _requests(test_config)] == [first]
+
+    def test_an_inactive_follow_is_not_matched(
+        self, test_config: Config, store: AppStore, library_db: Path, no_direct_pass: list[str]
+    ) -> None:
+        """The detect pass polls the active follows and the one-off requests: a title elsewhere matches nothing."""
+        _follow(test_config, "Other Show", 1)
+        _follow(test_config, "The Long Voyage", 2, active=False)
+        with patch(_SLEEP, _settle_all(store, Settlement.SUCCESS)):
+            result = runner.invoke(app, ["follow", "detect", "--series", "voyage"])
+
+        assert result.exit_code == 0, result.output
+        assert t("cli_acquisition.follow.detect.no_match") in _line(result.output)
+        assert _requests(test_config) == []
+        assert no_direct_pass == []
+
     def test_several_matches_ask_one_detect_each_and_exit_on_the_first_failure(
         self, test_config: Config, store: AppStore, library_db: Path
     ) -> None:

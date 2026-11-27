@@ -34,6 +34,7 @@ from personalscraper.app.supervisor.service import RunService
 from personalscraper.app.supervisor.supervisor import Supervisor
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
+from tests.fixtures.torrent_scope import SCOPE, SCOPED_TORRENT_CONFIG
 from tests.unit.app.supervisor import test_acquisition_kind as kind
 from tests.unit.app.supervisor.fakes import FakeWorkerLauncher
 from tests.unit.app.supervisor.test_acquisition_kind import (
@@ -206,6 +207,14 @@ class TestTheRow:
         )
         assert [step["name"] for step in row["steps"]] == steps
 
+    def test_a_commands_request_is_recorded_as_the_commands(self, store: AppStore, test_config: Config) -> None:
+        """A pass the CLI asked reads ``cli`` on its row, not the row factory's default ``web``."""
+        request = _running(store, AcquisitionJob(JobKind.GRAB), trigger=RunTrigger.CLI)
+
+        assert _run_worker(store, test_config, request.uid, _hooked([], _Fake([]))) == 0
+
+        assert _row(test_config, request.uid)["trigger"] == RunTrigger.CLI.value
+
     def test_the_counts_of_each_pass_are_the_commands(self, store: AppStore, test_config: Config) -> None:
         """Detect, search and grab carry the numbers their commands recorded, the reconcile's included."""
         fake = _Fake([])
@@ -375,14 +384,31 @@ class _Closing:
         self.log.append(f"{self.name}_closed")
 
 
+#: What each stand-in was handed: its positional and keyword arguments, by recorded name.
+_Handed = dict[str, tuple[tuple[object, ...], dict[str, object]]]
+
+
 @contextmanager
-def _opened(test_config: Config, job: AcquisitionJob, order: list[str]) -> Iterator[AcquisitionEngine]:
+def _opened(
+    test_config: Config,
+    job: AcquisitionJob,
+    order: list[str],
+    *,
+    context: _Context | None = None,
+    settings: object | None = None,
+    handed: _Handed | None = None,
+    telegram_configured: bool = True,
+) -> Iterator[AcquisitionEngine]:
     """The default opener over a fake CLI boundary, its surroundings replaced by recorders.
 
     Args:
         test_config: The configuration.
         job: The job.
         order: Where the surroundings record.
+        context: The boundary's context; a fresh one when ``None``.
+        settings: The settings the opener is given.
+        handed: Receives what each stand-in is handed, when a test reads it.
+        telegram_configured: Whether the Telegram builder answers a subscriber.
 
     Yields:
         The engine.
@@ -399,18 +425,25 @@ def _opened(test_config: Config, job: AcquisitionJob, order: list[str]) -> Itera
             The stand-in.
         """
 
-        def _call(*_args: object, **_kwargs: object) -> object:
+        def _call(*args: object, **kwargs: object) -> object:
             """Record and answer.
+
+            Args:
+                *args: The call's positional arguments.
+                **kwargs: The call's keywords.
 
             Returns:
                 The scripted answer.
             """
             order.append(name)
+            if handed is not None:
+                handed[name] = (args, kwargs)
             return answer
 
         return _call
 
-    context = _Context(_Acquire(grab=_GrabCore()))
+    context = context if context is not None else _Context(_Acquire(grab=_GrabCore()))
+    subscriber = _Closing(order, "telegram") if telegram_configured else None
     surroundings = "personalscraper.commands.acquisition_surroundings"
     reconciled = ReconcileSummary(closed_owned=1)
     with (
@@ -419,17 +452,26 @@ def _opened(test_config: Config, job: AcquisitionJob, order: list[str]) -> Itera
         patch(f"{surroundings}.reconcile_before_search", _recorder("reconcile_before_search", reconciled)),
         patch(f"{surroundings}.reconcile_before_run", _recorder("reconcile_before_run", reconciled)),
         patch(f"{surroundings}.reswitch_before_run", _recorder("reswitch_before_run", None)),
-        patch(
-            f"{surroundings}.build_acq_telegram_subscriber",
-            _recorder("telegram_built", _Closing(order, "telegram")),
-        ),
+        patch(f"{surroundings}.build_acq_telegram_subscriber", _recorder("telegram_built", subscriber)),
         patch(
             "personalscraper.subscribers.redis_stream.build_redis_publisher",
             _recorder("redis_built", _Closing(order, "redis")),
         ),
-        worker.open_engine(test_config, None, job) as engine,  # type: ignore[arg-type]
+        worker.open_engine(test_config, settings, job) as engine,  # type: ignore[arg-type]
     ):
         yield engine
+
+
+def _assert_same(actual: tuple[object, ...], *expected: object) -> None:
+    """Assert that *actual* holds the very objects expected, in order: an equal stand-in is not the same wiring.
+
+    Args:
+        actual: What a stand-in was handed.
+        *expected: The objects it must be.
+    """
+    assert len(actual) == len(expected), actual
+    for got, wanted in zip(actual, expected, strict=True):
+        assert got is wanted, f"handed {got!r}, expected {wanted!r}"
 
 
 class TestOpenEngineSurroundings:
@@ -468,3 +510,55 @@ class TestOpenEngineSurroundings:
             raise RuntimeError("detect failed")
 
         assert order == ["redis_built", "redis_closed"]
+
+    def test_a_grab_without_telegram_listens_to_nothing_and_ends_cleanly(self, test_config: Config) -> None:
+        """No subscriber is built where Telegram is not configured: the grab runs and nothing is closed for it."""
+        order: list[str] = []
+        with _opened(test_config, AcquisitionJob(JobKind.GRAB), order, telegram_configured=False) as engine:
+            with engine.grab_listeners():
+                order.append("grabbing")
+
+        assert order == ["redis_built", "telegram_built", "grabbing", "redis_closed"]
+
+    def test_the_search_reconcile_and_the_publisher_are_on_the_passs_bus(self, test_config: Config) -> None:
+        """On another bus the publisher would stream nothing and the sweep's events would be lost."""
+        context = _Context(_Acquire(grab=_GrabCore()))
+        handed: _Handed = {}
+        with _opened(test_config, AcquisitionJob(JobKind.SEARCH), [], context=context, handed=handed) as engine:
+            engine.before_search()
+
+        _assert_same(handed["redis_built"][0], context.event_bus, test_config.web)
+        _assert_same(handed["reconcile_before_search"][0][:2], context.acquire, context.event_bus)
+
+    def test_the_grabs_reconcile_and_reswitch_are_on_the_passs_bus(self, test_config: Config) -> None:
+        """The download and reswitch events of a grab reach the subscribers of its own bus."""
+        context = _Context(_Acquire(grab=_GrabCore()))
+        handed: _Handed = {}
+        with _opened(test_config, AcquisitionJob(JobKind.GRAB), [], context=context, handed=handed) as engine:
+            engine.before_grab()
+
+        for name in ("reconcile_before_run", "reswitch_before_run"):
+            _assert_same(handed[name][0][:2], context.acquire, context.event_bus)
+
+    def test_telegram_listens_on_the_passs_bus_with_the_workers_settings(self, test_config: Config) -> None:
+        """The subscriber is built from the worker's configuration and settings, on the bus the grab emits on."""
+        context = _Context(_Acquire(grab=_GrabCore()))
+        settings = object()
+        handed: _Handed = {}
+        with _opened(
+            test_config, AcquisitionJob(JobKind.GRAB), [], context=context, settings=settings, handed=handed
+        ) as engine:
+            with engine.grab_listeners():
+                pass
+
+        _assert_same(handed["telegram_built"][0], test_config, settings, context.event_bus)
+
+    def test_the_grab_reconciles_and_reswitches_under_the_instances_torrent_scope(self, test_config: Config) -> None:
+        """In a shared client, an unscoped reswitch could delete another instance's torrent."""
+        scoped = test_config.model_copy(update={"torrent": SCOPED_TORRENT_CONFIG})
+        handed: _Handed = {}
+        with _opened(scoped, AcquisitionJob(JobKind.GRAB), [], handed=handed) as engine:
+            engine.before_grab()
+
+        for name in ("reconcile_before_run", "reswitch_before_run"):
+            assert handed[name][1] == {"scope": SCOPE}, name
