@@ -640,7 +640,7 @@ def test_a_named_release_offered_by_two_trackers_is_added_once_from_the_ranked_o
     assert client.added == ["hash-aaa-tr4ker"]
 
 
-@pytest.mark.parametrize("near", [_BEST.lower(), _BEST + ".mkv", _BEST.replace("S02E05", "S02E05 ")])
+@pytest.mark.parametrize("near", [_BEST.lower(), _BEST + ".mkv", _BEST.replace("S02E05", "S02E05 "), _BEST[:-4]])
 def test_a_near_name_is_not_the_named_release(store: ConcreteAcquireStore, near: str) -> None:
     """Finding 6: the match is the exact name, a case or one character off is gone."""
     wanted_id = _available(store, 5, candidates=[near])

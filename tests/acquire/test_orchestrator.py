@@ -608,6 +608,24 @@ def test_all_trackers_errored_retryable_not_abandoned() -> None:
     assert not [e for e in spy.events if isinstance(e, WantedAbandoned)]
 
 
+def test_partial_outage_grab_retryable_trackers_degraded_not_abandoned() -> None:
+    """One tracker errored, the other empty → RETRYABLE trackers_degraded, never an AssertionError.
+
+    The search chain concludes ``trackers_degraded`` (not ``available``), and grab() must map it like the
+    other inconclusive outcomes: nothing grabbed, a retryable reason recorded, the row not abandoned.
+    """
+    outcome_partial = SearchOutcome(results=[], trackers_queried=2, trackers_errored=1)
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=outcome_partial)
+    outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "trackers_degraded"
+    assert [e for e in spy.events if isinstance(e, GrabFailed)]
+    assert not [e for e in spy.events if isinstance(e, WantedAbandoned)]
+    assert torrent_client is not None
+    torrent_client.add.assert_not_called()
+
+
 def test_clean_zero_hits_not_found_no_candidates() -> None:
     """Clean search, zero hits → NOT_FOUND no_candidates (never abandoned).
 
