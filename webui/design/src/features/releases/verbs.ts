@@ -71,7 +71,7 @@ function titleOnScreen(): string | null {
 registerVerb("pick-release", (value) => {
   const title = titleOnScreen();
   if (title === null) return;
-  const chosen = (releases?.() ?? [])[value as unknown as number];
+  const chosen = (releases?.(title) ?? [])[value as unknown as number];
   if (chosen === undefined) return;
   bridge.back();
   queueActions?.take(title, chosen.id);
