@@ -3,7 +3,8 @@
 A followed show gets a season row ``trigger='manual'`` absorbing its live episodes, and one ``prime``;
 an owned show nobody follows gets a request row (scope ``request``, the caller its requester ``via
 request``), never listed among the follows; neither is ``acquisition.not_found``. An open season row
-answers ``reused``. ``absorbedCount`` counts the season's aired episodes the library does not hold.
+answers ``reused``. ``absorbedCount`` counts the season's aired episodes the library does not hold; a
+request whose season neither the catalogue nor an aired cache knows is ``acquisition.season_unknown``.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from personalscraper.acquire._wanted_store import _WantedSubStore
 from personalscraper.acquire.catalogue import CatalogueStore
 from personalscraper.app.acquisition.model import AcquisitionKey
 from personalscraper.app.acquisition.seasons import HeldShow, IndexedShows
-from personalscraper.app.errors import AppBadRequest, AppForbidden, AppNotFound, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, RefusalCode
 from personalscraper.app.library.completeness import CatalogueView
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.library_view import LibraryIndex
@@ -168,13 +169,17 @@ def test_a_season_below_one_is_refused(world: FollowWorld) -> None:
 
 
 def _hold_show(world: FollowWorld) -> None:
-    """The library holds :data:`SHOW` too, so a removed follow of it may be asked as a request.
+    """The library holds :data:`SHOW` too, catalogued, so a removed follow of it may be asked as a request.
 
     Args:
         world: The world.
     """
     world.shows.shows["tvdb:81189"] = HeldShow(
-        title="Breaking Bad", year=2008, ref=MediaRef(tvdb_id=81189), aired=None, owned=frozenset()
+        title="Breaking Bad",
+        year=2008,
+        ref=MediaRef(tvdb_id=81189),
+        aired=frozenset({(1, 5), (1, 6), (2, 1)}),
+        owned=frozenset(),
     )
 
 
@@ -260,6 +265,83 @@ def test_a_removed_follow_whose_season_is_still_open_is_reused_and_primed(world:
     assert len(world.store.wanted.list_for_followed(row, kind="season")) == 1
 
 
+def _hold_uncatalogued(world: FollowWorld) -> None:
+    """The library holds :data:`OWNED`, whose episode list the catalogue never fetched.
+
+    Args:
+        world: The world.
+    """
+    world.shows.shows["tvdb:4242"] = HeldShow(
+        title="Owned Show", year=2020, ref=MediaRef(tvdb_id=4242), aired=None, owned=frozenset({(1, 1)})
+    )
+
+
+def test_a_one_off_season_nothing_knows_is_refused_and_leaves_nothing(world: FollowWorld) -> None:
+    """No catalogue, no aired cache: ``acquisition.season_unknown``, never 0 — nothing written, nothing primed."""
+    _hold_uncatalogued(world)
+
+    with pytest.raises(AppConflict) as refused:
+        world.seasons.ask(actor(ALICE), OWNED, 1)
+
+    assert refused.value.code is RefusalCode.ACQUISITION_SEASON_UNKNOWN
+    assert refused.value.params == {"followedId": "tvdb:4242"}
+    assert world.store.follow.list_all() == []
+    assert world.primes() == []
+
+
+def test_an_open_season_nothing_knows_any_more_is_refused_not_reused(world: FollowWorld) -> None:
+    """A request's season still open, its show no longer catalogued: refused, never ``reused`` with 0."""
+    _hold_owned(world)
+    world.seasons.ask(actor(ALICE), OWNED, 1)
+    world.settle_all()
+    _hold_uncatalogued(world)
+
+    with pytest.raises(AppConflict) as refused:
+        world.seasons.ask(actor(BOB), OWNED, 1)
+
+    assert refused.value.code is RefusalCode.ACQUISITION_SEASON_UNKNOWN
+    (found,) = world.store.follow.find_all_by_ref(OWNED.ref(), kind="show")
+    assert found.id is not None
+    assert set(world.requesters(found.id)) == {ALICE}
+    assert world.primes() == []
+
+
+def test_a_one_off_season_the_catalogue_knows_to_be_empty_answers_zero(world: FollowWorld) -> None:
+    """The catalogue lists no aired episode of the season: known, so taken, with 0 missing."""
+    _hold_owned(world)
+
+    asked = world.seasons.ask(actor(ALICE), OWNED, 3)
+
+    assert (asked.absorbed_count, asked.reused, asked.queued) == (0, False, True)
+
+
+def test_a_one_off_of_a_show_catalogued_with_nothing_aired_answers_zero(world: FollowWorld) -> None:
+    """The catalogue knows the show and lists nothing aired, and no aired cache: known, so taken, with 0."""
+    world.shows.shows["tvdb:4242"] = HeldShow(
+        title="Owned Show", year=2020, ref=MediaRef(tvdb_id=4242), aired=frozenset(), owned=frozenset()
+    )
+
+    asked = world.seasons.ask(actor(ALICE), OWNED, 1)
+
+    assert (asked.absorbed_count, asked.reused, asked.queued) == (0, False, True)
+
+
+def test_a_one_off_the_catalogue_ignores_is_counted_from_its_aired_cache(world: FollowWorld) -> None:
+    """A removed follow keeps its aired cache: revived as a request, its season is counted from it."""
+    row = _followed(world)
+    world.aired(row, [(2, 1, "2026-01-01"), (2, 2, "2026-01-08")])
+    world.follows.remove(actor(ALICE), SHOW)
+    world.settle_all()
+    world.shows.shows["tvdb:81189"] = HeldShow(
+        title="Breaking Bad", year=2008, ref=MediaRef(tvdb_id=81189), aired=None, owned=frozenset()
+    )
+    world.ownership.pairs = {(2, 1)}
+
+    asked = world.seasons.ask(actor(BOB), SHOW, 2)
+
+    assert asked.absorbed_count == 1
+
+
 def test_the_library_index_answers_a_held_show(tmp_path: Path) -> None:
     """``IndexedShows`` over a real ``library.db`` and catalogue: the show, its ids, aired and owned pairs."""
     index = FixtureIndex(tmp_path / "library.db")
@@ -281,3 +363,24 @@ def test_the_library_index_answers_a_held_show(tmp_path: Path) -> None:
     assert held.aired == frozenset({(1, 1), (1, 2)})
     assert held.owned == frozenset({(1, 1)})
     assert shows.held_show(MediaRef(tvdb_id=9999)) is None
+
+
+def test_the_library_index_knows_nothing_aired_of_a_show_never_catalogued(tmp_path: Path) -> None:
+    """A held show the catalogue never fetched: ``aired`` is ``None``, never an empty set."""
+    index = FixtureIndex(tmp_path / "library.db")
+    item = index.item("Owned Show", kind="show", year=2020, tvdb="4242")
+    index.episodes(item, 1, [1])
+    index.conn.close()
+    shows = IndexedShows(
+        index=LibraryIndex(index.path),
+        view=CatalogueView(
+            catalogue=CatalogueStore(tmp_path / "acquire.db"), ownership=IndexerOwnershipChecker(index.path)
+        ),
+        today=lambda: date(2026, 11, 23),
+    )
+
+    held = shows.held_show(MediaRef(tvdb_id=4242))
+
+    assert held is not None
+    assert held.aired is None
+    assert held.owned == frozenset({(1, 1)})

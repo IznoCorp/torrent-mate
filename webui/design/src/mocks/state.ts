@@ -241,6 +241,8 @@ export type MockState = {
   stagedCopies: Record<string, string>;
   /** The releases already tried per title, which the release read no longer offers. */
   triedReleases: Record<string, string[]>;
+  /** The shows whose episode list is not known, POSED by the harness: a one-off season of one is refused. */
+  uncataloguedShows: string[];
   /**
    * When each medium's metadata was last re-read, keyed by TITLE.
    *
@@ -347,6 +349,7 @@ const seeded = (): MockState => ({
   identifiedAt: {},
   stagedCopies: {},
   triedReleases: {},
+  uncataloguedShows: [],
   metadataRefreshedAt: {},
   restartRequired: false,
   changedFiles: [],

@@ -182,6 +182,8 @@ def grab_season_for_follow(
         AppBadRequest: ``request.invalid`` naming ``followedId`` or ``season``.
         AppNotFound: ``acquisition.not_found`` when no follow, request or owned show answers the key.
         AppForbidden: ``acquisition.not_requester`` on a follow that is not the caller's.
+        AppConflict: ``follow.ambiguous`` when two rows hold the key; ``acquisition.season_unknown``
+            on a one-off request of a show whose episode list is not known yet.
     """
     asked = app_services.acquisition.seasons.ask(signed_in, AcquisitionKey.parse(followed_id), season)
     if asked.reused:

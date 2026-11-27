@@ -20,6 +20,8 @@ commit; a refused or failed ask is logged and answered ``queued: false``, the se
 
 ``absorbedCount`` counts the season's AIRED episodes the library does not hold (B-380), from the
 follow's aired cache, or for a request from the library's aired catalogue — not the rows absorbed.
+A request whose show neither that catalogue nor an aired cache knows is refused
+``409 acquisition.season_unknown``, a ``reused`` ask included, never answered 0.
 """
 
 from __future__ import annotations
@@ -38,7 +40,12 @@ from personalscraper.app.acquisition.completeness import OwnershipReader
 from personalscraper.app.acquisition.follow_repository import FollowAmbiguous, FollowRepository
 from personalscraper.app.acquisition.follows import account_rights, prime
 from personalscraper.app.acquisition.model import AcquisitionKey, Follow, FollowId, Scope
-from personalscraper.app.acquisition.refusals import refuse_ambiguous, refuse_not_found, refuse_not_requester
+from personalscraper.app.acquisition.refusals import (
+    refuse_ambiguous,
+    refuse_not_found,
+    refuse_not_requester,
+    refuse_season_unknown,
+)
 from personalscraper.app.errors import AppBadRequest, RefusalCode
 from personalscraper.app.library.catalogue import aired_pairs
 from personalscraper.app.library.listing import held_of, open_reader
@@ -248,7 +255,8 @@ class SeasonAsk:
             AppBadRequest: ``request.invalid`` naming ``season`` for a season outside 1 to 9999.
             AppNotFound: ``acquisition.not_found`` when no follow, request or owned show answers the key.
             AppForbidden: ``acquisition.not_requester`` on a follow the actor neither asked for nor pilots.
-            AppConflict: ``follow.ambiguous`` when two rows hold the key.
+            AppConflict: ``follow.ambiguous`` when two rows hold the key;
+                ``acquisition.season_unknown`` for a request whose show's episodes nothing lists.
         """
         if not 1 <= season <= _LAST_SEASON:
             raise AppBadRequest(
@@ -265,6 +273,9 @@ class SeasonAsk:
                     raise refuse_ambiguous(key) from exc
                 follow_id = subject.follow.id
                 absorbed_count = self._aired_unowned(store, ownership, subject, season)
+                if absorbed_count is None:
+                    # Raised inside the transaction: the request row it opened is undone with it.
+                    raise refuse_season_unknown(key)
                 covering = SeasonRecovery(store).covering(follow_id, season)
                 started = subject.started
                 if covering is None and subject.follow.legacy is not None:
@@ -409,11 +420,14 @@ class SeasonAsk:
         if abandoned:
             log.info("app.seasons.request_narrowed", followed_id=follow_id, season=season, abandoned=abandoned)
 
-    def _aired_unowned(self, store: AcquireStore, ownership: OwnershipReader, subject: _Subject, season: int) -> int:
+    def _aired_unowned(
+        self, store: AcquireStore, ownership: OwnershipReader, subject: _Subject, season: int
+    ) -> int | None:
         """Count the season's aired episodes the library does not hold (B-380).
 
         A follow reads its aired cache; a request reads the library's aired catalogue, and its own
-        cache when the library has none.
+        cache when the library has none. A request with neither does not know; a follow whose cache
+        is empty counts 0 until its first poll fills it.
 
         Args:
             store: The open store.
@@ -422,15 +436,18 @@ class SeasonAsk:
             season: The season.
 
         Returns:
-            The count.
+            The count, ``None`` for a request whose show nothing lists the episodes of.
         """
         held = subject.held
         if subject.follow.scope is Scope.REQUEST and held is not None and held.aired is not None:
             return sum(1 for pair in held.aired if pair[0] == season and pair not in held.owned)
         today = self._today().isoformat()
+        cached = store.aired.list_for_followed(subject.follow.id)
+        if subject.follow.scope is Scope.REQUEST and not cached:
+            return None
         aired = {
             (one.season, one.episode)
-            for one in store.aired.list_for_followed(subject.follow.id)
+            for one in cached
             if one.season == season and (not one.air_date or one.air_date <= today)
         }
         if not aired:

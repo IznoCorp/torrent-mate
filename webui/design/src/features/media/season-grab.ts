@@ -16,6 +16,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { markSeasonQueued, refreshPipelineStatus } from "./queued-seasons";
+import { forgetUnknownSeason, markSeasonUnknown } from "./season-unknown";
+import { refusalCode } from "../../lib/refusal";
 import i18next from "i18next";
 import { HELD, isRequestFailure, send } from "../../lib/query-client";
 import { followedTitles, panel, toast } from "../../lib/shell-doors";
@@ -52,6 +54,8 @@ type SeasonGrab = {
  *         key (`<provider>:<providerId>`) at the door, which the operation
  *         addresses it by whether or not it is followed (K3-G1).
  *     season: The season number, 1-based.
+ *     onUnknown: Called when the ask is refused because the show's episode list
+ *         is not known, for the surface that words it on the season's row.
  *
  * Returns:
  *     Whether the ask is WAITING on the pipeline rather than under way. The
@@ -85,7 +89,9 @@ export async function askForSeason(
   title: string,
   season: number,
 ): Promise<void> {
-  const waiting = await grabSeason(title, season);
+  // THE ROW'S REFUSAL IS THE LAST ASK'S: a new ask takes it down before it answers.
+  forgetUnknownSeason(client, title, season);
+  const waiting = await grabSeason(title, season, () => markSeasonUnknown(client, title, season));
   if (waiting) {
     // A STATUS THAT CANNOT BE READ keeps the mark: the answer said « queued »,
     // and an unread status asserts nothing against it.
@@ -144,7 +150,7 @@ export function useAskedInFlight(): ReadonlySet<string> {
   );
 }
 
-export async function grabSeason(title: string, season: number): Promise<boolean> {
+export async function grabSeason(title: string, season: number, onUnknown?: () => void): Promise<boolean> {
   const say = (key: string, values?: Record<string, unknown>) =>
     i18next.t(`verbs.media.${key}`, values ?? {});
   // ONE ASK AT A TIME PER SEASON. Two presses with no settle between them sent
@@ -219,7 +225,11 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // given — the silent failure this interface's own constitution refuses.
     // A 403 SAYS WHY: the account's role does not open the take (§ 17).
     const forbidden = isRequestFailure(failure) && failure.status === FORBIDDEN;
-    toast?.show({ message: say(forbidden ? "seasonForbidden" : "seasonRefused", { season, title }) });
+    // AND A SEASON NOBODY CAN COUNT SAYS SO: the show's episode list is not known.
+    const unknown = refusalCode(failure) === "acquisition.season_unknown";
+    if (unknown) onUnknown?.();
+    const refusal = forbidden ? "seasonForbidden" : unknown ? "seasonUnknown" : "seasonRefused";
+    toast?.show({ message: say(refusal, { season, title }) });
     return false;
   } finally {
     // IN A `finally`, so a refused ask can be made again. Released on the

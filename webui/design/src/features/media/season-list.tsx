@@ -13,6 +13,7 @@ import { useQueuedSeasons } from "./queued-seasons";
 import { useAskedSeasons } from "./asked-seasons";
 import { SeasonRequested } from "./season-requested";
 import { SeasonOffCatalogue } from "./season-off-catalogue";
+import { SeasonUnknown } from "./season-unknown";
 import { EpisodeRow } from "./episode-row";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
@@ -336,6 +337,7 @@ export function SeasonList({
               ""
             )}
             {body}
+            <SeasonUnknown title={followTitle} season={row.n} />
             {/* THE SAME ACTION THE FOLLOW PANEL OFFERS, on the surface that
                 draws the same hole. The queued pastille was deliberately put on
                 BOTH season surfaces; an offer drawn on only one of them makes

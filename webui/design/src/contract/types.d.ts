@@ -3231,7 +3231,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "session.unknown" | "session.current" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable" | "acquisition.not_found" | "acquisition.not_requester" | "acquisition.follow_shared" | "acquisition.release_unavailable" | "follow.not_restorable" | "follow.ambiguous" | "suggestion.not_found";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "session.unknown" | "session.current" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable" | "acquisition.not_found" | "acquisition.not_requester" | "acquisition.follow_shared" | "acquisition.release_unavailable" | "acquisition.season_unknown" | "follow.not_restorable" | "follow.ambiguous" | "suggestion.not_found";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -4394,7 +4394,15 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
-            409: components["responses"]["Problem"];
+            /** @description refused: `acquisition.season_unknown` on a one-off request of a show whose episode list is not known yet — neither the library's aired catalogue nor an aired cache lists it, so nothing is asked for and `absorbedCount` is never answered 0, an open season included; or `follow.ambiguous` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };
