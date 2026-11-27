@@ -106,6 +106,8 @@ describe("« Annuler »", () => {
     await rejectSuggestion(1, redraw);
     toasts[0].undo?.();
     expect([...state.sugGone]).toEqual([]);
+    // THE REDRAW IS WHAT PUTS THE CARD BACK ON SCREEN.
+    expect(redrawn).toBe(1);
     await settle();
     expect(sent).toEqual([`POST ${ADDRESS}`, `DELETE ${ADDRESS}`]);
     expect(invalidated).toEqual([]);
@@ -134,6 +136,8 @@ describe("« Annuler »", () => {
     toasts[0].undo?.();
     await settle();
     expect([...state.sugGone]).toEqual([1]);
+    // Once to put the card back, once to take it away again.
+    expect(redrawn).toBe(2);
     expect(toasts.at(-1)?.message).toBe(FRENCH.refusals.suggestion.not_found);
   });
 
