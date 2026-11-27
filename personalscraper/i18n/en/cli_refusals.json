@@ -43,7 +43,8 @@
   "acquisition": {
     "not_found": "This acquisition is unknown: nothing is followed or requested under this identifier, and the library does not hold it.",
     "not_requester": "This acquisition is not yours: only those who asked for it set it.",
-    "follow_shared": "Other accounts follow this title too: each one pauses it for itself."
+    "follow_shared": "Other accounts follow this title too: each one pauses it for itself.",
+    "release_unavailable": "This release cannot be grabbed now: it is still being searched or grabbed, or already done."
   },
   "follow": {
     "not_restorable": "Nothing was removed under this title: there is nothing to put back.",
