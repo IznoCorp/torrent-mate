@@ -140,8 +140,8 @@ class Completeness:
     """A follow's completeness.
 
     Attributes:
-        follow_id: The follow's row: the integer the contract's ``FollowCompleteness.followedId`` declares.
-        key: The follow's wire key.
+        follow_id: The follow's row.
+        key: The follow's wire key: what the contract's ``FollowCompleteness.followedId`` carries.
         title: Its title.
         kind: ``"show"`` or ``"movie"`` (a film has no seasons).
         seasons: Its seasons, newest first; empty for a film or with no cached catalogue.

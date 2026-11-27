@@ -331,7 +331,7 @@ def set_acquisition_pause(
     operation_id="reassignRequester",
     response_model=Requesters,
     status_code=200,
-    responses=PROBLEM_RESPONSES,
+    responses=_FOLLOW_RESPONSES,
 )
 def reassign_requester(
     body: Annotated[ReassignBody, Body()],
@@ -350,9 +350,8 @@ def reassign_requester(
 
     Raises:
         AppBadRequest: ``request.invalid`` naming ``acquisition`` for a malformed key.
-        AppNotFound: ``account.unknown`` when the target is no account of the roster (a 404 the
-            contract does not declare on this operation), ``acquisition.not_found`` when no such
-            subject holds the key.
+        AppNotFound: ``account.unknown`` when the target is no account of the roster,
+            ``acquisition.not_found`` when no such subject holds the key.
         AppForbidden: ``acquisition.not_requester`` when the source did not ask for it.
     """
     try:

@@ -2399,6 +2399,29 @@
               "type": "string"
             },
             "description": "restrict to films or to shows"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "how many results the page carries, at most"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "how many of the best-ranked results to skip; one past the last answers an empty page under the same `total`"
           }
         ],
         "x-seeded-from": [
@@ -2484,14 +2507,11 @@
         ],
         "responses": {
           "200": {
-            "description": "the deck",
+            "description": "one page of the deck",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Suggestion"
-                  }
+                  "$ref": "#/components/schemas/SuggestionPage"
                 }
               }
             }
@@ -2517,13 +2537,13 @@
         },
         "parameters": [
           {
-            "name": "after",
+            "name": "cursor",
             "in": "query",
             "required": false,
             "schema": {
               "type": "string"
             },
-            "description": "continue a deck already started"
+            "description": "continue a deck already started: the `nextCursor` of the page before, sent back as it came — opaque, issued by the server, never composed or read by the client. Absent, the first page. A cursor of a deck since replaced starts the new deck at its head; one the server never issued is refused 400 `request.invalid`"
           }
         ],
         "x-seeded-from": [
@@ -6307,6 +6327,16 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "description": "refused: `account.unknown` when `to` is no account of the roster, `acquisition.not_found` when no acquisition of the `kind` asked answers to the `acquisition` key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -8128,7 +8158,7 @@
           },
           "fresh": {
             "type": "boolean",
-            "description": "added recently enough to be marked as such"
+            "description": "added recently enough to be marked as such: true for the first 24 hours after `addedAt`, false from then on; the server derives it at each answer, from its own clock"
           },
           "ids": {
             "$ref": "#/components/schemas/ProviderIds",
@@ -8345,6 +8375,30 @@
           "title",
           "why",
           "year"
+        ]
+      },
+      "SuggestionPage": {
+        "type": "object",
+        "description": "one page of the suggestions deck",
+        "properties": {
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Suggestion"
+            },
+            "description": "the page's cards, in deck order; empty when the deck has no more"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the `cursor` the next page is asked with, opaque; null once the server knows the deck has no more (a cursor may still lead to an empty page)"
+          }
+        },
+        "required": [
+          "nextCursor",
+          "suggestions"
         ]
       },
       "Release": {
@@ -11099,7 +11153,9 @@
         "type": "object",
         "properties": {
           "followedId": {
-            "type": "integer"
+            "type": "string",
+            "pattern": "^(tvdb|tmdb|imdb):.+$",
+            "description": "the follow's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A), as every follow operation names it in its path"
           },
           "title": {
             "type": "string"

@@ -42,7 +42,7 @@ export function headerSentence(reserve: Schemas["Suggestion"][] | undefined, rej
  */
 function headerPanel(_subject: string, cache: PanelCache): PanelDescriptor | null {
   const sentence = headerSentence(
-    cache.held<Schemas["Suggestion"][]>(suggestionsQuery.queryKey),
+    cache.held<Schemas["SuggestionPage"]>(suggestionsQuery.queryKey)?.suggestions,
     store.read().state.sugGone as Set<number>,
   );
   if (sentence === undefined) return null;

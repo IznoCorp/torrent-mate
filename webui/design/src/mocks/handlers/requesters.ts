@@ -5,6 +5,7 @@
 // DECORATED AT THE ANSWER, never written into the seeds: the seeds are the
 // owner's real acquisitions, and who else asked is invented (`../identity`).
 import {
+  heldAccounts,
   moveRequester,
   preferencesOf,
   requestersOf,
@@ -28,7 +29,8 @@ const FORBIDDEN = 403;
 const PAUSED = "disabled";
 const MISSING = 404;
 const NOT_THEIRS = "the caller is not among this acquisition's requesters";
-const NO_SUCH = "no acquisition answers to that key, or that requester";
+const NO_SUCH = "no acquisition answers to that key";
+const NO_ACCOUNT = "no account carries that id";
 
 /**
  * Adds its requesters to every row that names an acquisition.
@@ -114,9 +116,14 @@ export function requesterRoutes(): MockRoute[] {
       // The move is written under every title the medium is drawn with, so a card and a follow
       // of one medium say the same requesters afterwards; the answer is the first that held `from`.
       const [from, to] = [text(request.body, "from"), text(request.body, "to")];
-      const moves = titlesOfKey(text(request.body, "acquisition")).map((title) => moveRequester(title, from, to));
-      const moved = moves.find((one) => one !== null) ?? null;
-      return moved === null ? refused(MISSING, NO_SUCH) : { requesters: moved };
+      // EACH REFUSAL SAYS ITS CODE, in the order a server judges them (K3-G16): the target
+      // account, then the acquisition, then whether the one moved off had asked for it.
+      if (!heldAccounts().some((one) => one.id === to)) return refused(MISSING, NO_ACCOUNT, "account.unknown");
+      const titles = titlesOfKey(text(request.body, "acquisition"));
+      if (titles.length === 0) return refused(MISSING, NO_SUCH, "acquisition.not_found");
+      const moved = titles.map((title) => moveRequester(title, from, to)).find((one) => one !== null);
+      return moved === undefined ? refused(FORBIDDEN, NOT_THEIRS, "acquisition.not_requester")
+        : { requesters: moved };
     }),
     route("setAcquisitionQuality", PUT, "/acquisition/followed/{followedId}/quality", (request) => {
       const profile = field(request.body, "profile");

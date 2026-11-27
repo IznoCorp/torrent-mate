@@ -34,6 +34,16 @@ const INFORMATIVE = "info";
 
 const BATCH_SIZE = 30;
 
+// THE CURSOR THE DECK ISSUES (K3-G13). Opaque to the interface, which sends it back as it came;
+// here it says where the next page starts, and nothing else is read as one.
+const CURSOR_PREFIX = "deck-";
+const ISSUED_CURSOR = /^deck-(\d+)$/;
+
+// A search page's bounds (K3-G14), the contract's own.
+const SEARCH_LIMIT = 20;
+const SEARCH_MAX_LIMIT = 100;
+const WHOLE_NUMBER = /^\d+$/;
+
 // WHERE A FAMILY STANDS ON THE LADDER when its cards carry no strip: a release
 // found and waiting to be taken.
 const WAITING = "waiting";
@@ -124,6 +134,29 @@ function sharedWithOthers(title: string): boolean {
 
 // Why a follow nothing identifies is refused, in the problem body's own words.
 const NO_IDENTITY = "a follow with no provider identity has no sheet";
+
+/**
+ * One page of a search's results, as `limit` and `offset` ask for it (K3-G14).
+ *
+ * @param request The search asked.
+ * @param total How many the provider has.
+ * @param results Every result the search found, best first.
+ * @returns The page under that total, or a refusal when it is outside the contract's bounds.
+ */
+function searchPage(request: MockRequest, total: number, results: typeof SEARCH_RESULTS.results) {
+  const asked = (name: string, absent: number) => {
+    const value = request.query.get(name);
+    if (value === null) return absent;
+    return WHOLE_NUMBER.test(value) ? Number(value) : Number.NaN;
+  };
+  const limit = asked("limit", SEARCH_LIMIT);
+  const offset = asked("offset", 0);
+  if (!(limit >= 1 && limit <= SEARCH_MAX_LIMIT && offset >= 0)) {
+    return refused(400, "a page is 1 to 100 results from an offset of 0 or more", "request.invalid");
+  }
+  const page = results.slice(offset, offset + limit);
+  return { ...SEARCH_RESULTS, total, shown: page.length, results: page };
+}
 
 /** Every route this subject answers. */
 export function acquisitionRoutes(): MockRoute[] {
@@ -322,7 +355,7 @@ export function acquisitionRoutes(): MockRoute[] {
     ),
     route("searchProviders", GET, "/acquisition/search", (request: MockRequest) => {
       const wanted = (request.query.get("query") ?? "").toLowerCase();
-      if (wanted === "") return SEARCH_RESULTS;
+      if (wanted === "") return searchPage(request, SEARCH_RESULTS.total, SEARCH_RESULTS.results);
       // MATCHED ON WORDS, NOT ON THE WHOLE STRING, and a provider is what this
       // stands in for. The interface pre-fills this field with a staging
       // FOLDER's name — « Backrooms 2026 » — and a provider asked that returns
@@ -341,7 +374,7 @@ export function acquisitionRoutes(): MockRoute[] {
       // 257, which is the very defect the library listing was repaired for two
       // files away (« answering 1 861 over a search for two rows made the count
       // describe the library rather than the answer »).
-      return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
+      return searchPage(request, results.length, results);
     }),
     // ONE MEDIUM BY ITS IDENTIFIER (B-691): the result a source knows under the
     // identifier asked, and nothing else — no title matching, no neighbour.
@@ -353,13 +386,19 @@ export function acquisitionRoutes(): MockRoute[] {
       );
       return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
     }),
-    // The deck PAGES. Answering the first batch to every request made the
-    // contract's own `after` parameter unusable and turned a deck that pages
-    // into an endless loop of the same thirty cards.
+    // The deck PAGES, by the cursor it issued with the page before (K3-G13). Answering the
+    // first batch to every request turns a deck that pages into an endless loop of the same
+    // thirty cards.
     route("readSuggestions", GET, "/acquisition/suggestions", (request) => {
-      const after = request.query.get("after") ?? "";
-      const from = after === "" ? 0 : SUGGESTIONS.findIndex((one) => one.title === after) + 1;
-      return SUGGESTIONS.slice(from, from + BATCH_SIZE);
+      const cursor = request.query.get("cursor");
+      const issued = cursor === null ? null : ISSUED_CURSOR.exec(cursor);
+      if (cursor !== null && issued === null) return refused(400, "the deck gave no such cursor", "request.invalid");
+      const from = issued === null ? 0 : Number(issued[1]);
+      const to = from + BATCH_SIZE;
+      return {
+        suggestions: SUGGESTIONS.slice(from, to),
+        nextCursor: to < SUGGESTIONS.length ? `${CURSOR_PREFIX}${to}` : null,
+      };
     }),
     route("readAcquisitionStatus", GET, "/acquisition/status", () => ({
       cadence: GRAB_CADENCE,

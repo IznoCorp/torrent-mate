@@ -518,6 +518,28 @@ def test_the_completeness_of_a_follow_without_a_catalogue_is_unknown(v1_client: 
     assert isinstance(body["followedId"], int)
 
 
+def test_the_completeness_names_the_follow_by_its_key(v1_client: ClientFactory) -> None:
+    """K3-G15: ``followedId`` is the follow's key, as every follow operation names it, never the store's row."""
+    client = v1_client()
+    _follow(client)
+
+    response = client.get(f"/acquisition/followed/{SILO_KEY}/completeness")
+
+    assert response.json()["followedId"] == SILO_KEY
+
+
+def test_a_reassign_of_a_key_nothing_holds_is_a_404(v1_client: ClientFactory) -> None:
+    """K3-G16: the second 404 the contract declares on ``reassignRequester``, ``acquisition.not_found``."""
+    owner, target, admin = v1_client(), v1_client(role="requester"), v1_client(role="admin")
+
+    response = admin.post(
+        "/acquisition/requesters/reassign",
+        json={"kind": "follow", "acquisition": "tvdb:1", "from": _account_id(owner), "to": _account_id(target)},
+    )
+
+    assert (response.status_code, response.json()["code"]) == (404, "acquisition.not_found")
+
+
 # ── what is refused, and to whom ────────────────────────────────────────────
 
 _CALLS: list[tuple[str, str, dict[str, Any] | None]] = [

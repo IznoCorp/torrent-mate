@@ -14,7 +14,7 @@ from fastapi import APIRouter, Body, Depends, Query
 
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.acquisition.model import AcquisitionKey
-from personalscraper.app.acquisition.search import SearchKind
+from personalscraper.app.acquisition.search import DEFAULT_LIMIT, MAX_LIMIT, SearchKind
 from personalscraper.app.errors import AppBadRequest, RefusalCode
 from personalscraper.app.services import AppServices
 from personalscraper.http_v1.contract import PROBLEM_RESPONSES
@@ -25,7 +25,7 @@ from personalscraper.http_v1.models.acquisition_reads import (
     RankingPreviewReleaseModel,
     ReleaseModel,
     SearchResults,
-    SuggestionModel,
+    SuggestionPageModel,
 )
 
 router = APIRouter()
@@ -124,6 +124,19 @@ def search_providers(
     app_services: Annotated[AppServices, Depends(services)],
     query: Annotated[str | None, Query(description="what was typed")] = None,
     kind: Annotated[str | None, Query(description="restrict to films or to shows")] = None,
+    limit: Annotated[
+        int, Query(ge=1, le=MAX_LIMIT, description="how many results the page carries, at most")
+    ] = DEFAULT_LIMIT,
+    offset: Annotated[
+        int,
+        Query(
+            ge=0,
+            description=(
+                "how many of the best-ranked results to skip; one past the last answers an empty page under the "
+                "same `total`"
+            ),
+        ),
+    ] = 0,
 ) -> SearchResults:
     """Search the metadata providers for a title to follow.
 
@@ -135,12 +148,15 @@ def search_providers(
         app_services: The application services.
         query: What was typed.
         kind: ``movie`` or ``show`` to restrict the search; absent, both.
+        limit: The most results the page carries.
+        offset: How many of the best-ranked results to skip.
 
     Returns:
-        The best-ranked page, with the total the providers hold.
+        The page asked for, best ranked first, with the total the providers hold.
 
     Raises:
-        AppBadRequest: ``request.invalid`` naming ``kind`` when it is neither ``movie`` nor ``show``.
+        AppBadRequest: ``request.invalid`` naming ``kind`` when it is neither ``movie`` nor ``show``, or
+            ``limit`` or ``offset`` when out of bounds.
         AppUnavailable: ``provider.unavailable`` when no provider could answer.
     """
     wanted = None
@@ -155,7 +171,8 @@ def search_providers(
     typed = (query or "").strip()
     if not typed:
         return SearchResults.empty()
-    return SearchResults.from_page(app_services.acquisition.search.search(signed_in, typed, wanted))
+    page = app_services.acquisition.search.search(signed_in, typed, wanted, offset=offset, limit=limit)
+    return SearchResults.from_page(page)
 
 
 @router.get(
@@ -199,31 +216,39 @@ def search_provider_by_id(
 @router.get(
     "/acquisition/suggestions",
     operation_id="readSuggestions",
-    response_model=list[SuggestionModel],
+    response_model=SuggestionPageModel,
     status_code=200,
     responses=PROBLEM_RESPONSES,
 )
 def read_suggestions(
     signed_in: Annotated[Actor, Depends(actor)],
     app_services: Annotated[AppServices, Depends(services)],
-    after: Annotated[str | None, Query(description="continue a deck already started")] = None,
-) -> list[SuggestionModel]:
+    cursor: Annotated[
+        str | None,
+        Query(
+            description=(
+                "continue a deck already started: the `nextCursor` of the page before, sent back as it came — "
+                "opaque, issued by the server, never composed or read by the client. Absent, the first page. A "
+                "cursor of a deck since replaced starts the new deck at its head; one the server never issued is "
+                "refused 400 `request.invalid`"
+            )
+        ),
+    ] = None,
+) -> SuggestionPageModel:
     """The titles worth following, minus what the reader owns, follows or rejected.
-
-    LIMIT OF THE CONTRACT: ``after`` is a title, and a title is not unique in the deck (a film and a show can
-    bear the same one). The deck continues past the FIRST card of that title, so a reader whose last card is a
-    second one of the same title is served again the cards between the two. An opaque cursor would lift it.
 
     Args:
         signed_in: The signed-in actor.
         app_services: The application services.
-        after: The title of the last card the reader holds, to continue the deck past it.
+        cursor: The ``nextCursor`` of the page before; absent, the first page.
 
     Returns:
-        One page of the deck; empty when the deck has no more.
+        One page of the deck and the cursor of the next; no card and no cursor when the deck has no more.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming ``cursor`` when it is not one the deck gave.
     """
-    page = app_services.acquisition.suggestions.read(signed_in, None, after_title=after or None)
-    return [SuggestionModel.from_card(card) for card in page.items]
+    return SuggestionPageModel.from_page(app_services.acquisition.suggestions.read(signed_in, cursor))
 
 
 @router.post(
