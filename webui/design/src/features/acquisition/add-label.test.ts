@@ -7,7 +7,7 @@
 // case.
 import { beforeEach, describe, expect, it } from "vitest";
 import "../../lib/unit-words";
-import { addVerb } from "./add-label";
+import { addVerb, resultLine } from "./add-label";
 import { beginVisit, markAdded, setVisitMode } from "./add-visit";
 import type { SearchResult } from "./types";
 
@@ -52,5 +52,19 @@ describe("addVerb", () => {
     expect(addVerb(ownedFilm)).toBe("Associer"); // french-ok: the engine's own output, asserted
     markAdded(series);
     expect(addVerb(series)).toBe("✓ Associé"); // french-ok: the engine's own output, asserted
+  });
+});
+
+describe("resultLine", () => {
+  it("says the year, the kind and the source of a result that has a year", () => {
+    expect(resultLine(film)).toBe("2021 · Film · TMDB"); // french-ok: the interface's own output, asserted
+    expect(resultLine(series)).toBe("2021 · Série · TMDB"); // french-ok: the interface's own output, asserted
+  });
+
+  it("leaves the year out when the provider gives none, rather than printing the absence (K3-G8)", () => {
+    const undated = { ...film, year: null } as SearchResult;
+    expect(resultLine(undated)).toBe("Film · TMDB"); // french-ok: the interface's own output, asserted
+    expect(resultLine({ ...series, year: null } as SearchResult)).toBe("Série · TMDB"); // french-ok: the interface's own output, asserted
+    expect(resultLine(undated)).not.toMatch(/null|undefined|^\s*·/);
   });
 });

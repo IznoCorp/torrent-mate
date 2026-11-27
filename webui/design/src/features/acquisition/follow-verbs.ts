@@ -187,9 +187,10 @@ function pause(title: string): void {
     (follow) => follow.title === title);
   if (!found) return;
   const before = found.status;
-  const after = before === "disabled"
-    ? (found.kind === "movie" ? "pending" : "up_to_date")
-    : "disabled";
+  // WHERE A LIFTED PAUSE GOES BACK TO: the two values `updateFollow` accepts besides
+  // `disabled` (K3-G10), which is also why the undo cannot replay the status it read.
+  const resumedTo = found.kind === "movie" ? "pending" : "up_to_date";
+  const after = before === "disabled" ? resumedTo : "disabled";
   // THE BUMP IS EXPLICIT, and for the same reason it is in `follow`: the
   // status is written into the query cache, which moves what React observes
   // and moves nothing the engine still draws. The undo needs it just as much
@@ -210,10 +211,14 @@ function pause(title: string): void {
           ? "verbs.follows.searchStopped"
           : "verbs.follows.paused",
       { title: found.title }),
-    // THE UNDO MOVES WITH THE VERB IT UNDOES. It restores what WAS rather
-    // than toggling again: a second toggle is the same act repeated, and it
-    // would land on the wrong side of anything that moved in between.
-    undo: () => { void put(before); },
+    // THE UNDO MOVES WITH THE VERB IT UNDOES. It names the side the act left
+    // rather than toggling again: a second toggle is the same act repeated, and
+    // it would land on the wrong side of anything that moved in between. It
+    // sends a value of the contract's enum, never the status the follow was
+    // READ at (`acquiring`, `to_grab`…): the layer refuses those with a 400 and
+    // the list is re-read against the server, which owns what the follow is
+    // doing.
+    undo: () => { void put(after === "disabled" ? resumedTo : "disabled"); },
   }));
 }
 
