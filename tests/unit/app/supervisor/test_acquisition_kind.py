@@ -707,17 +707,18 @@ def _engine(
     return AcquisitionEngine(detect=fake, search=fake, grab=fake if grab else None)
 
 
-def _running(store: AppStore, job: AcquisitionJob) -> RunRequest:
+def _running(store: AppStore, job: AcquisitionJob, *, trigger: RunTrigger = RunTrigger.WEB) -> RunRequest:
     """Store an acquisition request and admit it, as the supervisor would.
 
     Args:
         store: The store.
         job: The job.
+        trigger: Who asked.
 
     Returns:
         The running request.
     """
-    request = RunRequest.ask(RunKind.ACQUISITION, RunTrigger.WEB, job, AccountId("account-a"), 100.0)
+    request = RunRequest.ask(RunKind.ACQUISITION, trigger, job, AccountId("account-a"), 100.0)
     store.runs.insert(request)
     request.admit(os.getpid(), 100.0)
     store.runs.save(request)

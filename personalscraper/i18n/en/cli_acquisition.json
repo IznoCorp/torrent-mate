@@ -123,6 +123,9 @@
     "mark_lost": "NFO written but decision {{decision_id}} was no longer pending — not marked resolved.",
     "resolved": "Successfully resolved decision {{decision_id}} via {{provider}}:{{provider_id}}."
   },
+  "queue": {
+    "limit_too_low": "--limit must be at least 1 while a supervisor is running: the pass is queued, and a queued pass takes no lower cap. Nothing was asked."
+  },
   "search": {
     "help": "Run the search pass — state availability for pending wanted items.",
     "dry_run_help": "Show what WOULD be searched after cadence gating. No tracker calls, no writes.",

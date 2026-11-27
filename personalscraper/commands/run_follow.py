@@ -1,4 +1,4 @@
-"""``personalscraper run`` under a live supervisor lease: ask the run, then follow it.
+"""``personalscraper run`` and the acquisition commands under a live supervisor lease: ask, then follow.
 
 While a supervisor's lease is live nothing but its worker starts a run, so the command asks the
 run through the in-process :class:`~personalscraper.app.supervisor.service.RunService` and follows
@@ -7,6 +7,8 @@ never trusts the uid it brought). It polls the request and the run's ``pipeline_
 each step as it closes and exits with the run's code; when the lease lapses before the request
 settles, it stops following and exits non-zero. With no live lease the command's direct path runs
 instead: deciding reads the lease alone, read-only, and an unreadable store is « no live lease ».
+An acquisition pass (``follow detect``, ``search``, ``grab``) is asked and followed the same way
+(:func:`enqueue_and_follow_acquisition`); its row closes one entry per pass.
 """
 
 from __future__ import annotations
@@ -15,8 +17,9 @@ import json
 import os
 import sqlite3
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import closing, contextmanager
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
@@ -27,7 +30,14 @@ from personalscraper.app.composition import build_app_services
 from personalscraper.app.errors import AppRefusal, RefusalCode
 from personalscraper.app.supervisor.ids import RunUid
 from personalscraper.app.supervisor.lease_repository import LeaseRepository
-from personalscraper.app.supervisor.model import RequestState, RunOptions, RunRequest, RunTrigger, Settlement
+from personalscraper.app.supervisor.model import (
+    AcquisitionJob,
+    RequestState,
+    RunOptions,
+    RunRequest,
+    RunTrigger,
+    Settlement,
+)
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._pragmas import apply_pragmas
@@ -37,6 +47,7 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.app.services import AppServices
+    from personalscraper.app.supervisor.service import RunAsked
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
 
@@ -102,7 +113,9 @@ def lease_live(config: Config) -> bool:
         SupervisorStateUnreadable: ``app.db`` exists but its lease cannot be read.
     """
     app_db = store_path(config.paths.data_dir, StoreName.APP)
-    if not app_db.exists():
+    # The path guard ``cli_run_row`` has: a mocked config would stringify to a '<MagicMock …>' path and
+    # leak a junk file, and no supervisor runs behind one.
+    if not isinstance(app_db, Path) or not app_db.exists():
         return False
     try:
         with closing(connect_read_only(app_db)) as conn:
@@ -158,26 +171,17 @@ def enqueue_and_follow(
         typer.Exit: Code 1 when the instance refuses the ask.
     """
     promised = os.environ.get(RUN_UID_ENV) or None
-    try:
-        asked = services.runs.ask_run(
-            services.credentials.system_actor(),
+    actor = services.credentials.system_actor()
+    uid = _ask(
+        console,
+        lambda: services.runs.ask_run(
+            actor,
             trigger=_trigger_of(trigger_reason),
             options=options,
             uid=RunUid(promised) if promised else None,
-        )
-    except AppRefusal as exc:
-        code = exc.code if exc.code is not None else RefusalCode.INTERNAL
-        scalars: dict[str, Any] = {
-            name: value for name, value in exc.params.items() if isinstance(value, (str, int, float))
-        }
-        console.print("[red]" + t_code("cli_refusals", code, **scalars) + "[/red]")
-        raise typer.Exit(1) from None
-    uid = asked.uid
-    if asked.joined:
-        console.print(t("cli_core.run.joined", uid=uid), highlight=False)
-    else:
-        position = len(services.runs.queue_view().queued)
-        console.print(t("cli_core.run.queued", uid=uid, position=position), highlight=False)
+        ),
+        waiting=lambda: len(services.runs.queue_view().queued),
+    )
     if detach:
         console.print(t("cli_core.run.detached", uid=uid), highlight=False)
         return 0
@@ -189,7 +193,82 @@ def enqueue_and_follow(
         return 0
 
 
-def _follow(services: AppServices, config: Config, console: Console, uid: RunUid, options: RunOptions) -> int:
+def enqueue_and_follow_acquisition(
+    services: AppServices, config: Config, console: Console, jobs: Sequence[AcquisitionJob]
+) -> tuple[int, tuple[RunUid, ...]]:
+    """Ask one acquisition request per job, then follow each to its end, in the order asked.
+
+    Every job is asked before any is followed. No uid is brought: a spawner's promised uid may cover
+    several passes (v0's runner runs three under one), which one request each would then answer with the
+    first's settlement. Ctrl-C leaves every request still followed to the supervisor.
+
+    Args:
+        services: The application services, with a live lease.
+        config: The loaded configuration (the rows live in ``indexer.db_path``).
+        console: Where it prints.
+        jobs: What is asked.
+
+    Returns:
+        The first non-zero exit code among the followed requests (``0`` when none, also once
+        detached), and the uids of the requests answering the asks.
+
+    Raises:
+        typer.Exit: Code 1 when the instance refuses an ask.
+    """
+    actor = services.credentials.system_actor()
+    uids = tuple(
+        _ask(
+            console,
+            partial(services.runs.ask_acquisition, actor, job, trigger=RunTrigger.CLI),
+            waiting=lambda: len(services.runs.queue_view().acquisition_queued),
+        )
+        for job in jobs
+    )
+    code = 0
+    settled = 0
+    try:
+        for uid in uids:
+            console.print(t("cli_core.run.following", uid=uid), highlight=False)
+            followed = _follow(services, config, console, uid, None)
+            code = code or followed
+            settled += 1
+    except KeyboardInterrupt:
+        for uid in uids[settled:]:
+            console.print(t("cli_core.run.detached", uid=uid), highlight=False)
+    return code, uids
+
+
+def _ask(console: Console, ask: Callable[[], RunAsked], *, waiting: Callable[[], int]) -> RunUid:
+    """Ask, and say what answered: the request queued, with its position, or the one joined.
+
+    Args:
+        console: Where it prints.
+        ask: The ask.
+        waiting: How many requests wait in the lane asked, the new one included.
+
+    Returns:
+        The uid of the request answering the ask.
+
+    Raises:
+        typer.Exit: Code 1 when the instance refuses the ask.
+    """
+    try:
+        asked = ask()
+    except AppRefusal as exc:
+        code = exc.code if exc.code is not None else RefusalCode.INTERNAL
+        scalars: dict[str, Any] = {
+            name: value for name, value in exc.params.items() if isinstance(value, (str, int, float))
+        }
+        console.print("[red]" + t_code("cli_refusals", code, **scalars) + "[/red]")
+        raise typer.Exit(1) from None
+    if asked.joined:
+        console.print(t("cli_core.run.joined", uid=asked.uid), highlight=False)
+    else:
+        console.print(t("cli_core.run.queued", uid=asked.uid, position=waiting()), highlight=False)
+    return asked.uid
+
+
+def _follow(services: AppServices, config: Config, console: Console, uid: RunUid, options: RunOptions | None) -> int:
     """Poll a request until it settles, printing each step as it closes.
 
     The lease is read before the request at each poll, so a supervisor that settles the request
@@ -200,7 +279,7 @@ def _follow(services: AppServices, config: Config, console: Console, uid: RunUid
         config: The loaded configuration.
         console: Where it prints.
         uid: The request answering the ask.
-        options: What the run was asked to do.
+        options: What the run was asked to do; ``None`` for an acquisition pass.
 
     Returns:
         The run's exit code, or :data:`LEASE_LOST_CODE` when the supervisor went away first.
@@ -259,7 +338,7 @@ def _finish(
     request: RunRequest,
     settlement: Settlement,
     steps: list[dict[str, object]],
-    options: RunOptions,
+    options: RunOptions | None,
 ) -> int:
     """Print the end of a settled request and compute its exit code.
 
@@ -269,13 +348,13 @@ def _finish(
         request: The settled request.
         settlement: How it ended.
         steps: The steps its row closed.
-        options: What the run was asked to do.
+        options: What the run was asked to do; ``None`` for an acquisition pass, which runs no trailers.
 
     Returns:
         ``0``, ``1``, ``2`` (a trailer abort), or ``130``.
     """
     code = _EXIT_CODES[settlement]
-    if settlement is Settlement.ERROR and _trailers_aborted(steps, options, config):
+    if settlement is Settlement.ERROR and options is not None and _trailers_aborted(steps, options, config):
         code = TRAILER_ABORT_CODE
     style = "green" if code == 0 else "red"
     console.print(
@@ -302,6 +381,19 @@ def _trailers_aborted(steps: list[dict[str, object]], options: RunOptions, confi
     if options.continue_on_trailer_error or config.trailers.pipeline.continue_on_error:
         return False
     return any(step.get("name") == "trailers" and step.get("status") == "error" for step in steps)
+
+
+def pass_counts(db_path: Path | None, uid: RunUid) -> list[dict[str, int]]:
+    """Read the numbers each pass recorded on a request's ``pipeline_run`` row.
+
+    Args:
+        db_path: The indexer database, or ``None`` when the configuration names none.
+        uid: The request's uid.
+
+    Returns:
+        The counts of each entry that has some, in the order recorded; empty while there is no row.
+    """
+    return [counts for step in _closed_steps(db_path, uid) if isinstance(counts := step.get("counts"), dict)]
 
 
 @contextmanager
