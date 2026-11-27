@@ -77,6 +77,7 @@
       "personalscraper-index-enrich": "Index enrichment",
       "personalscraper-index-full": "Full index scan",
       "personalscraper-backfill-ids": "Cross-ID backfill",
+      "personalscraper-suggestions-refresh": "Suggestions refresh",
       "personalscraper-seed-sweep": "Seed obligation tracking",
       "personalscraper-preprod-purge": "Preproduction torrent purge",
       "torrent_complete_dir": "Folder where qBittorrent drops finished torrents",

@@ -335,6 +335,7 @@ SCHEDULERS_AS_SYSTEM_DRAWS = {
     "personalscraper-index-enrich": "Enrichissement de l'index",
     "personalscraper-backfill-ids": "Complétion des identifiants",
     "personalscraper-index-full": "Analyse complète de l'index",
+    "personalscraper-suggestions-refresh": "Rafraîchissement des suggestions",
     "personalscraper-seed-sweep": "Suivi des obligations de seed",
 }
 
