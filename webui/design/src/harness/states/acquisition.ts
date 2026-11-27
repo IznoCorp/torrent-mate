@@ -192,6 +192,26 @@ export function acquisitionStates(): NamedState[] {
         }, OPEN_AFTER);
       },
     ],
+    /* A follow whose year nothing states is served `year: null`: the row and the tile say nothing in its
+       place, never « null ». */
+    [
+      "acq-follows-yearless",
+      "Acquisition · Suivis — un suivi sans année",
+      () => {
+        // french-ok: a media title, which is data.
+        window.__mocks?.setFollowYearless("L'Odyssée");
+        applyState({
+          page: "acq",
+          acqTab: "follows",
+          followMode: "list",
+          pill: "tout",
+          filter: "",
+          phase: "ready",
+        });
+        // The tab asks for the follows as soon as it is drawn, before this dial is turned: asked again.
+        void window.__queries?.resetQueries({ queryKey: ["/api/v1/acquisition/followed"] });
+      },
+    ],
     [
       "acq-follows-error",
       "Acquisition · Suivis — erreur",

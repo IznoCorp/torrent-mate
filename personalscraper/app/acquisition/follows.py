@@ -62,7 +62,7 @@ from personalscraper.app.acquisition.refusals import (
 )
 from personalscraper.app.acquisition.states import derive_follow_status, derive_movie_status, select_wanted_facts
 from personalscraper.app.errors import AppNotFound, RefusalCode
-from personalscraper.app.supervisor.model import AcquisitionJob, JobKind, RequestState
+from personalscraper.app.supervisor.model import AcquisitionJob, JobKind, RequestState, RunTrigger
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -465,7 +465,7 @@ class FollowService:
     @requires("reassignRequester")
     def reassign(
         self, actor: Actor, kind: Reassigned, key: AcquisitionKey, source: AccountId, target: AccountId
-    ) -> None:
+    ) -> tuple[AccountRef, ...]:
         """Move one requester's ask onto another account of the roster (§ 2.6, O-10 A).
 
         A target already asking keeps its own ask and the source simply leaves; the moved settings
@@ -478,6 +478,9 @@ class FollowService:
             key: The medium's key.
             source: The requester moved.
             target: The account taking its place.
+
+        Returns:
+            The acquisition's requesters after the move.
 
         Raises:
             AppNotFound: ``account.unknown`` when the target is no account of the roster;
@@ -502,7 +505,13 @@ class FollowService:
             started = self._save(repository, moved)
         log.info("app.follows.requester_reassigned", followed_id=follow.id, source=source, target=target)
         if started:
-            self._ask_prime(actor, follow.id)
+            # A consequence of the move, not the reassigning actor's act: the system asks it (as the rights'
+            # re-projection does), so it needs no ``acquisition.pilot.any`` of them and says whose it is.
+            self._ask_prime(self._system(), follow.id, RunTrigger.SYSTEM)
+        return tuple(
+            AccountRef(id=one.account_id, name=self._name(one.account_id))
+            for one in moved.requesters_or_owner(self._owner())
+        )
 
     @requires("runMaintenanceAction")
     def reproject(self, actor: Actor) -> int:
@@ -648,7 +657,7 @@ class FollowService:
             return
         system = self._system()
         for follow_id in started:
-            self._ask_prime(system, follow_id)
+            self._ask_prime(system, follow_id, RunTrigger.SYSTEM)
 
     def _after_write(self, actor: Actor, key: AcquisitionKey, follow_id: FollowId, started: bool) -> FollowView:
         """Prime a follow that starts taking work, then read it back as the actor sees it.
@@ -666,15 +675,17 @@ class FollowService:
             self._ask_prime(actor, follow_id)
         return self._read_one(actor, key, follow_id)
 
-    def _ask_prime(self, actor: Actor, follow_id: FollowId) -> None:
+    def _ask_prime(self, actor: Actor, follow_id: FollowId, trigger: RunTrigger = RunTrigger.WEB) -> None:
         """Ask the supervisor for a prime of the follow; a refusal or a failure is logged, never raised.
 
         Args:
-            actor: Who wrote; the ask is authorised against it.
+            actor: Who asks; the ask is authorised against it.
             follow_id: The follow.
+            trigger: What the ask comes from: the web for an actor's own write, the system for a
+                consequence nobody asked for.
         """
         try:
-            asked = self._runs.ask_acquisition(actor, prime(follow_id))
+            asked = self._runs.ask_acquisition(actor, prime(follow_id), trigger=trigger)
         except Exception:  # the write stands whatever the ask does (DESIGN § 2.3)
             log.warning("app.follows.prime_ask_failed", followed_id=follow_id, exc_info=True)
             return

@@ -74,6 +74,18 @@ export function followStatusLabel(follow: FollowSubject): string {
 }
 
 /**
+ * The year a follow is dated by, as it is written on a card or a tile. A medium nothing dates is served
+ * `null` (the contract's `Follow.year`) and the maquette's own mocks hold an empty string for it: both say
+ * nothing — never the word « null ».
+ *
+ * @param follow The follow.
+ * @returns The year as text, or an empty string when none is known.
+ */
+export function followYear(follow: Pick<FollowSubject, "year">): string {
+  return follow.year == null ? "" : String(follow.year);
+}
+
+/**
  * A series' « held/aired » fraction. A film has none; a series whose catalogue
  * is unknown says « — » rather than a figure it does not have.
  *

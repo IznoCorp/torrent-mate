@@ -92,6 +92,8 @@ class RunTrigger(StrEnum):
     WEB = "web"
     CLI = "cli"
     SCRAPE_RESOLVE = "scrape-resolve"
+    #: Nobody asked: the consequence of another act (a reassign, a re-projection of the rights), asked as the system.
+    SYSTEM = "system"
 
 
 class RequestState(StrEnum):

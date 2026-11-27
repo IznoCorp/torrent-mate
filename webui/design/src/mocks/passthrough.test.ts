@@ -51,7 +51,7 @@ describe("the operations v1 serves", () => {
   it("pass through on the design host only", () => {
     for (const id of SERVED) expect(passesThrough(id, false)).toBe(false);
     expect(passesThrough("signIn", true)).toBe(true);
-    expect(passesThrough("readFollows", true)).toBe(false);
+    expect(passesThrough("readTrackers", true)).toBe(false);
   });
 
   it("on the design host, the library and media operations pass through, with the account ones", () => {
@@ -124,7 +124,7 @@ describe("the layer, installed", () => {
 
   it("on the design host, answers an unserved operation from the mocks", async () => {
     vi.stubGlobal("__DESIGN_HOST__", true);
-    expect((await ask("/api/v1/acquisition/followed")).status).toBe(200);
+    expect((await ask("/api/v1/trackers")).status).toBe(200);
     expect(network).not.toHaveBeenCalled();
   });
 
