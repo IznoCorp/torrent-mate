@@ -662,31 +662,32 @@ class TestReadSuggestions:
     def test_a_card_carries_the_contracts_fields(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
     ) -> None:
-        """A show of the deck: its year as text, the reason's code as ``why``, its ids, no full-screen poster."""
+        """A show of the deck: its handle, its year, the reason's code and values, its ids, no full-screen poster."""
         _deck(acquire, 3)
 
         cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
 
         assert cards[0] == {
+            "id": "show:tmdb:1",
             "title": "Title 1",
-            "year": "2021",
+            "year": 2021,
             "kind": "show",
             "rating": 7.5,
-            "why": ["similar_to_owned"],
+            "why": {"code": "similar_to_owned", "titles": [], "count": None},
             "ids": {"tmdb": 1},
             "poster": "https://img/p.jpg",
             "posterHighDefinition": None,
         }
 
-    def test_what_the_deck_lacks_is_an_empty_text_and_a_zero_never_a_null(
+    def test_a_year_the_deck_lacks_is_null_and_a_rating_a_zero(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
     ) -> None:
-        """The contract types ``year`` as text and ``rating`` as a number: an unknown year is ``""``, a rating ``0``."""
+        """K3-G7 types ``year`` as an integer or ``null``; ``rating`` stays a number, an unknown one ``0``."""
         _deck(acquire, 3)
 
         cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
 
-        assert (cards[1]["year"], cards[2]["rating"]) == ("", 0)
+        assert (cards[1]["year"], cards[2]["rating"]) == (None, 0)
 
     def test_the_next_cursor_continues_the_deck_to_its_end(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
