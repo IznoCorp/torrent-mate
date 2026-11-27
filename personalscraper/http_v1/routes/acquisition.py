@@ -13,7 +13,6 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, Path, Query
 
-from personalscraper.acquire.domain import FollowKind
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ids import AccountId
 from personalscraper.app.acquisition.model import AcquisitionKey
@@ -46,7 +45,8 @@ _KEY_PARAM_DESCRIPTION = (
 )
 FollowedIdParam = Annotated[str, Path(alias="followedId", description=_KEY_PARAM_DESCRIPTION)]
 
-#: The kinds a follow is of.
+#: The kinds a follow is of (the engine's ``FollowKind``, which http_v1 never imports).
+FollowKind = Literal["movie", "show"]
 _KINDS: tuple[FollowKind, ...] = ("movie", "show")
 
 
