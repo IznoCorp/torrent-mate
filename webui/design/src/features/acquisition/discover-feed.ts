@@ -261,9 +261,11 @@ export function refreshDeck(): void {
 /**
  * Gives the deck the height actually left in the scrollport.
  *
- * Re-run on every render and on resize, because a rotated phone is a different
- * height. Self-correcting: whatever still overflows is taken back, once — a
- * deck that makes the page scroll is a deck that is not full-screen.
+ * Re-run on every render, on resize — a rotated phone is a different height —
+ * and when the bottom bar's reserve is published (`app/tab-bar.tsx`), which
+ * lands after the bar has moved. Self-correcting: whatever still overflows is
+ * taken back, once — a deck that makes the page scroll is a deck that is not
+ * full-screen.
  */
 export function mountDeck(): void {
   const deck = document.querySelector<HTMLElement>(".deck");
