@@ -2310,7 +2310,7 @@
       },
       "similar_to_followed": {
         "named": "Because you follow {{titles}}.",
-        "unnamed": "Close to what you follow.",
+        "unnamed": "Close to what is followed.",
         "counted_one": "Matched by {{figure}} title you follow.",
         "counted_other": "Matched by {{figure}} titles you follow.",
         "countedNamed_one": "Matched by {{figure}} title you follow, including {{titles}}.",

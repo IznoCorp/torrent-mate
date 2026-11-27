@@ -2310,7 +2310,7 @@
       },
       "similar_to_followed": {
         "named": "Parce que vous suivez {{titles}}.",
-        "unnamed": "Proche de ce que vous suivez.",
+        "unnamed": "Proche de ce qui est suivi.",
         "counted_one": "Recoupé par {{figure}} titre que vous suivez.",
         "counted_other": "Recoupé par {{figure}} titres que vous suivez.",
         "countedNamed_one": "Recoupé par {{figure}} titre que vous suivez, dont {{titles}}.",
