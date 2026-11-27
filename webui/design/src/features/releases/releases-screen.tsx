@@ -18,6 +18,8 @@ import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
+import type { Release } from "./types";
+import { episodeSeason } from "./season";
 import { actionButton, backAction, body, chip, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport, screenBarNote } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 import { Icon } from "../../ui/icon";
@@ -26,9 +28,6 @@ import { baseTitle } from "../../lib/titles";
 import { useAcquisitionQueue } from "../../lib/queue";
 import { useStoreContent } from "../../lib/store-access";
 import { acquisitionKey, liveCards, tabHolding } from "../../lib/arrival-slots";
-
-// A release's name, where it names one episode: « Silo.S03E07.… ».
-const EPISODE_IN_NAME = /(?:^|[.\s_-])S(\d{1,3})E\d{1,3}(?:[.\s_-]|$)/i;
 
 /**
  * The whole-season recoveries live for one title — a series' alone: a film has
@@ -50,19 +49,6 @@ function useSeasonsRecovered(title: string): Map<number, string> {
   return recovered;
 }
 
-/**
- * The season a release covers ONE episode of, when its name says so. The
- * release list is the one answer that carries no season field — its name is
- * the release, and the demand register asks the engine for the fields.
- *
- * @param name The release's name.
- * @returns The season, or null for a pack, a film, or a name naming none.
- */
-function episodeSeason(name: string): number | null {
-  const found = EPISODE_IN_NAME.exec(name);
-  return found ? Number(found[1]) : null;
-}
-
 export function ReleasesScreen() {
   const { title: raw } = useParams({ from: "/releases/$title" });
   // Defensive: `__screens.releases` already normalises on write, but an entry
@@ -79,11 +65,11 @@ export function ReleasesScreen() {
   // of one of them keeps its row, and says why it cannot be taken — VISIBLE, never
   // quietly left out (DOIT-2, DOIT-12). A pack keeps its act.
   const recovered = useSeasonsRecovered(baseTitle(title));
-  const coveredBy = (name: string) => {
-    const season = episodeSeason(name);
+  const coveredBy = (release: Release) => {
+    const season = episodeSeason(release);
     return season !== null && recovered.has(season) ? season : null;
   };
-  const covered = RELEASES.map((release) => coveredBy(release.name));
+  const covered = RELEASES.map((release) => coveredBy(release));
   const allCovered = RELEASES.length > 0 && covered.every((season) => season !== null && season === covered[0]);
 
   return (
