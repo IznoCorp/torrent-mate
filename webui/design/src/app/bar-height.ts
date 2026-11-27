@@ -36,8 +36,14 @@
  * published is a drawn bar's rather than an empty one's — and so that it is
  * published at all: the bar is a component since L15 and does not exist when
  * the boot runs, where this used to be called.
+ *
+ * Args:
+ *     changed: Told after each new value is written. The observer delivers
+ *         after the layout that moved the bar, so whatever MEASURED against the
+ *         reserve in between read the previous one, and nothing else tells it:
+ *         the window did not resize. A reader through CSS needs no telling.
  */
-export function publishBarHeight(): void {
+export function publishBarHeight(changed: () => void): void {
   const bar = document.querySelector<HTMLElement>(".bottombar");
   if (!bar) return;
   const publish = () => {
@@ -46,11 +52,13 @@ export function publishBarHeight(): void {
     const ceil = Math.ceil(bar.getBoundingClientRect().height);
     const cur =
       document.documentElement.style.getPropertyValue("--tm-bottom-bar-h");
-    if (cur !== ceil + "px")
+    if (cur !== ceil + "px") {
       document.documentElement.style.setProperty(
         "--tm-bottom-bar-h",
         ceil + "px",
       );
+      changed();
+    }
   };
   publish();
   if (typeof ResizeObserver !== "undefined")

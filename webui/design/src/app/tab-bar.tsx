@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 
 import { publishBarHeight } from "./bar-height";
 import { NAVIGATION, opensFor, rowFor } from "./navigation";
+import { mountDeck } from "../features/acquisition/discover-feed";
 import { useRights } from "../lib/account";
 import { Icon } from "../ui/icon";
 import { useServerStateVersion } from "../lib/query-client";
@@ -65,8 +66,10 @@ export function TabBar(): ReactElement {
   // would never attach. R84's « exactly one publisher » is untouched:
   // `app/bar-height.ts` is still it, and only the moment it is called moved.
   // Before the paint, so nothing above the bar sits on `0px` for a frame.
+  // THE PILE IS TOLD OF EVERY NEW VALUE: its height is measured against the
+  // reserve, and a bar that goes and comes back publishes after that measure.
   useLayoutEffect(() => {
-    publishBarHeight();
+    publishBarHeight(mountDeck);
   }, []);
 
   return (
