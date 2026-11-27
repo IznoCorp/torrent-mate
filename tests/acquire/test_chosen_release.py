@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.acquire._dedup import SearchOutcome
+from personalscraper.acquire.desired import QualityProfile, Resolution, quality_profile_to_json
 from personalscraper.acquire.domain import FollowedSeries, WantedCandidate, WantedItem, release_handle
 from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
 from personalscraper.acquire.service import AcquisitionService, RunSummary
@@ -165,24 +166,33 @@ def _follow(store: ConcreteAcquireStore) -> int:
     return store.follow.add(FollowedSeries(media_ref=_REF, title="Severance", added_at=1))
 
 
-def _available(store: ConcreteAcquireStore, episode: int, *, candidates: Sequence[str] = ()) -> int:
+def _available(
+    store: ConcreteAcquireStore,
+    episode: int,
+    *,
+    candidates: Sequence[str] = (),
+    media_ref: MediaRef = _REF,
+    followed_id: int | None = None,
+) -> int:
     """Insert an episode row a search concluded takeable, with the candidates it stored.
 
     Args:
         store: The acquire store.
         episode: The episode number (season 2).
         candidates: The names of the candidate set the search stored, best first.
+        media_ref: The ids the row carries.
+        followed_id: The follow the row is of; ``None`` for the show's, which this adds again (and so resumes).
 
     Returns:
         The row's rowid.
     """
     wanted_id = store.wanted.add(
         WantedItem(
-            media_ref=_REF,
+            media_ref=media_ref,
             kind="episode",
             status="pending",
             enqueued_at=_ENQUEUED_AT,
-            followed_id=_follow(store),
+            followed_id=_follow(store) if followed_id is None else followed_id,
             season=2,
             episode=episode,
         )
@@ -586,6 +596,29 @@ def test_a_picked_release_the_grab_would_refuse_is_not_added(store: ConcreteAcqu
     assert _last_grab(store, wanted_id)[0] == "chosen_release_gone"
 
 
+@pytest.mark.parametrize("refused_by", ["resolution_floor", "another_identity"])
+def test_a_picked_release_the_item_itself_refuses_is_not_added(store: ConcreteAcquireStore, refused_by: str) -> None:
+    """The pick is held to this item's own profile and TMDB identity, not to the defaults: it is « gone »."""
+    media_ref = _REF
+    picked, other = _result(_BEST, seeders=40), _result(_SECOND, seeders=90)
+    if refused_by == "resolution_floor":
+        floor = quality_profile_to_json(QualityProfile(min_resolution=Resolution.R2160P))
+        store.follow.add(FollowedSeries(media_ref=_REF, title="Severance", added_at=1, quality_profile_json=floor))
+        other = dataclasses.replace(other, resolution="2160p")
+    else:
+        media_ref = MediaRef(tvdb_id=99, tmdb_id=5)
+        picked = dataclasses.replace(picked, tmdb_id=6)
+    wanted_id = _available(store, 5, candidates=[_BEST], media_ref=media_ref)
+    client = _Client()
+
+    summary, _ = _grab(
+        store, client, [picked, other], release=_BEST, wanted_id=wanted_id, release_id=_handle_of(wanted_id, picked)
+    )
+
+    assert (summary.grabbed, summary.release_gone, client.added) == (0, 1, [])
+    assert _last_grab(store, wanted_id)[0] == "chosen_release_gone"
+
+
 def test_of_two_hashless_namesakes_the_size_picked_is_grabbed(store: ConcreteAcquireStore) -> None:
     """A tracker that gives no info-hash leaves the size alone to tell two releases of one name apart."""
     wanted_id = _available(store, 5, candidates=[_BEST])
@@ -663,22 +696,16 @@ def test_a_pick_bound_to_a_row_that_no_longer_waits_holds_nothing(store: Concret
     assert _last_grab(store, wanted_id) == (None, None)
 
 
-def test_a_pick_bound_to_the_row_of_another_follow_holds_nothing(store: ConcreteAcquireStore) -> None:
-    """The row named is not this follow's: its own follow chose nothing, so it is not held."""
+@pytest.mark.parametrize("bound", [True, False], ids=["bound_to_its_row", "found_by_name"])
+@pytest.mark.parametrize("status", ["pending", "available"])
+def test_a_pick_never_holds_the_row_of_another_follow(store: ConcreteAcquireStore, status: str, bound: bool) -> None:
+    """Named by its id, or carrying the picked name: its own follow chose nothing, so it is not held."""
     other_ref = MediaRef(tvdb_id=100)
-    foreign = store.wanted.add(
-        WantedItem(
-            media_ref=other_ref,
-            kind="episode",
-            status="pending",
-            enqueued_at=_ENQUEUED_AT,
-            followed_id=store.follow.add(FollowedSeries(media_ref=other_ref, title="Silo", added_at=1)),
-            season=2,
-            episode=5,
-        )
-    )
+    other_follow = store.follow.add(FollowedSeries(media_ref=other_ref, title="Silo", added_at=1))
+    foreign = _available(store, 5, candidates=[_BEST], media_ref=other_ref, followed_id=other_follow)
+    store.wanted.set_status(foreign, status)  # type: ignore[arg-type]
 
-    _grab(store, _Client(), [_result(_BEST, seeders=90)], release=_BEST, wanted_id=foreign)
+    _grab(store, _Client(), [_result(_BEST, seeders=90)], release=_BEST, wanted_id=foreign if bound else None)
 
     assert _last_grab(store, foreign) == (None, None)
 
@@ -690,6 +717,8 @@ def test_a_pick_a_gate_keeps_from_being_asked_is_held_until_chosen_again(
 ) -> None:
     """Paused (O-3 A) or refused by the scope: nothing is asked, the row waits, and the person chooses again (O-14)."""
     wanted_id = _available(store, 5, candidates=[_BEST, _SECOND])
+    # A second row of the follow that nobody picked: beside a bound pick it even carries the picked name.
+    unpicked = _available(store, 6, candidates=[_SECOND] if bound else [_OTHER_EPISODE])
     follow = _follow(store)
     if gate == "paused_follow":
         store.follow.set_active(follow, False)
@@ -705,6 +734,7 @@ def test_a_pick_a_gate_keeps_from_being_asked_is_held_until_chosen_again(
     assert row is not None
     assert (client.added, registry.search_candidates.call_count, row.status) == ([], 0, "available")
     assert _last_grab(store, wanted_id) == ("chosen_release_failed", _PINNED_NOW)
+    assert _last_grab(store, unpicked) == (None, None)
 
     # The follow resumes: the engine's own choice never stands in for the person's.
     store.follow.set_active(follow, True)
