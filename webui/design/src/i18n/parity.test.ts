@@ -96,7 +96,7 @@ const IDENTICAL_IN_BOTH_LANGUAGES: ReadonlySet<string> = new Set([
   "screens.library.lenses.standup", "screens.library.lenses.anime", "screens.acquisition.swipePause",
   "screens.accountPage.transport", "screens.accountPage.notifications.heading", "screens.notFound.menuLink",
   "surfaces.decision.heading", "surfaces.card.automatic", "navigation.groups.supervision",
-  "navigation.groups.configuration", "navigation.drawerLabel", "panels.add.meta", "verbs.library.delete.itemOne",
+  "navigation.groups.configuration", "navigation.drawerLabel", "panels.add.meta", "panels.add.metaNoYear", "verbs.library.delete.itemOne",
   "verbs.library.delete.itemMany",
 ]);
 

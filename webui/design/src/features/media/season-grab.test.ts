@@ -16,6 +16,11 @@ vi.mock("../../lib/query-client", () => ({
   send: async () => ({ season: 5, absorbedCount: 23, queued: false, reused: false, runUid: null }),
 }));
 
+// THE KEY CROSSING is the module `lib/follow-key.test.ts` proves; here it answers a key, so the verb's own words are what is read.
+vi.mock("../../lib/follow-key", () => ({
+  followKeyOfTitle: async () => "tvdb:1",
+  followSegment: encodeURIComponent,
+}));
 vi.mock("../../lib/shell-doors", () => ({
   panel: undefined,
   toast: { show: ({ message }: { message: string }) => shown.push(message) },

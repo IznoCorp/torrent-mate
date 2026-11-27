@@ -5,6 +5,7 @@
 // the key, the projection and the arithmetic are the same object on both
 // surfaces rather than two copies that part company on the first change (§13).
 import { read } from "./query-client";
+import { followKeyOfTitle, followSegment } from "./follow-key";
 import type { components } from "../contract/types";
 
 /** What the completeness read answers for one follow. */
@@ -114,14 +115,20 @@ export function offCatalogueBySeason(held: SeasonsAnswer | undefined): Record<st
  * engine's own matrix. A series nobody follows has no follow to ask it of, and
  * keeps the figures `seasonsHeld` crosses from its seasons read.
  *
- * @param followedId The follow, as the address names it.
+ * THE CACHE IS KEYED BY THE TITLE a surface holds the follow under; the READ
+ * is addressed by the follow's own key (K3-G1), crossed at the door.
+ *
+ * @param title The follow, as the surface holds it.
  * @returns The query's key and function.
  */
-export function completenessQuery(followedId: string) {
+export function completenessQuery(title: string) {
   return {
-    queryKey: ["/api/v1/acquisition/followed", followedId, "completeness"] as const,
-    queryFn: async (): Promise<FollowCompleteness> =>
-      read<FollowCompleteness>(`/api/v1/acquisition/followed/${encodeURIComponent(followedId)}/completeness`),
+    queryKey: ["/api/v1/acquisition/followed", title, "completeness"] as const,
+    queryFn: async (): Promise<FollowCompleteness> => {
+      const key = await followKeyOfTitle(title);
+      if (key === null) throw new Error(`no provider identity names ${title}`);
+      return read<FollowCompleteness>(`/api/v1/acquisition/followed/${followSegment(key)}/completeness`);
+    },
   };
 }
 

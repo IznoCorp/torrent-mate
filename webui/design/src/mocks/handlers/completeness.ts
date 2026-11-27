@@ -5,6 +5,7 @@
 // follow names. A follow whose seasons nobody catalogued answers
 // `source: unknown` and no season, never a fabricated all-missing grid.
 import { GET, route } from "./shared";
+import { followForKey } from "../follow-key";
 import { mockState } from "../state";
 import { refused, type MockRoute } from "../router";
 import { seasonsAnswerFor } from "./media";
@@ -22,12 +23,12 @@ const TO_GRAB = "to_grab";
 /**
  * The completeness of one follow.
  *
- * @param followedId The follow, which the layer names by its title.
+ * @param followedId The follow's key, `<provider>:<providerId>`.
  * @returns The matrix, or a refusal when no follow carries that name.
  */
 function completenessOf(followedId: string): unknown {
-  const follow = mockState().follows.find((one) => one.title === followedId);
-  if (follow === undefined) return refused(NOT_FOUND, "no follow carries that name");
+  const follow = followForKey(followedId);
+  if (follow === undefined) return refused(NOT_FOUND, "no follow answers to that key", "acquisition.not_found");
   const held = seasonsAnswerFor(follow.title, follow.ids as Record<string, unknown> | undefined);
   const catalogue = held.seasons as { number?: number; season?: number; episodes?: number | null }[];
   const seasons: SeasonCompleteness[] = catalogue.map((entry) => {

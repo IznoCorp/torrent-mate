@@ -19,6 +19,7 @@ import { markSeasonQueued, refreshPipelineStatus } from "./queued-seasons";
 import i18next from "i18next";
 import { HELD, isRequestFailure, send } from "../../lib/query-client";
 import { followedTitles, panel, toast } from "../../lib/shell-doors";
+import { followKeyOfTitle, followSegment } from "../../lib/follow-key";
 
 /** What the operation answers, as the contract declares it. */
 type SeasonGrab = {
@@ -47,9 +48,9 @@ type SeasonGrab = {
  * saying « failed » would be a worse one, so the interface says it is held.
  *
  * Args:
- *     title: The follow, as this interface knows it — by TITLE. The backend
- *         wants a rowid; that is a demand on the register (§ 2b), not something
- *         to invent here.
+ *     title: The medium, as this interface knows it — by TITLE, crossed to its
+ *         key (`<provider>:<providerId>`) at the door, which the operation
+ *         addresses it by whether or not it is followed (K3-G1).
  *     season: The season number, 1-based.
  *
  * Returns:
@@ -161,9 +162,13 @@ export async function grabSeason(title: string, season: number): Promise<boolean
   inFlight.add(asked);
   announceFlight();
   try {
+    // THE MEDIUM'S KEY, crossed from the title at the door (K3-G1): a series
+    // nobody follows is addressed the same way, which is what a one-off is.
+    const key = await followKeyOfTitle(title);
+    if (key === null) throw new Error(`no provider identity names ${title}`);
     const answered = await send<SeasonGrab>(
       "POST",
-      `/api/v1/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
+      `/api/v1/acquisition/follows/${followSegment(key)}/seasons/${season}/grab`,
     );
     if (answered === HELD) {
       toast?.show({ message: say("seasonHeld", { season, title }) });

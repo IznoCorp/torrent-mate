@@ -54,12 +54,20 @@ export function releasesFor(title: string) {
   const wanted = matchingKey(title);
   // A RELEASE ALREADY TRIED AND ABANDONED IS NOT OFFERED AGAIN (§14.1).
   const abandoned = mockState().triedReleases[title] ?? [];
-  return RELEASES
-    .map((release, position) => ({
-      id: String(position + 1),
-      ...release,
-      ...numberingOf(String(release.name ?? "")),
-    }))
+  return releasesOfEvery()
     .filter((release) => matchingKey(String(release.name ?? "")).includes(wanted)
       && !abandoned.includes(String(release.name ?? "")));
+}
+
+/**
+ * Every seeded release, each with its handle and what it is of: the candidates of every item.
+ *
+ * @returns The whole seed, numbered.
+ */
+export function releasesOfEvery() {
+  return RELEASES.map((release, position) => ({
+    id: String(position + 1),
+    ...release,
+    ...numberingOf(String(release.name ?? "")),
+  }));
 }

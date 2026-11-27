@@ -58,8 +58,8 @@ function successShape(operation: {
 const KNOWN_VALUE: Record<string, string> = {
   mediaId: "Backrooms 2026",
   title: "Silo",
-  // A follow the layer holds: the layer names a follow by its title.
-  followedId: "Silo",
+  // A follow the layer holds, by its medium's key (K3-G1): Silo's TVDB id, a show's first.
+  followedId: "tvdb:403245",
   folder: "Backrooms.2026.MULTi.2160p.WEB-DL",
   // A medium the layer holds — Silo — so a read about one answers a whole
   // record rather than the empty answer of an identity nobody carries.

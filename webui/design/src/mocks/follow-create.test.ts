@@ -66,9 +66,9 @@ describe("a follow created from any surface", () => {
     const result = SEARCH_RESULTS.results.find((one) => !one.followed && one.ids !== null)!;
     const suggestion = SUGGESTIONS[0];
     for (const entry of [result, suggestion]) {
-      const follow = create(entry.title, entry.kind === "Film" ? "movie" : "show", entry.ids);
+      const follow = create(entry.title, entry.kind === "Film" || entry.kind === "movie" ? "movie" : "show", entry.ids);
       expect(follow.poster, entry.title).toBe(entry.poster);
-      expect(String(follow.year), entry.title).toBe(entry.year);
+      expect(String(follow.year), entry.title).toBe(String(entry.year));
     }
   });
 
