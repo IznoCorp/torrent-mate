@@ -27,10 +27,17 @@ from personalscraper.core.identity import MediaRef
 _CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 
 
-def _actor(account: str = "account-requester", rights: frozenset[Right] = frozenset({Right.ACQUISITION_REQUEST})) -> Actor:
+def _actor(
+    account: str = "account-requester", rights: frozenset[Right] = frozenset({Right.ACQUISITION_REQUEST})
+) -> Actor:
     """An actor of an account holding ``rights``."""
     return Actor(
-        account_id=account, name=account, role_id="requester", role_kind=RoleKind.ORDINARY, role_rights=rights, ceiling=_CEILING
+        account_id=account,
+        name=account,
+        role_id="requester",
+        role_kind=RoleKind.ORDINARY,
+        role_rights=rights,
+        ceiling=_CEILING,
     )
 
 
@@ -50,7 +57,12 @@ class _Library:
         self.closed = False
 
     def owns(
-        self, media_ref: MediaRef, *, kind: Literal["movie", "episode"], season: int | None = None, episode: int | None = None
+        self,
+        media_ref: MediaRef,
+        *,
+        kind: Literal["movie", "episode"],
+        season: int | None = None,
+        episode: int | None = None,
     ) -> bool:
         """Whether a film is held."""
         return media_ref.tmdb_id in self.movie_tmdb or media_ref.imdb_id in self.imdb
@@ -134,13 +146,26 @@ class TestRead:
 
     def test_a_card_carries_the_rows_columns(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
         """The reader sees the stored title, year, rating, poster, reason code and seed."""
-        store.suggestions.replace_deck([_row("tmdb", "42", "movie", reason="similar_to_followed", seed_key="tvdb:81189")])
+        store.suggestions.replace_deck(
+            [_row("tmdb", "42", "movie", reason="similar_to_followed", seed_key="tvdb:81189")]
+        )
         service, _ = _service(tmp_path)
 
         (card,) = service.read(_actor(), None).items
 
-        assert (card.provider, card.provider_id, card.kind, card.title, card.year) == ("tmdb", "42", "movie", "Title 42", 2021)
-        assert (card.rating, card.poster, card.reason, card.seed_key) == (8.1, "https://img/p.jpg", "similar_to_followed", "tvdb:81189")
+        assert (card.provider, card.provider_id, card.kind, card.title, card.year) == (
+            "tmdb",
+            "42",
+            "movie",
+            "Title 42",
+            2021,
+        )
+        assert (card.rating, card.poster, card.reason, card.seed_key) == (
+            8.1,
+            "https://img/p.jpg",
+            "similar_to_followed",
+            "tvdb:81189",
+        )
 
     def test_the_library_is_released_after_a_read(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
         """The ownership reader is opened for the call and closed with it."""
@@ -158,21 +183,27 @@ class TestRead:
 
         assert _titles(service.read(_actor(), None).items) == ["9999", "9998"]
 
-    def test_an_imdb_id_from_a_slug_provider_is_matched_to_the_library(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_an_imdb_id_from_a_slug_provider_is_matched_to_the_library(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """Trakt answers an IMDb id (``tt…``) when it has no slug: it is the library's by that id."""
         store.suggestions.replace_deck([_row("trakt", "tt0903747"), _row("trakt", "tt0000001")])
         service, _ = _service(tmp_path, _Library(imdb={"tt0903747"}))
 
         assert _titles(service.read(_actor(), None).items) == ["tt0000001"]
 
-    def test_an_id_the_library_cannot_be_asked_by_is_never_excluded(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_an_id_the_library_cannot_be_asked_by_is_never_excluded(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """A Trakt slug or Trakt numeric id names no TVDB, TMDB or IMDb id: no title guess, it stays."""
         store.suggestions.replace_deck([_row("trakt", "breaking-bad"), _row("trakt", "1388")])
         service, _ = _service(tmp_path, _Library(movie_tmdb={1388}, show_tmdb={1388}, imdb={"breaking-bad"}))
 
         assert _titles(service.read(_actor(), None).items) == ["breaking-bad", "1388"]
 
-    def test_a_followed_show_and_a_followed_film_are_excluded(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_a_followed_show_and_a_followed_film_are_excluded(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """A standing follow holds the id: by TVDB for a show, by TMDB for a film."""
         store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=81189), title="Breaking Bad", added_at=1))
         store.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=27205), title="Inception", added_at=1, kind="movie"))
@@ -184,7 +215,9 @@ class TestRead:
         # The show row of TMDB 27205 is another medium than the followed film of that number.
         assert _titles(service.read(_actor(), None).items) == ["27205", "5"]
 
-    def test_a_removed_follow_and_a_request_row_do_not_exclude(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_a_removed_follow_and_a_request_row_do_not_exclude(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """Only a standing follow does: a removed one and a one-off request leave the title suggested."""
         removed = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="Removed", added_at=1))
         request = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=2), title="Request", added_at=1))
@@ -208,11 +241,16 @@ class TestRejectionSeam:
         service, _ = _service(tmp_path)
         assert _titles(service.read(_actor(), None).items) == ["1", "2"]
 
-    def test_what_the_filter_names_is_excluded_for_its_reader_only(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_what_the_filter_names_is_excluded_for_its_reader_only(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """The filter is asked with the reader's actor: another account's rejection leaves the title in."""
         store.suggestions.replace_deck([_row("tmdb", "1"), _row("tmdb", "2", "movie"), _row("tmdb", "3")])
         rejections = _Rejections(
-            {"account-requester": {("tmdb", "1", "show")}, "account-other": {("tmdb", "3", "show"), ("tmdb", "2", "movie")}}
+            {
+                "account-requester": {("tmdb", "1", "show")},
+                "account-other": {("tmdb", "3", "show"), ("tmdb", "2", "movie")},
+            }
         )
         service, _ = _service(tmp_path, rejections=rejections)
 
@@ -232,7 +270,9 @@ class TestRejectionSeam:
 class TestPaging:
     """The deck is read a page at a time, continued by ``after``."""
 
-    def test_after_continues_the_deck_without_overlap_to_its_end(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_after_continues_the_deck_without_overlap_to_its_end(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """Pages of 2 over 5 titles: 2, 2, 1, and the last page names no continuation."""
         store.suggestions.replace_deck([_row("tmdb", str(i)) for i in range(5)])
         service, _ = _service(tmp_path)
@@ -266,7 +306,9 @@ class TestPaging:
         assert page.after == page.items[-1].cursor
         assert _titles(from_the_first_card.items) == ["1", "2"]
 
-    def test_a_cursor_from_an_older_deck_restarts_the_new_one(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_a_cursor_from_an_older_deck_restarts_the_new_one(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """A refresh between two pages never makes the reader skip a title of the new deck."""
         store.suggestions.replace_deck([_row("tmdb", "old1"), _row("tmdb", "old2")])
         service, _ = _service(tmp_path)
@@ -276,7 +318,9 @@ class TestPaging:
         assert _titles(service.read(_actor(), stale).items) == ["new1", "new2"]
 
     @pytest.mark.parametrize("after", ["", "abc", "-1", "1.5"])
-    def test_a_cursor_that_is_not_one_is_a_bad_request(self, store: ConcreteAcquireStore, tmp_path: Path, after: str) -> None:
+    def test_a_cursor_that_is_not_one_is_a_bad_request(
+        self, store: ConcreteAcquireStore, tmp_path: Path, after: str
+    ) -> None:
         """The deck's cursors are what ``read`` gave: anything else is refused, not guessed."""
         service, _ = _service(tmp_path)
         with pytest.raises(AppBadRequest) as refusal:
@@ -287,7 +331,9 @@ class TestPaging:
 class TestAuthorisation:
     """``readSuggestions`` asks the right to request."""
 
-    def test_an_actor_without_the_right_is_refused_before_anything_is_read(self, store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    def test_an_actor_without_the_right_is_refused_before_anything_is_read(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
         """No acquisition right, no deck."""
         store.suggestions.replace_deck([_row("tmdb", "1")])
         service, library = _service(tmp_path)
