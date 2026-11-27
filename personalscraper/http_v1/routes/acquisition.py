@@ -4,6 +4,11 @@ The contract files them under its ``acquisition`` tag. Each route parses the wir
 (``<provider>:<providerId>``, a medium followed or not, removed or not — never its title) with
 :meth:`~personalscraper.app.acquisition.model.AcquisitionKey.parse` and makes ONE call on the follow
 service; the rules (requesters, what is in force, soft removal, the prime) are the service's.
+
+A wire key carries no kind, and an item route learns it from the rows (DESIGN § 2.2): the parsed key
+is looked up as a show's when it is a TVDB id, then as a film's when no show holds it, so a film named
+only by its TVDB id answers on every item route. Two rows of the one kind answering the key are
+``follow.ambiguous``. The create body states its kind, which the lookup it makes then knows.
 """
 
 from __future__ import annotations

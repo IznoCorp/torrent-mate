@@ -296,6 +296,44 @@ def test_a_film_named_tvdb_comes_back_through_get(store: ConcreteAcquireStore) -
     assert _loaded_kind(FollowRepository(store), key, "movie").id == rowid
 
 
+def test_a_bare_tvdb_key_finds_the_film_that_holds_it(store: ConcreteAcquireStore) -> None:
+    """A wire key carries no kind: no show answers to ``tvdb:111``, so the film holding that id does."""
+    rowid = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=111), title="Film", added_at=100, kind="movie"))
+
+    found = FollowRepository(store).get(AcquisitionKey.parse("tvdb:111"))
+
+    assert found is not None and found.id == rowid
+
+
+def test_a_bare_tvdb_key_names_the_show_before_a_film(store: ConcreteAcquireStore) -> None:
+    """A show and a film both hold ``tvdb:111``: TVDB is the shows' provider, so the show answers."""
+    show = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=111), title="Show", added_at=100))
+    store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tvdb_id=111, tmdb_id=5), title="Film", added_at=100, kind="movie")
+    )
+
+    found = FollowRepository(store).get(AcquisitionKey.parse("tvdb:111"))
+
+    assert found is not None and found.id == show
+
+
+def test_a_bare_tvdb_key_held_by_two_films_is_ambiguous(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """The fallback refuses as a lookup does when two films answer (a duplicate): it never picks one."""
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=111), title="Film", added_at=100, kind="movie"))
+    conn = sqlite3.connect(tmp_path / "acquire.db")
+    try:
+        with conn:
+            conn.execute(
+                "INSERT INTO followed_series (media_ref_json, title, active, added_at, kind) VALUES (?, ?, 1, 1, ?)",
+                (json.dumps({"tvdb_id": 111, "tmdb_id": 5, "imdb_id": None}), "Film again", "movie"),
+            )
+    finally:
+        conn.close()
+
+    with pytest.raises(FollowAmbiguous):
+        FollowRepository(store).get(AcquisitionKey.parse("tvdb:111"))
+
+
 def test_a_tmdb_key_resolves_each_medium_by_its_kind(store: ConcreteAcquireStore) -> None:
     """TMDB numbers films and shows apart: the same id finds the film or the show by the kind given."""
     film = store.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=603), title="Film", added_at=100, kind="movie"))

@@ -2004,7 +2004,8 @@ export interface components {
             title: string;
             /** @description movie or show */
             kind: string;
-            year: number | string;
+            /** @description the year the medium is known by, or null when nothing states one */
+            year: number | string | null;
             /**
              * @description the acquisition status token
              * @enum {string}

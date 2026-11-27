@@ -28,11 +28,9 @@ from personalscraper.http_v1.contract import ContractModel
 from personalscraper.http_v1.models.media import ProviderIdValue
 
 #: How long a follow is « fresh » after it was made: the interface marks it and sorts it first
-#: (``Follow.fresh``, « added recently enough to be marked as such »). One day: a follow made today.
+#: (``Follow.fresh``, « added recently enough to be marked as such »). One day: a follow made today. The
+#: value is PROVISIONAL, no ruling gives it (an open contract question): the tests pin both sides of it.
 FRESH_WINDOW_SECONDS: Final = 24 * 60 * 60
-
-#: The contract's ``Follow.year``: an integer or a string (a ``oneOf``), here an integer or ``None`` when unknown.
-FollowYear = Annotated[int | None, WithJsonSchema({"oneOf": [{"type": "integer"}, {"type": "string"}]})]
 
 #: The wire's names of the quality floors the contract's profile enum lists.
 QualityProfile = Literal["720p", "1080p", "2160p"]
@@ -121,7 +119,8 @@ class FollowModel(ContractModel):
     Attributes:
         title: The title.
         kind: ``movie`` or ``show``.
-        year: The year, ``None`` when unknown.
+        year: The year, ``None`` when unknown. The contract also lets a string through (the maquette's own
+            mocks hold one); the service serves an integer or ``None``.
         status: The acquisition status token.
         show_status: Whether the show is still running, ``None`` for a film.
         added_at: Unix-epoch seconds the follow was made.
@@ -141,7 +140,7 @@ class FollowModel(ContractModel):
 
     title: str
     kind: str
-    year: FollowYear
+    year: int | str | None
     status: FollowStatus
     show_status: str | None
     added_at: float

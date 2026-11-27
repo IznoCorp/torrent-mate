@@ -502,7 +502,7 @@
       },
       "FollowModel": {
         "additionalProperties": false,
-        "description": "The contract's ``Follow``: a medium followed, as the signed-in account reads it.\n\nAttributes:\n    title: The title.\n    kind: ``movie`` or ``show``.\n    year: The year, ``None`` when unknown.\n    status: The acquisition status token.\n    show_status: Whether the show is still running, ``None`` for a film.\n    added_at: Unix-epoch seconds the follow was made.\n    next_air_date: ISO date of the next release, ``None`` when none is known.\n    searches: How many searches have run for it.\n    owned: A show's episodes held; unassigned on a film.\n    aired: A show's episodes aired; unassigned on a film.\n    fresh: Made recently enough to be marked as such.\n    ids: The medium's provider ids.\n    poster: The poster's address, ``None`` when none is known.\n    requesters: Who asked for it.\n    own_quality: The floor the caller set, ``None`` when none.\n    quality: The floor in force, ``None`` when none is set.\n    own_paused: Whether the caller asked for a pause.\n    paused: Whether the follow is paused in force.",
+        "description": "The contract's ``Follow``: a medium followed, as the signed-in account reads it.\n\nAttributes:\n    title: The title.\n    kind: ``movie`` or ``show``.\n    year: The year, ``None`` when unknown. The contract also lets a string through (the maquette's own\n        mocks hold one); the service serves an integer or ``None``.\n    status: The acquisition status token.\n    show_status: Whether the show is still running, ``None`` for a film.\n    added_at: Unix-epoch seconds the follow was made.\n    next_air_date: ISO date of the next release, ``None`` when none is known.\n    searches: How many searches have run for it.\n    owned: A show's episodes held; unassigned on a film.\n    aired: A show's episodes aired; unassigned on a film.\n    fresh: Made recently enough to be marked as such.\n    ids: The medium's provider ids.\n    poster: The poster's address, ``None`` when none is known.\n    requesters: Who asked for it.\n    own_quality: The floor the caller set, ``None`` when none.\n    quality: The floor in force, ``None`` when none is set.\n    own_paused: Whether the caller asked for a pause.\n    paused: Whether the follow is paused in force.",
         "properties": {
           "addedAt": {
             "title": "Addedat",
@@ -673,12 +673,15 @@
             "type": "string"
           },
           "year": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "integer"
               },
               {
                 "type": "string"
+              },
+              {
+                "type": "null"
               }
             ],
             "title": "Year"

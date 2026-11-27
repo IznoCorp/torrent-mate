@@ -8069,14 +8069,18 @@
             "description": "movie or show"
           },
           "year": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "integer"
               },
               {
                 "type": "string"
+              },
+              {
+                "type": "null"
               }
-            ]
+            ],
+            "description": "the year the medium is known by, or null when nothing states one"
           },
           "status": {
             "type": "string",

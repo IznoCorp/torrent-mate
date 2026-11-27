@@ -13,16 +13,19 @@ so two accounts of one test follow and read the same rows.
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Callable
 from typing import Any
 
 import pytest
+from _repo_paths import CONTRACT, SERVED_CONTRACT
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
 from personalscraper.app.supervisor.model import JobKind, RunTrigger, Settlement
+from personalscraper.http_v1.routes import acquisition as acquisition_routes
 
 ClientFactory = Callable[..., TestClient]
 
@@ -30,6 +33,9 @@ SILO: dict[str, Any] = {"title": "Silo", "kind": "show", "year": 2023, "provider
 SILO_KEY = "tvdb:403245"
 HEAT: dict[str, Any] = {"title": "Heat", "kind": "movie", "year": 1995, "provider": "tmdb", "providerId": 949}
 HEAT_KEY = "tmdb:949"
+#: A film held by a TVDB id only: TVDB numbers shows, so a lookup that takes ``tvdb:`` for a show's never finds it.
+ODD: dict[str, Any] = {"title": "Odd", "kind": "movie", "year": 2001, "provider": "tvdb", "providerId": 777}
+ODD_KEY = "tvdb:777"
 
 #: The rights of a member who also sets its own quality (the seeded household role has no quality right).
 MEMBER_WITH_QUALITY = frozenset(
@@ -150,6 +156,26 @@ def test_a_film_is_followed_and_carries_no_show_block(v1_client: ClientFactory) 
     assert "aired" not in follow and "owned" not in follow
 
 
+def test_a_film_held_by_a_tvdb_id_answers_on_every_item_route(v1_client: ClientFactory) -> None:
+    """A key carries no kind: a ``tvdb:`` key names a show first and a film when no show holds it, on every route."""
+    client = v1_client(rights=MEMBER_WITH_QUALITY)
+    _follow(client, ODD)
+    item = f"/acquisition/followed/{ODD_KEY}"
+
+    answers = {
+        "updateFollow": client.patch(item, json={"status": "disabled"}),
+        "setAcquisitionPause": client.put(f"{item}/pause", json={"paused": False}),
+        "setAcquisitionQuality": client.put(f"{item}/quality", json={"profile": "1080p"}),
+        "readFollowCompleteness": client.get(f"{item}/completeness"),
+        "deleteFollow": client.delete(item),
+        "restoreFollow": client.post(f"{item}/restore"),
+    }
+
+    assert {name: response.status_code for name, response in answers.items()} == dict.fromkeys(answers, 200)
+    assert answers["readFollowCompleteness"].json()["kind"] == "movie"
+    assert answers["restoreFollow"].json()["ids"] == {"tvdb": 777}
+
+
 def test_following_a_followed_medium_joins_it_never_a_409(v1_client: ClientFactory) -> None:
     """Another account asking for the same medium becomes a second requester of the one follow."""
     first, second = v1_client(), v1_client(role="requester")
@@ -190,6 +216,76 @@ def test_a_create_that_names_no_medium_is_a_400_naming_the_field(
     assert response.status_code == 400
     assert response.json()["code"] == "request.invalid"
     assert field in response.json()["params"]["fields"]
+
+
+def _added_at_of(client: TestClient) -> float:
+    """The epoch the one follow the client reads was added at.
+
+    Args:
+        client: A signed-in client holding one follow.
+
+    Returns:
+        Its ``addedAt``.
+    """
+    return float(client.get("/acquisition/followed").json()[0]["addedAt"])
+
+
+@pytest.mark.parametrize(
+    ("age_seconds", "fresh"),
+    [
+        (0, True),
+        (23 * 3600 + 59 * 60 + 59, True),
+        (24 * 3600, False),
+        (24 * 3600 + 1, False),
+    ],
+)
+def test_a_follow_is_fresh_for_a_day_less_a_second(
+    v1_client: ClientFactory, monkeypatch: pytest.MonkeyPatch, age_seconds: int, fresh: bool
+) -> None:
+    """``fresh`` is read against the clock: true at 23 h 59 min 59 s, false from 24 h (the bound itself is stale)."""
+    client = v1_client()
+    _follow(client)
+    added_at = _added_at_of(client)
+    monkeypatch.setattr(acquisition_routes, "_now", lambda: added_at + age_seconds)
+
+    assert client.get("/acquisition/followed").json()[0]["fresh"] is fresh
+
+
+def _admits_null(schema: dict[str, Any]) -> bool:
+    """Whether a JSON schema accepts ``null``, in any of the forms a contract or a generated document writes.
+
+    Args:
+        schema: A schema.
+
+    Returns:
+        ``True`` when ``null`` is a declared type or a branch.
+    """
+    declared = schema.get("type")
+    if declared == "null" or (isinstance(declared, list) and "null" in declared):
+        return True
+    return any(_admits_null(branch) for key in ("anyOf", "oneOf") for branch in schema.get(key, []))
+
+
+@pytest.mark.parametrize(
+    ("document", "schema"), [(CONTRACT, "Follow"), (SERVED_CONTRACT, "FollowModel")], ids=["contract", "served"]
+)
+def test_follow_year_admits_null_in_the_contract_and_in_the_served_document(document: Any, schema: str) -> None:
+    """A follow with no known year is served ``null``: both documents say so, never an integer only."""
+    follow = json.loads(document.read_text(encoding="utf-8"))["components"]["schemas"][schema]
+
+    assert "year" in follow["required"]
+    assert _admits_null(follow["properties"]["year"])
+
+
+def test_a_follow_with_no_year_is_served_a_null_year(v1_client: ClientFactory) -> None:
+    """``createFollow`` without a year: the follow's ``year`` is present and ``null``, on the create and on the read."""
+    client = v1_client()
+    without_year = {key: value for key, value in SILO.items() if key != "year"}
+
+    created = _follow(client, without_year)
+
+    assert "year" in created and created["year"] is None
+    assert client.get("/acquisition/followed").json()[0]["year"] is None
 
 
 def test_the_follows_are_listed_with_the_contracts_shape(v1_client: ClientFactory) -> None:
