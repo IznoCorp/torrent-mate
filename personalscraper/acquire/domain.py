@@ -47,6 +47,17 @@ REQUESTER_FLOORS: frozenset[int] = frozenset({720, 1080, 2160})
 OPEN_WANTED_STATUSES: frozenset[str] = frozenset({"pending", "searching", "available", "grabbed"})
 
 
+#: The grab reason a person's named release leaves when it is no longer offered (K3 P9c, DESIGN O-14).
+CHOSEN_RELEASE_GONE = "chosen_release_gone"
+#: The grab reason a person's named release leaves when its grab ended any other way (an outage, a dead swarm,
+#: an add failure): the person's choice is still unmet, so the row is held as for a gone release.
+CHOSEN_RELEASE_FAILED = "chosen_release_failed"
+#: The reasons that HOLD a row (DESIGN O-14: « c'est moi qui dois refaire ce choix, donc on attend »). The
+#: engine's own pick never stands in for a held row; only a person's new pick that is grabbed clears the hold
+#: (``mark_grabbed``). A claim and a later failure keep it (``claim_for_grab``, ``record_grab_failure``).
+HOLD_REASONS: frozenset[str] = frozenset({CHOSEN_RELEASE_GONE, CHOSEN_RELEASE_FAILED})
+
+
 @dataclass(frozen=True)
 class FollowedSeries:
     """A TV series or movie the user wants to automatically acquire.
@@ -495,6 +506,9 @@ class WantedCandidate:
 
 
 __all__ = [
+    "CHOSEN_RELEASE_FAILED",
+    "CHOSEN_RELEASE_GONE",
+    "HOLD_REASONS",
     "OPEN_WANTED_STATUSES",
     "REQUESTER_FLOORS",
     "AiredEpisode",

@@ -211,11 +211,11 @@ class WantedSubStore(Protocol):
         """
         ...
 
-    def ids_with_grab_reason(self, reason: str) -> frozenset[int]:
-        """Return the ids of the rows whose LAST grab attempt failed with *reason*.
+    def ids_with_grab_reason(self, reasons: Iterable[str]) -> frozenset[int]:
+        """Return the ids of the rows whose LAST grab attempt left one of *reasons*.
 
-        The read behind a hold: a row whose person-named release is gone carries
-        ``chosen_release_gone`` until a claim or a successful grab clears it.
+        The read behind a hold: a row whose person-named release is gone (or whose grab failed)
+        carries a hold reason until a person's new pick is grabbed.
         """
         ...
 

@@ -86,7 +86,7 @@ from personalscraper.acquire.desired import (
     cadence_from_json,
     effective_cadence,
 )
-from personalscraper.acquire.orchestrator import CHOSEN_RELEASE_GONE
+from personalscraper.acquire.domain import HOLD_REASONS
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -200,6 +200,24 @@ class GrabCore:
     orchestrator: GrabOrchestrator
 
 
+@dataclass(frozen=True, kw_only=True)
+class _PassQueue:
+    """One pass's queue, with the follow map the pass reads its cadences from.
+
+    Built by :meth:`AcquisitionService._build_queue`, which loads the map first because the
+    pause gate needs it (DESIGN § 2.4): the callers never load it themselves.
+
+    Attributes:
+        items: The takeable rows, pause-gated, scoped and capped, in pass order.
+        follow_map: ``followed_id → FollowedSeries`` for the rows the gate considered.
+        paused: How many rows the pause gate dropped; the pass counts them ``skipped``.
+    """
+
+    items: list[WantedItem]
+    follow_map: dict[int, FollowedSeries]
+    paused: int
+
+
 class AcquisitionService(SearchPassMixin, GrabPassMixin):
     """Search pass + batch grab loop over the wanted queue (RP5b).
 
@@ -290,11 +308,11 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 *followed_id*. Only the follow's available rows whose stored candidates carry that
                 name are grabbed, and only that release is taken: a row where it is no longer offered
                 adds nothing and records ``chosen_release_gone`` (counted in
-                :attr:`RunSummary.release_gone`). When no row's stored set carries the name (the set
-                was replaced since the choice), every available row of the follow is asked and
-                records the same. ``None`` (default) is the engine's own choice, as ever, except
-                that a row held by an earlier gone release (``chosen_release_gone``) is left alone
-                until a person names a release for it again (see :meth:`_without_held`).
+                :attr:`RunSummary.release_gone`) and is held. When no row's stored set carries the
+                name (the set was replaced since the choice), no row is asked and none is held (see
+                :meth:`_rows_of_release`). ``None`` (default) is the engine's own choice, as ever,
+                except that a held row (:data:`HOLD_REASONS`) is left alone until a person's new
+                pick for it is grabbed (see :meth:`_without_held`).
 
         Returns:
             A :class:`RunSummary` of outcome counts.
@@ -313,16 +331,28 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         if not self._orchestrator.scope_allows_grab():
             return RunSummary(grabbed=0, retried=0, abandoned=0, skipped=0)
         now = int(time.time())
-        available = self._store.wanted.list_available()
+        head = self._store.wanted.list_available()
+        keep: set[int] | None = None
+        held: frozenset[int] = frozenset()
         if release is not None:
-            available = self._rows_of_release([item for item in available if item.followed_id == followed_id], release)
+            head = self._rows_of_release([item for item in head if item.followed_id == followed_id], release)
+            keep = {item.id for item in head if item.id is not None}
         else:
-            available = self._without_held(available)
-        queue = self._build_queue(available, now=now, limit=limit, followed_id=followed_id)
+            held = self._store.wanted.ids_with_grab_reason(HOLD_REASONS)
+            head = self._without_held(head, held)
+        pass_queue = self._build_queue(head, now=now, limit=limit, followed_id=followed_id)
+        # The queue adds the follow's stale-'searching' rows after the head: a named run asks only the rows
+        # the release was chosen for, and an unnamed one leaves a held row alone, whichever list it came from.
+        queue, follow_map = pass_queue.items, pass_queue.follow_map
+        if keep is not None:
+            queue = [item for item in queue if item.id in keep]
+        elif held:
+            queue = [item for item in queue if item.id not in held]
         global_cadence = cadence_from_config(self._config.acquire.cadence)
-        follow_map = self._load_follow_map(queue)
 
-        grabbed = retried = abandoned = skipped = absorbed = release_gone = 0
+        # A paused follow's rows were dropped by the queue: they count as skipped, untouched.
+        grabbed = retried = abandoned = absorbed = release_gone = 0
+        skipped = pass_queue.paused
 
         for item in queue:
             assert item.id is not None  # ensured by the SELECTs above
@@ -386,50 +416,50 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             release_gone=release_gone,
         )
 
-    def _without_held(self, queue: list[WantedItem]) -> list[WantedItem]:
+    def _without_held(self, queue: list[WantedItem], held: frozenset[int]) -> list[WantedItem]:
         """Drop the rows held until a person chooses a release again.
 
-        A row whose person-named release was gone records ``chosen_release_gone`` and waits (the
-        operator, DESIGN O-14: « c'est moi qui dois refaire ce choix, donc on attend »): a grab
-        that names no release, scheduled or not, never takes the engine's pick for it. Only a
-        grab naming a release asks it again, and a claim clears the reason.
+        A row whose person-named release was gone or failed carries a hold reason and waits (the
+        operator, DESIGN O-14: « c'est moi qui dois refaire ce choix, donc on attend »): a grab that
+        names no release, scheduled or not, never takes the engine's pick for it. Only a grab naming
+        a release asks it again, and only a person's pick that is grabbed clears the hold.
 
         Args:
             queue: The available rows.
+            held: The ids of the held rows (:data:`HOLD_REASONS`).
 
         Returns:
             *queue* without the held rows.
         """
-        held = self._store.wanted.ids_with_grab_reason(CHOSEN_RELEASE_GONE)
-        if not held:
-            return queue
-        kept = [item for item in queue if item.id not in held]
         for item in queue:
             if item.id in held:
                 log.info("acquire.service.grab_held_for_chosen_release", wanted_id=item.id)
-        return kept
+        return [item for item in queue if item.id not in held]
 
     def _rows_of_release(self, queue: list[WantedItem], release: str) -> list[WantedItem]:
         """Keep the rows a person's named release was chosen for.
 
         A release belongs to the row whose stored candidates (the last concluded search's ranked
-        survivors) carry its name. A set replaced since the choice may no longer carry it: nothing
-        then says which row it was, so every row of *queue* is asked and each records that nothing
-        was taken, rather than guessing one or recording nothing.
+        survivors) carry its name. When no row's set carries it (a set replaced since the choice),
+        nothing says which row it was: no row is asked and none is held, since a hold on a row no
+        person chose would stop its scheduled grabs. The pass logs it and the request ends 1
+        (the job's exact row comes with the route that builds it).
 
         Args:
             queue: The follow's available rows.
             release: The release name a person chose.
 
         Returns:
-            The rows that carry it, or all of *queue* when none does.
+            The rows that carry it; empty when none does.
         """
         owners = [
             item
             for item in queue
             if item.id is not None and any(c.title == release for c in self._store.candidates.list_for(item.id))
         ]
-        return owners or queue
+        if not owners:
+            log.warning("acquire.service.release_unlocated", release=release, open_rows=len(queue))
+        return owners
 
     def run_search(self, *, limit: int | None = None, followed_id: int | None = None) -> SearchRunSummary:
         """Run the SEARCH pass over the pending + stale-searching queue.
@@ -477,16 +507,18 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             A :class:`SearchRunSummary` of outcome counts.
         """
         now = int(time.time())
-        queue = self._build_queue(
+        pass_queue = self._build_queue(
             self._store.wanted.list_pending(),
             now=now,
             limit=limit,
             followed_id=followed_id,
         )
+        queue, follow_map = pass_queue.items, pass_queue.follow_map
         global_cadence = cadence_from_config(self._config.acquire.cadence)
-        follow_map = self._load_follow_map(queue)
 
-        available = waiting = unverified = abandoned = skipped = absorbed = 0
+        # A paused follow's rows were dropped by the queue: they count as skipped, untouched.
+        available = waiting = unverified = abandoned = absorbed = 0
+        skipped = pass_queue.paused
 
         # D1 — per-PASS memo bounding the starvation season probe to ONE extra
         # tracker query per (follow, season). Ten starved siblings of the same
@@ -564,16 +596,25 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         now: int,
         limit: int | None,
         followed_id: int | None,
-    ) -> list[WantedItem]:
-        """Return ``head`` + the stale-searching sweep as one pass queue.
+    ) -> _PassQueue:
+        """Return ``head`` + the stale-searching sweep as one pass queue, pause gate applied.
 
         Shared by :meth:`run` and :meth:`run_search` so both passes apply the
-        SAME ordering, de-duplication and scoping semantics. Only the head
+        SAME ordering, de-duplication, pause gate and scoping semantics. Only the head
         differs, and that difference IS the split: the search pass passes
         ``list_pending()`` (items whose availability is unknown), the grab pass
         passes ``list_available()`` (items a search already concluded takeable).
         Both then pick up the stale-'searching' rows, which belong to whichever
         pass runs next — a process killed mid-claim leaves no orphan.
+
+        The follow map is loaded HERE, first, because the pause gate needs it (DESIGN § 2.4,
+        O-3 A): a row whose follow is inactive — paused, or removed (the projection writes
+        ``active = 0`` for both) — is dropped from the queue, counted in
+        :attr:`_PassQueue.paused` and logged ``acquire.service.follow_paused_skip``. The row
+        itself is NOT written: it keeps its ``pending``/``available``/``searching`` status and
+        resumes with its follow. A row with no follow (``followed_id`` ``None``, or a follow
+        row that is gone) is untouched. The gate runs BEFORE ``limit``, so a capped pass
+        counts takeable rows only.
 
         Args:
             head: The pass's own queue (``list_pending`` or ``list_available``).
@@ -583,8 +624,9 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 Applied BEFORE ``limit`` so the cap counts the series' items.
 
         Returns:
-            The queued :class:`WantedItem` list (possibly empty), de-duplicated
-            by id, ``head`` rows first.
+            The :class:`_PassQueue`: the queued :class:`WantedItem` list (possibly empty),
+            de-duplicated by id, ``head`` rows first; the follow map of the rows that were
+            considered; the count of rows the pause gate dropped.
         """
         stale_threshold = now - _STALE_THRESHOLD_S
 
@@ -601,14 +643,28 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
 
         # Per-series scoping (OBJ3): keep only this series' items. The wanted
         # queue is small, so an in-memory filter avoids a bespoke scoped store
-        # query. Applied before the limit so `limit` caps the series, not the
-        # whole queue.
+        # query. Applied before the gate so a scoped run counts, and loads, only
+        # its own series (the filter commutes with the gate: the queue is the same
+        # whatever their order) and before the limit so `limit` caps the series.
         if followed_id is not None:
             queue = [item for item in queue if item.followed_id == followed_id]
 
+        # The pause gate (O-3 A), before the cap: a paused follow's row is neither searched nor
+        # grabbed and takes no slot of the `limit`.
+        follow_map = self._load_follow_map(queue)
+        takeable: list[WantedItem] = []
+        paused = 0
+        for item in queue:
+            fs = follow_map.get(item.followed_id) if item.followed_id is not None else None
+            if fs is not None and not fs.active:
+                log.info("acquire.service.follow_paused_skip", wanted_id=item.id, followed_id=item.followed_id)
+                paused += 1
+                continue
+            takeable.append(item)
+
         if limit is not None:
-            queue = queue[:limit]
-        return queue
+            takeable = takeable[:limit]
+        return _PassQueue(items=takeable, follow_map=follow_map, paused=paused)
 
     def _load_follow_map(self, queue: list[WantedItem]) -> dict[int, FollowedSeries]:
         """Load each queued item's followed series ONCE (DESIGN §7).
@@ -618,7 +674,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         than a store read.
 
         Args:
-            queue: The queue returned by :meth:`_build_queue`.
+            queue: The rows to look up the follows of (the pass's merged, scoped rows).
 
         Returns:
             A ``followed_id → FollowedSeries`` map (missing rows are absent).

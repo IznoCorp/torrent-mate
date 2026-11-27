@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from contextlib import AbstractContextManager
 
 from personalscraper.acquire._store_rows import (
@@ -19,6 +19,7 @@ from personalscraper.acquire._store_rows import (
     decode_tried_hashes,
 )
 from personalscraper.acquire.domain import (
+    HOLD_REASONS,
     OPEN_WANTED_STATUSES,
     WantedItem,
     WantedKind,
@@ -27,6 +28,9 @@ from personalscraper.acquire.domain import (
 from personalscraper.logger import get_logger
 
 log = get_logger("acquire.wanted_store")
+
+#: The hold reasons as the pair the SQL guards bind (see ``claim_for_grab``, ``record_grab_failure``).
+_HOLD = tuple(sorted(HOLD_REASONS))
 
 
 class _WantedSubStore:
@@ -260,11 +264,11 @@ class _WantedSubStore:
                 SET status = 'searching',
                     attempts = attempts + 1,
                     last_search_at = ?,
-                    last_grab_reason = NULL,
-                    last_grab_at = NULL
+                    last_grab_reason = CASE WHEN last_grab_reason IN (?, ?) THEN last_grab_reason END,
+                    last_grab_at = CASE WHEN last_grab_reason IN (?, ?) THEN last_grab_at END
                 WHERE id = ? AND status = 'available'
                 """,
-                (now, wanted_id),
+                (now, *_HOLD, *_HOLD, wanted_id),
             )
             return cur.rowcount == 1
 
@@ -870,25 +874,37 @@ class _WantedSubStore:
             at: Unix-epoch seconds of the failure.
         """
         with self._write_tx(self._conn):
+            # A hold outlives every later failure that is not itself a hold (DESIGN O-14): only
+            # ``mark_grabbed`` of a person's new pick clears it.
             self._conn.execute(
-                "UPDATE wanted SET last_grab_reason = ?, last_grab_at = ? WHERE id = ?",
-                (reason, at, wanted_id),
+                """
+                UPDATE wanted
+                SET last_grab_reason = CASE WHEN last_grab_reason IN (?, ?) AND ? NOT IN (?, ?)
+                                            THEN last_grab_reason ELSE ? END,
+                    last_grab_at = CASE WHEN last_grab_reason IN (?, ?) AND ? NOT IN (?, ?)
+                                        THEN last_grab_at ELSE ? END
+                WHERE id = ?
+                """,
+                (*_HOLD, reason, *_HOLD, reason, *_HOLD, reason, *_HOLD, at, wanted_id),
             )
 
-    def ids_with_grab_reason(self, reason: str) -> frozenset[int]:
-        """Return the ids of the rows whose LAST grab attempt failed with *reason*.
+    def ids_with_grab_reason(self, reasons: Iterable[str]) -> frozenset[int]:
+        """Return the ids of the rows whose LAST grab attempt left one of *reasons*.
 
-        Reads the ``last_grab_reason`` column that :meth:`record_grab_failure` writes and a claim or
-        :meth:`mark_grabbed` clears. The grab pass uses it to hold back the rows whose
-        person-named release is gone (``chosen_release_gone``): no migration, the column is the hold.
+        Reads the ``last_grab_reason`` column that :meth:`record_grab_failure` writes and
+        :meth:`mark_grabbed` clears. The grab pass uses it to hold back the rows whose person-named
+        release is gone or failed (:data:`~personalscraper.acquire.domain.HOLD_REASONS`): no
+        migration, the column is the hold.
 
         Args:
-            reason: The reason slug to look for.
+            reasons: The reason slugs to look for.
 
         Returns:
             The matching rows' rowids; empty when none.
         """
-        rows = self._conn.execute("SELECT id FROM wanted WHERE last_grab_reason = ?", (reason,)).fetchall()
+        slugs = tuple(reasons)
+        marks = ", ".join("?" for _ in slugs)
+        rows = self._conn.execute(f"SELECT id FROM wanted WHERE last_grab_reason IN ({marks})", slugs).fetchall()  # noqa: S608 — only placeholders are interpolated
         return frozenset(int(r[0]) for r in rows)
 
     def list_available(self) -> list[WantedItem]:

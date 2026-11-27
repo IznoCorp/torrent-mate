@@ -73,6 +73,7 @@ from personalscraper.acquire._filters import (
 )
 from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
+from personalscraper.acquire.domain import CHOSEN_RELEASE_GONE
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.torrent._base import TorrentLimits, category_refusal, in_sandbox
@@ -128,16 +129,6 @@ INCONCLUSIVE_OUTCOMES: frozenset[str] = frozenset(
         "search_api_error",
         "no_seeders",
     }
-)
-
-#: The reason a grab records when the release a person named is no longer offered (K3 P9c, DESIGN O-14).
-CHOSEN_RELEASE_GONE = "chosen_release_gone"
-
-#: The search paths that concluded « nothing is takeable » (a healthy search that found no candidate, or
-#: none past a filter). With a release NAMED, they all mean the same: the named release is not offered.
-#: An outage, an open circuit or a dead swarm is not among them (panne ≠ absence).
-_NOTHING_OFFERED_PATHS: frozenset[str] = frozenset(
-    {"no_candidates", "no_matching_episode", "no_matching_season", "all_filtered"}
 )
 
 
@@ -1112,9 +1103,11 @@ class GrabOrchestrator:
                 same dead release. Empty by default (the ordinary first grab).
             release: The name of a release a PERSON chose (K3 P9c, DESIGN O-14). The grab still
                 re-searches and keeps every filter and the ranking, but takes only a release of that
-                name: if the re-search no longer offers it (or concludes that nothing is takeable),
-                nothing is added and the outcome is a retryable ``chosen_release_gone``, never a
-                substitute. ``None`` (default) is the engine's own choice: the best-ranked release
+                name: if the re-search offers releases but not that one, nothing is added and the
+                outcome is a retryable ``chosen_release_gone``, never a substitute. A re-search that
+                concludes nothing is offered at all keeps its ``not_found`` mapping (the service
+                records the verdict, clears the candidates and holds the row).
+                ``None`` (default) is the engine's own choice: the best-ranked release
                 of the re-search, whatever the search pass ranked first earlier.
 
         Returns:
@@ -1126,11 +1119,6 @@ class GrabOrchestrator:
         # reswitch #342: exclude releases already grabbed-and-failed for this item
         # so a re-grab after a dead-swarm stall never re-picks the same release.
         result = self._search_chain(item, profile, exclude_hashes=exclude_hashes)
-
-        # A named release, and a search that concluded nothing is offered: the release is gone, and
-        # the row must say so rather than revert to 'pending' with a verdict of the engine's own.
-        if release is not None and result.exit_path in _NOTHING_OFFERED_PATHS:
-            return self._retryable(media_ref, CHOSEN_RELEASE_GONE)
 
         # Map each exit path to the same disposition + event the inline chain
         # produced before the extraction (outcome.reason strings unchanged).
@@ -1165,8 +1153,8 @@ class GrabOrchestrator:
         if release is None:
             top, _score = result.top
         else:
-            # Only the release a person named: the same name offered by another tracker is the same
-            # release (the walk below may fall back to it), any other name is a substitute.
+            # Only the release a person named, by its exact name: the dedup already keeps one ranked
+            # representative per release across trackers, and any other name is a substitute.
             ranked = [pair for pair in ranked if pair[0].title == release]
             if not ranked:
                 return self._retryable(media_ref, CHOSEN_RELEASE_GONE)

@@ -17,9 +17,8 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire._pass_gates import PassGatesMixin
-from personalscraper.acquire.domain import SeedObligation
+from personalscraper.acquire.domain import CHOSEN_RELEASE_FAILED, CHOSEN_RELEASE_GONE, SeedObligation
 from personalscraper.acquire.events import GrabSucceeded
-from personalscraper.acquire.orchestrator import CHOSEN_RELEASE_GONE
 from personalscraper.acquire.season import SeasonRecovery
 from personalscraper.logger import get_logger
 
@@ -173,7 +172,13 @@ class GrabPassMixin(PassGatesMixin):
         # the row already records. Calling that « récupération en échec » would
         # name the wrong thing.
         if outcome.disposition != "not_found":
-            self._store.wanted.record_grab_failure(wanted_id, outcome.reason or outcome.disposition, int(time.time()))
+            reason = outcome.reason or outcome.disposition
+            if release is not None and outcome.disposition == "retryable" and reason != CHOSEN_RELEASE_GONE:
+                # A person's pick that ended any other way (an outage, a dead swarm, an add failure) is still
+                # unmet: hold the row as for a gone release, the cause stays in the grab's own log and event.
+                log.warning("acquire.service.chosen_release_failed", wanted_id=wanted_id, reason=reason)
+                reason = CHOSEN_RELEASE_FAILED
+            self._store.wanted.record_grab_failure(wanted_id, reason, int(time.time()))
 
         if outcome.disposition == "terminal":
             # The orchestrator already emitted WantedAbandoned on this path, so
@@ -197,6 +202,10 @@ class GrabPassMixin(PassGatesMixin):
             # empty. After the verdict, before the status (the #320 order).
             self._store.candidates.replace(wanted_id, [])
             self._store.wanted.set_status(wanted_id, "pending")
+            if release is not None:
+                # Nothing is offered at all, so what a person named is gone: hold the row, its verdict stands.
+                self._store.wanted.record_grab_failure(wanted_id, CHOSEN_RELEASE_GONE, int(time.time()))
+                return "gone"
             return "retried"
         # "retryable" — the grab's own search did NOT conclude (circuit, API
         # error, add failure). The SEARCH pass's verdict stands untouched:

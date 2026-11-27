@@ -271,15 +271,17 @@ def _run_dry(
     now = int(time.time())
 
     # Build the queue exactly like run_search (pending + stale-searching,
-    # de-duplicated, scoped, capped).  _build_queue is the shared private helper
-    # both passes use — reusing it is what makes the preview faithful; a
+    # de-duplicated, scoped, pause-gated, capped).  _build_queue is the shared private
+    # helper both passes use — reusing it is what makes the preview faithful (a paused
+    # follow's rows are not listed: the real pass would not search them); a
     # re-implementation here would be free to drift from the real pass.
-    queue = service._build_queue(
+    pass_queue = service._build_queue(
         store.wanted.list_pending(),
         now=now,
         limit=limit,
         followed_id=followed_id,
     )
+    queue = pass_queue.items
 
     if not queue:
         msg = t("cli_acquisition.search.dry_run_empty")
@@ -287,9 +289,9 @@ def _run_dry(
         return
 
     global_cadence = cadence_from_config(config.acquire.cadence)
-    # _load_follow_map / _cadence_for are private read-only helpers — same
-    # faithfulness justification as _build_queue above.
-    follow_map = service._load_follow_map(queue)
+    # The queue carries the follow map it was gated with; _cadence_for is a private
+    # read-only helper — same faithfulness justification as _build_queue above.
+    follow_map = pass_queue.follow_map
 
     would_search: list[str] = []
     would_skip: list[str] = []
