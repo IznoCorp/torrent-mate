@@ -125,7 +125,7 @@ def _orchestrator() -> MagicMock:
     orch = MagicMock(spec=GrabOrchestrator)
     orch.scope_allows_grab.return_value = True
     orch.search.return_value = SearchVerdict(disposition="not_found", outcome="no_candidates", found=0)
-    orch.grab.return_value = MagicMock(spec=GrabOutcome, disposition="success", info_hash="abc123")
+    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="abc123", found=3)
     return orch
 
 
