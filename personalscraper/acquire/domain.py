@@ -11,7 +11,7 @@ indexer/, scraper/, or any triage package).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Literal
 
@@ -516,6 +516,9 @@ class SuggestionRow:
         seed_key: The title whose recommendation this is (``"tmdb:603"``, ``"imdb:tt0133093"``).
         refreshed_at: Unix epoch seconds of the refresh that wrote the row.
         id: The row's rising key (the deck's order and its cursor); ``None`` until persisted.
+        external_ids: The other ids the provider gave the title beside ``provider_id``
+            (``"imdb"`` / ``"tmdb"`` / ``"tvdb"`` → the id as text): a provider that names its titles
+            by a slug is matched to the library and the follows by these. Empty when it gave none.
     """
 
     provider: str
@@ -529,6 +532,7 @@ class SuggestionRow:
     seed_key: str
     refreshed_at: int
     id: int | None = None
+    external_ids: dict[str, str] = field(default_factory=dict)
 
 
 __all__ = [

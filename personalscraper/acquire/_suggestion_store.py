@@ -11,6 +11,7 @@ shared ``_write_tx`` context manager.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
@@ -18,7 +19,7 @@ from typing import cast
 
 from personalscraper.acquire.domain import FollowKind, SuggestionReason, SuggestionRow
 
-_COLUMNS = "id, provider, provider_id, kind, title, year, rating, poster, reason, seed_key, refreshed_at"
+_COLUMNS = "id, provider, provider_id, kind, title, year, rating, poster, reason, seed_key, refreshed_at, external_ids"
 
 
 class _SuggestionSubStore:
@@ -64,8 +65,9 @@ class _SuggestionSubStore:
             self._conn.executemany(
                 """
                 INSERT INTO suggestion
-                  (provider, provider_id, kind, title, year, rating, poster, reason, seed_key, refreshed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  (provider, provider_id, kind, title, year, rating, poster, reason, seed_key, refreshed_at,
+                   external_ids)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -79,6 +81,7 @@ class _SuggestionSubStore:
                         r.reason,
                         r.seed_key,
                         r.refreshed_at,
+                        json.dumps(r.external_ids, sort_keys=True),
                     )
                     for r in rows
                 ],
@@ -136,7 +139,20 @@ def _to_row(row: tuple[object, ...]) -> SuggestionRow:
     Returns:
         The frozen row, its ``id`` set.
     """
-    (row_id, provider, provider_id, kind, title, year, rating, poster, reason, seed_key, refreshed_at) = row
+    (
+        row_id,
+        provider,
+        provider_id,
+        kind,
+        title,
+        year,
+        rating,
+        poster,
+        reason,
+        seed_key,
+        refreshed_at,
+        external_ids,
+    ) = row
     return SuggestionRow(
         id=cast(int, row_id),
         provider=cast(str, provider),
@@ -149,4 +165,5 @@ def _to_row(row: tuple[object, ...]) -> SuggestionRow:
         reason=cast(SuggestionReason, reason),
         seed_key=cast(str, seed_key),
         refreshed_at=cast(int, refreshed_at),
+        external_ids=cast("dict[str, str]", json.loads(cast(str, external_ids))),
     )

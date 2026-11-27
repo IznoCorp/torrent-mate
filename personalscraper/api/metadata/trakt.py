@@ -399,12 +399,28 @@ def _parse_related(data: list[dict[str, Any]], *, provider: str, media_type: Med
                 title=item.get("title", ""),
                 year=item.get("year"),
                 media_type=MediaType.TV if media_type == MediaType.TV else MediaType.MOVIE,
+                external_ids=_cross_provider_ids(ids),
             )
         )
     return results
 
 
 # -- Helpers ---------------------------------------------------------------
+
+_CROSS_PROVIDER_ID_KEYS = ("imdb", "tmdb", "tvdb")
+
+
+def _cross_provider_ids(ids: dict[str, Any]) -> dict[str, str]:
+    """Pick the ids of a Trakt ids block that the library and the follows are numbered by.
+
+    Args:
+        ids: The Trakt ``ids`` block (``trakt``, ``slug``, ``imdb``, ``tmdb``, ``tvdb``).
+
+    Returns:
+        ``imdb`` / ``tmdb`` / ``tvdb`` → the id as text, for those the block holds (a null or
+        empty one is left out).
+    """
+    return {key: str(ids[key]) for key in _CROSS_PROVIDER_ID_KEYS if ids.get(key)}
 
 
 def _resolve_id(ids: dict[str, Any]) -> str:

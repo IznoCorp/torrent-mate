@@ -201,6 +201,23 @@ class TestRead:
 
         assert _titles(service.read(_actor(), None).items) == ["breaking-bad", "1388"]
 
+    def test_a_trakt_card_is_excluded_by_the_ids_beside_its_slug(
+        self, store: ConcreteAcquireStore, tmp_path: Path
+    ) -> None:
+        """Trakt's ``provider_id`` is a slug: the owned film and the followed show leave by their other ids."""
+        store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=81189), title="Breaking Bad", added_at=1))
+        store.suggestions.replace_deck(
+            [
+                _row("trakt", "inception-2010", "movie", external_ids={"imdb": "tt1375666", "tmdb": "27205"}),
+                _row("trakt", "breaking-bad", external_ids={"imdb": "tt0903747", "tvdb": "81189"}),
+                _row("trakt", "the-wire", external_ids={"imdb": "tt0306414", "tvdb": "79126"}),
+                _row("trakt", "no-ids"),
+            ]
+        )
+        service, _ = _service(tmp_path, _Library(movie_tmdb={27205}))
+
+        assert _titles(service.read(_actor(), None).items) == ["the-wire", "no-ids"]
+
     def test_a_followed_show_and_a_followed_film_are_excluded(
         self, store: ConcreteAcquireStore, tmp_path: Path
     ) -> None:

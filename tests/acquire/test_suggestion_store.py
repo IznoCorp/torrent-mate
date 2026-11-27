@@ -84,6 +84,7 @@ class TestMigration028:
             "reason",
             "seed_key",
             "refreshed_at",
+            "external_ids",
         } <= columns
         assert conn.execute("PRAGMA user_version").fetchone()[0] >= 28
         assert conn.execute("SELECT 1 FROM schema_version WHERE version = 28").fetchone() is not None
@@ -182,6 +183,16 @@ class TestDeck:
         store.suggestions.replace_deck([])
         assert store.suggestions.after(None, 10) == []
         assert store.suggestions.refreshed_at() is None
+
+    def test_the_other_ids_of_a_title_round_trip(self, store: ConcreteAcquireStore) -> None:
+        """A row keeps the ids its provider gave beside its own id; a row with none reads back empty."""
+        ids = {"imdb": "tt0903747", "tmdb": "1396", "tvdb": "81189"}
+        store.suggestions.replace_deck([_row("breaking-bad", external_ids=ids), _row("bare")])
+
+        with_ids, bare = store.suggestions.after(None, 10)
+
+        assert with_ids.external_ids == ids
+        assert bare.external_ids == {}
 
     def test_the_seeds_asked_are_remembered_across_decks(self, store: ConcreteAcquireStore) -> None:
         """A refresh notes the time of the seeds it asked; the next deck's replacement keeps the others' times."""

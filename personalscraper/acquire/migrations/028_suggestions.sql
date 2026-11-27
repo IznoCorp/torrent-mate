@@ -25,6 +25,11 @@
 -- instead of the same head every time. It survives the deck's replacement (a seed whose
 -- recommendations were all duplicates leaves no row in the deck, and was asked all the same).
 --
+-- ``external_ids`` is a JSON object, ``{"imdb": "tt0903747", "tmdb": "1396", "tvdb": "81189"}``:
+-- the other ids the provider gave the title beside ``provider_id`` (a provider such as Trakt
+-- names a title by a slug, which the library and the follows do not know). Only the keys the
+-- provider gave are present; ``{}`` when it gave none.
+--
 -- Reads exclude what the reader owns or follows by provider id; the rejection a reader made
 -- of a title is a per-account fact that lives in ``app.db`` (O-9), never here.
 --
@@ -45,6 +50,7 @@ CREATE TABLE suggestion (
     reason       TEXT    NOT NULL CHECK (reason IN ('similar_to_owned', 'similar_to_followed')),
     seed_key     TEXT    NOT NULL,
     refreshed_at INTEGER NOT NULL,
+    external_ids TEXT    NOT NULL DEFAULT '{}',
     UNIQUE (provider, provider_id, kind)
 );
 

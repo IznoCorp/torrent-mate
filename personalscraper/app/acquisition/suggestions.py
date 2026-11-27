@@ -10,9 +10,11 @@ A refresh (``personalscraper acquisition-suggestions-refresh``,
   (a paused follow counts, a request row and a removed follow do not, as the search's ``followed``);
 * the reader REJECTED it, through the :class:`RejectionFilter` seam.
 
-Owned and followed are told by provider id, never by title. A title whose id names no TVDB, TMDB
-nor IMDb id (a Trakt slug, a Trakt number) cannot be asked of the library and always stays: no
-title guess stands in for an id.
+Owned and followed are told by provider id, never by title. A title is known by its own id when
+that is a TVDB, TMDB or IMDb id, and by the ids its provider gave beside it (``external_ids``:
+Trakt names a title by a slug and gives its IMDb, TMDB and TVDB ids alongside). A title with no
+such id (a slug and nothing else) cannot be asked of the library and always stays: no title guess
+stands in for an id.
 
 The per-account rejection store (``suggestion_rejection`` in ``app.db``, and the writes that fill
 it) waits the operator's ruling O-9: the seam is here, the store is not. Until it lands nothing is
@@ -22,7 +24,7 @@ rejected.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from contextlib import closing
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, Protocol
@@ -134,25 +136,50 @@ class SuggestionPage:
     after: str | None
 
 
-def media_ref_of(provider: str, provider_id: str) -> MediaRef | None:
+def media_ref_of(provider: str, provider_id: str, external_ids: Mapping[str, str] | None = None) -> MediaRef | None:
     """Return the ids a title is known by, as the library and the follows key them.
 
     Args:
         provider: The provider that recommended the title.
         provider_id: Its id at that provider.
+        external_ids: The other ids the provider gave beside ``provider_id`` (``"imdb"`` /
+            ``"tmdb"`` / ``"tvdb"``); one that is not a well-formed id is left out.
 
     Returns:
-        An IMDb id (``tt…``) is one whatever the provider; a TMDB or TVDB number is that provider's
-        id. Anything else (a Trakt slug or number) names no id the library knows: ``None``.
+        The ref holding every id that is one: the ids beside ``provider_id``, and ``provider_id``
+        itself when it is an IMDb id (``tt…``, whatever the provider) or a TMDB or TVDB number
+        (that provider's own). ``None`` when none is: a bare Trakt slug or number names no id the
+        library knows.
     """
+    imdb: str | None = None
+    tmdb: int | None = None
+    tvdb: int | None = None
+    candidates = dict(external_ids or {})
     if _IMDB_ID.fullmatch(provider_id):
-        return MediaRef(imdb_id=provider_id)
-    if provider_id.isascii() and provider_id.isdigit():
-        if provider == "tmdb":
-            return MediaRef(tmdb_id=int(provider_id))
-        if provider == "tvdb":
-            return MediaRef(tvdb_id=int(provider_id))
-    return None
+        candidates.setdefault("imdb", provider_id)
+    elif provider in ("tmdb", "tvdb"):
+        candidates.setdefault(provider, provider_id)
+    if _IMDB_ID.fullmatch(candidates.get("imdb", "")):
+        imdb = candidates["imdb"]
+    if _is_number(candidates.get("tmdb", "")):
+        tmdb = int(candidates["tmdb"])
+    if _is_number(candidates.get("tvdb", "")):
+        tvdb = int(candidates["tvdb"])
+    if imdb is None and tmdb is None and tvdb is None:
+        return None
+    return MediaRef(tvdb_id=tvdb, tmdb_id=tmdb, imdb_id=imdb)
+
+
+def _is_number(value: str) -> bool:
+    """Whether ``value`` is a plain number, as a provider's numeric id is.
+
+    Args:
+        value: The text to check.
+
+    Returns:
+        ``True`` for ASCII digits only.
+    """
+    return value.isascii() and value.isdigit()
 
 
 def _cursor_of(after: str | None) -> int | None:
@@ -260,7 +287,7 @@ def _is_followed(store: AcquireStore, row: SuggestionRow) -> bool:
     Returns:
         ``True`` when at least one matching follow stands; ``False`` for an id no follow can hold.
     """
-    ref = media_ref_of(row.provider, row.provider_id)
+    ref = media_ref_of(row.provider, row.provider_id, row.external_ids)
     if ref is None:
         return False
     return any(f.scope == "follow" and f.removed_at is None for f in store.follow.find_all_by_ref(ref, kind=row.kind))
@@ -277,7 +304,7 @@ def _is_owned(ownership: OwnershipReader, row: SuggestionRow) -> bool:
         ``True`` for a film a live file holds, or a show with any live episode file; ``False``
         for an id the library cannot be asked by.
     """
-    ref = media_ref_of(row.provider, row.provider_id)
+    ref = media_ref_of(row.provider, row.provider_id, row.external_ids)
     if ref is None:
         return False
     return ownership.owns(ref, kind="movie") if row.kind == "movie" else len(ownership.owned_pairs(ref)) > 0

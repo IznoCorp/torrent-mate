@@ -237,6 +237,27 @@ class TestDeck:
         assert (row.rating, row.poster) == (None, None)
         assert report.stored == 1 and report.asked == 1 and report.failed == 0
 
+    def test_the_ids_a_provider_gives_beside_the_slug_are_stored(self, store: ConcreteAcquireStore) -> None:
+        """A Trakt-shaped recommendation (slug as the id, imdb / tmdb / tvdb alongside) keeps them all."""
+        index = _FakeIndex([_item("show", "Held", imdb="tt1")])
+        recommendation = Recommendation(
+            provider="trakt",
+            provider_id="breaking-bad",
+            title="Breaking Bad",
+            year=2008,
+            media_type=MediaType.TV,
+            external_ids={"imdb": "tt0903747", "tmdb": "1396", "tvdb": "81189"},
+        )
+        provider = _Provider(answers={"tt1": [recommendation]})
+
+        refresh_suggestions(store, index, [provider], now=_NOW, max_seeds=10)
+
+        (row,) = _deck(store)
+        assert (row.provider_id, row.external_ids) == (
+            "breaking-bad",
+            {"imdb": "tt0903747", "tmdb": "1396", "tvdb": "81189"},
+        )
+
     def test_a_title_two_seeds_recommend_is_stored_once_for_the_first(self, store: ConcreteAcquireStore) -> None:
         """One row per (provider, id, kind); the first seed's reason stands."""
         index = _FakeIndex([_item("show", "A", imdb="tt1"), _item("show", "B", imdb="tt2")])

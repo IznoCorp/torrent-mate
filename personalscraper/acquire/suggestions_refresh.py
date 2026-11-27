@@ -335,4 +335,5 @@ def _row_of(rec: Recommendation, seed: _Seed, now: int) -> SuggestionRow | None:
         reason=seed.reason,
         seed_key=seed.key,
         refreshed_at=now,
+        external_ids=dict(rec.external_ids),
     )
