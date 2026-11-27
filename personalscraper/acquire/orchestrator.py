@@ -1133,6 +1133,9 @@ class GrabOrchestrator:
             return self._retryable(media_ref, "search_api_error")
         if result.exit_path == "trackers_unavailable":
             return self._retryable(media_ref, "trackers_unavailable")
+        if result.exit_path == "trackers_degraded":
+            # A partial outage: the search did not conclude, so it is retried like the unanimous one.
+            return self._retryable(media_ref, "trackers_degraded")
         if result.exit_path == "no_candidates":
             return self._not_found(media_ref, "no_candidates")
         if result.exit_path == "no_matching_episode":
