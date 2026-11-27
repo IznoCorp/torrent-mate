@@ -211,6 +211,14 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def ids_with_grab_reason(self, reason: str) -> frozenset[int]:
+        """Return the ids of the rows whose LAST grab attempt failed with *reason*.
+
+        The read behind a hold: a row whose person-named release is gone carries
+        ``chosen_release_gone`` until a claim or a successful grab clears it.
+        """
+        ...
+
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item; return ``True`` iff this call won."""
         ...

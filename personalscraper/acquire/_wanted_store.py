@@ -875,6 +875,22 @@ class _WantedSubStore:
                 (reason, at, wanted_id),
             )
 
+    def ids_with_grab_reason(self, reason: str) -> frozenset[int]:
+        """Return the ids of the rows whose LAST grab attempt failed with *reason*.
+
+        Reads the ``last_grab_reason`` column that :meth:`record_grab_failure` writes and a claim or
+        :meth:`mark_grabbed` clears. The grab pass uses it to hold back the rows whose
+        person-named release is gone (``chosen_release_gone``): no migration, the column is the hold.
+
+        Args:
+            reason: The reason slug to look for.
+
+        Returns:
+            The matching rows' rowids; empty when none.
+        """
+        rows = self._conn.execute("SELECT id FROM wanted WHERE last_grab_reason = ?", (reason,)).fetchall()
+        return frozenset(int(r[0]) for r in rows)
+
     def list_available(self) -> list[WantedItem]:
         """Items a search found takeable but the grab pass has not taken yet.
 

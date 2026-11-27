@@ -86,6 +86,7 @@ from personalscraper.acquire.desired import (
     cadence_from_json,
     effective_cadence,
 )
+from personalscraper.acquire.orchestrator import CHOSEN_RELEASE_GONE
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -291,7 +292,9 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 adds nothing and records ``chosen_release_gone`` (counted in
                 :attr:`RunSummary.release_gone`). When no row's stored set carries the name (the set
                 was replaced since the choice), every available row of the follow is asked and
-                records the same. ``None`` (default) is the engine's own choice, as ever.
+                records the same. ``None`` (default) is the engine's own choice, as ever, except
+                that a row held by an earlier gone release (``chosen_release_gone``) is left alone
+                until a person names a release for it again (see :meth:`_without_held`).
 
         Returns:
             A :class:`RunSummary` of outcome counts.
@@ -313,6 +316,8 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         available = self._store.wanted.list_available()
         if release is not None:
             available = self._rows_of_release([item for item in available if item.followed_id == followed_id], release)
+        else:
+            available = self._without_held(available)
         queue = self._build_queue(available, now=now, limit=limit, followed_id=followed_id)
         global_cadence = cadence_from_config(self._config.acquire.cadence)
         follow_map = self._load_follow_map(queue)
@@ -380,6 +385,29 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             absorbed=absorbed,
             release_gone=release_gone,
         )
+
+    def _without_held(self, queue: list[WantedItem]) -> list[WantedItem]:
+        """Drop the rows held until a person chooses a release again.
+
+        A row whose person-named release was gone records ``chosen_release_gone`` and waits (the
+        operator, DESIGN O-14: « c'est moi qui dois refaire ce choix, donc on attend »): a grab
+        that names no release, scheduled or not, never takes the engine's pick for it. Only a
+        grab naming a release asks it again, and a claim clears the reason.
+
+        Args:
+            queue: The available rows.
+
+        Returns:
+            *queue* without the held rows.
+        """
+        held = self._store.wanted.ids_with_grab_reason(CHOSEN_RELEASE_GONE)
+        if not held:
+            return queue
+        kept = [item for item in queue if item.id not in held]
+        for item in queue:
+            if item.id in held:
+                log.info("acquire.service.grab_held_for_chosen_release", wanted_id=item.id)
+        return kept
 
     def _rows_of_release(self, queue: list[WantedItem], release: str) -> list[WantedItem]:
         """Keep the rows a person's named release was chosen for.
