@@ -245,7 +245,8 @@ def _picked(store: AcquireStore, followed_id: int, release_id: str) -> tuple[int
             the acquisition's, or a release its stored set no longer holds.
     """
     head = release_id.partition(_HANDLE_SEPARATOR)[0]
-    if head.isdecimal() and int(head) <= _MAX_ROWID:
+    # The length first: Python refuses to parse a number of thousands of digits (a ValueError, not a miss).
+    if head.isdecimal() and len(head) <= len(str(_MAX_ROWID)) and int(head) <= _MAX_ROWID:
         row = store.wanted.get(int(head))
         if row is not None and row.id is not None and row.followed_id == followed_id:
             for candidate in store.candidates.list_for(row.id):

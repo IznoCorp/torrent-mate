@@ -219,8 +219,15 @@ def test_a_grab_of_a_chosen_release_names_it_and_binds_its_row(world: FollowWorl
 
 @pytest.mark.parametrize(
     "release_id",
-    ["", "nothing", "x:0123456789abcdef", "999999:0123456789abcdef", f"{'9' * 40}:0123456789abcdef"],
-    ids=["empty", "no-separator", "no-row", "unknown-row", "past-sqlite"],
+    [
+        "",
+        "nothing",
+        "x:0123456789abcdef",
+        "999999:0123456789abcdef",
+        f"{'9' * 40}:0123456789abcdef",
+        f"{'9' * 5000}:0123456789abcdef",
+    ],
+    ids=["empty", "no-separator", "no-row", "unknown-row", "past-sqlite", "past-int-parsing"],
 )
 def test_a_handle_that_names_nothing_is_refused_and_queues_nothing(world: FollowWorld, release_id: str) -> None:
     """A handle no stored set holds: ``request.invalid`` naming ``releaseId``, never another release."""
