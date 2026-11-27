@@ -15,6 +15,7 @@
 // holds it: it hands each state to `drivenWithoutHistory`, the verb that does.
 import { refillProducers } from "../app/panel-host";
 import { refillFollows, refillSuggestions } from "../features/acquisition/queries";
+import { forgetHeldReserve } from "../features/acquisition/reserve-positions";
 import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
 import { drivenWithoutHistory, layNamedTrail } from "../app/page-switch";
@@ -120,6 +121,7 @@ function reset(): boolean {
      world's re-seeding embodied — a state pins what it means to show, and everything else starts
      from a known place. The mock layer's own seeds go back with it. */
   window.__queries?.clear();
+  forgetHeldReserve();
   window.__mocks?.reset();
   /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query with an
      observer is re-asked by that observer; the deck's cards, the follows the

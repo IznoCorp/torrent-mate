@@ -3,8 +3,13 @@
 // A RESERVE THAT GROWS KEEPS THEM; ONE THAT IS READ AGAIN DOES NOT. A re-read of the deck — a
 // series followed, a write the outbox replayed — answers it without what the account rejected or
 // follows, and every card after one that left moves up. The positions held are carried onto the
-// cards they named, told by their ids, before anything draws them.
+// cards they named, told by their ids, before anything draws them. A page read after the cache let
+// the reserve go is read again like any other.
+//
+// THE POSITIONS ARE ONE ACCOUNT'S: what it rejected or passed hides nothing from the next one
+// signing in on this device (O-9 A).
 import { hashKey, type QueryClient } from "@tanstack/react-query";
+import { accountQuery, type Account } from "../../lib/account";
 import type { Schemas } from "../../lib/contract-schemas";
 import { store } from "../../lib/store-access";
 
@@ -60,34 +65,67 @@ export function onReserveReplaced(draw: () => void): void {
   redraw = draw;
 }
 
+// The ids the positions held are written against. THEY OUTLIVE THE QUERY: the cache lets an
+// unobserved reserve go, and the page read after it is carried by id like any other.
+let held: string[] = [];
+
+/** Forgets the ids the positions were written against: for a driven state, which drops them all. */
+export function forgetHeldReserve(): void {
+  held = [];
+}
+
+/** The spent positions: a Set MUTATED IN PLACE, as every writer of it does; a write bumps the store. */
+const spentPositions = () => store.read().state.sugGone as Set<number>;
+
+/** Drops what is spent and the order of the pile, and draws the whole reserve again. */
+function forgetPositions(): void {
+  spentPositions().clear();
+  store.write({ sugOrder: null });
+  redraw();
+}
+
 /**
- * Follows the reserve in the cache, and carries the positions held each time it is replaced.
+ * Carries the positions held onto a reserve just read, and draws it, if it moved under them.
+ *
+ * @param page What the reserve's query holds now.
+ */
+function carryOnto(page: Schemas["SuggestionPage"]): void {
+  const before = held;
+  held = page.suggestions.map((one) => one.id);
+  if (!isReplaced(before, held)) return;
+  const gone = spentPositions();
+  const order = (store.read().state.sugOrder as number[] | null | undefined) ?? null;
+  const moved = remapPositions(before, held, gone, order);
+  gone.clear();
+  for (const position of moved.gone) gone.add(position);
+  store.write({ sugOrder: moved.order });
+  redraw();
+}
+
+/**
+ * Follows the reserve and the account in the cache: the positions held are carried onto each page
+ * the reserve is read as, and dropped when another account is signed in.
  *
  * A listener of the cache is called in the write's own task, so nothing draws in between.
  *
- * @param client The cache the reserve lives in.
+ * @param client The cache the reserve and the account live in.
  * @param key The reserve's query key.
  */
 export function followReserve(client: QueryClient, key: readonly unknown[]): void {
   const reserveHash = hashKey(key);
-  let held: string[] = [];
+  const accountHash = hashKey(accountQuery.queryKey);
+  // WHO THE POSITIONS ARE OF, past a sign-out: the same account signing back in keeps them.
+  let signedIn: string | undefined;
+  forgetHeldReserve();
   client.getQueryCache().subscribe((event) => {
-    if (event.query.queryHash !== reserveHash) return;
-    // A CACHE EMPTIED STARTS AGAIN: what is read next answers to no position held before.
-    if (event.type === "removed") held = [];
     if (event.type !== "updated") return;
-    const page = event.query.state.data as Schemas["SuggestionPage"] | undefined;
-    if (page === undefined) return;
-    const before = held;
-    held = page.suggestions.map((one) => one.id);
-    if (!isReplaced(before, held)) return;
-    const state = store.read().state;
-    const gone = state.sugGone as Set<number>;
-    const moved = remapPositions(before, held, gone, (state.sugOrder as number[] | null | undefined) ?? null);
-    // THE SET IS MUTATED IN PLACE, as every other writer of it does, and the write bumps the store.
-    gone.clear();
-    for (const position of moved.gone) gone.add(position);
-    store.write({ sugOrder: moved.order });
-    redraw();
+    const { queryHash, state } = event.query;
+    if (state.data === undefined) return;
+    if (queryHash === reserveHash) return carryOnto(state.data as Schemas["SuggestionPage"]);
+    if (queryHash !== accountHash) return;
+    const { id } = state.data as Account;
+    const another = signedIn !== undefined && signedIn !== id;
+    signedIn = id;
+    if (another) forgetPositions();
   });
 }
