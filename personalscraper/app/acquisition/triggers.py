@@ -8,8 +8,9 @@ search is queued like a grab, O-6 B).
 A search and a grab are scoped to the standing follow or one-off request the medium's key names, and
 are the caller's own to ask (or ``acquisition.pilot.any``'s). A grab that names a release does so by
 its HANDLE (:func:`~personalscraper.app.acquisition.releases.release_handle`): the job then carries the
-release's name and the one wanted row it was chosen on, so the pick binds that row alone. A handle no
-stored set of the acquisition holds is refused, never taken for another release.
+release's name, the one wanted row it was chosen on and the handle itself, so the pick binds that row
+and that very release, never a namesake. A handle no stored set of the acquisition holds is refused,
+never taken for another release.
 
 The schedule is the environment's own: what PM2's ``schedule`` apps of ``ecosystem.config.js`` run
 (:data:`PASS_CRONS`), which this process never reads at run time.
@@ -180,7 +181,13 @@ class AcquisitionRuns:
             follow = self._own(store, actor, key)
             if release_id is not None:
                 wanted_id, release = _picked(store, int(follow.id), release_id)
-        job = AcquisitionJob(JobKind.GRAB, followed_id=int(follow.id), release=release, wanted_id=wanted_id)
+        job = AcquisitionJob(
+            JobKind.GRAB,
+            followed_id=int(follow.id),
+            release=release,
+            wanted_id=wanted_id,
+            release_id=None if wanted_id is None else release_id,
+        )
         return str(self._runs.ask_acquisition(actor, job).uid)
 
     @requires("readAcquisitionStatus")

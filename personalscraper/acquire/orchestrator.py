@@ -73,7 +73,7 @@ from personalscraper.acquire._filters import (
 )
 from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
-from personalscraper.acquire.domain import CHOSEN_RELEASE_GONE
+from personalscraper.acquire.domain import CHOSEN_RELEASE_GONE, release_handle
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.torrent._base import TorrentLimits, category_refusal, in_sandbox
@@ -172,12 +172,15 @@ class _SearchChainResult:
             Empty on every path except ``"available"``.
         top: Top-ranked ``(result, score)`` pair, or ``None`` when no candidate
             survived.
+        offered: What the trackers offered of the wanted item, before the hard filters and the dedup.
+            Set on the ``"available"`` path alone, where a person's picked release is looked for.
     """
 
     exit_path: str
     ranked: list[tuple[TrackerResult, int]]
     top: tuple[TrackerResult, int] | None
     raw_before_filter: list[TrackerResult] | None = None
+    offered: tuple[TrackerResult, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -334,6 +337,25 @@ def rank_candidates(
         representatives = _with_ratio_standing(representatives, tracker_ratio_state_of)
     ranked = rank(representatives, ranking, exclude_hashes=exclude_hashes, media_kind=media_kind)
     return representatives, ranked
+
+
+def _handle_on(wanted_id: int, result: TrackerResult) -> str:
+    """Name what a tracker offers the way a stored candidate of the row *wanted_id* is named.
+
+    Args:
+        wanted_id: The wanted row.
+        result: The release offered.
+
+    Returns:
+        Its handle.
+    """
+    return release_handle(
+        wanted_id,
+        provider=result.provider,
+        title=result.title,
+        info_hash=result.info_hash,
+        size_bytes=result.size.bytes,
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -946,7 +968,7 @@ class GrabOrchestrator:
         if not ranked:
             return _SearchChainResult(exit_path="no_seeders", ranked=[], top=None)
 
-        return _SearchChainResult(exit_path="available", ranked=ranked, top=ranked[0])
+        return _SearchChainResult(exit_path="available", ranked=ranked, top=ranked[0], offered=tuple(results))
 
     # ------------------------------------------------------------------
     # Public methods
@@ -1053,6 +1075,7 @@ class GrabOrchestrator:
         on_intent: Callable[[str], None] | None = None,
         exclude_hashes: frozenset[str] = frozenset(),
         release: str | None = None,
+        release_id: str | None = None,
     ) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
@@ -1109,6 +1132,12 @@ class GrabOrchestrator:
                 records the verdict, clears the candidates and holds the row).
                 ``None`` (default) is the engine's own choice: the best-ranked release
                 of the re-search, whatever the search pass ranked first earlier.
+            release_id: The handle of the very release the person picked
+                (:func:`~personalscraper.acquire.domain.release_handle` on this item's row), beside
+                *release*. Only that release is taken, never another published under its name: it is
+                looked for in what the trackers offer BEFORE the dedup, so a copy the dedup now ranks
+                behind another is still the one added, and it keeps the hard filters and the seeders
+                floor. Not offered: ``chosen_release_gone``. ``None`` matches by *release*'s name.
 
         Returns:
             The :class:`GrabOutcome` describing success / retryable / terminal.
@@ -1156,9 +1185,22 @@ class GrabOrchestrator:
         if release is None:
             top, _score = result.top
         else:
-            # Only the release a person named, by its exact name: the dedup already keeps one ranked
-            # representative per release across trackers, and any other name is a substitute.
-            ranked = [pair for pair in ranked if pair[0].title == release]
+            if release_id is not None:
+                assert item.id is not None  # a handle names the claimed row
+                picked = [one for one in result.offered if _handle_on(item.id, one) == release_id]
+                _, ranked = rank_candidates(
+                    picked,
+                    profile,
+                    media_ref,
+                    self._ranking,
+                    exclude_hashes=exclude_hashes,
+                    media_kind=item.kind,
+                    tracker_ratio_state_of=self._tracker_ratio_state_resolver,
+                )
+            else:
+                # Only the release a person named, by its exact name: the dedup already keeps one ranked
+                # representative per release across trackers, and any other name is a substitute.
+                ranked = [pair for pair in ranked if pair[0].title == release]
             if not ranked:
                 return self._retryable(media_ref, CHOSEN_RELEASE_GONE)
             top = ranked[0][0]

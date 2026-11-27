@@ -12,6 +12,7 @@ The grab runs for real here: the service, the orchestrator and an acquire store;
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -19,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.acquire._dedup import SearchOutcome
-from personalscraper.acquire.domain import FollowedSeries, WantedCandidate, WantedItem
+from personalscraper.acquire.domain import FollowedSeries, WantedCandidate, WantedItem, release_handle
 from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
 from personalscraper.acquire.service import AcquisitionService, RunSummary
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
@@ -233,6 +234,7 @@ def _grab(
     *,
     release: str | None = None,
     wanted_id: int | None = None,
+    release_id: str | None = None,
     ranking: RankingConfig | None = None,
     fetch_fails: frozenset[str] = frozenset(),
 ) -> tuple[RunSummary, MagicMock]:
@@ -244,6 +246,7 @@ def _grab(
         offered: What the trackers return: results, or a whole outcome (an outage).
         release: The release a person named; ``None`` for the engine's own choice.
         wanted_id: The row the person's pick was made on; ``None`` when none is named.
+        release_id: The handle of the very release picked; ``None`` when none is named.
         ranking: The ranking the orchestrator scores with; a plain one when ``None`` (offered order = rank).
         fetch_fails: The trackers that cannot serve the torrent of a release they offer.
 
@@ -276,6 +279,8 @@ def _grab(
     kwargs: dict[str, object] = {} if release is None else {"release": release}
     if wanted_id is not None:
         kwargs["wanted_id"] = wanted_id
+    if release_id is not None:
+        kwargs["release_id"] = release_id
     _FETCH_FAILS.clear()
     _FETCH_FAILS.update(fetch_fails)
     with patch(_RESOLVE, side_effect=_fetch):
@@ -438,6 +443,127 @@ def test_a_pick_bound_to_a_row_that_is_not_available_asks_no_other_row(store: Co
 
     assert (summary.grabbed, summary.release_gone, registry.search_candidates.call_count) == (0, 0, 0)
     assert _last_grab(store, other)[0] is None
+
+
+def _twin(result: TrackerResult, *, info_hash: str, size_bytes: int, seeders: int | None = None) -> TrackerResult:
+    """Another release published under the very name of *result*.
+
+    Args:
+        result: The release whose name is shared.
+        info_hash: The other release's own hash.
+        size_bytes: Its own size.
+        seeders: Its seeders; *result*'s when ``None``.
+
+    Returns:
+        The other release.
+    """
+    return dataclasses.replace(
+        result,
+        info_hash=info_hash,
+        size=ByteSize(size_bytes),
+        seeders=result.seeders if seeders is None else seeders,
+        tracker_id=f"{result.tracker_id}-{info_hash}",
+        download_url=f"{result.download_url}-{info_hash}",
+    )
+
+
+def _handle_of(wanted_id: int, result: TrackerResult) -> str:
+    """The handle a picker offers *result* by, on the row *wanted_id*.
+
+    Args:
+        wanted_id: The wanted row.
+        result: The release.
+
+    Returns:
+        Its handle.
+    """
+    return release_handle(
+        wanted_id,
+        provider=result.provider,
+        title=result.title,
+        info_hash=result.info_hash,
+        size_bytes=result.size.bytes,
+    )
+
+
+def test_of_two_same_named_releases_the_one_picked_is_grabbed(store: ConcreteAcquireStore) -> None:
+    """One name, two releases more than 2 % apart: the second is picked, and the second is added."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    first = _result(_BEST, seeders=90)
+    picked = _twin(first, info_hash="hash-picked", size_bytes=8_000_000_000, seeders=40)
+    client = _Client()
+
+    summary, _ = _grab(
+        store, client, [first, picked], release=_BEST, wanted_id=wanted_id, release_id=_handle_of(wanted_id, picked)
+    )
+
+    assert (summary.grabbed, client.added) == (1, ["hash-picked"])
+
+
+def test_a_picked_release_gone_is_never_replaced_by_its_namesake(store: ConcreteAcquireStore) -> None:
+    """Only the namesake is offered now: the pick is gone, nothing is added, the row is held."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    namesake = _result(_BEST, seeders=90)
+    picked = _twin(namesake, info_hash="hash-picked", size_bytes=8_000_000_000)
+    client = _Client()
+
+    summary, _ = _grab(
+        store, client, [namesake], release=_BEST, wanted_id=wanted_id, release_id=_handle_of(wanted_id, picked)
+    )
+
+    assert (summary.release_gone, client.added) == (1, [])
+    assert _last_grab(store, wanted_id)[0] == "chosen_release_gone"
+
+
+def test_a_picked_release_that_cannot_be_downloaded_takes_no_namesake(store: ConcreteAcquireStore) -> None:
+    """The walk past a dead download never reaches a namesake: the picked one is all there is to try."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    namesake = _result(_BEST, seeders=90)
+    picked = _twin(_result(_BEST, seeders=40, provider="tr4ker"), info_hash="hash-picked", size_bytes=8_000_000_000)
+    client = _Client()
+
+    summary, _ = _grab(
+        store,
+        client,
+        [namesake, picked],
+        release=_BEST,
+        wanted_id=wanted_id,
+        release_id=_handle_of(wanted_id, picked),
+        fetch_fails=frozenset({"tr4ker"}),
+    )
+
+    assert (summary.grabbed, client.added) == (0, [])
+    assert _last_grab(store, wanted_id)[0] == "chosen_release_failed"
+
+
+def test_a_picked_release_another_copy_now_represents_is_still_the_one_added(store: ConcreteAcquireStore) -> None:
+    """The dedup now prefers another tracker's copy of the same cut: the copy picked is offered, so it is taken."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    picked = _result(_BEST, seeders=40)
+    other = _result(_BEST, seeders=90, provider="tr4ker")
+    preferred = _twin(other, info_hash="hash-other", size_bytes=picked.size.bytes)
+    client = _Client()
+
+    summary, _ = _grab(
+        store, client, [picked, preferred], release=_BEST, wanted_id=wanted_id, release_id=_handle_of(wanted_id, picked)
+    )
+
+    assert (summary.grabbed, client.added) == (1, [picked.info_hash])
+
+
+@pytest.mark.parametrize("status", ["pending", "searching"])
+def test_a_pick_whose_row_stopped_being_available_holds_it(store: ConcreteAcquireStore, status: str) -> None:
+    """Accepted, then the row left « available » before the pass ran: the pick is unmet, nothing stands in."""
+    wanted_id = _available(store, 5, candidates=[_BEST, _SECOND])
+    store.wanted.set_status(wanted_id, status)  # type: ignore[arg-type]
+    client = _Client()
+    _grab(store, client, [_result(_SECOND, seeders=40)], release=_SECOND, wanted_id=wanted_id)
+    store.wanted.set_status(wanted_id, "available")
+
+    summary, registry = _grab(store, client, [_result(_BEST, seeders=90), _result(_SECOND, seeders=40)])
+
+    assert (summary.grabbed, client.added, registry.search_candidates.call_count) == (0, [], 0)
+    assert _last_grab(store, wanted_id)[0] == "chosen_release_failed"
 
 
 def test_a_row_is_bound_only_to_a_named_release(store: ConcreteAcquireStore) -> None:

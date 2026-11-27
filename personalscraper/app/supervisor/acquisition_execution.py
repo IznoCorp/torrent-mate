@@ -79,6 +79,7 @@ class GrabPass(Protocol):
         run_uid: str | None = None,
         release: str | None = None,
         wanted_id: int | None = None,
+        release_id: str | None = None,
     ) -> RunSummary:
         """Run the grab pass over the available wanted items.
 
@@ -89,6 +90,7 @@ class GrabPass(Protocol):
             release: The release a person named, taken if it is still offered; passed ONLY when the
                 job names one, so a grab without it is called exactly as before.
             wanted_id: The one row the named release is asked of; passed only when the job names one.
+            release_id: The handle of the very release picked on that row; passed only when the job names one.
 
         Returns:
             The pass's counts.
@@ -183,8 +185,8 @@ def run_acquisition_job(
 def _grab(job: AcquisitionJob, service: GrabPass, run_uid: RunUid) -> RunSummary:
     """Run the grab pass of *job*.
 
-    ``release`` and ``wanted_id`` go to the service only when the job names them: a grab without them is
-    called as ever.
+    ``release``, ``wanted_id`` and ``release_id`` go to the service only when the job names them: a grab
+    without them is called as ever.
 
     Args:
         job: The job.
@@ -198,12 +200,21 @@ def _grab(job: AcquisitionJob, service: GrabPass, run_uid: RunUid) -> RunSummary
         return service.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid)
     if job.wanted_id is None:
         return service.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid, release=job.release)
+    if job.release_id is None:
+        return service.run(
+            limit=job.limit,
+            followed_id=job.followed_id,
+            run_uid=run_uid,
+            release=job.release,
+            wanted_id=job.wanted_id,
+        )
     return service.run(
         limit=job.limit,
         followed_id=job.followed_id,
         run_uid=run_uid,
         release=job.release,
         wanted_id=job.wanted_id,
+        release_id=job.release_id,
     )
 
 

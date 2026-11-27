@@ -46,7 +46,13 @@ class GrabPassMixin(PassGatesMixin):
     _grab_run_uid: str | None
 
     def _process_item(
-        self, item: WantedItem, now: int, *, cadence: Cadence, release: str | None = None
+        self,
+        item: WantedItem,
+        now: int,
+        *,
+        cadence: Cadence,
+        release: str | None = None,
+        release_id: str | None = None,
     ) -> _ItemOutcome:
         """Claim, grab and persist the result for ONE queued item.
 
@@ -74,6 +80,7 @@ class GrabPassMixin(PassGatesMixin):
                 engine's own choice. Handed to :meth:`GrabOrchestrator.grab`; when it is no longer
                 offered the outcome is ``"gone"``, the row records ``chosen_release_gone`` and keeps
                 the status its recorded verdict claims — never a substitute.
+            release_id: The handle of the very release picked, beside *release*, handed on likewise.
 
         Returns:
             A one-word outcome tag mapped onto a :class:`RunSummary` counter by
@@ -144,7 +151,11 @@ class GrabPassMixin(PassGatesMixin):
         # A crash in the add→``mark_grabbed`` window then leaves an INTENT the
         # reconciliation can replay against the client, not an orphan torrent.
         # ``release`` reaches the orchestrator only when a person named one: every other grab calls it as ever.
-        grab = self._orchestrator.grab if release is None else partial(self._orchestrator.grab, release=release)
+        grab = self._orchestrator.grab
+        if release is not None:
+            grab = partial(grab, release=release)
+        if release_id is not None:
+            grab = partial(grab, release_id=release_id)
         outcome = grab(
             current,
             profile,

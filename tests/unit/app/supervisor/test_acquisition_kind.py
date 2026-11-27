@@ -863,6 +863,25 @@ class TestWorker:
         [(name, kwargs)] = calls
         assert (name, kwargs["release"], kwargs["wanted_id"]) == ("grab", "Show.S01E01.1080p", 41)
 
+    def test_a_pick_of_one_namesake_hands_the_grab_its_handle(self, store: AppStore, test_config: Config) -> None:
+        """The job names the very release picked by its handle, and the grab service gets it."""
+        job = AcquisitionJob(
+            JobKind.GRAB, followed_id=7, release="Show.S01E01.1080p", wanted_id=41, release_id="41:abc"
+        )
+        request = _running(store, job)
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        code = _run_worker(store, test_config, request.uid, _engine(calls))
+
+        assert code == 0
+        [(name, kwargs)] = calls
+        assert (name, kwargs["wanted_id"], kwargs["release_id"]) == ("grab", 41, "41:abc")
+
+    def test_a_handle_is_named_only_beside_a_wanted_row(self) -> None:
+        """A handle names a release on one wanted row: with no row it is refused."""
+        with pytest.raises(ValueError, match="wanted_id"):
+            AcquisitionJob(JobKind.GRAB, followed_id=7, release="a", release_id="41:abc")
+
     def test_a_named_release_that_is_gone_fails_the_request_and_says_why(
         self, store: AppStore, test_config: Config, logged_events: LoggedEvents
     ) -> None:

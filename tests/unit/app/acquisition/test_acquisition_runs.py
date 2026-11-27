@@ -212,9 +212,27 @@ def test_a_grab_of_a_chosen_release_names_it_and_binds_its_row(world: FollowWorl
     assert _queued(world) == [
         (
             uid,
-            AcquisitionJob(JobKind.GRAB, followed_id=row, release="Show S01E02 1080p-BBB", wanted_id=wanted_id),
+            AcquisitionJob(
+                JobKind.GRAB,
+                followed_id=row,
+                release="Show S01E02 1080p-BBB",
+                wanted_id=wanted_id,
+                release_id=handles[1],
+            ),
         )
     ]
+
+
+def test_two_same_named_releases_are_two_asks_each_bound_to_its_own(world: FollowWorld) -> None:
+    """One name, two releases: the two picks are never joined, and each job names its own (review-949 2)."""
+    row = _followed(world)
+    _, handles = _offered(world, row, 1, "Show S01E01 1080p-AAA", "Show S01E01 1080p-AAA")
+
+    first = _triggers(world).grab(actor(ALICE), SHOW, handles[0])
+    second = _triggers(world).grab(actor(ALICE), SHOW, handles[1])
+
+    assert first != second
+    assert [job.release_id for _, job in _queued(world)] == handles
 
 
 @pytest.mark.parametrize(

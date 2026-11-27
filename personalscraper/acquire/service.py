@@ -86,7 +86,7 @@ from personalscraper.acquire.desired import (
     cadence_from_json,
     effective_cadence,
 )
-from personalscraper.acquire.domain import HOLD_REASONS
+from personalscraper.acquire.domain import CHOSEN_RELEASE_FAILED, HOLD_REASONS
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -97,6 +97,9 @@ if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.service")
+
+#: The statuses of a wanted row still waiting for a release: a person's pick unmet on one holds it.
+_WAITING_STATUSES = ("pending", "searching")
 
 # Per-item outcome tag (maps onto a RunSummary counter in run()).
 _ItemOutcome = Literal["grabbed", "retried", "abandoned", "absorbed", "skipped", "gone"]
@@ -276,6 +279,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         run_uid: str | None = None,
         release: str | None = None,
         wanted_id: int | None = None,
+        release_id: str | None = None,
     ) -> RunSummary:
         """Run the GRAB pass over the available + stale-searching queue.
 
@@ -317,19 +321,24 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             wanted_id: The row the person's pick was made on; needs *release*. That one row is asked,
                 when it is an available row of the follow, whatever its stored set now carries (a set
                 replaced since the choice: the release is then « gone » on that row, which is held);
-                otherwise no row is. ``None`` finds the rows by the name
-                (:meth:`_rows_of_release`).
+                otherwise no row is, and the row is held when it is still waiting
+                (:meth:`_bound_row`). ``None`` finds the rows by the name (:meth:`_rows_of_release`).
+            release_id: The handle of the very release picked on *wanted_id*'s row; needs *wanted_id*.
+                Only that release is taken, never another published under its name.
 
         Returns:
             A :class:`RunSummary` of outcome counts.
 
         Raises:
-            ValueError: If *release* is named with no *followed_id*, or *wanted_id* with no *release*.
+            ValueError: If *release* is named with no *followed_id*, *wanted_id* with no *release*, or
+                *release_id* with no *wanted_id*.
         """
         if release is not None and followed_id is None:
             raise ValueError("a named release is grabbed for one follow: it needs a followed_id")
         if wanted_id is not None and release is None:
             raise ValueError("a wanted row binds a named release: it needs a release")
+        if release_id is not None and wanted_id is None:
+            raise ValueError("a release handle names a release on one wanted row: it needs a wanted_id")
         self._grab_run_uid = run_uid  # F3: per-run grab-stage run stamp (see _persist_success)
         # O4/D5: re-assert global transfer caps at every run start — idempotent,
         # self-healing (a client restart that lost the limits gets them back here).
@@ -344,7 +353,10 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         held: frozenset[int] = frozenset()
         if release is not None:
             own = [item for item in head if item.followed_id == followed_id]
-            head = self._rows_of_release(own, release) if wanted_id is None else self._bound_row(own, wanted_id)
+            if wanted_id is None:
+                head = self._rows_of_release(own, release)
+            else:
+                head = self._bound_row(own, wanted_id, followed_id=followed_id, now=now)
             keep = {item.id for item in head if item.id is not None}
         else:
             held = self._store.wanted.ids_with_grab_reason(HOLD_REASONS)
@@ -375,7 +387,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             # errors (NOT a bare ``except Exception`` — a genuine programming bug
             # must still surface and crash loudly).
             try:
-                outcome_tag = self._process_item(item, now, cadence=cadence, release=release)
+                outcome_tag = self._process_item(item, now, cadence=cadence, release=release, release_id=release_id)
             except sqlite3.OperationalError as exc:
                 # DB lock (RETRYABLE, §6.2): leave the row for the stale-searching
                 # sweep to recover (do NOT abort the run). Count as skipped.
@@ -445,12 +457,20 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 log.info("acquire.service.grab_held_for_chosen_release", wanted_id=item.id)
         return [item for item in queue if item.id not in held]
 
-    def _bound_row(self, queue: list[WantedItem], wanted_id: int) -> list[WantedItem]:
+    def _bound_row(
+        self, queue: list[WantedItem], wanted_id: int, *, followed_id: int | None, now: int
+    ) -> list[WantedItem]:
         """Keep the one row a person's pick was made on.
+
+        The pick was accepted on an available row; one that stopped being available before the pass ran
+        (a search put it back to waiting) leaves the pick unmet. While the row still waits it is held,
+        as for any other unmet pick (DESIGN O-14), so no later grab takes the engine's own choice.
 
         Args:
             queue: The follow's available rows.
             wanted_id: The row the pick names.
+            followed_id: The follow the pick is of.
+            now: The epoch the hold is stamped with.
 
         Returns:
             That row alone; empty when it is not among them (logged): no other row stands in for it.
@@ -458,6 +478,9 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         bound = [item for item in queue if item.id == wanted_id]
         if not bound:
             log.warning("acquire.service.release_row_unavailable", wanted_id=wanted_id, open_rows=len(queue))
+            row = self._store.wanted.get(wanted_id)
+            if row is not None and row.followed_id == followed_id and row.status in _WAITING_STATUSES:
+                self._store.wanted.record_grab_failure(wanted_id, CHOSEN_RELEASE_FAILED, now)
         return bound
 
     def _rows_of_release(self, queue: list[WantedItem], release: str) -> list[WantedItem]:

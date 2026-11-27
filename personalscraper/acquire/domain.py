@@ -11,11 +11,19 @@ indexer/, scraper/, or any triage package).
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Literal
+from typing import Final, Literal
 
 from personalscraper.core.identity import MediaRef
+
+#: Hex digits of a release's digest kept in its handle: 64 bits, far past a collision among the few
+#: dozen candidates one row holds.
+_HANDLE_DIGEST_LENGTH: Final = 16
+
+#: Separates a handle's wanted row from its digest.
+RELEASE_HANDLE_SEPARATOR: Final = ":"
 
 WantedKind = Literal["movie", "episode", "season"]
 WantedStatus = Literal[
@@ -59,6 +67,29 @@ CHOSEN_RELEASE_FAILED = "chosen_release_failed"
 #: engine's own pick never stands in for a held row; only a person's new pick that is grabbed clears the hold
 #: (``mark_grabbed``). A claim and a later failure keep it (``claim_for_grab``, ``record_grab_failure``).
 HOLD_REASONS: frozenset[str] = frozenset({CHOSEN_RELEASE_GONE, CHOSEN_RELEASE_FAILED})
+
+
+def release_handle(wanted_id: int, *, provider: str, title: str, info_hash: str | None, size_bytes: int) -> str:
+    """Name one release found for one wanted row: the handle a person picks it by, and the grab takes it by.
+
+    ``<wantedId>:<digest>``: the row, so the grab finds where the choice was made without reading
+    every row; and a digest of what the release IS (its tracker, title, hash and size), never of
+    its rank. A search that offers the same release again gives the same handle; another release
+    gives another, even one published under the very same name.
+
+    Args:
+        wanted_id: The wanted row the release was found for.
+        provider: The tracker that offers it.
+        title: Its name as the tracker publishes it.
+        info_hash: Its torrent info-hash, ``None`` when the tracker gives none.
+        size_bytes: Its size.
+
+    Returns:
+        The handle.
+    """
+    identity = "\x1f".join((provider, title, info_hash or "", str(size_bytes)))
+    digest = hashlib.sha256(identity.encode()).hexdigest()[:_HANDLE_DIGEST_LENGTH]
+    return f"{wanted_id}{RELEASE_HANDLE_SEPARATOR}{digest}"
 
 
 @dataclass(frozen=True)
@@ -547,6 +578,7 @@ class SuggestionRow:
 
 
 __all__ = [
+    "RELEASE_HANDLE_SEPARATOR",
     "CHOSEN_RELEASE_FAILED",
     "CHOSEN_RELEASE_GONE",
     "HOLD_REASONS",
@@ -567,4 +599,5 @@ __all__ = [
     "WantedKind",
     "WantedStatus",
     "WantedTrigger",
+    "release_handle",
 ]
