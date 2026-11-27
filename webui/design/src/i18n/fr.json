@@ -2022,7 +2022,7 @@
       "abandon": "Abandonner",
       "deleteStaged": "Supprimer du disque",
       "foundNextPassAt": "Trouvé, récupéré à la prochaine passe, à {{at}}.",
-      "foundNextPass": "Trouvé, récupéré à la prochaine passe.",
+      "foundNoNextPass": "Trouvé, sans recherche automatique programmée.",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste.",
       "grabSeason": "Récupérer la saison {{season}}",
       "readOnly": "Cette acquisition est celle d'un autre compte : elle se lit ici, elle ne se pilote pas.",

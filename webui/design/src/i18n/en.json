@@ -2022,7 +2022,7 @@
       "abandon": "Abandon",
       "deleteStaged": "Delete from disk",
       "foundNextPassAt": "Found, will be grabbed on the next pass, at {{at}}.",
-      "foundNextPass": "Found, will be grabbed on the next pass.",
+      "foundNoNextPass": "Found, with no automatic search scheduled.",
       "filmLeavesNote": "Once acquired, this movie will leave your list automatically.",
       "grabSeason": "Grab season {{season}}",
       "readOnly": "This acquisition belongs to another account: it can be read here, not driven.",

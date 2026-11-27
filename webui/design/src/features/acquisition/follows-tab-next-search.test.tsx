@@ -5,7 +5,7 @@
 // slot from `cadence` drew a search that never runs. The line must follow `nextSearch` alone.
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18next from "../../i18n";
 import type { Follow } from "./types";
 
@@ -49,6 +49,16 @@ async function textWithSchedule(nextSearch: string | null): Promise<string> {
 }
 
 describe("the next search a follow names", () => {
+  // THE CLOCK IS PINNED, so the cadence's next slot from here (15 h 20) is not the instant the server states (9 h 45):
+  // a line that still read the cadence would name 15 h 20 and pass the second case by the hour of the run.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 7, 10, 12, 0));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("names no search when the server schedules none, even though the cadence is set", async () => {
     const text = await textWithSchedule(null);
     expect(text).toContain(i18next.t("screens.acquisition.noConformRelease"));
@@ -58,8 +68,9 @@ describe("the next search a follow names", () => {
   });
 
   it("names the slot the server answers, as its clock time", async () => {
-    const text = await textWithSchedule(new Date(2026, 7, 10, 15, 20).toISOString());
-    expect(text).toContain(i18next.t("screens.acquisition.nextSearch", { at: "15 h 20" }));
+    const text = await textWithSchedule(new Date(2026, 7, 10, 9, 45).toISOString());
+    expect(text).toContain(i18next.t("screens.acquisition.nextSearch", { at: "9 h 45" }));
+    expect(text).not.toContain(i18next.t("screens.acquisition.nextSearch", { at: "15 h 20" }));
     expect(text).not.toContain(i18next.t("screens.acquisition.nextSearchNone"));
   });
 });

@@ -34,7 +34,7 @@ import { pauseOffer } from "./acquisition-settings";
 import { accountQuery, heldRights } from "../../lib/account";
 import { isOwn } from "../../lib/rights";
 import { acquisitionStatusQuery, followsQuery, incompleteShowsQuery, type AcquisitionStatus } from "./queries";
-import { STATUS_TONE, followStatusLabel, nextSearchTime } from "./follow-vocabulary";
+import { STATUS_TONE, followStatusLabel, nextSearchClock } from "./follow-vocabulary";
 import { CLOSED_TONE } from "./closure-markup";
 
 /* The one wait for an identity in progress, stopped by the next one. */
@@ -148,11 +148,13 @@ function followPanel(subject: string, cache: PanelCache): PanelDescriptor | null
   const kind = translate(isFilm ? "panels.follow.film" : "panels.follow.series");
   // A RELEASE FOUND AND NOT TAKEN is taken at the scheduler's next pass anyway;
   // the sheet says when, beside the act that does it now. The hour is the
-  // cadence's next slot, derived as the follows' cards derive it.
-  const cadence = cache.held<AcquisitionStatus>(acquisitionStatusQuery.queryKey)?.cadence;
-  const nextSearch = facts.toTake && cadence ? nextSearchTime(cadence, new Date()) : null;
+  // server's next search, read as the follows' line reads it: none scheduled
+  // when it is null, never derived from the cadence.
+  const nextSearchAt = cache.held<AcquisitionStatus>(acquisitionStatusQuery.queryKey)?.nextSearch;
   const taken = facts.toTake
-    ? translate(nextSearch ? "panels.follow.foundNextPassAt" : "panels.follow.foundNextPass", { at: nextSearch })
+    ? nextSearchAt
+      ? translate("panels.follow.foundNextPassAt", { at: nextSearchClock(nextSearchAt) })
+      : translate("panels.follow.foundNoNextPass")
     : null;
   // WHAT THIS ACCOUNT IS OFFERED (§ 17): the acts its rights open, on its own
   // acquisition where an act asks that; another account's follow reads, and
@@ -216,8 +218,8 @@ registerProducer("follow", {
   // exact and per subject, so the kind's needs are a function of it — which
   // takes the follow panel out of the boot's prefill by construction, and its
   // first open about any title goes down the deferred path.
-  // AND THE SCHEDULER'S CADENCE, which names the hour a found release is taken
-  // at anyway.
+  // AND THE SCHEDULER'S NEXT SEARCH, which names the hour a found release is
+  // taken at anyway.
   needs: (subject) => [followsQuery(), incompleteShowsQuery, membershipQuery(keyTitle(subject)), acquisitionStatusQuery,
     accountQuery],
 });
