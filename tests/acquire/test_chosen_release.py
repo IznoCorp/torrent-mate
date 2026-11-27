@@ -232,6 +232,7 @@ def _grab(
     offered: SearchOutcome | Sequence[TrackerResult],
     *,
     release: str | None = None,
+    wanted_id: int | None = None,
     ranking: RankingConfig | None = None,
     fetch_fails: frozenset[str] = frozenset(),
 ) -> tuple[RunSummary, MagicMock]:
@@ -242,6 +243,7 @@ def _grab(
         client: The torrent client the grab adds to.
         offered: What the trackers return: results, or a whole outcome (an outage).
         release: The release a person named; ``None`` for the engine's own choice.
+        wanted_id: The row the person's pick was made on; ``None`` when none is named.
         ranking: The ranking the orchestrator scores with; a plain one when ``None`` (offered order = rank).
         fetch_fails: The trackers that cannot serve the torrent of a release they offer.
 
@@ -272,6 +274,8 @@ def _grab(
     )
     followed_id = _follow(store)
     kwargs: dict[str, object] = {} if release is None else {"release": release}
+    if wanted_id is not None:
+        kwargs["wanted_id"] = wanted_id
     _FETCH_FAILS.clear()
     _FETCH_FAILS.update(fetch_fails)
     with patch(_RESOLVE, side_effect=_fetch):
@@ -389,6 +393,59 @@ def test_a_release_no_stored_set_carries_asks_and_holds_no_row(store: ConcreteAc
         assert _last_grab(store, wanted_id)[0] is None
     follow_up, _ = _grab(store, client, [_result(_BEST, seeders=90), _result(_OTHER_EPISODE, seeders=80)])
     assert follow_up.grabbed == 2
+
+
+def test_a_pick_bound_to_a_row_asks_that_row_alone_though_another_set_carries_the_name(
+    store: ConcreteAcquireStore,
+) -> None:
+    """Two rows' stored sets carry one name: the pick made on one row never asks the other (#939's carry)."""
+    other = _available(store, 5, candidates=[_BEST])
+    chosen = _available(store, 6, candidates=[_BEST])
+    client = _Client()
+
+    summary, registry = _grab(store, client, [_result(_BEST, seeders=90)], release=_BEST, wanted_id=chosen)
+
+    assert registry.search_candidates.call_count == 1
+    assert summary.release_gone + summary.grabbed + summary.retried == 1
+    assert _last_grab(store, other)[0] is None
+    untouched = store.wanted.get(other)
+    assert untouched is not None
+    assert untouched.status == "available"
+
+
+def test_a_pick_bound_to_a_row_whose_set_no_longer_carries_it_is_gone_on_that_row(
+    store: ConcreteAcquireStore,
+) -> None:
+    """The stored set was replaced after the choice: the row is still known, so it is asked, told gone and held."""
+    chosen = _available(store, 5, candidates=[_BEST])
+    client = _Client()
+
+    summary, _ = _grab(store, client, [_result(_BEST, seeders=90)], release=_GONE, wanted_id=chosen)
+
+    assert client.added == []
+    assert summary.release_gone == 1
+    assert _last_grab(store, chosen)[0] == "chosen_release_gone"
+
+
+def test_a_pick_bound_to_a_row_that_is_not_available_asks_no_other_row(store: ConcreteAcquireStore) -> None:
+    """The bound row left the available set: nothing is asked, and no other row stands in for it."""
+    other = _available(store, 5, candidates=[_BEST])
+    gone = _available(store, 6, candidates=[_BEST])
+    store.wanted.set_status(gone, "abandoned")
+    client = _Client()
+
+    summary, registry = _grab(store, client, [_result(_BEST, seeders=90)], release=_BEST, wanted_id=gone)
+
+    assert (summary.grabbed, summary.release_gone, registry.search_candidates.call_count) == (0, 0, 0)
+    assert _last_grab(store, other)[0] is None
+
+
+def test_a_row_is_bound_only_to_a_named_release(store: ConcreteAcquireStore) -> None:
+    """A row with no release is no pick: the pass refuses it."""
+    chosen = _available(store, 5, candidates=[_BEST])
+
+    with pytest.raises(ValueError, match="named release"):
+        _grab(store, _Client(), [_result(_BEST, seeders=90)], wanted_id=chosen)
 
 
 @pytest.mark.parametrize(

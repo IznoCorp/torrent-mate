@@ -156,19 +156,22 @@ class AcquisitionJob:
         limit: The most items the pass attempts; ``None`` for no cap. A search or a grab only.
         release: The release name the grab is asked to take; ``None`` for the engine's own pick.
             A grab of one follow only.
+        wanted_id: The ``wanted`` row the person's pick was made on, the one row the named release is asked
+            of; ``None`` finds it from the stored candidates. Beside a release only.
     """
 
     kind: JobKind
     followed_id: int | None = None
     limit: int | None = None
     release: str | None = None
+    wanted_id: int | None = None
 
     def __post_init__(self) -> None:
         """Refuse a job no pass can run.
 
         Raises:
             ValueError: A ``prime`` with no follow, a limit on a pass that takes none or below 1, a release
-                on anything but the grab of one follow.
+                on anything but the grab of one follow, a wanted row with no release.
         """
         if self.kind is JobKind.PRIME and self.followed_id is None:
             raise ValueError("a prime is the amorce of one follow: it needs a followed_id")
@@ -176,6 +179,8 @@ class AcquisitionJob:
             raise ValueError(f"a limit is a positive cap on a search or a grab, not {self.limit} on a {self.kind}")
         if self.release is not None and (self.kind is not JobKind.GRAB or self.followed_id is None):
             raise ValueError("a release is asked of the grab of one follow")
+        if self.wanted_id is not None and self.release is None:
+            raise ValueError("a wanted row binds a named release: it needs a release")
 
 
 def _canonical(options: RunOptions | AcquisitionJob) -> str:

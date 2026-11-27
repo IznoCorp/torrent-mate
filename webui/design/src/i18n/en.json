@@ -2100,9 +2100,7 @@
     },
     "acquisition": {
       "taken": "“{{title}}” grabbed — follow it in “In flight”.",
-      "searchFoundNone": "No torrent found for “{{title}}”.",
-      "searchFound_one": "“{{title}}”: {{count}} torrent found.",
-      "searchFound_other": "“{{title}}”: {{count}} torrents found.",
+      "searchQueued": "“{{title}}”: search queued — the result will arrive on its sheet and in the release picker.",
       "completionStarted": "“{{title}}”: search for the missing episodes started.",
       "tmdbConnected": "TMDB account connected — the reserve is filling up, your ratings are being read.",
       "identified": "“{{target}}” identified as “{{title}}” — scraping resumes, no follow created.",

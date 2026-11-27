@@ -563,6 +563,7 @@ def _build_acquisition_services(
     )
     from personalscraper.app.acquisition.seasons import IndexedShows, SeasonAsk  # noqa: PLC0415 — idem
     from personalscraper.app.acquisition.suggestions import Suggestions  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.triggers import AcquisitionRuns  # noqa: PLC0415 — idem
     from personalscraper.indexer.library_view import LibraryIndex  # noqa: PLC0415 — idem
     from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415 — idem
 
@@ -624,6 +625,7 @@ def _build_acquisition_services(
             follows=_PerCallFollowLookup(open_store),
         ),
         suggestions=Suggestions(open_store=open_store, open_ownership=open_ownership),
+        triggers=AcquisitionRuns(open_store=open_store, runs=runs, owner=owner),
     )
 
 

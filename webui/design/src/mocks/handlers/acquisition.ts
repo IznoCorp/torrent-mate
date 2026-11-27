@@ -34,6 +34,9 @@ const INFORMATIVE = "info";
 
 const BATCH_SIZE = 30;
 
+// What the queued search's uid starts with: the layer holds no runner, so it names the run itself.
+const SEARCH_RUN_PREFIX = "search-run-";
+
 // WHERE A FAMILY STANDS ON THE LADDER when its cards carry no strip: a release
 // found and waiting to be taken.
 const WAITING = "waiting";
@@ -278,10 +281,11 @@ export function acquisitionRoutes(): MockRoute[] {
       (request) => {
         const found = followFor(request.parameters.followedId);
         if (found === undefined) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
+        // QUEUED, LIKE THE GRAB (operator ruling O-6 B): the answer says « en file »
+        // and carries no result. What the search leaves is read afterwards — the
+        // follow counts one more search, and the picker reads its releases.
         found.searches += 1;
-        // Derived from the seeded releases OF THIS FOLLOW: a search is for one
-        // title, and counting every release answered the same number to all.
-        return { found: releasesFor(found.title).length };
+        return { queued: true, runUid: SEARCH_RUN_PREFIX + String(found.searches) };
       },
     ),
     route(

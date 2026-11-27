@@ -29,7 +29,7 @@ than a blank page.
 | required and missing | 56 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
-| declared by both, answered with a different status | 11 |
+| declared by both, answered with a different status | 10 |
 | fields carried pre-formatted | 20 |
 | the backend has and the interface does not use | 12 |
 
@@ -134,7 +134,7 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/v1/acquisition/detect` (`runDetection`) | `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/followed` (`createFollow`) | `addedAt`, `aired`, `fresh`, `ids`, `name`, `nextAirDate`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/v1/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `runUid` | `run_uid` |
-| `POST /api/v1/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
+| `POST /api/v1/acquisition/followed/{followedId}/search` (`searchForFollow`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `queued`, `runUid` | `absorbed_count`, `run_started`, `run_uid`, `season_wanted_id` |
 | `POST /api/v1/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/v1/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
@@ -201,7 +201,6 @@ a 200 is not a defect in either document, it is a decision nobody had written do
 | --- | --- | --- | --- |
 | `DELETE /api/v1/acquisition/followed/{followedId}` | `deleteFollow` | `200` | `204` |
 | `POST /api/v1/acquisition/followed` | `createFollow` | `200` | `201` |
-| `POST /api/v1/acquisition/followed/{followedId}/search` | `searchForFollow` | `200` | `202` |
 | `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` | `grabSeasonForFollow` | `200`, `201` | `201` |
 | `POST /api/v1/auth/login` | `signIn` | `200` | `204` |
 | `POST /api/v1/auth/logout` | `signOut` | `200` | `204` |

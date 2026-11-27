@@ -240,6 +240,14 @@ class TestTheJob:
         with pytest.raises(ValueError):
             AcquisitionJob(**kwargs)  # type: ignore[arg-type]
 
+    def test_a_row_is_named_only_beside_a_release_and_travels_with_the_job(self) -> None:
+        """``wanted_id`` binds a person's pick to its row: without a release it binds nothing and is refused."""
+        job = AcquisitionJob(JobKind.GRAB, followed_id=7, release="a", wanted_id=41)
+
+        assert RunRequest.ask(RunKind.ACQUISITION, RunTrigger.WEB, job, AccountId("a"), 1.0).job == job
+        with pytest.raises(ValueError, match="release"):
+            AcquisitionJob(JobKind.GRAB, followed_id=7, wanted_id=41)
+
     def test_options_and_job_are_not_interchangeable(self) -> None:
         """A request of one kind refuses the other's payload, and reads only its own."""
         with pytest.raises(ValueError):
@@ -841,6 +849,19 @@ class TestWorker:
         assert calls == [
             ("grab", {"limit": None, "followed_id": 7, "run_uid": request.uid, "release": "Show.S01E01.1080p"})
         ]
+
+    def test_a_pick_bound_to_a_row_hands_the_grab_that_row(self, store: AppStore, test_config: Config) -> None:
+        """K3 P13: the job names the wanted row the pick was made on, and the grab service gets it."""
+        request = _running(
+            store, AcquisitionJob(JobKind.GRAB, followed_id=7, release="Show.S01E01.1080p", wanted_id=41)
+        )
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        code = _run_worker(store, test_config, request.uid, _engine(calls))
+
+        assert code == 0
+        [(name, kwargs)] = calls
+        assert (name, kwargs["release"], kwargs["wanted_id"]) == ("grab", "Show.S01E01.1080p", 41)
 
     def test_a_named_release_that_is_gone_fails_the_request_and_says_why(
         self, store: AppStore, test_config: Config, logged_events: LoggedEvents

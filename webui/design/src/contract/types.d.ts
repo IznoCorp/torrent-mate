@@ -498,7 +498,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Search now for one follow */
+        /**
+         * Search now for one follow
+         * @description Queued like the grab (operator ruling O-6 B, 2026-11-27): the answer says « en file » at once, and the result arrives on the follow and in the release picker once the search has run.
+         */
         post: operations["searchForFollow"];
         delete?: never;
         options?: never;
@@ -4254,15 +4257,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description what the search found */
-            200: {
+            /** @description the search is queued, like a grab; what it finds is read afterwards from the follow and `readReleases` */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @description how many conforming releases were found */
-                        found: number;
+                        /** @description the search waits in the engine's queue (« en file ») — never « occupé » (NE-DOIT-PAS-3) */
+                        queued: boolean;
+                        /** @description the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it */
+                        runUid: string;
                     };
                 };
             };

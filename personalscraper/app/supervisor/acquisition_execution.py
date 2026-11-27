@@ -78,6 +78,7 @@ class GrabPass(Protocol):
         followed_id: int | None = None,
         run_uid: str | None = None,
         release: str | None = None,
+        wanted_id: int | None = None,
     ) -> RunSummary:
         """Run the grab pass over the available wanted items.
 
@@ -87,6 +88,7 @@ class GrabPass(Protocol):
             run_uid: The run the grabbed items are stamped with.
             release: The release a person named, taken if it is still offered; passed ONLY when the
                 job names one, so a grab without it is called exactly as before.
+            wanted_id: The one row the named release is asked of; passed only when the job names one.
 
         Returns:
             The pass's counts.
@@ -166,13 +168,7 @@ def run_acquisition_job(
                 raise AcquisitionUnavailable("the engine has no grab service")
             log.warning("worker.acquisition_grab_skipped", uid=run_uid, followed_id=job.followed_id, reason="no_client")
             return 1
-        # ``release`` goes to the service only when the job names one: a grab without it is called as ever.
-        if job.release is None:
-            grabbed = engine.grab.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid)
-        else:
-            grabbed = engine.grab.run(
-                limit=job.limit, followed_id=job.followed_id, run_uid=run_uid, release=job.release
-            )
+        grabbed = _grab(job, engine.grab, run_uid)
         _log_pass("grab", job, run_uid, asdict(grabbed))
         if job.release is not None and not grabbed.grabbed:
             # What a person chose was not taken, and no other release stands in for it (DESIGN O-14).
@@ -182,6 +178,33 @@ def run_acquisition_job(
             log.error(event, uid=run_uid, followed_id=job.followed_id, release=job.release, gone=grabbed.release_gone)
             code = 1
     return code
+
+
+def _grab(job: AcquisitionJob, service: GrabPass, run_uid: RunUid) -> RunSummary:
+    """Run the grab pass of *job*.
+
+    ``release`` and ``wanted_id`` go to the service only when the job names them: a grab without them is
+    called as ever.
+
+    Args:
+        job: The job.
+        service: The grab service.
+        run_uid: The request's uid, stamped on what the grab takes.
+
+    Returns:
+        The pass's counts.
+    """
+    if job.release is None:
+        return service.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid)
+    if job.wanted_id is None:
+        return service.run(limit=job.limit, followed_id=job.followed_id, run_uid=run_uid, release=job.release)
+    return service.run(
+        limit=job.limit,
+        followed_id=job.followed_id,
+        run_uid=run_uid,
+        release=job.release,
+        wanted_id=job.wanted_id,
+    )
 
 
 def _detect(job: AcquisitionJob, engine: AcquisitionEngine, clock: Callable[[], float], run_uid: RunUid) -> bool:

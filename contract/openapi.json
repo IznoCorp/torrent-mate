@@ -2033,20 +2033,25 @@
           "acquisition"
         ],
         "responses": {
-          "200": {
-            "description": "what the search found",
+          "202": {
+            "description": "the search is queued, like a grab; what it finds is read afterwards from the follow and `readReleases`",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "found": {
-                      "type": "integer",
-                      "description": "how many conforming releases were found"
+                    "queued": {
+                      "type": "boolean",
+                      "description": "the search waits in the engine's queue (« en file ») — never « occupé » (NE-DOIT-PAS-3)"
+                    },
+                    "runUid": {
+                      "type": "string",
+                      "description": "the uid of the request answering the ask, which becomes the run to follow once the supervisor admits it"
                     }
                   },
                   "required": [
-                    "found"
+                    "queued",
+                    "runUid"
                   ]
                 }
               }
@@ -2096,7 +2101,8 @@
             "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
-        "x-unseeded": "how many conforming releases were found. The engine has no fixture for a search RESULT COUNT; the figure is derived from the seeded releases."
+        "x-unseeded": "an acknowledgement naming the queued request. No fixture holds one: the layer holds no runner, so it names a run of its own and counts one more search on the follow, which its sheet and the picker read.",
+        "description": "Queued like the grab (operator ruling O-6 B, 2026-11-27): the answer says « en file » at once, and the result arrives on the follow and in the release picker once the search has run."
       }
     },
     "/acquisition/follows/{followedId}/seasons/{season}/grab": {
