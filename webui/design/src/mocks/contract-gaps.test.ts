@@ -6,12 +6,13 @@
 // the code the contract declares.
 import { beforeEach, describe, expect, it } from "vitest";
 import FOLLOWS from "./seeds/follows.json";
+import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import SUGGESTIONS from "./seeds/suggestions.json";
 import { routes } from "./handlers";
 import { resolve, settled } from "./router";
-import { keyOfMedium } from "./follow-key";
-import { resetMockState } from "./state";
-import { requestersOf } from "./identity";
+import { followForKey, keyOfMedium } from "./follow-key";
+import { mockState, resetMockState } from "./state";
+import { heldAccounts, requestersOf } from "./identity";
 
 type Answer = { status: number; payload: any };
 
@@ -30,6 +31,9 @@ function call(method: string, path: string, query: Record<string, string> = {}, 
   const answer = found.route.handle({ path, parameters: found.parameters, query: new URLSearchParams(query), body });
   return settled(200, answer as never) as Answer;
 }
+
+/** A title without its trailing year, as a card and a sheet of one medium share it. */
+const bareTitle = (title: string) => title.replace(/\s*\(\d{4}\)\s*$/, "");
 
 beforeEach(() => resetMockState());
 
@@ -58,6 +62,15 @@ describe("the suggestions deck, by cursor (K3-G13)", () => {
     expect(answer.status).toBe(400);
     expect(answer.payload.code).toBe("request.invalid");
   });
+
+  it.each(["deck-0", "deck-7", "deck-030", "deck-999999"])(
+    "refuses a well-formed cursor it never issued: %s",
+    (cursor) => {
+      const answer = call("GET", PATH, { cursor });
+
+      expect([answer.status, answer.payload.code]).toEqual([400, "request.invalid"]);
+    },
+  );
 });
 
 describe("the provider search, by page (K3-G14)", () => {
@@ -112,6 +125,44 @@ describe("a refused reassignment (K3-G16)", () => {
     const answer = call("POST", PATH, {}, { kind: "follow", acquisition: "tvdb:0", from: holder(), to: holder() });
 
     expect([answer.status, answer.payload.code]).toEqual([404, "acquisition.not_found"]);
+  });
+
+  // A SERVER HOLDS NO ACQUISITION UNDER A MEDIUM NOBODY ASKED FOR: a follow is a standing follow,
+  // a card is a follow or a card of the queue, and a sheet alone is neither.
+  const unfollowed = (medium: { ids?: unknown; kind?: string | null }) => {
+    const key = keyOfMedium(medium);
+    return key !== null && followForKey(key) === undefined;
+  };
+  const queueCards = () => {
+    const state = mockState();
+    return [...state.takeable, ...state.blocked, ...state.inFlight, ...state.inFlightReel, ...state.moving];
+  };
+  const cardOnly = () => keyOfMedium(queueCards().find(unfollowed)!) as string;
+  const bareSheet = () => {
+    const carded = new Set(queueCards().map((one) => bareTitle(one.title)));
+    const shows = (INCOMPLETE_SHOWS as { title: string; ids: Record<string, unknown> }[])
+      .map((one) => ({ ...one, kind: "show" }));
+    return keyOfMedium(shows.find((one) => unfollowed(one) && !carded.has(bareTitle(one.title)))!) as string;
+  };
+  const move = (kind: string, key: string) => {
+    const [owner, other] = heldAccounts();
+    return call("POST", PATH, {}, { kind, acquisition: key, from: owner.id, to: other.id });
+  };
+
+  it("answers 404 acquisition.not_found to a follow asked of a medium only a card holds", () => {
+    const answer = move("follow", cardOnly());
+
+    expect([answer.status, answer.payload.code]).toEqual([404, "acquisition.not_found"]);
+  });
+
+  it.each(["follow", "card"])("answers 404 acquisition.not_found to a %s nobody asked for, its sheet known", (kind) => {
+    const answer = move(kind, bareSheet());
+
+    expect([answer.status, answer.payload.code]).toEqual([404, "acquisition.not_found"]);
+  });
+
+  it("moves a card of the queue nobody follows", () => {
+    expect(move("card", cardOnly()).status).toBe(200);
   });
 
   it("answers 403 acquisition.not_requester when the requester moved did not ask", () => {

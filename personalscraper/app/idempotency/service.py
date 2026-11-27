@@ -91,12 +91,12 @@ def fingerprint_key_path(app_db: Path) -> Path:
     return app_db.with_name(f"{app_db.stem}.idempotency.key")
 
 
-class FingerprintKeyError(RuntimeError):
-    """The fingerprint key file holds something other than a key: a server defect."""
+class KeyFileError(RuntimeError):
+    """A server key file holds something other than a key: a server defect."""
 
 
-def _load_or_make_key(path: Path) -> bytes:
-    """Read the fingerprint key file, making it first when there is none.
+def load_or_make_key(path: Path) -> bytes:
+    """Read a server key file, making it first when there is none.
 
     Made whole or not at all: the key is written to a private temporary file, then linked
     to ``path``, which fails when another process linked its own first — whose key is then
@@ -109,7 +109,7 @@ def _load_or_make_key(path: Path) -> bytes:
         The key.
 
     Raises:
-        FingerprintKeyError: The file does not hold a key of :data:`FINGERPRINT_KEY_BYTES`.
+        KeyFileError: The file does not hold a key of :data:`FINGERPRINT_KEY_BYTES`.
     """
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -126,7 +126,7 @@ def _load_or_make_key(path: Path) -> bytes:
             draft.unlink(missing_ok=True)
     key = path.read_bytes()
     if len(key) != FINGERPRINT_KEY_BYTES:
-        raise FingerprintKeyError(f"{path} holds {len(key)} bytes, not a {FINGERPRINT_KEY_BYTES} bytes key.")
+        raise KeyFileError(f"{path} holds {len(key)} bytes, not a {FINGERPRINT_KEY_BYTES} bytes key.")
     return key
 
 
@@ -211,7 +211,7 @@ class IdempotencyService:
         """
         with self._key_lock:
             if self._key is None:
-                self._key = _load_or_make_key(self._key_path)
+                self._key = load_or_make_key(self._key_path)
             return self._key
 
     def claim(self, account_id: AccountId, key: str, operation: str, fingerprint: str) -> Claimed | Replay:

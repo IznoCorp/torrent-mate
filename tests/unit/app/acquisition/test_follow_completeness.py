@@ -82,7 +82,7 @@ def test_each_season_tallies_aired_owned_in_motion_and_announced(world: FollowWo
 
 
 def test_the_completeness_names_the_follows_row(world: FollowWorld) -> None:
-    """The contract's ``followedId`` is an integer: the follow's row, whatever key it is asked by."""
+    """The completeness holds the follow's row beside its key, whatever key it is asked by."""
     row = _followed(world)
 
     assert world.completeness.read(actor(ALICE), SHOW).follow_id == row

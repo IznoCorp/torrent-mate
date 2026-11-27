@@ -731,7 +731,34 @@ class TestReadSuggestions:
         second = client.get("/acquisition/suggestions", params={"cursor": first["nextCursor"]}).json()
 
         assert first["suggestions"][-1]["title"] == "Dune"
-        assert [c["title"] for c in second["suggestions"]] == ["Title 21", "Title 22"]
+        assert [(c["title"], c["kind"]) for c in second["suggestions"]] == [("Title 21", "movie"), ("Title 22", "show")]
+
+    def test_the_cursor_past_the_last_card_answers_an_empty_page_that_ends_the_deck(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
+    ) -> None:
+        """K3-G13: a deck that ends on a full page gives one cursor more, which reads no card and no cursor."""
+        _deck(acquire, 20)
+        client = v1_client(rights=_REQUEST)
+
+        first = client.get("/acquisition/suggestions").json()
+        past = client.get("/acquisition/suggestions", params={"cursor": first["nextCursor"]})
+
+        assert first["nextCursor"] is not None
+        assert (past.status_code, past.json()) == (200, {"suggestions": [], "nextCursor": None})
+
+    def test_a_well_formed_cursor_the_server_never_issued_is_request_invalid(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
+    ) -> None:
+        """K3-G13: the form is not enough: bare card numbers and an issued cursor moved to another card are refused."""
+        _deck(acquire, 25)
+        client = v1_client(rights=_REQUEST)
+        issued = client.get("/acquisition/suggestions").json()["nextCursor"]
+
+        for forged in ("7", "999999999", f"1{issued}"):
+            response = client.get("/acquisition/suggestions", params={"cursor": forged})
+
+            assert (response.status_code, response.json().get("code")) == (400, "request.invalid"), forged
+            assert response.json()["params"]["fields"] == ["cursor"]
 
     @pytest.mark.parametrize("cursor", ["Dune", "-1", "1.5"])
     def test_a_cursor_the_deck_never_gave_is_request_invalid_naming_it(

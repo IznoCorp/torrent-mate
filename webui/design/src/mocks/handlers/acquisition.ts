@@ -35,9 +35,16 @@ const INFORMATIVE = "info";
 const BATCH_SIZE = 30;
 
 // THE CURSOR THE DECK ISSUES (K3-G13). Opaque to the interface, which sends it back as it came;
-// here it says where the next page starts, and nothing else is read as one.
+// here it says where the next page starts.
 const CURSOR_PREFIX = "deck-";
-const ISSUED_CURSOR = /^deck-(\d+)$/;
+// AND THE ONES IT ISSUES ARE THE ONLY ONES IT READS, as a server does: one before each page past
+// the first, by where that page starts.
+const ISSUED_CURSORS = new Map<string, number>(
+  Array.from({ length: Math.ceil(SUGGESTIONS.length / BATCH_SIZE) - 1 }, (_, page) => {
+    const from = (page + 1) * BATCH_SIZE;
+    return [`${CURSOR_PREFIX}${from}`, from];
+  }),
+);
 
 // A search page's bounds (K3-G14), the contract's own.
 const SEARCH_LIMIT = 20;
@@ -391,9 +398,8 @@ export function acquisitionRoutes(): MockRoute[] {
     // thirty cards.
     route("readSuggestions", GET, "/acquisition/suggestions", (request) => {
       const cursor = request.query.get("cursor");
-      const issued = cursor === null ? null : ISSUED_CURSOR.exec(cursor);
-      if (cursor !== null && issued === null) return refused(400, "the deck gave no such cursor", "request.invalid");
-      const from = issued === null ? 0 : Number(issued[1]);
+      const from = cursor === null ? 0 : ISSUED_CURSORS.get(cursor);
+      if (from === undefined) return refused(400, "the deck gave no such cursor", "request.invalid");
       const to = from + BATCH_SIZE;
       return {
         suggestions: SUGGESTIONS.slice(from, to),

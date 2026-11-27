@@ -14,7 +14,7 @@ import {
   signedInRights,
   type Preference,
 } from "../identity";
-import { followForKey, titlesOfKey } from "../follow-key";
+import { acquisitionStands, followForKey, titlesOfKey } from "../follow-key";
 import { refused, type MockRoute } from "../router";
 import { POST, PUT, field, route, text } from "./shared";
 import type { components } from "../../contract/types";
@@ -112,16 +112,16 @@ function setOwn(followedId: string, change: Preference): unknown {
 export function requesterRoutes(): MockRoute[] {
   return [
     route("reassignRequester", POST, "/acquisition/requesters/reassign", (request) => {
-      // THE ACQUISITION IS NAMED BY ITS MEDIUM'S KEY (K3-G4), followed or not.
+      // THE ACQUISITION IS NAMED BY ITS MEDIUM'S KEY (K3-G4), a follow or a card of the queue.
       // The move is written under every title the medium is drawn with, so a card and a follow
       // of one medium say the same requesters afterwards; the answer is the first that held `from`.
       const [from, to] = [text(request.body, "from"), text(request.body, "to")];
       // EACH REFUSAL SAYS ITS CODE, in the order a server judges them (K3-G16): the target
       // account, then the acquisition, then whether the one moved off had asked for it.
       if (!heldAccounts().some((one) => one.id === to)) return refused(MISSING, NO_ACCOUNT, "account.unknown");
-      const titles = titlesOfKey(text(request.body, "acquisition"));
-      if (titles.length === 0) return refused(MISSING, NO_SUCH, "acquisition.not_found");
-      const moved = titles.map((title) => moveRequester(title, from, to)).find((one) => one !== null);
+      const key = text(request.body, "acquisition");
+      if (!acquisitionStands(text(request.body, "kind"), key)) return refused(MISSING, NO_SUCH, "acquisition.not_found");
+      const moved = titlesOfKey(key).map((title) => moveRequester(title, from, to)).find((one) => one !== null);
       return moved === undefined ? refused(FORBIDDEN, NOT_THEIRS, "acquisition.not_requester")
         : { requesters: moved };
     }),
