@@ -123,6 +123,18 @@ describe("settingInWords", () => {
 
 });
 
+describe("the schedules, as a list", () => {
+  it("lives in the topic the `settings-schedules` state opens, and nowhere else", () => {
+    // That state exists so the responsive rule reads every schedule's row at every width (row 61: a
+    // row's schedule was cut by an ellipsis and no state drew the list). Aimed at a topic that
+    // lost its schedules, the rule would pass on nothing.
+    const topics = SETTINGS as { id: string; settings: Setting[] }[];
+    const scheduleTopics = topics.filter((topic) => topic.settings.some((setting) => setting.type === "schedule"));
+    expect(scheduleTopics.map((topic) => topic.id)).toEqual(["passages"]);
+    expect(scheduleTopics[0]!.settings.every((setting) => setting.type === "schedule")).toBe(true);
+  });
+});
+
 describe("scheduleInWords", () => {
   it("says the four shapes the data holds", () => {
     expect(scheduleInWords("15 * * * *")).toBe("toutes les heures, à la 15ᵉ minute");  // french-ok: the app's rendered output

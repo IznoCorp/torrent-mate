@@ -25,8 +25,12 @@ export const settingsRow = cva(
     "border-b border-border bg-transparent hover:bg-muted py-5 px-1 text-foreground last:border-b-0 " +
     "[&_.rl]:block [&_.rl]:min-w-0 [&_.rl]:flex-1 [&_.rl]:text-4 " +
     "[&_.rf]:block [&_.rf]:mt-1 [&_.rf]:text-2 [&_.rf]:text-muted-foreground [&_.rf]:font-mono " +
-    "[&_.rv]:flex-none [&_.rv]:max-w-[45%] [&_.rv]:overflow-hidden [&_.rv]:text-ellipsis " +
-    "[&_.rv]:whitespace-nowrap [&_.rv]:text-3 [&_.rv]:font-semibold [&_.rv]:[font-variant-numeric:tabular-nums]",
+    // THE VALUE WRAPS, NEVER ELLIPSISES: a schedule said in words (« toutes les heures, à la 15ᵉ
+    // minute ») is longer than 45 % of a phone row, and « toutes les heures, à la 15… » hid the very
+    // minute that tells two schedules apart — « Rien d'essentiel n'est tronqué » (§ 12), as the
+    // label beside it wraps. `anywhere` also breaks a path or a key no space would cut.
+    "[&_.rv]:flex-none [&_.rv]:max-w-[45%] [&_.rv]:text-right [&_.rv]:[overflow-wrap:anywhere] " +
+    "[&_.rv]:text-3 [&_.rv]:font-semibold [&_.rv]:[font-variant-numeric:tabular-nums]",
   {
     variants: {
       modified: {
