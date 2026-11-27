@@ -215,6 +215,21 @@ export function useGrabCadence() {
   });
 }
 
+/**
+ * When the next search runs, as the server states it.
+ *
+ * Returns:
+ *     The query; its data is the ISO 8601 instant with its offset, ``null`` when the environment schedules
+ *     no search, undefined until the read lands. Never derived from the cadence: dev answers prod's cadence
+ *     with no next search.
+ */
+export function useGrabNextSearch() {
+  return useQuery({
+    ...acquisitionStatusQuery,
+    select: (status: AcquisitionStatus) => status.nextSearch,
+  });
+}
+
 /** What the operator follows. */
 export function useFollows() {
   const world = useUiState().scen === "loaded" ? "loaded" : "";
