@@ -143,3 +143,21 @@ describe("the releases, by key", () => {
     expect(call("GET", "/acquisition/releases", undefined, `followedId=${encoded("tvdb:0")}`).payload).toEqual([]);
   });
 });
+
+describe("the requesters of a medium, by key", () => {
+  beforeEach(() => resetMockState());
+
+  it("moves one requester under every title the medium is drawn with", () => {
+    const [first] = FOLLOWS;
+    const answer = call("POST", "/acquisition/requesters/reassign", {
+      kind: "follow", acquisition: KEY(first), from: "izno", to: "household-member" });
+    expect(answer.status).toBe(200);
+    expect(answer.payload.requesters.map((one: { id: string }) => one.id)).toEqual(["household-member"]);
+  });
+
+  it("answers 404 to an acquisition no key names", () => {
+    const answer = call("POST", "/acquisition/requesters/reassign", {
+      kind: "follow", acquisition: "tvdb:0", from: "izno", to: "household-member" });
+    expect(answer.status).toBe(404);
+  });
+});

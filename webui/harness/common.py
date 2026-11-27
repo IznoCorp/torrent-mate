@@ -18,11 +18,12 @@ rather than holds about it. A model read in one script is a model the next one
 transcribes, and a transcription drifts.
 """
 
+import json
 import os
 import pathlib
 import re
 import sys
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import served_copy
 
@@ -202,6 +203,43 @@ STARTED_AGAINST = served_copy.token()
 # invisible because a blanket `*.png` rule ignores them all. An artifact with a
 # floating path is an artifact nobody owns and nobody counts.
 SCREENSHOTS = pathlib.Path(__file__).resolve().parent / "__screenshots__"
+
+# THE KEY A FOLLOW IS ADDRESSED BY (K3-G1, the operator's ruling O-1 A): every
+# operation that names a follow carries `<provider>:<providerId>` in its path —
+# TVDB first for a show, TMDB first for a film — never its title. A rule that
+# reaches such an operation by hand reads the key off the seeds, as a server
+# reads it off its records, so it is independent of who is signed in and of what
+# the page has drawn. The colon travels encoded, as any reserved character.
+_FOLLOW_SEEDS = ROOT / "design" / "src" / "mocks" / "seeds"
+_SHOW_ORDER = ("tvdb", "tmdb", "imdb")
+_FILM_ORDER = ("tmdb", "tvdb", "imdb")
+
+
+def follow_key(title):
+    """The key of one seeded medium, or None when no seed holds that title."""
+    for seed in ("follows.json", "incomplete-shows.json"):
+        rows = json.loads((_FOLLOW_SEEDS / seed).read_text(encoding="utf-8"))
+        medium = next((row for row in rows if row["title"] == title), None)
+        if medium is None:
+            continue
+        for provider in (_FILM_ORDER if medium.get("kind") == "movie" else _SHOW_ORDER):
+            held = (medium.get("ids") or {}).get(provider)
+            if held is not None and str(held) != "":
+                return f"{provider}:{held}"
+    return None
+
+
+# The same rule for a rule that reads a follow off the layer's own answer, in the page.
+KEY_OF_JS = """const keyOf = (medium) => {
+  const order = medium.kind === 'movie' ? ['tmdb', 'tvdb', 'imdb'] : ['tvdb', 'tmdb', 'imdb'];
+  const held = order.find((provider) => medium.ids?.[provider] != null && String(medium.ids[provider]) !== '');
+  return held === undefined ? null : held + ':' + medium.ids[held];
+};"""
+
+
+def follow_segment(title):
+    """The path segment one seeded medium's key travels in."""
+    return quote(follow_key(title), safe="")
 
 # THE DESIGN'S SOURCES, and it is a LIST because the design stopped being one
 # file. A rule that greps « the design » must grep all of them.

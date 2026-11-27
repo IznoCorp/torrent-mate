@@ -68,7 +68,7 @@ import sys
 from urllib.parse import unquote
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, ROOT, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import ACTED, ROOT, SETTLED, Journal, follow_key, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -218,7 +218,7 @@ async def take_a_season(page, journal, errors, bare, dated):
              if call["operationId"] == GRAB_OPERATION]
     paths = [unquote(call["path"]) for call in grabs]
     journal.check(f"{where}: the act is called once, addressed to the FOLLOW « {bare} »",
-                  len(paths) == 1 and paths[0].endswith(f"/follows/{bare}/seasons/{season}/grab"),
+                  len(paths) == 1 and paths[0].endswith(f"/follows/{follow_key(bare)}/seasons/{season}/grab"),
                   str(paths))
     after = await page.evaluate(FOLLOWS)
     phantoms = sorted(set(after) - set(before))

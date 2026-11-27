@@ -54,7 +54,7 @@ import asyncio
 import json
 import pathlib
 
-from common import Journal, open_page, browser_channel, chrome_launch_args
+from common import Journal, follow_segment, open_page, browser_channel, chrome_launch_args
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONTRACT = ROOT.parent / "contract" / "openapi.json"
@@ -88,9 +88,9 @@ LATENCY_MILLISECONDS = 10
 ASKED_FOR = {
     # A follow's claim answers 202 with the run it spawned, the backend's own
     # « Récupérer maintenant »; the corpus hold fell until it was asked here.
-    "grabForFollow": ("POST", "/api/v1/acquisition/followed/Silo/grab"),
+    "grabForFollow": ("POST", f"/api/v1/acquisition/followed/{follow_segment('Silo')}/grab"),
     "grabSeasonForFollow": (
-        "POST", "/api/v1/acquisition/follows/Silo/seasons/1/grab"),
+        "POST", f"/api/v1/acquisition/follows/{follow_segment('Silo')}/seasons/1/grab"),
     "requeueJourney": ("POST", "/api/v1/acquisition/journeys/Silo/requeue"),
     "rescrapeJourney": ("POST", "/api/v1/acquisition/journeys/Silo/rescrape"),
     # ADDED BY THE COMMIT THAT DECLARED THE OPERATION, because the corpus hold

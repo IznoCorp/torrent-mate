@@ -20,7 +20,7 @@ DESIGN maquette-l18 § 3.0, § 3.4, § 3.5, § 3.9; round 8 Q11, round 9 Q13, ro
 """
 import asyncio
 
-from common import SETTLED, PANEL_IN, ACTED, Journal, open_page, browser_channel, chrome_launch_args
+from common import SETTLED, PANEL_IN, ACTED, Journal, follow_segment, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SHARED = "Kyma, l'onde mystérieuse"
@@ -36,8 +36,9 @@ ROW_ACTS = """(title) => { const row = [...document.querySelectorAll('#view [dat
 TAP_INJECTED = """([attribute, title]) => { const button = document.createElement('button');
   button.setAttribute(attribute, title); document.querySelector('#view').append(button); button.click(); button.remove(); }"""
 FOLLOW = """async (title) => (await (await fetch('/api/v1/acquisition/followed')).json()).find((one) => one.title === title) || null"""
-PUT_PAUSE = """async ([who, title]) => { window.__mocks.setIdentity(who);
-  return (await fetch('/api/v1/acquisition/followed/' + encodeURIComponent(title) + '/pause',
+# The follow is addressed by its medium's key (K3-G1), crossed in Python from the seeds.
+PUT_PAUSE = """async ([who, segment]) => { window.__mocks.setIdentity(who);
+  return (await fetch('/api/v1/acquisition/followed/' + segment + '/pause',
     { method: 'PUT', body: JSON.stringify({ paused: true }) })).status; }"""
 
 
@@ -156,7 +157,7 @@ async def main():
                       and "household-member" not in [one["id"] for one in theirs["requesters"]],
                       f"Léa {mine and mine['title']}, izno {theirs and [one['id'] for one in theirs['requesters']]}")
         await go("quality-own-offered", PANEL_IN + SETTLED)
-        statuses = [await page.evaluate(PUT_PAUSE, [who, SHARED]) for who in ("guest-with-quality", "izno")]
+        statuses = [await page.evaluate(PUT_PAUSE, [who, follow_segment(SHARED)]) for who in ("guest-with-quality", "izno")]
         await page.evaluate("()=>window.__mocks.setIdentity('household-member')")
         paused = await page.evaluate(FOLLOW, SHARED)
         journal.check("4: once every requester holding the right has paused, the follow is paused",

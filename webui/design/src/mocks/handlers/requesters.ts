@@ -13,7 +13,7 @@ import {
   signedInRights,
   type Preference,
 } from "../identity";
-import { followForKey, mediumOfKey } from "../follow-key";
+import { followForKey, titlesOfKey } from "../follow-key";
 import { refused, type MockRoute } from "../router";
 import { POST, PUT, field, route, text } from "./shared";
 import type { components } from "../../contract/types";
@@ -111,10 +111,11 @@ export function requesterRoutes(): MockRoute[] {
   return [
     route("reassignRequester", POST, "/acquisition/requesters/reassign", (request) => {
       // THE ACQUISITION IS NAMED BY ITS MEDIUM'S KEY (K3-G4), followed or not.
-      const medium = mediumOfKey(text(request.body, "acquisition"));
-      const moved = medium === null
-        ? null
-        : moveRequester(medium.title, text(request.body, "from"), text(request.body, "to"));
+      // The move is written under every title the medium is drawn with, so a card and a follow
+      // of one medium say the same requesters afterwards; the answer is the first that held `from`.
+      const [from, to] = [text(request.body, "from"), text(request.body, "to")];
+      const moves = titlesOfKey(text(request.body, "acquisition")).map((title) => moveRequester(title, from, to));
+      const moved = moves.find((one) => one !== null) ?? null;
       return moved === null ? refused(MISSING, NO_SUCH) : { requesters: moved };
     }),
     route("setAcquisitionQuality", PUT, "/acquisition/followed/{followedId}/quality", (request) => {

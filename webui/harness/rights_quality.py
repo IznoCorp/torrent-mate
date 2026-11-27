@@ -13,15 +13,16 @@ DESIGN maquette-l18 § 3.4 point 5, § 5 (R-L18-l, R-L18-l-bis).
 """
 import asyncio
 
-from common import SETTLED, PANEL_IN, Journal, open_page, browser_channel, chrome_launch_args
+from common import SETTLED, PANEL_IN, Journal, follow_segment, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 KYMA = "Kyma, l'onde mystérieuse"
 
+# THE FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1), crossed from its title in Python.
 FOLLOW = """async (title) => (await (await fetch('/api/v1/acquisition/followed')).json()).find((one) => one.title === title)"""
 AS = """async ([who, method, what, body]) => { window.__mocks.setIdentity(who);
-  const address = '/api/v1/acquisition/followed/' + encodeURIComponent(%r) + '/' + what;
-  return (await fetch(address, { method, body: JSON.stringify(body) })).status; }""" % KYMA
+  const address = '/api/v1/acquisition/followed/' + %r + '/' + what;
+  return (await fetch(address, { method, body: JSON.stringify(body) })).status; }""" % follow_segment(KYMA)
 OFFER = """() => ({ quality: !!document.querySelector('#sheet [data-profile]'),
                     pause: !!document.querySelector('#sheet [data-pause-own]') })"""
 

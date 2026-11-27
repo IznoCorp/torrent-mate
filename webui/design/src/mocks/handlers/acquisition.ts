@@ -293,9 +293,11 @@ export function acquisitionRoutes(): MockRoute[] {
         // takeable leaves the queue and is in flight. The backend answers the
         // run it spawned; the layer holds no runner, and answers none.
         const state = mockState();
-        const follow = followFor(request.parameters.followedId);
-        if (follow === undefined) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
-        const asked = follow.title;
+        // THE MEDIUM THE KEY NAMES, followed or not: what waits to be taken is a release a
+        // search found, and a takeable card is claimed whether or not a follow asked for it.
+        const medium = mediumOfKey(request.parameters.followedId);
+        if (medium === null) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
+        const asked = medium.title;
         // THE RELEASE THE PICKER CHOSE is named by its handle (K3-G5); one the
         // layer does not hold is refused, never taken for another.
         const chosen = field(request.body, "releaseId");

@@ -24,7 +24,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import ACTED, KEY_OF_JS, PANEL_IN, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 LOCALE = pathlib.Path(__file__).resolve().parents[1] / "design/src/i18n/fr.json"
@@ -52,9 +52,13 @@ SHEET = """() => {
   return { text: sheet ? sheet.innerText.replace(/\\s+/g, ' ') : '', take: take ? take.dataset.take : null };
 }"""
 
-SENT = """(title) => (window.__mocks?.answered?.() || [])
-  .filter((call) => call.operationId === "grabForFollow" && call.method === "POST"
-    && decodeURIComponent(call.path) === `/api/v1/acquisition/followed/${title}/grab`).length"""
+# THE FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1), read off the follows' own answer.
+SENT = "async (title) => {" + KEY_OF_JS + """
+  const follow = (await (await fetch('/api/v1/acquisition/followed')).json()).find((one) => one.title === title);
+  const key = follow ? keyOf(follow) : null;
+  return (window.__mocks?.answered?.() || [])
+    .filter((call) => call.operationId === "grabForFollow" && call.method === "POST"
+      && decodeURIComponent(call.path) === `/api/v1/acquisition/followed/${key}/grab`).length; }"""
 
 
 async def open_follow(page, title):

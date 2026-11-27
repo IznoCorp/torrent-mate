@@ -6,6 +6,7 @@
 // keeps no copy of the interface's own reading (`lib/follow-key.ts`): two
 // implementations of one rule are what lets a test of the pair catch either one
 // being wrong.
+import ACCOUNTS from "./seeds/accounts.json";
 import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { knownMedium } from "./handlers/media";
 import { mockState } from "./state";
@@ -52,6 +53,37 @@ export function followForKey(key: string): Follow | undefined {
  */
 export function removedIndexForKey(key: string): number {
   return mockState().removedFollows.findIndex((follow) => keyOfMedium(follow) === key);
+}
+
+/**
+ * Every title the layer holds one medium under: its follow's, and the ones its cards carry.
+ *
+ * A DATED TITLE AND A BARE ONE ARE ONE MEDIUM (« Silo (2023) », « Silo »), and the layer keeps
+ * who asked for an acquisition under the title a row is drawn with. A server keeps it under the
+ * medium, so an act addressed by the key reaches every row that medium is drawn as.
+ *
+ * @param key What the address carried.
+ * @returns The titles, the follow's first when there is one; empty when nothing known answers to the key.
+ */
+export function titlesOfKey(key: string): string[] {
+  const state = mockState();
+  const cards = [...state.takeable, ...state.blocked, ...state.inFlight, ...state.inFlightReel, ...state.moving];
+  const known = [
+    followForKey(key)?.title,
+    ...cards.filter((one) => keyOfMedium(one) === key).map((one) => one.title),
+    mediumOfKey(key)?.title,
+  ].filter((title): title is string => title !== undefined);
+  // A CARD THAT CARRIES NO IDENTITY OF ITS OWN is the same medium under its dated title, and so
+  // is a title the accounts' requests are recorded under.
+  const bare = new Set(known.map(withoutYear));
+  const requested = Object.values(ACCOUNTS.requests as Record<string, string[]>).flat();
+  const dated = [...cards.map((one) => one.title), ...requested].filter((title) => bare.has(withoutYear(title)));
+  return [...new Set([...known, ...dated])];
+}
+
+/** A title without its trailing year: « Silo (2023) » and « Silo » name one medium. */
+function withoutYear(title: string): string {
+  return title.replace(/\s*\(\d{4}\)\s*$/, "");
 }
 
 /**

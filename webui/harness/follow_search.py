@@ -21,30 +21,39 @@ import json
 import pathlib
 from urllib.parse import unquote
 
-from common import ACTED, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import ACTED, KEY_OF_JS, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
 SAID = WORDS["verbs"]["acquisition"]
 TOAST = "()=>(document.querySelector('#toast')||{}).textContent || ''"
-RELEASES = """async (title) => (await (await fetch(
-  '/api/v1/acquisition/releases?title=' + encodeURIComponent(title))).json()).length"""
-FOLLOWS = """async () => (await (await fetch('/api/v1/acquisition/followed')).json())
-  .map((follow) => ({ title: follow.title, status: follow.status }))"""
+# A FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1, K3-G5), TVDB first for a show and TMDB first for a film.
+KEY_OF = KEY_OF_JS
+RELEASES = """async (key) => (await (await fetch(
+  '/api/v1/acquisition/releases?followedId=' + encodeURIComponent(key))).json()).length"""
+FOLLOWS = "async () => {" + KEY_OF + """
+  return (await (await fetch('/api/v1/acquisition/followed')).json())
+    .map((follow) => ({ title: follow.title, status: follow.status, key: keyOf(follow) })); }"""
 # A suggestion the seeds hold no release for, followed through the layer.
-UNFOUND = """async () => {
+UNFOUND = "async () => {" + KEY_OF + """
   const deck = await (await fetch('/api/v1/acquisition/suggestions')).json();
   for (const one of deck) {
-    const releases = await (await fetch('/api/v1/acquisition/releases?title='
-      + encodeURIComponent(one.title))).json();
-    if (releases.length > 0 || one.ids?.tmdb === undefined) continue;
+    if (one.ids?.tmdb === undefined) continue;
     const kind = one.kind === 'Film' ? 'movie' : 'show';
     const answer = await fetch('/api/v1/acquisition/followed', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: one.title, kind, provider: 'tmdb', providerId: Number(one.ids.tmdb) }) });
     if (!answer.ok) continue;
     const created = await answer.json();
+    // NO RELEASE FOR IT, read once the follow exists: a release list is the medium's, by its key.
+    const key = keyOf(created);
+    const releases = await (await fetch('/api/v1/acquisition/releases?followedId='
+      + encodeURIComponent(key))).json();
+    if (releases.length > 0) {
+      await fetch('/api/v1/acquisition/followed/' + encodeURIComponent(key), { method: 'DELETE' });
+      continue;
+    }
     await window.__queries.invalidateQueries({ queryKey: ['/api/v1/acquisition/followed'] });
     return created.title ?? one.title;
   }
@@ -92,12 +101,13 @@ async def main():
         await page.wait_for_timeout(SETTLED)
 
         follows = await page.evaluate(FOLLOWS)
-        searched = next((follow["title"] for follow in follows if follow["status"] == "pending"), None)
+        pending = next((follow for follow in follows if follow["status"] == "pending"), None)
+        searched = pending["title"] if pending else None
         journal.check("a follow waiting for a release is seeded", searched is not None, str(follows))
         if searched is not None:
-            found = await page.evaluate(RELEASES, searched)
+            found = await page.evaluate(RELEASES, pending["key"])
             calls, said = await search(page, searched)
-            address = f"/api/v1/acquisition/followed/{searched}/search"
+            address = f"/api/v1/acquisition/followed/{pending['key']}/search"  # the recorded path is read decoded
             sent = [unquote(call.get("path", "")) for call in calls
                     if call.get("operationId") == "searchForFollow" and call.get("method") == "POST"]
             journal.check(f"the tap on « {searched} » sends its own search, once",
