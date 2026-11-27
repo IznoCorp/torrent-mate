@@ -292,6 +292,36 @@ class TMDBClient(
         tmdb_id = first.get("id") if isinstance(first, dict) else None
         return int(tmdb_id) if isinstance(tmdb_id, int) else None
 
+    def find_ids_by_imdb(self, imdb_id: str) -> dict[str, int]:
+        """Resolve an IMDb id to the TMDB ids it numbers, one per kind.
+
+        Uses ``GET /find/{imdb_id}?external_source=imdb_id``. Unlike :meth:`find_by_imdb`, which
+        keeps only the television result a TVDB cross-reference needs, this reads both result
+        lists: an IMDb id names one title, and that title is a film or a show.
+
+        Args:
+            imdb_id: The IMDb id (e.g. ``"tt0137523"``).
+
+        Returns:
+            ``{"movie": <TMDB id>}`` and/or ``{"tv": <TMDB id>}`` for each kind the id resolves
+            to (the first result of each); empty when it resolves to neither (a person, an
+            episode, nothing).
+
+        Raises:
+            TypeError: The provider answered something that is not an object.
+        """
+        raw = self._transport.get(f"/find/{imdb_id}", params={"external_source": "imdb_id"})
+        if not isinstance(raw, dict):
+            raise TypeError(f"Expected dict response, got {type(raw).__name__}")
+        found: dict[str, int] = {}
+        for kind, key in (("movie", "movie_results"), ("tv", "tv_results")):
+            results = raw.get(key)
+            first = results[0] if isinstance(results, list) and results else None
+            tmdb_id = first.get("id") if isinstance(first, dict) else None
+            if isinstance(tmdb_id, int):
+                found[kind] = tmdb_id
+        return found
+
     def get_tvdb_id(self, tv_id: int) -> int | None:
         """Return the TVDB series id cross-referenced by a TMDB TV show, or None.
 
