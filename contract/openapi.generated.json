@@ -3535,7 +3535,7 @@
     },
     "/acquisition/suggestions": {
       "get": {
-        "description": "The titles worth following, minus what the reader owns, follows or rejected.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    after: The title of the last card the reader holds, to continue the deck past it.\n\nReturns:\n    One page of the deck; empty when the deck has no more.",
+        "description": "The titles worth following, minus what the reader owns, follows or rejected.\n\nLIMIT OF THE CONTRACT: ``after`` is a title, and a title is not unique in the deck (a film and a show can\nbear the same one). The deck continues past the FIRST card of that title, so a reader whose last card is a\nsecond one of the same title is served again the cards between the two. An opaque cursor would lift it.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    after: The title of the last card the reader holds, to continue the deck past it.\n\nReturns:\n    One page of the deck; empty when the deck has no more.",
         "operationId": "readSuggestions",
         "parameters": [
           {

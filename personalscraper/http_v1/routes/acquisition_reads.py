@@ -210,6 +210,10 @@ def read_suggestions(
 ) -> list[SuggestionModel]:
     """The titles worth following, minus what the reader owns, follows or rejected.
 
+    LIMIT OF THE CONTRACT: ``after`` is a title, and a title is not unique in the deck (a film and a show can
+    bear the same one). The deck continues past the FIRST card of that title, so a reader whose last card is a
+    second one of the same title is served again the cards between the two. An opaque cursor would lift it.
+
     Args:
         signed_in: The signed-in actor.
         app_services: The application services.

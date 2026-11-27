@@ -384,6 +384,43 @@ class TestSearchProviders:
 
         assert {r["title"]: r["followed"] for r in results} == {"The Matrix": True, "Severance": False}
 
+    def test_a_page_holds_twenty_results_and_the_total_says_how_many_there_are(
+        self, v1_client: Callable[..., TestClient], tmdb: _Tmdb
+    ) -> None:
+        """The contract declares no offset or limit: the first twenty are served, ``total`` names the rest."""
+        tmdb.movies = [
+            SearchResult(
+                provider="tmdb",
+                provider_id=str(1000 + n),
+                title=f"Dune {n}",
+                year=2000 + n,
+                media_type="movie",
+                popularity=100.0 - n,
+            )
+            for n in range(25)
+        ]
+        tmdb.shows = []
+
+        body = v1_client(rights=_REQUEST).get("/acquisition/search", params={"query": "dune"}).json()
+
+        assert (body["shown"], body["total"], len(body["results"])) == (20, 25, 20)
+
+    def test_a_follow_store_that_cannot_be_read_fails_the_search_never_says_not_followed(
+        self, v1_client: Callable[..., TestClient], tmdb: _Tmdb, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``followed=false`` on a followed title is a false fact: the answer is the 500 problem, no results."""
+
+        def locked(self: object, lookups: object) -> list[list[FollowedSeries]]:
+            raise RuntimeError("acquire.db is locked")
+
+        monkeypatch.setattr(composition._PerCallFollowLookup, "find_all_by_refs", locked)
+
+        response = v1_client(rights=_REQUEST).get("/acquisition/search", params={"query": "matrix"})
+
+        assert response.status_code == 500
+        assert response.json()["code"] == "internal"
+        assert "results" not in response.json()
+
     def test_a_kind_restricts_the_search(self, v1_client: Callable[..., TestClient], tmdb: _Tmdb) -> None:
         """``show`` asks the television chain only; ``movie`` the film chain only."""
         shows = v1_client(rights=_REQUEST).get("/acquisition/search", params={"query": "x", "kind": "show"}).json()
@@ -502,6 +539,30 @@ class TestSearchProviderById:
         assert any(named.endswith(field) for named in response.json()["params"]["fields"])
         assert tmdb.asked == []
 
+    def test_the_door_asks_a_session_and_the_request_right(self, v1_client: Callable[..., TestClient]) -> None:
+        """No session: 401; without ``acquisition.request``: 403 naming it."""
+        params = {"provider": "tmdb", "id": "603"}
+        assert v1_client(role=None).get("/acquisition/search/by-id", params=params).status_code == 401
+        refused = v1_client(rights=_LIBRARY).get("/acquisition/search/by-id", params=params)
+
+        assert refused.status_code == 403
+        assert refused.json()["code"] == "right.missing"
+        assert refused.json()["params"] == {"rights": ["acquisition.request"]}
+
+    def test_a_follow_store_that_cannot_be_read_fails_the_lookup(
+        self, v1_client: Callable[..., TestClient], tmdb: _Tmdb, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The same pass flags a lookup: a locked store is a 500 problem, never ``followed=false``."""
+
+        def locked(self: object, lookups: object) -> list[list[FollowedSeries]]:
+            raise RuntimeError("acquire.db is locked")
+
+        monkeypatch.setattr(composition._PerCallFollowLookup, "find_all_by_refs", locked)
+
+        response = v1_client(rights=_REQUEST).get("/acquisition/search/by-id", params={"provider": "tmdb", "id": "603"})
+
+        assert (response.status_code, response.json()["code"]) == (500, "internal")
+
     def test_the_question_needs_its_two_parameters(self, v1_client: Callable[..., TestClient]) -> None:
         """Neither the source nor the identifier may be left out."""
         client = v1_client(rights=_REQUEST)
@@ -582,6 +643,37 @@ class TestReadSuggestions:
         assert [c["title"] for c in first] == [f"Title {n}" for n in range(1, 21)]
         assert [c["title"] for c in second] == [f"Title {n}" for n in range(21, 26)]
         assert third == []
+
+    def test_after_a_title_two_cards_bear_restarts_past_the_first_of_them(
+        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
+    ) -> None:
+        """A LIMIT OF THE CONTRACT, pinned: ``after`` is a title, and a title is not unique in the deck.
+
+        A film and a show can bear one title. The page continues past the FIRST card of that title, so a
+        reader whose last card is the second one is served the cards between the two again.
+        """
+        titles = ["Dune", "Arrival", "Dune", "Tenet"]
+        acquire.suggestions.replace_deck(
+            [
+                SuggestionRow(
+                    provider="tmdb",
+                    provider_id=str(n),
+                    kind="movie" if n % 2 else "show",
+                    title=title,
+                    year=2021,
+                    rating=7.0,
+                    poster=None,
+                    reason="similar_to_owned",
+                    seed_key="tmdb:603",
+                    refreshed_at=1_800_000_000,
+                )
+                for n, title in enumerate(titles, start=1)
+            ]
+        )
+
+        served = v1_client(rights=_REQUEST).get("/acquisition/suggestions", params={"after": "Dune"}).json()
+
+        assert [(c["title"], c["kind"]) for c in served] == [("Arrival", "show"), ("Dune", "movie"), ("Tenet", "show")]
 
     def test_a_followed_title_is_left_out(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore

@@ -499,7 +499,9 @@ class ProviderSearch:
         ``owned``: the pipeline REPLACES an existing version, so the interface asks before
         following one. A film is owned when a live file holds it; a show as soon as ANY live
         episode file exists. ``followed``: a standing follow holds the id. Neither probe runs
-        when it is not wired (no indexer, no follow store) or there is nothing to flag.
+        when it is not wired (no indexer, no follow store) or there is nothing to flag. A probe
+        that is wired but cannot be read raises: a degraded read never affirms a value, and
+        ``followed=False`` on a title the reader follows would be a false one.
 
         Args:
             media: The media to flag.
@@ -518,10 +520,7 @@ class ProviderSearch:
                 checker.close()
         follows = self._follows
         if follows is not None:
-            try:
-                flagged = _flag_followed(follows, flagged)
-            except Exception:  # a follow store that cannot be read costs the flag, not the search
-                logger.warning("acquisition_follow_flags_unavailable", exc_info=True)
+            flagged = _flag_followed(follows, flagged)
         return flagged
 
 

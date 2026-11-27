@@ -83,7 +83,7 @@ class _ExplodingLookup:
 
 
 class TestFollowedFlag:
-    """``followed`` is read in one batch, and a store that cannot be read costs the flag only."""
+    """``followed`` is read in one batch; a store that cannot be read is an error, never ``False``."""
 
     def test_a_page_is_flagged_by_one_batch_not_one_lookup_per_result(self) -> None:
         """Five results, one store call carrying five lookups."""
@@ -95,22 +95,23 @@ class TestFollowedFlag:
         assert lookup.batches == [5]
         assert {r.provider_id: r.followed for r in page.results} == {1: False, 2: True, 3: False, 4: False, 5: False}
 
-    def test_a_raising_follow_store_degrades_like_an_absent_one(self) -> None:
-        """The search is served, nothing flagged followed, as with no store wired."""
-        page = _service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), _ExplodingLookup()).search(
-            _ACTOR, "dune", "movie"
-        )
+    def test_a_raising_follow_store_lets_the_error_rise(self) -> None:
+        """A store that cannot be read is no « not followed »: the search fails as it did before v1."""
+        with pytest.raises(RuntimeError, match="locked"):
+            _service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), _ExplodingLookup()).search(
+                _ACTOR, "dune", "movie"
+            )
+
+    def test_a_raising_follow_store_fails_a_lookup_too(self) -> None:
+        """The lookup by id is flagged by the same pass, and fails the same way."""
+        with pytest.raises(RuntimeError, match="locked"):
+            _service(object(), _ById(shows={255968: "Kaamelott"}), _ExplodingLookup()).lookup(_ACTOR, "tvdb", "255968")
+
+    def test_an_absent_follow_store_still_serves_the_search(self) -> None:
+        """No store wired is another thing: nothing to read, the flag is simply not probed."""
+        page = _service(_Tmdb([_movie("1", "Dune", 2021)], []), _Tvdb(), None).search(_ACTOR, "dune", "movie")
 
         assert [r.title for r in page.results] == ["Dune"]
-        assert [r.followed for r in page.results] == [False]
-
-    def test_a_raising_follow_store_degrades_a_lookup_too(self) -> None:
-        """The lookup by id is flagged by the same pass, and degrades the same way."""
-        found = _service(object(), _ById(shows={255968: "Kaamelott"}), _ExplodingLookup()).lookup(
-            _ACTOR, "tvdb", "255968"
-        )
-
-        assert [(m.title, m.followed) for m in found] == [("Kaamelott", False)]
 
 
 class _FailingTvdb:
