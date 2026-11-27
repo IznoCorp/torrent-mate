@@ -91,6 +91,8 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "readStagedMediaCopies": _ACQUISITION,
         "readStagingDestinations": _ACQUISITION,
         "readSuggestions": holds(Right.ACQUISITION_REQUEST),
+        "rejectSuggestion": holds(Right.ACQUISITION_REQUEST),
+        "undoSuggestionRejection": holds(Right.ACQUISITION_REQUEST),
         "searchProviders": holds(Right.ACQUISITION_REQUEST),
         "searchProviderById": holds(Right.ACQUISITION_REQUEST),
         "readReleases": _PILOT,

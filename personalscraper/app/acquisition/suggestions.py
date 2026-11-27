@@ -8,7 +8,9 @@ A refresh (``personalscraper acquisition-suggestions-refresh``,
   ownership read, as the search's ``owned``);
 * a standing FOLLOW holds its id: a ``followed_series`` row of scope ``follow`` that is not removed
   (a paused follow counts, a request row and a removed follow do not, as the search's ``followed``);
-* the reader REJECTED it, through the :class:`RejectionFilter` seam.
+* the reader REJECTED it: the rejection is the rejecting account's alone (O-9 A, K3-G7), held in
+  ``app.db`` and reached through the :class:`RejectionStore` seam; :meth:`Suggestions.reject` and
+  :meth:`Suggestions.undo_rejection` write it.
 
 Owned and followed are told by provider id, never by title. A title is known by its own id when
 that is a TVDB, TMDB or IMDb id, and by the ids its provider gave beside it (``external_ids``:
@@ -16,9 +18,11 @@ Trakt names a title by a slug and gives its IMDb, TMDB and TVDB ids alongside). 
 such id (a slug and nothing else) cannot be asked of the library and always stays: no title guess
 stands in for an id.
 
-The per-account rejection store (``suggestion_rejection`` in ``app.db``, and the writes that fill
-it) waits the operator's ruling O-9: the seam is here, the store is not. Until it lands nothing is
-rejected.
+A card is addressed by its suggestion id, ``<kind>:<provider>:<providerId>``: a title's identity,
+which a refresh of the deck keeps. The wire carries it opaque.
+
+A card's reason names the title whose recommendation it is, read where that title lives: a follow's
+own title, or the library's through the index. A title neither holds any more is not named.
 
 A cursor is the key of the card a page continues past, sealed under a key the environment keeps
 (:func:`cursor_key_path`): only a cursor the server issued is read, and it stays readable across a
@@ -30,24 +34,30 @@ from __future__ import annotations
 import hmac
 import re
 from collections.abc import Callable, Collection, Mapping, Sequence
-from contextlib import closing
+from contextlib import AbstractContextManager, closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Protocol
 
 from personalscraper.app.accounts.authorise import requires
-from personalscraper.app.errors import AppBadRequest, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppNotFound, RefusalCode
 from personalscraper.core.identity import MediaRef
+from personalscraper.indexer.library_view import IndexUnavailable
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.domain import FollowKind, SuggestionReason, SuggestionRow
     from personalscraper.app.accounts.actor import Actor
     from personalscraper.app.acquisition.completeness import OwnershipReader
+    from personalscraper.indexer.library_view import IndexItem
+
+log = get_logger("app.acquisition.suggestions")
 
 __all__ = [
     "DEFAULT_LIMIT",
     "RejectionFilter",
+    "RejectionStore",
     "SuggestedMedium",
     "SuggestionKey",
     "SuggestionPage",
@@ -65,7 +75,12 @@ _BATCH: Final[int] = 50
 #: A title's identity in a deck and in a rejection: ``(provider, provider_id, kind)``.
 type SuggestionKey = tuple[str, str, str]
 
+#: A card's seed as its reason reads it: ``(reason, seed_key, kind)``.
+type _Seed = tuple[SuggestionReason, str, FollowKind]
+
 _IMDB_ID = re.compile(r"tt\d+")
+#: A suggestion id: the title's kind, the provider that recommended it, and its id there.
+_SUGGESTION_ID = re.compile(r"(?P<kind>movie|show):(?P<provider>[^:]+):(?P<provider_id>.+)")
 #: A cursor: the key of the card it continues past, then the server's seal on that key.
 _CURSOR = re.compile(r"([0-9]{1,18})\.([0-9a-f]{32})")
 
@@ -99,7 +114,7 @@ def _cursor_to(card: str, key: bytes) -> str:
 
 
 class RejectionFilter(Protocol):
-    """Where a reader's own rejections are told: the seam the rejection store plugs into (O-9)."""
+    """Where a reader's own rejections are told (O-9 A)."""
 
     def rejected(self, actor: Actor, keys: Sequence[SuggestionKey]) -> Collection[SuggestionKey]:
         """Name which of ``keys`` the actor's own account rejected.
@@ -114,20 +129,37 @@ class RejectionFilter(Protocol):
         ...
 
 
-class _NoRejections:
-    """The filter until the rejection store lands: nothing is rejected."""
+class RejectionStore(RejectionFilter, Protocol):
+    """The rejections, read and written for the actor's own account."""
 
-    def rejected(self, actor: Actor, keys: Sequence[SuggestionKey]) -> Collection[SuggestionKey]:
-        """Name no key.
+    def reject(self, actor: Actor, key: SuggestionKey) -> None:
+        """Record that the actor's account rejected a title; one already rejected stays so.
 
         Args:
-            actor: The reader.
-            keys: The titles to check.
+            actor: Whose rejection it is.
+            key: The title.
+        """
+        ...
+
+    def undo(self, actor: Actor, key: SuggestionKey) -> bool:
+        """Forget the actor's account's rejection of a title.
+
+        Args:
+            actor: Whose rejection it is.
+            key: The title.
 
         Returns:
-            Nothing.
+            Whether the account had rejected it.
         """
-        return ()
+        ...
+
+
+class _IndexReader(Protocol):
+    """What is read of the library index to name a seed."""
+
+    def holders(self, provider: str, provider_id: str) -> list[IndexItem]:
+        """Read every row bearing one provider id."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -142,8 +174,10 @@ class SuggestedMedium:
         year: The release or first-air year, or ``None``.
         rating: The provider's rating, or ``None`` when none came with it.
         poster: The poster's address, or ``None`` when none came with it.
+        suggestion_id: The card's handle, which a rejection and its undo address it by.
         reason: Why it is suggested, as a code the interface words.
         seed_key: The title whose recommendation this is (``"tmdb:603"``).
+        reason_titles: The titles the reason names: the seed's, or none when nothing holds it.
         cursor: The ``after`` that continues the deck past this card.
         ids: The ids the library and the follows know the title by (:func:`media_ref_of`), or
             ``None`` when it has none.
@@ -159,6 +193,8 @@ class SuggestedMedium:
     reason: SuggestionReason
     seed_key: str
     cursor: str
+    suggestion_id: str
+    reason_titles: tuple[str, ...] = ()
     ids: MediaRef | None = None
 
 
@@ -256,30 +292,66 @@ def _key_of(row: SuggestionRow) -> SuggestionKey:
     return (row.provider, row.provider_id, row.kind)
 
 
+def _suggestion_id(key: SuggestionKey) -> str:
+    """Return the handle a card is addressed by.
+
+    Args:
+        key: The title's identity.
+
+    Returns:
+        ``<kind>:<provider>:<providerId>``.
+    """
+    provider, provider_id, kind = key
+    return f"{kind}:{provider}:{provider_id}"
+
+
+def _keyed_by(suggestion_id: str) -> SuggestionKey:
+    """Read the title a suggestion id names.
+
+    Args:
+        suggestion_id: The handle a card carried.
+
+    Returns:
+        ``(provider, provider_id, kind)``.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming ``suggestionId`` when it is no card's handle.
+    """
+    read = _SUGGESTION_ID.fullmatch(suggestion_id)
+    if read is None:
+        raise AppBadRequest(
+            "The id is not a suggestion's.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["suggestionId"]}
+        )
+    return (read["provider"], read["provider_id"], read["kind"])
+
+
 class Suggestions:
-    """Read the suggestions deck for one account."""
+    """Read the suggestions deck for one account, and keep what it rejects."""
 
     def __init__(
         self,
         *,
         open_store: Callable[[], AcquireStore],
         open_ownership: Callable[[], OwnershipReader],
+        open_index: Callable[[], AbstractContextManager[_IndexReader]],
         cursor_key: Callable[[], bytes],
-        rejections: RejectionFilter | None = None,
+        rejections: RejectionStore,
     ) -> None:
         """Hold the seams; nothing is opened yet.
 
         Args:
             open_store: Opens the acquire store for one call (closed after it).
             open_ownership: Opens the library's ownership reader for one call (closed after it).
+            open_index: Opens a reader of the library index for one call; raises
+                ``IndexUnavailable`` when the index cannot be read.
             cursor_key: Reads the key the cursors are sealed under, the same across restarts.
-            rejections: Names the titles a reader rejected; ``None`` until the rejection store
-                (O-9) lands, when nothing is rejected.
+            rejections: The titles each account rejected.
         """
         self._open_store = open_store
         self._open_ownership = open_ownership
+        self._open_index = open_index
         self._cursor_key = cursor_key
-        self._rejections: RejectionFilter = rejections if rejections is not None else _NoRejections()
+        self._rejections = rejections
 
     @requires("readSuggestions")
     def read(self, actor: Actor, after: str | None, *, limit: int = DEFAULT_LIMIT) -> SuggestionPage:
@@ -303,21 +375,112 @@ class Suggestions:
         """
         key = self._cursor_key()
         cursor = _cursor_of(after, key)
-        items: list[SuggestedMedium] = []
+        kept: list[SuggestionRow] = []
         with closing(self._open_store()) as store, closing(self._open_ownership()) as ownership:
-            while len(items) < limit:
+            while len(kept) < limit:
                 rows = store.suggestions.after(cursor, _BATCH)
                 if not rows:
-                    return SuggestionPage(items=tuple(items), after=None)
+                    break
                 rejected = set(self._rejections.rejected(actor, [_key_of(r) for r in rows]))
                 for row in rows:
                     cursor = row.id
                     if _key_of(row) in rejected or _is_followed(store, row) or _is_owned(ownership, row):
                         continue
-                    items.append(_medium_of(row, key))
-                    if len(items) == limit:
+                    kept.append(row)
+                    if len(kept) == limit:
                         break
-        return SuggestionPage(items=tuple(items), after=items[-1].cursor if items else None)
+            titles = self._seed_titles(store, kept)
+        items = tuple(_medium_of(row, key, titles.get((row.reason, row.seed_key, row.kind))) for row in kept)
+        # A page short of its limit read the deck to its end: nothing follows it.
+        return SuggestionPage(items=items, after=items[-1].cursor if len(items) == limit else None)
+
+    @requires("rejectSuggestion")
+    def reject(self, actor: Actor, suggestion_id: str) -> None:
+        """Reject a card for the actor's account alone (O-9 A): its deck no longer holds the title.
+
+        A title the account already rejected stays rejected.
+
+        Args:
+            actor: Whose rejection it is; authorised by ``@requires`` (``acquisition.request``).
+            suggestion_id: The card's handle.
+
+        Raises:
+            AppBadRequest: ``request.invalid`` naming ``suggestionId`` when it is no card's handle.
+            AppNotFound: ``suggestion.not_found`` when no card of the deck bears it.
+        """
+        title = _keyed_by(suggestion_id)
+        with closing(self._open_store()) as store:
+            if not store.suggestions.holds(*title):
+                raise AppNotFound("No card of the deck bears this id.", code=RefusalCode.SUGGESTION_NOT_FOUND)
+        self._rejections.reject(actor, title)
+
+    @requires("undoSuggestionRejection")
+    def undo_rejection(self, actor: Actor, suggestion_id: str) -> None:
+        """Undo the actor's account's rejection of a card.
+
+        The account's rejections are read, never the deck: a title a later deck dropped is undone too.
+
+        Args:
+            actor: Whose rejection it is; authorised by ``@requires`` (``acquisition.request``).
+            suggestion_id: The card's handle.
+
+        Raises:
+            AppBadRequest: ``request.invalid`` naming ``suggestionId`` when it is no card's handle.
+            AppNotFound: ``suggestion.not_found`` when the account holds no rejection of it.
+        """
+        if not self._rejections.undo(actor, _keyed_by(suggestion_id)):
+            raise AppNotFound("This account rejected no suggestion of this id.", code=RefusalCode.SUGGESTION_NOT_FOUND)
+
+    def _seed_titles(self, store: AcquireStore, rows: Sequence[SuggestionRow]) -> dict[_Seed, str]:
+        """Name the seeds of a page's cards by their titles, each seed read once.
+
+        A followed seed's title is its follow's; an owned one's is the library's, read through the
+        index (opened only when a card asks it).
+
+        Args:
+            store: The acquire store (the follows).
+            rows: The page's rows.
+
+        Returns:
+            ``(reason, seed_key, kind)`` → the title, for the seeds something still holds; the
+            owned ones are all absent when the index cannot be read.
+        """
+        titles: dict[_Seed, str] = {}
+        seeds = dict.fromkeys((r.reason, r.seed_key, r.kind) for r in rows)
+        for reason, seed_key, kind in seeds:
+            if reason != "similar_to_followed":
+                continue
+            ref = media_ref_of(*_split_seed(seed_key))
+            follows = [] if ref is None else store.follow.find_all_by_ref(ref, kind=kind)
+            title = next((f.title for f in follows if f.title), None)
+            if title is not None:
+                titles[(reason, seed_key, kind)] = title
+        owned = [seed for seed in seeds if seed[0] == "similar_to_owned"]
+        if not owned:
+            return titles
+        try:
+            with self._open_index() as index:
+                for reason, seed_key, kind in owned:
+                    held = index.holders(*_split_seed(seed_key))
+                    title = next((item.title for item in held if item.kind == kind and item.title), None)
+                    if title is not None:
+                        titles[(reason, seed_key, kind)] = title
+        except IndexUnavailable:
+            log.warning("app.acquisition.suggestions.index_unavailable")
+        return titles
+
+
+def _split_seed(seed_key: str) -> tuple[str, str]:
+    """Split a seed's name in the deck (``"tvdb:81189"``) into its provider and id.
+
+    Args:
+        seed_key: The name.
+
+    Returns:
+        ``(provider, provider_id)``.
+    """
+    provider, _, provider_id = seed_key.partition(":")
+    return provider, provider_id
 
 
 def _is_followed(store: AcquireStore, row: SuggestionRow) -> bool:
@@ -356,12 +519,13 @@ def _is_owned(ownership: OwnershipReader, row: SuggestionRow) -> bool:
     return ownership.owns(ref, kind="movie") if row.kind == "movie" else len(ownership.owned_pairs(ref)) > 0
 
 
-def _medium_of(row: SuggestionRow, key: bytes) -> SuggestedMedium:
+def _medium_of(row: SuggestionRow, key: bytes, seed_title: str | None) -> SuggestedMedium:
     """Map a deck row to a card.
 
     Args:
         row: The deck row, its key set.
         key: The environment's cursor key.
+        seed_title: The title of the row's seed, ``None`` when nothing holds it.
 
     Returns:
         The card; its cursor continues the deck past the row.
@@ -377,5 +541,7 @@ def _medium_of(row: SuggestionRow, key: bytes) -> SuggestedMedium:
         reason=row.reason,
         seed_key=row.seed_key,
         cursor=_cursor_to(str(row.id), key),
+        suggestion_id=_suggestion_id(_key_of(row)),
+        reason_titles=() if seed_title is None else (seed_title,),
         ids=media_ref_of(row.provider, row.provider_id, row.external_ids),
     )

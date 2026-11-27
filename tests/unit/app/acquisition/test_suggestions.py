@@ -2,13 +2,14 @@
 
 The deck is built over a real acquire store on ``tmp_path``; the library is a fake ownership
 reader (no ``library.db`` is opened). Owned and followed are told by provider id, never by
-title. The per-account rejection store waits O-9: what is tested here is the seam it plugs
-into, with a fake filter standing for it.
+title. The per-account rejection store has its own tests (``test_suggestion_rejections``): what is
+tested here is how a read leaves out what the seam tells it, with a fake filter standing for it.
 """
 
 from __future__ import annotations
 
 from collections.abc import Collection, Iterator, Sequence
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Literal
 
@@ -76,6 +77,14 @@ class _Library:
         self.closed = True
 
 
+class _NoTitles:
+    """A fake index reader that holds no row, so a reason names no title."""
+
+    def holders(self, provider: str, provider_id: str) -> list[object]:
+        """No row bears any id."""
+        return []
+
+
 class _Rejections:
     """A fake rejection filter, per account: what an account rejected, by key."""
 
@@ -125,8 +134,9 @@ def _service(
     service = Suggestions(
         open_store=lambda: build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db")),
         open_ownership=lambda: held,
+        open_index=lambda: nullcontext(_NoTitles()),
         cursor_key=lambda: key,
-        rejections=rejections,
+        rejections=rejections if rejections is not None else _Rejections({}),
     )
     return service, held
 

@@ -85,6 +85,7 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.ACQUISITION_FOLLOW_SHARED: "Other accounts asked for this follow too: each pauses it for itself.",
     RefusalCode.FOLLOW_NOT_RESTORABLE: "Nothing removed under this acquisition key can be put back.",
     RefusalCode.FOLLOW_AMBIGUOUS: "Several follow rows hold this provider identity.",
+    RefusalCode.SUGGESTION_NOT_FOUND: "No suggestion answers this id.",
 }
 
 _INTERNAL_DETAIL: Final[str] = "An unexpected error occurred."

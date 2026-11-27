@@ -101,6 +101,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   // SEARCHING SERVES ONLY ADDING, so it asks the right to request: an instance
   // that cannot add (staging) keeps its « ＋ » closed, search included.
   readSuggestions: "acquisition.request",
+  rejectSuggestion: "acquisition.request",
+  undoSuggestionRejection: "acquisition.request",
   searchProviders: "acquisition.request",
   searchProviderById: "acquisition.request",
   readReleases: PILOT,
