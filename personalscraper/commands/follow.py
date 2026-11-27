@@ -33,9 +33,11 @@ from personalscraper import cli_helpers
 from personalscraper.acquire.detect import DetectAction, DetectOutcome, DetectService, DetectStatus
 from personalscraper.acquire.events import SeriesFollowed, SeriesUnfollowed
 from personalscraper.acquire.title_resolver import resolve_series_title
+from personalscraper.app.supervisor.acquisition_execution import detect_counts
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
+from personalscraper.commands import acquisition_queue
 from personalscraper.commands._cli_run_row import cli_run_row
 from personalscraper.core.identity import MediaRef
 from personalscraper.i18n import t
@@ -277,12 +279,19 @@ def follow_detect(
     Use ``--dry-run`` to preview without any writes or events.
     Use ``--series`` to restrict detection to a single series (integer
     ``followed_id`` or a case-insensitive title substring).
+
+    While a supervisor's lease is live the detect is asked through the queue and followed instead
+    (:mod:`personalscraper.commands.acquisition_queue`); ``--dry-run`` always runs here.
     """
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_helpers.get_settings()
 
+    if not dry_run and acquisition_queue.supervised(config, console):
+        acquisition_queue.queue_detect(config, console, series=series)
+        return
+
+    settings = cli_helpers.get_settings()
     with (
         cli_run_row(config, "follow-detect") as run_rec,
         per_step_boundary(config, settings, build_torrent_client=False) as app_context,
@@ -343,17 +352,7 @@ def follow_detect(
             # §5 « résultat chiffré »: persist the run's numbers on its
             # pipeline_run row so the web surface shows a real result, never
             # a bare success badge.
-            run_rec.record_counts(
-                {
-                    "detected": s.detected,
-                    "enqueued": s.enqueued,
-                    "skipped_owned": s.skipped_owned,
-                    "skipped_dup": s.skipped_dup,
-                    "skipped_covered": s.skipped_covered,
-                    "resurrected": s.resurrected,
-                    "closed_owned": s.closed_owned,
-                }
-            )
+            run_rec.record_counts(detect_counts(s))
         finally:
             if redis_publisher is not None:
                 redis_publisher.close()

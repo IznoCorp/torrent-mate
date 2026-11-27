@@ -123,6 +123,9 @@
     "mark_lost": "NFO écrit mais la décision {{decision_id}} n'était plus en attente — non marquée résolue.",
     "resolved": "Décision {{decision_id}} résolue avec succès via {{provider}}:{{provider_id}}."
   },
+  "queue": {
+    "limit_too_low": "--limit doit valoir au moins 1 tant qu'un superviseur tourne : la passe passe par la file, qui n'accepte pas de plafond inférieur. Rien n'a été demandé."
+  },
   "search": {
     "help": "Lance la passe de recherche — établit la disponibilité des éléments wanted en attente.",
     "dry_run_help": "Affiche ce qui SERAIT cherché après filtrage par cadence. Aucun appel aux trackers, aucune écriture.",
