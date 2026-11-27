@@ -392,6 +392,20 @@ def test_the_status_follows_the_run_asked_until_it_settles(v1_client: ClientFact
     assert state() == "settled"
 
 
+def test_the_status_follows_a_run_where_no_pass_is_scheduled(
+    v1_client: ClientFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On the dev environment (tm-design) there is no next search, and the asked run is still followed."""
+    client = v1_client()
+    monkeypatch.setattr(_services(client).acquisition.triggers, "_environment", lambda: Environment.DEV)
+    _follow(client)
+    uid = client.post(f"/acquisition/followed/{SILO_KEY}/search").json()["runUid"]
+
+    answered = client.get("/acquisition/status", params={"runUid": uid}).json()
+
+    assert (answered["nextSearch"], answered["runState"]) == (None, "queued")
+
+
 def test_a_uid_naming_no_acquisition_run_has_no_state(v1_client: ClientFactory) -> None:
     """An unknown uid, or the uid of a run that is not an acquisition's: ``runState`` null."""
     client = v1_client(role="admin")

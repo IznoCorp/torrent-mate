@@ -114,6 +114,16 @@ describe("the result of a queued search", () => {
     expect(drawn).toEqual(["Lucky S01E01 1080p"]);
   });
 
+  it("keeps following past a status read refused for another reason than the session, as during a deploy", async () => {
+    server.states = [Object.assign(new Error("bad gateway"), { status: 502, title: "bad gateway", detail: "bad gateway" }), "settled"];
+    await searchWithThePickerOpen();
+
+    await vi.advanceTimersByTimeAsync(3_000);
+
+    expect(server.statusReads).toHaveLength(2);
+    expect(drawn).toEqual(["Lucky S01E01 1080p"]);
+  });
+
   it("gives up after about five minutes, reading both lists once more", async () => {
     server.states = ["queued"];
     await searchWithThePickerOpen();
