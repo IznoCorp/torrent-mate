@@ -192,7 +192,7 @@ async def main():
             str(offered))
 
         spent_before = await page.evaluate(SPENT)
-        aim = await tap_action(page, "ajout" if suggestion["k"] == "Film" else "suivre")
+        aim = await tap_action(page, "ajout" if suggestion["k"] == "movie" else "suivre")
         journal.check(
             "and it is on a button a finger reaches, hit-tested at its centre",
             aim["tapped"], str(aim))

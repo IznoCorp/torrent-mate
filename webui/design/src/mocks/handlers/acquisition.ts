@@ -41,14 +41,44 @@ const SETTLED_AT_READ = 2;
 // THE CURSOR THE DECK ISSUES (K3-G13). Opaque to the interface, which sends it back as it came;
 // here it says where the next page starts.
 const CURSOR_PREFIX = "deck-";
-// AND THE ONES IT ISSUES ARE THE ONLY ONES IT READS, as a server does: one before each page past
-// the first, by where that page starts.
-const ISSUED_CURSORS = new Map<string, number>(
-  Array.from({ length: Math.ceil(SUGGESTIONS.length / BATCH_SIZE) - 1 }, (_, page) => {
-    const from = (page + 1) * BATCH_SIZE;
-    return [`${CURSOR_PREFIX}${from}`, from];
-  }),
-);
+// AND THE ONES IT ISSUES ARE THE ONLY ONES IT READS, as a server does: each is recorded as a page
+// hands it out, by where the next one starts. A rejection moves where that is.
+const ISSUED_CURSORS = new Map<string, number>();
+
+// A suggestion's handle, as the contract's path parameter spells it.
+const SUGGESTION_ID = /^(movie|show):[^:]+:.+$/;
+const NO_SUGGESTION = "no card answers to that id";
+const NO_SUGGESTION_ID = "that is no suggestion's id";
+
+/**
+ * The ids the signed-in account rejected: its own, never another's (O-9 A).
+ *
+ * @returns The ids, held in the layer's state.
+ */
+function ownRejections(): string[] {
+  return (mockState().rejectedSuggestions[signedInId()] ??= []);
+}
+
+/**
+ * One page of the deck as the signed-in account reads it: full while the deck lasts, past what it
+ * rejected.
+ *
+ * @param start Where the page starts in the deck.
+ * @returns The page's cards, and the cursor that continues it, or null at the deck's end.
+ */
+function deckPage(start: number) {
+  const rejected = new Set(ownRejections());
+  const cards: typeof SUGGESTIONS = [];
+  let next = start;
+  while (next < SUGGESTIONS.length && cards.length < BATCH_SIZE) {
+    if (!rejected.has(SUGGESTIONS[next].id)) cards.push(SUGGESTIONS[next]);
+    next += 1;
+  }
+  if (next >= SUGGESTIONS.length) return { suggestions: cards, nextCursor: null };
+  const cursor = `${CURSOR_PREFIX}${next}`;
+  ISSUED_CURSORS.set(cursor, next);
+  return { suggestions: cards, nextCursor: cursor };
+}
 
 // A search page's bounds (K3-G14), the contract's own.
 const SEARCH_LIMIT = 20;
@@ -422,11 +452,25 @@ export function acquisitionRoutes(): MockRoute[] {
       const cursor = request.query.get("cursor");
       const from = cursor === null ? 0 : ISSUED_CURSORS.get(cursor);
       if (from === undefined) return refused(400, "the deck gave no such cursor", "request.invalid");
-      const to = from + BATCH_SIZE;
-      return {
-        suggestions: SUGGESTIONS.slice(from, to),
-        nextCursor: to < SUGGESTIONS.length ? `${CURSOR_PREFIX}${to}` : null,
-      };
+      return deckPage(from);
+    }),
+    // « REJETER », THE SIGNED-IN ACCOUNT'S ALONE (O-9 A): one already rejected stays so.
+    route("rejectSuggestion", POST, "/acquisition/suggestions/{suggestionId}/rejection", (request) => {
+      const id = request.parameters.suggestionId;
+      if (!SUGGESTION_ID.test(id)) return refused(400, NO_SUGGESTION_ID, "request.invalid");
+      if (!SUGGESTIONS.some((one) => one.id === id)) return refused(NOT_FOUND, NO_SUGGESTION, "suggestion.not_found");
+      const rejected = ownRejections();
+      if (!rejected.includes(id)) rejected.push(id);
+      return { ok: true };
+    }),
+    // « ANNULER » reads the account's rejections, never the deck.
+    route("undoSuggestionRejection", DELETE, "/acquisition/suggestions/{suggestionId}/rejection", (request) => {
+      const id = request.parameters.suggestionId;
+      if (!SUGGESTION_ID.test(id)) return refused(400, NO_SUGGESTION_ID, "request.invalid");
+      const rejected = ownRejections();
+      if (!rejected.includes(id)) return refused(NOT_FOUND, NO_SUGGESTION, "suggestion.not_found");
+      rejected.splice(rejected.indexOf(id), 1);
+      return { ok: true };
     }),
     route("readAcquisitionStatus", GET, "/acquisition/status", (request) => ({
       cadence: GRAB_CADENCE,

@@ -50,6 +50,9 @@
     "not_restorable": "Nothing was removed under this title: there is nothing to put back.",
     "ambiguous": "One identifier designates several follows: settle the duplicate before changing it."
   },
+  "suggestion": {
+    "not_found": "No suggestion answers this identifier: nothing was changed."
+  },
   "provider": {
     "unavailable": "A metadata provider did not answer; try again later."
   },

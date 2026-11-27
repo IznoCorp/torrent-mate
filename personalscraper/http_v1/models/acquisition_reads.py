@@ -6,9 +6,7 @@ say more than the services hold, and the mapping is deliberate:
 
 * a string the contract requires and the engine may not know (a release's ``resolution``, ``source`` and
   ``language``, a result's ``overview``) is ``""``, never ``null``;
-* ``Suggestion`` is the contract as it stands, before K3-G7 corrects it: ``year`` is a string, ``rating`` a
-  number, and ``why`` the run of pieces the interface words itself, here the reason's code (the contract
-  forbids the server its own words).
+* a suggestion's ``rating`` is a number the contract requires: ``0`` when none came with the title.
 """
 
 from __future__ import annotations
@@ -53,19 +51,6 @@ _RatioState = Annotated[
     ),
 ]
 
-
-#: The contract's ``SuggestionReason``: a piece of text, or a figure the interface emphasises.
-ReasonPiece = Annotated[
-    "str | EmphasisPiece",
-    WithJsonSchema(
-        {
-            "oneOf": [
-                {"type": "string"},
-                {"type": "object", "properties": {"emphasis": {"type": "string"}}, "required": ["emphasis"]},
-            ]
-        }
-    ),
-]
 
 #: A criterion's ``prefer``, with the ``null`` the contract lists among its enum members.
 _Prefer = Annotated[
@@ -248,35 +233,42 @@ class SearchResults(ContractModel):
         return cls(total=0, shown=0, results=[])
 
 
-class EmphasisPiece(ContractModel):
-    """A piece of a ``why`` the interface emphasises.
+class SuggestionReasonModel(ContractModel):
+    """The contract's ``SuggestionReason``: a code the interface words, and the values its words name.
 
     Attributes:
-        emphasis: The emphasised text.
+        code: Why the title is suggested.
+        titles: The titles the reason names; empty when nothing holds the seed any more.
+        count: How many titles recommend it, ``None``: the deck counts none (a title is stored
+            for the first seed that recommended it).
     """
 
-    emphasis: str
+    code: Literal["similar_to_owned", "similar_to_followed"]
+    titles: list[str]
+    count: int | None
 
 
 class SuggestionModel(ContractModel):
-    """The contract's ``Suggestion``, as it stands before K3-G7 corrects it.
+    """The contract's ``Suggestion``: one card of the deck.
 
     Attributes:
+        id: The card's handle, which a rejection and its undo address it by.
         title: The provider's title.
-        year: The year as text, ``""`` when none.
+        year: The release or first-air year, ``None`` when the provider gives none.
         kind: ``movie`` or ``show``.
         rating: The provider's rating, ``0`` when none came with the title.
-        why: The reason's code, which the interface words (the contract forbids the server its own words).
+        why: The reason's code and parameters, which the interface words.
         ids: Its provider identity, ``None`` when it has none the library knows.
         poster: The poster's address, ``None`` when none is known.
         poster_high_definition: The full-screen poster, ``None``: the deck keeps none.
     """
 
+    id: str
     title: str
-    year: str
-    kind: str
+    year: int | None
+    kind: Literal["movie", "show"]
     rating: float
-    why: list[ReasonPiece]
+    why: SuggestionReasonModel
     ids: ProviderIdsOrNull
     poster: str | None
     poster_high_definition: str | None
@@ -292,11 +284,12 @@ class SuggestionModel(ContractModel):
             The body.
         """
         return cls(
+            id=card.suggestion_id,
             title=card.title,
-            year="" if card.year is None else str(card.year),
+            year=card.year,
             kind=card.kind,
             rating=card.rating if card.rating is not None else 0.0,
-            why=[card.reason],
+            why=SuggestionReasonModel(code=card.reason, titles=list(card.reason_titles), count=None),
             ids=ids_of(card.ids),
             poster=card.poster,
             poster_high_definition=None,

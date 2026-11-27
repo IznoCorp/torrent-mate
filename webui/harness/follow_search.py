@@ -59,7 +59,7 @@ UNFOUND = "async () => {" + KEY_OF + """
   const deck = await (await fetch('/api/v1/acquisition/suggestions')).json();
   for (const one of deck.suggestions) {
     if (one.ids?.tmdb === undefined) continue;
-    const kind = one.kind === 'Film' ? 'movie' : 'show';
+    const kind = one.kind;
     const answer = await fetch('/api/v1/acquisition/followed', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: one.title, kind, provider: 'tmdb', providerId: Number(one.ids.tmdb) }) });

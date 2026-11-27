@@ -24,13 +24,13 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 109 |
+| operations the interface requires | 111 |
 | operations the backend has | 65 |
-| required and missing | 56 |
+| required and missing | 58 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 10 |
-| fields carried pre-formatted | 20 |
+| fields carried pre-formatted | 19 |
 | the backend has and the interface does not use | 12 |
 
 ---
@@ -40,6 +40,7 @@ than a blank page.
 | operation | operationId | what it is for |
 | --- | --- | --- |
 | `DELETE /api/v1/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
+| `DELETE /api/v1/acquisition/suggestions/{suggestionId}/rejection` | `undoSuggestionRejection` | Undo a rejection |
 | `DELETE /api/v1/auth/sessions/{sessionId}` | `revokeOwnSession` | End one of the signed-in account's other sessions |
 | `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete media from the library, by provider identity |
 | `DELETE /api/v1/roles/{roleId}` | `deleteRole` | Delete a role nobody holds |
@@ -76,6 +77,7 @@ than a blank page.
 | `POST /api/v1/acquisition/journeys/{infoHash}/closure/seen` | `dismissClosure` | Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4) |
 | `POST /api/v1/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/v1/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
+| `POST /api/v1/acquisition/suggestions/{suggestionId}/rejection` | `rejectSuggestion` | Reject a suggestion, for the signed-in account alone |
 | `POST /api/v1/auth/plex` | `signInWithPlex` | Open a session through Plex |
 | `POST /api/v1/auth/plex/start` | `startPlexSignIn` | Start a Plex sign-in |
 | `POST /api/v1/decisions/{decisionId}/reopen` | `reopenDecision` | Re-open a settled decision for arbitration, with the candidates a provider search finds |
@@ -240,7 +242,6 @@ yet.
 | `QueueCard` | `reason` |
 | `QueueCard` | `secondaryLine` |
 | `SettledDecision` | `when` |
-| `Suggestion` | `kind` |
 
 ## 4. Operations the backend has and the interface does not use
 

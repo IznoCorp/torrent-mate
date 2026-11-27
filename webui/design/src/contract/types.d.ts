@@ -587,11 +587,38 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Titles worth following, and why */
+        /**
+         * Titles worth following, and why
+         * @description The deck, minus what the library owns, what is followed, and what the SIGNED-IN ACCOUNT rejected (`rejectSuggestion`): another account's rejection hides nothing from it.
+         */
         get: operations["readSuggestions"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/acquisition/suggestions/{suggestionId}/rejection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a suggestion, for the signed-in account alone
+         * @description « Rejeter ». The card leaves the signed-in account's deck and no other account's, and stays out of it across refreshes of the deck. Rejecting what the account already rejected answers 200 and changes nothing.
+         */
+        post: operations["rejectSuggestion"];
+        /**
+         * Undo a rejection
+         * @description « Annuler ». The signed-in account's rejection is removed, and the card is back in its deck while the deck holds it. It reads the account's own rejections, never the deck: a card the deck has since dropped is undone too.
+         */
+        delete: operations["undoSuggestionRejection"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2067,18 +2094,28 @@ export interface components {
             shown: number;
             results: components["schemas"]["SearchResult"][];
         };
-        /** @description why a title is suggested, as a run of pieces: plain text, and figures the interface emphasises. */
-        SuggestionReason: string | {
-            emphasis: string;
+        /** @description why a title is suggested: a CODE the interface words in its own strings (fr.json), and the values those words name. The server sends no sentence. */
+        SuggestionReason: {
+            /**
+             * @description `similar_to_owned`: the title resembles what the library holds; `similar_to_followed`: what is followed
+             * @enum {string}
+             */
+            code: "similar_to_owned" | "similar_to_followed";
+            /** @description the titles the reason rests on, which the words name; the first is the one emphasised when no `count` is given. Empty when the server can name none */
+            titles: string[];
+            /** @description how many titles recommend this one, which the words then emphasise; null when they were not counted */
+            count: number | null;
         };
         Suggestion: {
+            /** @description the card's handle, which `rejectSuggestion` and `undoSuggestionRejection` address it by: issued by the server, opaque, sent back as it came, and the same from one deck to the next */
+            id: string;
             title: string;
-            year: string;
-            /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            kind: string;
+            /** @description the release or first-air year, null when none is known */
+            year: number | null;
+            /** @enum {string} */
+            kind: "movie" | "show";
             rating: number;
-            /** @description why the title is suggested, as a run of pieces: plain text, and the figures the interface emphasises. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
-            why: components["schemas"]["SuggestionReason"][];
+            why: components["schemas"]["SuggestionReason"];
             /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
@@ -3194,7 +3231,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "session.unknown" | "session.current" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable" | "acquisition.not_found" | "acquisition.not_requester" | "acquisition.follow_shared" | "acquisition.release_unavailable" | "follow.not_restorable" | "follow.ambiguous";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "request.key_reused" | "request.in_progress" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "session.unknown" | "session.current" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked" | "library.obligations_unreadable" | "library.unavailable" | "acquisition.not_found" | "acquisition.not_requester" | "acquisition.follow_shared" | "acquisition.release_unavailable" | "follow.not_restorable" | "follow.ambiguous" | "suggestion.not_found";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -4511,6 +4548,92 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    rejectSuggestion: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Names this write, so that sending it again never applies it twice (the offline outbox re-sends a held write with the key it first carried). Sent again with the same request, the first answer is answered again — its status and its body — and nothing is applied; sent with another request (another body or query on the same method and path), it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`, which the client retries. A key is scoped to the signed-in account and to the method and path, and kept 24 hours. Only an answer that will not change is kept: a success, or a final refusal (400, 404, 405, 409, 410, 415, 422); any other answer (401, 403, 408, 423, 429, a 5xx) keeps nothing, and the retry with the same key applies. Without it, every send applies. The public sign-in doors (signIn, signInWithPlex, startPlexSignIn) take none: they sign no account in to scope it to, and the client never holds one offline. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                /** @description the card's handle, its `Suggestion.id` as it came */
+                suggestionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the account's deck no longer holds it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description `suggestion.not_found`: no card of the deck bears that id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    undoSuggestionRejection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Names this write, so that sending it again never applies it twice (the offline outbox re-sends a held write with the key it first carried). Sent again with the same request, the first answer is answered again — its status and its body — and nothing is applied; sent with another request (another body or query on the same method and path), it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`, which the client retries. A key is scoped to the signed-in account and to the method and path, and kept 24 hours. Only an answer that will not change is kept: a success, or a final refusal (400, 404, 405, 409, 410, 415, 422); any other answer (401, 403, 408, 423, 429, a 5xx) keeps nothing, and the retry with the same key applies. Without it, every send applies. The public sign-in doors (signIn, signInWithPlex, startPlexSignIn) take none: they sign no account in to scope it to, and the client never holds one offline. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                /** @description the card's handle, its `Suggestion.id` as it came */
+                suggestionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the account no longer rejects it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description `suggestion.not_found`: the account holds no rejection of that id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

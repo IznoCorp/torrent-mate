@@ -50,6 +50,9 @@
     "not_restorable": "Rien de retiré sous ce titre : il n'y a rien à remettre.",
     "ambiguous": "Un même identifiant désigne plusieurs suivis : réglez le doublon avant de le modifier."
   },
+  "suggestion": {
+    "not_found": "Aucune suggestion ne répond à cet identifiant : rien n'a été changé."
+  },
   "provider": {
     "unavailable": "Un fournisseur de métadonnées n'a pas répondu ; réessayez plus tard."
   },

@@ -83,6 +83,7 @@ class RefusalCode(StrEnum):
     ACQUISITION_RELEASE_UNAVAILABLE = "acquisition.release_unavailable"
     FOLLOW_NOT_RESTORABLE = "follow.not_restorable"
     FOLLOW_AMBIGUOUS = "follow.ambiguous"
+    SUGGESTION_NOT_FOUND = "suggestion.not_found"
 
 
 class AppRefusal(Exception):

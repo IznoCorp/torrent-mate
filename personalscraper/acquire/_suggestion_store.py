@@ -119,6 +119,23 @@ class _SuggestionSubStore:
         ).fetchall()
         return [_to_row(r) for r in rows]
 
+    def holds(self, provider: str, provider_id: str, kind: str) -> bool:
+        """Whether the deck holds a title.
+
+        Args:
+            provider: The provider that recommended it.
+            provider_id: Its id at that provider.
+            kind: ``"movie"`` or ``"show"``.
+
+        Returns:
+            ``True`` when a row of the deck bears the three.
+        """
+        row = self._conn.execute(
+            "SELECT 1 FROM suggestion WHERE provider = ? AND provider_id = ? AND kind = ?",
+            (provider, provider_id, kind),
+        ).fetchone()
+        return row is not None
+
     def refreshed_at(self) -> int | None:
         """Return when the deck was last refreshed.
 

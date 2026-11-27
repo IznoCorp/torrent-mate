@@ -298,8 +298,8 @@ async def main():
         # over a panel that says the right word and draws the wrong promise.
         kinds = await page.evaluate("""()=>{
           const all = window.__suggestions();
-          const film = all.findIndex((s) => s.kind === 'Film');
-          const series = all.findIndex((s) => s.kind !== 'Film');
+          const film = all.findIndex((s) => s.kind === 'movie');
+          const series = all.findIndex((s) => s.kind === 'show');
           return {film, series};}""")
         journal.check(
             "the reserve carries both a film and a series, so « the verb "

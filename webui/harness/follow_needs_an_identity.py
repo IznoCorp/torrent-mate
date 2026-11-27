@@ -75,12 +75,11 @@ FOLLOWS = """async()=>{
 # the join the create falls back on when the request names no identity. ASKED
 # FOR ONE KIND AT A TIME: f3's subject is a series and f4's a film, and a rule
 # whose two holds share a subject holds one thing twice.
-# french-ok: the kind word the seeds carry, a data value compared where it arrives
 IDENTIFIABLE = """async(wanted)=>{
   const answer = await fetch("/api/v1/acquisition/suggestions");
   const body = await answer.json();
   const rows = Array.isArray(body) ? body : (body.items ?? body.suggestions ?? []);
-  const isFilm = (row) => row.kind === "Film";
+  const isFilm = (row) => row.kind === "movie";
   const named = rows.find((row) => row.ids && Object.keys(row.ids).length > 0
                                    && isFilm(row) === (wanted === "movie"));
   return named ? {title: named.title, kind: wanted} : null;
