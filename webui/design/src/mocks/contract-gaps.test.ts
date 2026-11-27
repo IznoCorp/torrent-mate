@@ -6,7 +6,6 @@
 // the code the contract declares.
 import { beforeEach, describe, expect, it } from "vitest";
 import FOLLOWS from "./seeds/follows.json";
-import SEARCH_RESULTS from "./seeds/search-results.json";
 import SUGGESTIONS from "./seeds/suggestions.json";
 import { routes } from "./handlers";
 import { resolve, settled } from "./router";
@@ -73,10 +72,6 @@ describe("the provider search, by page (K3-G14)", () => {
     expect(whole.total).toBeGreaterThan(2);
     expect(page.results).toEqual(whole.results.slice(1, 3));
     expect([page.shown, page.total]).toEqual([2, whole.total]);
-  });
-
-  it("carries twenty results when no limit is asked", () => {
-    expect(call("GET", PATH, { query: WORD }).payload.shown).toBe(Math.min(20, SEARCH_RESULTS.results.length));
   });
 
   it.each<Record<string, string>>([{ limit: "0" }, { limit: "101" }, { offset: "-1" }, { limit: "two" }])(

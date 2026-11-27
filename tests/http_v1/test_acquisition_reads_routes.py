@@ -409,7 +409,7 @@ class TestSearchProviders:
     def test_a_page_holds_twenty_results_and_the_total_says_how_many_there_are(
         self, v1_client: Callable[..., TestClient], tmdb: _Tmdb
     ) -> None:
-        """The contract declares no offset or limit: the first twenty are served, ``total`` names the rest."""
+        """With no ``limit`` asked the first twenty are served, and ``total`` names how many there are."""
         tmdb.movies = [
             SearchResult(
                 provider="tmdb",
@@ -665,7 +665,7 @@ class TestReadSuggestions:
         """A show of the deck: its year as text, the reason's code as ``why``, its ids, no full-screen poster."""
         _deck(acquire, 3)
 
-        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()
+        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
 
         assert cards[0] == {
             "title": "Title 1",
@@ -684,55 +684,9 @@ class TestReadSuggestions:
         """The contract types ``year`` as text and ``rating`` as a number: an unknown year is ``""``, a rating ``0``."""
         _deck(acquire, 3)
 
-        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()
+        cards = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
 
         assert (cards[1]["year"], cards[2]["rating"]) == ("", 0)
-
-    def test_the_deck_continues_past_the_last_title_the_reader_holds(
-        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
-    ) -> None:
-        """``after`` is the title of the last card (the interface's own way); an exhausted deck is an empty list."""
-        _deck(acquire, 25)
-        client = v1_client(rights=_REQUEST)
-
-        first = client.get("/acquisition/suggestions").json()
-        second = client.get("/acquisition/suggestions", params={"after": first[-1]["title"]}).json()
-        third = client.get("/acquisition/suggestions", params={"after": second[-1]["title"]}).json()
-
-        assert [c["title"] for c in first] == [f"Title {n}" for n in range(1, 21)]
-        assert [c["title"] for c in second] == [f"Title {n}" for n in range(21, 26)]
-        assert third == []
-
-    def test_after_a_title_two_cards_bear_restarts_past_the_first_of_them(
-        self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
-    ) -> None:
-        """A LIMIT OF THE CONTRACT, pinned: ``after`` is a title, and a title is not unique in the deck.
-
-        A film and a show can bear one title. The page continues past the FIRST card of that title, so a
-        reader whose last card is the second one is served the cards between the two again.
-        """
-        titles = ["Dune", "Arrival", "Dune", "Tenet"]
-        acquire.suggestions.replace_deck(
-            [
-                SuggestionRow(
-                    provider="tmdb",
-                    provider_id=str(n),
-                    kind="movie" if n % 2 else "show",
-                    title=title,
-                    year=2021,
-                    rating=7.0,
-                    poster=None,
-                    reason="similar_to_owned",
-                    seed_key="tmdb:603",
-                    refreshed_at=1_800_000_000,
-                )
-                for n, title in enumerate(titles, start=1)
-            ]
-        )
-
-        served = v1_client(rights=_REQUEST).get("/acquisition/suggestions", params={"after": "Dune"}).json()
-
-        assert [(c["title"], c["kind"]) for c in served] == [("Arrival", "show"), ("Dune", "movie"), ("Tenet", "show")]
 
     def test_the_next_cursor_continues_the_deck_to_its_end(
         self, v1_client: Callable[..., TestClient], acquire: ConcreteAcquireStore
@@ -798,7 +752,8 @@ class TestReadSuggestions:
         _deck(acquire, 3)
         acquire.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=1), title="Title 1", added_at=1, kind="show"))
 
-        titles = [c["title"] for c in v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()]
+        served = v1_client(rights=_REQUEST).get("/acquisition/suggestions").json()["suggestions"]
+        titles = [c["title"] for c in served]
 
         assert titles == ["Title 2", "Title 3"]
 

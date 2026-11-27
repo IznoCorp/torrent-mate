@@ -515,7 +515,7 @@ def test_the_completeness_of_a_follow_without_a_catalogue_is_unknown(v1_client: 
     body = response.json()
     assert body["title"] == follow["title"] and body["kind"] == "show"
     assert (body["seasons"], body["source"], body["providerCatalogEmpty"]) == ([], "unknown", False)
-    assert isinstance(body["followedId"], int)
+    assert body["followedId"] == SILO_KEY
 
 
 def test_the_completeness_names_the_follow_by_its_key(v1_client: ClientFactory) -> None:
