@@ -141,6 +141,7 @@ class TestSchedulersRoute:
             "personalscraper-follow-detect",
             "personalscraper-grab",
             "personalscraper-index-enrich",
+            "personalscraper-suggestions-refresh",
             "personalscraper-seed-sweep",
             "personalscraper-preprod-purge",
         }

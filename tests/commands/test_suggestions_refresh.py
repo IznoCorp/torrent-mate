@@ -20,12 +20,11 @@ from typer.testing import CliRunner
 
 from personalscraper.acquire.domain import FollowedSeries, SuggestionRow
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
+from personalscraper.acquire.suggestions_refresh import DEFAULT_MIN_INTERVAL_S
+from personalscraper.acquire.suggestions_refresh import refresh_suggestions as _refresh
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import Recommendation
-from personalscraper.app.acquisition.suggestions_refresh import (
-    DEFAULT_MIN_INTERVAL_S,
-    refresh_suggestions,
-)
+from personalscraper.app.acquisition.held_titles import held_titles
 from personalscraper.cli import app
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
@@ -73,6 +72,11 @@ class _FakeIndex:
         return nullcontext(SimpleNamespace(live_items=lambda: list(self.items)))
 
 
+def refresh_suggestions(store: ConcreteAcquireStore, index: _FakeIndex, providers: list[_Provider], **kwargs: object):  # noqa: ANN201
+    """Run the refresh with the library read through ``index``, as the command wires it."""
+    return _refresh(store, lambda: held_titles(index), providers, **kwargs)  # type: ignore[arg-type]
+
+
 def _item(kind: Literal["movie", "show"], title: str, **ids: int | str) -> IndexItem:
     """A library row holding ``ids`` (``tvdb`` / ``tmdb`` ints, ``imdb`` text)."""
     return IndexItem(
@@ -118,8 +122,15 @@ class TestSeeds:
 
     def test_follows_seed_first_then_the_library_through_the_index(self, store: ConcreteAcquireStore) -> None:
         """The provider is asked by IMDb id (Trakt's), a film as a film and a show as a show."""
-        store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1, imdb_id="tt0000001"), title="Followed", added_at=1))
-        index = _FakeIndex([_item("movie", "Held film", tmdb=2, imdb="tt0000002"), _item("show", "Held show", tvdb=3, imdb="tt0000003")])
+        store.follow.add(
+            FollowedSeries(media_ref=MediaRef(tvdb_id=1, imdb_id="tt0000001"), title="Followed", added_at=1)
+        )
+        index = _FakeIndex(
+            [
+                _item("movie", "Held film", tmdb=2, imdb="tt0000002"),
+                _item("show", "Held show", tvdb=3, imdb="tt0000003"),
+            ]
+        )
         provider = _Provider()
 
         refresh_suggestions(store, index, [provider], now=_NOW, max_seeds=10)

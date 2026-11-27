@@ -266,5 +266,12 @@
   "follows_reproject": {
     "command_help": "Réécrit, pour chaque suivi, ce que ses demandeurs mettent en vigueur sur la ligne que lit le moteur : le plancher de qualité et la pause, d'après les rôles actuels. Action d'écriture ; répare une projection restée périmée après un évènement de droits manqué.",
     "refused": "Refusé : {{code}}"
+  },
+  "suggestions_refresh": {
+    "command_help": "Reconstruit le paquet de suggestions : des titres à suivre, tirés des recommandations des fournisseurs à partir des titres que les suivis et la bibliothèque contiennent.\n\nPoli : un paquet rafraîchi il y a moins d'une semaine n'est pas redemandé (--force le lève), et --max borne les titres de départ interrogés en une exécution ; les autres attendent la suivante. L'échec d'un fournisseur sur un titre est compté et l'exécution continue ; quand aucun fournisseur ne répond, le paquet précédent reste. Affiche un résumé JSON. Conçu pour tourner sous `personalscraper schedule` (chaque semaine).",
+    "max_help": "Le nombre maximal de titres de départ (de la bibliothèque ou suivis) soumis aux fournisseurs en une exécution.",
+    "force_help": "Interroger les fournisseurs même si le paquet a été rafraîchi il y a moins d'une semaine.",
+    "db_paths_not_configured": "acquire.db_path et indexer.db_path doivent être tous deux configurés.",
+    "no_provider": "Aucun fournisseur de recommandations n'est configuré (providers.RecommendationProvider) : rien n'a été demandé."
   }
 }
