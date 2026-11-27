@@ -46,7 +46,7 @@ from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.acquisition.follow_repository import FollowRepository
 from personalscraper.app.acquisition.model import FollowId
 from personalscraper.app.errors import AppBadRequest, AppNotFound, RefusalCode
-from personalscraper.core.identity import MediaRef
+from personalscraper.core.identity import ItemId, MediaRef
 from personalscraper.indexer.library_view import IndexUnavailable
 from personalscraper.logger import get_logger
 
@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     from personalscraper.app.accounts.actor import Actor
     from personalscraper.app.accounts.ids import AccountId
     from personalscraper.app.acquisition.completeness import OwnershipReader
-    from personalscraper.indexer.library_view import IndexItem, ItemId
+    from personalscraper.indexer.library_view import IndexItem
 
 log = get_logger("app.acquisition.suggestions")
 

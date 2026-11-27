@@ -90,7 +90,11 @@ async def throw_right(page, cdp, selector):
     box = await page.evaluate("""(selector)=>{
         const b = document.querySelector(selector).getBoundingClientRect();
         return {x: b.left + b.width / 2, y: b.top + b.height / 2};}""", selector)
-    point = lambda x: [{"x": x, "y": box["y"], "id": 1}]
+
+    def point(x):
+        """The one finger's touch point at an abscissa, on the card's line."""
+        return [{"x": x, "y": box["y"], "id": 1}]
+
     await cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": point(box["x"])})
     for step in range(1, 13):
         await cdp.send("Input.dispatchTouchEvent",
