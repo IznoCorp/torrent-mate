@@ -134,6 +134,13 @@ def test_a_show_is_followed_and_answers_its_follow(v1_client: ClientFactory) -> 
     assert isinstance(follow["addedAt"], int | float)
 
 
+def test_a_show_with_no_cached_catalogue_carries_no_counts_never_a_null(v1_client: ClientFactory) -> None:
+    """``aired`` and ``owned`` are integers in the contract: with no aired catalogue they are absent, not ``null``."""
+    follow = _follow(v1_client())
+
+    assert "aired" not in follow and "owned" not in follow
+
+
 def test_a_film_is_followed_and_carries_no_show_block(v1_client: ClientFactory) -> None:
     """A film's follow has no ``aired``, ``owned`` nor a show status: the contract's shows-only properties."""
     follow = _follow(v1_client(), HEAT)

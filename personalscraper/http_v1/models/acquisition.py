@@ -1,9 +1,9 @@
 """The ``acquisition`` tag's follow bodies, from the contract's ``Follow``, ``FollowCompleteness`` and the writes.
 
-A property the contract leaves out of its required set and does not make nullable (a show's ``aired``
-and ``owned``) is never assigned on a film, and the routes serialise a ``Follow`` with
-``response_model_exclude_unset``: a film's follow carries no show counts at all, while every required
-property, null included, is always assigned.
+A property the contract leaves out of its required set and does not make nullable (a show's ``aired`` and
+``owned``) is never assigned on a film, nor on a show whose count is unknown, and the routes serialise a
+``Follow`` with ``response_model_exclude_unset``: a film's follow carries no show counts at all, while every
+required property, null included, is always assigned.
 
 The follow is named on the wire by the medium's key, ``<provider>:<providerId>`` (O-1 A), parsed by
 :meth:`~personalscraper.app.acquisition.model.AcquisitionKey.parse`; no body here carries a title as an identity.
@@ -169,7 +169,9 @@ class FollowModel(ContractModel):
         Returns:
             The body.
         """
-        shows_only: dict[str, int | None] = {"owned": view.owned, "aired": view.aired} if view.kind == "show" else {}
+        # Integers in the contract: a count the service does not know (no aired catalogue cached) is left unassigned.
+        counts = {"owned": view.owned, "aired": view.aired} if view.kind == "show" else {}
+        shows_only = {name: count for name, count in counts.items() if count is not None}
         return cls(
             title=view.title,
             kind=view.kind,
