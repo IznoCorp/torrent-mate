@@ -1988,6 +1988,7 @@
     },
     "add": {
       "meta": "{{year}} · {{kind}} · TMDB",
+      "metaNoYear": "{{kind}} · TMDB",
       "ownedBefore": "Already in the library — the acquisition ",
       "ownedEmphasis": "will replace",
       "ownedAfter": " the version in place.",

@@ -11,8 +11,8 @@ import { addVerb } from "./add-label";
 import { beginVisit, markAdded, setVisitMode } from "./add-visit";
 import type { SearchResult } from "./types";
 
-const film = { title: "Dune", year: "2021", kind: "Film", overview: "", owned: false, followed: false, ids: { tmdb: 438631 }, poster: null } as SearchResult;
-const series = { ...film, title: "Silo", kind: "Série", ids: { tvdb: 403245 } } as SearchResult; // french-ok: a data value the search answers
+const film = { title: "Dune", year: 2021, kind: "movie", overview: "", owned: false, followed: false, ids: { tmdb: 438631 }, poster: null } as SearchResult;
+const series = { ...film, title: "Silo", kind: "show", ids: { tvdb: 403245 } } as SearchResult;
 const ownedFilm = { ...film, owned: true, ids: { tmdb: 1 } };
 
 beforeEach(() => {

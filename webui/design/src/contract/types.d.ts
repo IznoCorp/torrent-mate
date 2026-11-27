@@ -515,7 +515,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Take one season of a medium, following it first if it is not followed yet */
+        /**
+         * Take one season of a medium, as a one-off request when it is not followed
+         * @description Asks for one season of a medium WITHOUT following it (round 10 Q2): a medium nobody follows gets a one-off request that ends with its season, and « Suivre » is what turns it into a follow. The path says `follows` where its neighbours say `followed`; the spelling is not functional and stays.
+         */
         post: operations["grabSeasonForFollow"];
         delete?: never;
         options?: never;
@@ -2002,12 +2005,13 @@ export interface components {
             /** @description movie or show */
             kind: string;
             year: number | string;
-            /** @description the acquisition status token */
-            status: string;
+            /**
+             * @description the acquisition status token
+             * @enum {string}
+             */
+            status: "disabled" | "verifying" | "to_grab" | "acquiring" | "pending" | "unverified" | "up_to_date" | "ended";
             /** @description whether the SHOW is still running — « Continuing » — and null for a film. The fixture's key is `serie`, which reads as a series NAME and is not one: the eight shows all carry « Continuing » and the four films carry null. The rename was `series` until the data was read. */
             showStatus: string | null;
-            /** @description when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            since: string;
             /** @description when the follow was made, Unix-epoch seconds — what Suivis' « Suivi récemment » sort orders by, the newest first (maquette-blocked § 1.9, the operator's round 3 q1 = C). A DEMAND (BK8): the backend holds the follow's creation and does not serve it */
             addedAt: number;
             /** @description the date of the medium's next release, ISO `YYYY-MM-DD` — a series' next episode, a film's release — or null when none is known; what Suivis' « Prochaine sortie » sort orders by, a follow with none last (maquette-blocked § 1.9, the operator's round 3 q1 = C). A DEMAND (BK8) */
@@ -2037,9 +2041,13 @@ export interface components {
         };
         SearchResult: {
             title: string;
-            year: string;
-            /** @description the provider's own word for the kind. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            kind: string;
+            /** @description the year the medium was released, or null when the provider gives none */
+            year: number | null;
+            /**
+             * @description movie or show
+             * @enum {string}
+             */
+            kind: "movie" | "show";
             overview: string;
             owned: boolean;
             followed: boolean;
@@ -2075,6 +2083,8 @@ export interface components {
             posterHighDefinition: string | null;
         };
         Release: {
+            /** @description the candidate's handle: `grabForFollow` chooses a release by it, never by its name */
+            id: string;
             /** @description the release name, as the tracker publishes it */
             name: string;
             resolution: string;
@@ -2084,6 +2094,10 @@ export interface components {
             sizeGigabytes: number;
             /** @description the ranking score */
             score: number;
+            /** @description the season the release is of, 1-based; null for a film (demand SR6) */
+            season: number | null;
+            /** @description the episode the release is of, 1-based; null for a whole season and for a film (demand SR6) */
+            episode: number | null;
         };
         PipelineStep: {
             /** @description the step identifier */
@@ -2851,10 +2865,10 @@ export interface components {
             /** @description whether it has fewer seeders than the ranking's `minSeeders` — shown, sunk last, never dropped */
             excluded: boolean;
             /**
-             * @description where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored
+             * @description where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; `unknown` when the tracker has a policy and no ratio has been read for it; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored
              * @enum {string|null}
              */
-            trackerRatioState: "under_floor" | "under_target" | "comfortable" | null;
+            trackerRatioState: "under_floor" | "under_target" | "comfortable" | "unknown" | null;
         };
         /** @description the sample set, scored and ordered: the releases kept by score, the excluded ones last */
         RankingPreview: {
@@ -4016,7 +4030,7 @@ export interface operations {
     readFollows: {
         parameters: {
             query?: {
-                /** @description which body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs. */
+                /** @description THE MAQUETTE'S DATA DIAL, not a parameter of the operation: v1 ignores it and answers the one body of data it holds. In the maquette it picks the body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs. */
                 scenario?: "real" | "loaded";
             };
             header?: never;
@@ -4089,7 +4103,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -4110,6 +4124,15 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            /** @description no follow answers to that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -4123,7 +4146,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -4131,7 +4154,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    status: string;
+                    /**
+                     * @description `disabled` pauses the follow; `pending` resumes a film and `up_to_date` a show, the two places a lifted pause goes back to
+                     * @enum {string}
+                     */
+                    status: "disabled" | "pending" | "up_to_date";
                 };
             };
         };
@@ -4147,7 +4174,24 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
-            403: components["responses"]["Problem"];
+            /** @description refused: `right.missing`, or `acquisition.follow_shared` when other accounts asked for this follow too and the caller does not pilot every acquisition — each pauses it for itself (`setAcquisitionPause`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description no follow answers to that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -4161,7 +4205,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -4202,7 +4246,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -4224,6 +4268,15 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            /** @description no follow answers to that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -4237,7 +4290,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the medium; it is followed by this act if it was not already. The interface knows it by TITLE */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title; a medium nobody follows is not followed by this act */
                 followedId: string;
                 /** @description the season, 1-based */
                 season: number;
@@ -4303,7 +4356,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -4311,8 +4364,8 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
-                    /** @description the release the picker chose; absent, the grab takes what the last search marked takeable. The backend's grab takes no body: the chosen release is a demand */
-                    releaseName?: string;
+                    /** @description the release the picker chose, by its `Release.id`; absent, the grab takes what the last search marked takeable */
+                    releaseId?: string;
                 };
             };
         };
@@ -4332,6 +4385,15 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            /** @description no follow answers to that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -4627,11 +4689,11 @@ export interface operations {
     readReleases: {
         parameters: {
             query?: {
-                /** @description the title they are for */
-                title?: string;
-                /** @description the season */
+                /** @description the wanted item's medium: the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title. Absent, the candidates of every item (what the quality profile counts against) */
+                followedId?: string;
+                /** @description the season, 1-based — absent for a film */
                 season?: number;
-                /** @description the episode */
+                /** @description the episode, 1-based — absent for a whole season and for a film */
                 episode?: number;
             };
             header?: never;
@@ -6168,7 +6230,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -6372,11 +6434,11 @@ export interface operations {
                      * @enum {string}
                      */
                     kind: "follow" | "card";
-                    /** @description the acquisition, by its title */
-                    title: string;
-                    /** @description the requester moved off */
+                    /** @description the acquisition: the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
+                    acquisition: string;
+                    /** @description the requester moved off, by its account id (`AccountRef.id`) */
                     from: string;
-                    /** @description the account moved on */
+                    /** @description the account moved on, by its account id (`AccountRef.id`) */
                     to: string;
                 };
             };
@@ -6410,7 +6472,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -6418,8 +6480,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description a quality profile's name, or null to follow the default */
-                    profile: string | null;
+                    /**
+                     * @description the resolution floor the caller sets on this acquisition, or null to follow the default. The floor is the whole of the operation: no other field of a quality profile (audio, 3D, a known resolution) has a write
+                     * @enum {string|null}
+                     */
+                    profile: "720p" | "1080p" | "2160p" | null;
                 };
             };
         };
@@ -6436,6 +6501,15 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            /** @description no follow answers to that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -6449,7 +6523,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
             };
             path: {
-                /** @description the follow */
+                /** @description the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title */
                 followedId: string;
             };
             cookie?: never;
@@ -6474,6 +6548,15 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            /** @description no follow answers to that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

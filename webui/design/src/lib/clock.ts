@@ -81,3 +81,19 @@ export function momentOf(epoch: number, now: Date = new Date()): string {
   const date = new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long" }).format(instant);
   return i18next.t("surfaces.clock.dayAndTime", { day: date, time: timeOfDay(epoch) });
 }
+
+/**
+ * A moment, as a sentence says it: the day and the month.
+ *
+ * The one date a row says about when something began — a follow's « suivi
+ * depuis le », a tracker's « ajouté le » — read off an epoch the server serves,
+ * never off a string it pre-formatted (K3-G10).
+ *
+ * @param epochSeconds The moment, Unix-epoch seconds.
+ * @returns The day in the interface's language.
+ */
+export function dayOf(epochSeconds: number): string {
+  return new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long" }).format(
+    new Date(epochSeconds * 1000),
+  );
+}

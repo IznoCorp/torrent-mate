@@ -2,7 +2,6 @@
   {
     "title": "Kyma, l'onde mystérieuse",
     "showStatus": null,
-    "since": "9 août",
     "addedAt": 1786276800,
     "nextAirDate": "2026-11-18",
     "searches": 13,
@@ -19,7 +18,6 @@
   {
     "title": "L'Odyssée",
     "showStatus": null,
-    "since": "6 août",
     "addedAt": 1786017600,
     "nextAirDate": null,
     "searches": 16,
@@ -35,7 +33,6 @@
   {
     "title": "Spider-Man : Brand New Day",
     "showStatus": null,
-    "since": "5 août",
     "addedAt": 1785931200,
     "nextAirDate": "2026-12-16",
     "searches": 19,
@@ -51,7 +48,6 @@
   {
     "title": "Wicker",
     "showStatus": null,
-    "since": "31 juillet",
     "addedAt": 1785499200,
     "nextAirDate": null,
     "searches": 18,
@@ -67,7 +63,6 @@
   {
     "title": "American Dad!",
     "showStatus": "Continuing",
-    "since": "3 juillet",
     "addedAt": 1783080000,
     "nextAirDate": "2026-10-06",
     "searches": 79,
@@ -86,7 +81,6 @@
   {
     "title": "Dexter: Resurrection",
     "showStatus": "Continuing",
-    "since": "5 août",
     "addedAt": 1785931200,
     "nextAirDate": null,
     "searches": 0,
@@ -105,7 +99,6 @@
   {
     "title": "Furious",
     "showStatus": "Continuing",
-    "since": "27 juillet",
     "addedAt": 1785153600,
     "nextAirDate": "2026-10-14",
     "searches": 15,
@@ -124,7 +117,6 @@
   {
     "title": "House of the Dragon",
     "showStatus": "Continuing",
-    "since": "3 juillet",
     "addedAt": 1783080000,
     "nextAirDate": "2027-06-21",
     "searches": 17,
@@ -143,7 +135,6 @@
   {
     "title": "President Curtis",
     "showStatus": "Continuing",
-    "since": "29 juillet",
     "addedAt": 1785326400,
     "nextAirDate": "2026-10-09",
     "searches": 23,
@@ -162,7 +153,6 @@
   {
     "title": "Silo",
     "showStatus": "Continuing",
-    "since": "3 juillet",
     "addedAt": 1783080000,
     "nextAirDate": "2026-10-03",
     "searches": 13,
@@ -181,7 +171,6 @@
   {
     "title": "Star Trek: Strange New Worlds",
     "showStatus": "Continuing",
-    "since": "28 juillet",
     "addedAt": 1785240000,
     "nextAirDate": "2027-01-15",
     "searches": 19,
@@ -200,7 +189,6 @@
   {
     "title": "Ted Lasso",
     "showStatus": "Continuing",
-    "since": "4 août",
     "addedAt": 1785844800,
     "nextAirDate": "2026-10-22",
     "searches": 15,
@@ -219,7 +207,6 @@
   {
     "title": "Dark Matter",
     "showStatus": "Annulée",
-    "since": "12 juin",
     "addedAt": 1781265600,
     "nextAirDate": null,
     "searches": 9,
@@ -238,7 +225,6 @@
   {
     "title": "Premier Contact",
     "showStatus": null,
-    "since": "27 mai",
     "addedAt": 1779883200,
     "nextAirDate": null,
     "searches": 6,

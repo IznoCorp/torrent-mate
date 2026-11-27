@@ -4,6 +4,7 @@
 // forbids one feature importing another. What is here is this surface's alone:
 // the reserve of suggestions its deck draws, and the follows it lists.
 import { heldRights } from "../../lib/account";
+import { followKeyOf, followSegment } from "../../lib/follow-key";
 import { isOwn } from "../../lib/rights";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, isRequestFailure, read, send, sharedQueryClient } from "../../lib/query-client";
@@ -249,6 +250,13 @@ export function installFollowActions(queryClient: QueryClient): void {
   // next state names is not known yet.
   refillFollows = () => EVERY_WORLD.forEach((world) => void queryClient.prefetchQuery(followsQuery(world)));
   refillFollows();
+  // A FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1), read off the follow the
+  // list holds under the title the act was given: a list's own rows are the
+  // follows, and every one carries its identity.
+  const keyOfHeld = (follows: Follow[], title: string) => {
+    const found = follows.find((follow) => follow.title === title);
+    return found === undefined ? null : followKeyOf(found);
+  };
   // ONE ANSWER FOR THE PAUSE AND THE REMOVAL: a refusal puts back what was
   // there and says which refusal it was, and every answer but a held one
   // re-reads the list against the server.
@@ -272,15 +280,19 @@ export function installFollowActions(queryClient: QueryClient): void {
     // said (the reader's L18 round, a 403 behind « retiré »).
     setStatus: (title, status) => {
       const before = held();
+      const key = keyOfHeld(before, title);
+      if (key === null) return Promise.resolve("refused" as const);
       write(before.map((follow) =>
         follow.title === title ? { ...follow, st: status } : follow));
-      return settle(send("PATCH", `/api/v1/acquisition/followed/${encodeURIComponent(title)}`,
+      return settle(send("PATCH", `/api/v1/acquisition/followed/${followSegment(key)}`,
                          { status }), before);
     },
     remove: (title) => {
       const before = held();
+      const key = keyOfHeld(before, title);
+      if (key === null) return Promise.resolve("refused" as const);
       write(before.filter((follow) => follow.title !== title));
-      return settle(send("DELETE", `/api/v1/acquisition/followed/${encodeURIComponent(title)}`), before);
+      return settle(send("DELETE", `/api/v1/acquisition/followed/${followSegment(key)}`), before);
     },
     // PUTTING A REMOVED FOLLOW BACK IS NOT ADDING ONE. `add` posts a title and
     // a kind, which is all a NEW follow has; a restored one has a year, a date
@@ -292,10 +304,13 @@ export function installFollowActions(queryClient: QueryClient): void {
     // happens here: the row is back in the same task as the tap, and the
     // layer's own record replaces it when the refetch lands.
     restore: (follow) => {
+      // A FOLLOW WITH NO IDENTITY CANNOT BE ADDRESSED, and none is ever served
+      // (B-366): nothing is written for one that somehow arrives.
+      const key = followKeyOf(follow);
+      if (key === null) return;
       const before = held();
       write([follow as Follow, ...before]);
-      void send("POST",
-                `/api/v1/acquisition/followed/${encodeURIComponent(follow.title)}/restore`)
+      void send("POST", `/api/v1/acquisition/followed/${followSegment(key)}/restore`)
         .catch((refusal) => { write(before); throw refusal; })
         .then((outcome) => { if (outcome !== HELD) refresh(); },
               () => { refresh(); });

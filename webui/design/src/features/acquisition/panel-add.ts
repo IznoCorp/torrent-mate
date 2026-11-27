@@ -23,7 +23,7 @@ import { registerProducer, type PanelCache, type PanelDescriptor } from "../../u
 import type { SearchResult } from "./types";
 import { identifying, isAdded } from "./add-visit";
 import { searchResults } from "./search-queries";
-import { addVerb } from "./add-label";
+import { addVerb, resultLine } from "./add-label";
 
 /**
  * Builds a search result's descriptor.
@@ -44,7 +44,7 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
   const done = isAdded(result);
   return {
     title: result.title,
-    meta: translate("panels.add.meta", { year: result.year, kind: result.kind }),
+    meta: resultLine(result),
     blocs: [
       // DOIT-8's FIRST HALF, and the second is the confirmation the act raises:
       // a film the library already owns is announced as a REPLACEMENT before

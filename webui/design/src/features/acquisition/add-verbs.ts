@@ -160,7 +160,7 @@ registerVerb("add", (value) => {
   // what comes next — the confirmation, or the list redrawn in place.
   panel.close();
   if (result.owned) {
-    askBeforeReplace(index, result.title, result.kind === "Film"); // french-ok: a data VALUE — the kind the search serves
+    askBeforeReplace(index, result.title, result.kind === "movie");
     return;
   }
   followResult(result);

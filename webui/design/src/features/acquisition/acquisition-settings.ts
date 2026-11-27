@@ -9,6 +9,7 @@ import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { sendVerb } from "./verb-outcome";
+import { followKeyOfTitle, followSegment } from "../../lib/follow-key";
 import { panel, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
 import type { Schemas } from "../../lib/contract-schemas";
@@ -54,7 +55,10 @@ export function installAcquisitionSettingVerbs(client: QueryClient): void {
     const title = value.slice(0, cut);
     const paused = value.slice(cut + 1) === "true";
     void (async () => {
-      const sent = await sendVerb("PUT", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/pause`, { paused });
+      // THE FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1), crossed from the title at the door.
+      const key = await followKeyOfTitle(title);
+      if (key === null) return void toast?.show({ message: i18next.t("verbs.acquisitionSettings.refused") });
+      const sent = await sendVerb("PUT", `/api/v1/acquisition/followed/${followSegment(key)}/pause`, { paused });
       // HELD: the outbox keeps the pause, the follow is not paused yet, and the list is not read over it.
       if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
       if (sent.kind === "failed") return void toast?.show({ message: i18next.t("verbs.acquisition.failed") });

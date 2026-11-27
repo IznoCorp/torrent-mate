@@ -124,8 +124,9 @@ async function follow(title: string, kind: string,
   // not occur.
   if (alreadyFollowed(title)) return true;
   // french-ok: an attribute VALUE, frozen with the DOM contract `media-details.tsx`
-  // emits and the reserve carries — the same literal, compared where it arrives
-  const film = kind === "Film";
+  // emits and the reserve carries — the same literal, compared where it arrives;
+  // a search result carries the contract's own value (K3-G8)
+  const film = kind === "Film" || kind === "movie";
   // THE MESSAGE FOLLOWS THE LAYER'S ANSWER, and this is the whole of the
   // repair. It was shown here, before the request left, so a create the layer
   // REFUSED was announced as a success — the exact sentence of the thing that

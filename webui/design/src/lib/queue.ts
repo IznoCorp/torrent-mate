@@ -27,6 +27,7 @@
 // first, remembers what it wrote over, and puts it back if the layer refuses.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { createHeldActions } from "./held-actions";
+import { followKeyOfTitle, followSegment } from "./follow-key";
 import { HELD, read, send } from "./query-client";
 import type { QueueCard } from "./engine-queue";
 import type { Schemas } from "./contract-schemas";
@@ -395,13 +396,20 @@ export function installQueueActions(queryClient: QueryClient): void {
     },
     // THE FOLLOW'S OWN GRAB, the backend's « claim now » for one follow: what
     // waits to be taken is a follow's found release. The picker names the
-    // release it chose; the sheet's act names none and the grab takes what the
-    // last search marked takeable.
-    take: (title, releaseName) => {
+    // release it chose, by its id; the sheet's act names none and the grab takes
+    // what the last search marked takeable.
+    take: (title, releaseId) => {
       const scenario = scenarioNow();
+      // THE FOLLOW'S KEY IS ASKED BEFORE THE CARD LEAVES: the card is one of the
+      // answers the title is crossed to its identity from (K3-G1).
+      const asked = followKeyOfTitle(title);
       const held = takeOutOfQueue(queryClient, scenario, title);
-      void send("POST", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/grab`,
-        releaseName === undefined ? undefined : { releaseName })
+      void asked
+        .then((key) => {
+          if (key === null) throw new Error(`no provider identity names ${title}`);
+          return send("POST", `/api/v1/acquisition/followed/${followSegment(key)}/grab`,
+            releaseId === undefined ? undefined : { releaseId });
+        })
         .catch((refusal) => {
           putBack(queryClient, scenario, held);
           throw refusal;
@@ -438,7 +446,7 @@ declare global {
       /** Picks a candidate at once and sends it when the undo window closes. */
       pick: (title: string, choice?: string) => () => void;
       leave: (title: string) => boolean;
-      take: (title: string, releaseName?: string) => void;
+      take: (title: string, releaseId?: string) => void;
     };
   }
 }
