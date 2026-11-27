@@ -15,6 +15,7 @@ import { mockState, resetMockState } from "./state";
 import { heldAccounts, requestersOf } from "./identity";
 
 type Answer = { status: number; payload: any };
+type QueueRow = { title: string; kind?: string | null; ids?: unknown; requesters: { id: string }[] };
 
 /**
  * Calls one operation as the interface would.
@@ -164,6 +165,31 @@ describe("a refused reassignment (K3-G16)", () => {
   it("moves a card of the queue nobody follows", () => {
     expect(move("card", cardOnly()).status).toBe(200);
   });
+
+  // EVERY CARD THE QUEUE SERVES IS ONE THE INTERFACE OFFERS THE MOVE ON, so the rows are read off
+  // the answer, never off the lists the layer composes it from.
+  it.each<Record<string, string>>([{}, { scenario: "loaded" }])(
+    "moves the requester of every keyed row the queue serves: %o",
+    (world) => {
+      const rows = (): QueueRow[] => {
+        const queue = call("GET", "/acquisition/to-handle", world).payload;
+        return ["takeable", "blocked", "inFlight", "arrivals"].flatMap((list) => queue[list]);
+      };
+      const keyed = rows().filter((row) => keyOfMedium(row) !== null);
+      const refusedRows = keyed.flatMap((row) => {
+        resetMockState();
+        const key = keyOfMedium(row) as string;
+        const from = row.requesters[0].id;
+        const to = heldAccounts().find((one) => !row.requesters.some((held) => held.id === one.id))!.id;
+        const { status } = call("POST", PATH, {}, { kind: "card", acquisition: key, from, to });
+        const after = rows().find((one) => one.title === row.title)?.requesters.map((one) => one.id) ?? [];
+        return status === 200 && after.includes(to) && !after.includes(from) ? [] : [`${row.title} (${key}): ${status}`];
+      });
+
+      expect(keyed.length).toBeGreaterThan(0);
+      expect(refusedRows).toEqual([]);
+    },
+  );
 
   it("answers 403 acquisition.not_requester when the requester moved did not ask", () => {
     const answer = call("POST", PATH, {}, { kind: "follow", acquisition, from: "nobody", to: holder() });

@@ -62,6 +62,15 @@ function queueCards(): { title: string; ids?: unknown; kind?: string | null }[] 
 }
 
 /**
+ * Every card the queue serves, in either world: its own rows, and the folders it serves as arrivals.
+ */
+function servedCards(): { title: string; ids?: unknown; kind?: string | null }[] {
+  const state = mockState();
+  return [...queueCards(), ...state.stuck, ...state.stuckLoaded, ...state.movingReel,
+    ...state.settled, ...state.settledLoaded];
+}
+
+/**
  * Whether an acquisition of one kind stands under a key, as a server holds them.
  *
  * A FOLLOW is a standing follow. A CARD is a follow too, or a card of the queue. A medium the
@@ -75,7 +84,7 @@ export function acquisitionStands(kind: string, key: string): boolean {
   if (followForKey(key) !== undefined) return true;
   if (kind !== "card") return false;
   const drawn = new Set(titlesOfKey(key).map(withoutYear));
-  return queueCards().some((card) => drawn.has(withoutYear(card.title)));
+  return servedCards().some((card) => drawn.has(withoutYear(card.title)));
 }
 
 /**
@@ -89,7 +98,7 @@ export function acquisitionStands(kind: string, key: string): boolean {
  * @returns The titles, the follow's first when there is one; empty when nothing known answers to the key.
  */
 export function titlesOfKey(key: string): string[] {
-  const cards = queueCards();
+  const cards = servedCards();
   const known = [
     followForKey(key)?.title,
     ...cards.filter((one) => keyOfMedium(one) === key).map((one) => one.title),
