@@ -98,13 +98,19 @@ async function searchNow(title: string): Promise<void> {
 }
 
 /**
- * Reads a search's results again once its run has settled.
+ * Reads a search's results again once its run has settled, and draws them on the open sheet.
+ *
+ * THE SHEET IS PRODUCED ONCE FROM THE CACHE and subscribes to nothing, so it is redrawn after the reads
+ * have landed. « all », because a sheet may stand over a page that reads no follows: a read nothing
+ * observes is otherwise only marked stale, and the redraw would find the old answer.
  *
  * @param runUid The run the search was answered with.
  */
 async function readResultsOnceSettled(runUid: string): Promise<void> {
   await runSettled(runUid);
-  for (const queryKey of SEARCH_RESULTS_READ_FROM) void sharedQueryClient?.invalidateQueries({ queryKey });
+  await Promise.all(SEARCH_RESULTS_READ_FROM.map(
+    (queryKey) => sharedQueryClient?.invalidateQueries({ queryKey, refetchType: "all" })));
+  panel.redraw();
 }
 // An incomplete series: the search for its missing episodes is said where it
 // will be seen moving, on « Maintenant ». A LINK from the panel, followed as

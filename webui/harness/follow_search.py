@@ -11,7 +11,11 @@ follow with nothing to take sends `searchForFollow` for THAT follow:
 4. the result is read afterwards: the interface follows the run it was named
    (`readAcquisitionStatus`) until it is settled, and only then reads the follows
    again; the follow counts one more search, and `readReleases` answers what it
-   holds for the medium.
+   holds for the medium;
+5. a follow sheet reopened while the search waits draws what the search left once
+   its run is settled: the new status and its primary act, from a page whose own
+   lists do not read the follows. The layer concludes no search, so the rule makes
+   the follows answer « to take » from the settlement on.
 
 The expected sentence is read from the interface's resources, and what the follow
 and its releases hold from the layer itself, never written here. The follow with
@@ -74,6 +78,26 @@ UNFOUND = "async () => {" + KEY_OF + """
   }
   return null;
 }"""
+# THE LAYER CONCLUDES NO SEARCH: from the read that answers its run « settled », the follows answer TITLE as found.
+FOUND_AT_SETTLEMENT = """(title) => {
+  let settled = false;
+  const answer = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const response = await answer(input, init);
+    const asked = new Request(input, init);
+    const path = new URL(asked.url).pathname;
+    if (asked.method !== 'GET') return response;
+    if (path.endsWith('/acquisition/status')) {
+      if ((await response.clone().json()).runState === 'settled') settled = true;
+      return response;
+    }
+    if (!settled || !path.endsWith('/acquisition/followed')) return response;
+    const follows = (await response.clone().json())
+      .map((follow) => (follow.title === title ? { ...follow, status: 'to_grab' } : follow));
+    return new Response(JSON.stringify(follows), { status: response.status, headers: response.headers });
+  };
+}"""
+SHEET_ACT = "()=>document.querySelector('#sheet [data-sheetprim]')?.getAttribute('data-sheetprim') || ''"
 
 
 def base_title(title):
@@ -178,6 +202,30 @@ async def main():
             held = await page.evaluate(RELEASES, key)
             journal.check("afterwards the follow counts the search and `readReleases` answers none",
                           count == before + 1 and held == 0, f"{before} -> {count}, {held} release(s)")
+
+        if searched is not None:
+            await page.evaluate("()=>window.__go('lib-list')")
+            await page.wait_for_timeout(SETTLED)
+            await page.evaluate(FOUND_AT_SETTLEMENT, searched)
+            await page.evaluate("(t)=>window.__panel.produce('follow', t)", searched)
+            await page.wait_for_timeout(ACTED)
+            await page.click("#sheet [data-sheetprim]")
+            await page.wait_for_timeout(ACTED)
+            await page.evaluate("(t)=>window.__panel.produce('follow', t)", searched)
+            await page.wait_for_timeout(ACTED)
+            waiting = await page.evaluate(SHEET_ACT)
+            journal.check("a sheet reopened while the search waits still says the follow waits",
+                          waiting == f"{searched}|pending", repr(waiting))
+            try:
+                await page.wait_for_function(
+                    "(wanted)=>document.querySelector('#sheet [data-sheetprim]')"
+                    "?.getAttribute('data-sheetprim') === wanted",
+                    arg=f"{searched}|to_grab", timeout=SETTLEMENT_TIMEOUT)
+            except TimeoutError:
+                pass  # the check reports what the sheet still draws
+            drawn = await page.evaluate(SHEET_ACT)
+            journal.check("once the run is settled, the open sheet draws what the search left",
+                          drawn == f"{searched}|to_grab", repr(drawn))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
