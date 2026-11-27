@@ -28,11 +28,14 @@ from personalscraper.api.torrent._base import TorrentLimits, TorrentSource
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._errors import TorrentFetchError
 from personalscraper.api.tracker._ranking import RankingConfig
+from personalscraper.app.acquisition.model import AcquisitionKey
+from personalscraper.app.acquisition.releases import ReleaseReads
 from personalscraper.conf.models._ranking import RankingCriterion
 from personalscraper.conf.models.acquire import AcquireConfig, BandwidthConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.units import ByteSize
+from tests.unit.app.acquisition.test_release_reads import OWNER, _actor
 
 _RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 _ENQUEUED_AT = 1_700_000_000
@@ -146,7 +149,7 @@ def _fetch(candidate: TrackerResult, _transports: object) -> MagicMock:
     if candidate.provider in _FETCH_FAILS:
         raise TorrentFetchError(f"{candidate.provider} cannot serve the torrent", http_status=500)
     source = MagicMock(spec=TorrentSource)
-    type(source).info_hash = candidate.info_hash
+    type(source).info_hash = candidate.info_hash or f"hash-of-{candidate.size.bytes}-bytes"
     return source
 
 
@@ -237,6 +240,7 @@ def _grab(
     release_id: str | None = None,
     ranking: RankingConfig | None = None,
     fetch_fails: frozenset[str] = frozenset(),
+    followed_id: int | None = None,
 ) -> tuple[RunSummary, MagicMock]:
     """Run the grab pass of the follow with trackers answering *offered*.
 
@@ -249,6 +253,8 @@ def _grab(
         release_id: The handle of the very release picked; ``None`` when none is named.
         ranking: The ranking the orchestrator scores with; a plain one when ``None`` (offered order = rank).
         fetch_fails: The trackers that cannot serve the torrent of a release they offer.
+        followed_id: The follow grabbed for, left as it stands; ``None`` adds the show's follow again,
+            which also resumes it.
 
     Returns:
         The pass's counts, and the registry (to read how often the trackers were searched).
@@ -275,7 +281,8 @@ def _grab(
         event_bus=MagicMock(),
         config=config,
     )
-    followed_id = _follow(store)
+    if followed_id is None:
+        followed_id = _follow(store)
     kwargs: dict[str, object] = {} if release is None else {"release": release}
     if wanted_id is not None:
         kwargs["wanted_id"] = wanted_id
@@ -549,6 +556,178 @@ def test_a_picked_release_another_copy_now_represents_is_still_the_one_added(sto
     )
 
     assert (summary.grabbed, client.added) == (1, [picked.info_hash])
+
+
+@pytest.mark.parametrize("refused_by", ["seeders_floor", "hard_filter", "already_failed"])
+def test_a_picked_release_the_grab_would_refuse_is_not_added(store: ConcreteAcquireStore, refused_by: str) -> None:
+    """A person's pick keeps the seeders floor, the hard filters and the releases already failed: it is « gone »."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    picked = _result(_BEST, seeders=40)
+    ranking = None
+    if refused_by == "seeders_floor":
+        ranking = RankingConfig(min_seeders=50)
+    elif refused_by == "hard_filter":
+        picked = dataclasses.replace(picked, title=_BEST.replace("1080p", "1080p 3D SBS"))
+    else:
+        store.wanted.append_tried_hash(wanted_id, "hash-aaa")
+    client = _Client()
+
+    summary, _ = _grab(
+        store,
+        client,
+        [picked, _result(_SECOND, seeders=90)],
+        release=picked.title,
+        wanted_id=wanted_id,
+        release_id=_handle_of(wanted_id, picked),
+        ranking=ranking,
+    )
+
+    assert (summary.grabbed, summary.release_gone, client.added) == (0, 1, [])
+    assert _last_grab(store, wanted_id)[0] == "chosen_release_gone"
+
+
+def test_of_two_hashless_namesakes_the_size_picked_is_grabbed(store: ConcreteAcquireStore) -> None:
+    """A tracker that gives no info-hash leaves the size alone to tell two releases of one name apart."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    first = dataclasses.replace(_result(_BEST, seeders=90), info_hash=None)
+    picked = dataclasses.replace(first, size=ByteSize(8_000_000_000), seeders=40)
+    client = _Client()
+
+    assert _handle_of(wanted_id, first) != _handle_of(wanted_id, picked)
+    summary, _ = _grab(
+        store, client, [first, picked], release=_BEST, wanted_id=wanted_id, release_id=_handle_of(wanted_id, picked)
+    )
+
+    assert (summary.grabbed, client.added) == (1, ["hash-of-8000000000-bytes"])
+
+
+def test_the_handle_offered_from_a_stored_candidate_is_the_one_the_grab_takes(store: ConcreteAcquireStore) -> None:
+    """The whole chain: the search pass stores two namesakes, the picker offers them, the grab adds the one offered."""
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=_REF,
+            kind="episode",
+            status="pending",
+            enqueued_at=_ENQUEUED_AT,
+            followed_id=_follow(store),
+            season=2,
+            episode=5,
+        )
+    )
+    first = _result(_BEST, seeders=90)
+    picked = _twin(first, info_hash="hash-picked", size_bytes=8_000_000_000, seeders=40)
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(
+        results=[first, picked], trackers_queried=1, trackers_errored=0
+    )
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=GrabOrchestrator(
+            tracker_registry=registry,
+            torrent_client=None,
+            event_bus=EventBus(),
+            ranking=RankingConfig(min_seeders=0),
+            bandwidth=BandwidthConfig(),
+        ),
+        event_bus=MagicMock(),
+        config=config,
+    ).run_search()
+    offers = ReleaseReads(store, owner=OWNER).offers(_actor(OWNER), AcquisitionKey.parse("tvdb:99"), 2, 5)
+    assert len({offer.handle for offer in offers}) == 2
+    (offered,) = [offer for offer in offers if offer.candidate.info_hash == "hash-picked"]
+    client = _Client()
+
+    summary, _ = _grab(
+        store,
+        client,
+        [first, picked],
+        release=offered.candidate.title,
+        wanted_id=offered.wanted_id,
+        release_id=offered.handle,
+    )
+
+    assert offered.wanted_id == wanted_id
+    assert (summary.grabbed, client.added) == (1, ["hash-picked"])
+
+
+@pytest.mark.parametrize("status", ["grabbed", "done", "abandoned"])
+def test_a_pick_bound_to_a_row_that_no_longer_waits_holds_nothing(store: ConcreteAcquireStore, status: str) -> None:
+    """A row already taken or closed is waiting for no choice: no hold is stamped on it."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    store.wanted.set_status(wanted_id, status)  # type: ignore[arg-type]
+
+    _grab(store, _Client(), [_result(_BEST, seeders=90)], release=_BEST, wanted_id=wanted_id)
+
+    assert _last_grab(store, wanted_id) == (None, None)
+
+
+def test_a_pick_bound_to_the_row_of_another_follow_holds_nothing(store: ConcreteAcquireStore) -> None:
+    """The row named is not this follow's: its own follow chose nothing, so it is not held."""
+    other_ref = MediaRef(tvdb_id=100)
+    foreign = store.wanted.add(
+        WantedItem(
+            media_ref=other_ref,
+            kind="episode",
+            status="pending",
+            enqueued_at=_ENQUEUED_AT,
+            followed_id=store.follow.add(FollowedSeries(media_ref=other_ref, title="Silo", added_at=1)),
+            season=2,
+            episode=5,
+        )
+    )
+
+    _grab(store, _Client(), [_result(_BEST, seeders=90)], release=_BEST, wanted_id=foreign)
+
+    assert _last_grab(store, foreign) == (None, None)
+
+
+@pytest.mark.parametrize("bound", [True, False], ids=["bound_to_its_row", "found_by_name"])
+@pytest.mark.parametrize("gate", ["paused_follow", "scope_refused"])
+def test_a_pick_a_gate_keeps_from_being_asked_is_held_until_chosen_again(
+    store: ConcreteAcquireStore, gate: str, bound: bool
+) -> None:
+    """Paused (O-3 A) or refused by the scope: nothing is asked, the row waits, and the person chooses again (O-14)."""
+    wanted_id = _available(store, 5, candidates=[_BEST, _SECOND])
+    follow = _follow(store)
+    if gate == "paused_follow":
+        store.follow.set_active(follow, False)
+    client = _Client()
+    offered = [_result(_BEST, seeders=90), _result(_SECOND, seeders=40)]
+
+    with patch.object(GrabOrchestrator, "scope_allows_grab", return_value=gate != "scope_refused"):
+        _, registry = _grab(
+            store, client, offered, release=_SECOND, wanted_id=wanted_id if bound else None, followed_id=follow
+        )
+
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert (client.added, registry.search_candidates.call_count, row.status) == ([], 0, "available")
+    assert _last_grab(store, wanted_id) == ("chosen_release_failed", _PINNED_NOW)
+
+    # The follow resumes: the engine's own choice never stands in for the person's.
+    store.follow.set_active(follow, True)
+    summary, _ = _grab(store, client, offered, followed_id=follow)
+    assert (summary.grabbed, client.added) == (0, [])
+
+
+@pytest.mark.parametrize("gate", ["paused_follow", "scope_refused"])
+def test_a_gate_that_stops_an_unnamed_grab_holds_nothing(store: ConcreteAcquireStore, gate: str) -> None:
+    """Nobody chose a release: the row is left as it was, and is taken once the gate opens."""
+    wanted_id = _available(store, 5, candidates=[_BEST])
+    follow = _follow(store)
+    if gate == "paused_follow":
+        store.follow.set_active(follow, False)
+    client = _Client()
+
+    with patch.object(GrabOrchestrator, "scope_allows_grab", return_value=gate != "scope_refused"):
+        _grab(store, client, [_result(_BEST, seeders=90)], followed_id=follow)
+
+    assert (client.added, _last_grab(store, wanted_id)) == ([], (None, None))
+    store.follow.set_active(follow, True)
+    summary, _ = _grab(store, client, [_result(_BEST, seeders=90)], followed_id=follow)
+    assert (summary.grabbed, client.added) == (1, ["hash-aaa"])
 
 
 @pytest.mark.parametrize("status", ["pending", "searching"])
