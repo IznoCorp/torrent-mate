@@ -21,7 +21,7 @@ WHAT IS READ:
 import asyncio
 import re
 
-from common import PANEL_IN, SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
+from common import PANEL_IN, SETTLED, Journal, follow_segment, open_page, read_at, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 READ = """(args) => {
@@ -113,7 +113,7 @@ async def main():
 
         gaps = await read_at(page, "followsheet-gaps", READ, ["sheet", None], wait=PANEL_IN + SETTLED + SETTLED)
         journal.check("followsheet-gaps: a series nobody follows asks no completeness",
-                      not any("aventures" in call for call in gaps["calls"]), str(gaps["calls"]))
+                      not any(follow_segment("Les aventures de Tintin") in call for call in gaps["calls"]), str(gaps["calls"]))
         journal.check("followsheet-gaps: and keeps its own season figures", bool(figures(gaps["seasons"])),
                       str(gaps["seasons"][:3]))
 

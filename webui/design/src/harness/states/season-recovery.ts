@@ -9,6 +9,7 @@
 // covered). Every other moment is POSED on it, never seeded (RULINGS 7).
 import { applyState, type NamedState } from "../drive";
 import { owed } from "../owed";
+import { followKeyOf, followKeyOfTitle, followSegment } from "../../lib/follow-key";
 
 // The subject the dense world holds, and the one-off R158 draws.
 const SERIES = "Silo";
@@ -55,7 +56,13 @@ function now(): void {
  * @param season The season, 1-based.
  */
 async function ask(title: string, season: number): Promise<void> {
-  const path = `/api/v1/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`;
+  // THE SEASON IS ASKED BY ITS MEDIUM'S KEY (K3-G1). A state starts before any list has landed,
+  // so the identity the layer carries for the title is read first (a one-off's sheet is the
+  // library's, which no follows' read holds); the act's own crossing answers otherwise.
+  const carried = window.__carriedFor(title);
+  const key = (carried === null ? null : followKeyOf(carried)) ?? await followKeyOfTitle(title);
+  if (key === null) throw new Error(`no provider identity names ${title}`);
+  const path = `/api/v1/acquisition/follows/${followSegment(key)}/seasons/${season}/grab`;
   await fetch(path, { method: "POST" });
   forgetQueue();
 }

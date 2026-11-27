@@ -9,7 +9,6 @@ import type { components } from "../../contract/types";
 type Follow = components["schemas"]["Follow"];
 
 const NEWLY_ADDED_STATUS = "pending";
-const NEWLY_ADDED_SINCE = "";
 // The year no family knows is a BLANK, which the card leaves out: a 0 was drawn
 // as a year, « 0 · série » (B-673).
 const NEWLY_ADDED_YEAR = "";
@@ -34,7 +33,6 @@ export function newFollow(title: string, kind: string, year: number | string, id
     year: typeof year === "string" || Number.isFinite(year) ? year : NEWLY_ADDED_YEAR,
     status: NEWLY_ADDED_STATUS,
     showStatus: null,
-    since: NEWLY_ADDED_SINCE,
     addedAt: Math.floor(Date.now() / MILLISECONDS),
     nextAirDate: null,
     searches: 0,

@@ -31,7 +31,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import ACTED, SETTLED, Journal, follow_key, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
@@ -40,8 +40,9 @@ WORDS = json.loads((SEEDS.parents[1] / "i18n/fr.json").read_text(encoding="utf-8
 SEARCHED = WORDS["surfaces"]["ladder"]["figure"].replace("{{position}}", "2").replace(
     "{{count}}", str(len(WORDS["surfaces"]["ladder"]["rungs"])))
 ANOTHER = WORDS["verbs"]["acquisition"]["abandon"].get("bodyFollow", "(no such sentence)")
-RELEASES = """async (title) => (await (await fetch('/api/v1/acquisition/releases?title='
-  + encodeURIComponent(title))).json()).map((release) => release.name)"""
+# The releases of a medium are asked by its key (K3-G5), crossed in Python from the seeds.
+RELEASES = """async (key) => (await (await fetch('/api/v1/acquisition/releases?followedId='
+  + encodeURIComponent(key))).json()).map((release) => release.name)"""
 FOLLOWS = """async () => (await (await fetch('/api/v1/acquisition/followed')).json()).map((one) => one.title)"""
 FIGURE = """(title) => { const card = [...document.querySelectorAll('#view [data-part="card"]')]
   .find(one => one.querySelector('[data-part="card/title"]')?.textContent === title);
@@ -120,7 +121,7 @@ async def main():
             "()=>{try{window.__go('acq-card-follow-error');return null}catch(error){return String(error)}}")
         journal.check("the named state acq-card-follow-error exists", answer is None, answer or "")
         await page.wait_for_timeout(SETTLED)
-        offered = await page.evaluate(RELEASES, FOLLOWED)
+        offered = await page.evaluate(RELEASES, follow_key(FOLLOWED))
         tapped = await page.evaluate("""(title)=>{
             const foot = [...document.querySelectorAll('#view [data-part="card/foot"]')]
               .find(one => one.getAttribute('data-journey-abandon') === title);
@@ -132,7 +133,7 @@ async def main():
         await page.evaluate("""()=>document.querySelector('[data-part="dialog"][data-open] [data-part="dialog/button"][data-tone="danger"]')?.click()""")
         await page.wait_for_timeout(ACTED)
         await page.evaluate("()=>window.__mocks.quiet()")
-        after = await page.evaluate(RELEASES, FOLLOWED)
+        after = await page.evaluate(RELEASES, follow_key(FOLLOWED))
         journal.check("the abandoned release is no longer offered for that title",
                       bool(offered) and offered[0] not in after, f"{offered} → {after}")
         await page.evaluate("()=>window.__store.write({ acqTab: 'now' })")

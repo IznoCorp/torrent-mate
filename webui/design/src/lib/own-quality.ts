@@ -4,6 +4,7 @@
 import i18next from "i18next";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 
+import { followKeyOfTitle, followSegment } from "./follow-key";
 import { read, send } from "./query-client";
 import { toast } from "./shell-doors";
 import { useUiState } from "./store-access";
@@ -39,7 +40,10 @@ export function useFollowOf(title: string): Schemas["Follow"] | undefined {
  */
 export async function setOwnQuality(client: QueryClient, title: string, floor: string | null): Promise<void> {
   try {
-    await send("PUT", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/quality`, { profile: floor });
+    // THE FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1), crossed from the title at the door.
+    const key = await followKeyOfTitle(title);
+    if (key === null) throw new Error(`no provider identity names ${title}`);
+    await send("PUT", `/api/v1/acquisition/followed/${followSegment(key)}/quality`, { profile: floor });
     await client.refetchQueries({ queryKey: FOLLOWS_KEY });
   } catch {
     toast?.show({ message: i18next.t("verbs.acquisitionSettings.refused") });

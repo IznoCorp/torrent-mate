@@ -12,7 +12,9 @@ export type Follow = Schemas["Follow"];
 // What a follow's words and facts are drawn from: a served follow, or the
 // subject a panel composes for a medium not followed yet (an incomplete show,
 // a title) — its identity and status, and whatever else is known.
-export type FollowSubject = Pick<Follow, "title" | "kind" | "year" | "status"> & Partial<Follow>;
+// THE STATUS IS A TOKEN OF THE SERVED SET FOR A SERVED FOLLOW, and any word for a subject
+// a panel composes for a medium not followed yet: the vocabulary reads both.
+export type FollowSubject = Pick<Follow, "title" | "kind" | "year"> & { status: string } & Partial<Omit<Follow, "status">>;
 
 // A search hit, exactly as the mock `SEARCH` constant shapes one. `k` is the
 // French kind label used throughout the legacy templates ("Film" / "Série"),

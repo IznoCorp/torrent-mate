@@ -17,6 +17,7 @@ import { landingTab, rememberTab } from "./tab-memory";
 import { dialParts, landOnCard } from "./landing";
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
+import { followKeyOfTitle, followSegment } from "../../lib/follow-key";
 import { refusalWords } from "../../lib/refusal";
 import { sendVerb } from "./verb-outcome";
 import { queueActions } from "../../lib/queue";
@@ -75,11 +76,14 @@ registerVerb("sheetprim", (value) => {
  * outbox holds, the layer refuses or the network loses is said in its own words, never thrown.
  * Announcing a search nothing sent was the promise of a result no surface drew.
  *
- * @param title The follow's title — its address.
+ * @param title The follow's title, crossed to its key at the door.
  */
 async function searchNow(title: string): Promise<void> {
+  // THE FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (K3-G1), crossed from the title at the door.
+  const key = await followKeyOfTitle(title);
+  if (key === null) return void toast?.show({ message: i18next.t("verbs.acquisition.refused") });
   const sent = await sendVerb<{ found: number }>(
-    "POST", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/search`);
+    "POST", `/api/v1/acquisition/followed/${followSegment(key)}/search`);
   // HELD: the outbox keeps the search, nothing was searched, and nothing is announced as found.
   if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
   if (sent.kind === "refused") return void toast?.show({ message: refusalWords(sent.failure, "verbs.acquisition.refused") });

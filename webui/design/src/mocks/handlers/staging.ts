@@ -11,6 +11,7 @@ import { accountName } from "../account";
 import { backToSearch } from "./follow-errors";
 import { continueMedia } from "./continued";
 import { acquisitionKey } from "../../lib/arrival-slots";
+import { dayOf } from "../../lib/clock";
 import type { components } from "../../contract/types";
 
 type QueueCard = components["schemas"]["QueueCard"];
@@ -152,7 +153,7 @@ export function originOf(card: QueueCard, direct: boolean): { requester?: QueueC
   if (card.droppedByHand) return { origin: { from: "arrived" } };
   const follow = mockState().follows.find((one) => sameMedium(card, one.ids));
   if (follow !== undefined) {
-    return { requester: { name: accountName(), via: ASKED_BY_FOLLOW }, origin: { asked: follow.since } };
+    return { requester: { name: accountName(), via: ASKED_BY_FOLLOW }, origin: { asked: dayOf(follow.addedAt) } };
   }
   return direct ? { requester: { name: accountName(), via: DIRECT_ADD }, origin: { direct: true } } : { origin: {} };
 }

@@ -27,7 +27,7 @@ its panel, « En cours » read back.
 import asyncio
 import re
 
-from common import SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import SETTLED, Journal, follow_segment, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SERIES = "Silo"
@@ -74,8 +74,9 @@ TAP_GRAB = """(value) => {
 
 SAID = "()=>window.__toast?.read?.()?.message?.message || ''"
 
-ASK_AGAIN = """async () => (await (await fetch('/api/v1/acquisition/follows/Silo/seasons/3/grab',
-  {method: 'POST'})).json())"""
+# The follow is addressed by its medium's key (K3-G1), not its title.
+ASK_AGAIN = f"""async () => (await (await fetch('/api/v1/acquisition/follows/{follow_segment(SERIES)}/seasons/3/grab',
+  {{method: 'POST'}})).json())"""
 
 
 def season_cards(cards):

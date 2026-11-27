@@ -47,7 +47,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import ACTED, SETTLED, Journal, follow_segment, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
@@ -89,8 +89,8 @@ ONE_OFF_SUBJECT = """(titles)=>{
     if (hole) return {title, season: hole[0]};
   }
   return null;}"""
-ASK_ONCE = """async ({title, season})=>{
-  const answer = await fetch(`/api/v1/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
+ASK_ONCE = """async ({segment, season})=>{
+  const answer = await fetch(`/api/v1/acquisition/follows/${segment}/seasons/${season}/grab`,
     {method: 'POST'});
   await window.__queries.invalidateQueries({queryKey: ['/api/v1/acquisition/to-handle']});
   return answer.status;}"""
@@ -190,7 +190,7 @@ async def main():
         journal.check("the seeds hold an unfollowed incomplete series with a hole", subject is not None,
                       str(unfollowed))
         if subject is not None:
-            status = await page.evaluate(ASK_ONCE, subject)
+            status = await page.evaluate(ASK_ONCE, {**subject, "segment": follow_segment(subject["title"])})
             await page.wait_for_timeout(SETTLED)
             title = subject["title"]
             cards = {card["title"]: card["offer"] for card in await page.evaluate(CARDS)}

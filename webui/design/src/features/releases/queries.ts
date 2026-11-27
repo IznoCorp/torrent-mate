@@ -7,6 +7,7 @@
 // a precedent for anything two surfaces of ONE feature share.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
+import { followKeyOfTitle } from "../../lib/follow-key";
 import type { Release } from "./types";
 
 /**
@@ -18,16 +19,21 @@ import type { Release } from "./types";
  * had the same key. A list that does not depend on what it is a list OF is not
  * a list.
  *
+ * THE READ IS ADDRESSED BY THE MEDIUM'S KEY (K3-G5), crossed from the title at
+ * the door; a title nothing identifies has no releases to ask for.
+ *
  * @param title The medium the releases are for. An empty title asks for all of
  *     them, which is what the quality profile counts against.
  * @returns The query, holding the releases in the engine's own shape.
  */
 export function useReleases(title = "") {
-  const parameters = new URLSearchParams(title === "" ? {} : { title });
   return useQuery({
     queryKey: ["/api/v1/acquisition/releases", title],
-    queryFn: async () =>
-      read<Release[]>("/api/v1/acquisition/releases", parameters),
+    queryFn: async () => {
+      const key = title === "" ? null : await followKeyOfTitle(title);
+      if (title !== "" && key === null) return [] as Release[];
+      return read<Release[]>("/api/v1/acquisition/releases", new URLSearchParams(key === null ? {} : { followedId: key }));
+    },
   });
 }
 

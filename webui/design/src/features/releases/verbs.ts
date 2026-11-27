@@ -74,7 +74,7 @@ registerVerb("pick-release", (value) => {
   const chosen = (releases?.() ?? [])[value as unknown as number];
   if (chosen === undefined) return;
   bridge.back();
-  queueActions?.take(title, String(chosen.name ?? ""));
+  queueActions?.take(title, chosen.id);
   redraw();
   toast?.show({
     message: i18next.t("verbs.releases.taken", {

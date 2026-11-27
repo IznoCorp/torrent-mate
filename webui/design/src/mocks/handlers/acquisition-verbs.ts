@@ -13,16 +13,17 @@
 // which is exactly what `data-take` did for a whole wave under a green gate.
 // Each one below writes the state the surface reads back.
 //
-// THE IDENTIFIERS ARE TITLES. The interface knows a follow by its title and a
-// journey by the title too; the backend wants a rowid and an info hash. The
-// demand register carries that (§ 2b), and no identifier is invented here.
+// A FOLLOW IS ADDRESSED BY ITS MEDIUM'S KEY (`../follow-key`), a journey by its
+// subject, which the layer still holds as a title; the backend wants an info
+// hash for the latter, and the demand register carries that.
 import SEASONS from "../seeds/seasons.json";
 import INCOMPLETE_SHOWS from "../seeds/incomplete-shows.json";
 import { POST, route } from "./shared";
+import { mediumOfKey } from "../follow-key";
 import { ladderOf } from "./ladder";
 import { mockState } from "../state";
 import { accountName } from "../account";
-import type { MockRoute } from "../router";
+import { refused, type MockRoute } from "../router";
 import type { components } from "../../contract/types";
 import { seasonsAnswer } from "./media";
 import { recoverSeason } from "./season-recovery";
@@ -200,7 +201,11 @@ export function acquisitionVerbRoutes(): MockRoute[] {
       POST,
       "/acquisition/follows/{followedId}/seasons/{season}/grab",
       (request) => {
-        const title = request.parameters.followedId;
+        // THE KEY NAMES THE MEDIUM, followed or not (K3-G1): a season is asked
+        // of a series nobody follows as well, and a key nothing known answers to is a 404.
+        const medium = mediumOfKey(request.parameters.followedId);
+        if (medium === null) return refused(404, "no medium answers to that key", "acquisition.not_found");
+        const title = medium.title;
         const season = Number(request.parameters.season);
         const state = mockState();
         // THE FOLLOW'S STATE MOVES, and that is what the rule reads. A season
@@ -208,7 +213,7 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         // status to write — `Follow.status` is the whole follow's — and the
         // register carries that as a demand rather than this file inventing
         // one.
-        const found = state.follows.find((follow) => follow.title === title);
+        const found = medium.follow;
         const missing = episodesMissingFromSeason(title, season);
         // ONLY WHEN THE SEASON HAD SOMETHING TO GET. An answer of zero moved an
         // up-to-date follow to being acquired: « 5/5 · En cours d'acquisition »

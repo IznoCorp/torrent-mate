@@ -1989,6 +1989,7 @@
     },
     "add": {
       "meta": "{{year}} · {{kind}} · TMDB",
+      "metaNoYear": "{{kind}} · TMDB",
       "ownedBefore": "Déjà en médiathèque — l'acquisition ",
       "ownedEmphasis": "remplacera",
       "ownedAfter": " la version en place.",

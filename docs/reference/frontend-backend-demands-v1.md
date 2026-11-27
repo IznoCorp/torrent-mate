@@ -31,7 +31,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
-| fields carried pre-formatted | 22 |
+| fields carried pre-formatted | 20 |
 | v1 serves and the interface does not declare | 0 |
 
 ---
@@ -86,7 +86,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/acquisition/followed/{followedId}/grab` | `grabForFollow` | Claim now what the last search found for one follow |
 | `POST /api/v1/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/v1/acquisition/followed/{followedId}/search` | `searchForFollow` | Search now for one follow |
-| `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` | `grabSeasonForFollow` | Take one season of a medium, following it first if it is not followed yet |
+| `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` | `grabSeasonForFollow` | Take one season of a medium, as a one-off request when it is not followed |
 | `POST /api/v1/acquisition/journeys/{infoHash}/closure/seen` | `dismissClosure` | Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4) |
 | `POST /api/v1/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/v1/acquisition/journeys/{infoHash}/requeue` | `requeueJourney` | Put one journey back in the queue |
@@ -143,7 +143,6 @@ interface format it.
 | `CodeErrors` | `where` |
 | `Fact` | `secondaryLine` |
 | `Fact` | `value` |
-| `Follow` | `since` |
 | `JournalRow` | `secondaryLine` |
 | `JournalRow` | `value` |
 | `JourneyStage` | `when` |
@@ -157,7 +156,6 @@ interface format it.
 | `PipelineRunSummary` | `when` |
 | `QueueCard` | `reason` |
 | `QueueCard` | `secondaryLine` |
-| `SearchResult` | `kind` |
 | `SettledDecision` | `when` |
 | `Suggestion` | `kind` |
 

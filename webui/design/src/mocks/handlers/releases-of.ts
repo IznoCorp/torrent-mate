@@ -24,8 +24,28 @@ function matchingKey(spelled: string): string {
     .toLowerCase().replace(SEPARATOR, "");
 }
 
+// What a release name says it is of: an episode (`S03E07`), or a whole season (`S03`).
+const EPISODE_MARK = /S(?<season>\d+)E(?<episode>\d+)/i;
+const SEASON_MARK = /(?:^|[^A-Za-z0-9])S(?<season>\d+)(?:[^A-Za-z0-9]|$)/i;
+
 /**
- * The releases a search for one title turns up.
+ * What one release is of, read off its name once, so the answer carries it as a field (SR6).
+ *
+ * @param name The release name.
+ * @returns Its season and episode, each null when the name does not say.
+ */
+function numberingOf(name: string): { season: number | null; episode: number | null } {
+  const episode = EPISODE_MARK.exec(name)?.groups;
+  if (episode !== undefined) return { season: Number(episode.season), episode: Number(episode.episode) };
+  const season = SEASON_MARK.exec(name)?.groups;
+  return { season: season === undefined ? null : Number(season.season), episode: null };
+}
+
+/**
+ * The releases a search for one title turns up, each with its handle and what it is of.
+ *
+ * THE HANDLE IS THE SEED'S POSITION: the picker chooses a release by it, never by
+ * its name, which a tracker may publish twice.
  *
  * @param title The medium's title, as the interface spells it.
  * @returns Every seeded release whose name carries that title.
@@ -34,6 +54,20 @@ export function releasesFor(title: string) {
   const wanted = matchingKey(title);
   // A RELEASE ALREADY TRIED AND ABANDONED IS NOT OFFERED AGAIN (§14.1).
   const abandoned = mockState().triedReleases[title] ?? [];
-  return RELEASES.filter((release) => matchingKey(String(release.name ?? "")).includes(wanted)
-    && !abandoned.includes(String(release.name ?? "")));
+  return releasesOfEvery()
+    .filter((release) => matchingKey(String(release.name ?? "")).includes(wanted)
+      && !abandoned.includes(String(release.name ?? "")));
+}
+
+/**
+ * Every seeded release, each with its handle and what it is of: the candidates of every item.
+ *
+ * @returns The whole seed, numbered.
+ */
+export function releasesOfEvery() {
+  return RELEASES.map((release, position) => ({
+    id: String(position + 1),
+    ...release,
+    ...numberingOf(String(release.name ?? "")),
+  }));
 }

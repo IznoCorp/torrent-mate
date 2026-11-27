@@ -24,6 +24,11 @@ vi.mock("../../lib/query-client", () => ({
   isRequestFailure: (failure: unknown) => typeof failure === "object" && failure !== null && "status" in failure,
   sharedQueryClient: null,
 }));
+// THE KEY CROSSING is the module `lib/follow-key.test.ts` proves; here it answers a key, so the verb's own words are what is read.
+vi.mock("../../lib/follow-key", () => ({
+  followKeyOfTitle: async () => "tvdb:1",
+  followSegment: encodeURIComponent,
+}));
 vi.mock("../../lib/shell-doors", () => ({
   toast: { show: ({ message }: { message: string }) => said.push(message) },
   panel: { close: () => undefined, redraw: () => undefined, produce: () => undefined },

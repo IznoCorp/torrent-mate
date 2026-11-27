@@ -1,6 +1,6 @@
 // What is wanted, and what is being fetched.
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
-import { releasesFor } from "./releases-of";
+import { releasesFor, releasesOfEvery } from "./releases-of";
 import { knownMedium } from "./media";
 import { sameItem } from "./same-item";
 import { acquisitionKey } from "../../lib/arrival-slots";
@@ -17,6 +17,7 @@ import { recoveringSeason } from "./season-recovery";
 import { mockState } from "../state";
 import { newFollow } from "./new-follow";
 import { claimRequest, releaseRequest, requestersOf, signedInId, signedInRights } from "../identity";
+import { followForKey, mediumOfKey, removedIndexForKey } from "../follow-key";
 import { refused, type MockRequest, type MockRoute } from "../router";
 
 // How many suggestions one batch of the deck carries. The engine's own batch
@@ -71,18 +72,16 @@ const WAITING_ON_A_GRAB = new Set(["pending", "to_grab"]);
 const BEING_ACQUIRED = "acquiring";
 
 /**
- * Finds one follow by the identifier the address carries.
+ * Finds one follow by the key the address carries (K3-G1).
  *
- * The fixture's follows carry no identifier of their own — they are keyed by
- * TITLE, which is what the engine draws them by — so the address's identifier
- * is read as a title. The demand register asks the backend for a stable
- * identifier, because a title is not one.
+ * THE KEY IS THE MEDIUM'S IDENTITY, `<provider>:<providerId>`, read as a server
+ * reads it: from the records the layer holds, never from a title.
  *
- * @param identifier What the address named.
+ * @param key What the address named.
  * @returns The follow, or undefined.
  */
-function followFor(identifier: string) {
-  return mockState().follows.find((follow) => follow.title === identifier);
+function followFor(key: string) {
+  return followForKey(key);
 }
 
 
@@ -99,6 +98,14 @@ function followedFrom(title: string) {
   return SEARCH_RESULTS.results.find((result) => result.title === title)
     ?? SUGGESTIONS.find((suggestion) => suggestion.title === title);
 }
+
+// What an address that names no follow is answered with (the contract's 404).
+const NO_FOLLOW = "no follow answers to that key";
+const NOT_FOUND = 404;
+const FORBIDDEN = 403;
+
+// The statuses `updateFollow` accepts — the contract's own enum.
+const WRITABLE_STATUSES = new Set(["disabled", "pending", "up_to_date"]);
 
 // Why a co-requester's generic pause is refused.
 const SHARED_PAUSE = "other accounts asked for this follow too: each pauses it for itself";
@@ -195,12 +202,17 @@ export function acquisitionRoutes(): MockRoute[] {
       "/acquisition/followed/{followedId}",
       (request) => {
         const found = followFor(request.parameters.followedId);
-        if (found === undefined) return null;
+        if (found === undefined) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
         // THE GENERIC PAUSE IS THE WHOLE FOLLOW'S: a co-requester pauses for
         // itself (`setAcquisitionPause`), never for the others (round 10 Q6).
-        if (sharedWithOthers(found.title)) return refused(403, SHARED_PAUSE);
+        // The code is the contract's (K3-G11), which the interface words.
+        if (sharedWithOthers(found.title)) return refused(FORBIDDEN, SHARED_PAUSE, "acquisition.follow_shared");
         const asked = field(request.body, "status");
-        if (typeof asked === "string") found.status = asked;
+        // THE BODY'S STATUS IS THE CONTRACT'S ENUM, never a free string (K3-G10).
+        if (typeof asked !== "string" || !WRITABLE_STATUSES.has(asked)) {
+          return refused(400, "status is one of disabled, pending, up_to_date", "request.invalid");
+        }
+        found.status = asked as typeof found.status;
         return found;
       },
     ),
@@ -215,19 +227,18 @@ export function acquisitionRoutes(): MockRoute[] {
       "/acquisition/followed/{followedId}",
       (request) => {
         const state = mockState();
+        const standing = followFor(request.parameters.followedId);
+        if (standing === undefined) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
+        const title = standing.title;
         // A FOLLOW OTHERS ASKED FOR TOO STAYS FOR THEM: the caller alone
         // leaves its requesters; it goes with its last one (round 9 Q16).
-        if (requestersOf(request.parameters.followedId).length > 1
-          && requestersOf(request.parameters.followedId).some((one) => one.id === signedInId())) {
-          releaseRequest(request.parameters.followedId);
+        if (requestersOf(title).length > 1
+          && requestersOf(title).some((one) => one.id === signedInId())) {
+          releaseRequest(title);
           return { ok: true };
         }
-        const removed = state.follows.filter(
-          (follow) => follow.title === request.parameters.followedId,
-        );
-        state.follows = state.follows.filter(
-          (follow) => follow.title !== request.parameters.followedId,
-        );
+        const removed = state.follows.filter((follow) => follow === standing);
+        state.follows = state.follows.filter((follow) => follow !== standing);
         // NEWEST FIRST, so a title removed twice restores the record that left
         // last. Anything else would put back a version the operator has not
         // seen since before the one they just removed.
@@ -250,13 +261,11 @@ export function acquisitionRoutes(): MockRoute[] {
           claimRequest(standing.title, true);
           return withAcquisitionFacts([standing])[0];
         }
-        const at = state.removedFollows.findIndex(
-          (follow) => follow.title === request.parameters.followedId,
-        );
-        // NOTHING RESTORABLE UNDER THAT NAME. Answering a made-up record here
+        const at = removedIndexForKey(request.parameters.followedId);
+        // NOTHING RESTORABLE UNDER THAT KEY. Answering a made-up record here
         // would be the same lie the create told, arrived at from the layer's
         // side; the contract declares a 404 for it.
-        if (at === -1) return null;
+        if (at === -1) return refused(NOT_FOUND, "nothing removed under that key is still restorable", "follow.not_restorable");
         const [restored] = state.removedFollows.splice(at, 1);
         state.follows = [restored, ...state.follows];
         return restored;
@@ -268,10 +277,11 @@ export function acquisitionRoutes(): MockRoute[] {
       "/acquisition/followed/{followedId}/search",
       (request) => {
         const found = followFor(request.parameters.followedId);
-        if (found !== undefined) found.searches += 1;
+        if (found === undefined) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
+        found.searches += 1;
         // Derived from the seeded releases OF THIS FOLLOW: a search is for one
         // title, and counting every release answered the same number to all.
-        return { found: found === undefined ? 0 : releasesFor(found.title).length };
+        return { found: releasesFor(found.title).length };
       },
     ),
     route(
@@ -283,7 +293,17 @@ export function acquisitionRoutes(): MockRoute[] {
         // takeable leaves the queue and is in flight. The backend answers the
         // run it spawned; the layer holds no runner, and answers none.
         const state = mockState();
-        const asked = request.parameters.followedId;
+        // THE MEDIUM THE KEY NAMES, followed or not: what waits to be taken is a release a
+        // search found, and a takeable card is claimed whether or not a follow asked for it.
+        const medium = mediumOfKey(request.parameters.followedId);
+        if (medium === null) return refused(NOT_FOUND, NO_FOLLOW, "acquisition.not_found");
+        const asked = medium.title;
+        // THE RELEASE THE PICKER CHOSE is named by its handle (K3-G5); one the
+        // layer does not hold is refused, never taken for another.
+        const chosen = field(request.body, "releaseId");
+        if (typeof chosen === "string" && !releasesFor(asked).some((release) => release.id === chosen)) {
+          return refused(400, "no release answers to that id", "request.invalid");
+        }
         const found = state.takeable.find((card) => card.title === asked);
         if (found !== undefined) {
           state.takeable = state.takeable.filter((card) => card !== found);
@@ -392,27 +412,28 @@ export function acquisitionRoutes(): MockRoute[] {
     // would also have been mutated in place for every other medium at once.
     route("readJourney", GET, "/acquisition/journeys/{infoHash}",
           (request) => stagesOf(request.parameters.infoHash)),
-    // THE RELEASES OF THE TITLE ASKED FOR. The contract declares `title`,
-    // `season` and `episode`; this answered the same eight releases to every
-    // question, so the picker opened on « Ted Lasso » and then on « Silo »
-    // showed one list — and the second came from the cache without a request,
-    // because the query key carried no title either. A release list that does
-    // not depend on what it is a list OF is not a list.
+    // THE RELEASES OF THE MEDIUM ASKED FOR, by its key (K3-G5). The contract
+    // declares `followedId`, `season` and `episode`; this answered the same eight
+    // releases to every question, so the picker opened on « Ted Lasso » and then
+    // on « Silo » showed one list — and the second came from the cache without a
+    // request, because the query key carried no medium either. A release list
+    // that does not depend on what it is a list OF is not a list.
+    //
+    // WITHOUT A KEY, EVERY ITEM'S CANDIDATES: what the quality profile counts against.
     route("readReleases", GET, "/acquisition/releases", (request) => {
-      const title = request.query.get("title") ?? "";
+      const key = request.query.get("followedId") ?? "";
       const season = request.query.get("season") ?? "";
       const episode = request.query.get("episode") ?? "";
-      return releasesFor(title).filter((release) => {
-        // A RELEASE CARRIES ITS SEASON AND EPISODE IN ITS NAME, which is what a
-        // release name is. Reading them off a field the seed does not have and
-        // falling back to « it matches » would make both parameters vacuous —
-        // accepted and ignored, the defect this handler is being repaired for.
-        const name = String(release.name ?? "");
-        const counted = /S(?<season>\d+)E(?<episode>\d+)/i.exec(name);
-        if (season !== "" && counted?.groups?.season !== undefined
-            && Number(counted.groups.season) !== Number(season)) return false;
-        if (episode !== "" && counted?.groups?.episode !== undefined
-            && Number(counted.groups.episode) !== Number(episode)) return false;
+      const medium = key === "" ? null : mediumOfKey(key);
+      // A KEY NOTHING KNOWN ANSWERS TO HAS NO RELEASES, never every one.
+      if (key !== "" && medium === null) return [];
+      const listed = medium === null ? releasesOfEvery() : releasesFor(medium.title);
+      // THE SEASON AND THE EPISODE ARE FIELDS OF THE RELEASE (SR6), read from
+      // its own record. A release that says neither is a whole-series pack and
+      // answers to any ask, as one no name numbers does.
+      return listed.filter((release) => {
+        if (season !== "" && release.season !== null && release.season !== Number(season)) return false;
+        if (episode !== "" && release.episode !== null && release.episode !== Number(episode)) return false;
         return true;
       });
     }),

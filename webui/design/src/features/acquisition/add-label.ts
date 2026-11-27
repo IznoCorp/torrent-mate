@@ -22,11 +22,29 @@ import type { SearchResult } from "./types";
  */
 export function addVerb(result: SearchResult): string {
   const identify = identifying();
-  const film = result.kind === "Film";
+  const film = result.kind === "movie";
   const say = (key: string) => i18next.t(`screens.add.verb.${key}`);
   if (isAdded(result)) {
     return say(identify ? "associated" : film ? "added" : "followed");
   }
   const label = say(identify ? "associate" : film ? "add" : "follow");
   return result.owned && !identify ? `${label}…` : label;
+}
+
+/**
+ * The line a search result carries under its title: its year when the provider
+ * gives one, its kind, and the source.
+ *
+ * A KIND IS A VALUE (K3-G8) and the interface says it in its own words; a year
+ * is a number or nothing, and nothing leaves the line without it rather than
+ * printing the absence.
+ *
+ * @param result The search result.
+ * @returns The line, in the interface's language.
+ */
+export function resultLine(result: SearchResult): string {
+  const kind = i18next.t(result.kind === "movie" ? "common.film" : "common.series");
+  return result.year === null
+    ? i18next.t("panels.add.metaNoYear", { kind })
+    : i18next.t("panels.add.meta", { year: result.year, kind });
 }

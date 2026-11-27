@@ -13,6 +13,7 @@ import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { read } from "../../lib/query-client";
+import { followKeyOfTitle } from "../../lib/follow-key";
 import { sendVerb } from "./verb-outcome";
 import { panel, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
@@ -110,7 +111,10 @@ export function installReassignVerb(client: QueryClient): void {
   registerVerb("reassign-to", (value) => {
     const [kind, title, from, to] = value.split(PART);
     void (async () => {
-      const sent = await sendVerb("POST", "/api/v1/acquisition/requesters/reassign", { kind, title, from, to });
+      // THE ACQUISITION IS NAMED BY ITS MEDIUM'S KEY (K3-G4), crossed from the title at the door.
+      const acquisition = await followKeyOfTitle(title);
+      if (acquisition === null) return void toast?.show({ message: i18next.t("verbs.reassign.refused") });
+      const sent = await sendVerb("POST", "/api/v1/acquisition/requesters/reassign", { kind, acquisition, from, to });
       // HELD: the outbox keeps the move, the request is still where it was, and the lists are not read over it.
       if (sent.kind === "held") return void toast?.show({ message: i18next.t("verbs.acquisition.held") });
       if (sent.kind === "failed") return void toast?.show({ message: i18next.t("verbs.acquisition.failed") });

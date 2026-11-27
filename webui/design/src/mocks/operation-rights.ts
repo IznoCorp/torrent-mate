@@ -21,6 +21,7 @@
 // filter, never a 403), and an account with no acquisition right reads an empty
 // one.
 import type { Right } from "../lib/rights";
+import { mediumOfKey } from "./follow-key";
 
 /** What one operation asks for: a right, any of several, or nothing. */
 export type Asked = Right | readonly Right[] | null;
@@ -210,8 +211,10 @@ export const OWN_SCOPED: ReadonlySet<string> = new Set([
  *
  * @param parameters What the path template captured.
  * @param query The request's query.
- * @returns The title — a follow's id and a journey's subject are its title here.
+ * @returns The title — a follow's key is read to its medium's title, and a journey's subject is its title here.
  */
 export function subjectOf(parameters: Record<string, string>, query: URLSearchParams): string {
-  return parameters.followedId ?? parameters.infoHash ?? query.get("title") ?? "";
+  // A follow's address is its medium's key: the requesters are held by title.
+  const keyed = parameters.followedId === undefined ? undefined : mediumOfKey(parameters.followedId)?.title;
+  return keyed ?? parameters.followedId ?? parameters.infoHash ?? query.get("title") ?? "";
 }

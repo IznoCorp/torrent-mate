@@ -13,7 +13,7 @@ import {
   signedInRights,
   type Preference,
 } from "../identity";
-import { mockState } from "../state";
+import { followForKey, titlesOfKey } from "../follow-key";
 import { refused, type MockRoute } from "../router";
 import { POST, PUT, field, route, text } from "./shared";
 import type { components } from "../../contract/types";
@@ -28,7 +28,7 @@ const FORBIDDEN = 403;
 const PAUSED = "disabled";
 const MISSING = 404;
 const NOT_THEIRS = "the caller is not among this acquisition's requesters";
-const NO_SUCH = "no acquisition carries that title, or that requester";
+const NO_SUCH = "no acquisition answers to that key, or that requester";
 
 /**
  * Adds its requesters to every row that names an acquisition.
@@ -93,12 +93,12 @@ export function withAcquisitionFacts(follows: Schemas["Follow"][]): Schemas["Fol
 /**
  * Writes the caller's own setting on one of their follows.
  *
- * @param followedId The follow, by its title.
+ * @param followedId The follow, by its key.
  * @param change The setting written.
  * @returns The follow, decorated, or a refusal.
  */
 function setOwn(followedId: string, change: Preference): unknown {
-  const follow = mockState().follows.find((one) => one.title === followedId);
+  const follow = followForKey(followedId);
   if (follow === undefined) return refused(MISSING, NO_SUCH);
   if (!requestersOf(follow.title).some((one) => one.id === signedInId())) return refused(FORBIDDEN, NOT_THEIRS);
   const preferences = preferencesOf(follow.title);
@@ -110,7 +110,12 @@ function setOwn(followedId: string, change: Preference): unknown {
 export function requesterRoutes(): MockRoute[] {
   return [
     route("reassignRequester", POST, "/acquisition/requesters/reassign", (request) => {
-      const moved = moveRequester(text(request.body, "title"), text(request.body, "from"), text(request.body, "to"));
+      // THE ACQUISITION IS NAMED BY ITS MEDIUM'S KEY (K3-G4), followed or not.
+      // The move is written under every title the medium is drawn with, so a card and a follow
+      // of one medium say the same requesters afterwards; the answer is the first that held `from`.
+      const [from, to] = [text(request.body, "from"), text(request.body, "to")];
+      const moves = titlesOfKey(text(request.body, "acquisition")).map((title) => moveRequester(title, from, to));
+      const moved = moves.find((one) => one !== null) ?? null;
       return moved === null ? refused(MISSING, NO_SUCH) : { requesters: moved };
     }),
     route("setAcquisitionQuality", PUT, "/acquisition/followed/{followedId}/quality", (request) => {

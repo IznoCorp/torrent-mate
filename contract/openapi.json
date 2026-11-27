@@ -1669,7 +1669,7 @@
                 "loaded"
               ]
             },
-            "description": "which body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs."
+            "description": "THE MAQUETTE'S DATA DIAL, not a parameter of the operation: v1 ignores it and answers the one body of data it holds. In the maquette it picks the body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs."
           }
         ],
         "responses": {
@@ -1811,7 +1811,24 @@
             "$ref": "#/components/responses/Problem"
           },
           "403": {
-            "$ref": "#/components/responses/Problem"
+            "description": "refused: `right.missing`, or `acquisition.follow_shared` when other accounts asked for this follow too and the caller does not pilot every acquisition — each pauses it for itself (`setAcquisitionPause`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "no follow answers to that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "409": {
             "$ref": "#/components/responses/Problem"
@@ -1829,9 +1846,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -1845,7 +1863,13 @@
                 "type": "object",
                 "properties": {
                   "status": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "disabled",
+                      "pending",
+                      "up_to_date"
+                    ],
+                    "description": "`disabled` pauses the follow; `pending` resumes a film and `up_to_date` a show, the two places a lifted pause goes back to"
                   }
                 },
                 "required": [
@@ -1892,6 +1916,16 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "description": "no follow answers to that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -1908,9 +1942,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -1974,9 +2009,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -2025,6 +2061,16 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "description": "no follow answers to that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -2041,9 +2087,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -2059,7 +2106,7 @@
           "acquisition.pilot.own",
           "acquisition.pilot.any"
         ],
-        "summary": "Take one season of a medium, following it first if it is not followed yet",
+        "summary": "Take one season of a medium, as a one-off request when it is not followed",
         "tags": [
           "acquisition"
         ],
@@ -2176,9 +2223,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the medium; it is followed by this act if it was not already. The interface knows it by TITLE"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title; a medium nobody follows is not followed by this act"
           },
           {
             "name": "season",
@@ -2193,7 +2241,8 @@
             "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
-        "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. A season of a series nobody follows begins no follow (round 10 Q2): the layer queues a one-off acquisition of that season, built from the incomplete show the library already holds."
+        "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. A season of a series nobody follows begins no follow (round 10 Q2): the layer queues a one-off acquisition of that season, built from the incomplete show the library already holds.",
+        "description": "Asks for one season of a medium WITHOUT following it (round 10 Q2): a medium nobody follows gets a one-off request that ends with its season, and « Suivre » is what turns it into a follow. The path says `follows` where its neighbours say `followed`; the spelling is not functional and stays."
       }
     },
     "/acquisition/followed/{followedId}/grab": {
@@ -2239,6 +2288,16 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "description": "no follow answers to that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -2255,9 +2314,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -2270,9 +2330,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "releaseName": {
+                  "releaseId": {
                     "type": "string",
-                    "description": "the release the picker chose; absent, the grab takes what the last search marked takeable. The backend's grab takes no body: the chosen release is a demand"
+                    "description": "the release the picker chose, by its `Release.id`; absent, the grab takes what the last search marked takeable"
                   }
                 },
                 "required": []
@@ -2912,13 +2972,14 @@
         },
         "parameters": [
           {
-            "name": "title",
+            "name": "followedId",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the title they are for"
+            "description": "the wanted item's medium: the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title. Absent, the candidates of every item (what the quality profile counts against)"
           },
           {
             "name": "season",
@@ -2927,7 +2988,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "the season"
+            "description": "the season, 1-based — absent for a film"
           },
           {
             "name": "episode",
@@ -2936,7 +2997,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "the episode"
+            "description": "the episode, 1-based — absent for a whole season and for a film"
           }
         ],
         "x-seeded-from": [
@@ -5871,9 +5932,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           }
         ],
         "x-seeded-from": [
@@ -6270,22 +6332,23 @@
                     ],
                     "description": "a follow, or a card of the queue"
                   },
-                  "title": {
+                  "acquisition": {
                     "type": "string",
-                    "description": "the acquisition, by its title"
+                    "pattern": "^(tvdb|tmdb|imdb):.+$",
+                    "description": "the acquisition: the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
                   },
                   "from": {
                     "type": "string",
-                    "description": "the requester moved off"
+                    "description": "the requester moved off, by its account id (`AccountRef.id`)"
                   },
                   "to": {
                     "type": "string",
-                    "description": "the account moved on"
+                    "description": "the account moved on, by its account id (`AccountRef.id`)"
                   }
                 },
                 "required": [
                   "kind",
-                  "title",
+                  "acquisition",
                   "from",
                   "to"
                 ]
@@ -6329,6 +6392,16 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "description": "no follow answers to that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -6345,9 +6418,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6365,7 +6439,13 @@
                       "string",
                       "null"
                     ],
-                    "description": "a quality profile's name, or null to follow the default"
+                    "description": "the resolution floor the caller sets on this acquisition, or null to follow the default. The floor is the whole of the operation: no other field of a quality profile (audio, 3D, a known resolution) has a write",
+                    "enum": [
+                      "720p",
+                      "1080p",
+                      "2160p",
+                      null
+                    ]
                   }
                 },
                 "required": [
@@ -6406,6 +6486,16 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "description": "no follow answers to that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -6422,9 +6512,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(tvdb|tmdb|imdb):.+$"
             },
-            "description": "the follow"
+            "description": "the medium's key, `<provider>:<providerId>` — TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -7989,6 +8080,16 @@
           },
           "status": {
             "type": "string",
+            "enum": [
+              "disabled",
+              "verifying",
+              "to_grab",
+              "acquiring",
+              "pending",
+              "unverified",
+              "up_to_date",
+              "ended"
+            ],
             "description": "the acquisition status token"
           },
           "showStatus": {
@@ -7997,10 +8098,6 @@
               "null"
             ],
             "description": "whether the SHOW is still running — « Continuing » — and null for a film. The fixture's key is `serie`, which reads as a series NAME and is not one: the eight shows all carry « Continuing » and the four films carry null. The rename was `series` until the data was read."
-          },
-          "since": {
-            "type": "string",
-            "description": "when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
           },
           "addedAt": {
             "type": "number",
@@ -8078,7 +8175,6 @@
           "poster",
           "searches",
           "showStatus",
-          "since",
           "status",
           "title",
           "year"
@@ -8091,11 +8187,19 @@
             "type": "string"
           },
           "year": {
-            "type": "string"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the year the medium was released, or null when the provider gives none"
           },
           "kind": {
             "type": "string",
-            "description": "the provider's own word for the kind. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "description": "movie or show"
           },
           "overview": {
             "type": "string"
@@ -8242,6 +8346,10 @@
       "Release": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "the candidate's handle: `grabForFollow` chooses a release by it, never by its name"
+          },
           "name": {
             "type": "string",
             "description": "the release name, as the tracker publishes it"
@@ -8264,13 +8372,30 @@
           "score": {
             "type": "integer",
             "description": "the ranking score"
+          },
+          "season": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the season the release is of, 1-based; null for a film (demand SR6)"
+          },
+          "episode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the episode the release is of, 1-based; null for a whole season and for a film (demand SR6)"
           }
         },
         "required": [
+          "episode",
+          "id",
           "language",
           "name",
           "resolution",
           "score",
+          "season",
           "seeders",
           "sizeGigabytes",
           "source"
@@ -10752,9 +10877,10 @@
               "under_floor",
               "under_target",
               "comfortable",
+              "unknown",
               null
             ],
-            "description": "where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored"
+            "description": "where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; `unknown` when the tracker has a policy and no ratio has been read for it; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored"
           }
         },
         "required": [

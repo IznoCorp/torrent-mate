@@ -14,7 +14,7 @@ import asyncio
 import json
 import pathlib
 
-from common import SETTLED, PANEL_IN, ACTED, Journal, open_page, browser_channel, chrome_launch_args
+from common import SETTLED, PANEL_IN, ACTED, Journal, follow_key, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -79,9 +79,9 @@ async def main():
 
         await page.evaluate("()=>window.__go('acq-household')")
         await page.wait_for_timeout(SETTLED)
-        forced = await page.evaluate("""async (title) => (await fetch('/api/v1/acquisition/requesters/reassign', {
-          method: 'POST', body: JSON.stringify({ kind: 'card', title, from: 'household-member', to: 'guest' }) })).status""",
-                                     CARD)
+        forced = await page.evaluate("""async (acquisition) => (await fetch('/api/v1/acquisition/requesters/reassign', {
+          method: 'POST', body: JSON.stringify({ kind: 'card', acquisition, from: 'household-member', to: 'guest' }) })).status""",
+                                     follow_key(CARD.rsplit(" (", 1)[0]))
         journal.check("R-L18-j: forced by a household member, the move answers 403", forced == 403, str(forced))
 
         journal.check("no JS error", not errors, str(errors))

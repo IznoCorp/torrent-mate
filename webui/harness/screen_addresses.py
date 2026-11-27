@@ -699,7 +699,7 @@ async def main():
             #
             # THIS HOLD USED TO REQUIRE CANDIDATES, and its stated reason was
             # « RELEASES carries no per-title lookup to fail ». Since L09 it
-            # does: the picker asks `/api/v1/acquisition/releases?title=…` and the
+            # does: the picker asks `/api/v1/acquisition/releases?followedId=…` and the
             # layer answers for the title. So an unknown title legitimately
             # answers none — that is the lookup working — and what has to hold
             # is the other half, which nothing was reading: the screen still

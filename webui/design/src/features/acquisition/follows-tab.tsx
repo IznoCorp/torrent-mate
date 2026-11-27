@@ -16,6 +16,7 @@ import { tileMarkup } from "../../ui/tile";
 import { tileBadgeOf } from "./tile-badge";
 import { cadence } from "./variants";
 import { escapeHtml, svgIcon } from "../../lib/markup-text";
+import { dayOf } from "../../lib/clock";
 import { useRights } from "../../lib/account";
 import { actOffered } from "./act-rights";
 import {
@@ -114,8 +115,10 @@ export function FollowsTab(): ReactElement {
       : undefined,
     caption:
       [
-        follow.since
-          ? t("screens.acquisition.followedSince") + follow.since
+        // THE DATE IS READ OFF `addedAt`, an epoch the server serves, through the
+        // frame's own day formatting — never a string it pre-formatted (K3-G10).
+        follow.addedAt
+          ? t("screens.acquisition.followedSince") + dayOf(follow.addedAt)
           : null,
         // Zero is a fact worth printing: a follow added and never searched is
         // exactly what one wants to spot.
