@@ -78,7 +78,8 @@ def _identity(body: CreateFollowBody) -> tuple[AcquisitionKey, FollowKind]:
     if kind is None:
         raise AppBadRequest("Unknown kind.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["kind"]})
     if body.provider is None or body.provider_id is None:
-        missing = [name for name, value in (("provider", body.provider), ("providerId", body.provider_id)) if value is None]
+        named = (("provider", body.provider), ("providerId", body.provider_id))
+        missing = [name for name, value in named if value is None]
         raise AppBadRequest(
             "A follow names the medium it follows.", code=RefusalCode.REQUEST_INVALID, params={"fields": missing}
         )

@@ -568,6 +568,15 @@ class TestReassign:
 
         assert world.requesters(row) == {BOB: ("follow", 720, False)}
 
+    def test_a_reassign_answers_the_requesters_after_the_move(self, world: FollowWorld) -> None:
+        """Alice moved onto Bob, who joins; Carol keeps her ask: the answer names Carol and Bob, by name."""
+        _create(world, ALICE)
+        _create(world, CAROL)
+
+        after = world.follows.reassign(actor(ERIN), "follow", SHOW, ALICE, BOB)
+
+        assert sorted((one.id, one.name) for one in after) == [(BOB, "Bob"), (CAROL, "Carol")]
+
     def test_a_reassign_that_turns_the_follow_on_primes_it(self, world: FollowWorld) -> None:
         """Alice alone paused it; moved onto Bob, who paused nothing, it takes work again: one prime."""
         row = _create(world, ALICE)

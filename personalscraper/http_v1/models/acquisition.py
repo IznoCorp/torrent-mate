@@ -1,4 +1,4 @@
-"""The ``acquisition`` tag's follow bodies, written from the contract's ``Follow``, ``FollowCompleteness`` and the writes.
+"""The ``acquisition`` tag's follow bodies, from the contract's ``Follow``, ``FollowCompleteness`` and the writes.
 
 A property the contract leaves out of its required set and does not make nullable (a show's ``aired``
 and ``owned``) is never assigned on a film, and the routes serialise a ``Follow`` with
@@ -32,9 +32,7 @@ from personalscraper.http_v1.models.media import ProviderIdValue
 FRESH_WINDOW_SECONDS: Final = 24 * 60 * 60
 
 #: The contract's ``Follow.year``: an integer or a string (a ``oneOf``), here an integer or ``None`` when unknown.
-FollowYear = Annotated[
-    int | None, WithJsonSchema({"oneOf": [{"type": "integer"}, {"type": "string"}]})
-]
+FollowYear = Annotated[int | None, WithJsonSchema({"oneOf": [{"type": "integer"}, {"type": "string"}]})]
 
 #: The wire's names of the quality floors the contract's profile enum lists.
 QualityProfile = Literal["720p", "1080p", "2160p"]

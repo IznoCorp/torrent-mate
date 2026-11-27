@@ -177,7 +177,7 @@ def test_a_create_without_an_identity_is_a_400_naming_it(v1_client: ClientFactor
 def test_a_create_that_names_no_medium_is_a_400_naming_the_field(
     v1_client: ClientFactory, change: dict[str, Any], field: str
 ) -> None:
-    """An unknown provider, an id its provider cannot hold, a kind that is neither: ``request.invalid`` and the field."""
+    """A provider, an id or a kind the contract cannot hold: ``request.invalid`` naming the field."""
     response = v1_client().post("/acquisition/followed", json={**SILO, **change})
 
     assert response.status_code == 400
@@ -396,9 +396,7 @@ def test_a_reassign_that_turns_the_follow_on_is_primed_under_the_system_trigger(
     )
 
     fresh = [
-        r
-        for r in services.runs.queue_view().acquisition_queued
-        if r.uid not in before and r.job.kind is JobKind.PRIME
+        r for r in services.runs.queue_view().acquisition_queued if r.uid not in before and r.job.kind is JobKind.PRIME
     ]
     assert [r.trigger for r in fresh] == [RunTrigger.SYSTEM]
 

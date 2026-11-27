@@ -81,6 +81,13 @@ def test_each_season_tallies_aired_owned_in_motion_and_announced(world: FollowWo
     assert second.episodes[1].air_date == "2026-12-24"
 
 
+def test_the_completeness_names_the_follows_row(world: FollowWorld) -> None:
+    """The contract's ``followedId`` is an integer: the follow's row, whatever key it is asked by."""
+    row = _followed(world)
+
+    assert world.completeness.read(actor(ALICE), SHOW).follow_id == row
+
+
 def test_episodes_a_season_row_absorbed_read_its_season(world: FollowWorld) -> None:
     """A season asked absorbs its pending episode, which reads its season's facts: found, so ``to_grab``.
 
