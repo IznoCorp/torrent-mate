@@ -2,14 +2,15 @@
 
 What waits to be taken leaves « En cours »; the act stays on the follow's sheet,
 and the sheet says what the machine will do without it: « trouvé, récupéré à la
-prochaine passe, à <heure> » — the hour the scheduler's cadence names next.
+prochaine passe, à <heure> » when the server states the next search, or « trouvé,
+sans recherche automatique programmée » when it states none.
 
 WHAT IT HOLDS, on the real world at rest, for the first release the queue holds
 to be taken of a medium the operator follows:
 
-  the sentence  the follow's sheet reads « trouvé, récupéré à la prochaine passe,
-                à <heure> », the hour computed here from the cadence the
-                scheduler answers — its next slot after the page's own clock.
+  the sentence  the follow's sheet reads the server's `nextSearch`: the instant's
+                clock time, or the none-scheduled sentence when it is null. The
+                cadence is never the source of the hour.
   the act       the same sheet offers « Récupérer maintenant » for that title.
   the take      a tap sends THAT FOLLOW's grab — `grabForFollow`, at the
                 follow's own address, the backend's « claim now » — and the
@@ -21,14 +22,10 @@ WHAT IT DOES NOT READ: the queue's optimistic move on the tap (R123's), or the
 panel's other actions.
 """
 import asyncio
-import json
-import pathlib
 
 from common import ACTED, KEY_OF_JS, PANEL_IN, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
-LOCALE = pathlib.Path(__file__).resolve().parents[1] / "design/src/i18n/fr.json"
-HOUR = json.loads(LOCALE.read_text(encoding="utf-8"))["surfaces"]["clock"]["timeOfDay"]
 SENTENCE = "récupéré à la prochaine passe, à "  # french-ok: the sheet's own words, asserted present
 
 # The next slot of a daily cron « M H1,H2 * * * » after the page's clock, read
@@ -43,6 +40,16 @@ NEXT_SLOT = """() => {
   const hour = hours.find((one) => one > now.getHours()
     || (one === now.getHours() && minute > now.getMinutes())) ?? hours[0];
   return { hour, minute: String(minute).padStart(2, "0") };
+}"""
+
+# The sentence the sheet owes the server's `nextSearch`, worded by the page's own
+# catalogue: none scheduled when it is null, else the instant's clock time.
+NEXT_SENTENCE = """() => {
+  const next = window.__queries.getQueryData(["/api/v1/acquisition/status"])?.nextSearch ?? null;
+  if (next === null) return window.__i18n.t("panels.follow.foundNoNextPass");
+  const at = new Date(next);
+  return window.__i18n.t("panels.follow.foundNextPassAt", { at: window.__i18n.t("surfaces.clock.timeOfDay",
+    { hour: at.getHours(), minute: String(at.getMinutes()).padStart(2, "0") }) });
 }"""
 
 SHEET = """() => {
@@ -90,11 +97,11 @@ async def main():
         title = takeable[0] if takeable else ""
         slot = await page.evaluate(NEXT_SLOT)
         journal.check("the scheduler's cadence is read", slot is not None, str(slot))
-        hour = HOUR.replace("{{hour}}", str(slot["hour"])).replace("{{minute}}", slot["minute"]) if slot else "?"
+        expected = await page.evaluate(NEXT_SENTENCE)
 
         read = await open_follow(page, title)
-        journal.check(f"« {title} »'s sheet says it will be taken at the next pass, at {hour}",
-                      SENTENCE + hour in read["text"], read["text"][:240])
+        journal.check(f"« {title} »'s sheet states the next search the server answers",
+                      expected in read["text"], f"{expected} — {read['text'][:240]}")
         journal.check(f"« {title} »'s sheet offers « Récupérer maintenant »",
                       read["take"] == title, str(read["take"]))
 
