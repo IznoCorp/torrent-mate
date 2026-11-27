@@ -91,6 +91,8 @@ ASKED_FOR = {
     "grabForFollow": ("POST", f"/api/v1/acquisition/followed/{follow_segment('Silo')}/grab"),
     "grabSeasonForFollow": (
         "POST", f"/api/v1/acquisition/follows/{follow_segment('Silo')}/seasons/1/grab"),
+    # A search is queued like a grab, so it answers 202 too (K3-G6, ruling O-6 B).
+    "searchForFollow": ("POST", f"/api/v1/acquisition/followed/{follow_segment('Silo')}/search"),
     "requeueJourney": ("POST", "/api/v1/acquisition/journeys/Silo/requeue"),
     "rescrapeJourney": ("POST", "/api/v1/acquisition/journeys/Silo/rescrape"),
     # ADDED BY THE COMMIT THAT DECLARED THE OPERATION, because the corpus hold
