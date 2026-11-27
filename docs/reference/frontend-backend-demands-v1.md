@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 109 |
-| operations v1 serves | 31 |
-| required and not served | 78 |
+| operations v1 serves | 36 |
+| required and not served | 73 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -50,11 +50,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/acquisition/followed/{followedId}/completeness` | `readFollowCompleteness` | What has aired against what the library holds, season by season, for one follow |
 | `GET /api/v1/acquisition/journeys/{infoHash}` | `readJourney` | One medium's ladder, rung by rung |
 | `GET /api/v1/acquisition/obligations` | `readObligations` | Every seeding obligation, open or ended |
-| `GET /api/v1/acquisition/releases` | `readReleases` | The release candidates for one wanted item |
-| `GET /api/v1/acquisition/search` | `searchProviders` | Search the providers for a title to follow |
-| `GET /api/v1/acquisition/search/by-id` | `searchProviderById` | Find the one medium a source knows under an identifier |
 | `GET /api/v1/acquisition/status` | `readAcquisitionStatus` | The grab cadence, and when the next search runs |
-| `GET /api/v1/acquisition/suggestions` | `readSuggestions` | Titles worth following, and why |
 | `GET /api/v1/acquisition/to-handle` | `readAcquisitionQueue` | What the acquisition side is holding, by bucket |
 | `GET /api/v1/config/files` | `readConfigurationFiles` | The configuration files, and which have pending edits |
 | `GET /api/v1/config/files/{name}` | `readConfigurationFile` | Read one configuration file's content |
@@ -91,7 +87,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/v1/acquisition/journeys/{infoHash}/requeue` | `requeueJourney` | Put one journey back in the queue |
 | `POST /api/v1/acquisition/journeys/{infoHash}/rescrape` | `rescrapeJourney` | Re-scrape one journey's tracked item |
-| `POST /api/v1/acquisition/ranking/preview` | `previewRanking` | Score the preview's fixed sample set under a candidate ranking |
 | `POST /api/v1/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
 | `POST /api/v1/config/restart-web` | `restartWeb` | Restart the web process so a change takes |
 | `POST /api/v1/decisions/{decisionId}/dismiss` | `dismissDecision` | Leave the folder as it is |

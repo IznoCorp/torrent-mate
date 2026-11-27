@@ -47,6 +47,13 @@ V0_TWINS: Final[Mapping[tuple[str, str], V0Twin]] = {
     ("GET", "/api/media/{provider}/{provider_id}"): V0Twin(
         "readMediaSheet", "/api/v1/media/{provider}/{providerId}", date(2026, 10, 4)
     ),
+    ("GET", "/api/acquisition/search"): V0Twin("searchProviders", "/api/v1/acquisition/search", date(2026, 11, 27)),
+    ("GET", "/api/acquisition/lookup"): V0Twin(
+        "searchProviderById", "/api/v1/acquisition/search/by-id", date(2026, 11, 27)
+    ),
+    ("POST", "/api/acquisition/ranking/preview"): V0Twin(
+        "previewRanking", "/api/v1/acquisition/ranking/preview", date(2026, 11, 27)
+    ),
 }
 
 

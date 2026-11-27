@@ -109,6 +109,8 @@ class SuggestedMedium:
         reason: Why it is suggested, as a code the interface words.
         seed_key: The title whose recommendation this is (``"tmdb:603"``).
         cursor: The ``after`` that continues the deck past this card.
+        ids: The ids the library and the follows know the title by (:func:`media_ref_of`), or
+            ``None`` when it has none.
     """
 
     provider: str
@@ -121,6 +123,7 @@ class SuggestedMedium:
     reason: SuggestionReason
     seed_key: str
     cursor: str
+    ids: MediaRef | None = None
 
 
 @dataclass(frozen=True)
@@ -368,4 +371,5 @@ def _medium_of(row: SuggestionRow) -> SuggestedMedium:
         reason=row.reason,
         seed_key=row.seed_key,
         cursor=str(row.id),
+        ids=media_ref_of(row.provider, row.provider_id, row.external_ids),
     )
