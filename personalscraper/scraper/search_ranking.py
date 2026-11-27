@@ -372,12 +372,21 @@ def merge_tv_results(
     return merged
 
 
+#: The television providers :func:`gather_tv_candidates` asks.
+_TV_PROVIDERS = 2
+
+
+class TvProvidersFailed(Exception):
+    """Both television providers raised: nobody could answer, which is not « nothing found »."""
+
+
 def gather_tv_candidates(
     tvdb_client: Any,
     tmdb_client: Any,
     query: str,
     *,
     year: int | None = None,
+    raise_when_all_fail: bool = False,
 ) -> list[SearchResult]:
     """Query both TV providers and merge, degrading when one of them fails.
 
@@ -392,12 +401,19 @@ def gather_tv_candidates(
         tmdb_client: Client exposing ``search_tv(query, year)``.
         query: The operator query.
         year: Optional year hint forwarded to both providers.
+        raise_when_all_fail: When ``True``, both providers raising is a :class:`TvProvidersFailed`
+            instead of an empty list, for a caller that must tell « unreachable » from « no
+            match » (v1's search). ``False`` keeps the degrade-to-empty every other caller relies on.
 
     Returns:
         Merged candidates; empty only when BOTH providers yielded nothing.
+
+    Raises:
+        TvProvidersFailed: Both providers raised, and ``raise_when_all_fail`` is set.
     """
     tvdb_rows: list[SearchResult] = []
     tmdb_rows: list[SearchResult] = []
+    failures = 0
     try:
         tvdb_rows = list(tvdb_client.search_series(query, year))
         if not tvdb_rows:
@@ -408,9 +424,13 @@ def gather_tv_candidates(
             if restored is not None:
                 tvdb_rows = _exact_title_hits(list(tvdb_client.search_series(restored, year)), query)
     except Exception as exc:  # noqa: BLE001 — provider adapters raise a mixed bag
+        failures += 1
         log.warning("search_tv_provider_degraded", provider="tvdb", query=query, error=str(exc))
     try:
         tmdb_rows = list(tmdb_client.search_tv(query, year))
     except Exception as exc:  # noqa: BLE001 — same contract
+        failures += 1
         log.warning("search_tv_provider_degraded", provider="tmdb", query=query, error=str(exc))
+    if raise_when_all_fail and failures == _TV_PROVIDERS:
+        raise TvProvidersFailed(query)
     return merge_tv_results(tvdb_rows, tmdb_rows)

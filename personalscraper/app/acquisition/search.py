@@ -21,7 +21,8 @@ scored the wanted title at exactly 0.000 for a short keyword query.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+import re
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -31,12 +32,18 @@ from typing import TYPE_CHECKING, Any, Final, Literal, Protocol
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.authorise import requires
 from personalscraper.app.acquisition.search_cache import SEARCH_CACHE, SearchResultCache
-from personalscraper.app.errors import AppUnavailable, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppUnavailable, RefusalCode
 from personalscraper.app.library.facts import refuse_not_found
+from personalscraper.core import ApiError
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.logger import get_logger
-from personalscraper.scraper.search_ranking import RankedResult, gather_tv_candidates, rank_search_results
+from personalscraper.scraper.search_ranking import (
+    RankedResult,
+    TvProvidersFailed,
+    gather_tv_candidates,
+    rank_search_results,
+)
 
 if TYPE_CHECKING:
     from personalscraper.acquire.domain import FollowedSeries, FollowKind
@@ -64,6 +71,25 @@ DEFAULT_LIMIT: Final[int] = 20
 #: The provider the movie chain asks, named in the refusal when it fails.
 _MOVIE_PROVIDER: Final[str] = "tmdb"
 
+#: The provider the television chain is named after when both of its providers fail.
+_TV_PROVIDER: Final[str] = "tvdb"
+
+#: A provider's answer for an id it does not hold.
+_NOT_FOUND: Final[int] = 404
+
+#: The kinds a lookup by identifier asks, the shows first.
+_LOOKUP_KINDS: Final[tuple[SearchKind, ...]] = ("tv", "movie")
+
+#: The field a malformed identifier is refused on.
+_ID_FIELD: Final[str] = "id"
+
+#: How each source writes an identifier: digits for TMDB and TVDB, « tt » and digits for IMDb.
+_ID_FORMAT: Final[dict[str, re.Pattern[str]]] = {
+    "tmdb": re.compile(r"[0-9]{1,18}"),
+    "tvdb": re.compile(r"[0-9]{1,18}"),
+    "imdb": re.compile(r"tt[0-9]{1,18}"),
+}
+
 
 class _OwnershipProbe(Protocol):
     """The part of the indexer's ownership checker the search reads."""
@@ -84,8 +110,8 @@ class _OwnershipProbe(Protocol):
 class _FollowLookup(Protocol):
     """The part of the acquire store's follow sub-store the search reads."""
 
-    def find_all_by_ref(self, media_ref: MediaRef, *, kind: FollowKind | None = None) -> list[FollowedSeries]:
-        """Every follow row holding any of the ref's ids, within the medium's kind."""
+    def find_all_by_refs(self, lookups: Sequence[tuple[MediaRef, FollowKind | None]]) -> list[list[FollowedSeries]]:
+        """Every follow row holding any id of each lookup's ref, within its kind, one list per lookup."""
         ...
 
 
@@ -297,27 +323,118 @@ class ProviderSearch:
         Raises:
             AppNotFound: ``media.not_found`` when the provider knows no such id, or answers one
                 without a title.
-            AppUnavailable: ``provider.unavailable`` when the provider registry cannot be built.
+            AppUnavailable: ``provider.unavailable`` when the provider registry cannot be built, the
+                provider is not configured, or the call failed: a failure is never taken for an id
+                the provider does not know.
+        """
+        with self._clients() as (tmdb_client, tvdb_client):
+            medium = self._fetch(tvdb_client if provider == "tvdb" else tmdb_client, provider, id, kind)
+        if medium is None:
+            raise refuse_not_found(provider)
+        return self._flag_facts([medium])[0]
+
+    @requires("searchProviderById")
+    def lookup(self, actor: Actor, provider: str, provider_id: str) -> tuple[SearchedMedium, ...]:
+        """Resolve the medium or media a source knows under one identifier, kind unknown.
+
+        The wire names no kind, and a TMDB or TVDB number is held by a film and by a show alike
+        (the two are numbered apart), so both kinds are asked and each that answers is returned.
+        An IMDb id is never handed to TMDB as if it were a TMDB id: TMDB's find endpoint
+        resolves it to the TMDB ids it numbers, and those are fetched. It RESOLVES and returns,
+        it never follows; ``owned`` and ``followed`` are flagged as in the search.
+
+        Args:
+            actor: Who looks up; authorised by ``@requires`` (``acquisition.request``).
+            provider: ``"tmdb"``, ``"tvdb"`` or ``"imdb"``.
+            provider_id: The identifier, in that source's format.
+
+        Returns:
+            The media found, empty when the source knows none under the identifier.
+
+        Raises:
+            AppBadRequest: ``request.invalid`` naming ``id`` when the identifier is not in the
+                source's format; nothing is asked of a provider.
+            AppUnavailable: ``provider.unavailable`` when the provider is not configured, cannot
+                be reached or fails: a failure is never answered as « no result ».
+        """
+        _check_identifier(provider, provider_id)
+        found: list[SearchedMedium | None] = []
+        with self._clients() as (tmdb_client, tvdb_client):
+            if provider == "imdb":
+                found.extend(self._by_imdb(tmdb_client, provider_id))
+            else:
+                client = tvdb_client if provider == "tvdb" else tmdb_client
+                found.extend(self._fetch(client, provider, int(provider_id), kind) for kind in _LOOKUP_KINDS)
+        return tuple(self._flag_facts([medium for medium in found if medium is not None]))
+
+    def _by_imdb(self, tmdb_client: object, imdb_id: str) -> list[SearchedMedium | None]:
+        """Resolve an IMDb id at TMDB's find endpoint and fetch what it numbers.
+
+        Args:
+            tmdb_client: The TMDB client.
+            imdb_id: A well-formed IMDb id.
+
+        Returns:
+            The media TMDB holds under the TMDB ids the IMDb id resolves to.
+
+        Raises:
+            AppUnavailable: ``provider.unavailable`` naming ``tmdb`` when it cannot resolve the id.
+        """
+        find = getattr(tmdb_client, "find_ids_by_imdb", None)
+        if find is None:
+            raise _unavailable("tmdb", LookupError("no client able to resolve an IMDb id"))
+        try:
+            tmdb_ids: dict[str, int] = find(imdb_id)
+        except ApiError as exc:
+            if exc.http_status == _NOT_FOUND:
+                return []
+            raise _unavailable("tmdb", exc) from exc
+        except Exception as exc:  # a provider down is a failure, whatever it raised
+            raise _unavailable("tmdb", exc) from exc
+        return [self._fetch(tmdb_client, "tmdb", tmdb_ids[kind], kind) for kind in _LOOKUP_KINDS if kind in tmdb_ids]
+
+    def _fetch(self, client: object | None, provider: str, provider_id: int, kind: SearchKind) -> SearchedMedium | None:
+        """Ask one provider for one medium of one kind.
+
+        Args:
+            client: The provider's client, or ``None`` when it is not configured.
+            provider: ``"tvdb"`` or ``"tmdb"``.
+            provider_id: The provider's numeric identifier.
+            kind: ``"movie"`` or ``"tv"``.
+
+        Returns:
+            The medium; ``None`` when the provider holds no such id (a 404, an answer its own
+            parser refuses, or one without a title).
+
+        Raises:
+            AppUnavailable: ``provider.unavailable`` when the client is missing or the call
+                failed in any other way.
         """
         method = "get_movie" if kind == "movie" else ("get_series" if provider == "tvdb" else "get_tv")
-        details: object | None = None
-        with self._clients() as (tmdb_client, tvdb_client):
-            client = tvdb_client if provider == "tvdb" else tmdb_client
-            fetch = getattr(client, method, None)
-            if fetch is not None:
-                try:
-                    details = fetch(id)
-                except Exception:  # an unknown id is a 404, not a failure
-                    logger.warning("acquisition_lookup_failed", provider=provider, provider_id=id, exc_info=True)
-                    details = None
-        title = str(getattr(details, "title", "") or "") if details is not None else ""
-        if details is None or title == "":
-            raise refuse_not_found(provider)
+        call = getattr(client, method, None)
+        if call is None:
+            raise _unavailable(provider, LookupError(f"no client able to {method}"))
+        try:
+            details = call(provider_id)
+        except ApiError as exc:
+            if exc.http_status == _NOT_FOUND:
+                return None
+            raise _unavailable(provider, exc) from exc
+        except ValueError:
+            # The provider's own parser refused its answer: nothing usable sits under the id (v0's
+            # reading of an id it cannot resolve, kept for the cases that pin it).
+            logger.warning("acquisition_lookup_unparsable", provider=provider, provider_id=provider_id, exc_info=True)
+            return None
+        except Exception as exc:  # a provider down is a failure, never a missing id
+            raise _unavailable(provider, exc) from exc
+        title = str(getattr(details, "title", "") or "")
+        if title == "":
+            return None
         year = getattr(details, "year", None)
         overview = getattr(details, "overview", None)
-        medium = SearchedMedium(
+        return SearchedMedium(
             provider=provider,
-            provider_id=id,
+            provider_id=provider_id,
             title=title,
             year=year if isinstance(year, int) else None,
             kind=kind,
@@ -325,7 +442,6 @@ class ProviderSearch:
             overview=overview if isinstance(overview, str) and overview.strip() else None,
             score=1.0,
         )
-        return self._flag_facts([medium])[0]
 
     def _ranked(self, query: str, kind: SearchKind | None) -> list[RankedResult]:
         """Gather the candidates of the asked kinds and rank them in ONE pass.
@@ -357,7 +473,18 @@ class ProviderSearch:
                 # Both TV providers, merged: TVDB alone cannot rank (it publishes no popularity),
                 # and the scrape rule « TMDB only when TVDB is silent » hid the right answer
                 # whenever TVDB returned any row at all.
-                candidates.extend(gather_tv_candidates(tvdb_client, tmdb_client, query))
+                try:
+                    candidates.extend(gather_tv_candidates(tvdb_client, tmdb_client, query, raise_when_all_fail=True))
+                except TvProvidersFailed as exc:
+                    # Nobody answered for shows. A lot that is films only is partial, served (and
+                    # cached, v0's rule); a lot with nothing at all is a failure, never an empty answer.
+                    if not candidates:
+                        raise AppUnavailable(
+                            "A metadata provider did not answer.",
+                            code=RefusalCode.PROVIDER_UNAVAILABLE,
+                            params={"provider": _TV_PROVIDER},
+                        ) from exc
+                    logger.warning("acquisition_search_tv_failed_partial_lot", query=query)
         # ONE ranking pass over the union, never one per kind. Popularity is normalised against
         # the most popular candidate in the lot, so ranking each kind separately runs that
         # normalisation on two different maxima and yields two incomparable 1.000s. Measured in
@@ -372,7 +499,9 @@ class ProviderSearch:
         ``owned``: the pipeline REPLACES an existing version, so the interface asks before
         following one. A film is owned when a live file holds it; a show as soon as ANY live
         episode file exists. ``followed``: a standing follow holds the id. Neither probe runs
-        when it is not wired (no indexer, no follow store) or there is nothing to flag.
+        when it is not wired (no indexer, no follow store) or there is nothing to flag. A probe
+        that is wired but cannot be read raises: a degraded read never affirms a value, and
+        ``followed=False`` on a title the reader follows would be a false one.
 
         Args:
             media: The media to flag.
@@ -391,7 +520,7 @@ class ProviderSearch:
                 checker.close()
         follows = self._follows
         if follows is not None:
-            flagged = [replace(medium, followed=_is_followed(follows, medium)) for medium in flagged]
+            flagged = _flag_followed(follows, flagged)
         return flagged
 
 
@@ -443,23 +572,61 @@ def _is_owned(checker: _OwnershipProbe, medium: SearchedMedium) -> bool:
     return checker.owns(ref, kind="movie") if medium.kind == "movie" else len(checker.owned_pairs(ref)) > 0
 
 
-def _is_followed(follows: _FollowLookup, medium: SearchedMedium) -> bool:
-    """Whether a standing follow holds the medium's provider id.
+def _flag_followed(follows: _FollowLookup, media: list[SearchedMedium]) -> list[SearchedMedium]:
+    """Flag which media a standing follow holds, in ONE lookup for the whole page.
 
-    The lookup is P1's, within the medium's kind (TMDB numbers films and shows apart). A row
+    The lookup is P1's, within each medium's kind (TMDB numbers films and shows apart). A row
     stands when its scope is ``follow`` (a one-off request is not a follow) and it is not
     removed; a paused follow stands.
 
     Args:
         follows: The follow lookup.
-        medium: The medium.
+        media: The media of the page.
 
     Returns:
-        ``True`` when at least one matching row stands.
+        The same media, in the same order, with ``followed`` set.
     """
-    kind: FollowKind = "movie" if medium.kind == "movie" else "show"
-    rows = follows.find_all_by_ref(_ref_of(medium), kind=kind)
-    return any(row.scope == "follow" and row.removed_at is None for row in rows)
+    kinds: list[FollowKind] = ["movie" if medium.kind == "movie" else "show" for medium in media]
+    answers = follows.find_all_by_refs([(_ref_of(medium), kind) for medium, kind in zip(media, kinds, strict=True)])
+    return [
+        replace(medium, followed=any(row.scope == "follow" and row.removed_at is None for row in rows))
+        for medium, rows in zip(media, answers, strict=True)
+    ]
+
+
+def _check_identifier(provider: str, provider_id: str) -> None:
+    """Refuse an identifier that is not in its source's format, before any provider is asked.
+
+    Args:
+        provider: ``"tmdb"``, ``"tvdb"`` or ``"imdb"``.
+        provider_id: The identifier as typed.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming ``id``.
+    """
+    pattern = _ID_FORMAT.get(provider)
+    if pattern is None or not pattern.fullmatch(provider_id):
+        raise AppBadRequest(
+            "The identifier is not in its source's format.",
+            code=RefusalCode.REQUEST_INVALID,
+            params={"fields": [_ID_FIELD]},
+        )
+
+
+def _unavailable(provider: str, exc: BaseException) -> AppUnavailable:
+    """Build the refusal for a provider that did not answer, and log why.
+
+    Args:
+        provider: The provider asked.
+        exc: What the call raised.
+
+    Returns:
+        ``provider.unavailable``, naming the provider.
+    """
+    logger.warning("acquisition_lookup_failed", provider=provider, error=str(exc))
+    return AppUnavailable(
+        "A metadata provider did not answer.", code=RefusalCode.PROVIDER_UNAVAILABLE, params={"provider": provider}
+    )
 
 
 def _medium_of(candidate: RankedResult) -> SearchedMedium:

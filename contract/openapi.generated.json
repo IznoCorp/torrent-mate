@@ -330,6 +330,21 @@
         "title": "DeleteLibraryItemsResult",
         "type": "object"
       },
+      "EmphasisPiece": {
+        "additionalProperties": false,
+        "description": "A piece of a ``why`` the interface emphasises.\n\nAttributes:\n    emphasis: The emphasised text.",
+        "properties": {
+          "emphasis": {
+            "title": "Emphasis",
+            "type": "string"
+          }
+        },
+        "required": [
+          "emphasis"
+        ],
+        "title": "EmphasisPiece",
+        "type": "object"
+      },
       "EpisodeCompletenessModel": {
         "additionalProperties": false,
         "description": "The contract's ``EpisodeCompleteness``.\n\nAttributes:\n    episode: Its number within the season.\n    title: Its title, ``None`` when the provider gave none.\n    air_date: ISO ``YYYY-MM-DD``, ``None`` when unknown.\n    state: The single derivation's reading.\n    last_search_outcome: The verdict of the governing search, ``None`` when none ran.",
@@ -1738,6 +1753,273 @@
         "title": "Provider",
         "type": "string"
       },
+      "RankingBonusesBody": {
+        "additionalProperties": false,
+        "description": "The contract's ``RankingBonuses``.\n\nAttributes:\n    freeleech: Added to a freeleech release.\n    silverleech: Added to a silverleech release.",
+        "properties": {
+          "freeleech": {
+            "title": "Freeleech",
+            "type": "integer"
+          },
+          "silverleech": {
+            "title": "Silverleech",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "freeleech",
+          "silverleech"
+        ],
+        "title": "RankingBonusesBody",
+        "type": "object"
+      },
+      "RankingConfigBody": {
+        "additionalProperties": false,
+        "description": "The contract's ``RankingConfig``: the ranking the preview scores the samples under.\n\nAttributes:\n    criteria: Every criterion, in order.\n    min_seeders: A release with fewer seeders is excluded.\n    bonuses: The bonuses.",
+        "properties": {
+          "bonuses": {
+            "$ref": "#/components/schemas/RankingBonusesBody"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/RankingCriterionBody"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "minSeeders": {
+            "title": "Minseeders",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "criteria",
+          "minSeeders",
+          "bonuses"
+        ],
+        "title": "RankingConfigBody",
+        "type": "object"
+      },
+      "RankingCriterionBody": {
+        "additionalProperties": false,
+        "description": "The contract's ``RankingCriterion``.\n\nAttributes:\n    field: The release field it scores.\n    weight: The multiplier applied to its score.\n    values: A score per value, for a categorical field.\n    thresholds: Ordered thresholds, for a numeric field.\n    prefer: For thresholds, whether higher or lower is better.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "prefer": {
+            "enum": [
+              "higher",
+              "lower",
+              null
+            ],
+            "title": "Prefer",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thresholds": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RankingThresholdBody"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thresholds"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "field",
+          "weight"
+        ],
+        "title": "RankingCriterionBody",
+        "type": "object"
+      },
+      "RankingPreviewModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``RankingPreview``: the sample set, scored and ordered.\n\nAttributes:\n    ranked: Every sample, scored, in the order the ranking puts them.\n    known_trackers: The configured trackers, the values a tracker-keyed criterion is offered.",
+        "properties": {
+          "knownTrackers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Knowntrackers",
+            "type": "array"
+          },
+          "ranked": {
+            "description": "every sample, scored",
+            "items": {
+              "$ref": "#/components/schemas/RankingPreviewReleaseModel"
+            },
+            "title": "Ranked",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ranked",
+          "knownTrackers"
+        ],
+        "title": "RankingPreviewModel",
+        "type": "object"
+      },
+      "RankingPreviewReleaseModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``RankingPreviewRelease``: one sample scored under the ranking asked for.\n\nAttributes:\n    title: The release's title.\n    provider: The tracker it stands for.\n    size_bytes: Its size.\n    seeders: Its seeders.\n    leechers: Its leechers.\n    freeleech: Whether it is freeleech.\n    resolution: Its resolution token.\n    codec: Its video codec token.\n    source: Its media source token.\n    language: Its language marker.\n    score: Its score under that ranking.\n    excluded: Whether it has fewer seeders than ``minSeeders``.\n    tracker_ratio_state: Where its tracker's ratio stands against that tracker's own economy.",
+        "properties": {
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "excluded": {
+            "title": "Excluded",
+            "type": "boolean"
+          },
+          "freeleech": {
+            "title": "Freeleech",
+            "type": "boolean"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "leechers": {
+            "title": "Leechers",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "seeders": {
+            "title": "Seeders",
+            "type": "integer"
+          },
+          "sizeBytes": {
+            "title": "Sizebytes",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "trackerRatioState": {
+            "enum": [
+              "under_floor",
+              "under_target",
+              "comfortable",
+              "unknown",
+              null
+            ],
+            "title": "Trackerratiostate",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "provider",
+          "sizeBytes",
+          "seeders",
+          "leechers",
+          "freeleech",
+          "resolution",
+          "codec",
+          "source",
+          "language",
+          "score",
+          "excluded",
+          "trackerRatioState"
+        ],
+        "title": "RankingPreviewReleaseModel",
+        "type": "object"
+      },
+      "RankingThresholdBody": {
+        "additionalProperties": false,
+        "description": "The contract's ``RankingThreshold``.\n\nAttributes:\n    at: The threshold: bytes for a size, a count for seeders.\n    score: The score awarded when the field meets it.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "number"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "at",
+          "score"
+        ],
+        "title": "RankingThresholdBody",
+        "type": "object"
+      },
       "ReassignBody": {
         "additionalProperties": false,
         "description": "The contract's ``reassignRequester`` body.\n\nAttributes:\n    kind: A follow, or a card of the queue.\n    acquisition: The acquisition's key, ``<provider>:<providerId>``.\n    source: The requester moved off, by its account id (``from`` on the wire).\n    target: The account moved on, by its account id (``to`` on the wire).",
@@ -1836,6 +2118,80 @@
         ],
         "title": "RefusalCode",
         "type": "string"
+      },
+      "ReleaseModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Release``: one candidate the picker offers.\n\nAttributes:\n    id: The candidate's handle, which a grab chooses it by.\n    name: The release name, as the tracker publishes it.\n    resolution: Its resolution, ``\"\"`` when unknown.\n    source: Its source, ``\"\"`` when unknown.\n    language: Its language tag, ``\"\"`` when unknown.\n    seeders: Its seeders when searched.\n    size_gigabytes: Its size in decimal gigabytes.\n    score: The ranking score.\n    season: The season it numbers, ``None`` for a film.\n    episode: The episode it numbers, ``None`` for a season and for a film.",
+        "properties": {
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resolution": {
+            "title": "Resolution",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "seeders": {
+            "title": "Seeders",
+            "type": "integer"
+          },
+          "sizeGigabytes": {
+            "title": "Sizegigabytes",
+            "type": "number"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "resolution",
+          "source",
+          "language",
+          "seeders",
+          "sizeGigabytes",
+          "score",
+          "season",
+          "episode"
+        ],
+        "title": "ReleaseModel",
+        "type": "object"
       },
       "Requesters": {
         "additionalProperties": false,
@@ -2065,6 +2421,119 @@
           "uid"
         ],
         "title": "RunAnswer",
+        "type": "object"
+      },
+      "SearchResultModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``SearchResult``: one medium a provider knows.\n\nAttributes:\n    title: The provider's title.\n    year: The release or first-air year, ``None`` when the provider gives none.\n    kind: ``movie`` or ``show``.\n    overview: The synopsis, ``\"\"`` when none.\n    owned: Whether the library holds it.\n    followed: Whether a standing follow holds it.\n    ids: Its provider identity, ``None`` when no sheet identifies it.\n    poster: The poster's address, ``None`` when none is known.",
+        "properties": {
+          "followed": {
+            "title": "Followed",
+            "type": "boolean"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          },
+          "kind": {
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "overview": {
+            "title": "Overview",
+            "type": "string"
+          },
+          "owned": {
+            "title": "Owned",
+            "type": "boolean"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "title",
+          "year",
+          "kind",
+          "overview",
+          "owned",
+          "followed",
+          "ids",
+          "poster"
+        ],
+        "title": "SearchResultModel",
+        "type": "object"
+      },
+      "SearchResults": {
+        "additionalProperties": false,
+        "description": "The contract's ``SearchResults``: one page of a search, or the media found by an identifier.\n\nAttributes:\n    total: How many the provider has.\n    shown: How many this page carries.\n    results: The page, best first.",
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResultModel"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "shown": {
+            "title": "Shown",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "shown",
+          "results"
+        ],
+        "title": "SearchResults",
         "type": "object"
       },
       "SeasonCompletenessModel": {
@@ -2341,6 +2810,105 @@
           "signInUrl"
         ],
         "title": "StartedPlexSignInModel",
+        "type": "object"
+      },
+      "SuggestionModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Suggestion``, as it stands before K3-G7 corrects it.\n\nAttributes:\n    title: The provider's title.\n    year: The year as text, ``\"\"`` when none.\n    kind: ``movie`` or ``show``.\n    rating: The provider's rating, ``0`` when none came with the title.\n    why: The reason's code, which the interface words (the contract forbids the server its own words).\n    ids: Its provider identity, ``None`` when it has none the library knows.\n    poster: The poster's address, ``None`` when none is known.\n    poster_high_definition: The full-screen poster, ``None``: the deck keeps none.",
+        "properties": {
+          "ids": {
+            "oneOf": [
+              {
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster"
+          },
+          "posterHighDefinition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posterhighdefinition"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "number"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "properties": {
+                    "emphasis": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "emphasis"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "title": "Why",
+            "type": "array"
+          },
+          "year": {
+            "title": "Year",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "year",
+          "kind",
+          "rating",
+          "why",
+          "ids",
+          "poster",
+          "posterHighDefinition"
+        ],
+        "title": "SuggestionModel",
         "type": "object"
       },
       "TrailerModel": {
@@ -4024,6 +4592,248 @@
         "summary": "Restore Follow"
       }
     },
+    "/acquisition/ranking/preview": {
+      "post": {
+        "description": "Score the preview's fixed sample set under a candidate ranking.\n\nRead-only and pure: every sample stays visible, the ones under ``minSeeders`` flagged ``excluded`` and\nsunk last.\n\nArgs:\n    body: The candidate ranking.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The samples, scored and ordered, and the trackers a criterion may name.",
+        "operationId": "previewRanking",
+        "parameters": [
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankingConfigBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingPreviewModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Preview Ranking"
+      }
+    },
+    "/acquisition/releases": {
+      "get": {
+        "description": "The release candidates of one wanted item, or of every item the reader may see.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    followed_id: The medium's key; absent, every item's candidates.\n    season: The season, 1-based.\n    episode: The episode, 1-based.\n\nReturns:\n    The candidates, the best rank first, each with its handle and the season and episode it numbers; empty\n    for an item the reader may not read, a closed item, or one no search concluded for.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``season`` or ``episode`` when below 1, or ``episode`` when\n        asked with no season, or ``followedId`` when it is not a key.\n    FollowAmbiguous: ``follow.ambiguous`` when two follow rows hold the key's id.",
+        "operationId": "readReleases",
+        "parameters": [
+          {
+            "description": "the wanted item's medium: the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title. Absent, the candidates of every item (what the quality profile counts against)",
+            "in": "query",
+            "name": "followedId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(tvdb|tmdb|imdb):.+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the wanted item's medium: the medium's key, `<provider>:<providerId>` \u2014 TVDB first for a show, TMDB first for a film (the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title. Absent, the candidates of every item (what the quality profile counts against)",
+              "title": "Followedid"
+            }
+          },
+          {
+            "description": "the season, 1-based \u2014 absent for a film",
+            "in": "query",
+            "name": "season",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the season, 1-based \u2014 absent for a film",
+              "title": "Season"
+            }
+          },
+          {
+            "description": "the episode, 1-based \u2014 absent for a whole season and for a film",
+            "in": "query",
+            "name": "episode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the episode, 1-based \u2014 absent for a whole season and for a film",
+              "title": "Episode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReleaseModel"
+                  },
+                  "title": "Response Readreleases",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Releases"
+      }
+    },
     "/acquisition/requesters/reassign": {
       "post": {
         "description": "Move one requester of an acquisition to another account.\n\nArgs:\n    body: What the key names, the key, the requester moved off and the account moved on.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acquisition's requesters after the move.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``acquisition`` for a malformed key.\n    AppNotFound: ``account.unknown`` when the target is no account of the roster (a 404 the\n        contract does not declare on this operation), ``acquisition.not_found`` when no such\n        subject holds the key.\n    AppForbidden: ``acquisition.not_requester`` when the source did not ask for it.",
@@ -4134,6 +4944,334 @@
           }
         },
         "summary": "Reassign Requester"
+      }
+    },
+    "/acquisition/search": {
+      "get": {
+        "description": "Search the metadata providers for a title to follow.\n\nNothing typed is nothing to search for: an answer with no result, not a refusal (the add screen asks\non opening, before a letter is typed).\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    query: What was typed.\n    kind: ``movie`` or ``show`` to restrict the search; absent, both.\n\nReturns:\n    The best-ranked page, with the total the providers hold.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``kind`` when it is neither ``movie`` nor ``show``.\n    AppUnavailable: ``provider.unavailable`` when no provider could answer.",
+        "operationId": "searchProviders",
+        "parameters": [
+          {
+            "description": "what was typed",
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "what was typed",
+              "title": "Query"
+            }
+          },
+          {
+            "description": "restrict to films or to shows",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "restrict to films or to shows",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Search Providers"
+      }
+    },
+    "/acquisition/search/by-id": {
+      "get": {
+        "description": "Find the one medium a source knows under an identifier.\n\nArgs:\n    provider: The source.\n    id: The identifier.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The medium, or no result when the source knows none under the identifier.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``id`` when it is not in the source's format.\n    AppUnavailable: ``provider.unavailable`` when the source could not answer: a failure is never no result.",
+        "operationId": "searchProviderById",
+        "parameters": [
+          {
+            "description": "the source the identifier belongs to",
+            "in": "query",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "description": "the source the identifier belongs to",
+              "enum": [
+                "tmdb",
+                "tvdb",
+                "imdb"
+              ],
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "description": "the identifier, in that source's format: digits for TMDB and TVDB, \u00ab tt \u00bb and digits for IMDB",
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "the identifier, in that source's format: digits for TMDB and TVDB, \u00ab tt \u00bb and digits for IMDB",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Search Provider By Id"
+      }
+    },
+    "/acquisition/suggestions": {
+      "get": {
+        "description": "The titles worth following, minus what the reader owns, follows or rejected.\n\nLIMIT OF THE CONTRACT: ``after`` is a title, and a title is not unique in the deck (a film and a show can\nbear the same one). The deck continues past the FIRST card of that title, so a reader whose last card is a\nsecond one of the same title is served again the cards between the two. An opaque cursor would lift it.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    after: The title of the last card the reader holds, to continue the deck past it.\n\nReturns:\n    One page of the deck; empty when the deck has no more.",
+        "operationId": "readSuggestions",
+        "parameters": [
+          {
+            "description": "continue a deck already started",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "continue a deck already started",
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SuggestionModel"
+                  },
+                  "title": "Response Readsuggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Suggestions"
       }
     },
     "/auth/language": {

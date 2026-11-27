@@ -29,6 +29,7 @@ from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_hand
 from personalscraper.http_v1.routes import (
     accounts,
     acquisition,
+    acquisition_reads,
     authentication,
     library,
     media,
@@ -178,6 +179,7 @@ def create_v1_app(
     include_v1_router(app, library.router)
     include_v1_router(app, pipeline.router)
     include_v1_router(app, acquisition.router)
+    include_v1_router(app, acquisition_reads.router)
     return app
 
 

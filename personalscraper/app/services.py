@@ -33,7 +33,11 @@ from personalscraper.core.event_bus import EventBus
 if TYPE_CHECKING:
     from personalscraper.app.acquisition.completeness import FollowCompleteness
     from personalscraper.app.acquisition.follows import FollowService
+    from personalscraper.app.acquisition.ranking import RankingPreview
+    from personalscraper.app.acquisition.releases import ReleaseOffers
+    from personalscraper.app.acquisition.search import ProviderSearch
     from personalscraper.app.acquisition.seasons import SeasonAsk
+    from personalscraper.app.acquisition.suggestions import Suggestions
     from personalscraper.app.composition import LazyProviders
     from personalscraper.app.library.completeness import CatalogueView
     from personalscraper.app.library.deleting import LibraryDeletion
@@ -50,11 +54,19 @@ class AcquisitionServices:
         follows: The follows, their requesters, quality, pause, removal, restore and reassign.
         seasons: A season asked by medium, of a follow or as a one-off request.
         completeness: A follow's aired catalogue against the library, season by season.
+        releases: The release candidates of a wanted item, each named by a handle.
+        ranking: The ranking editor's preview, its samples scored with each tracker's ratio standing.
+        search: The metadata providers' search and lookup by identifier.
+        suggestions: The deck of titles worth following.
     """
 
     follows: FollowService
     seasons: SeasonAsk
     completeness: FollowCompleteness
+    releases: ReleaseOffers
+    ranking: RankingPreview
+    search: ProviderSearch
+    suggestions: Suggestions
 
 
 @dataclass(frozen=True)
