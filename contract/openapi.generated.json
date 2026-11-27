@@ -2200,6 +2200,7 @@
           "acquisition.not_requester",
           "acquisition.follow_shared",
           "acquisition.release_unavailable",
+          "acquisition.season_unknown",
           "follow.not_restorable",
           "follow.ambiguous",
           "suggestion.not_found"
@@ -5175,7 +5176,7 @@
     },
     "/acquisition/follows/{followedId}/seasons/{season}/grab": {
       "post": {
-        "description": "Take one season of a medium: of its follow, or as a one-off request when nobody follows it.\n\nArgs:\n    followed_id: The medium's key.\n    season: The season, from 1.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    response: The response, whose status says whether the season was already being recovered.\n\nReturns:\n    201 the season taken, or 200 ``reused``.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` or ``season``.\n    AppNotFound: ``acquisition.not_found`` when no follow, request or owned show answers the key.\n    AppForbidden: ``acquisition.not_requester`` on a follow that is not the caller's.",
+        "description": "Take one season of a medium: of its follow, or as a one-off request when nobody follows it.\n\nArgs:\n    followed_id: The medium's key.\n    season: The season, from 1.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    response: The response, whose status says whether the season was already being recovered.\n\nReturns:\n    201 the season taken, or 200 ``reused``.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``followedId`` or ``season``.\n    AppNotFound: ``acquisition.not_found`` when no follow, request or owned show answers the key.\n    AppForbidden: ``acquisition.not_requester`` on a follow that is not the caller's.\n    AppConflict: ``follow.ambiguous`` when two rows hold the key; ``acquisition.season_unknown``\n        on a one-off request of a show whose episode list is not known yet.",
         "operationId": "grabSeasonForFollow",
         "parameters": [
           {

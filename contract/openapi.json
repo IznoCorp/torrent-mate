@@ -2214,7 +2214,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "409": {
-            "$ref": "#/components/responses/Problem"
+            "description": "refused: `acquisition.season_unknown` on a one-off request of a show whose episode list is not known yet — neither the library's aired catalogue nor an aired cache lists it, so nothing is asked for and `absorbedCount` is never answered 0, an open season included; or `follow.ambiguous`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/Problem"
@@ -12177,6 +12184,7 @@
           "acquisition.not_requester",
           "acquisition.follow_shared",
           "acquisition.release_unavailable",
+          "acquisition.season_unknown",
           "follow.not_restorable",
           "follow.ambiguous",
           "suggestion.not_found"

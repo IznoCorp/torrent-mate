@@ -186,6 +186,16 @@ export function seasonRecoveryStates(): NamedState[] {
       },
     ],
     [
+      "season-row-ask-unknown",
+      "Ligne de saison — série non suivie sans liste d'épisodes : le refus est dit sur la ligne, l'acte reste offert",
+      () => {
+        window.__mocks?.seasonRecovery.uncatalogued(ONE_OFF);
+        forgetQueue();
+        sheet(ONE_OFF);
+        tapAct(ONE_OFF, ONE_OFF_SEASON);
+      },
+    ],
+    [
       "season-row-ask-held",
       "Ligne de saison — hors ligne : la demande est retenue, et dite retenue",
       () => {

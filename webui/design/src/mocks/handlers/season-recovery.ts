@@ -296,5 +296,16 @@ export function poseReleaseTried(title: string, name: string): void {
   state.triedReleases[title] = [...(state.triedReleases[title] ?? []), name];
 }
 
+/**
+ * Marks a show's episode list as not known — a one-off season of it is then
+ * refused, as a server refuses it — until the layer is next reset.
+ *
+ * @param title The medium.
+ */
+export function poseUncatalogued(title: string): void {
+  const state = mockState();
+  state.uncataloguedShows = [...state.uncataloguedShows, title];
+}
+
 /** The rung a season's card is searched on, while no release is found yet. */
 export const SEARCHING: Position = { current: rungIndex("searched"), state: "now" };

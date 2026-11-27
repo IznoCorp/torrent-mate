@@ -15,6 +15,7 @@ __all__ = [
     "refuse_not_requester",
     "refuse_not_restorable",
     "refuse_release_unavailable",
+    "refuse_season_unknown",
     "refuse_shared",
 ]
 
@@ -80,6 +81,22 @@ def refuse_release_unavailable(key: AcquisitionKey) -> AppConflict:
     return AppConflict(
         "The release's row is not waiting to be taken.",
         code=RefusalCode.ACQUISITION_RELEASE_UNAVAILABLE,
+        params={_KEY_PARAM: key.wire},
+    )
+
+
+def refuse_season_unknown(key: AcquisitionKey) -> AppConflict:
+    """A one-off season of a show whose episodes nothing lists: what it misses cannot be told.
+
+    Args:
+        key: The key asked.
+
+    Returns:
+        The ``409 acquisition.season_unknown`` refusal.
+    """
+    return AppConflict(
+        "The episode list of that show is not known yet.",
+        code=RefusalCode.ACQUISITION_SEASON_UNKNOWN,
         params={_KEY_PARAM: key.wire},
     )
 

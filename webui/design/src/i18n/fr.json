@@ -2163,7 +2163,8 @@
       "rescrapeHeld": "Re-scrape de « {{title}} » demandé — en attente du réseau, il partira au retour.",
       "rescrapeRefused": "Le re-scrape de « {{title}} » n'a pas abouti.",
       "rescrapeUnidentified": "« {{title}} » n'a aucune identité fournisseur : il n'y a rien à re-scraper tant qu'il n'est pas identifié.",
-      "seasonForbidden": "Saison {{season}} de « {{title}} » : votre rôle ne vous donne pas le droit de la récupérer."
+      "seasonForbidden": "Saison {{season}} de « {{title}} » : votre rôle ne vous donne pas le droit de la récupérer.",
+      "seasonUnknown": "Saison {{season}} de « {{title}} » : la liste des épisodes de cette série n'est pas encore connue."
     },
     "journey": {
       "requeueAsked": "Remis en file — le passage reprend où il s'est arrêté.",
@@ -2513,7 +2514,8 @@
       "not_found": "Cette acquisition est inconnue : rien n'est suivi ni demandé sous cet identifiant, et la médiathèque ne le possède pas.",
       "not_requester": "Ce n'est pas votre acquisition : seuls ceux qui l'ont demandée la règlent.",
       "follow_shared": "D'autres comptes suivent aussi ce titre : chacun le met en pause pour lui-même.",
-      "release_unavailable": "Cette release ne peut pas être récupérée maintenant : sa recherche ou sa récupération est en cours, ou terminée."
+      "release_unavailable": "Cette release ne peut pas être récupérée maintenant : sa recherche ou sa récupération est en cours, ou terminée.",
+      "season_unknown": "La liste des épisodes de cette série n'est pas encore connue. Sa saison ne peut pas être demandée pour l'instant."
     },
     "follow": {
       "not_restorable": "Rien de retiré sous ce titre : il n'y a rien à remettre.",

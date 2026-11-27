@@ -312,6 +312,29 @@ def test_an_owned_unfollowed_show_gets_a_request_never_a_follow(v1_client: Clien
     assert len(_jobs(client, JobKind.PRIME)) == 1
 
 
+def test_a_one_off_season_of_a_show_the_catalogue_ignores_is_a_409(
+    v1_client: ClientFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Held, unfollowed, never catalogued: 409 ``acquisition.season_unknown``, no request opened, no prime."""
+    held = HeldShow(title="Owned Show", year=2020, ref=MediaRef(tvdb_id=4242), aired=None, owned=frozenset())
+    monkeypatch.setattr(IndexedShows, "held_show", lambda self, ref: held)
+    client = v1_client()
+
+    response = client.post(f"/acquisition/follows/{OWNED_KEY}/seasons/1/grab")
+
+    assert response.status_code == 409, response.text
+    assert (response.json()["code"], response.json()["params"]) == (
+        "acquisition.season_unknown",
+        {"followedId": OWNED_KEY},
+    )
+    assert _queued(client) == []
+    store = _services(client).acquisition.triggers._open_store()
+    try:
+        assert store.follow.list_all() == []
+    finally:
+        store.close()
+
+
 def test_a_season_of_a_medium_neither_followed_nor_owned_is_a_404(v1_client: ClientFactory, owned_show: None) -> None:
     """Nothing answers the key: 404 ``acquisition.not_found``."""
     response = v1_client().post("/acquisition/follows/tvdb:99/seasons/1/grab")

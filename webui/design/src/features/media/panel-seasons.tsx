@@ -28,6 +28,7 @@ import { useQueuedSeasons } from "./queued-seasons";
 import { useAskedSeasons } from "./asked-seasons";
 import { SeasonRequested } from "./season-requested";
 import { SeasonOffCatalogue } from "./season-off-catalogue";
+import { SeasonUnknown } from "./season-unknown";
 
 // The slice of a "follow" record the season blocks read: `ids` for the medium's
 // two served reads — the owned numbers and the episode catalogue — `title` for
@@ -203,6 +204,7 @@ function SeasonDetails({
       <div className={episodeSet()} data-part="episode/set">
         {cells}
       </div>
+      <SeasonUnknown title={follow.title} season={num} />
       {/* THE VERB, DRAWN ONLY OVER A HOLE (B-301).
 
           IT IS A PANEL ACTION, drawn as the panel's own actions are:

@@ -59,6 +59,10 @@ const SEASON_MARK = "S";
 const SEASON_DIGITS = 2;
 const DIGITS_FILL = "0";
 
+// A refused ask's status and its developer line, as the server answers them.
+const CONFLICT = 409;
+const SEASON_UNKNOWN = "The episode list of that show is not known yet.";
+
 // The seeds this module derives from, named at their shapes. A handler holds no
 // data literal: what it answers traces to one of these or to the request.
 const SEASON_COUNT = SEASONS as Record<
@@ -214,6 +218,12 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         // register carries that as a demand rather than this file inventing
         // one.
         const found = medium.follow;
+        // A ONE-OFF NOBODY CAN COUNT IS REFUSED, never answered 0: its show's
+        // episode list is not known. A follow is not, whatever the mark says.
+        if (found === undefined && state.uncataloguedShows.includes(title)) {
+          return refused(CONFLICT, SEASON_UNKNOWN, "acquisition.season_unknown",
+            { followedId: request.parameters.followedId });
+        }
         const missing = episodesMissingFromSeason(title, season);
         // ONLY WHEN THE SEASON HAD SOMETHING TO GET. An answer of zero moved an
         // up-to-date follow to being acquired: « 5/5 · En cours d'acquisition »
