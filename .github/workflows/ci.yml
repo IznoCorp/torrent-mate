@@ -201,7 +201,9 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
+      - uses: ./.github/actions/apt-install
+        with:
+          packages: aspell aspell-en aspell-fr
       - run: python3 scripts/check-no-french.py
       - run: python3 scripts/check-command-safety.py
       - run: python3 scripts/check-i18n-placeholders.py
@@ -306,7 +308,9 @@ jobs:
       # RAR extractor backend for the DEV #1 golden-fixture extraction test
       # (rarfile shells out to it). `unar` is in ubuntu main; without it the
       # real-extraction test skips instead of asserting the happy path (COV-4).
-      - run: sudo apt-get update && sudo apt-get install -y unar
+      - uses: ./.github/actions/apt-install
+        with:
+          packages: unar
         if: needs.changes.outputs.python == 'true'
       - uses: ./.github/actions/locked-install
         if: needs.changes.outputs.python == 'true'
@@ -403,7 +407,9 @@ jobs:
             webui/design/tools/contract-types/package-lock.json
       # lint:tokens greps with ripgrep; without it the guard used to silently
       # no-op (`rg: command not found` swallowed by `|| true`, 2026-07-15).
-      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - uses: ./.github/actions/apt-install
+        with:
+          packages: ripgrep
         if: needs.changes.outputs.frontend_app == 'true'
       - run: npm ci
         if: needs.changes.outputs.frontend_app == 'true'
