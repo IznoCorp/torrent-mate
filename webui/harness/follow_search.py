@@ -8,8 +8,10 @@ follow with nothing to take sends `searchForFollow` for THAT follow:
 1. the tap sends the follow's own search — one POST to its address;
 2. it is answered 202 `{queued, runUid}`, with no result in the answer;
 3. it says the search is « en file » for that title, and announces no result;
-4. the result is read afterwards: the follows are read again, the follow counts
-   one more search, and `readReleases` answers what it holds for the medium.
+4. the result is read afterwards: the interface follows the run it was named
+   (`readAcquisitionStatus`) until it is settled, and only then reads the follows
+   again; the follow counts one more search, and `readReleases` answers what it
+   holds for the medium.
 
 The expected sentence is read from the interface's resources, and what the follow
 and its releases hold from the layer itself, never written here. The follow with
@@ -22,7 +24,7 @@ import pathlib
 from urllib.parse import unquote
 
 from common import ACTED, KEY_OF_JS, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError, async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
@@ -92,6 +94,19 @@ async def searches_of(page, title):
     return follow["searches"], follow["key"]
 
 
+# The run is read « running » then « settled » by the layer, 1 s and 2 s after the 202; this is how long
+# the rule waits for the follows to be read again after that.
+SETTLEMENT_TIMEOUT = 15000
+# TRUE once, after the search sent past `before`, the run was read twice and the follows after that.
+READ_AFTER_SETTLEMENT = """(before) => {
+  const operations = window.__mocks.answered().slice(before).map((call) => call.operationId);
+  const sent = operations.indexOf('searchForFollow');
+  const reads = operations.map((name, index) => (name === 'readAcquisitionStatus' && index > sent ? index : -1))
+    .filter((index) => index !== -1);
+  return sent !== -1 && reads.length >= 2 && operations.indexOf('readFollows', reads[1]) !== -1;
+}"""
+
+
 async def search(page, title):
     """Taps the follow sheet's primary act; returns the calls it made and what it said."""
     before = len(await page.evaluate("()=>window.__mocks.answered()"))
@@ -99,10 +114,15 @@ async def search(page, title):
     await page.wait_for_timeout(ACTED)
     await page.click("#sheet [data-sheetprim]")
     await page.wait_for_timeout(ACTED)
+    said = (await page.evaluate(TOAST)).strip()
+    try:
+        await page.wait_for_function(READ_AFTER_SETTLEMENT, arg=before, timeout=SETTLEMENT_TIMEOUT)
+    except TimeoutError:
+        pass  # the check on the calls reports what was and was not read
     await page.evaluate("()=>window.__mocks.quiet()")
     await page.wait_for_timeout(ACTED)
     calls = (await page.evaluate("()=>window.__mocks.answered()"))[before:]
-    return calls, (await page.evaluate(TOAST)).strip()
+    return calls, said
 
 
 async def main():
@@ -135,8 +155,11 @@ async def main():
                           said == queued(searched), f"said {said!r}")
             operations = [call.get("operationId") for call in calls]
             after = operations[operations.index("searchForFollow") + 1:] if "searchForFollow" in operations else []
-            journal.check("the follows are read again, after the search was queued",
-                          "readFollows" in after, str(operations))
+            statuses = [index for index, name in enumerate(after) if name == "readAcquisitionStatus"]
+            journal.check("the run is followed until it is settled, then no further",
+                          len(statuses) == 2, str(operations))
+            journal.check("the follows are read again, once the run is read settled",
+                          len(statuses) >= 2 and "readFollows" in after[statuses[1]:], str(operations))
             count, key = await searches_of(page, searched)
             journal.check("the follow, read afterwards, counts one more search",
                           count == pending["searches"] + 1, f"{pending['searches']} -> {count}")

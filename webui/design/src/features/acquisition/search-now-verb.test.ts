@@ -3,7 +3,7 @@
 // WHAT MAKES THIS NON-VACUOUS. The verb is RUN as the tap runs it (`sheetprim` with a status that is
 // not « to_grab »), as a detached promise: a refusal that escaped `searchNow` would be an unhandled
 // rejection, a held search worded as queued would announce a search nothing sent.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18next from "../../lib/unit-words";
 
 const said: string[] = [];
@@ -19,7 +19,7 @@ vi.mock("../../lib/query-client", () => ({
     if (refusal !== null) throw refusal;
     return answer;
   },
-  read: async () => [],
+  read: async () => ({ cadence: "20 3,15 * * *", nextSearch: null, runState: "settled" }),
   isRequestFailure: (failure: unknown) => typeof failure === "object" && failure !== null && "status" in failure,
   sharedQueryClient: {
     invalidateQueries: async ({ queryKey }: { queryKey: unknown }) => void stale.push(queryKey),
@@ -50,11 +50,17 @@ await import("./verbs");
 /** Runs the primary act of a follow that is not waiting to be taken, and lets its promise settle. */
 async function search(): Promise<void> {
   verbs.get("sheetprim")?.("Lucky|followed");
-  await new Promise((settle) => setTimeout(settle, 20));
+  await vi.advanceTimersByTimeAsync(20);
 }
 
 describe("« chercher maintenant »", () => {
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
+    vi.useFakeTimers();
     said.length = 0;
     stale.length = 0;
     refusal = null;
@@ -70,6 +76,9 @@ describe("« chercher maintenant »", () => {
   it("leaves the result to be read later, from the follow and its releases", async () => {
     answer = { queued: true, runUid: "run-1" };
     await search();
+    // Nothing is stale at the answer: the search has not run yet.
+    expect(stale).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1_000);
     expect(stale).toEqual([["/api/v1/acquisition/followed"], ["/api/v1/acquisition/releases"]]);
   });
 

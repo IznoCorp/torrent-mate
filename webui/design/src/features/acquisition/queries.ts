@@ -185,8 +185,12 @@ export const incompleteShowsQuery = {
     read<Schemas["IncompleteShow"][]>("/api/v1/library/incomplete"),
 };
 
-/** What the scheduler answers about the acquisition engine: its cadence. */
-export type AcquisitionStatus = { cadence: string; nextSearch: string | null };
+/** What the scheduler answers about the acquisition engine: its cadence, and where an asked run stands. */
+export type AcquisitionStatus = {
+  cadence: string;
+  nextSearch: string | null;
+  runState: "queued" | "running" | "settled" | null;
+};
 
 /** The scheduler's answer, one key for the cadence line and the follow's sheet. */
 export const acquisitionStatusQuery = {
