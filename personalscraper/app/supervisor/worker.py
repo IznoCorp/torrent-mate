@@ -9,13 +9,14 @@ supervisor puts the request back in the queue.
 Under the lock it runs today's body, unchanged: a pipeline run (:func:`execute_run`, the
 ``--no-console`` semantics) or the rescrape of one item (:func:`rescrape_item`). An acquisition request
 takes no lock (its lane is beside the pipeline's): it runs its pass in-process through the engine's
-services (:func:`run_acquisition_job`), never as a CLI step. A heartbeat thread
+services (:func:`run_acquisition_job`), never as a CLI step, with what the commands ran around it (the
+reconcile and reswitch, the Telegram and Redis subscribers). A heartbeat thread
 writes the request's ``heartbeat_at`` meanwhile; the body knows nothing of it. The worker only
 exits: settling the request from its exit code is the supervisor's job.
 
 The uid is also the ``pipeline_run`` row's: the pipeline reads it from the same variable, and a
-rescrape records its maintenance row under it (:func:`request_run_row`), so a supervisor that
-adopts a silent worker can settle it from that row.
+rescrape or an acquisition pass records its maintenance row under it (:func:`request_run_row`), so a
+supervisor that adopts a silent worker can settle it from that row.
 """
 
 from __future__ import annotations
@@ -25,23 +26,24 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, Protocol
 
 from rich.console import Console
 
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.app.supervisor.acquisition_execution import (
     NEEDS_TORRENT_CLIENT,
+    PASS_COMMANDS,
     AcquisitionEngine,
     AcquisitionUnavailable,
     EngineOpener,
     run_acquisition_job,
 )
-from personalscraper.app.supervisor.execution import RunRecorder, RunRowFactory, execute_run, rescrape_item
+from personalscraper.app.supervisor.execution import execute_run, rescrape_item
 from personalscraper.app.supervisor.ids import RunUid
 from personalscraper.app.supervisor.launcher import LOST_LOCK_EXIT, RUN_UID_ENV
 from personalscraper.app.supervisor.model import (
@@ -60,6 +62,9 @@ from personalscraper.logger import configure_logging, get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
+
+    from personalscraper.acquire.reconcile import ReconcileSummary
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
 
@@ -128,7 +133,9 @@ def open_engine(config: Config, settings: Settings, job: AcquisitionJob) -> Iter
 
     A grab or a prime connects the torrent client, which the grab adds torrents through; a detect or a
     search never does, as their commands never did. The search service is built as the ``search`` command builds it
-    (no client), the grab's from the boundary's grab core.
+    (no client), the grab's from the boundary's grab core. Around the passes runs what the commands ran
+    (:mod:`personalscraper.commands.acquisition_surroundings`): the Redis publisher for the whole job, the
+    ownership reconcile before a search, and for a grab the Telegram subscriber, the reconcile and the reswitch.
 
     Args:
         config: Loaded configuration.
@@ -144,6 +151,8 @@ def open_engine(config: Config, settings: Settings, job: AcquisitionJob) -> Iter
     from personalscraper.acquire import build_search_service  # noqa: PLC0415 — the engine loads only when a pass runs
     from personalscraper.acquire.detect import DetectService  # noqa: PLC0415
     from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415 — the command layer, likewise
+    from personalscraper.commands import acquisition_surroundings as surroundings  # noqa: PLC0415
+    from personalscraper.subscribers.redis_stream import build_redis_publisher  # noqa: PLC0415
 
     with per_step_boundary(config, settings, build_torrent_client=job.kind in NEEDS_TORRENT_CLIENT) as context:
         acquire = context.acquire
@@ -167,11 +176,59 @@ def open_engine(config: Config, settings: Settings, job: AcquisitionJob) -> Iter
         search = core.service if core is not None else None
         if search is None and job.kind in (JobKind.SEARCH, JobKind.PRIME):
             search = build_search_service(acquire, config, context.event_bus)
-        yield AcquisitionEngine(
-            detect=detect,
-            search=search if job.kind in (JobKind.SEARCH, JobKind.PRIME) else None,
-            grab=core.service if core is not None else None,
-        )
+        console = Console()
+
+        def _before_search() -> ReconcileSummary:
+            """Close what the library already owns before searching.
+
+            Returns:
+                The sweep's numbers.
+            """
+            return surroundings.reconcile_before_search(acquire, context.event_bus, console)
+
+        def _before_grab() -> ReconcileSummary:
+            """Reconcile the open rows, then switch the dead-stalled grabs, before grabbing.
+
+            Returns:
+                The reconcile's numbers.
+            """
+            scope = config.torrent.active_scope()
+            reconciled = surroundings.reconcile_before_run(acquire, context.event_bus, console, scope=scope)
+            # AFTER the reconcile: it closes the owned rows first, so the reswitch acts on live downloads only.
+            surroundings.reswitch_before_run(acquire, context.event_bus, console, scope=scope)
+            return reconciled
+
+        @contextmanager
+        def _grab_listeners() -> Iterator[None]:
+            """Let Telegram hear the grab, when it is configured.
+
+            Yields:
+                Once, the subscriber listening.
+            """
+            subscriber = surroundings.build_acq_telegram_subscriber(config, settings, context.event_bus)
+            if subscriber is None:
+                yield
+                return
+            with closing(subscriber):
+                yield
+
+        redis_publisher = build_redis_publisher(context.event_bus, config.web)
+        try:
+            yield AcquisitionEngine(
+                detect=detect,
+                search=search if job.kind in (JobKind.SEARCH, JobKind.PRIME) else None,
+                grab=core.service if core is not None else None,
+                before_search=_before_search,
+                before_grab=_before_grab,
+                grab_listeners=_grab_listeners,
+            )
+        finally:
+            if redis_publisher is not None:
+                redis_publisher.close()
+
+
+class _PassFailed(Exception):
+    """A pass exited non-zero: raised inside its row so the row closes ``error``."""
 
 
 def acquisition_body(opener: EngineOpener = open_engine) -> Body:
@@ -185,7 +242,9 @@ def acquisition_body(opener: EngineOpener = open_engine) -> Body:
     """
 
     def run_acquisition(config: Config, settings: Settings, request: RunRequest) -> int:
-        """Run *request*'s job in this process: no CLI step, no ``pipeline.lock``.
+        """Run *request*'s job in this process, on its row: no CLI step, no ``pipeline.lock``.
+
+        The row carries each pass's counts and closes ``success`` on exit 0, else ``error``.
 
         Args:
             config: Loaded configuration.
@@ -196,8 +255,26 @@ def acquisition_body(opener: EngineOpener = open_engine) -> Body:
             The job's exit code (see :func:`run_acquisition_job`).
         """
         job = request.job
-        with opener(config, settings, job) as engine:
-            return run_acquisition_job(job, engine, run_uid=request.uid)
+        run_row = request_run_row(request.uid, trigger=request.trigger)
+        code = FAILED_EXIT
+        # ``suppress`` is outermost: the row sees the failure and closes ``error`` before it is swallowed.
+        with suppress(_PassFailed), run_row(config, PASS_COMMANDS[job.kind]) as recorder:
+
+            def _record(command: str, counts: dict[str, int]) -> None:
+                """Append one pass's numbers to the row, when there is one.
+
+                Args:
+                    command: The pass's command, the entry's name.
+                    counts: Its numbers.
+                """
+                if recorder is not None:
+                    recorder.record_counts(counts, step=command)
+
+            with opener(config, settings, job) as engine:
+                code = run_acquisition_job(job, engine, run_uid=request.uid, record=_record)
+            if code:
+                raise _PassFailed(f"the pass exited {code}")
+        return code
 
     return run_acquisition
 
@@ -218,7 +295,7 @@ class Bodies:
 
 
 class _RequestRunRecorder:
-    """Writes a rescrape's numeric result on its ``pipeline_run`` row (fail-soft, like the writer)."""
+    """Writes a numeric result on a request's ``pipeline_run`` row (fail-soft, like the writer)."""
 
     def __init__(self, writer: PipelineRunWriter, uid: RunUid, command: str) -> None:
         """Bind the recorder to the row.
@@ -233,17 +310,37 @@ class _RequestRunRecorder:
         self._command = command
         self._started_at = time.time()
 
-    def record_counts(self, counts: dict[str, int]) -> None:
-        """Append the result as one ``steps_json`` entry.
+    def record_counts(self, counts: dict[str, int], *, step: str | None = None) -> None:
+        """Append the result as one ``steps_json`` entry, timed from the entry before it.
 
         Args:
             counts: The counters to record.
+            step: The entry's name; the row's command when ``None``.
         """
-        self._writer.update_step(self._uid, self._command, self._started_at, time.time(), "success", counts=counts)
+        started_at, self._started_at = self._started_at, time.time()
+        self._writer.update_step(
+            self._uid, step or self._command, started_at, self._started_at, "success", counts=counts
+        )
 
 
-def request_run_row(uid: RunUid, *, trigger: RunTrigger = RunTrigger.WEB) -> RunRowFactory:
-    """The ``pipeline_run`` row factory of a rescrape run by the worker: its row, under the request's uid.
+class _RequestRowFactory(Protocol):
+    """A :class:`~personalscraper.app.supervisor.execution.RunRowFactory` whose recorder can name an entry."""
+
+    def __call__(self, config: Config, command: str) -> AbstractContextManager[_RequestRunRecorder | None]:
+        """Open the row of *command*.
+
+        Args:
+            config: Loaded configuration.
+            command: The command the row is recorded under.
+
+        Returns:
+            The row's context.
+        """
+        ...
+
+
+def request_run_row(uid: RunUid, *, trigger: RunTrigger = RunTrigger.WEB) -> _RequestRowFactory:
+    """The ``pipeline_run`` row factory of a rescrape or a pass run by the worker: its row, under the request's uid.
 
     The CLI's row factory cannot serve here: with ``PERSONALSCRAPER_RUN_UID`` set it believes a web
     runner reserved and finalizes the row, and writes neither. The worker has no such runner, so it
@@ -255,11 +352,11 @@ def request_run_row(uid: RunUid, *, trigger: RunTrigger = RunTrigger.WEB) -> Run
         trigger: The request's trigger, the row's.
 
     Returns:
-        A factory with the shape ``rescrape_item`` expects.
+        A factory with the shape ``rescrape_item`` expects (:data:`RunRowFactory`).
     """
 
     @contextmanager
-    def run_row(config: Config, command: str) -> Iterator[RunRecorder | None]:
+    def run_row(config: Config, command: str) -> Iterator[_RequestRunRecorder | None]:
         """Open the row of *command* under the request's uid; finalize it on exit.
 
         Args:

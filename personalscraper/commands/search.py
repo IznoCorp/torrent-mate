@@ -16,11 +16,12 @@ the pending + stale-searching queue:
 * ``--limit N`` caps the number of items searched in one run.
 * ``--followed-id ID`` restricts the run to one followed series' pending items.
 
-Reconcile guard: the real run mirrors ``commands/grab.py``'s
-``_reconcile_before_run`` choice — sweep the owned rows closed before searching,
-and never requeue a vanished torrent on a blind spot. Here the blind spot is
-structural (no client on this boundary), so only the ownership half runs. See
-:func:`_reconcile_before_search`.
+Reconcile guard: the real run mirrors the grab's
+:func:`~personalscraper.commands.acquisition_surroundings.reconcile_before_run` choice —
+sweep the owned rows closed before searching, and never requeue a vanished torrent on a
+blind spot. Here the blind spot is structural (no client on this boundary), so only the
+ownership half runs. See
+:func:`~personalscraper.commands.acquisition_surroundings.reconcile_before_search`.
 
 Registered against the shared Typer ``app`` (imported side-effect in cli.py).
 """
@@ -34,26 +35,25 @@ import typer
 from rich.console import Console
 
 from personalscraper import cli_helpers
+from personalscraper.app.supervisor.acquisition_execution import search_counts
+from personalscraper.app.supervisor.model import JobKind
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     handle_cli_errors,
     per_step_boundary,
 )
 from personalscraper.cli_state import state
+from personalscraper.commands import acquisition_queue
 from personalscraper.commands._cli_run_row import cli_run_row
+from personalscraper.commands.acquisition_surroundings import reconcile_before_search as _reconcile_before_search
 from personalscraper.i18n import t
-from personalscraper.logger import get_logger
 from personalscraper.subscribers.redis_stream import build_redis_publisher
 
 if TYPE_CHECKING:
     from personalscraper.acquire.context import AcquireContext
-    from personalscraper.acquire.reconcile import ReconcileSummary
     from personalscraper.acquire.service import AcquisitionService
     from personalscraper.conf.models.config import Config
     from personalscraper.core.event_bus import EventBus
-
-log = get_logger("cli.search")
-
 
 # ── Command ──────────────────────────────────────────────────────────────────────
 
@@ -79,12 +79,20 @@ def search(
         help=t("cli_acquisition.search.followed_id_help"),
     ),
 ) -> None:
-    """Run the search pass — state availability for pending wanted items."""
+    """Run the search pass — state availability for pending wanted items.
+
+    While a supervisor's lease is live the pass is asked through the queue and followed instead
+    (:mod:`personalscraper.commands.acquisition_queue`); ``--dry-run`` always runs here.
+    """
     config = ctx.obj.config
     assert config is not None  # guaranteed by callback
     console = state["console"]
-    settings = cli_helpers.get_settings()
 
+    if not dry_run and acquisition_queue.supervised(config, console):
+        acquisition_queue.queue_pass(config, console, JobKind.SEARCH, followed_id=followed_id, limit=limit)
+        return
+
+    settings = cli_helpers.get_settings()
     # The search pass NEVER needs the torrent client — neither in dry-run nor in a
     # real run.  ``build_torrent_client=False`` means no connect + no login is
     # attempted at the boundary, and ``acquire.grab`` stays None (the factory only
@@ -128,21 +136,8 @@ def search(
                 console.print("[green]" + t("cli_acquisition.search.complete_label") + "[/green] " + counts)
                 # §5 « résultat chiffré »: persist the run's numbers on its
                 # pipeline_run row (self-owned for cron/CLI; the web runner's row
-                # when spawned by a web-triggered search).  ``requeued_missing`` is
-                # NOT recorded — this pass structurally cannot requeue (no client),
-                # and a hardcoded 0 would read as « nothing vanished » in the UI.
-                run_rec.record_counts(
-                    {
-                        "available": summary.available,
-                        "waiting": summary.waiting,
-                        "unverified": summary.unverified,
-                        "abandoned": summary.abandoned,
-                        "skipped": summary.skipped,
-                        "absorbed": summary.absorbed,
-                        "closed_owned": reconcile.closed_owned,
-                        "fell_back_to_episodes": reconcile.fell_back_to_episodes,
-                    }
-                )
+                # when spawned by a web-triggered search).
+                run_rec.record_counts(search_counts(summary, reconcile))
         finally:
             if redis_publisher is not None:
                 redis_publisher.close()
@@ -172,62 +167,6 @@ def _build_search_service(
     from personalscraper.acquire import build_search_service  # noqa: PLC0415
 
     return build_search_service(acquire, config, event_bus)
-
-
-# ── Reconcile ────────────────────────────────────────────────────────────────────
-
-
-def _reconcile_before_search(acquire: AcquireContext, event_bus: EventBus, console: Console) -> ReconcileSummary:
-    """Run the ownership reconcile sweep ahead of a real search run (fail-soft).
-
-    Mirrors ``grab.py``'s ``_reconcile_before_run`` guard choice.  That sweep has
-    two halves: close the rows whose media the library already owns, and requeue a
-    row whose torrent vanished from the client — the second half firing ONLY when
-    the client's live items could actually be read (``client_items=None`` means
-    « blind spot », and grab never requeues on a blind spot).
-
-    On this command the blind spot is structural, not accidental: the search
-    boundary is opened with ``build_torrent_client=False``, so there is no client
-    to interrogate and ``client_items`` is always ``None``.  The ownership half
-    therefore runs and the requeue half — like the download-event emission — is
-    skipped by construction, the same behaviour grab falls back to, reached
-    without ever contacting the daemon (NE-DOIT-PAS-8).  ``follow.py``'s detect
-    sweep passes ``None`` for the same reason.
-
-    Args:
-        acquire: The live ``AcquireContext`` (store + ownership).
-        event_bus: The app event bus (REQUIRED by the sweep; zero download
-            events fire here — no client items, no observation).
-        console: Rich console for the operator summary line.
-
-    Returns:
-        The sweep summary (zeroes when the store is unavailable or the sweep
-        failed — a reconciliation problem must never abort the search run).
-    """
-    from personalscraper.acquire.reconcile import ReconcileSummary, reconcile_wanted  # noqa: PLC0415
-
-    store = acquire.store
-    if store is None:
-        return ReconcileSummary()
-
-    try:
-        # client_items=None → ownership half only (see docstring): the sweep still closes by
-        # ownership (mark_done) and does the season fallback, but never decides on the client's
-        # view, so it cannot misread another instance's torrent.
-        summary = reconcile_wanted(store, acquire.ownership, client_items=None, event_bus=event_bus)
-    except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the search
-        log.warning("cli.search.reconcile_failed", error=str(exc))
-        return ReconcileSummary()
-    if summary.closed_owned:
-        closed = t("cli_acquisition.search.reconcile_closed", closed=summary.closed_owned)
-        console.print("[cyan]" + t("cli_acquisition.search.reconcile_label") + "[/cyan] " + closed)
-    # Announced on its OWN line, and only when it happened: appending « 0 saisons »
-    # to the line above would have printed a zero on every ordinary run — a number
-    # nobody reads, which is how a number nobody compares gets there in the first place.
-    if summary.fell_back_to_episodes:
-        fell_back = t("cli_acquisition.search.reconcile_fell_back", seasons=summary.fell_back_to_episodes)
-        console.print("[cyan]" + t("cli_acquisition.search.reconcile_label") + "[/cyan] " + fell_back)
-    return summary
 
 
 # ── Dry-run ──────────────────────────────────────────────────────────────────────
