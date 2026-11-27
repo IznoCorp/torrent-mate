@@ -58,6 +58,20 @@ export function settingsStates(): NamedState[] {
         applyState({ page: "cfg", phase: "ready" });
       },
     ],
+    /* THE SCHEDULES, as a LIST: every row says its cron expression in words, the
+       longest value a settings row draws. No other state shows them — the
+       `settings-field-schedule` state opens the panel over this list, and the
+       responsive rule reads only the surface on top — so a schedule cut by an
+       ellipsis in its row passed every rule (row 61). */
+    [
+      "settings-schedules",
+      "Réglages — les passages programmés, un horaire par ligne",
+      () => {
+        resetSettings();
+        SETTINGS_STATE.topic = "passages";
+        applyState({ page: "cfg", phase: "ready" });
+      },
+    ],
     [
       "settings-search",
       "Réglages — recherche dans tous les réglages",
