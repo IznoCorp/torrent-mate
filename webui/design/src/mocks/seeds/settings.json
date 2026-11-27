@@ -1654,6 +1654,15 @@
       },
       {
         "file": "ecosystem.config.js",
+        "key": "personalscraper-suggestions-refresh",
+        "type": "schedule",
+        "raw": "30 5 * * 0",
+        "name": "cron_restart",
+        "displayedValue": "le dimanche à 05 h 30",
+        "note": "Sundays 05:30 local (after backfill-ids) — the suggestions deck rebuilt."
+      },
+      {
+        "file": "ecosystem.config.js",
         "key": "personalscraper-index-full",
         "type": "schedule",
         "raw": "0 1 * * 1",

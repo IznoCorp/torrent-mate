@@ -248,6 +248,10 @@ class Recommendation:
         year: Release year.
         media_type: "movie" or "tv".
         reason: Human-readable reason for the recommendation.
+        external_ids: The other ids the provider gave the title beside ``provider_id``, keyed by
+            source (``"imdb"``, ``"tmdb"``, ``"tvdb"``): a provider whose ``provider_id`` is a slug
+            names the title by these in the library's and the follows' numbering. Empty when the
+            provider gives none.
     """
 
     provider: str
@@ -256,6 +260,7 @@ class Recommendation:
     year: int | None = None
     media_type: MediaType = MediaType.MOVIE
     reason: str = ""
+    external_ids: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

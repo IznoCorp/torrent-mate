@@ -332,7 +332,7 @@ class TestMigration012RunLinkage:
         conn = store._ensure_open()  # test reaches the migrated schema
         cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
         assert {"grab_run_uid", "ingest_run_uid", "scrape_run_uid", "dispatch_run_uid"} <= cols
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 27  # latest chain: 027 acquisition model
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 28  # latest chain: 028 suggestions
 
 
 class TestRunLinkage:

@@ -65,6 +65,7 @@ class TestTypedModels:
         """Recommendation stores provider, title, reason, and optional year."""
         r = Recommendation(provider="trakt", provider_id="456", title="Similar Movie", reason="Because you liked X")
         assert r.media_type == "movie"
+        assert r.external_ids == {}  # additive: a provider that gives no other id leaves it empty
 
     def test_video(self) -> None:
         """Video stores id, site, key, type, and optional metadata."""

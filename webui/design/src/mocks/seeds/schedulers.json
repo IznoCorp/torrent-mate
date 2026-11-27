@@ -30,6 +30,11 @@
     "secondaryLine": "le dimanche à 05 h 00 · dernier passage le 9 août · 2 passages"
   },
   {
+    "label": "Rafraîchissement des suggestions",
+    "state": "on_time",
+    "secondaryLine": "le dimanche à 05 h 30 · dernier passage : aucun, le premier est à venir · 0 passage"
+  },
+  {
     "label": "Analyse complète de l'index",
     "state": "on_time",
     "secondaryLine": "le lundi à 01 h 00 · dernier passage : aucun, le premier est à venir · 0 passage"

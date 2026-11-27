@@ -144,7 +144,8 @@ module.exports = {
     // that runs JOB at each boundary, to its end, never twice at once; PM2 only keeps it
     // alive. `kill_timeout` lets a stop reach a running job before SIGKILL.
     // Cadences: index-full Mon 01:00 (~22 min), index-enrich Sun 04:30 (off-peak),
-    // backfill-ids Sun 05:00 (after enrich), follow-detect daily 03:00, search 03:10 and
+    // backfill-ids Sun 05:00 (after enrich), suggestions-refresh Sun 05:30 (after backfill,
+    // so the library's ids are complete), follow-detect daily 03:00, search 03:10 and
     // 15:10, grab 03:20 and 15:20 (after search; the 15:20 retries backed-off items),
     // health-check hourly at :15, seed-sweep hourly at :45.
 
@@ -214,6 +215,31 @@ module.exports = {
       name: "personalscraper-backfill-ids",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "schedule --cron '0 5 * * 0' -- library-backfill-ids",
+      interpreter: "none",
+      cwd: "/Users/izno/deploy/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        PERSONALSCRAPER_ENV: "prod",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
+      },
+    },
+
+    // The suggestions deck: the providers' recommendations over the titles the follows and the
+    // library hold, replaced wholesale. Weekly (a deck younger than six days is not asked again,
+    // so a run that starts a few seconds before the last one's weekly mark is not skipped),
+    // Sunday 05:30 after backfill-ids so the library's ids are complete, and a day before the
+    // Monday 05:00 reboot. At most 25 seeds per run (`--max`); inert while no provider is
+    // configured under `providers.RecommendationProvider`.
+    {
+      name: "personalscraper-suggestions-refresh",
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '30 5 * * 0' -- acquisition-suggestions-refresh",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
       autorestart: true,

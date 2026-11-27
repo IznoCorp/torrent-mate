@@ -118,6 +118,7 @@ import personalscraper.commands.scrape_resolve  # noqa: E402
 import personalscraper.commands.search  # noqa: E402
 import personalscraper.commands.seed  # noqa: E402
 import personalscraper.commands.spine  # noqa: E402
+import personalscraper.commands.suggestions_refresh  # noqa: E402
 import personalscraper.commands.supervise  # noqa: E402
 import personalscraper.commands.torrents  # noqa: E402
 import personalscraper.commands.watch  # noqa: E402,F401

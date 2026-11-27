@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import MediaDetails, Recommendation, SearchResult
 from personalscraper.api.metadata.trakt import TraktClient
 
@@ -170,6 +171,24 @@ class TestTraktClientGetRecommendations:
         assert results[0].title == "Interstellar"
         assert results[0].year == 2014
         assert results[1].title == "The Prestige"
+
+    def test_a_recommendation_carries_the_other_ids_beside_the_slug(self) -> None:
+        """The slug stays the ``provider_id``; the imdb / tmdb / tvdb ids Trakt gives ride along."""
+        client = _make_client()
+        client._transport.get.return_value = [  # type: ignore[attr-defined]
+            {
+                "title": "Breaking Bad",
+                "year": 2008,
+                "ids": {"trakt": 1388, "slug": "breaking-bad", "tvdb": 81189, "imdb": "tt0903747", "tmdb": 1396},
+            },
+            {"title": "Only a slug", "year": 2020, "ids": {"trakt": 9, "slug": "only-a-slug", "tmdb": None}},
+        ]
+
+        first, second = client.get_recommendations("tt0000001", MediaType.TV)
+
+        assert first.provider_id == "breaking-bad"
+        assert first.external_ids == {"imdb": "tt0903747", "tmdb": "1396", "tvdb": "81189"}
+        assert second.external_ids == {}  # a missing or null id is no id
 
 
 class TestTraktClientPolicy:

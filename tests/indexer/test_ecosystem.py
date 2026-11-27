@@ -1,7 +1,7 @@
 """Static drift guards for PM2 ecosystem.config.js (Phase 8 cutover).
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
-design: prod's apps (watch daemon + eight scheduled jobs + web + autodeploy) and the preprod's
+design: prod's apps (watch daemon + nine scheduled jobs + web + autodeploy) and the preprod's
 (its web + seven scheduled jobs + its watcher, k2-prep DESIGN § 3.5),
 correct ``interpreter`` / ``script`` / ``cwd``, scheduled jobs on the self-managed
 ``schedule`` loop (never PM2's ``cron_restart``, which fires twice at a boundary and kills
@@ -39,6 +39,7 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-index-full",
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
+        "personalscraper-suggestions-refresh",
         "personalscraper-follow-detect",
         "personalscraper-search",
         "personalscraper-grab",
@@ -78,6 +79,7 @@ _SCHEDULED_JOB_NAMES = frozenset(
         "personalscraper-index-full",
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
+        "personalscraper-suggestions-refresh",
         "personalscraper-follow-detect",
         "personalscraper-search",
         "personalscraper-grab",
@@ -124,6 +126,7 @@ _PROD_PYTHON_APP_NAMES = frozenset(
         "personalscraper-index-full",
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
+        "personalscraper-suggestions-refresh",
         "personalscraper-follow-detect",
         "personalscraper-search",
         "personalscraper-grab",
