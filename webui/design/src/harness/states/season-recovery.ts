@@ -191,6 +191,7 @@ export function seasonRecoveryStates(): NamedState[] {
       () => {
         window.__mocks?.seasonRecovery.uncatalogued(ONE_OFF);
         forgetQueue();
+        forgetSeasons();
         sheet(ONE_OFF);
         tapAct(ONE_OFF, ONE_OFF_SEASON);
       },

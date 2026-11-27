@@ -315,6 +315,17 @@ def test_a_one_off_season_the_catalogue_knows_to_be_empty_answers_zero(world: Fo
     assert (asked.absorbed_count, asked.reused, asked.queued) == (0, False, True)
 
 
+def test_a_one_off_of_a_show_catalogued_with_nothing_aired_answers_zero(world: FollowWorld) -> None:
+    """The catalogue knows the show and lists nothing aired, and no aired cache: known, so taken, with 0."""
+    world.shows.shows["tvdb:4242"] = HeldShow(
+        title="Owned Show", year=2020, ref=MediaRef(tvdb_id=4242), aired=frozenset(), owned=frozenset()
+    )
+
+    asked = world.seasons.ask(actor(ALICE), OWNED, 1)
+
+    assert (asked.absorbed_count, asked.reused, asked.queued) == (0, False, True)
+
+
 def test_a_one_off_the_catalogue_ignores_is_counted_from_its_aired_cache(world: FollowWorld) -> None:
     """A removed follow keeps its aired cache: revived as a request, its season is counted from it."""
     row = _followed(world)
@@ -352,3 +363,24 @@ def test_the_library_index_answers_a_held_show(tmp_path: Path) -> None:
     assert held.aired == frozenset({(1, 1), (1, 2)})
     assert held.owned == frozenset({(1, 1)})
     assert shows.held_show(MediaRef(tvdb_id=9999)) is None
+
+
+def test_the_library_index_knows_nothing_aired_of_a_show_never_catalogued(tmp_path: Path) -> None:
+    """A held show the catalogue never fetched: ``aired`` is ``None``, never an empty set."""
+    index = FixtureIndex(tmp_path / "library.db")
+    item = index.item("Owned Show", kind="show", year=2020, tvdb="4242")
+    index.episodes(item, 1, [1])
+    index.conn.close()
+    shows = IndexedShows(
+        index=LibraryIndex(index.path),
+        view=CatalogueView(
+            catalogue=CatalogueStore(tmp_path / "acquire.db"), ownership=IndexerOwnershipChecker(index.path)
+        ),
+        today=lambda: date(2026, 11, 23),
+    )
+
+    held = shows.held_show(MediaRef(tvdb_id=4242))
+
+    assert held is not None
+    assert held.aired is None
+    assert held.owned == frozenset({(1, 1)})

@@ -208,6 +208,8 @@ function sheet(request: MockRequest): unknown {
   const deleted = titles.some((title) => mockState().deletedTitles.includes(title));
   return {
     ...found,
+    // A SHOW NEVER CATALOGUED HAS NO EPISODE LIST, and its seasons no date.
+    ...(uncatalogued(titles) ? withoutCatalogue(found) : {}),
     year: yearOf(found.year),
     ...(deleted ? { owned: false } : {}),
     // AND THE CONTRACT'S OWN « UNKNOWN ». `MediaSheetResponse.ownership` is
@@ -230,6 +232,29 @@ function sheet(request: MockRequest): unknown {
     // the fixture does not have.
     castPortraits: portraitsFor(found.cast),
   };
+}
+
+/**
+ * Whether the harness marked a medium's episode list as not known.
+ *
+ * @param titles Every title the identity names.
+ * @returns Whether one of them is marked.
+ */
+function uncatalogued(titles: string[]): boolean {
+  return titles.some((title) => mockState().uncataloguedShows.includes(title));
+}
+
+/**
+ * What a sheet says of a show never catalogued, as the server answers it: no
+ * episode list, and no first air date on the provider's seasons, whose numbers
+ * and counts stay.
+ *
+ * @param found The sheet's seed.
+ * @returns The two fields that differ.
+ */
+function withoutCatalogue(found: Record<string, unknown>) {
+  const seasons = found.seasons as { airDate?: string | null }[] | undefined;
+  return { episodes: null, seasons: seasons?.map((season) => ({ ...season, airDate: null })) };
 }
 
 /**
@@ -314,11 +339,31 @@ export function seasonsAnswer(titles: string[]) {
       .map((one) => ({ number: one.season, episodes: one.aired }));
   // A SEASON SHELVED BY ITS RECOVERY is held whole from then on.
   const owned = { ...(underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {}), ...shelvedEpisodes(titles) } as Record<string, number[]>;
+  // A SHOW NEVER CATALOGUED lists the seasons held, with nothing known of them.
+  if (uncatalogued(titles)) return heldSeasonsOnly(owned);
   return {
     // Each season says the held numbers its catalogue does not list (BK7).
     seasons: catalogue.map((season) => ({ ...season, offCatalogue: offCatalogue(season, owned) })),
     owned,
     aired: airedBySeason(found, counted),
+  };
+}
+
+/**
+ * The seasons read of a show never catalogued, as the server answers it.
+ *
+ * @param owned The held numbers, by season.
+ * @returns The held seasons: no count, no date, nothing aired known.
+ */
+function heldSeasonsOnly(owned: Record<string, number[]>) {
+  const held = Object.keys(owned)
+    .map(Number)
+    .filter((number) => owned[String(number)].length > 0)
+    .sort((left, right) => left - right);
+  return {
+    seasons: held.map((number) => ({ number, episodes: null, airDate: null, offCatalogue: [] as number[] })),
+    owned,
+    aired: Object.fromEntries(held.map((number): [string, number | null] => [String(number), null])),
   };
 }
 

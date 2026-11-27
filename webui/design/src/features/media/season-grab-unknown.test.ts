@@ -2,6 +2,11 @@
 //
 // WHAT MAKES THIS NON-VACUOUS. The layer refuses with the code the contract declares; the verb must
 // name that reason (never « did not go through »), and tell its caller so the season's row words it.
+// The row's note is read as DRAWN, through the ask both surfaces call: dropping the mark, or the
+// forgetting a new ask does, changes what is rendered.
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18next from "../../lib/unit-words";
 
@@ -25,7 +30,16 @@ vi.mock("../../lib/shell-doors", () => ({
   followedTitles: undefined,
 }));
 
-const { grabSeason } = await import("./season-grab");
+const { askForSeason, grabSeason } = await import("./season-grab");
+const { SeasonUnknown } = await import("./season-unknown");
+
+/** The words one season's row draws about the ask, as text; empty when it draws none. */
+function rowNote(client: QueryClient, title: string, season: number): string {
+  const html = renderToStaticMarkup(
+    createElement(QueryClientProvider, { client }, createElement(SeasonUnknown, { title, season })),
+  );
+  return html.replace(/<[^>]*>/g, "").replace(/&#x27;/g, "'");
+}
 
 describe("grabSeason refused", () => {
   beforeEach(() => {
@@ -55,5 +69,31 @@ describe("grabSeason refused", () => {
 
     expect(shown).toEqual([i18next.t("verbs.media.seasonRefused", { season: 5, title: "Silo" })]);
     expect(reported).toBe(0);
+  });
+});
+
+describe("the season's row after askForSeason", () => {
+  const UNKNOWN = { status: 409, title: "no", detail: "no", code: "acquisition.season_unknown" };
+
+  it("words the refusal on the season asked, and on no other", async () => {
+    refusal = UNKNOWN;
+    const client = new QueryClient();
+    expect(rowNote(client, "Silo", 5)).toBe("");
+
+    await askForSeason(client, "Silo", 5);
+
+    expect(rowNote(client, "Silo", 5)).toBe(i18next.t("refusals.acquisition.season_unknown"));
+    expect(rowNote(client, "Silo", 4)).toBe("");
+  });
+
+  it("takes the words down when the season is asked again", async () => {
+    refusal = UNKNOWN;
+    const client = new QueryClient();
+    await askForSeason(client, "Silo", 5);
+
+    refusal = { status: 409, title: "no", detail: "no", code: "follow.ambiguous" };
+    await askForSeason(client, "Silo", 5);
+
+    expect(rowNote(client, "Silo", 5)).toBe("");
   });
 });
