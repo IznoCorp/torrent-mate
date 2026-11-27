@@ -1,0 +1,23 @@
+name: Apt install
+description: >-
+  Install Ubuntu packages on a hosted runner, independent of the third-party apt sources the
+  runner image ships. The image lists packages.microsoft.com, and when that source answers 403
+  (« no longer signed », 26.04 image, 2026-11-27) `apt-get update` exits 100 and every step that
+  installs a package fails, though none of the packages comes from it.
+inputs:
+  packages:
+    description: Space-separated package names, all from the Ubuntu archive.
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        # The job is a throw-away runner: dropping the source loses nothing. grep exits 1 when
+        # no file lists it, which is the healthy case, hence the `|| true`.
+        { sudo grep -rlI 'packages\.microsoft\.com' /etc/apt/sources.list.d || true; } | xargs -r sudo rm -f
+        sudo apt-get update
+        # shellcheck disable=SC2086 # the list is meant to word-split into one argument each
+        sudo apt-get install -y $PACKAGES
