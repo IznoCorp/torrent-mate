@@ -25,13 +25,13 @@ the contract field by field — enums, required sets, request bodies, refusals a
 
 | | |
 | --- | ---: |
-| operations the interface requires | 109 |
-| operations v1 serves | 45 |
+| operations the interface requires | 111 |
+| operations v1 serves | 47 |
 | required and not served | 64 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
-| fields carried pre-formatted | 20 |
+| fields carried pre-formatted | 19 |
 | v1 serves and the interface does not declare | 0 |
 
 ---
@@ -143,7 +143,6 @@ interface format it.
 | `QueueCard` | `reason` |
 | `QueueCard` | `secondaryLine` |
 | `SettledDecision` | `when` |
-| `Suggestion` | `kind` |
 
 ## 4. Operations v1 serves and the interface does not declare
 

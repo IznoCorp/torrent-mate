@@ -82,6 +82,7 @@ class RefusalCode(StrEnum):
     ACQUISITION_FOLLOW_SHARED = "acquisition.follow_shared"
     FOLLOW_NOT_RESTORABLE = "follow.not_restorable"
     FOLLOW_AMBIGUOUS = "follow.ambiguous"
+    SUGGESTION_NOT_FOUND = "suggestion.not_found"
 
 
 class AppRefusal(Exception):

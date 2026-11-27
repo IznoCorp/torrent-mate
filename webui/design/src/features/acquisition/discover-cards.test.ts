@@ -17,8 +17,9 @@ const HOSTILE = 'https://img.example.invalid/p.jpg" onerror="alert(1)"><script>x
 function suggestionWith(posterHighDefinition: string): Schemas["Suggestion"] {
   return {
     title: "Silo",
-    year: "2023",
-    kind: "Show",
+    year: 2023,
+    kind: "show",
+    why: { code: "similar_to_owned", titles: [], count: null },
     rating: 8,
     poster: "",
     posterHighDefinition,

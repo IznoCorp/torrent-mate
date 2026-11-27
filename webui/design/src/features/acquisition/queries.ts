@@ -15,6 +15,7 @@ import { store, useUiState } from "../../lib/store-access";
 import { todoCards } from "../../lib/arrival-slots";
 import { fillFollowedTitlesDoor, fillStopFollowDoor } from "../../lib/shell-doors";
 import { sentIdentity } from "./sent-identity";
+import { followReserve } from "./reserve-positions";
 
 /**
  * The suggestions the discover deck draws, as a query definition.
@@ -46,6 +47,8 @@ export const suggestionsQuery = {
     // So the reserve GROWS instead. `loadMoreSuggestions` appends the next
     // page, indices already held keep their meaning, and what was dismissed
     // stays dismissed because `sugGone` holds positions into this same list.
+    // A RE-READ of this one query moves them, and `reserve-positions.ts` carries
+    // them onto the cards they named.
     read<Schemas["SuggestionPage"]>("/api/v1/acquisition/suggestions", new URLSearchParams()),
 };
 
@@ -113,6 +116,7 @@ export async function loadMoreSuggestions(): Promise<number> {
  */
 export function installSuggestionsLookup(queryClient: QueryClient): void {
   suggestionsCache = queryClient;
+  followReserve(queryClient, suggestionsQuery.queryKey);
   suggestions = () =>
     queryClient.getQueryData<Schemas["SuggestionPage"]>(suggestionsQuery.queryKey)?.suggestions ?? [];
   // AND IT IS ASKED FOR, because nothing else will. Every other read in this

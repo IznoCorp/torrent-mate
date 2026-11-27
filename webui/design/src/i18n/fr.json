@@ -1980,7 +1980,7 @@
       "runNow": "Vérifier maintenant"
     },
     "suggestion": {
-      "metaRating": "{{year}} · {{kind}} · note TMDB {{rating}}",
+      "metaRating": "{{facts}} · note TMDB {{rating}}",
       "addFilm": "Ajouter",
       "followSeries": "Suivre",
       "seeSheet": "Voir la fiche",
@@ -2192,7 +2192,9 @@
       "loaded": "{{count}} suggestions de plus — la réserve en compte {{total}}.",
       "loadedOne": "1 suggestion de plus — la réserve en compte {{total}}.",
       "spent": "Réserve épuisée — les {{total}} suggestions chargées ont toutes été vues.",
-      "refused": "Le chargement n'a pas abouti."
+      "refused": "Le chargement n'a pas abouti.",
+      "rejectRefused": "Le rejet n'a pas abouti.",
+      "restoreRefused": "L'annulation du rejet n'a pas abouti."
     },
     "releases": {
       "taken": "« {{quality}} » retenue pour « {{title}} » — suivez-le dans « En vol »."
@@ -2292,7 +2294,29 @@
     "allSeenRestExhausted": "Les {{count}} suggestions chargées ont toutes été vues — la réserve est épuisée.",
     "loadThirtyMore": "Charger 30 de plus",
     "endOfReserve": "Fin de la réserve chargée dans cette maquette — {{loaded}} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.",
-    "dismissed": "« {{title}} » écarté."
+    "dismissed": "« {{title}} » écarté.",
+    "kind": {
+      "movie": "Film",
+      "show": "Série"
+    },
+    "reason": {
+      "similar_to_owned": {
+        "named": "Parce que vous avez {{titles}}.",
+        "unnamed": "Proche de ce que contient votre médiathèque.",
+        "counted_one": "Recoupé par {{figure}} titre de votre médiathèque.",
+        "counted_other": "Recoupé par {{figure}} titres de votre médiathèque.",
+        "countedNamed_one": "Recoupé par {{figure}} titre de votre médiathèque, dont {{titles}}.",
+        "countedNamed_other": "Recoupé par {{figure}} titres de votre médiathèque, dont {{titles}}."
+      },
+      "similar_to_followed": {
+        "named": "Parce que vous suivez {{titles}}.",
+        "unnamed": "Proche de ce qui est suivi.",
+        "counted_one": "Recoupé par {{figure}} titre que vous suivez.",
+        "counted_other": "Recoupé par {{figure}} titres que vous suivez.",
+        "countedNamed_one": "Recoupé par {{figure}} titre que vous suivez, dont {{titles}}.",
+        "countedNamed_other": "Recoupé par {{figure}} titres que vous suivez, dont {{titles}}."
+      }
+    }
   },
   "popover": {
     "airDateUnknown": "Date de diffusion inconnue.",
@@ -2408,6 +2432,9 @@
     }
   },
   "refusals": {
+    "suggestion": {
+      "not_found": "Cette suggestion n'est plus proposée : rien n'a été changé."
+    },
     "request": {
       "invalid": "La demande est mal formée : rien n'a été changé.",
       "cross_origin": "Demande refusée : elle ne vient pas de cette interface.",

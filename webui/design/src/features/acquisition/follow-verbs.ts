@@ -7,9 +7,9 @@
 // engine dies by SUBTRACTION (D5) and the size ledger refuses it upward.
 //
 // TWO EMITTERS, ONE ACT, AND THEY DIFFER BY WHAT THEY CARRY BESIDE THE NAME.
-// A suggestion carries `sugidx`, its POSITION in the reserve; a sheet carries
+// A suggestion carries `sugid`, its card's handle in the reserve; a sheet carries
 // `fkind`, the medium's KIND — spelled here as the emitters spell them, since
-// the prefixed form is a name and this file is not where either is coined. The position is what lets the deck
+// the prefixed form is a name and this file is not where either is coined. The handle is what lets the deck
 // know the card is spent — following something is answering the question the
 // deck asked — and the kind is what decides which sentence the act says, since
 // §5 has a film ADDED and a series FOLLOWED: the one has an end and the other
@@ -30,12 +30,12 @@ import { followActions, suggestions } from "./queries";
 import { baseTitle } from "../../lib/titles";
 
 /** A suggestion as the reserve holds it — the two fields this act reads. */
-type Suggestion = { title: string; kind: string; ids?: Follow["ids"] | null };
+type Suggestion = { id: string; title: string; kind: string; ids?: Follow["ids"] | null };
 
 /**
  * The identity an emitter wrote onto the element the act was taken on.
  *
- * THE THIRD EMITTER CARRIES ITS OWN. A suggestion is found by POSITION in the
+ * THE THIRD EMITTER CARRIES ITS OWN. A suggestion is found by its HANDLE in the
  * reserve and a search result by the visit that holds it, but a medium's sheet
  * is reached from anywhere and has no list behind it — so it writes what it
  * knows on the element, exactly as it writes the kind.
@@ -124,8 +124,8 @@ async function follow(title: string, kind: string,
   // not occur.
   if (alreadyFollowed(title)) return true;
   // french-ok: an attribute VALUE, frozen with the DOM contract `media-details.tsx`
-  // emits and the reserve carries — the same literal, compared where it arrives;
-  // a search result carries the contract's own value (K3-G8)
+  // emits — the same literal, compared where it arrives; a suggestion and a
+  // search result carry the contract's own value (K3-G7, K3-G8)
   const film = kind === "Film" || kind === "movie";
   // THE MESSAGE FOLLOWS THE LAYER'S ANSWER, and this is the whole of the
   // repair. It was shown here, before the request left, so a create the layer
@@ -344,17 +344,16 @@ export function settleSwipeRow(element: HTMLElement): void {
   else card.style.transform = "";
 }
 registerVerb("follow", (title, element) => {
-  const at = element.dataset.sugidx;
-  const suggestion = at === undefined
-    ? null
-    : ((suggestions?.() ?? [])[Number(at)] as Suggestion | undefined)
-      ?? null;
+  const id = element.dataset.sugid;
+  const reserve = (suggestions?.() ?? []) as Suggestion[];
+  const at = id === undefined ? -1 : reserve.findIndex((one) => one.id === id);
+  const suggestion = reserve[at] ?? null;
   // THE PANEL LEAVES FIRST, in the tap's own commit. The act happens beside
   // it rather than after a wait: the 240 ms the engine spent here is B-249's
   // shape, and a panel that is still on screen while the follows move is a
   // reader watching two things happen in the wrong order.
   panel.close();
-  if (at !== undefined) takeSuggestionOutOfTheDeck(Number(at));
+  if (at !== -1) takeSuggestionOutOfTheDeck(at);
   // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
   // below asks whether it is a film, so the empty string answers « series »
   // without this file holding a second interface word to keep in step.

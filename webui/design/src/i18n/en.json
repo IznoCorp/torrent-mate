@@ -1980,7 +1980,7 @@
       "runNow": "Check now"
     },
     "suggestion": {
-      "metaRating": "{{year}} · {{kind}} · TMDB rating {{rating}}",
+      "metaRating": "{{facts}} · TMDB rating {{rating}}",
       "addFilm": "Add",
       "followSeries": "Follow",
       "seeSheet": "See the sheet",
@@ -2192,7 +2192,9 @@
       "loaded": "{{count}} more suggestions — the reserve holds {{total}}.",
       "loadedOne": "1 more suggestion — the reserve holds {{total}}.",
       "spent": "Reserve exhausted — all {{total}} loaded suggestions have been seen.",
-      "refused": "The loading did not go through."
+      "refused": "The loading did not go through.",
+      "rejectRefused": "The rejection did not go through.",
+      "restoreRefused": "The rejection could not be undone."
     },
     "releases": {
       "taken": "“{{quality}}” chosen for “{{title}}” — follow it in “In flight”."
@@ -2292,7 +2294,29 @@
     "allSeenRestExhausted": "All {{count}} loaded suggestions have been seen — the reserve is exhausted.",
     "loadThirtyMore": "Load 30 more",
     "endOfReserve": "End of the reserve loaded in this mockup — {{loaded}} of the 503 suggestions actually computed for you. The background pass computes more after each new TMDB rating.",
-    "dismissed": "“{{title}}” dismissed."
+    "dismissed": "“{{title}}” dismissed.",
+    "kind": {
+      "movie": "Movie",
+      "show": "Series"
+    },
+    "reason": {
+      "similar_to_owned": {
+        "named": "Because you have {{titles}}.",
+        "unnamed": "Close to what your library holds.",
+        "counted_one": "Matched by {{figure}} title in your library.",
+        "counted_other": "Matched by {{figure}} titles in your library.",
+        "countedNamed_one": "Matched by {{figure}} title in your library, including {{titles}}.",
+        "countedNamed_other": "Matched by {{figure}} titles in your library, including {{titles}}."
+      },
+      "similar_to_followed": {
+        "named": "Because you follow {{titles}}.",
+        "unnamed": "Close to what is followed.",
+        "counted_one": "Matched by {{figure}} title you follow.",
+        "counted_other": "Matched by {{figure}} titles you follow.",
+        "countedNamed_one": "Matched by {{figure}} title you follow, including {{titles}}.",
+        "countedNamed_other": "Matched by {{figure}} titles you follow, including {{titles}}."
+      }
+    }
   },
   "popover": {
     "airDateUnknown": "Air date unknown.",
@@ -2408,6 +2432,9 @@
     }
   },
   "refusals": {
+    "suggestion": {
+      "not_found": "That suggestion is no longer offered: nothing was changed."
+    },
     "request": {
       "invalid": "The request is malformed: nothing was changed.",
       "cross_origin": "Request refused: it does not come from this interface.",

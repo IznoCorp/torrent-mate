@@ -330,21 +330,6 @@
         "title": "DeleteLibraryItemsResult",
         "type": "object"
       },
-      "EmphasisPiece": {
-        "additionalProperties": false,
-        "description": "A piece of a ``why`` the interface emphasises.\n\nAttributes:\n    emphasis: The emphasised text.",
-        "properties": {
-          "emphasis": {
-            "title": "Emphasis",
-            "type": "string"
-          }
-        },
-        "required": [
-          "emphasis"
-        ],
-        "title": "EmphasisPiece",
-        "type": "object"
-      },
       "EpisodeCompletenessModel": {
         "additionalProperties": false,
         "description": "The contract's ``EpisodeCompleteness``.\n\nAttributes:\n    episode: Its number within the season.\n    title: Its title, ``None`` when the provider gave none.\n    air_date: ISO ``YYYY-MM-DD``, ``None`` when unknown.\n    state: The single derivation's reading.\n    last_search_outcome: The verdict of the governing search, ``None`` when none ran.",
@@ -2115,7 +2100,8 @@
           "acquisition.not_requester",
           "acquisition.follow_shared",
           "follow.not_restorable",
-          "follow.ambiguous"
+          "follow.ambiguous",
+          "suggestion.not_found"
         ],
         "title": "RefusalCode",
         "type": "string"
@@ -2815,8 +2801,12 @@
       },
       "SuggestionModel": {
         "additionalProperties": false,
-        "description": "The contract's ``Suggestion``, as it stands before K3-G7 corrects it.\n\nAttributes:\n    title: The provider's title.\n    year: The year as text, ``\"\"`` when none.\n    kind: ``movie`` or ``show``.\n    rating: The provider's rating, ``0`` when none came with the title.\n    why: The reason's code, which the interface words (the contract forbids the server its own words).\n    ids: Its provider identity, ``None`` when it has none the library knows.\n    poster: The poster's address, ``None`` when none is known.\n    poster_high_definition: The full-screen poster, ``None``: the deck keeps none.",
+        "description": "The contract's ``Suggestion``: one card of the deck.\n\nAttributes:\n    id: The card's handle, which a rejection and its undo address it by.\n    title: The provider's title.\n    year: The release or first-air year, ``None`` when the provider gives none.\n    kind: ``movie`` or ``show``.\n    rating: The provider's rating, ``0`` when none came with the title.\n    why: The reason's code and parameters, which the interface words.\n    ids: Its provider identity, ``None`` when it has none the library knows.\n    poster: The poster's address, ``None`` when none is known.\n    poster_high_definition: The full-screen poster, ``None``: the deck keeps none.",
         "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
           "ids": {
             "oneOf": [
               {
@@ -2839,6 +2829,10 @@
             "title": "Ids"
           },
           "kind": {
+            "enum": [
+              "movie",
+              "show"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -2873,33 +2867,22 @@
             "type": "string"
           },
           "why": {
-            "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "properties": {
-                    "emphasis": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "emphasis"
-                  ],
-                  "type": "object"
-                }
-              ]
-            },
-            "title": "Why",
-            "type": "array"
+            "$ref": "#/components/schemas/SuggestionReasonModel"
           },
           "year": {
-            "title": "Year",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
           }
         },
         "required": [
+          "id",
           "title",
           "year",
           "kind",
@@ -2940,6 +2923,45 @@
           "nextCursor"
         ],
         "title": "SuggestionPageModel",
+        "type": "object"
+      },
+      "SuggestionReasonModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``SuggestionReason``: a code the interface words, and the values its words name.\n\nAttributes:\n    code: Why the title is suggested.\n    titles: The titles the reason names; empty when nothing holds the seed any more.\n    count: How many titles recommend it, ``None``: the deck counts none (a title is stored\n        for the first seed that recommended it).",
+        "properties": {
+          "code": {
+            "enum": [
+              "similar_to_owned",
+              "similar_to_followed"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "titles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Titles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "titles",
+          "count"
+        ],
+        "title": "SuggestionReasonModel",
         "type": "object"
       },
       "TrailerModel": {
@@ -5336,6 +5358,252 @@
           }
         },
         "summary": "Read Suggestions"
+      }
+    },
+    "/acquisition/suggestions/{suggestionId}/rejection": {
+      "delete": {
+        "description": "Undo the signed-in account's rejection of a suggestion.\n\nArgs:\n    suggestion_id: The card's handle.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acknowledgement.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``suggestionId`` for a malformed id.\n    AppNotFound: ``suggestion.not_found`` when the account holds no rejection of it.",
+        "operationId": "undoSuggestionRejection",
+        "parameters": [
+          {
+            "description": "the card's handle, its `Suggestion.id` as it came",
+            "in": "path",
+            "name": "suggestionId",
+            "required": true,
+            "schema": {
+              "description": "the card's handle, its `Suggestion.id` as it came",
+              "pattern": "^(movie|show):[^:]+:.+$",
+              "title": "Suggestionid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acknowledgement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Undo Suggestion Rejection"
+      },
+      "post": {
+        "description": "Reject a suggestion for the signed-in account alone: its deck no longer holds the title.\n\nArgs:\n    suggestion_id: The card's handle.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acknowledgement.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming ``suggestionId`` for a malformed id.\n    AppNotFound: ``suggestion.not_found`` when no card of the deck bears it.",
+        "operationId": "rejectSuggestion",
+        "parameters": [
+          {
+            "description": "the card's handle, its `Suggestion.id` as it came",
+            "in": "path",
+            "name": "suggestionId",
+            "required": true,
+            "schema": {
+              "description": "the card's handle, its `Suggestion.id` as it came",
+              "pattern": "^(movie|show):[^:]+:.+$",
+              "title": "Suggestionid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Names this write. Sent again with the same request, the first answer is answered and nothing is applied again; sent with another request, it is refused 409 `request.key_reused`; sent while the first is still running, it is refused 409 `request.in_progress`. Kept 24 hours, per signed-in account. Only a success or a final refusal (400, 404, 405, 409, 410, 415, 422) is kept; any other answer keeps nothing and the retry applies. The public sign-in doors take none: they sign no account in, and are never held offline.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acknowledgement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Reject Suggestion"
       }
     },
     "/auth/language": {

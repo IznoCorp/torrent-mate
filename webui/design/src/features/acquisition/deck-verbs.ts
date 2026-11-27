@@ -27,9 +27,12 @@ import { panel, toast } from "../../lib/shell-doors";
 // branch did — and for a reason that outlives it: the card collapses where the
 // panel was, so a panel still on screen while the row goes is a reader watching
 // two things happen in the wrong order.
-registerVerb("dropsug", (value) => {
+//
+// THE PANEL NAMES THE CARD BY ITS ID: the reserve may have been read again while
+// it stood open, and the position it was raised on would name another card.
+registerVerb("dropsug", (id) => {
   panel.close();
-  dismissSug(Number(value));
+  dismissSug((suggestions?.() ?? []).findIndex((one) => one.id === id));
 });
 
 // « CHARGER 30 DE PLUS », AND IT NOW DOES THAT. The engine's branch wrote

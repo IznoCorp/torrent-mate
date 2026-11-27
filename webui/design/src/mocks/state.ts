@@ -117,6 +117,11 @@ export type MockState = {
    * absent here is on: the seeded layer has every type on.
    */
   notificationsOff: Record<string, Schemas["NotificationType"][]>;
+  /**
+   * THE SUGGESTION IDS EACH ACCOUNT REJECTED, by account id (O-9 A): a
+   * rejection hides nothing from the other accounts.
+   */
+  rejectedSuggestions: Record<string, string[]>;
   /** The push tokens devices registered (K5), in arrival order. */
   pushDevices: Schemas["PushDevice"][];
   /**
@@ -306,6 +311,7 @@ const seeded = (): MockState => ({
   deletionKept: {},
   yearlessIncomplete: [],
   notificationsOff: {},
+  rejectedSuggestions: {},
   pushDevices: [],
   libraryDatabaseAvailable: true,
   stuck: copyOf<Schemas["QueueCard"][]>(STUCK),

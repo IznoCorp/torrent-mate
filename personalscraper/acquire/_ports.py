@@ -586,6 +586,10 @@ class SuggestionSubStore(Protocol):
         """Return when the deck was last refreshed, ``None`` when it is empty."""
         ...
 
+    def holds(self, provider: str, provider_id: str, kind: str) -> bool:
+        """Whether a row of the deck bears this title's identity."""
+        ...
+
 
 @runtime_checkable
 class AcquireStore(Protocol):

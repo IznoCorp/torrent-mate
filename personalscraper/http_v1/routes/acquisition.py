@@ -1,4 +1,6 @@
-"""The acquisition routes of the follows: list, follow, pause, leave, restore, quality, pause, reassign, completeness.
+"""The acquisition routes of the follows (list, follow, pause, leave, restore, quality, reassign, completeness).
+
+With them, the deck's two writes: « Rejeter » a suggestion and its « Annuler ».
 
 The contract files them under its ``acquisition`` tag. Each route parses the wire key
 (``<provider>:<providerId>``, a medium followed or not, removed or not — never its title) with
@@ -49,6 +51,17 @@ _KEY_PARAM_DESCRIPTION = (
     "(the operator's ruling O-1 A): it names a medium followed or not, and a removed follow, never its title"
 )
 FollowedIdParam = Annotated[str, Path(alias="followedId", description=_KEY_PARAM_DESCRIPTION)]
+
+#: A card's handle as a path parameter. The pattern is documented, never enforced by the framework:
+#: the service refuses a malformed one ``request.invalid`` naming ``suggestionId``.
+SuggestionIdParam = Annotated[
+    str,
+    Path(
+        alias="suggestionId",
+        description="the card's handle, its `Suggestion.id` as it came",
+        json_schema_extra={"pattern": "^(movie|show):[^:]+:.+$"},
+    ),
+]
 
 #: The kinds a follow is of (the engine's ``FollowKind``, which http_v1 never imports).
 FollowKind = Literal["movie", "show"]
@@ -395,3 +408,63 @@ def read_follow_completeness(
     return FollowCompletenessModel.from_completeness(
         app_services.acquisition.completeness.read(signed_in, AcquisitionKey.parse(followed_id))
     )
+
+
+@router.post(
+    "/acquisition/suggestions/{suggestionId}/rejection",
+    operation_id="rejectSuggestion",
+    response_model=Acknowledgement,
+    status_code=200,
+    responses=_FOLLOW_RESPONSES,
+)
+def reject_suggestion(
+    suggestion_id: SuggestionIdParam,
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+) -> Acknowledgement:
+    """Reject a suggestion for the signed-in account alone: its deck no longer holds the title.
+
+    Args:
+        suggestion_id: The card's handle.
+        signed_in: The signed-in actor.
+        app_services: The application services.
+
+    Returns:
+        The acknowledgement.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming ``suggestionId`` for a malformed id.
+        AppNotFound: ``suggestion.not_found`` when no card of the deck bears it.
+    """
+    app_services.acquisition.suggestions.reject(signed_in, suggestion_id)
+    return Acknowledgement(ok=True)
+
+
+@router.delete(
+    "/acquisition/suggestions/{suggestionId}/rejection",
+    operation_id="undoSuggestionRejection",
+    response_model=Acknowledgement,
+    status_code=200,
+    responses=_FOLLOW_RESPONSES,
+)
+def undo_suggestion_rejection(
+    suggestion_id: SuggestionIdParam,
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+) -> Acknowledgement:
+    """Undo the signed-in account's rejection of a suggestion.
+
+    Args:
+        suggestion_id: The card's handle.
+        signed_in: The signed-in actor.
+        app_services: The application services.
+
+    Returns:
+        The acknowledgement.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming ``suggestionId`` for a malformed id.
+        AppNotFound: ``suggestion.not_found`` when the account holds no rejection of it.
+    """
+    app_services.acquisition.suggestions.undo_rejection(signed_in, suggestion_id)
+    return Acknowledgement(ok=True)

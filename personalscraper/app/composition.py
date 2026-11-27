@@ -557,6 +557,7 @@ def _build_acquisition_services(
     )
     from personalscraper.app.acquisition.follows import FollowService  # noqa: PLC0415 — idem
     from personalscraper.app.acquisition.ranking import RankingPreview  # noqa: PLC0415 — idem
+    from personalscraper.app.acquisition.rejection_repository import AccountRejections  # noqa: PLC0415 — idem
     from personalscraper.app.acquisition.releases import ReleaseOffers  # noqa: PLC0415 — idem
     from personalscraper.app.acquisition.search import (  # noqa: PLC0415 — idem
         ProviderSearch,
@@ -627,7 +628,10 @@ def _build_acquisition_services(
         suggestions=Suggestions(
             open_store=open_store,
             open_ownership=open_ownership,
+            open_index=LibraryIndex(index_db).reader,
             cursor_key=partial(load_or_make_key, cursor_key_path(store_path(config.paths.data_dir, StoreName.APP))),
+            rejections=AccountRejections(app_store),
+            owner=owner,
         ),
     )
 

@@ -1,16 +1,18 @@
 [
   {
+    "id": "movie:tmdb:618354",
     "title": "Superman : L'Homme de demain",
-    "year": "2020",
-    "kind": "Film",
+    "year": 2020,
+    "kind": "movie",
     "rating": 7.1,
-    "why": [
-      "Recoupé par ",
-      {
-        "emphasis": "4"
-      },
-      " titres de votre médiathèque, dont Ninja Turtles et Supergirl."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Ninja Turtles",
+        "Supergirl"
+      ],
+      "count": 4
+    },
     "ids": {
       "tmdb": 618354,
       "imdb": "tt11079116"
@@ -19,17 +21,19 @@
     "posterHighDefinition": "assets/posters-hd/62e12311.webp"
   },
   {
+    "id": "movie:tmdb:399579",
     "title": "Alita : Battle Angel",
-    "year": "2019",
-    "kind": "Film",
+    "year": 2019,
+    "kind": "movie",
     "rating": 7.3,
-    "why": [
-      "Recoupé par ",
-      {
-        "emphasis": "3"
-      },
-      " titres de votre médiathèque, dont Ninja Turtles et Supergirl."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Ninja Turtles",
+        "Supergirl"
+      ],
+      "count": 3
+    },
     "ids": {
       "tmdb": 399579,
       "imdb": "tt0437086"
@@ -38,17 +42,19 @@
     "posterHighDefinition": "assets/posters-hd/b39c19c9.webp"
   },
   {
+    "id": "movie:tmdb:46529",
     "title": "Numéro quatre",
-    "year": "2011",
-    "kind": "Film",
+    "year": 2011,
+    "kind": "movie",
     "rating": 6.2,
-    "why": [
-      "Recoupé par ",
-      {
-        "emphasis": "3"
-      },
-      " titres de votre médiathèque, dont Supergirl et Disclosure Day."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl",
+        "Disclosure Day"
+      ],
+      "count": 3
+    },
     "ids": {
       "tmdb": 46529,
       "imdb": "tt1464540"
@@ -57,17 +63,19 @@
     "posterHighDefinition": "assets/posters-hd/0cb20ccb.webp"
   },
   {
+    "id": "movie:tmdb:299534",
     "title": "Avengers : Endgame",
-    "year": "2019",
-    "kind": "Film",
+    "year": 2019,
+    "kind": "movie",
     "rating": 8.2,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Supergirl"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 299534,
       "imdb": "tt4154796"
@@ -76,17 +84,19 @@
     "posterHighDefinition": "assets/posters-hd/46844527.webp"
   },
   {
+    "id": "movie:tmdb:1724",
     "title": "L'Incroyable Hulk",
-    "year": "2008",
-    "kind": "Film",
+    "year": 2008,
+    "kind": "movie",
     "rating": 6.2,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Ninja Turtles"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Ninja Turtles",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 1724,
       "imdb": "tt0800080"
@@ -95,17 +105,19 @@
     "posterHighDefinition": "assets/posters-hd/97b46743.webp"
   },
   {
+    "id": "movie:tmdb:49521",
     "title": "Man of Steel",
-    "year": "2013",
-    "kind": "Film",
+    "year": 2013,
+    "kind": "movie",
     "rating": 6.7,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Supergirl"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 49521,
       "imdb": "tt0770828"
@@ -114,17 +126,19 @@
     "posterHighDefinition": "assets/posters-hd/94def384.webp"
   },
   {
+    "id": "movie:tmdb:320288",
     "title": "X-Men : Dark Phoenix",
-    "year": "2019",
-    "kind": "Film",
+    "year": 2019,
+    "kind": "movie",
     "rating": 6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Supergirl"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 320288,
       "imdb": "tt6565702"
@@ -133,17 +147,19 @@
     "posterHighDefinition": "assets/posters-hd/da5a5404.webp"
   },
   {
+    "id": "movie:tmdb:329865",
     "title": "Premier Contact",
-    "year": "2016",
-    "kind": "Film",
+    "year": 2016,
+    "kind": "movie",
     "rating": 7.6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Marjorie Prime"
-      },
-      " et Disclosure Day."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Marjorie Prime",
+        "Disclosure Day"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 329865,
       "imdb": "tt2543164"
@@ -152,17 +168,19 @@
     "posterHighDefinition": "assets/posters-hd/f2c6e872.webp"
   },
   {
+    "id": "movie:tmdb:640146",
     "title": "Ant-Man et la Guêpe : Quantumania",
-    "year": "2023",
-    "kind": "Film",
+    "year": 2023,
+    "kind": "movie",
     "rating": 6.2,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Ninja Turtles"
-      },
-      " et Supergirl."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Ninja Turtles",
+        "Supergirl"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 640146,
       "imdb": "tt10954600"
@@ -171,17 +189,19 @@
     "posterHighDefinition": "assets/posters-hd/55232278.webp"
   },
   {
+    "id": "show:tmdb:2418",
     "title": "The Venture Bros",
-    "year": "2004",
-    "kind": "Série",
+    "year": 2004,
+    "kind": "show",
     "rating": 7.8,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Batman Caped Crusader (2024)"
-      },
-      " et President Curtis (2026)."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Batman Caped Crusader (2024)",
+        "President Curtis (2026)"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 2418,
       "imdb": "tt0417373",
@@ -191,17 +211,19 @@
     "posterHighDefinition": "assets/posters-hd/890d8f76.webp"
   },
   {
+    "id": "movie:tmdb:945937",
     "title": "Fast Charlie",
-    "year": "2023",
-    "kind": "Film",
+    "year": 2023,
+    "kind": "movie",
     "rating": 6.2,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "On l'appelait Robin des Bois"
-      },
-      " et Margin Call."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "On l'appelait Robin des Bois",
+        "Margin Call"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 945937,
       "imdb": "tt6722400"
@@ -210,17 +232,19 @@
     "posterHighDefinition": "assets/posters-hd/01829da1.webp"
   },
   {
+    "id": "show:tmdb:202224",
     "title": "Grimsburg",
-    "year": "2024",
-    "kind": "Série",
+    "year": 2024,
+    "kind": "show",
     "rating": 6.1,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Batman Caped Crusader (2024)"
-      },
-      " et President Curtis (2026)."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Batman Caped Crusader (2024)",
+        "President Curtis (2026)"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 202224,
       "imdb": "tt15791752",
@@ -230,17 +254,19 @@
     "posterHighDefinition": "assets/posters-hd/db2a8861.webp"
   },
   {
+    "id": "movie:tmdb:348350",
     "title": "Solo: A Star Wars Story",
-    "year": "2018",
-    "kind": "Film",
+    "year": 2018,
+    "kind": "movie",
     "rating": 6.6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Supergirl"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 348350,
       "imdb": "tt3778644"
@@ -249,17 +275,19 @@
     "posterHighDefinition": "assets/posters-hd/d33616f2.webp"
   },
   {
+    "id": "show:tmdb:262352",
     "title": "L'Assassin",
-    "year": "2025",
-    "kind": "Série",
+    "year": 2025,
+    "kind": "show",
     "rating": 6.9,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Batman Caped Crusader (2024)"
-      },
-      " et Furious (2026)."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Batman Caped Crusader (2024)",
+        "Furious (2026)"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 262352,
       "imdb": "tt33246591",
@@ -269,17 +297,19 @@
     "posterHighDefinition": "assets/posters-hd/41922de1.webp"
   },
   {
+    "id": "movie:tmdb:305470",
     "title": "Power Rangers",
-    "year": "2017",
-    "kind": "Film",
+    "year": 2017,
+    "kind": "movie",
     "rating": 6.2,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Supergirl"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 305470,
       "imdb": "tt3717490"
@@ -288,17 +318,19 @@
     "posterHighDefinition": "assets/posters-hd/6bc13ec8.webp"
   },
   {
+    "id": "show:tmdb:110126",
     "title": "Agent Elvis",
-    "year": "2023",
-    "kind": "Série",
+    "year": 2023,
+    "kind": "show",
     "rating": 6.9,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Batman Caped Crusader (2024)"
-      },
-      " et President Curtis (2026)."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Batman Caped Crusader (2024)",
+        "President Curtis (2026)"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 110126,
       "imdb": "tt10814036",
@@ -308,17 +340,19 @@
     "posterHighDefinition": "assets/posters-hd/26da5927.webp"
   },
   {
+    "id": "show:tmdb:111312",
     "title": "Marvel's M.O.D.O.K.",
-    "year": "2021",
-    "kind": "Série",
+    "year": 2021,
+    "kind": "show",
     "rating": 6.6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Batman Caped Crusader (2024)"
-      },
-      " et President Curtis (2026)."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Batman Caped Crusader (2024)",
+        "President Curtis (2026)"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 111312,
       "imdb": "tt9811118",
@@ -328,17 +362,19 @@
     "posterHighDefinition": "assets/posters-hd/5a40a4a5.webp"
   },
   {
+    "id": "movie:tmdb:7288",
     "title": "Un Duplex pour 3",
-    "year": "2003",
-    "kind": "Film",
+    "year": 2003,
+    "kind": "movie",
     "rating": 6.1,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 7288,
       "imdb": "tt0266489"
@@ -347,17 +383,19 @@
     "posterHighDefinition": "assets/posters-hd/b4bb05a1.webp"
   },
   {
+    "id": "movie:tmdb:76489",
     "title": "Les Trois Corniauds",
-    "year": "2012",
-    "kind": "Film",
+    "year": 2012,
+    "kind": "movie",
     "rating": 5.8,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 76489,
       "imdb": "tt0383010"
@@ -366,17 +404,19 @@
     "posterHighDefinition": "assets/posters-hd/9b1711ea.webp"
   },
   {
+    "id": "movie:tmdb:11890",
     "title": "L'Embrouille est dans le sac",
-    "year": "1991",
-    "kind": "Film",
+    "year": 1991,
+    "kind": "movie",
     "rating": 6.4,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 11890,
       "imdb": "tt0102603"
@@ -385,17 +425,19 @@
     "posterHighDefinition": "assets/posters-hd/e4bceec0.webp"
   },
   {
+    "id": "movie:tmdb:4965",
     "title": "Impostor",
-    "year": "2001",
-    "kind": "Film",
+    "year": 2001,
+    "kind": "movie",
     "rating": 6.1,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Disclosure Day"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Disclosure Day",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 4965,
       "imdb": "tt0160399"
@@ -404,17 +446,19 @@
     "posterHighDefinition": "assets/posters-hd/d62c7202.webp"
   },
   {
+    "id": "movie:tmdb:17445",
     "title": "Green Lantern : Le Complot",
-    "year": "2009",
-    "kind": "Film",
+    "year": 2009,
+    "kind": "movie",
     "rating": 6.9,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Supergirl"
-      },
-      " et The Mandalorian and Grogu."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl",
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 17445,
       "imdb": "tt1384590"
@@ -423,17 +467,19 @@
     "posterHighDefinition": "assets/posters-hd/c30fc907.webp"
   },
   {
+    "id": "movie:tmdb:887357",
     "title": "Green Lantern : Méfiez-vous de mon pouvoir",
-    "year": "2022",
-    "kind": "Film",
+    "year": 2022,
+    "kind": "movie",
     "rating": 6.7,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Ninja Turtles"
-      },
-      " et Supergirl."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Ninja Turtles",
+        "Supergirl"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 887357,
       "imdb": "tt20192230"
@@ -442,17 +488,19 @@
     "posterHighDefinition": "assets/posters-hd/fec17dad.webp"
   },
   {
+    "id": "movie:tmdb:10411",
     "title": "Monsieur le député",
-    "year": "1992",
-    "kind": "Film",
+    "year": 1992,
+    "kind": "movie",
     "rating": 6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 10411,
       "imdb": "tt0104114"
@@ -461,17 +509,19 @@
     "posterHighDefinition": "assets/posters-hd/fe65e1aa.webp"
   },
   {
+    "id": "movie:tmdb:24109",
     "title": "Touche pas à mon gazon",
-    "year": "1977",
-    "kind": "Film",
+    "year": 1977,
+    "kind": "movie",
     "rating": 6.6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Scary Movie."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Scary Movie"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 24109,
       "imdb": "tt0076059"
@@ -480,17 +530,19 @@
     "posterHighDefinition": "assets/posters-hd/10abc7cf.webp"
   },
   {
+    "id": "movie:tmdb:1477170",
     "title": "LOL 2.0",
-    "year": "2026",
-    "kind": "Film",
+    "year": 2026,
+    "kind": "movie",
     "rating": 6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 1477170,
       "imdb": "tt36841139"
@@ -499,17 +551,19 @@
     "posterHighDefinition": "assets/posters-hd/83dc400c.webp"
   },
   {
+    "id": "movie:tmdb:119738",
     "title": "Thunderstruck",
-    "year": "2012",
-    "kind": "Film",
+    "year": 2012,
+    "kind": "movie",
     "rating": 6.2,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 119738,
       "imdb": "tt2041488"
@@ -518,17 +572,19 @@
     "posterHighDefinition": "assets/posters-hd/41c67e3d.webp"
   },
   {
+    "id": "movie:tmdb:931461",
     "title": "American Dreamer",
-    "year": "2022",
-    "kind": "Film",
+    "year": 2022,
+    "kind": "movie",
     "rating": 6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 931461,
       "imdb": "tt13884444"
@@ -537,17 +593,19 @@
     "posterHighDefinition": "assets/posters-hd/74c17774.webp"
   },
   {
+    "id": "movie:tmdb:32450",
     "title": "Y-a-t'il quelqu'un pour l'ambulance ?",
-    "year": "1992",
-    "kind": "Film",
+    "year": 1992,
+    "kind": "movie",
     "rating": 6.1,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 32450,
       "imdb": "tt0103872"
@@ -556,17 +614,19 @@
     "posterHighDefinition": "assets/posters-hd/6db670f4.webp"
   },
   {
+    "id": "movie:tmdb:108930",
     "title": "Jim Gaffigan: Beyond the Pale",
-    "year": "2006",
-    "kind": "Film",
+    "year": 2006,
+    "kind": "movie",
     "rating": 7,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 108930,
       "imdb": "tt0815456"
@@ -575,17 +635,19 @@
     "posterHighDefinition": "assets/posters-hd/3c3354da.webp"
   },
   {
+    "id": "movie:tmdb:15251",
     "title": "Eddie Murphy: Delirious",
-    "year": "1983",
-    "kind": "Film",
+    "year": 1983,
+    "kind": "movie",
     "rating": 7.6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 15251,
       "imdb": "tt0085474"
@@ -594,17 +656,19 @@
     "posterHighDefinition": "assets/posters-hd/9c24447d.webp"
   },
   {
+    "id": "movie:tmdb:101449",
     "title": "Jim Gaffigan: Mr. Universe",
-    "year": "2012",
-    "kind": "Film",
+    "year": 2012,
+    "kind": "movie",
     "rating": 6.8,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Alison Wheeler La Promesse d'un soir"
-      },
-      " et Alexandre Kominek Bâtard sensible."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Alison Wheeler La Promesse d'un soir",
+        "Alexandre Kominek Bâtard sensible"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 101449,
       "imdb": "tt2273321"
@@ -613,17 +677,18 @@
     "posterHighDefinition": "assets/posters-hd/608656ba.webp"
   },
   {
+    "id": "movie:tmdb:969681",
     "title": "Spider-Man : Brand New Day",
-    "year": "2026",
-    "kind": "Film",
+    "year": 2026,
+    "kind": "movie",
     "rating": 7.9,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Ninja Turtles"
-      },
-      "."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Ninja Turtles"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": "969681",
       "imdb": "tt22084616"
@@ -632,17 +697,18 @@
     "posterHighDefinition": "assets/posters-hd/8c3d11b6.webp"
   },
   {
+    "id": "show:tmdb:4057",
     "title": "Esprits criminels",
-    "year": "2005",
-    "kind": "Série",
+    "year": 2005,
+    "kind": "show",
     "rating": 8.3,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Furious (2026)"
-      },
-      "."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Furious (2026)"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 4057,
       "imdb": "tt0452046",
@@ -652,17 +718,18 @@
     "posterHighDefinition": "assets/posters-hd/3f107d28.webp"
   },
   {
+    "id": "movie:tmdb:299536",
     "title": "Avengers : Infinity War",
-    "year": "2018",
-    "kind": "Film",
+    "year": 2018,
+    "kind": "movie",
     "rating": 8.2,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Supergirl"
-      },
-      "."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Supergirl"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 299536,
       "imdb": "tt4154756"
@@ -671,17 +738,18 @@
     "posterHighDefinition": "assets/posters-hd/e1bc275f.webp"
   },
   {
+    "id": "show:tmdb:1412",
     "title": "Arrow",
-    "year": "2012",
-    "kind": "Série",
+    "year": 2012,
+    "kind": "show",
     "rating": 6.8,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "Batman Caped Crusader (2024)"
-      },
-      "."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "Batman Caped Crusader (2024)"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 1412,
       "imdb": "tt2193021",
@@ -691,17 +759,18 @@
     "posterHighDefinition": "assets/posters-hd/46781e16.webp"
   },
   {
+    "id": "movie:tmdb:83533",
     "title": "Avatar : De feu et de cendres",
-    "year": "2025",
-    "kind": "Film",
+    "year": 2025,
+    "kind": "movie",
     "rating": 7.6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "The Mandalorian and Grogu"
-      },
-      "."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "The Mandalorian and Grogu"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": 83533,
       "imdb": "tt1757678"
@@ -710,17 +779,18 @@
     "posterHighDefinition": "assets/posters-hd/4587e6f0.webp"
   },
   {
+    "id": "show:tmdb:155533",
     "title": "Manhunt",
-    "year": "2017",
-    "kind": "Série",
+    "year": 2017,
+    "kind": "show",
     "rating": 7.6,
-    "why": [
-      "Parce que vous avez ",
-      {
-        "emphasis": "The Bombing of Pan Am 103"
-      },
-      "."
-    ],
+    "why": {
+      "code": "similar_to_owned",
+      "titles": [
+        "The Bombing of Pan Am 103"
+      ],
+      "count": null
+    },
     "ids": {
       "tmdb": "155533",
       "imdb": "tt16912512",

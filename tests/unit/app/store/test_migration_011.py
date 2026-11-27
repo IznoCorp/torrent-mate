@@ -103,7 +103,8 @@ def _apply_011(conn: sqlite3.Connection, tmp_path: Path) -> None:
     """
     scripts = tmp_path / "scripts"
     for script in sorted(_MIGRATIONS_DIR.glob("*.sql")):
-        shutil.copy(script, scripts / script.name)
+        if int(script.stem.split("_")[0]) <= 11:
+            shutil.copy(script, scripts / script.name)
     apply_migrations(conn, scripts)
 
 
