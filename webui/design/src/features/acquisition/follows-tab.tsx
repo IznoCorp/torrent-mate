@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { type Follow } from "./types";
-import { useFollows, useGrabCadence } from "./queries";
+import { useFollows, useGrabCadence, useGrabNextSearch } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters, followFilterInForce, followSortInForce } from "./follows-filters";
 import { followsInView, orderFollows } from "./follow-order";
@@ -27,7 +27,7 @@ import {
   followYear,
   followStatusLabel,
   gridBadge,
-  nextSearchTime,
+  nextSearchClock,
 } from "./follow-vocabulary";
 
 // The swipe action a follow that can be searched again reveals. It is a
@@ -48,6 +48,9 @@ export function FollowsTab(): ReactElement {
   // The schedule, as the scheduler returns it — undefined until the read lands,
   // and then neither the cadence line nor the next slot says anything.
   const { data: cadenceExpression } = useGrabCadence();
+  // The next search is the server's statement alone, null when it schedules none.
+  // Never derived from the cadence: dev answers prod's cadence with no next search.
+  const { data: nextSearchAt } = useGrabNextSearch();
   // WHAT THE SWIPE OFFERS IS WHAT THE PANEL OFFERS (§ 17): one table, keyed by
   // the act's verb, gates both — never an act drawn here the server refuses.
   const rights = useRights();
@@ -69,8 +72,9 @@ export function FollowsTab(): ReactElement {
   const visible = orderFollows(followsInView(follows, String(state.filter ?? "")), followFilterInForce(state),
     followSortInForce(state));
 
-  // Read ONCE for the whole list: every card names the same next slot.
-  const next = cadenceExpression ? nextSearchTime(cadenceExpression, new Date()) : null;
+  // Read ONCE for the whole list: every card names the same next slot, or says none is scheduled.
+  const next = nextSearchAt ? nextSearchClock(nextSearchAt) : null;
+  const noNextSearch = nextSearchAt === null;
 
   const seriesState = (follow: Follow) =>
     follow.kind === "movie"
@@ -102,6 +106,7 @@ export function FollowsTab(): ReactElement {
         ? [
             t("screens.acquisition.noConformRelease"),
             next ? t("screens.acquisition.nextSearch", { at: next }) : null,
+            noNextSearch ? t("screens.acquisition.nextSearchNone") : null,
           ]
             .filter(Boolean)
             .join(" ")

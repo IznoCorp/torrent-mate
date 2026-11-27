@@ -16,6 +16,7 @@ const held = vi.hoisted(() => ({ follows: [] as unknown[] }));
 vi.mock("./queries", () => ({
   useFollows: () => ({ data: held.follows, error: null, isError: false }),
   useGrabCadence: () => ({ data: undefined }),
+  useGrabNextSearch: () => ({ data: undefined }),
 }));
 vi.mock("../../lib/store-access", () => ({
   useUiState: () => ({ phase: "ready", scen: "", followMode: screen.mode, pill: "tout", filter: "" }),

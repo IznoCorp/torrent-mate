@@ -180,3 +180,17 @@ export function nextSearchTime(cron: string, now: Date): string | null {
     minute: String(minute).padStart(2, "0"),
   });
 }
+
+/**
+ * The clock time of the next search the server states, in the browser's local time.
+ *
+ * @param instant The ISO 8601 instant with its offset, as `nextSearch` carries it.
+ * @returns The hour and minute, phrased as the cadence sentence phrases its hours.
+ */
+export function nextSearchClock(instant: string): string {
+  const at = new Date(instant);
+  return i18next.t("surfaces.clock.timeOfDay", {
+    hour: at.getHours(),
+    minute: String(at.getMinutes()).padStart(2, "0"),
+  });
+}

@@ -1076,6 +1076,7 @@
       "tmdbSimilar": "similar titles",
       "tmdbEnd": " of what you own, filtered against your library and your follows. It is less fine-grained, and it says so.\n             ",
       "nextSearch": "Next search at {{at}}.",
+      "nextSearchNone": "No automatic search is scheduled.",
       "searchesOne": "{{count}} search",
       "searchesMany": "{{count}} searches",
       "emptyFilter": "No follow contains “{{term}}”.",

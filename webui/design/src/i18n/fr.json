@@ -1076,6 +1076,7 @@
       "tmdbSimilar": "similaires",
       "tmdbEnd": " de ce que vous possédez, filtrés de votre médiathèque et de vos suivis. C'est moins fin, et c'est dit.\n             ",
       "nextSearch": "Prochaine recherche à {{at}}.",
+      "nextSearchNone": "Aucune recherche automatique programmée.",
       "searchesOne": "{{count}} recherche",
       "searchesMany": "{{count}} recherches",
       "emptyFilter": "Aucun suivi ne contient « {{term}} ».",
