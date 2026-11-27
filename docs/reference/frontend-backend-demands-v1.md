@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 109 |
-| operations v1 serves | 36 |
-| required and not served | 73 |
+| operations v1 serves | 45 |
+| required and not served | 64 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -41,13 +41,10 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | operation | operationId | what it is for |
 | --- | --- | --- |
 | `DELETE /api/v1/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
-| `DELETE /api/v1/acquisition/followed/{followedId}` | `deleteFollow` | Stop following |
 | `DELETE /api/v1/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/v1/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
 | `DELETE /api/v1/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |
 | `GET /api/v1/acquisition/downloads` | `readDownloads` | Every entry the download client holds, one per tracker it is active on |
-| `GET /api/v1/acquisition/followed` | `readFollows` | Everything being followed |
-| `GET /api/v1/acquisition/followed/{followedId}/completeness` | `readFollowCompleteness` | What has aired against what the library holds, season by season, for one follow |
 | `GET /api/v1/acquisition/journeys/{infoHash}` | `readJourney` | One medium's ladder, rung by rung |
 | `GET /api/v1/acquisition/obligations` | `readObligations` | Every seeding obligation, open or ended |
 | `GET /api/v1/acquisition/status` | `readAcquisitionStatus` | The grab cadence, and when the next search runs |
@@ -76,18 +73,14 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/v1/system/services` | `readServices` | The services, and whether each answers |
 | `GET /api/v1/trackers` | `readTrackers` | Every configured tracker, its ratio, volumes, trend, alert threshold and health |
-| `PATCH /api/v1/acquisition/followed/{followedId}` | `updateFollow` | Pause or resume a follow |
 | `POST /api/v1/acquisition/detect` | `runDetection` | Look now for everything that could be taken |
-| `POST /api/v1/acquisition/followed` | `createFollow` | Follow a title |
 | `POST /api/v1/acquisition/followed/{followedId}/grab` | `grabForFollow` | Claim now what the last search found for one follow |
-| `POST /api/v1/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/v1/acquisition/followed/{followedId}/search` | `searchForFollow` | Search now for one follow |
 | `POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` | `grabSeasonForFollow` | Take one season of a medium, as a one-off request when it is not followed |
 | `POST /api/v1/acquisition/journeys/{infoHash}/closure/seen` | `dismissClosure` | Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4) |
 | `POST /api/v1/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/v1/acquisition/journeys/{infoHash}/requeue` | `requeueJourney` | Put one journey back in the queue |
 | `POST /api/v1/acquisition/journeys/{infoHash}/rescrape` | `rescrapeJourney` | Re-scrape one journey's tracked item |
-| `POST /api/v1/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
 | `POST /api/v1/config/restart-web` | `restartWeb` | Restart the web process so a change takes |
 | `POST /api/v1/decisions/{decisionId}/dismiss` | `dismissDecision` | Leave the folder as it is |
 | `POST /api/v1/decisions/{decisionId}/reopen` | `reopenDecision` | Re-open a settled decision for arbitration, with the candidates a provider search finds |
@@ -107,8 +100,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/torrents/{infoHash}/cross-seed/{tracker}/cut` | `cutCrossSeed` | Cut one torrent's cross-seed on one tracker |
 | `POST /api/v1/torrents/{infoHash}/cross-seed/{tracker}/upload` | `uploadCrossSeed` | Create a torrent from one origin's files and publish it on one tracker |
 | `POST /api/v1/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
-| `PUT /api/v1/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
-| `PUT /api/v1/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
 | `PUT /api/v1/config/files/{name}` | `updateConfigurationFile` | Write one configuration file |
 | `PUT /api/v1/config/secrets` | `updateSecrets` | Set secret values |
 | `PUT /api/v1/notifications/preferences/{type}` | `updateNotificationPreference` | Switch one notification type on or off for the signed-in account |

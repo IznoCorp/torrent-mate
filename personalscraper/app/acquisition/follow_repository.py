@@ -26,6 +26,7 @@ from personalscraper.app.acquisition.model import (
     Scope,
     Via,
 )
+from personalscraper.app.library.identity import Provider
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
@@ -122,8 +123,12 @@ class FollowRepository:
         """Load the follow of the medium *key* names, removed or not.
 
         TVDB and TMDB number films and shows apart: the kind, when the caller knows it, keeps a
-        film's key from finding a show (and a film named ``tvdb:`` findable at all). Without it,
-        the store's lookup takes a TVDB id for a show's and matches a TMDB id in either kind.
+        film's key from finding a show (and a film named ``tvdb:`` findable at all). A wire key
+        carries no kind, so a caller without one learns it from the rows: the store's lookup takes
+        a TVDB id for a show's and matches a TMDB id in either kind, and a TVDB key no show holds is
+        tried again as a film's (a film with no TMDB id is named ``tvdb:``, and no other key finds it).
+        A show named by a TVDB id wins over a film named by the same one. The fallback refuses as
+        any lookup does: two films answering the key are :class:`FollowAmbiguous`, never one picked.
 
         Args:
             key: The medium's key.
@@ -136,6 +141,8 @@ class FollowRepository:
             FollowAmbiguous: Two or more rows hold the key's id.
         """
         rows = self._store.follow.find_all_by_ref(key.ref(), kind=kind)
+        if not rows and kind is None and key.provider is Provider.TVDB:
+            rows = self._store.follow.find_all_by_ref(key.ref(), kind="movie")
         if not rows:
             return None
         if len(rows) > 1:

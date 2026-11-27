@@ -14,6 +14,7 @@ import {
   cadenceSentence,
   followFraction,
   followGroups,
+  followYear,
   followStatusLabel,
   gridBadge,
   nextSearchTime,
@@ -104,5 +105,17 @@ describe("cadenceSentence and nextSearchTime", () => {
     expect(nextSearchTime("20 3,15 * * *", new Date(2026, 7, 10, 12, 0))).toBe("15 h 20");
     expect(nextSearchTime("20 3,15 * * *", new Date(2026, 7, 10, 15, 20))).toBe("3 h 20");
     expect(nextSearchTime("20 3,15 * * *", new Date(2026, 7, 10, 15, 19))).toBe("15 h 20");
+  });
+});
+
+describe("followYear", () => {
+  it("writes the year a follow is dated by", () => {
+    expect(followYear(series("up_to_date"))).toBe("2023");
+    expect(followYear({ year: "2023" })).toBe("2023");
+  });
+
+  it("writes nothing for a follow nothing dates, never « null »", () => {
+    expect(followYear({ year: null })).toBe("");
+    expect(followYear({ year: "" })).toBe("");
   });
 });

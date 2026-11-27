@@ -395,6 +395,7 @@ export type MockDials = {
     owedUntil?: number | null,
   ) => void;
   setIncompleteYearless: (title: string) => void;
+  setFollowYearless: (title: string) => void;
 };
 
 /** Those dials, over the layer's own state. */
@@ -446,6 +447,11 @@ export const mockDials: MockDials = {
   },
   setIncompleteYearless: (title: string) => {
     mockState().yearlessIncomplete.push(title);
+  },
+  setFollowYearless: (title: string) => {
+    // A FOLLOW WHOSE YEAR NOTHING STATES is served `year: null` (the contract's `Follow.year` admits it).
+    const follow = mockState().follows.find((one) => one.title === title);
+    if (follow !== undefined) follow.year = null;
   },
   setRunInProgress: (going: boolean) => {
     // THE SNAPSHOT HOLDS NO RUN STILL GOING: this is its first real pipeline

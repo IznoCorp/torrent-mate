@@ -9,6 +9,7 @@ starts a follow taking work asks the supervisor for one ``prime`` of it; the ask
 
 from __future__ import annotations
 
+import dataclasses
 import threading
 import time
 from collections.abc import Iterator
@@ -27,6 +28,7 @@ from personalscraper.app.acquisition.follow_repository import FollowRepository
 from personalscraper.app.acquisition.follows import FollowService
 from personalscraper.app.acquisition.model import AcquisitionKey, QualityFloor
 from personalscraper.app.errors import AppForbidden, AppNotFound, AppRefusal, RefusalCode
+from personalscraper.app.supervisor.model import RunTrigger
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 from tests.conftest import LoggedEvents
@@ -566,6 +568,15 @@ class TestReassign:
 
         assert world.requesters(row) == {BOB: ("follow", 720, False)}
 
+    def test_a_reassign_answers_the_requesters_after_the_move(self, world: FollowWorld) -> None:
+        """Alice moved onto Bob, who joins; Carol keeps her ask: the answer names Carol and Bob, by name."""
+        _create(world, ALICE)
+        _create(world, CAROL)
+
+        after = world.follows.reassign(actor(ERIN), "follow", SHOW, ALICE, BOB)
+
+        assert sorted((one.id, one.name) for one in after) == [(BOB, "Bob"), (CAROL, "Carol")]
+
     def test_a_reassign_that_turns_the_follow_on_primes_it(self, world: FollowWorld) -> None:
         """Alice alone paused it; moved onto Bob, who paused nothing, it takes work again: one prime."""
         row = _create(world, ALICE)
@@ -741,6 +752,51 @@ class TestReprojectionPrimes:
         world.follows.reproject(SYSTEM)
 
         assert world.primes() == [row]
+
+
+class TestSystemPrimes:
+    """A prime nobody asked for is asked by the system, and its trigger says so (review-934, carried to P12)."""
+
+    def test_a_reassign_primes_as_the_system_whatever_the_reassigning_actor_holds(self, world: FollowWorld) -> None:
+        """Alice alone paused it; Erin, who may reassign but pilots only what she asked for, moves it onto Bob.
+
+        The prime is the follow's consequence, not Erin's act: it is asked as the system actor
+        (as the rights' re-projection asks it) and carries the system's trigger, so it is neither
+        refused for lack of ``acquisition.pilot.any`` nor logged as the web's.
+        """
+        row = _create(world, ALICE)
+        world.settle_all()
+        world.follows.set_pause(actor(ALICE), SHOW, True)
+        reassigner = dataclasses.replace(actor(ERIN), role_rights=MEMBER_RIGHTS | {Right.ACQUISITION_REASSIGN})
+
+        world.follows.reassign(reassigner, "follow", SHOW, ALICE, BOB)
+
+        assert world.primes() == [row]
+        (request,) = world.runs.queue_view().acquisition_queued
+        assert (request.asked_by, request.trigger) == (OWNER, RunTrigger.SYSTEM)
+
+    def test_a_reprojection_prime_carries_the_system_trigger(self, world: FollowWorld) -> None:
+        """The prime a re-projection asks is the system's in its trigger as well as its asker."""
+        bus = EventBus()
+        world.follows.subscribe(bus)
+        _create(world, ALICE)
+        world.settle_all()
+        world.follows.set_pause(actor(ALICE), SHOW, True)
+        world.app_store.roles.update_role(
+            MEMBER, name=None, rights=MEMBER_RIGHTS - {Right.ACQUISITION_PAUSE_OWN}, now=2.0
+        )
+
+        bus.emit(AccountRightsChanged(account_ids=(ALICE,), cause=RightsChangeCause.ROLE_RIGHTS_CHANGED))
+
+        (request,) = world.runs.queue_view().acquisition_queued
+        assert (request.asked_by, request.trigger) == (OWNER, RunTrigger.SYSTEM)
+
+    def test_a_prime_asked_for_an_actors_own_write_stays_the_webs(self, world: FollowWorld) -> None:
+        """A create is the person's act: its prime is asked by them, under the web's trigger."""
+        _create(world, ALICE)
+
+        (request,) = world.runs.queue_view().acquisition_queued
+        assert (request.asked_by, request.trigger) == (ALICE, RunTrigger.WEB)
 
 
 def _stored_requester(followed_id: int, account: AccountId, *, via: str) -> FollowRequester:

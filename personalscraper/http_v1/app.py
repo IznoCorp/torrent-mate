@@ -28,6 +28,7 @@ from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
 from personalscraper.http_v1.routes import (
     accounts,
+    acquisition,
     acquisition_reads,
     authentication,
     library,
@@ -177,6 +178,7 @@ def create_v1_app(
     include_v1_router(app, media.router)
     include_v1_router(app, library.router)
     include_v1_router(app, pipeline.router)
+    include_v1_router(app, acquisition.router)
     include_v1_router(app, acquisition_reads.router)
     return app
 

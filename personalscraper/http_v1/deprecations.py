@@ -28,15 +28,22 @@ class V0Twin:
         successor: The v1 path template, prefix included (e.g. ``/api/v1/version``), as
             v1 serves it; its ``{name}`` segments are filled from the v0 request.
         since: The day the twin was registered; the ``Deprecation`` header's date.
+        link: The ``Link`` target when the v0 request's own parameters cannot fill the successor, ``None``
+            to fill it. A v0 follow is named by its rowid and v1's by the medium's key, which only the
+            store can turn into the other: such a twin names the collection the key is read from.
     """
 
     operation_id: str
     successor: str
     since: date
+    link: str | None = None
 
 
 #: A ``{name}`` segment of a successor path.
 _SEGMENT: Final[re.Pattern[str]] = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+#: The v1 collection a follow's key is read from: the ``Link`` of the v0 routes that name a follow by its rowid.
+_FOLLOWS: Final = "/api/v1/acquisition/followed"
 
 #: ``(METHOD, v0 path template)`` → its v1 twin.
 V0_TWINS: Final[Mapping[tuple[str, str], V0Twin]] = {
@@ -46,6 +53,20 @@ V0_TWINS: Final[Mapping[tuple[str, str], V0Twin]] = {
     ("POST", "/api/auth/login"): V0Twin("signIn", "/api/v1/auth/login", date(2026, 10, 3)),
     ("GET", "/api/media/{provider}/{provider_id}"): V0Twin(
         "readMediaSheet", "/api/v1/media/{provider}/{providerId}", date(2026, 10, 4)
+    ),
+    ("GET", "/api/acquisition/followed"): V0Twin("readFollows", "/api/v1/acquisition/followed", date(2026, 11, 27)),
+    ("POST", "/api/acquisition/followed"): V0Twin("createFollow", "/api/v1/acquisition/followed", date(2026, 11, 27)),
+    ("PATCH", "/api/acquisition/followed/{followed_id}"): V0Twin(
+        "updateFollow", "/api/v1/acquisition/followed/{followedId}", date(2026, 11, 27), _FOLLOWS
+    ),
+    ("DELETE", "/api/acquisition/followed/{followed_id}"): V0Twin(
+        "deleteFollow", "/api/v1/acquisition/followed/{followedId}", date(2026, 11, 27), _FOLLOWS
+    ),
+    ("GET", "/api/acquisition/followed/{followed_id}/completeness"): V0Twin(
+        "readFollowCompleteness",
+        "/api/v1/acquisition/followed/{followedId}/completeness",
+        date(2026, 11, 27),
+        _FOLLOWS,
     ),
     ("GET", "/api/acquisition/search"): V0Twin("searchProviders", "/api/v1/acquisition/search", date(2026, 11, 27)),
     ("GET", "/api/acquisition/lookup"): V0Twin(
@@ -82,6 +103,19 @@ def _successor_uri(twin: V0Twin, path_params: Mapping[str, Any]) -> str:
     return _SEGMENT.sub(fill, twin.successor)
 
 
+def _link_target(twin: V0Twin, path_params: Mapping[str, Any]) -> str:
+    """The URI a twinned response's ``Link`` names: the twin's own, else the successor filled from the request.
+
+    Args:
+        twin: The registered twin.
+        path_params: The path parameters the router matched on the v0 request.
+
+    Returns:
+        The twin's ``link`` when it sets one, else :func:`_successor_uri`.
+    """
+    return twin.link if twin.link is not None else _successor_uri(twin, path_params)
+
+
 def _deprecation_headers(twin: V0Twin, path_params: Mapping[str, Any]) -> list[tuple[bytes, bytes]]:
     """The two raw headers a twinned v0 response carries.
 
@@ -95,7 +129,7 @@ def _deprecation_headers(twin: V0Twin, path_params: Mapping[str, Any]) -> list[t
     epoch = int(datetime(twin.since.year, twin.since.month, twin.since.day, tzinfo=UTC).timestamp())
     return [
         (b"deprecation", f"@{epoch}".encode()),
-        (b"link", f'<{_successor_uri(twin, path_params)}>; rel="successor-version"'.encode()),
+        (b"link", f'<{_link_target(twin, path_params)}>; rel="successor-version"'.encode()),
     ]
 
 
